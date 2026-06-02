@@ -16,7 +16,7 @@ export function TopBar({ persona, setPersona }) {
   const close = () => { setPOpen(false); setLOpen(false); setAOpen(false); };
 
   return (
-    <header className="grad-sea text-white rounded-2xl px-4 py-3 mb-4 flex items-center justify-between relative z-30">
+    <header className="glass-dark text-white rounded-2xl px-4 py-3 mb-4 flex items-center justify-between relative z-30 ring-1 ring-white/10 shadow-lift sticky top-2">
       <div className="flex items-center gap-3">
         <TenantLogo size={38} />
         <div>
@@ -104,19 +104,20 @@ export function Sidebar({ persona, page, setPage }) {
   const items = NAV[persona];
   const p = PERSONAS.find((x) => x.id === persona);
   return (
-    <aside className="w-60 shrink-0 bg-white ring-1 ring-slate-200 rounded-2xl p-3 h-max sticky top-4 hidden md:block">
+    <aside className="w-60 shrink-0 bg-white ring-1 ring-slate-200/80 rounded-2xl p-3 h-max sticky top-[86px] hidden md:block shadow-soft">
       <div className="px-2 py-2 flex items-center gap-2">
-        <span className="w-6 h-6 rounded-lg grid place-items-center text-white" style={{ background: p.color }}>{Icon[p.icon]({ size: 13 })}</span>
+        <span className="w-6 h-6 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: p.color }}>{Icon[p.icon]({ size: 13 })}</span>
         <span className="text-[12px] font-semibold uppercase tracking-wider text-slate-500">{p.label}</span>
       </div>
-      <nav className="space-y-1 mt-1">
+      <nav className="space-y-0.5 mt-1">
         {items.map((it) => {
           const IconC = Icon[it.icon];
           const active = page === it.k;
           return (
             <button key={it.k} onClick={() => setPage(it.k)}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition ${active ? "bg-navy-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
-              {IconC && <IconC size={17} />}
+              className={`group relative w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-600 hover:bg-slate-100 hover:text-navy-900"}`}>
+              <span className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-full bg-teal-400 transition-all duration-200 ${active ? "h-5 opacity-100" : "h-0 opacity-0"}`} />
+              {IconC && <IconC size={17} className={active ? "" : "text-slate-400 group-hover:text-teal-600 transition-colors"} />}
               <span className="flex-1 text-left">{it.label}</span>
               {it.badge === "Future" && <Badge tone="future">Future</Badge>}
             </button>
@@ -139,8 +140,8 @@ function NavExtra({ page, setPage, k, icon, label }) {
   const active = page === k;
   return (
     <button onClick={() => setPage(k)}
-      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition ${active ? "bg-slaice-600 text-white" : "text-slate-600 hover:bg-slate-100"}`}>
-      <IconC size={17} /><span className="flex-1 text-left">{label}</span>
+      className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${active ? "bg-slaice-600 text-white shadow-lift" : "text-slate-600 hover:bg-slate-100 hover:text-slaice-700"}`}>
+      <IconC size={17} className={active ? "" : "text-slate-400"} /><span className="flex-1 text-left">{label}</span>
     </button>
   );
 }
@@ -176,11 +177,12 @@ export function MobileNav({ persona, page, setPage }) {
 /* ---------- Toasts ---------- */
 export function Toasts({ items }) {
   return (
-    <div className="fixed bottom-4 right-4 z-[70] space-y-2 w-[330px]">
+    <div className="fixed bottom-4 right-4 z-[70] space-y-2.5 w-[340px] max-w-[calc(100vw-2rem)]">
       {items.map((t) => (
-        <div key={t.id} className="bg-navy-900 text-white rounded-xl px-4 py-3 text-sm shadow-float ring-1 ring-white/10 animate-fade-up flex items-start gap-2">
-          <span className="text-gold-400 shrink-0 mt-0.5">{Icon.bolt({ size: 16 })}</span>
-          <span>{t.msg}</span>
+        <div key={t.id} role="status" className="glass-dark text-white rounded-xl pl-3 pr-4 py-3 text-sm shadow-float ring-1 ring-white/15 animate-slide-in-right flex items-start gap-2.5 overflow-hidden relative">
+          <span className="w-7 h-7 rounded-lg bg-gold-500/20 text-gold-400 grid place-items-center shrink-0">{Icon.bolt({ size: 15 })}</span>
+          <span className="flex-1 leading-snug pt-0.5">{t.msg}</span>
+          <span className="absolute bottom-0 left-0 h-0.5 w-full bg-gold-400/70" style={{ animation: "toastprogress 4.2s linear forwards", transformOrigin: "left" }} />
         </div>
       ))}
     </div>

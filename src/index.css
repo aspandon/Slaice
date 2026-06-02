@@ -8,20 +8,53 @@ body,
   height: 100%;
   margin: 0;
 }
+html {
+  scroll-behavior: smooth;
+}
 body {
-  background: #f1f5f9;
-  font-family: "IBM Plex Sans", sans-serif;
+  /* Subtle ambient backdrop instead of a flat fill — feels more spatial. */
+  background-color: #f6f8fb;
+  background-image: radial-gradient(900px 480px at 100% -8%, rgba(45, 212, 191, 0.10), transparent 60%),
+    radial-gradient(820px 420px at -6% 6%, rgba(58, 71, 204, 0.08), transparent 55%);
+  background-attachment: fixed;
+  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "cv11", "ss01", "calt", "liga";
+  letter-spacing: -0.01em;
   color: #1e293b;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Accessible keyboard focus (WCAG 2.4.7) — visible only for keyboard users. */
+:focus-visible {
+  outline: 2px solid #0d9488;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+*:focus:not(:focus-visible) {
+  outline: none;
+}
+
+::selection {
+  background: rgba(13, 148, 136, 0.22);
+  color: #0b2545;
 }
 
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 11px;
+  height: 11px;
 }
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
-  border-radius: 6px;
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+  background-clip: padding-box;
+  border: 3px solid transparent;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
@@ -42,11 +75,58 @@ body {
     background: radial-gradient(900px 500px at 80% -20%, rgba(242, 183, 5, 0.25), transparent 55%),
       linear-gradient(150deg, #2f3bb3 0%, #3a47cc 55%, #4a57e0 120%);
   }
+  /* Frosted-glass surface for floating bars/menus. */
+  .glass {
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: saturate(180%) blur(14px);
+    -webkit-backdrop-filter: saturate(180%) blur(14px);
+  }
+  .glass-dark {
+    background: linear-gradient(135deg, rgba(11, 37, 69, 0.92), rgba(19, 49, 92, 0.86));
+    backdrop-filter: saturate(160%) blur(12px);
+    -webkit-backdrop-filter: saturate(160%) blur(12px);
+  }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
   .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+  /* Loading skeleton shimmer. */
+  .skeleton {
+    background: linear-gradient(90deg, #eef2f7 25%, #e2e8f0 37%, #eef2f7 63%);
+    background-size: 400% 100%;
+    animation: shimmer 1.4s ease infinite;
+  }
+  @keyframes shimmer {
+    0% {
+      background-position: 100% 0;
+    }
+    100% {
+      background-position: 0 0;
+    }
+  }
+  @keyframes toastprogress {
+    from {
+      transform: scaleX(1);
+    }
+    to {
+      transform: scaleX(0);
+    }
+  }
+}
+
+/* Respect users who prefer reduced motion (WCAG 2.3.3). */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
   }
 }

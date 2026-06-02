@@ -18,18 +18,23 @@ export function AuthGate() {
       {/* left: tenant-branded hero */}
       <div className="relative hidden lg:block">
         <BeachBackdrop pos="absolute" className="inset-0 rounded-none">
-          <div className="absolute inset-0 bg-navy-950/35" />
+          <div className="absolute inset-0 bg-gradient-to-tr from-navy-950/75 via-navy-950/35 to-transparent" />
           <div className="absolute inset-0 p-12 flex flex-col justify-between text-white">
-            <div className="flex items-center gap-3">
-              <TenantLogo size={44} />
+            <div className="flex items-center gap-3 animate-fade-down">
+              <span className="animate-floaty"><TenantLogo size={44} /></span>
               <div>
                 <div className="font-display font-bold text-lg">{TENANT.name}</div>
                 <div className="text-[12px] text-white/70">{TENANT.subdomain}</div>
               </div>
             </div>
-            <div>
-              <h1 className="font-display font-bold text-5xl leading-tight drop-shadow">Relax.<br />Reserve.<br />Repeat.</h1>
-              <p className="mt-3 text-white/80 max-w-sm">Book your sunbed ahead, skip the queues, and enjoy a seamless beach day at {TENANT.place}.</p>
+            <div className="animate-fade-up">
+              <h1 className="font-display font-bold text-5xl leading-[1.04] drop-shadow-lg">Relax.<br />Reserve.<br />Repeat.</h1>
+              <p className="mt-4 text-white/80 max-w-sm">Book your sunbed ahead, skip the queues, and enjoy a seamless beach day at {TENANT.place}.</p>
+              <ul className="mt-6 space-y-2.5 text-[13px] text-white/85">
+                {["Pick your exact spot on a live beach map", "Instant QR — straight to the gate", "Digital receipts, automatically"].map((f) => (
+                  <li key={f} className="flex items-center gap-2.5"><span className="w-5 h-5 rounded-full bg-teal-500/30 ring-1 ring-teal-300/50 grid place-items-center text-teal-200"><Icon.check size={12} /></span>{f}</li>
+                ))}
+              </ul>
             </div>
             <div className="flex items-center gap-2 text-[12px] text-white/70">
               powered by <SlaiceLogo size={22} withText light />
