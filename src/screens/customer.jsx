@@ -92,7 +92,7 @@ export function CustomerBooking() {
   };
 
   return (
-    <div className="animate-fade-up">
+    <div>
       {/* ===== FULL-VIEWPORT BEACH (fixed background) ===== */}
       <div className="fixed inset-0 z-0">
         <div className="relative w-full h-full">
