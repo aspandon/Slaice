@@ -10,12 +10,12 @@ export const ZONES = [
 
 // Angled cluster block positions across the sand (full-beach overview), matching the video.
 export const ZONE_BLOCKS = [
-  { id: "akanthus", left: "1.5%", top: "55%", w: "15%", rot: -6 },
-  { id: "central", left: "18%", top: "58%", w: "16%", rot: -3 },
-  { id: "macaw", left: "37.5%", top: "60%", w: "9%", rot: -1 },
-  { id: "bestbuy", left: "48.5%", top: "59%", w: "15%", rot: 2 },
-  { id: "main", left: "65%", top: "57%", w: "15%", rot: 5 },
-  { id: "bolivar", left: "82%", top: "54%", w: "15.5%", rot: 7 },
+  { id: "akanthus", left: "1.5%", top: "72%", w: "15%", rot: -6 },
+  { id: "central", left: "18%", top: "75%", w: "16%", rot: -3 },
+  { id: "macaw", left: "37.5%", top: "77%", w: "9%", rot: -1 },
+  { id: "bestbuy", left: "48.5%", top: "76%", w: "15%", rot: 2 },
+  { id: "main", left: "65%", top: "74%", w: "15%", rot: 5 },
+  { id: "bolivar", left: "82%", top: "71%", w: "15.5%", rot: 7 },
 ];
 
 // Build a deterministic sunbed grid for a zone.
