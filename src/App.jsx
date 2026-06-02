@@ -47,7 +47,14 @@ export default function App() {
       {!signedIn ? (
         <AuthGate />
       ) : (
-        <div className="w-full px-3 sm:px-5 py-4">
+        <div className="w-full px-3 sm:px-5 py-4 relative">
+          {persona === "customer" && (
+            <div
+              aria-hidden="true"
+              className="fixed inset-0 -z-10 pointer-events-none bg-cover bg-center"
+              style={{ backgroundImage: `url(${import.meta.env.BASE_URL}beach.jpeg)` }}
+            />
+          )}
           <TopBar persona={persona} setPersona={setPersona} />
           <MobilePersona persona={persona} setPersona={setPersona} />
           <MobileNav persona={persona} page={page} setPage={setPage} />

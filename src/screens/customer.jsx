@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field } from "../components/ui.jsx";
 import { QR } from "../components/charts.jsx";
-import { Sunbed, BeachBackdrop } from "../components/Beach.jsx";
+import { Sunbed, BeachBackdrop, ParkingBackdrop, LockerBackdrop } from "../components/Beach.jsx";
 import { ZONES, ZONE_BLOCKS, makeGrid, dateStrip, TENANT } from "../data/beach.js";
 import { useApp } from "../app/store.jsx";
 
@@ -68,25 +68,32 @@ export function CustomerBooking() {
   const { go, toast, cart, addToCart, removeFromCart } = useApp();
   const [step, setStep] = useState("zones"); // zones | grid
   const [zoneId, setZoneId] = useState(null);
-  const [date, setDate] = useState(0);
+  const [selDates, setSelDates] = useState([0]); // multi-select date indices
   const [sel, setSel] = useState([]); // {id, zone, price}
   const [extras, setExtras] = useState({ ticket: false, locker: false });
   const dates = useMemo(dateStrip, []);
   const zone = ZONES.find((z) => z.id === zoneId) || null;
   const grid = useMemo(() => (zone ? makeGrid(zone) : []), [zoneId]);
 
+  const toggleDate = (i) => setSelDates((d) => (d.includes(i) ? (d.length > 1 ? d.filter((x) => x !== i) : d) : [...d, i].sort((a, b) => a - b)));
   const addBed = (id, price) => setSel((c) => (c.find((x) => x.id === id) ? c : [...c, { id, zone: zone.name, price }]));
   const rm = (id) => setSel((c) => c.filter((x) => x.id !== id));
-  const sunTotal = sel.reduce((a, b) => a + b.price, 0);
-  const extrasTotal = (extras.ticket ? 10 : 0) + (extras.locker ? 5 : 0);
+  const dayCount = selDates.length;
+  const sunTotal = sel.reduce((a, b) => a + b.price, 0) * dayCount;
+  const extrasTotal = ((extras.ticket ? 10 : 0) + (extras.locker ? 5 : 0)) * dayCount;
   const total = sunTotal + extrasTotal;
   const focused = step === "grid" && zone;
 
   const reserve = () => {
-    sel.forEach((b) => addToCart({ kind: "sunbed", id: b.id, label: `Sunbed ${b.id}`, sub: `${b.zone} · ${dates[date].label}`, price: b.price }));
-    if (extras.ticket) addToCart({ kind: "ticket", id: "ADULT", label: "Entry ticket — Adult", sub: "Cross-sell", price: 10 });
-    if (extras.locker) addToCart({ kind: "locker", id: "LK", label: "Day locker", sub: "Cross-sell", price: 5 });
-    toast(`${sel.length} sunbed${sel.length > 1 ? "s" : ""} added to your basket.`);
+    const dateLabels = selDates.map((di) => dates[di].label).join(", ");
+    selDates.forEach((di) => {
+      const d = dates[di];
+      sel.forEach((b) => addToCart({ kind: "sunbed", id: `${b.id}@${di}`, label: `Sunbed ${b.id}`, sub: `${b.zone} · ${d.label}`, price: b.price }));
+      if (extras.ticket) addToCart({ kind: "ticket", id: `ADULT@${di}`, label: "Entry ticket — Adult", sub: `Cross-sell · ${d.label}`, price: 10 });
+      if (extras.locker) addToCart({ kind: "locker", id: `LK@${di}`, label: "Day locker", sub: `Cross-sell · ${d.label}`, price: 5 });
+    });
+    const n = sel.length;
+    toast(`${n} sunbed${n > 1 ? "s" : ""} × ${dayCount} day${dayCount > 1 ? "s" : ""} added (${dateLabels}).`);
     setSel([]);
     setExtras({ ticket: false, locker: false });
   };
@@ -178,14 +185,21 @@ export function CustomerBooking() {
             <div className="flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2.5 text-slate-400 text-sm"><Icon.search size={16} /> Find your perfect spot</div>
 
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5 flex items-center gap-1"><Icon.calendar size={12} /> Date</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5 flex items-center justify-between">
+                <span className="flex items-center gap-1"><Icon.calendar size={12} /> Dates · pick one or more</span>
+                <span className="text-slate-500 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
+              </div>
               <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-                {dates.slice(0, 5).map((d, i) => (
-                  <button key={i} onClick={() => setDate(i)} className={`px-2.5 py-1.5 rounded-lg text-center min-w-[60px] ring-1 transition ${date === i ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"}`}>
-                    <div className="text-[12px] font-semibold leading-tight">{d.label}</div>
-                    <div className={`text-[10px] ${date === i ? "text-white/70" : "text-slate-400"}`}>{d.sub}</div>
-                  </button>
-                ))}
+                {dates.slice(0, 7).map((d, i) => {
+                  const on = selDates.includes(i);
+                  return (
+                    <button key={i} onClick={() => toggleDate(i)} className={`px-2.5 py-1.5 rounded-lg text-center min-w-[60px] ring-1 transition relative ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"}`}>
+                      <div className="text-[12px] font-semibold leading-tight">{d.label}</div>
+                      <div className={`text-[10px] ${on ? "text-white/70" : "text-slate-400"}`}>{d.sub}</div>
+                      {on && <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-teal-500 text-white grid place-items-center"><Icon.check size={9} /></span>}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -265,11 +279,11 @@ export function CustomerBooking() {
 
           <div className="border-t border-white/40 p-4 bg-white/40 backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2 text-sm">
-              <span className="text-slate-600">{sel.length} sunbed{sel.length !== 1 ? "s" : ""}{extrasTotal ? " + extras" : ""}</span>
+              <span className="text-slate-600">{sel.length} sunbed{sel.length !== 1 ? "s" : ""} × {dayCount} day{dayCount > 1 ? "s" : ""}{extrasTotal ? " + extras" : ""}</span>
               <span className="font-bold text-navy-900 tnum text-lg">€{total}</span>
             </div>
             <Btn variant="dark" full size="lg" disabled={!sel.length} onClick={reserve}>
-              {sel.length ? `Add ${sel.length} sunbed${sel.length > 1 ? "s" : ""} to basket` : "Select sunbeds to add to basket"}
+              {sel.length ? `Add ${sel.length}×${dayCount} to basket` : "Select sunbeds to add to basket"}
             </Btn>
             {cart.length > 0 && (
               <Btn variant="teal" full size="lg" className="mt-2" icon={Icon.card} onClick={() => go("customer", "checkout")}>
@@ -359,9 +373,9 @@ export function CustomerTicket() {
 
 /* ============ DAY LOCKER ============ */
 export function CustomerLocker() {
-  const { go, addToCart, clearCart, toast } = useApp();
+  const { addToCart, toast } = useApp();
   const PRICE = 5;
-  const [date, setDate] = useState(0);
+  const [selDates, setSelDates] = useState([0]);
   const dates = useMemo(dateStrip, []);
   const banks = ["A", "B", "C", "D", "E"];
   const lockers = useMemo(() => {
@@ -371,48 +385,73 @@ export function CustomerLocker() {
   }, []);
   const [sel, setSel] = useState([]);
   const toggle = (id, taken) => { if (taken) return; setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id])); };
-  const total = sel.length * PRICE;
+  const toggleDate = (i) => setSelDates((d) => (d.includes(i) ? (d.length > 1 ? d.filter((x) => x !== i) : d) : [...d, i].sort((a, b) => a - b)));
+  const dayCount = selDates.length;
+  const total = sel.length * PRICE * dayCount;
   const free = lockers.filter((l) => !l.taken).length;
-  const reserve = () => { sel.forEach((id) => addToCart({ kind: "locker", id, label: `Locker ${id}`, sub: dates[date].label, price: PRICE })); toast(`${sel.length} locker${sel.length > 1 ? "s" : ""} added to your basket.`); setSel([]); };
+  const reserve = () => {
+    selDates.forEach((di) => {
+      const d = dates[di];
+      sel.forEach((id) => addToCart({ kind: "locker", id: `${id}@${di}`, label: `Locker ${id}`, sub: d.label, price: PRICE }));
+    });
+    toast(`${sel.length} locker${sel.length > 1 ? "s" : ""} × ${dayCount} day${dayCount > 1 ? "s" : ""} added to your basket.`);
+    setSel([]);
+  };
 
   return (
-    <div className="animate-fade-up grid lg:grid-cols-[1fr_320px] gap-5">
+    <div className="grid lg:grid-cols-[1fr_320px] gap-5">
       <div>
-        <PageHead title="Day Locker" sub="Keep your valuables safe — reserve a locker for the day." badge={<Badge tone="mvp">MVP</Badge>} />
         <Card className="p-4 mb-4">
-          <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400 mb-2 flex items-center gap-1"><Icon.calendar size={13} /> Date</div>
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400 mb-2 flex items-center justify-between">
+            <span className="flex items-center gap-1"><Icon.calendar size={13} /> Dates · pick one or more</span>
+            <span className="text-slate-500 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
+          </div>
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            {dates.slice(0, 5).map((d, i) => (
-              <button key={i} onClick={() => setDate(i)} className={`px-3.5 py-2 rounded-xl text-center min-w-[78px] ring-1 transition ${date === i ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"}`}>
-                <div className="text-[13px] font-semibold">{d.label}</div><div className={`text-[11px] ${date === i ? "text-white/70" : "text-slate-400"}`}>{d.sub}</div>
-              </button>
-            ))}
+            {dates.slice(0, 7).map((d, i) => {
+              const on = selDates.includes(i);
+              return (
+                <button key={i} onClick={() => toggleDate(i)} className={`relative px-3.5 py-2 rounded-xl text-center min-w-[78px] ring-1 transition ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"}`}>
+                  <div className="text-[13px] font-semibold">{d.label}</div><div className={`text-[11px] ${on ? "text-white/70" : "text-slate-400"}`}>{d.sub}</div>
+                  {on && <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center"><Icon.check size={10} /></span>}
+                </button>
+              );
+            })}
           </div>
         </Card>
-        <div className="flex items-center gap-4 text-[11px] text-slate-500 mb-2 px-1 flex-wrap">
-          <span className="flex items-center gap-1.5"><i className="w-4 h-4 rounded bg-teal-500/80 inline-block" />Available</span>
-          <span className="flex items-center gap-1.5"><i className="w-4 h-4 rounded bg-navy-900 inline-block" />Selected</span>
-          <span className="flex items-center gap-1.5"><i className="w-4 h-4 rounded bg-slate-200 inline-block" />Taken</span>
-          <span className="ml-auto text-slate-400">{free} free today</span>
+        <div className="flex items-center gap-4 text-[11px] text-white mb-2 px-1 flex-wrap drop-shadow">
+          <span className="flex items-center gap-1.5"><i className="w-4 h-4 rounded bg-teal-500 inline-block ring-1 ring-white/50" />Available</span>
+          <span className="flex items-center gap-1.5"><i className="w-4 h-4 rounded bg-navy-900 inline-block ring-1 ring-white/50" />Selected</span>
+          <span className="flex items-center gap-1.5"><i className="w-4 h-4 rounded bg-slate-200 inline-block ring-1 ring-white/50" />Taken</span>
+          <span className="ml-auto text-white/85">{free} free today</span>
         </div>
-        <Card className="p-5 space-y-4">
-          {banks.map((bk) => (
-            <div key={bk}>
-              <div className="text-[12px] font-semibold text-slate-500 mb-1.5">Bank {bk}</div>
-              <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(10,1fr)" }}>
-                {lockers.filter((l) => l.bank === bk).map((l) => {
-                  const isSel = sel.includes(l.id);
-                  const cl = l.taken ? "bg-slate-200 text-slate-400 cursor-not-allowed" : isSel ? "bg-navy-900 text-white ring-2 ring-teal-400" : "bg-teal-500/80 text-white hover:bg-teal-600";
-                  return (
-                    <button key={l.id} disabled={l.taken} onClick={() => toggle(l.id, l.taken)} title={`${l.id} · ${l.taken ? "Taken" : "€" + PRICE}`} className={`relative aspect-[3/4] rounded-md grid place-items-center transition ${cl}`}>
-                      <Icon.lock size={13} /><span className="absolute bottom-0.5 text-[7px] font-bold leading-none">{l.id}</span>
-                    </button>
-                  );
-                })}
+        <LockerBackdrop className="p-5 ring-1 ring-white/30 shadow-float">
+          <div className="relative space-y-4">
+            {banks.map((bk) => (
+              <div key={bk} className="rounded-xl bg-white/35 backdrop-blur-sm ring-1 ring-white/50 p-3">
+                <div className="text-[12px] font-bold text-navy-900 mb-1.5 flex items-center gap-1.5">
+                  <Icon.lock size={12} /> Bank {bk}
+                </div>
+                <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(10,1fr)" }}>
+                  {lockers.filter((l) => l.bank === bk).map((l) => {
+                    const isSel = sel.includes(l.id);
+                    const cl = l.taken
+                      ? "bg-gradient-to-b from-slate-300 to-slate-400 text-slate-100 cursor-not-allowed"
+                      : isSel
+                        ? "bg-gradient-to-b from-navy-800 to-navy-950 text-white ring-2 ring-teal-400 shadow-lift"
+                        : "bg-gradient-to-b from-teal-500 to-teal-700 text-white hover:from-teal-400 hover:to-teal-600 shadow-soft";
+                    return (
+                      <button key={l.id} disabled={l.taken} onClick={() => toggle(l.id, l.taken)} title={`${l.id} · ${l.taken ? "Taken" : "€" + PRICE}`} className={`relative aspect-[3/4] rounded-md grid place-items-center transition ${cl}`}>
+                        <Icon.lock size={13} />
+                        <span className="absolute top-1 right-1 w-1 h-1 rounded-full bg-white/70" />
+                        <span className="absolute bottom-0.5 text-[7px] font-bold leading-none">{l.id}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
-        </Card>
+            ))}
+          </div>
+        </LockerBackdrop>
       </div>
       <div className="lg:sticky lg:top-4 h-max">
         <Card className="p-5">
@@ -422,13 +461,13 @@ export function CustomerLocker() {
               {sel.map((id) => (
                 <div key={id} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 px-3 py-2">
                   <div className="flex items-center gap-2 text-navy-900"><Icon.lock size={15} /><span className="font-semibold text-sm">Locker {id}</span></div>
-                  <div className="flex items-center gap-2"><span className="font-semibold tnum">€{PRICE}</span><button onClick={() => setSel((s) => s.filter((x) => x !== id))} className="text-slate-300 hover:text-rose-500"><Icon.trash size={15} /></button></div>
+                  <div className="flex items-center gap-2"><span className="font-semibold tnum">€{PRICE * dayCount}</span><button onClick={() => setSel((s) => s.filter((x) => x !== id))} className="text-slate-300 hover:text-rose-500"><Icon.trash size={15} /></button></div>
                 </div>
               ))}
             </div>
           )}
-          <div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-500">{sel.length} locker(s)</span><span className="font-bold text-navy-900 tnum text-lg">€{total}</span></div>
-          <Btn variant="teal" full size="lg" className="mt-3" disabled={!sel.length} onClick={reserve}>{sel.length ? `Add ${sel.length} locker${sel.length > 1 ? "s" : ""} to basket` : "Select a locker"}</Btn>
+          <div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-500">{sel.length} locker(s) × {dayCount} day{dayCount > 1 ? "s" : ""}</span><span className="font-bold text-navy-900 tnum text-lg">€{total}</span></div>
+          <Btn variant="teal" full size="lg" className="mt-3" disabled={!sel.length} onClick={reserve}>{sel.length ? `Add ${sel.length}×${dayCount} to basket` : "Select a locker"}</Btn>
           <div className="mt-2 text-center text-[11px] text-slate-400">Redeem the QR at the entrance · Secured by Stripe</div>
         </Card>
       </div>
@@ -438,59 +477,96 @@ export function CustomerLocker() {
 
 /* ============ PARKING ============ */
 export function CustomerParking() {
-  const { go, addToCart, clearCart, toast } = useApp();
+  const { addToCart, toast } = useApp();
   const PRICE = 15;
-  const [date, setDate] = useState(0);
+  const [selDates, setSelDates] = useState([0]);
   const dates = useMemo(dateStrip, []);
   const [plate, setPlate] = useState("");
   const [sel, setSel] = useState(null);
-  const rows = [["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8"], ["P9", "P10", "P11", "P12", "P13", "P14", "P15", "P16"]];
-  const taken = new Set(["P3", "P4", "P10", "P14", "P15"]);
-  const reserve = () => { addToCart({ kind: "parking", id: sel, label: `Parking ${sel}`, sub: `${plate || "—"} · ${dates[date].label}`, price: PRICE }); toast(`Parking spot ${sel} added to your basket.`); setSel(null); };
+  // 50 spots organised across 5 rows of 10 (two paired banks + one outer row).
+  const rows = useMemo(() => {
+    const out = [];
+    for (let r = 0; r < 5; r++) {
+      const row = [];
+      for (let c = 1; c <= 10; c++) row.push(`P${r * 10 + c}`);
+      out.push(row);
+    }
+    return out;
+  }, []);
+  const taken = useMemo(() => new Set(["P3", "P7", "P12", "P18", "P21", "P24", "P29", "P33", "P40", "P44", "P47"]), []);
+  const toggleDate = (i) => setSelDates((d) => (d.includes(i) ? (d.length > 1 ? d.filter((x) => x !== i) : d) : [...d, i].sort((a, b) => a - b)));
+  const dayCount = selDates.length;
+  const free = rows.flat().length - taken.size;
+  const reserve = () => {
+    selDates.forEach((di) => {
+      const d = dates[di];
+      addToCart({ kind: "parking", id: `${sel}@${di}`, label: `Parking ${sel}`, sub: `${plate || "—"} · ${d.label}`, price: PRICE });
+    });
+    toast(`Parking spot ${sel} × ${dayCount} day${dayCount > 1 ? "s" : ""} added to your basket.`);
+    setSel(null);
+  };
 
   return (
-    <div className="animate-fade-up grid lg:grid-cols-[1fr_320px] gap-5">
+    <div className="grid lg:grid-cols-[1fr_320px] gap-5">
       <div>
-        <PageHead title="Parking" sub="Reserve a parking spot for the day at the beach car park." badge={<Badge tone="mvp">MVP</Badge>} />
         <Card className="p-4 mb-4">
-          <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400 mb-2 flex items-center gap-1"><Icon.calendar size={13} /> Date</div>
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400 mb-2 flex items-center justify-between">
+            <span className="flex items-center gap-1"><Icon.calendar size={13} /> Dates · pick one or more</span>
+            <span className="text-slate-500 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
+          </div>
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            {dates.slice(0, 5).map((d, i) => (
-              <button key={i} onClick={() => setDate(i)} className={`px-3.5 py-2 rounded-xl text-center min-w-[78px] ring-1 transition ${date === i ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"}`}>
-                <div className="text-[13px] font-semibold">{d.label}</div><div className={`text-[11px] ${date === i ? "text-white/70" : "text-slate-400"}`}>{d.sub}</div>
-              </button>
-            ))}
+            {dates.slice(0, 7).map((d, i) => {
+              const on = selDates.includes(i);
+              return (
+                <button key={i} onClick={() => toggleDate(i)} className={`relative px-3.5 py-2 rounded-xl text-center min-w-[78px] ring-1 transition ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"}`}>
+                  <div className="text-[13px] font-semibold">{d.label}</div><div className={`text-[11px] ${on ? "text-white/70" : "text-slate-400"}`}>{d.sub}</div>
+                  {on && <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center"><Icon.check size={10} /></span>}
+                </button>
+              );
+            })}
           </div>
         </Card>
-        <Card className="p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.car size={18} /> Select a spot</div>
-            <div className="flex items-center gap-3 text-[11px] text-slate-500">
-              <span className="flex items-center gap-1"><i className="w-3 h-3 rounded-sm bg-teal-500 inline-block" />Free</span>
-              <span className="flex items-center gap-1"><i className="w-3 h-3 rounded-sm bg-navy-900 inline-block" />Selected</span>
-              <span className="flex items-center gap-1"><i className="w-3 h-3 rounded-sm bg-slate-200 inline-block" />Taken</span>
-            </div>
+        <div className="flex items-center justify-between mb-2 px-1">
+          <div className="font-semibold text-white drop-shadow flex items-center gap-2"><Icon.car size={18} /> Select a spot · {free} of 50 free</div>
+          <div className="flex items-center gap-3 text-[11px] text-white drop-shadow">
+            <span className="flex items-center gap-1"><i className="w-3 h-3 rounded-sm bg-teal-500 inline-block ring-1 ring-white/40" />Free</span>
+            <span className="flex items-center gap-1"><i className="w-3 h-3 rounded-sm bg-navy-900 inline-block ring-1 ring-white/40" />Selected</span>
+            <span className="flex items-center gap-1"><i className="w-3 h-3 rounded-sm bg-slate-300 inline-block ring-1 ring-white/40" />Taken</span>
           </div>
-          <div className="rounded-2xl bg-slate-100 p-4 ring-1 ring-slate-200">
-            {rows.map((row, ri) => (
-              <div key={ri}>
-                <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: `repeat(${row.length},1fr)` }}>
-                  {row.map((id) => {
-                    const isTaken = taken.has(id), isSel = sel === id;
-                    const cl = isTaken ? "bg-slate-200 text-slate-400 cursor-not-allowed" : isSel ? "bg-navy-900 text-white ring-2 ring-teal-400" : "bg-teal-500/80 text-white hover:bg-teal-600";
-                    return (
-                      <button key={id} disabled={isTaken} onClick={() => setSel(isSel ? null : id)} title={`${id} · ${isTaken ? "Taken" : "€" + PRICE}`} className={`aspect-[3/4] rounded-lg grid place-items-center transition ${cl}`}>
-                        <Icon.car size={16} /><span className="text-[9px] font-bold mt-0.5">{id}</span>
-                      </button>
-                    );
-                  })}
+        </div>
+        <ParkingBackdrop className="p-5 ring-1 ring-white/30 shadow-float">
+          <div className="relative">
+            {rows.map((row, ri) => {
+              const lane = ri === 1 || ri === 3; // drive lane after row 0 and row 2
+              return (
+                <div key={ri}>
+                  <div className="grid gap-1.5 mb-1.5" style={{ gridTemplateColumns: "repeat(10,1fr)" }}>
+                    {row.map((id) => {
+                      const isTaken = taken.has(id), isSel = sel === id;
+                      const cl = isTaken
+                        ? "bg-slate-300/90 text-slate-500 cursor-not-allowed"
+                        : isSel
+                          ? "bg-navy-900 text-white ring-2 ring-teal-400 shadow-lift"
+                          : "bg-teal-500/95 text-white hover:bg-teal-600 shadow-soft";
+                      return (
+                        <button key={id} disabled={isTaken} onClick={() => setSel(isSel ? null : id)} title={`${id} · ${isTaken ? "Taken" : "€" + PRICE}`} className={`aspect-[3/4] rounded-md grid place-items-center transition border border-white/70 ${cl}`}>
+                          <Icon.car size={14} />
+                          <span className="text-[8px] font-bold mt-0.5 tnum">{id}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {lane && (
+                    <div className="my-1.5 h-6 flex items-center justify-center gap-2 text-[10px] text-yellow-200/95 tracking-widest uppercase font-bold drop-shadow">
+                      <span>←</span><span>drive lane</span><span>→</span>
+                    </div>
+                  )}
                 </div>
-                {ri === 0 && <div className="h-7 flex items-center justify-center text-[10px] text-slate-400 tracking-widest uppercase my-1">↑ drive lane ↓</div>}
-              </div>
-            ))}
+              );
+            })}
           </div>
-          <p className="mt-3 text-[12px] text-slate-400">€{PRICE}/day per spot. Your plate is linked to the booking for gate recognition.</p>
-        </Card>
+        </ParkingBackdrop>
+        <p className="mt-3 text-[12px] text-white/90 drop-shadow">€{PRICE}/day per spot. Your plate is linked to the booking for gate recognition.</p>
       </div>
       <div className="lg:sticky lg:top-4 h-max">
         <Card className="p-5">
@@ -500,12 +576,12 @@ export function CustomerParking() {
             {sel ? (
               <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 px-3 py-2">
                 <div className="flex items-center gap-2 text-navy-900"><Icon.car size={15} /><span className="font-semibold text-sm">Spot {sel}</span></div>
-                <div className="flex items-center gap-2"><span className="font-semibold tnum">€{PRICE}</span><button onClick={() => setSel(null)} className="text-slate-300 hover:text-rose-500"><Icon.trash size={15} /></button></div>
+                <div className="flex items-center gap-2"><span className="font-semibold tnum">€{PRICE * dayCount}</span><button onClick={() => setSel(null)} className="text-slate-300 hover:text-rose-500"><Icon.trash size={15} /></button></div>
               </div>
             ) : <div className="text-sm text-slate-400 py-6 text-center">No spot selected yet.</div>}
           </div>
-          <div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-500">{sel ? "1 spot" : "0 spots"}</span><span className="font-bold text-navy-900 tnum text-lg">€{sel ? PRICE : 0}</span></div>
-          <Btn variant="teal" full size="lg" className="mt-3" disabled={!sel} onClick={reserve}>{sel ? "Add parking to basket" : "Select a spot"}</Btn>
+          <div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-500">{sel ? `1 spot × ${dayCount} day${dayCount > 1 ? "s" : ""}` : "0 spots"}</span><span className="font-bold text-navy-900 tnum text-lg">€{sel ? PRICE * dayCount : 0}</span></div>
+          <Btn variant="teal" full size="lg" className="mt-3" disabled={!sel} onClick={reserve}>{sel ? `Add ${dayCount}×€${PRICE} to basket` : "Select a spot"}</Btn>
           <div className="mt-2 text-center text-[11px] text-slate-400">Show the QR at the barrier · Secured by Stripe</div>
         </Card>
       </div>

@@ -160,3 +160,90 @@ function BeachScene() {
     </svg>
   );
 }
+
+/* ---------- Aerial parking-lot backdrop ----------
+   Asphalt, painted lane arrows, dashed centre line and curb strips —
+   so the parking grid sits on something that reads as a real lot. */
+export function ParkingBackdrop({ children, className = "" }) {
+  return (
+    <div className={`relative overflow-hidden rounded-2xl ${className}`}>
+      <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <linearGradient id="pk-asphalt" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#3f4753" />
+            <stop offset="50%" stopColor="#363d48" />
+            <stop offset="100%" stopColor="#2c333d" />
+          </linearGradient>
+          <filter id="pk-grain" x="0" y="0" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency="1.2" numOctaves="2" seed="7" />
+            <feColorMatrix values="0 0 0 0 0.18  0 0 0 0 0.20  0 0 0 0 0.24  0 0 0 0.35 0" />
+            <feComposite in2="SourceGraphic" operator="in" />
+          </filter>
+        </defs>
+        <rect width="1200" height="800" fill="url(#pk-asphalt)" />
+        <rect width="1200" height="800" filter="url(#pk-grain)" opacity="0.55" />
+        {/* curb strips */}
+        <rect x="0" y="0" width="1200" height="14" fill="#d6b271" />
+        <rect x="0" y="786" width="1200" height="14" fill="#d6b271" />
+        {/* dashed centre lane line */}
+        <line x1="0" y1="400" x2="1200" y2="400" stroke="#f1c84b" strokeWidth="3" strokeDasharray="22 18" opacity="0.85" />
+        {/* directional arrows along the lane */}
+        <g fill="#f6e7b4" opacity="0.85">
+          {[140, 380, 620, 860, 1080].map((x) => (
+            <path key={x} d={`M ${x} 388 L ${x + 28} 400 L ${x} 412 Z`} />
+          ))}
+        </g>
+        {/* faded oil patches */}
+        <ellipse cx="280" cy="220" rx="60" ry="10" fill="#1f242c" opacity="0.45" />
+        <ellipse cx="920" cy="580" rx="80" ry="12" fill="#1f242c" opacity="0.4" />
+      </svg>
+      <div className="absolute inset-0">{children}</div>
+    </div>
+  );
+}
+
+/* ---------- Locker-room backdrop ----------
+   Tiled wall + floor, soft baseboard shadow — to give the locker grid
+   a real changing-room feel. */
+export function LockerBackdrop({ children, className = "" }) {
+  return (
+    <div className={`relative overflow-hidden rounded-2xl ${className}`}>
+      <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <linearGradient id="lk-wall" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#eaf2f8" />
+            <stop offset="100%" stopColor="#d6e2ec" />
+          </linearGradient>
+          <linearGradient id="lk-floor" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#bcc8d2" />
+            <stop offset="100%" stopColor="#8a98a6" />
+          </linearGradient>
+          <pattern id="lk-tile" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse">
+            <rect width="80" height="80" fill="url(#lk-wall)" />
+            <path d="M 0 80 L 80 80 M 80 0 L 80 80" stroke="rgba(120, 145, 165, 0.35)" strokeWidth="1.2" />
+          </pattern>
+          <pattern id="lk-floor-tile" x="0" y="0" width="120" height="60" patternUnits="userSpaceOnUse" patternTransform="skewX(-12)">
+            <rect width="120" height="60" fill="url(#lk-floor)" />
+            <path d="M 0 60 L 120 60 M 120 0 L 120 60" stroke="rgba(50, 70, 90, 0.30)" strokeWidth="1.4" />
+          </pattern>
+        </defs>
+        <rect width="1200" height="560" fill="url(#lk-tile)" />
+        <rect x="0" y="540" width="1200" height="20" fill="#5a6773" />
+        <rect x="0" y="560" width="1200" height="240" fill="url(#lk-floor-tile)" />
+        {/* ceiling light strips */}
+        <g fill="#fffbe6" opacity="0.85">
+          <rect x="120" y="20" width="220" height="10" rx="2" />
+          <rect x="500" y="20" width="220" height="10" rx="2" />
+          <rect x="880" y="20" width="220" height="10" rx="2" />
+        </g>
+        {/* soft baseboard shadow */}
+        <rect x="0" y="540" width="1200" height="40" fill="url(#lk-shadow)" />
+        <linearGradient id="lk-shadow" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="rgba(0,0,0,0.35)" />
+          <stop offset="100%" stopColor="rgba(0,0,0,0)" />
+        </linearGradient>
+      </svg>
+      <div className="absolute inset-0">{children}</div>
+    </div>
+  );
+}

@@ -88,17 +88,12 @@ export function StatCard({ label, value, sub, tone = "navy", icon: IconC, delta 
 }
 
 /* ---------- PageHead ---------- */
-export function PageHead({ title, sub, actions, badge }) {
+// Title/sub/badge intentionally suppressed app-wide — only actions remain.
+export function PageHead({ actions }) {
+  if (!actions) return null;
   return (
-    <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-navy-900 font-display">{title}</h1>
-          {badge}
-        </div>
-        {sub && <p className="text-sm text-slate-500 mt-0.5 max-w-2xl">{sub}</p>}
-      </div>
-      {actions && <div className="flex gap-2 flex-wrap">{actions}</div>}
+    <div className="flex flex-wrap items-center justify-end gap-2 mb-5">
+      {actions}
     </div>
   );
 }
