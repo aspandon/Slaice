@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { WebGLBeach } from "./WebGLBeach.jsx";
 
 /* ---------- Single sunbed glyph ----------
    state: "a" available · "h" on hold · "u" unavailable · sel = selected (coral, from the video) */
@@ -30,27 +29,22 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
   );
 }
 
-/* ---------- Living beach backdrop ----------
+/* ---------- Beach backdrop ----------
    Layering (bottom → top):
-     1. BeachScene SVG — ultimate fallback if both WebGL and the photo fail.
-     2. WebGLBeach — the animated, real-time shader sea (the signature surface).
-     3. beach.jpeg — overlaid as a faint, soft-light texture so the scene still
-        reads as the real place; shown at full opacity if WebGL is unsupported.
-     4. children (the booking UI). */
+     1. BeachScene SVG — ultimate fallback if the photo fails.
+     2. beach.jpeg — the real place.
+     3. children (the booking UI). */
 export function BeachBackdrop({ children, className = "", pos = "relative" }) {
-  const [glOk, setGlOk] = useState(true);
   const [imgOk, setImgOk] = useState(true);
   return (
     <div className={`${pos} overflow-hidden rounded-2xl ${className}`}>
       <BeachScene />
-      <WebGLBeach className="absolute inset-0 pointer-events-none" onUnsupported={() => setGlOk(false)} />
       {imgOk && (
         <img
           src={`${import.meta.env.BASE_URL}beach.jpeg`}
           alt=""
           aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 pointer-events-none"
-          style={glOk ? { opacity: 0.34, mixBlendMode: "soft-light" } : { opacity: 1 }}
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
           onError={() => setImgOk(false)}
         />
       )}
