@@ -1,17 +1,25 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { AppCtx } from "./app/store.jsx";
 import { DEFAULT_PAGE } from "./data/personas.js";
 import { TopBar, Sidebar, MobilePersona, MobileNav, Toasts } from "./components/Shell.jsx";
 import { AuthGate } from "./screens/auth.jsx";
 import { routeFor } from "./routes.jsx";
 
+const LS_KEY = "slaice.v1";
+const loadLS = () => { try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; } };
+const saved = loadLS();
+
 export default function App() {
-  const [persona, setPersona] = useState("customer");
-  const [pageByPersona, setPageByPersona] = useState(DEFAULT_PAGE);
+  const [persona, setPersona] = useState(saved.persona || "customer");
+  const [pageByPersona, setPageByPersona] = useState(saved.pageByPersona || DEFAULT_PAGE);
   const [toasts, setToasts] = useState([]);
-  const [signedIn, setSignedIn] = useState(false);
-  const [lang, setLang] = useState("EN");
-  const [cart, setCart] = useState([]); // { kind, id, label, sub, price }
+  const [signedIn, setSignedIn] = useState(!!saved.signedIn);
+  const [lang, setLang] = useState(saved.lang || "EN");
+  const [cart, setCart] = useState(saved.cart || []); // { kind, id, label, sub, price }
+
+  useEffect(() => {
+    localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart }));
+  }, [persona, pageByPersona, signedIn, lang, cart]);
 
   const page = pageByPersona[persona];
   const setPage = useCallback((k) => setPageByPersona((s) => ({ ...s, [persona]: k })), [persona]);
@@ -39,7 +47,7 @@ export default function App() {
       {!signedIn ? (
         <AuthGate />
       ) : (
-        <div className="max-w-[1320px] mx-auto px-3 sm:px-5 py-4">
+        <div className="w-full px-3 sm:px-5 py-4">
           <TopBar persona={persona} setPersona={setPersona} />
           <MobilePersona persona={persona} setPersona={setPersona} />
           <MobileNav persona={persona} page={page} setPage={setPage} />

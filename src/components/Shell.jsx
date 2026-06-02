@@ -8,7 +8,8 @@ import { LANGS, useApp } from "../app/store.jsx";
 
 /* ---------- Top bar ---------- */
 export function TopBar({ persona, setPersona }) {
-  const { lang, setLang, signedIn, setSignedIn, go, toast } = useApp();
+  const { lang, setLang, signedIn, setSignedIn, go, toast, cart } = useApp();
+  const cartCount = (cart || []).length;
   const [pOpen, setPOpen] = useState(false);
   const [lOpen, setLOpen] = useState(false);
   const [aOpen, setAOpen] = useState(false);
@@ -46,6 +47,13 @@ export function TopBar({ persona, setPersona }) {
             </div>
           )}
         </div>
+
+        <button onClick={() => go("customer", "checkout")} className="text-white/85 hover:text-white p-2 rounded-lg hover:bg-white/10 relative" title="Basket">
+          <Icon.card size={17} />
+          {cartCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 grid place-items-center text-[10px] font-bold bg-gold-400 text-navy-950 rounded-full ring-2 ring-navy-900">{cartCount}</span>
+          )}
+        </button>
 
         <button onClick={() => toast("Demo — 3 new notifications.")} className="text-white/85 hover:text-white p-2 rounded-lg hover:bg-white/10 relative">
           <Icon.bell size={17} />
@@ -104,7 +112,7 @@ export function Sidebar({ persona, page, setPage }) {
   const items = NAV[persona];
   const p = PERSONAS.find((x) => x.id === persona);
   return (
-    <aside className="w-60 shrink-0 bg-white ring-1 ring-slate-200/80 rounded-2xl p-3 h-max sticky top-[86px] hidden md:block shadow-soft">
+    <aside className="w-60 shrink-0 glass ring-1 ring-white/40 rounded-2xl p-3 h-max sticky top-[86px] hidden md:block shadow-float z-20">
       <div className="px-2 py-2 flex items-center gap-2">
         <span className="w-6 h-6 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: p.color }}>{Icon[p.icon]({ size: 13 })}</span>
         <span className="text-[12px] font-semibold uppercase tracking-wider text-slate-500">{p.label}</span>

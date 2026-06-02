@@ -12,8 +12,8 @@ export function CustomerHome() {
   const tools = [
     { k: "book", t: "Sunbed Booking", d: "Reserve your spot on the live beach map", ic: Icon.umbrella, tone: "teal" },
     { k: "ticket", t: "Entry Ticket", d: "Buy entry for yourself or your group", ic: Icon.ticket },
-    { k: "locker", t: "Day Locker", d: "Keep your valuables safe", ic: Icon.lock, future: true },
-    { k: "parking", t: "Parking", d: "Reserve a spot at the car park", ic: Icon.car, future: true },
+    { k: "locker", t: "Day Locker", d: "Keep your valuables safe", ic: Icon.lock },
+    { k: "parking", t: "Parking", d: "Reserve a spot at the car park", ic: Icon.car },
     { k: "mybookings", t: "My Bookings", d: "Reservations, QR codes & status", ic: Icon.grid },
     { k: "mydocs", t: "My Documents", d: "Receipts & invoices (MyDATA)", ic: Icon.receipt },
   ];
@@ -65,7 +65,7 @@ export function CustomerHome() {
 
 /* ============ SUNBED BOOKING (hero, matches the video) ============ */
 export function CustomerBooking() {
-  const { go, toast, addToCart, clearCart } = useApp();
+  const { go, toast, cart, addToCart, removeFromCart } = useApp();
   const [step, setStep] = useState("zones"); // zones | grid
   const [zoneId, setZoneId] = useState(null);
   const [date, setDate] = useState(0);
@@ -83,18 +83,19 @@ export function CustomerBooking() {
   const focused = step === "grid" && zone;
 
   const reserve = () => {
-    clearCart();
     sel.forEach((b) => addToCart({ kind: "sunbed", id: b.id, label: `Sunbed ${b.id}`, sub: `${b.zone} · ${dates[date].label}`, price: b.price }));
     if (extras.ticket) addToCart({ kind: "ticket", id: "ADULT", label: "Entry ticket — Adult", sub: "Cross-sell", price: 10 });
     if (extras.locker) addToCart({ kind: "locker", id: "LK", label: "Day locker", sub: "Cross-sell", price: 5 });
-    go("customer", "checkout");
+    toast(`${sel.length} sunbed${sel.length > 1 ? "s" : ""} added to your basket.`);
+    setSel([]);
+    setExtras({ ticket: false, locker: false });
   };
 
   return (
-    <div className="animate-fade-up -mx-3 sm:-mx-5 -mb-4">
-      <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-150px)] min-h-[580px] rounded-2xl overflow-hidden ring-1 ring-slate-200">
-        {/* ===== MAP ===== */}
-        <div className="relative flex-1 min-h-[380px]">
+    <div className="animate-fade-up">
+      {/* ===== FULL-VIEWPORT BEACH (fixed background) ===== */}
+      <div className="fixed inset-0 z-0">
+        <div className="relative w-full h-full">
           <BeachBackdrop pos="absolute" className="inset-0 rounded-none">
             {/* zone pill-tabs */}
             <div className="absolute top-3 left-3 right-3 flex gap-2 overflow-x-auto z-20 pb-1 no-scrollbar">
@@ -143,9 +144,9 @@ export function CustomerBooking() {
 
             {focused && (
               <>
-                <div className="absolute inset-0 grid place-items-center px-4 pt-16 pb-4 z-10">
-                  <div>
-                    <div className="rounded-2xl bg-white/45 ring-4 ring-white/80 backdrop-blur-[1px] p-3 sm:p-4 shadow-float max-w-[680px] max-h-[58vh] overflow-auto no-scrollbar">
+                <div className="absolute inset-0 grid place-items-center px-4 pt-20 pb-4 z-10 pointer-events-none">
+                  <div className="pointer-events-auto">
+                    <div className="rounded-2xl bg-white/45 ring-4 ring-white/80 backdrop-blur-[1px] p-3 sm:p-4 shadow-float max-w-[680px] max-h-[70vh] overflow-auto no-scrollbar">
                       <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(14,1fr)" }}>
                         {grid.map((b) => {
                           const isSel = !!sel.find((x) => x.id === b.id);
@@ -169,9 +170,10 @@ export function CustomerBooking() {
             )}
           </BeachBackdrop>
         </div>
+      </div>
 
-        {/* ===== SIDEBAR ===== */}
-        <div className="w-full lg:w-[340px] shrink-0 bg-white flex flex-col">
+      {/* ===== FLOATING GLASS BASKET (right edge) ===== */}
+      <div className="fixed top-[88px] right-3 bottom-3 w-[340px] max-w-[calc(100vw-1.5rem)] z-20 glass rounded-2xl ring-1 ring-white/40 shadow-float flex flex-col overflow-hidden">
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             <div className="flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2.5 text-slate-400 text-sm"><Icon.search size={16} /> Find your perfect spot</div>
 
@@ -225,7 +227,27 @@ export function CustomerBooking() {
                 <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Add to your day</div>
                 <div className="space-y-1.5">
                   <CrossSell on={extras.ticket} onClick={() => setExtras((e) => ({ ...e, ticket: !e.ticket }))} icon={Icon.ticket} title="Entry ticket — Adult" price={10} />
-                  <CrossSell on={extras.locker} onClick={() => setExtras((e) => ({ ...e, locker: !e.locker }))} icon={Icon.lock} title="Day locker" price={5} future />
+                  <CrossSell on={extras.locker} onClick={() => setExtras((e) => ({ ...e, locker: !e.locker }))} icon={Icon.lock} title="Day locker" price={5} />
+                </div>
+              </div>
+            )}
+
+            {cart.length > 0 && (
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5 flex items-center justify-between">
+                  <span>In your basket · {cart.length}</span>
+                  <button onClick={() => go("customer", "checkout")} className="text-teal-700 hover:text-teal-800 normal-case tracking-normal">Checkout →</button>
+                </div>
+                <div className="space-y-1.5">
+                  {cart.map((it) => (
+                    <div key={it.kind + it.id} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-2.5 py-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="w-7 h-7 rounded-lg bg-slate-100 grid place-items-center text-slate-500 shrink-0">{cartIcon(it.kind)}</span>
+                        <div className="min-w-0"><div className="font-semibold text-[12px] text-navy-900 leading-tight truncate">{it.label}</div><div className="text-[10px] text-slate-400 truncate">{it.sub}</div></div>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0"><span className="font-semibold text-[12px] tnum">€{it.price}</span><button onClick={() => removeFromCart(it.kind, it.id)} className="text-slate-300 hover:text-rose-500"><Icon.trash size={14} /></button></div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -241,20 +263,30 @@ export function CustomerBooking() {
             </div>
           </div>
 
-          <div className="border-t border-slate-100 p-4">
+          <div className="border-t border-white/40 p-4 bg-white/40 backdrop-blur-sm">
             <div className="flex items-center justify-between mb-2 text-sm">
-              <span className="text-slate-500">{sel.length} sunbed{sel.length !== 1 ? "s" : ""}{extrasTotal ? " + extras" : ""}</span>
+              <span className="text-slate-600">{sel.length} sunbed{sel.length !== 1 ? "s" : ""}{extrasTotal ? " + extras" : ""}</span>
               <span className="font-bold text-navy-900 tnum text-lg">€{total}</span>
             </div>
             <Btn variant="dark" full size="lg" disabled={!sel.length} onClick={reserve}>
-              {sel.length ? `Reserve ${sel.length} sunbed${sel.length > 1 ? "s" : ""}` : "Select sunbeds to reserve"}
+              {sel.length ? `Add ${sel.length} sunbed${sel.length > 1 ? "s" : ""} to basket` : "Select sunbeds to add to basket"}
             </Btn>
-            <button onClick={() => go("admin", "map")} className="mt-2 w-full text-center text-[11px] text-slate-400 hover:text-slate-600 flex items-center justify-center gap-1"><Icon.cog size={12} /> Edit map layout</button>
+            {cart.length > 0 && (
+              <Btn variant="teal" full size="lg" className="mt-2" icon={Icon.card} onClick={() => go("customer", "checkout")}>
+                Checkout · {cart.length} item{cart.length > 1 ? "s" : ""} · €{cart.reduce((a, b) => a + b.price, 0)}
+              </Btn>
+            )}
+            <button onClick={() => go("admin", "map")} className="mt-2 w-full text-center text-[11px] text-slate-500 hover:text-slate-700 flex items-center justify-center gap-1"><Icon.cog size={12} /> Edit map layout</button>
           </div>
-        </div>
       </div>
     </div>
   );
+}
+
+function cartIcon(kind) {
+  const m = { sunbed: Icon.umbrella, ticket: Icon.ticket, locker: Icon.lock, parking: Icon.car };
+  const I = m[kind] || Icon.card;
+  return <I size={15} />;
 }
 
 function CrossSell({ on, onClick, icon: IconC, title, price, future }) {
@@ -271,7 +303,7 @@ function CrossSell({ on, onClick, icon: IconC, title, price, future }) {
 
 /* ============ ENTRY TICKET ============ */
 export function CustomerTicket() {
-  const { go, addToCart, clearCart } = useApp();
+  const { go, addToCart, clearCart, toast } = useApp();
   const cats = [
     { k: "adult", t: "Adult", p: 10, d: "Standard entry" },
     { k: "resident", t: "Alimos resident", p: 6, d: "Proof required at gate" },
@@ -285,9 +317,9 @@ export function CustomerTicket() {
   const n = Object.values(qty).reduce((a, b) => a + b, 0);
 
   const pay = () => {
-    clearCart();
     cats.forEach((c) => qty[c.k] > 0 && addToCart({ kind: "ticket", id: c.k, label: `${c.t} × ${qty[c.k]}`, sub: "Entry ticket", price: c.p * qty[c.k] }));
-    go("customer", "checkout");
+    toast(`${n} ticket${n > 1 ? "s" : ""} added to your basket.`);
+    setQty({ adult: 0, resident: 0, child: 0, senior: 0 });
   };
 
   return (
@@ -318,16 +350,16 @@ export function CustomerTicket() {
           <div className="text-slate-500 text-sm">{n} ticket(s){biz ? " · ΤΠΥ" : " · ΑΠΥ"}</div>
           <div className="text-2xl font-bold font-display text-navy-900 tnum">€{total}</div>
         </div>
-        <Btn variant="teal" full size="lg" icon={Icon.card} disabled={!n} onClick={pay}>Pay €{total} & get QR tickets</Btn>
+        <Btn variant="teal" full size="lg" icon={Icon.card} disabled={!n} onClick={pay}>Add €{total} to basket</Btn>
       </Card>
       <p className="text-[12px] text-slate-400 mt-3 flex items-center gap-1.5"><Icon.bolt size={13} /> Dynamic pricing by profile (resident / age). Cross-sell: tickets can also be added during sunbed checkout.</p>
     </div>
   );
 }
 
-/* ============ DAY LOCKER (Future) ============ */
+/* ============ DAY LOCKER ============ */
 export function CustomerLocker() {
-  const { go, addToCart, clearCart } = useApp();
+  const { go, addToCart, clearCart, toast } = useApp();
   const PRICE = 5;
   const [date, setDate] = useState(0);
   const dates = useMemo(dateStrip, []);
@@ -341,12 +373,12 @@ export function CustomerLocker() {
   const toggle = (id, taken) => { if (taken) return; setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id])); };
   const total = sel.length * PRICE;
   const free = lockers.filter((l) => !l.taken).length;
-  const reserve = () => { clearCart(); sel.forEach((id) => addToCart({ kind: "locker", id, label: `Locker ${id}`, sub: dates[date].label, price: PRICE })); go("customer", "checkout"); };
+  const reserve = () => { sel.forEach((id) => addToCart({ kind: "locker", id, label: `Locker ${id}`, sub: dates[date].label, price: PRICE })); toast(`${sel.length} locker${sel.length > 1 ? "s" : ""} added to your basket.`); setSel([]); };
 
   return (
     <div className="animate-fade-up grid lg:grid-cols-[1fr_320px] gap-5">
       <div>
-        <PageHead title="Day Locker" sub="Keep your valuables safe — reserve a locker for the day." badge={<Badge tone="future">Future</Badge>} />
+        <PageHead title="Day Locker" sub="Keep your valuables safe — reserve a locker for the day." badge={<Badge tone="mvp">MVP</Badge>} />
         <Card className="p-4 mb-4">
           <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400 mb-2 flex items-center gap-1"><Icon.calendar size={13} /> Date</div>
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
@@ -396,7 +428,7 @@ export function CustomerLocker() {
             </div>
           )}
           <div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-500">{sel.length} locker(s)</span><span className="font-bold text-navy-900 tnum text-lg">€{total}</span></div>
-          <Btn variant="teal" full size="lg" className="mt-3" disabled={!sel.length} onClick={reserve}>{sel.length ? `Reserve ${sel.length} locker${sel.length > 1 ? "s" : ""}` : "Select a locker"}</Btn>
+          <Btn variant="teal" full size="lg" className="mt-3" disabled={!sel.length} onClick={reserve}>{sel.length ? `Add ${sel.length} locker${sel.length > 1 ? "s" : ""} to basket` : "Select a locker"}</Btn>
           <div className="mt-2 text-center text-[11px] text-slate-400">Redeem the QR at the entrance · Secured by Stripe</div>
         </Card>
       </div>
@@ -404,9 +436,9 @@ export function CustomerLocker() {
   );
 }
 
-/* ============ PARKING (Future) ============ */
+/* ============ PARKING ============ */
 export function CustomerParking() {
-  const { go, addToCart, clearCart } = useApp();
+  const { go, addToCart, clearCart, toast } = useApp();
   const PRICE = 15;
   const [date, setDate] = useState(0);
   const dates = useMemo(dateStrip, []);
@@ -414,12 +446,12 @@ export function CustomerParking() {
   const [sel, setSel] = useState(null);
   const rows = [["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8"], ["P9", "P10", "P11", "P12", "P13", "P14", "P15", "P16"]];
   const taken = new Set(["P3", "P4", "P10", "P14", "P15"]);
-  const reserve = () => { clearCart(); addToCart({ kind: "parking", id: sel, label: `Parking ${sel}`, sub: `${plate || "—"} · ${dates[date].label}`, price: PRICE }); go("customer", "checkout"); };
+  const reserve = () => { addToCart({ kind: "parking", id: sel, label: `Parking ${sel}`, sub: `${plate || "—"} · ${dates[date].label}`, price: PRICE }); toast(`Parking spot ${sel} added to your basket.`); setSel(null); };
 
   return (
     <div className="animate-fade-up grid lg:grid-cols-[1fr_320px] gap-5">
       <div>
-        <PageHead title="Parking" sub="Reserve a parking spot for the day at the beach car park." badge={<Badge tone="future">Future</Badge>} />
+        <PageHead title="Parking" sub="Reserve a parking spot for the day at the beach car park." badge={<Badge tone="mvp">MVP</Badge>} />
         <Card className="p-4 mb-4">
           <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400 mb-2 flex items-center gap-1"><Icon.calendar size={13} /> Date</div>
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
@@ -473,7 +505,7 @@ export function CustomerParking() {
             ) : <div className="text-sm text-slate-400 py-6 text-center">No spot selected yet.</div>}
           </div>
           <div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-500">{sel ? "1 spot" : "0 spots"}</span><span className="font-bold text-navy-900 tnum text-lg">€{sel ? PRICE : 0}</span></div>
-          <Btn variant="teal" full size="lg" className="mt-3" disabled={!sel} onClick={reserve}>{sel ? "Reserve parking spot" : "Select a spot"}</Btn>
+          <Btn variant="teal" full size="lg" className="mt-3" disabled={!sel} onClick={reserve}>{sel ? "Add parking to basket" : "Select a spot"}</Btn>
           <div className="mt-2 text-center text-[11px] text-slate-400">Show the QR at the barrier · Secured by Stripe</div>
         </Card>
       </div>
