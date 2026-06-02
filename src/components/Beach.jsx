@@ -35,7 +35,7 @@ export function BeachBackdrop({ children, className = "", pos = "relative" }) {
     <div className={`${pos} overflow-hidden rounded-2xl ${className}`}>
       <BeachScene />
       <img
-        src="/beach.jpeg"
+        src={`${import.meta.env.BASE_URL}beach.jpeg`}
         alt=""
         aria-hidden="true"
         className="absolute inset-0 w-full h-full object-cover"
