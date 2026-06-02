@@ -36,7 +36,7 @@ export function TopBar({ persona, setPersona }) {
             <Icon.globe size={15} /> {lang} <Icon.chevD size={13} />
           </button>
           {lOpen && (
-            <div className="absolute right-0 mt-2 w-44 bg-white text-ink rounded-xl ring-1 ring-slate-200 shadow-float p-1.5 z-40">
+            <div className="glass-card absolute right-0 mt-2 w-44 text-ink rounded-xl p-1.5 z-40">
               {LANGS.map((l) => (
                 <button key={l.code} onClick={() => { setLang(l.code); setLOpen(false); }}
                   className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-sm hover:bg-slate-100 ${lang === l.code ? "bg-slate-50" : ""}`}>
@@ -67,7 +67,7 @@ export function TopBar({ persona, setPersona }) {
             <Icon.chevD size={14} />
           </button>
           {aOpen && (
-            <div className="absolute right-0 mt-2 w-56 bg-white text-ink rounded-xl ring-1 ring-slate-200 shadow-float p-1.5 z-40">
+            <div className="glass-card absolute right-0 mt-2 w-56 text-ink rounded-xl p-1.5 z-40">
               <div className="px-3 py-2 border-b border-slate-100 mb-1">
                 <div className="font-semibold text-sm text-navy-900">Elena M.</div>
                 <div className="text-[12px] text-slate-400">elena@example.com</div>
@@ -87,7 +87,7 @@ export function TopBar({ persona, setPersona }) {
             <Icon.chevD size={14} />
           </button>
           {pOpen && (
-            <div className="absolute right-0 mt-2 w-72 bg-white text-ink rounded-xl ring-1 ring-slate-200 shadow-float p-1.5 z-40">
+            <div className="glass-card absolute right-0 mt-2 w-72 text-ink rounded-xl p-1.5 z-40">
               <div className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">View as persona</div>
               {PERSONAS.map((p) => (
                 <button key={p.id} onClick={() => { setPersona(p.id); setPOpen(false); }}
@@ -112,7 +112,7 @@ export function Sidebar({ persona, page, setPage }) {
   const items = NAV[persona];
   const p = PERSONAS.find((x) => x.id === persona);
   return (
-    <aside className="w-60 shrink-0 glass ring-1 ring-white/40 rounded-2xl p-3 h-max sticky top-[86px] hidden md:block shadow-float z-20">
+    <aside className="w-60 shrink-0 glass rounded-2xl p-3 h-max sticky top-[86px] hidden md:block z-20">
       <div className="px-2 py-2 flex items-center gap-2">
         <span className="w-6 h-6 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: p.color }}>{Icon[p.icon]({ size: 13 })}</span>
         <span className="text-[12px] font-semibold uppercase tracking-wider text-slate-500">{p.label}</span>
@@ -136,7 +136,7 @@ export function Sidebar({ persona, page, setPage }) {
         <NavExtra page={page} setPage={setPage} k="__features" icon="layers" label="Feature Inventory" />
         <NavExtra page={page} setPage={setPage} k="__journeys" icon="list" label="User Journeys" />
       </div>
-      <div className="mt-3 px-2 py-2 rounded-xl bg-slate-50 text-[11px] text-slate-400 leading-relaxed">
+      <div className="mt-3 px-2 py-2 rounded-xl bg-white/40 ring-1 ring-white/40 text-[11px] text-slate-500 leading-relaxed">
         Non-functional mockup. No payments or backend — actions show a demo note.
       </div>
     </aside>
@@ -160,7 +160,7 @@ export function MobilePersona({ persona, setPersona }) {
     <div className="md:hidden flex gap-1.5 overflow-x-auto mb-4 pb-1 no-scrollbar">
       {PERSONAS.map((p) => (
         <button key={p.id} onClick={() => setPersona(p.id)}
-          className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold whitespace-nowrap ring-1 ${persona === p.id ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 text-slate-600"}`}>
+          className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold whitespace-nowrap ring-1 ${persona === p.id ? "bg-navy-900 text-white ring-navy-900" : "glass text-slate-700"}`}>
           {p.label}
         </button>
       ))}
@@ -174,7 +174,7 @@ export function MobileNav({ persona, page, setPage }) {
     <div className="md:hidden flex gap-1.5 overflow-x-auto mb-4 pb-1 no-scrollbar">
       {NAV[persona].map((it) => (
         <button key={it.k} onClick={() => setPage(it.k)}
-          className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold whitespace-nowrap ring-1 ${page === it.k ? "bg-teal-600 text-white ring-teal-600" : "bg-white ring-slate-200 text-slate-600"}`}>
+          className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold whitespace-nowrap ring-1 ${page === it.k ? "bg-teal-600 text-white ring-teal-600" : "glass text-slate-700"}`}>
           {it.label}
         </button>
       ))}

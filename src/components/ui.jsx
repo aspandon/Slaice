@@ -25,7 +25,7 @@ export function Badge({ tone = "slate", children, className = "" }) {
 export function Card({ className = "", children, onClick, hover }) {
   return (
     <div onClick={onClick}
-      className={`rounded-2xl bg-white ring-1 ring-slate-200/70 shadow-soft ${hover ? "transition duration-200 ease-smooth hover:-translate-y-0.5 hover:shadow-lift hover:ring-slate-300/70" : ""} ${className}`}>
+      className={`glass-card rounded-2xl ${hover ? "transition duration-200 ease-smooth hover:-translate-y-0.5 hover:shadow-lift" : ""} ${className}`}>
       {children}
     </div>
   );
@@ -140,11 +140,11 @@ export function Field({ label, children, hint }) {
   );
 }
 export function Input(props) {
-  return <input {...props} className={`w-full rounded-xl bg-white ring-1 ring-slate-200 px-3.5 py-2.5 text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none placeholder:text-slate-400 ${props.className || ""}`} />;
+  return <input {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none placeholder:text-slate-400 ${props.className || ""}`} />;
 }
 export function Select({ options = [], ...props }) {
   return (
-    <select {...props} className={`w-full rounded-xl ring-1 ring-slate-200 px-3.5 py-2.5 text-sm bg-white transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none cursor-pointer ${props.className || ""}`}>
+    <select {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none cursor-pointer ${props.className || ""}`}>
       {options.map((o) => (typeof o === "string" ? <option key={o} value={o}>{o}</option> : <option key={o.v} value={o.v}>{o.l}</option>))}
     </select>
   );
@@ -184,14 +184,14 @@ export function Modal({ open, onClose, title, children, footer, wide }) {
   if (!open) return null;
   return (
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-[60] grid place-items-center p-4 animate-fade-in" onClick={onClose}>
-      <div className="absolute inset-0 bg-navy-950/55 backdrop-blur-md" />
-      <div onClick={(e) => e.stopPropagation()} className={`relative bg-white rounded-2xl shadow-float ring-1 ring-slate-200 w-full ${wide ? "max-w-2xl" : "max-w-md"} animate-pop max-h-[90vh] flex flex-col`}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+      <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-xl" />
+      <div onClick={(e) => e.stopPropagation()} className={`glass-card relative rounded-2xl w-full ${wide ? "max-w-2xl" : "max-w-md"} animate-pop max-h-[90vh] flex flex-col`}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/40">
           <div className="font-display font-bold text-navy-900 text-lg">{title}</div>
-          <button aria-label="Close" onClick={onClose} className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 p-1.5 rounded-lg transition"><Icon.x size={20} /></button>
+          <button aria-label="Close" onClick={onClose} className="text-slate-500 hover:text-slate-800 hover:bg-white/40 p-1.5 rounded-lg transition"><Icon.x size={20} /></button>
         </div>
         <div className="p-5 overflow-y-auto">{children}</div>
-        {footer && <div className="px-5 py-4 border-t border-slate-100 flex justify-end gap-2">{footer}</div>}
+        {footer && <div className="px-5 py-4 border-t border-white/40 flex justify-end gap-2">{footer}</div>}
       </div>
     </div>
   );
@@ -203,7 +203,7 @@ export function Tabs({ tabs, value, onChange, className = "" }) {
     <div className={`flex gap-1.5 flex-wrap ${className}`}>
       {tabs.map(([k, t]) => (
         <button key={k} onClick={() => onChange(k)}
-          className={`px-3.5 py-1.5 rounded-lg text-[13px] font-semibold transition-all duration-150 ${value === k ? "bg-navy-900 text-white shadow-sm" : "bg-white ring-1 ring-slate-200 text-slate-600 hover:ring-teal-400 hover:text-navy-900"}`}>
+          className={`px-3.5 py-1.5 rounded-lg text-[13px] font-semibold transition-all duration-150 ${value === k ? "bg-navy-900 text-white shadow-sm" : "glass text-slate-700 hover:text-navy-900"}`}>
           {t}
         </button>
       ))}
