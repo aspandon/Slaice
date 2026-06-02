@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { WebGLBeach } from "./WebGLBeach.jsx";
+
 /* ---------- Single sunbed glyph ----------
    state: "a" available · "h" on hold · "u" unavailable · sel = selected (coral, from the video) */
 export function Sunbed({ state = "a", sel = false, onClick, label, price, size = 20 }) {
@@ -9,10 +12,10 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
       disabled={dim}
       onClick={onClick}
       title={`${label || ""} · ${dim ? "Unavailable" : state === "h" ? "On hold" : "€" + price}`}
-      className={`group relative ${dim ? "cursor-not-allowed" : "hover:scale-110 cursor-pointer"} transition`}
-      style={{ lineHeight: 0 }}
+      className={`group relative ${dim ? "cursor-not-allowed" : "cursor-pointer hover:-translate-y-1.5 hover:scale-[1.18] hover:z-20"} transition-transform duration-200 ease-spring`}
+      style={{ lineHeight: 0, willChange: "transform" }}
     >
-      <svg width={size} height={size} viewBox="0 0 24 24" className="drop-shadow-sm">
+      <svg width={size} height={size} viewBox="0 0 24 24" className="drop-shadow-sm transition-[filter] duration-200 group-hover:drop-shadow-[0_8px_10px_rgba(11,37,69,0.5)]">
         <path d="M12 13 L3 9 A10 10 0 0 1 12 4 Z" fill={colA} />
         <path d="M12 13 L21 9 A10 10 0 0 0 12 4 Z" fill={colB} stroke={sel ? colA : "#e7eef5"} strokeWidth="0.6" />
         <rect x="11.4" y="12" width="1.2" height="7" rx="0.5" fill={dim ? "#cbd5e1" : "#7c8a99"} />
@@ -27,20 +30,30 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
   );
 }
 
-/* ---------- Aerial beach backdrop ----------
-   Real photo on top; the SVG scene sits underneath as a graceful fallback
-   if the image is missing or still loading. */
+/* ---------- Living beach backdrop ----------
+   Layering (bottom → top):
+     1. BeachScene SVG — ultimate fallback if both WebGL and the photo fail.
+     2. WebGLBeach — the animated, real-time shader sea (the signature surface).
+     3. beach.jpeg — overlaid as a faint, soft-light texture so the scene still
+        reads as the real place; shown at full opacity if WebGL is unsupported.
+     4. children (the booking UI). */
 export function BeachBackdrop({ children, className = "", pos = "relative" }) {
+  const [glOk, setGlOk] = useState(true);
+  const [imgOk, setImgOk] = useState(true);
   return (
     <div className={`${pos} overflow-hidden rounded-2xl ${className}`}>
       <BeachScene />
-      <img
-        src={`${import.meta.env.BASE_URL}beach.jpeg`}
-        alt=""
-        aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover"
-        onError={(e) => { e.currentTarget.style.display = "none"; }}
-      />
+      <WebGLBeach className="absolute inset-0 pointer-events-none" onUnsupported={() => setGlOk(false)} />
+      {imgOk && (
+        <img
+          src={`${import.meta.env.BASE_URL}beach.jpeg`}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 pointer-events-none"
+          style={glOk ? { opacity: 0.34, mixBlendMode: "soft-light" } : { opacity: 1 }}
+          onError={() => setImgOk(false)}
+        />
+      )}
       <div className="absolute inset-0">{children}</div>
     </div>
   );
