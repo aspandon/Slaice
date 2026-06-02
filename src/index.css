@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  background: #f1f5f9;
+  font-family: "IBM Plex Sans", sans-serif;
+  color: #1e293b;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+@layer utilities {
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+  .grad-sea {
+    background: linear-gradient(135deg, #0b2545 0%, #13315c 45%, #0d9488 120%);
+  }
+  .grad-beach {
+    background: radial-gradient(1200px 400px at 70% -10%, rgba(45, 212, 191, 0.25), transparent 60%),
+      linear-gradient(160deg, #0b2545, #13315c);
+  }
+  .grad-slaice {
+    background: radial-gradient(900px 500px at 80% -20%, rgba(242, 183, 5, 0.25), transparent 55%),
+      linear-gradient(150deg, #2f3bb3 0%, #3a47cc 55%, #4a57e0 120%);
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

@@ -1,0 +1,68 @@
+import { useState } from "react";
+import { Icon } from "../lib/icons.jsx";
+import { Card, Btn, Badge, PageHead } from "../components/ui.jsx";
+import { useApp } from "../app/store.jsx";
+
+export function ControllerScan() {
+  const { toast } = useApp();
+  const [scanning, setScanning] = useState(false);
+  const [recent, setRecent] = useState([
+    { id: "#BK-10428", sub: "Central · CE-89", state: "valid" },
+    { id: "#TK-55120", sub: "Entry · Adult", state: "valid" },
+    { id: "#BK-10402", sub: "Central · CE-92", state: "used" },
+  ]);
+  const stateTone = { valid: "green", used: "amber", invalid: "red" };
+
+  const doScan = () => {
+    setScanning(true);
+    setTimeout(() => {
+      setScanning(false);
+      const pool = [
+        { id: "#BK-" + (10430 + Math.floor(Math.random() * 50)), sub: "Bestbuy · BE-" + (10 + Math.floor(Math.random() * 20)), state: "valid" },
+        { id: "#TK-" + (55121 + Math.floor(Math.random() * 30)), sub: "Entry · Resident", state: "valid" },
+        { id: "#BK-10402", sub: "Central · CE-92", state: "used" },
+      ];
+      const r = pool[Math.floor(Math.random() * pool.length)];
+      setRecent((x) => [r, ...x].slice(0, 6));
+      toast(r.state === "valid" ? "✓ Valid — admit the guest." : "⚠ Already used.");
+    }, 1100);
+  };
+
+  return (
+    <div className="animate-fade-up max-w-4xl">
+      <PageHead title="Gate Validation" sub="Scan booking & ticket QR codes from the browser — real-time verification. Also handle walk-ins and on-the-spot tickets." badge={<Badge tone="mvp">MVP</Badge>} />
+      <div className="grid md:grid-cols-2 gap-4">
+        <Card className="p-5 grid place-items-center text-center">
+          <div className={`w-44 h-44 rounded-2xl ring-2 ring-dashed grid place-items-center relative overflow-hidden ${scanning ? "ring-teal-500 bg-teal-50" : "ring-teal-400/60 bg-teal-50/40"} text-teal-600`}>
+            <Icon.scan size={60} />
+            {scanning && <div className="absolute left-0 right-0 h-0.5 bg-teal-500 shadow-[0_0_8px_#14b8a6] animate-[scanline_1.1s_linear_infinite]" style={{ animation: "scanline 1.1s linear infinite" }} />}
+          </div>
+          <Btn variant="teal" className="mt-4" icon={Icon.scan} onClick={doScan} disabled={scanning}>{scanning ? "Scanning…" : "Scan QR"}</Btn>
+          <style>{`@keyframes scanline{0%{top:8px}50%{top:160px}100%{top:8px}}`}</style>
+        </Card>
+
+        <Card className="p-5">
+          <div className="font-semibold text-navy-900 mb-3">Recent validations</div>
+          <div className="space-y-2 text-sm max-h-56 overflow-y-auto">
+            {recent.map((r, i) => (
+              <div key={i} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 px-3 py-2 animate-fade-in">
+                <div><div className="font-semibold text-navy-900">{r.id}</div><div className="text-[12px] text-slate-400">{r.sub}</div></div>
+                <Badge tone={stateTone[r.state]}>{r.state}</Badge>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 grid grid-cols-1 gap-2">
+            <Btn variant="outline" size="sm" icon={Icon.umbrella} onClick={() => toast("Demo — create a walk-in booking & block a sunbed.")}>Walk-in booking</Btn>
+            <Btn variant="outline" size="sm" icon={Icon.ticket} onClick={() => toast("Demo — add ticket + take on-site payment via Stripe.")}>Add ticket (pay on site)</Btn>
+            <Btn variant="outline" size="sm" icon={Icon.bolt} onClick={() => toast("Demo — opened same-day availability online.")}>Open same-day availability</Btn>
+          </div>
+        </Card>
+      </div>
+      <div className="mt-3 grid sm:grid-cols-3 gap-2 text-[12px]">
+        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/15 px-3 py-2"><Icon.checkCircle size={14} /> free</div>
+        <div className="flex items-center gap-2 rounded-lg bg-amber-50 text-amber-700 ring-1 ring-amber-600/15 px-3 py-2"><Icon.lock size={14} /> blocked</div>
+        <div className="flex items-center gap-2 rounded-lg bg-sky-50 text-sky-700 ring-1 ring-sky-600/15 px-3 py-2"><Icon.umbrella size={14} /> booked</div>
+      </div>
+    </div>
+  );
+}
