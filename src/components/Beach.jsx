@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { WebGLBeach } from "./WebGLBeach.jsx";
+
 /* ---------- Single sunbed glyph ----------
    state: "a" available · "h" on hold · "u" unavailable · sel = selected (coral, from the video) */
 export function Sunbed({ state = "a", sel = false, onClick, label, price, size = 20 }) {
@@ -9,10 +12,10 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
       disabled={dim}
       onClick={onClick}
       title={`${label || ""} · ${dim ? "Unavailable" : state === "h" ? "On hold" : "€" + price}`}
-      className={`group relative ${dim ? "cursor-not-allowed" : "hover:scale-110 cursor-pointer"} transition`}
-      style={{ lineHeight: 0 }}
+      className={`group relative ${dim ? "cursor-not-allowed" : "cursor-pointer hover:-translate-y-1.5 hover:scale-[1.18] hover:z-20"} transition-transform duration-200 ease-spring`}
+      style={{ lineHeight: 0, willChange: "transform" }}
     >
-      <svg width={size} height={size} viewBox="0 0 24 24" className="drop-shadow-sm">
+      <svg width={size} height={size} viewBox="0 0 24 24" className="drop-shadow-sm transition-[filter] duration-200 group-hover:drop-shadow-[0_8px_10px_rgba(11,37,69,0.5)]">
         <path d="M12 13 L3 9 A10 10 0 0 1 12 4 Z" fill={colA} />
         <path d="M12 13 L21 9 A10 10 0 0 0 12 4 Z" fill={colB} stroke={sel ? colA : "#e7eef5"} strokeWidth="0.6" />
         <rect x="11.4" y="12" width="1.2" height="7" rx="0.5" fill={dim ? "#cbd5e1" : "#7c8a99"} />
@@ -27,20 +30,30 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
   );
 }
 
-/* ---------- Aerial beach backdrop ----------
-   Real photo on top; the SVG scene sits underneath as a graceful fallback
-   if the image is missing or still loading. */
+/* ---------- Living beach backdrop ----------
+   Layering (bottom → top):
+     1. BeachScene SVG — ultimate fallback if both WebGL and the photo fail.
+     2. WebGLBeach — the animated, real-time shader sea (the signature surface).
+     3. beach.jpeg — overlaid as a faint, soft-light texture so the scene still
+        reads as the real place; shown at full opacity if WebGL is unsupported.
+     4. children (the booking UI). */
 export function BeachBackdrop({ children, className = "", pos = "relative" }) {
+  const [glOk, setGlOk] = useState(true);
+  const [imgOk, setImgOk] = useState(true);
   return (
     <div className={`${pos} overflow-hidden rounded-2xl ${className}`}>
       <BeachScene />
-      <img
-        src={`${import.meta.env.BASE_URL}beach.jpeg`}
-        alt=""
-        aria-hidden="true"
-        className="absolute inset-0 w-full h-full object-cover"
-        onError={(e) => { e.currentTarget.style.display = "none"; }}
-      />
+      <WebGLBeach className="absolute inset-0 pointer-events-none" onUnsupported={() => setGlOk(false)} />
+      {imgOk && (
+        <img
+          src={`${import.meta.env.BASE_URL}beach.jpeg`}
+          alt=""
+          aria-hidden="true"
+          className="absolute inset-0 w-full h-full object-cover transition-opacity duration-700 pointer-events-none"
+          style={glOk ? { opacity: 0.34, mixBlendMode: "soft-light" } : { opacity: 1 }}
+          onError={() => setImgOk(false)}
+        />
+      )}
       <div className="absolute inset-0">{children}</div>
     </div>
   );
@@ -158,5 +171,92 @@ function BeachScene() {
         <stop offset="100%" stopColor="rgba(11, 37, 69, 0)" />
       </linearGradient>
     </svg>
+  );
+}
+
+/* ---------- Aerial parking-lot backdrop ----------
+   Asphalt, painted lane arrows, dashed centre line and curb strips —
+   so the parking grid sits on something that reads as a real lot. */
+export function ParkingBackdrop({ children, className = "" }) {
+  return (
+    <div className={`relative overflow-hidden rounded-2xl ${className}`}>
+      <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <linearGradient id="pk-asphalt" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#3f4753" />
+            <stop offset="50%" stopColor="#363d48" />
+            <stop offset="100%" stopColor="#2c333d" />
+          </linearGradient>
+          <filter id="pk-grain" x="0" y="0" width="100%" height="100%">
+            <feTurbulence type="fractalNoise" baseFrequency="1.2" numOctaves="2" seed="7" />
+            <feColorMatrix values="0 0 0 0 0.18  0 0 0 0 0.20  0 0 0 0 0.24  0 0 0 0.35 0" />
+            <feComposite in2="SourceGraphic" operator="in" />
+          </filter>
+        </defs>
+        <rect width="1200" height="800" fill="url(#pk-asphalt)" />
+        <rect width="1200" height="800" filter="url(#pk-grain)" opacity="0.55" />
+        {/* curb strips */}
+        <rect x="0" y="0" width="1200" height="14" fill="#d6b271" />
+        <rect x="0" y="786" width="1200" height="14" fill="#d6b271" />
+        {/* dashed centre lane line */}
+        <line x1="0" y1="400" x2="1200" y2="400" stroke="#f1c84b" strokeWidth="3" strokeDasharray="22 18" opacity="0.85" />
+        {/* directional arrows along the lane */}
+        <g fill="#f6e7b4" opacity="0.85">
+          {[140, 380, 620, 860, 1080].map((x) => (
+            <path key={x} d={`M ${x} 388 L ${x + 28} 400 L ${x} 412 Z`} />
+          ))}
+        </g>
+        {/* faded oil patches */}
+        <ellipse cx="280" cy="220" rx="60" ry="10" fill="#1f242c" opacity="0.45" />
+        <ellipse cx="920" cy="580" rx="80" ry="12" fill="#1f242c" opacity="0.4" />
+      </svg>
+      <div className="absolute inset-0">{children}</div>
+    </div>
+  );
+}
+
+/* ---------- Locker-room backdrop ----------
+   Tiled wall + floor, soft baseboard shadow — to give the locker grid
+   a real changing-room feel. */
+export function LockerBackdrop({ children, className = "" }) {
+  return (
+    <div className={`relative overflow-hidden rounded-2xl ${className}`}>
+      <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <linearGradient id="lk-wall" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#eaf2f8" />
+            <stop offset="100%" stopColor="#d6e2ec" />
+          </linearGradient>
+          <linearGradient id="lk-floor" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#bcc8d2" />
+            <stop offset="100%" stopColor="#8a98a6" />
+          </linearGradient>
+          <pattern id="lk-tile" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse">
+            <rect width="80" height="80" fill="url(#lk-wall)" />
+            <path d="M 0 80 L 80 80 M 80 0 L 80 80" stroke="rgba(120, 145, 165, 0.35)" strokeWidth="1.2" />
+          </pattern>
+          <pattern id="lk-floor-tile" x="0" y="0" width="120" height="60" patternUnits="userSpaceOnUse" patternTransform="skewX(-12)">
+            <rect width="120" height="60" fill="url(#lk-floor)" />
+            <path d="M 0 60 L 120 60 M 120 0 L 120 60" stroke="rgba(50, 70, 90, 0.30)" strokeWidth="1.4" />
+          </pattern>
+        </defs>
+        <rect width="1200" height="560" fill="url(#lk-tile)" />
+        <rect x="0" y="540" width="1200" height="20" fill="#5a6773" />
+        <rect x="0" y="560" width="1200" height="240" fill="url(#lk-floor-tile)" />
+        {/* ceiling light strips */}
+        <g fill="#fffbe6" opacity="0.85">
+          <rect x="120" y="20" width="220" height="10" rx="2" />
+          <rect x="500" y="20" width="220" height="10" rx="2" />
+          <rect x="880" y="20" width="220" height="10" rx="2" />
+        </g>
+        {/* soft baseboard shadow */}
+        <rect x="0" y="540" width="1200" height="40" fill="url(#lk-shadow)" />
+        <linearGradient id="lk-shadow" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="rgba(0,0,0,0.35)" />
+          <stop offset="100%" stopColor="rgba(0,0,0,0)" />
+        </linearGradient>
+      </svg>
+      <div className="absolute inset-0">{children}</div>
+    </div>
   );
 }

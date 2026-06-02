@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle } from "../components/ui.jsx";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, useMockLoad } from "../components/ui.jsx";
 import { BarChart, LineChartMini, Donut, QR } from "../components/charts.jsx";
 import { ZONES } from "../data/beach.js";
 import { useApp } from "../app/store.jsx";
+import { downloadCSV } from "../lib/download.js";
 
 /* ============ DASHBOARD ============ */
 export function AdminDashboard() {
@@ -95,32 +96,123 @@ export function AdminAvailability() {
 /* ============ MAP LAYOUT EDITOR ============ */
 export function AdminMapEditor() {
   const { toast } = useApp();
+  // Each zone has a name, prefix, colour, rows, cols, and a position in % of the canvas.
+  const [zones, setZones] = useState(() => ZONES.map((z, i) => ({
+    id: z.id, name: z.name, prefix: z.prefix, color: z.color, total: z.total,
+    rows: 8, cols: Math.max(6, Math.round(z.total / 8)),
+    x: 6 + (i % 3) * 32, y: 10 + Math.floor(i / 3) * 44,
+  })));
+  const [selectedId, setSelectedId] = useState(zones[0].id);
+  const selected = zones.find((z) => z.id === selectedId);
+  const update = (id, patch) => setZones((zs) => zs.map((z) => (z.id === id ? { ...z, ...patch } : z)));
+  const remove = (id) => setZones((zs) => (zs.length > 1 ? zs.filter((z) => z.id !== id) : zs));
+  const add = () => {
+    const palette = ["#0ea5e9", "#22c55e", "#f59e0b", "#a855f7", "#ef4444", "#6366f1", "#14b8a6"];
+    const used = new Set(zones.map((z) => z.color));
+    const color = palette.find((c) => !used.has(c)) || palette[0];
+    const id = `z${Date.now().toString(36)}`;
+    const z = { id, name: `Zone ${zones.length + 1}`, prefix: `Z${zones.length + 1}`, color, total: 60, rows: 6, cols: 10, x: 30, y: 40 };
+    setZones((zs) => [...zs, z]); setSelectedId(id);
+  };
+  const canvasRef = useRef(null);
+  const dragRef = useRef(null);
+  const onPointerDown = (e, id) => {
+    setSelectedId(id);
+    const r = canvasRef.current.getBoundingClientRect();
+    const z = zones.find((x) => x.id === id);
+    dragRef.current = { id, dx: e.clientX - (r.left + (z.x / 100) * r.width), dy: e.clientY - (r.top + (z.y / 100) * r.height) };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onPointerMove = (e) => {
+    const d = dragRef.current; if (!d) return;
+    const r = canvasRef.current.getBoundingClientRect();
+    const x = ((e.clientX - d.dx - r.left) / r.width) * 100;
+    const y = ((e.clientY - d.dy - r.top) / r.height) * 100;
+    update(d.id, { x: Math.max(0, Math.min(85, x)), y: Math.max(0, Math.min(85, y)) });
+  };
+  const onPointerUp = () => { dragRef.current = null; };
+
+  const save = () => toast(`Demo — layout saved (${zones.length} zones, ${zones.reduce((a, z) => a + z.total, 0)} beds) & published to the customer map.`);
+
   return (
-    <div className="animate-fade-up">
-      <PageHead title="Map Layout Editor" sub="Define the beach background, zones and individual sunbed positions/codes that drive the customer map." badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<><Btn variant="outline" icon={Icon.download} onClick={() => toast("Demo — upload aerial background.")}>Background</Btn><Btn variant="primary" icon={Icon.check} onClick={() => toast("Demo — layout saved & published to the customer map.")}>Save layout</Btn></>} />
-      <div className="grid lg:grid-cols-[1fr_280px] gap-4">
+    <div>
+      <PageHead actions={<><Btn variant="outline" icon={Icon.download} onClick={() => toast("Demo — upload aerial background.")}>Background</Btn><Btn variant="primary" icon={Icon.check} onClick={save}>Save layout</Btn></>} />
+      <div className="grid lg:grid-cols-[1fr_320px] gap-4">
         <Card className="p-5">
-          <div className="rounded-2xl ring-1 ring-slate-100 p-4 min-h-[360px] relative" style={{ background: "linear-gradient(180deg,#cdeef0,#e9e0c4)" }}>
-            {ZONES.map((z, i) => (
-              <div key={z.id} className="absolute rounded-xl ring-2 px-3 py-2 bg-white/80 backdrop-blur cursor-move text-sm font-semibold shadow-md"
-                style={{ borderColor: z.color, color: z.color, left: `${6 + (i % 3) * 32}%`, top: `${10 + Math.floor(i / 3) * 44}%` }}>
-                {z.name} · {z.total} beds
-              </div>
-            ))}
-            <div className="absolute bottom-3 right-3 text-[11px] text-slate-500 bg-white/70 rounded px-2 py-1">Drag zones to reposition · double-click to edit sunbeds (demo)</div>
+          <div
+            ref={canvasRef}
+            className="relative rounded-2xl ring-1 ring-slate-100 overflow-hidden select-none"
+            style={{ background: "linear-gradient(180deg,#88c8e8 0%,#a9dceb 35%,#f2dbb0 60%,#e5c688 100%)", height: 420 }}
+          >
+            {/* shoreline accent */}
+            <div className="absolute left-0 right-0" style={{ top: "52%", height: 4, background: "rgba(255,255,255,0.75)" }} />
+            {zones.map((z) => {
+              const active = z.id === selectedId;
+              return (
+                <div
+                  key={z.id}
+                  onPointerDown={(e) => onPointerDown(e, z.id)}
+                  onPointerMove={onPointerMove}
+                  onPointerUp={onPointerUp}
+                  onPointerCancel={onPointerUp}
+                  className={`absolute rounded-xl px-3 py-2 backdrop-blur cursor-grab active:cursor-grabbing shadow-md text-[12px] font-semibold transition ${active ? "ring-2 ring-offset-2 ring-offset-transparent" : "ring-1"}`}
+                  style={{
+                    left: `${z.x}%`, top: `${z.y}%`, minWidth: 110,
+                    background: "rgba(255,255,255,0.92)", color: z.color,
+                    boxShadow: active ? `0 0 0 2px ${z.color}` : "0 6px 18px -8px rgba(0,0,0,.35)",
+                    borderColor: z.color,
+                  }}
+                >
+                  <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: z.color }} />{z.name}</div>
+                  <div className="text-[10px] text-slate-500 font-medium tnum">{z.prefix} · {z.rows}×{z.cols} · {z.rows * z.cols} beds</div>
+                </div>
+              );
+            })}
+            <div className="absolute bottom-3 left-3 text-[11px] text-white bg-navy-900/65 backdrop-blur rounded-lg px-2.5 py-1">Drag zones to reposition · click to edit on the right</div>
+          </div>
+          <div className="mt-3 flex items-center justify-between text-[12px] text-slate-500">
+            <span>{zones.length} zone{zones.length !== 1 ? "s" : ""} · {zones.reduce((a, z) => a + z.rows * z.cols, 0)} beds total</span>
+            <Btn variant="ghost" size="sm" icon={Icon.plus} onClick={add}>Add zone</Btn>
           </div>
         </Card>
+
         <Card className="p-5 h-max">
-          <div className="font-semibold text-navy-900 mb-3">Zone properties</div>
+          <div className="font-semibold text-navy-900 mb-3 flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full" style={{ background: selected.color }} /> Zone properties
+          </div>
           <div className="space-y-3">
-            <Field label="Zone name"><Input defaultValue="Central" /></Field>
-            <Field label="Code prefix"><Input defaultValue="CE" /></Field>
-            <Field label="Rows × Columns"><div className="flex gap-2"><Input type="number" defaultValue={8} /><Input type="number" defaultValue={14} /></div></Field>
-            <Field label="Colour">
-              <div className="flex gap-1.5">{ZONES.map((z) => <span key={z.id} className="w-7 h-7 rounded-lg ring-2 ring-white shadow cursor-pointer" style={{ background: z.color }} />)}</div>
+            <Field label="Zone name"><Input value={selected.name} onChange={(e) => update(selected.id, { name: e.target.value })} /></Field>
+            <Field label="Code prefix"><Input value={selected.prefix} onChange={(e) => update(selected.id, { prefix: e.target.value.toUpperCase().slice(0, 4) })} className="uppercase tnum" /></Field>
+            <Field label="Rows × Columns">
+              <div className="flex gap-2">
+                <Input type="number" min={1} max={30} value={selected.rows} onChange={(e) => update(selected.id, { rows: Math.max(1, +e.target.value || 1) })} />
+                <Input type="number" min={1} max={30} value={selected.cols} onChange={(e) => update(selected.id, { cols: Math.max(1, +e.target.value || 1) })} />
+              </div>
             </Field>
-            <Btn variant="ghost" full icon={Icon.plus} onClick={() => toast("Demo — add a new zone.")}>Add zone</Btn>
+            <Field label="Colour">
+              <div className="flex gap-1.5 flex-wrap">
+                {["#6366f1", "#0ea5e9", "#ef4444", "#22c55e", "#f59e0b", "#a855f7", "#14b8a6", "#ec4899"].map((c) => (
+                  <button key={c} aria-label={c} onClick={() => update(selected.id, { color: c })}
+                    className={`w-7 h-7 rounded-lg ring-2 shadow transition ${selected.color === c ? "ring-navy-900 scale-110" : "ring-white hover:scale-110"}`} style={{ background: c }} />
+                ))}
+              </div>
+            </Field>
+            <div className="text-[11px] text-slate-400">Position: <span className="tnum">{selected.x.toFixed(0)}%, {selected.y.toFixed(0)}%</span></div>
+            <div className="flex gap-2">
+              <Btn variant="ghost" full icon={Icon.plus} onClick={add}>Add</Btn>
+              <Btn variant="ghost" full icon={Icon.trash} onClick={() => remove(selected.id)} className="text-rose-600 hover:bg-rose-50" disabled={zones.length <= 1}>Remove</Btn>
+            </div>
+          </div>
+          <div className="mt-4 pt-3 border-t border-slate-100">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Zones</div>
+            <div className="space-y-1">
+              {zones.map((z) => (
+                <button key={z.id} onClick={() => setSelectedId(z.id)} className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-[12px] ${selectedId === z.id ? "bg-slate-100" : "hover:bg-slate-50"}`}>
+                  <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: z.color }} /><span className="font-semibold text-navy-900">{z.name}</span></span>
+                  <span className="text-slate-400 tnum">{z.rows * z.cols}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </Card>
       </div>
@@ -139,20 +231,29 @@ export function AdminBookings() {
     ["#BK-10410", "Maria K.", "Central · CE-92", "18 Jul", "Phone", "Unpaid", 30],
     ["#BK-10310", "Giorgos T.", "Bestbuy · BE-14", "12 Jul", "Online", "Used", 22],
   ];
+  const loading = useMockLoad();
   const rows = all.filter((r) => (r[0] + r[1] + r[2]).toLowerCase().includes(q.toLowerCase()));
-  const tone = (s) => ({ Confirmed: "green", Unpaid: "amber", Used: "slate" }[s] || "slate");
   const chan = (c) => ({ Online: "blue", "Walk-in": "amber", Phone: "indigo" }[c] || "slate");
+  const exportCSV = () => {
+    downloadCSV("bookings.csv", ["Booking", "Customer", "Sunbed", "Date", "Channel", "Status", "Amount (€)"], rows);
+    toast(`Exported ${rows.length} bookings to CSV.`, { tone: "success" });
+  };
   return (
-    <div className="animate-fade-up">
-      <PageHead title="Bookings" sub="Tenant-wide bookings with filters, detail and resend-QR." badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<Btn variant="outline" icon={Icon.download} onClick={() => toast("Demo — export CSV.")}>Export</Btn>} />
+    <div>
+      <PageHead actions={<Btn variant="outline" icon={Icon.download} onClick={exportCSV}>Export</Btn>} />
       <Card className="p-4">
         <div className="flex items-center gap-2 mb-3 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-sm text-slate-400">
           <Icon.search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search bookings…" className="text-sm outline-none w-full bg-transparent text-ink" />
         </div>
-        <Table cols={["Booking", "Customer", "Sunbed", "Date", "Channel", "Status", "Amount", ""]} right={[6]}
-          rows={rows.map((r) => [r[0], r[1], r[2], r[3], <Badge tone={chan(r[4])}>{r[4]}</Badge>, <Badge tone={tone(r[5])}>{r[5]}</Badge>, `€${r[6]}`,
-            <Btn size="sm" variant="ghost" icon={Icon.mail} onClick={() => toast(`Demo — QR re-sent for ${r[0]}.`)}>Resend QR</Btn>])} />
+        {loading ? (
+          <TableSkeleton rows={5} cols={8} />
+        ) : rows.length === 0 ? (
+          <EmptyState icon={Icon.search} title="No matching bookings" body={`Nothing matches “${q}”. Try a different name, sunbed code or booking ID.`} />
+        ) : (
+          <Table cols={["Booking", "Customer", "Sunbed", "Date", "Channel", "Status", "Amount", ""]} right={[6]}
+            rows={rows.map((r) => [r[0], r[1], r[2], r[3], <Badge tone={chan(r[4])}>{r[4]}</Badge>, <StatusBadge status={r[5]} />, `€${r[6]}`,
+              <Btn size="sm" variant="ghost" icon={Icon.mail} onClick={() => toast(`QR re-sent for ${r[0]}.`, { tone: "success" })}>Resend QR</Btn>])} />
+        )}
       </Card>
     </div>
   );
@@ -237,8 +338,7 @@ export function AdminReporting() {
   const season = [{ l: "May", v: 48 }, { l: "Jun", v: 121 }, { l: "Jul", v: 198 }, { l: "Aug", v: 241 }, { l: "Sep", v: 96 }];
   return (
     <div className="animate-fade-up">
-      <PageHead title="Reporting & Analytics" sub="Turnover, transactions, revenue by capability, occupancy, ticket & refund history — with CSV export." badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<><Btn variant="outline" icon={Icon.calendar} onClick={() => toast("Demo — period picker.")}>This season</Btn><Btn variant="primary" icon={Icon.download} onClick={() => toast("Demo — exports CSV / Excel / PDF.")}>Export</Btn></>} />
+      <PageHead actions={<><Btn variant="outline" icon={Icon.calendar} onClick={() => toast("Demo — period picker.")}>This season</Btn><Btn variant="primary" icon={Icon.download} onClick={() => { downloadCSV(`reporting-${tab}.csv`, ["Period", "Bookings"], season.map((s) => [s.l, s.v])); toast(`Exported ${tab} report (CSV).`); }}>Export</Btn></>} />
       <Tabs tabs={tabs} value={tab} onChange={setTab} className="mb-4" />
 
       {tab === "exec" && <>

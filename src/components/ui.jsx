@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 
 /* ---------- Badge ---------- */
@@ -19,6 +19,34 @@ export function Badge({ tone = "slate", children, className = "" }) {
       {children}
     </span>
   );
+}
+
+/* ---------- StatusBadge ----------
+   Status conveyed by colour AND an icon + text, so meaning never relies on
+   colour alone (WCAG 1.4.1 Use of Color). Pass a known status or any label. */
+const STATUS_MAP = {
+  confirmed: { tone: "green", icon: Icon.checkCircle },
+  paid: { tone: "green", icon: Icon.checkCircle },
+  active: { tone: "green", icon: Icon.checkCircle },
+  live: { tone: "green", icon: Icon.checkCircle },
+  ok: { tone: "green", icon: Icon.checkCircle },
+  used: { tone: "slate", icon: Icon.check },
+  unpaid: { tone: "amber", icon: Icon.clock },
+  pending: { tone: "amber", icon: Icon.clock },
+  awaiting: { tone: "amber", icon: Icon.clock },
+  issued: { tone: "blue", icon: Icon.doc },
+  refunded: { tone: "red", icon: Icon.refund },
+  cancelled: { tone: "red", icon: Icon.x },
+  canceled: { tone: "red", icon: Icon.x },
+  failed: { tone: "red", icon: Icon.alert },
+};
+export function StatusBadge({ status, label, className = "" }) {
+  const text = label ?? status;
+  const norm = String(status || "").toLowerCase();
+  const key = Object.keys(STATUS_MAP).find((k) => norm.includes(k));
+  const meta = (key && STATUS_MAP[key]) || (norm.includes("✓") ? STATUS_MAP.ok : { tone: "slate", icon: Icon.info });
+  const IconC = meta.icon;
+  return <Badge tone={meta.tone} className={className}><IconC size={11} /> {text}</Badge>;
 }
 
 /* ---------- Card ---------- */
@@ -68,6 +96,62 @@ export function Skeleton({ className = "" }) {
   return <div className={`skeleton rounded-lg ${className}`} />;
 }
 
+/* Simulate a short data fetch so screens can show loading state (Nielsen:
+   visibility of system status). Returns true while "loading". */
+export function useMockLoad(ms = 650) {
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    setLoading(true);
+    const t = setTimeout(() => setLoading(false), ms);
+    return () => clearTimeout(t);
+  }, [ms]);
+  return loading;
+}
+
+/* Table-shaped skeleton matching the Table component's padding. */
+export function TableSkeleton({ rows = 5, cols = 5 }) {
+  return (
+    <div aria-busy="true" aria-live="polite" className="px-1">
+      <span className="sr-only">Loading…</span>
+      <div className="flex gap-3 px-3 py-2.5 border-b border-slate-200">
+        {Array.from({ length: cols }).map((_, i) => <Skeleton key={i} className="h-3 flex-1" />)}
+      </div>
+      {Array.from({ length: rows }).map((_, r) => (
+        <div key={r} className="flex gap-3 px-3 py-3.5 border-b border-slate-100 last:border-0 items-center">
+          {Array.from({ length: cols }).map((_, c) => (
+            <Skeleton key={c} className={`h-4 ${c === 0 ? "flex-[1.4]" : "flex-1"}`} />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* Grid-of-cards skeleton (e.g. stat cards, tiles). */
+export function CardGridSkeleton({ count = 4, className = "" }) {
+  return (
+    <div aria-busy="true" className={className}>
+      {Array.from({ length: count }).map((_, i) => (
+        <Skeleton key={i} className="h-24 rounded-2xl" />
+      ))}
+    </div>
+  );
+}
+
+/* ---------- Empty state ---------- */
+export function EmptyState({ icon: IconC = Icon.inbox, title, body, action, compact = false, className = "" }) {
+  return (
+    <div className={`flex flex-col items-center justify-center text-center ${compact ? "py-7 px-4" : "py-12 px-6"} ${className}`}>
+      <span className={`${compact ? "w-11 h-11" : "w-14 h-14"} rounded-2xl bg-slate-100 text-slate-400 grid place-items-center mb-3`}>
+        <IconC size={compact ? 20 : 26} />
+      </span>
+      {title && <div className="font-semibold text-navy-900">{title}</div>}
+      {body && <div className="text-[13px] text-slate-500 mt-1 max-w-xs leading-relaxed">{body}</div>}
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
+}
+
 /* ---------- StatCard ---------- */
 export function StatCard({ label, value, sub, tone = "navy", icon: IconC, delta }) {
   const accent = {
@@ -88,17 +172,12 @@ export function StatCard({ label, value, sub, tone = "navy", icon: IconC, delta 
 }
 
 /* ---------- PageHead ---------- */
-export function PageHead({ title, sub, actions, badge }) {
+// Title/sub/badge intentionally suppressed app-wide — only actions remain.
+export function PageHead({ actions }) {
+  if (!actions) return null;
   return (
-    <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-navy-900 font-display">{title}</h1>
-          {badge}
-        </div>
-        {sub && <p className="text-sm text-slate-500 mt-0.5 max-w-2xl">{sub}</p>}
-      </div>
-      {actions && <div className="flex gap-2 flex-wrap">{actions}</div>}
+    <div className="flex flex-wrap items-center justify-end gap-2 mb-5">
+      {actions}
     </div>
   );
 }
@@ -194,6 +273,24 @@ export function Modal({ open, onClose, title, children, footer, wide }) {
         {footer && <div className="px-5 py-4 border-t border-white/40 flex justify-end gap-2">{footer}</div>}
       </div>
     </div>
+  );
+}
+
+/* ---------- Confirm dialog ----------
+   Error-prevention pattern for destructive/irreversible actions. */
+export function ConfirmModal({ open, onClose, onConfirm, title = "Are you sure?", body, confirmLabel = "Confirm", cancelLabel = "Cancel", danger = true, icon: IconC }) {
+  const Glyph = IconC || (danger ? Icon.alert : Icon.info);
+  return (
+    <Modal open={open} onClose={onClose} title={title}
+      footer={<>
+        <Btn variant="ghost" onClick={onClose}>{cancelLabel}</Btn>
+        <Btn variant={danger ? "danger" : "primary"} icon={IconC} onClick={() => { onConfirm?.(); onClose(); }}>{confirmLabel}</Btn>
+      </>}>
+      <div className="flex gap-3">
+        <span className={`w-10 h-10 rounded-xl grid place-items-center shrink-0 ${danger ? "bg-rose-100 text-rose-600" : "bg-teal-100 text-teal-700"}`}><Glyph size={20} /></span>
+        <div className="text-sm text-slate-600 leading-relaxed pt-1.5">{body}</div>
+      </div>
+    </Modal>
   );
 }
 

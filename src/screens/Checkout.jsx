@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead } from "../components/ui.jsx";
+import { Card, Btn, Badge, PageHead, EmptyState } from "../components/ui.jsx";
 import { QR } from "../components/charts.jsx";
 import { SlaiceLogo, TenantLogo } from "../components/Brand.jsx";
 import { TENANT } from "../data/beach.js";
@@ -10,21 +10,23 @@ const FEE = 0.05; // Slaice application fee (5%)
 const STRIPE = 0.015; // ~1.5% Stripe processing
 
 export function Checkout() {
-  const { cart, removeFromCart, go, toast } = useApp();
+  const { cart, removeFromCart, addToCart, go, toast } = useApp();
   const [phase, setPhase] = useState("cart"); // cart | redirect | done
   const total = cart.reduce((a, b) => a + b.price, 0);
   const fee = +(total * FEE).toFixed(2);
   const stripeFee = +(total * STRIPE).toFixed(2);
+  const removeItem = (it) => { removeFromCart(it.kind, it.id); toast(`Removed ${it.label}.`, { action: { label: "Undo", onClick: () => addToCart(it) } }); };
 
   if (cart.length === 0 && phase === "cart") {
     return (
       <div className="animate-fade-up max-w-xl">
-        <PageHead title="Checkout" />
-        <Card className="p-10 text-center">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-slate-100 text-slate-400 grid place-items-center"><Icon.card size={26} /></div>
-          <div className="mt-3 font-semibold text-navy-900">Your cart is empty</div>
-          <p className="text-sm text-slate-500 mt-1">Add sunbeds, tickets or extras to continue.</p>
-          <Btn variant="teal" className="mt-4" icon={Icon.umbrella} onClick={() => go("customer", "book")}>Book a sunbed</Btn>
+        <Card className="p-6">
+          <EmptyState
+            icon={Icon.card}
+            title="Your cart is empty"
+            body="Add sunbeds, tickets or extras to continue to checkout."
+            action={<Btn variant="teal" icon={Icon.umbrella} onClick={() => go("customer", "book")}>Book a sunbed</Btn>}
+          />
         </Card>
       </div>
     );
@@ -58,7 +60,7 @@ export function Checkout() {
                   <span className="w-9 h-9 rounded-lg bg-slate-100 grid place-items-center text-slate-500">{kindIcon(it.kind)}</span>
                   <div><div className="font-semibold text-sm text-navy-900">{it.label}</div><div className="text-[12px] text-slate-400">{it.sub}</div></div>
                 </div>
-                <div className="flex items-center gap-3"><span className="font-semibold tnum">€{it.price}</span><button onClick={() => removeFromCart(it.kind, it.id)} className="text-slate-300 hover:text-rose-500"><Icon.trash size={16} /></button></div>
+                <div className="flex items-center gap-2"><span className="font-semibold tnum">€{it.price}</span><button aria-label={`Remove ${it.label}`} onClick={() => removeItem(it)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={16} /></button></div>
               </div>
             ))}
           </div>

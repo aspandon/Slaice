@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { AppCtx } from "./app/store.jsx";
 import { DEFAULT_PAGE } from "./data/personas.js";
-import { TopBar, Sidebar, MobilePersona, MobileNav, Toasts } from "./components/Shell.jsx";
+import { TopBar, Sidebar, MobilePersona, MobileNav, PageTopNav, Toasts } from "./components/Shell.jsx";
 import { AuthGate } from "./screens/auth.jsx";
 import { routeFor } from "./routes.jsx";
 
@@ -24,10 +24,14 @@ export default function App() {
   const page = pageByPersona[persona];
   const setPage = useCallback((k) => setPageByPersona((s) => ({ ...s, [persona]: k })), [persona]);
 
-  const toast = useCallback((msg) => {
+  const dismissToast = useCallback((id) => setToasts((t) => t.filter((x) => x.id !== id)), []);
+
+  // toast(message) — or toast(message, { action: { label, onClick }, tone, duration })
+  const toast = useCallback((msg, opts = {}) => {
     const id = Date.now() + Math.random();
-    setToasts((t) => [...t, { id, msg }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4200);
+    const duration = opts.duration ?? (opts.action ? 6500 : 4200);
+    setToasts((t) => [...t, { id, msg, action: opts.action, tone: opts.tone, duration }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), duration);
   }, []);
 
   const go = useCallback((p, k) => {
@@ -47,20 +51,36 @@ export default function App() {
       {!signedIn ? (
         <AuthGate />
       ) : (
-        <div className="w-full px-3 sm:px-5 py-4">
-          <TopBar persona={persona} setPersona={setPersona} />
+        <div className="w-full px-3 sm:px-5 py-4 relative">
+          {persona === "customer" && (
+            <div
+              aria-hidden="true"
+              className="fixed inset-0 -z-10 pointer-events-none bg-cover bg-center"
+              style={{ backgroundImage: `url(${import.meta.env.BASE_URL}beach.jpeg)` }}
+            />
+          )}
+          <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />
           <MobilePersona persona={persona} setPersona={setPersona} />
-          <MobileNav persona={persona} page={page} setPage={setPage} />
-          <div className="flex gap-5">
-            <Sidebar persona={persona} page={page} setPage={setPage} />
-            <main className="flex-1 min-w-0">{routeFor(persona, page, { go, setPage })}</main>
-          </div>
+          {persona === "customer" ? (
+            <>
+              <PageTopNav persona={persona} page={page} setPage={setPage} />
+              <main className="min-w-0">{routeFor(persona, page, { go, setPage })}</main>
+            </>
+          ) : (
+            <>
+              <MobileNav persona={persona} page={page} setPage={setPage} />
+              <div className="flex gap-5">
+                <Sidebar persona={persona} page={page} setPage={setPage} />
+                <main className="flex-1 min-w-0">{routeFor(persona, page, { go, setPage })}</main>
+              </div>
+            </>
+          )}
           <footer className="text-center text-[11px] text-slate-400 mt-8 pb-4">
             Slaice — non-functional clickable mockup · sample data only · built to navigate every persona, feature & user journey.
           </footer>
         </div>
       )}
-      <Toasts items={toasts} />
+      <Toasts items={toasts} onDismiss={dismissToast} />
     </AppCtx.Provider>
   );
 }
