@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { AppCtx } from "./app/store.jsx";
 import { DEFAULT_PAGE } from "./data/personas.js";
-import { TopBar, Sidebar, MobilePersona, MobileNav, Toasts } from "./components/Shell.jsx";
+import { TopBar, Sidebar, MobilePersona, MobileNav, PageTopNav, Toasts } from "./components/Shell.jsx";
 import { AuthGate } from "./screens/auth.jsx";
 import { routeFor } from "./routes.jsx";
 
@@ -55,13 +55,22 @@ export default function App() {
               style={{ backgroundImage: `url(${import.meta.env.BASE_URL}beach.jpeg)` }}
             />
           )}
-          <TopBar persona={persona} setPersona={setPersona} />
+          <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />
           <MobilePersona persona={persona} setPersona={setPersona} />
-          <MobileNav persona={persona} page={page} setPage={setPage} />
-          <div className="flex gap-5">
-            <Sidebar persona={persona} page={page} setPage={setPage} />
-            <main className="flex-1 min-w-0">{routeFor(persona, page, { go, setPage })}</main>
-          </div>
+          {persona === "customer" ? (
+            <>
+              <PageTopNav persona={persona} page={page} setPage={setPage} />
+              <main className="min-w-0">{routeFor(persona, page, { go, setPage })}</main>
+            </>
+          ) : (
+            <>
+              <MobileNav persona={persona} page={page} setPage={setPage} />
+              <div className="flex gap-5">
+                <Sidebar persona={persona} page={page} setPage={setPage} />
+                <main className="flex-1 min-w-0">{routeFor(persona, page, { go, setPage })}</main>
+              </div>
+            </>
+          )}
           <footer className="text-center text-[11px] text-slate-400 mt-8 pb-4">
             Slaice — non-functional clickable mockup · sample data only · built to navigate every persona, feature & user journey.
           </footer>

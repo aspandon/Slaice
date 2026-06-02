@@ -3,6 +3,7 @@ import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field } from "../components/ui.jsx";
 import { QR } from "../components/charts.jsx";
 import { Sunbed, BeachBackdrop, ParkingBackdrop, LockerBackdrop } from "../components/Beach.jsx";
+import { downloadText } from "../lib/download.js";
 import { ZONES, ZONE_BLOCKS, makeGrid, dateStrip, TENANT } from "../data/beach.js";
 import { useApp } from "../app/store.jsx";
 
@@ -625,17 +626,72 @@ export function CustomerBookings() {
 /* ============ MY DOCUMENTS ============ */
 export function CustomerDocs() {
   const { toast } = useApp();
-  const rows = [
-    ["ΑΠΥ-2026-004281", "Sunbed booking", "19 Jul 2026", "€30", <Badge tone="green">MyDATA ✓</Badge>],
-    ["ΑΠΥ-2026-004102", "Entry tickets ×3", "12 Jul 2026", "€25", <Badge tone="green">MyDATA ✓</Badge>],
+  const docs = [
+    { id: "ΑΠΥ-2026-004281", for: "Sunbed booking", date: "19 Jul 2026", amt: "€30", mark: "400001020304002281", lines: [["Sunbed CE-89", "€24.19", "€5.81", "€30.00"]] },
+    { id: "ΑΠΥ-2026-004102", for: "Entry tickets ×3", date: "12 Jul 2026", amt: "€25", mark: "400001020304002102", lines: [["Adult ×2", "€16.13", "€3.87", "€20.00"], ["Child ×1", "€4.03", "€0.97", "€5.00"]] },
   ];
+  const [view, setView] = useState(null);
+  const download = (d) => { downloadText(`${d.id}.txt`, mockCustomerReceipt(d), "text/plain;charset=utf-8"); toast(`Downloaded ${d.id}.`); };
   return (
-    <div className="animate-fade-up">
-      <PageHead title="My Documents" sub="Receipts (ΑΠΥ) and invoices transmitted to MyDATA, each with a MARK. Viewable via a public document URL." badge={<Badge tone="mvp">MVP</Badge>} />
+    <div>
       <Card className="p-2">
-        <Table cols={["Document", "For", "Date", "Amount", "Status", "PDF"]} right={[3]}
-          rows={rows.map((r) => [...r, <Btn size="sm" variant="ghost" icon={Icon.download} onClick={() => toast("Demo — downloads PDF with MARK + AADE QR.")}>PDF</Btn>])} />
+        <Table cols={["Document", "For", "Date", "Amount", "Status", ""]} right={[3]}
+          rows={docs.map((d) => [d.id, d.for, d.date, d.amt, <Badge tone="green">MyDATA ✓</Badge>,
+            <span className="flex gap-1 justify-end">
+              <Btn size="sm" variant="ghost" icon={Icon.doc} onClick={() => setView(d)}>View</Btn>
+              <Btn size="sm" variant="ghost" icon={Icon.download} onClick={() => download(d)}>PDF</Btn>
+            </span>])} />
       </Card>
+      {view && (
+        <div className="fixed inset-0 z-[60] grid place-items-center p-4 animate-fade-in" onClick={() => setView(null)}>
+          <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-xl" />
+          <div onClick={(e) => e.stopPropagation()} className="glass-card relative rounded-2xl w-full max-w-md animate-pop">
+            <div className="px-5 py-4 border-b border-white/40 flex items-center justify-between">
+              <div className="font-display font-bold text-navy-900 text-lg">{view.id}</div>
+              <button onClick={() => setView(null)} className="text-slate-500 hover:text-slate-800 p-1.5 rounded-lg hover:bg-white/40"><Icon.x size={18} /></button>
+            </div>
+            <div className="p-5 text-sm">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+                <div><div className="font-display font-bold text-navy-900">Akti tou Iliou AE</div><div className="text-slate-400 text-[12px]">ΑΦΜ 123456789 · GR · {view.date}</div></div>
+                <Badge tone="green">MyDATA ✓</Badge>
+              </div>
+              <div className="space-y-1 text-[13px]">
+                {view.lines.map(([l, n, v, t], i) => (
+                  <div key={i} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 text-slate-600">
+                    <span>{l}</span><span className="tnum">{n}</span><span className="tnum text-slate-400">+{v}</span><span className="tnum font-semibold text-navy-900">{t}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between font-semibold text-navy-900"><span>Total gross</span><span className="tnum">{view.amt}</span></div>
+              <div className="mt-3 flex items-center gap-3">
+                <div className="rounded-lg bg-white p-1.5 ring-1 ring-slate-200"><QR size={84} seed={view.id} /></div>
+                <div className="text-[11px] text-slate-500 font-mono leading-snug break-all">MARK<br /><b>{view.mark}</b><br />invoiceType 2.1 · payment 7</div>
+              </div>
+            </div>
+            <div className="px-5 py-4 border-t border-white/40 flex justify-end gap-2">
+              <Btn variant="ghost" onClick={() => setView(null)}>Close</Btn>
+              <Btn variant="primary" icon={Icon.download} onClick={() => { download(view); setView(null); }}>Download</Btn>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function mockCustomerReceipt(d) {
+  const lines = d.lines.map(([l, n, v, t]) => `  ${l.padEnd(28)} net ${n}  VAT ${v}  total ${t}`).join("\n");
+  return [
+    "AKTI TOU ILIOU AE — Receipt (ΑΠΥ)",
+    "ΑΦΜ 123456789 · GR · payment 7 (Stripe online)",
+    `Document: ${d.id}`,
+    `Date: ${d.date}`,
+    `MARK: ${d.mark}`,
+    "",
+    "Lines:",
+    lines,
+    "",
+    `TOTAL: ${d.amt}`,
+    "Transmitted to AADE · MyDATA",
+  ].join("\n");
 }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Tabs, Modal } from "../components/ui.jsx";
 import { useApp } from "../app/store.jsx";
+import { downloadCSV, downloadText } from "../lib/download.js";
 
 /* ============ e-INVOICING & MyDATA ============ */
 export function AccountantInvoicing() {
@@ -19,8 +20,7 @@ export function AccountantInvoicing() {
   const tone = (s) => (s.includes("✓") ? "green" : "amber");
   return (
     <div className="animate-fade-up">
-      <PageHead title="e-Invoicing & MyDATA" sub="Documents auto-issued and transmitted to AADE with a MARK. Supports ΑΠΥ, ΤΠΥ, cancellations (ακυρωτικό) and credit notes (πιστωτικό 5.1)." badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<Btn variant="primary" icon={Icon.download} onClick={() => toast("Demo — export documents (CSV).")}>Export</Btn>} />
+      <PageHead actions={<Btn variant="primary" icon={Icon.download} onClick={() => { downloadCSV("invoicing.csv", ["Document", "Type", "MARK", "Amount", "Status"], filtered.map((x) => [x.d, x.t, x.mark, x.amt, x.st])); toast(`Exported ${filtered.length} documents (CSV).`); }}>Export</Btn>} />
       <div className="grid sm:grid-cols-4 gap-4 mb-4">
         <StatCard label="Docs today" value="738" sub="726 ΑΠΥ · 12 ΤΠΥ" tone="teal" icon={Icon.receipt} />
         <StatCard label="Transmitted" value="100%" sub="to MyDATA" tone="teal" icon={Icon.checkCircle} />
@@ -33,12 +33,12 @@ export function AccountantInvoicing() {
           rows={filtered.map((x) => [x.d, x.t, <span className="font-mono text-[12px]">{x.mark}</span>, x.amt, <Badge tone={tone(x.st)}>{x.st}</Badge>,
             <span className="flex gap-1 justify-end">
               <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => setView(x)}>View</Btn>
-              <Btn size="sm" variant="ghost" icon={Icon.download} onClick={() => toast("Demo — PDF with MARK + AADE QR.")}>PDF</Btn>
+              <Btn size="sm" variant="ghost" icon={Icon.download} onClick={() => { downloadText(`${x.d}.txt`, mockReceiptText(x), "text/plain;charset=utf-8"); toast(`Downloaded ${x.d}.`); }}>PDF</Btn>
             </span>])} />
       </Card>
 
       <Modal open={!!view} onClose={() => setView(null)} title={view?.d} wide
-        footer={<><Btn variant="ghost" onClick={() => setView(null)}>Close</Btn><Btn variant="primary" icon={Icon.download} onClick={() => { setView(null); toast("Demo — PDF downloaded."); }}>Download PDF</Btn></>}>
+        footer={<><Btn variant="ghost" onClick={() => setView(null)}>Close</Btn><Btn variant="primary" icon={Icon.download} onClick={() => { downloadText(`${view.d}.txt`, mockReceiptText(view), "text/plain;charset=utf-8"); setView(null); toast(`Downloaded ${view.d}.`); }}>Download PDF</Btn></>}>
         {view && (
           <div className="text-sm">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
@@ -58,13 +58,34 @@ export function AccountantInvoicing() {
   );
 }
 
+function mockReceiptText(x) {
+  return [
+    "AKTI TOU ILIOU AE · GR · ΑΦΜ 123456789",
+    `${x.t} ${x.d}`,
+    `MARK: ${x.mark}`,
+    `Amount: ${x.amt}`,
+    `Status: ${x.st}`,
+    "",
+    "Net €8.06 · VAT 24% €1.94 · Total €10.00 — Sunbed",
+    "Net €16.13 · VAT 24% €3.87 · Total €20.00 — Entry ticket",
+    "",
+    "Payment type 7 (Stripe online) · invoiceType 2.1",
+    "Transmitted to AADE · MyDATA",
+  ].join("\n");
+}
+
 /* ============ COMMISSION & PAYOUTS ============ */
 export function AccountantCommission() {
   const { toast } = useApp();
+  const monthly = [
+    ["May", "€48,000", "−€700", "−€2,400", "€44,900"],
+    ["Jun", "€121,000", "−€1,760", "−€6,050", "€113,190"],
+    ["Jul", "€198,000", "−€2,880", "−€9,900", "€185,220"],
+    ["Aug", "€241,000", "−€3,500", "−€12,050", "€225,450"],
+  ];
   return (
-    <div className="animate-fade-up">
-      <PageHead title="Commission & Payouts" sub="Stripe direct-charge breakdown: gross → Stripe fees → Slaice commission (5%) → tenant net." badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<Btn variant="primary" icon={Icon.download} onClick={() => toast("Demo — payout statement CSV.")}>Export</Btn>} />
+    <div>
+      <PageHead actions={<Btn variant="primary" icon={Icon.download} onClick={() => { downloadCSV("payouts.csv", ["Month", "Gross", "Stripe fee", "Slaice 5%", "Tenant net"], monthly); toast("Exported payout statement (CSV)."); }}>Export</Btn>} />
       <div className="grid sm:grid-cols-4 gap-4 mb-4">
         <StatCard label="Season gross" value="€704k" tone="teal" icon={Icon.chart} />
         <StatCard label="Stripe fees" value="−€10.2k" sub="~1.5%" icon={Icon.stripe} />
@@ -80,11 +101,8 @@ export function AccountantCommission() {
       <Card className="p-5">
         <div className="font-semibold text-navy-900 mb-2">Monthly payouts (season)</div>
         <Table cols={["Month", "Gross", "Stripe fee", "Slaice 5%", "Tenant net"]} right={[1, 2, 3, 4]} rows={[
-          ["May", "€48,000", "−€700", "−€2,400", "€44,900"],
-          ["Jun", "€121,000", "−€1,760", "−€6,050", "€113,190"],
-          ["Jul", "€198,000", "−€2,880", "−€9,900", "€185,220"],
-          ["Aug", "€241,000", "−€3,500", "−€12,050", "€225,450"],
-          [<b>Season</b>, <b>€704,000</b>, <b>−€10,200</b>, <b>−€35,200</b>, <b>€658,600</b>],
+          ...monthly,
+          [<b key="s">Season</b>, <b key="g">€704,000</b>, <b key="sf">−€10,200</b>, <b key="sl">−€35,200</b>, <b key="tn">€658,600</b>],
         ]} />
       </Card>
     </div>
