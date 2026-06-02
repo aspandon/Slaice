@@ -12,10 +12,13 @@ html {
   scroll-behavior: smooth;
 }
 body {
-  /* Subtle ambient backdrop instead of a flat fill — feels more spatial. */
-  background-color: #f6f8fb;
-  background-image: radial-gradient(900px 480px at 100% -8%, rgba(45, 212, 191, 0.10), transparent 60%),
-    radial-gradient(820px 420px at -6% 6%, rgba(58, 71, 204, 0.08), transparent 55%);
+  /* Vivid ambient backdrop — colourful enough that frosted-glass surfaces actually read as glass. */
+  background-color: #eaf2fb;
+  background-image:
+    radial-gradient(900px 560px at 92% -10%, rgba(45, 212, 191, 0.55), transparent 60%),
+    radial-gradient(780px 520px at -8% 8%, rgba(99, 102, 241, 0.45), transparent 60%),
+    radial-gradient(700px 520px at 50% 110%, rgba(242, 183, 5, 0.30), transparent 55%),
+    radial-gradient(1100px 700px at 30% 40%, rgba(56, 189, 248, 0.28), transparent 60%);
   background-attachment: fixed;
   font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
   font-feature-settings: "cv11", "ss01", "calt", "liga";
@@ -77,14 +80,33 @@ body {
   }
   /* Frosted-glass surface for floating bars/menus. */
   .glass {
-    background: rgba(255, 255, 255, 0.72);
-    backdrop-filter: saturate(180%) blur(14px);
-    -webkit-backdrop-filter: saturate(180%) blur(14px);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.30));
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.45);
+    box-shadow: 0 8px 32px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  }
+  /* Card-weight glass: a touch more opaque so dense content stays readable. */
+  .glass-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.38));
+    backdrop-filter: saturate(180%) blur(18px);
+    -webkit-backdrop-filter: saturate(180%) blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 10px 36px rgba(15, 23, 42, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  }
+  /* Subtle input-weight glass. */
+  .glass-input {
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: saturate(160%) blur(10px);
+    -webkit-backdrop-filter: saturate(160%) blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.55);
   }
   .glass-dark {
-    background: linear-gradient(135deg, rgba(11, 37, 69, 0.92), rgba(19, 49, 92, 0.86));
-    backdrop-filter: saturate(160%) blur(12px);
-    -webkit-backdrop-filter: saturate(160%) blur(12px);
+    background: linear-gradient(135deg, rgba(11, 37, 69, 0.62), rgba(19, 49, 92, 0.48));
+    backdrop-filter: saturate(180%) blur(22px);
+    -webkit-backdrop-filter: saturate(180%) blur(22px);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 0 8px 32px rgba(11, 37, 69, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15);
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
