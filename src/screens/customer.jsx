@@ -17,17 +17,30 @@ export function CustomerHome() {
     { k: "mybookings", t: "My Bookings", d: "Reservations, QR codes & status", ic: Icon.grid },
     { k: "mydocs", t: "My Documents", d: "Receipts & invoices (MyDATA)", ic: Icon.receipt },
   ];
+  const trust = [
+    { ic: Icon.star, t: "4.9", s: "guest rating" },
+    { ic: Icon.umbrella, t: "12k+", s: "beach days booked" },
+    { ic: Icon.qr, t: "Instant", s: "QR entry" },
+  ];
   return (
     <div className="animate-fade-up">
-      <BeachBackdrop className="p-8 md:p-12 text-white relative">
-        <div className="absolute inset-0 bg-navy-950/35" />
+      <BeachBackdrop className="p-8 md:p-12 text-white relative ring-1 ring-white/10">
+        <div className="absolute inset-0 bg-gradient-to-tr from-navy-950/70 via-navy-950/30 to-transparent" />
         <div className="relative">
           <Badge tone="mvp"><Icon.bolt size={11} /> {TENANT.name} · {TENANT.place}</Badge>
-          <h1 className="mt-3 text-4xl md:text-5xl font-display font-bold leading-tight drop-shadow">Relax. Reserve. Repeat.</h1>
-          <p className="mt-2 text-white/85 max-w-lg drop-shadow">Book ahead, skip the queues, and pick your sunbed on the live beach map.</p>
+          <h1 className="mt-3 text-4xl md:text-5xl font-display font-bold leading-[1.05] drop-shadow-lg">Relax. Reserve.<br className="hidden sm:block" /> Repeat.</h1>
+          <p className="mt-3 text-white/85 max-w-lg drop-shadow text-[15px]">Book ahead, skip the queues, and pick your sunbed on the live beach map.</p>
           <div className="mt-6 flex gap-3 flex-wrap">
             <Btn variant="teal" size="lg" icon={Icon.umbrella} onClick={() => go("customer", "book")}>Book a sunbed</Btn>
             <Btn variant="light" size="lg" icon={Icon.ticket} onClick={() => go("customer", "ticket")}>Buy a ticket</Btn>
+          </div>
+          <div className="mt-8 flex flex-wrap gap-x-7 gap-y-3">
+            {trust.map((x) => (
+              <div key={x.s} className="flex items-center gap-2.5">
+                <span className="w-9 h-9 rounded-xl glass grid place-items-center text-gold-500 ring-1 ring-white/30"><x.ic size={16} /></span>
+                <span className="leading-tight"><span className="block font-display font-bold text-lg">{x.t}</span><span className="block text-[11px] text-white/70 uppercase tracking-wide">{x.s}</span></span>
+              </div>
+            ))}
           </div>
         </div>
       </BeachBackdrop>
@@ -35,12 +48,12 @@ export function CustomerHome() {
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
         {tools.map((t) => (
           <button key={t.k} onClick={() => go("customer", t.k)} className="text-left group">
-            <Card className="p-5 h-full hover:ring-teal-500/40 hover:shadow-float transition">
+            <Card hover className="p-5 h-full">
               <div className="flex items-start justify-between">
-                <div className={`w-11 h-11 rounded-xl grid place-items-center ${t.tone === "teal" ? "bg-teal-600" : "bg-navy-900"} text-white`}><t.ic size={20} /></div>
+                <div className={`w-11 h-11 rounded-xl grid place-items-center text-white shadow-sm transition-transform duration-200 ease-spring group-hover:scale-110 group-hover:-rotate-3 ${t.tone === "teal" ? "bg-gradient-to-br from-teal-500 to-teal-700" : "bg-gradient-to-br from-navy-800 to-navy-950"}`}><t.ic size={20} /></div>
                 {t.future && <Badge tone="future">Future</Badge>}
               </div>
-              <div className="mt-3 font-semibold text-navy-900 flex items-center gap-1">{t.t}<Icon.chevR size={15} /></div>
+              <div className="mt-3 font-semibold text-navy-900 flex items-center gap-1">{t.t}<Icon.chevR size={15} className="transition-transform duration-200 group-hover:translate-x-1 text-teal-600" /></div>
               <div className="text-[13px] text-slate-500 mt-0.5">{t.d}</div>
             </Card>
           </button>

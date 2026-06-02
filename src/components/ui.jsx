@@ -22,48 +22,66 @@ export function Badge({ tone = "slate", children, className = "" }) {
 }
 
 /* ---------- Card ---------- */
-export function Card({ className = "", children, onClick }) {
+export function Card({ className = "", children, onClick, hover }) {
   return (
-    <div onClick={onClick} className={`rounded-2xl bg-white ring-1 ring-slate-200/80 shadow-soft ${className}`}>
+    <div onClick={onClick}
+      className={`rounded-2xl bg-white ring-1 ring-slate-200/70 shadow-soft ${hover ? "transition duration-200 ease-smooth hover:-translate-y-0.5 hover:shadow-lift hover:ring-slate-300/70" : ""} ${className}`}>
       {children}
     </div>
   );
 }
 
 /* ---------- Button ---------- */
-export function Btn({ children, variant = "primary", size = "md", onClick, icon: IconC, full, disabled, className = "", type = "button" }) {
-  const base = "inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition active:scale-[.98] disabled:opacity-50 disabled:pointer-events-none";
+export function Btn({ children, variant = "primary", size = "md", onClick, icon: IconC, full, disabled, loading, className = "", type = "button" }) {
+  const base = "relative inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-150 ease-smooth active:scale-[.97] disabled:opacity-50 disabled:pointer-events-none select-none";
   const sizes = { sm: "px-3 py-1.5 text-[13px]", md: "px-4 py-2.5 text-sm", lg: "px-5 py-3 text-[15px]" };
   const variants = {
-    primary: "bg-navy-900 text-white hover:bg-navy-800",
-    teal: "bg-teal-600 text-white hover:bg-teal-500",
-    coral: "bg-coral-600 text-white hover:bg-coral-500",
-    dark: "bg-navy-950 text-white hover:bg-navy-900",
-    indigo: "bg-slaice-600 text-white hover:bg-slaice-500",
+    primary: "bg-navy-900 text-white hover:bg-navy-800 shadow-btn-primary hover:shadow-lift",
+    teal: "bg-teal-600 text-white hover:bg-teal-500 shadow-btn-teal hover:shadow-lift",
+    coral: "bg-coral-600 text-white hover:bg-coral-500 shadow-lift",
+    dark: "bg-navy-950 text-white hover:bg-navy-900 shadow-btn-primary hover:shadow-lift",
+    indigo: "bg-slaice-600 text-white hover:bg-slaice-500 shadow-lift",
     ghost: "bg-slate-100 text-navy-900 hover:bg-slate-200",
-    outline: "ring-1 ring-slate-300 text-navy-900 hover:bg-slate-50 bg-white",
-    light: "bg-white/15 text-white hover:bg-white/25 ring-1 ring-white/20",
-    danger: "bg-rose-600 text-white hover:bg-rose-500",
+    outline: "ring-1 ring-slate-300 text-navy-900 hover:bg-slate-50 hover:ring-slate-400 bg-white",
+    light: "bg-white/15 text-white hover:bg-white/25 ring-1 ring-white/20 backdrop-blur-sm",
+    danger: "bg-rose-600 text-white hover:bg-rose-500 shadow-lift",
   };
   return (
-    <button type={type} disabled={disabled} onClick={onClick}
+    <button type={type} disabled={disabled || loading} onClick={onClick}
       className={`${base} ${sizes[size]} ${variants[variant]} ${full ? "w-full" : ""} ${className}`}>
-      {IconC && <IconC size={size === "sm" ? 15 : 17} />}
+      {loading ? <Spinner size={size === "sm" ? 14 : 16} /> : IconC && <IconC size={size === "sm" ? 15 : 17} />}
       {children}
     </button>
   );
 }
 
+/* ---------- Spinner ---------- */
+export function Spinner({ size = 18, className = "" }) {
+  return (
+    <span aria-hidden className={`inline-block rounded-full border-2 border-current/25 border-t-current animate-spin ${className}`}
+      style={{ width: size, height: size, borderTopColor: "currentColor" }} />
+  );
+}
+
+/* ---------- Skeleton ---------- */
+export function Skeleton({ className = "" }) {
+  return <div className={`skeleton rounded-lg ${className}`} />;
+}
+
 /* ---------- StatCard ---------- */
 export function StatCard({ label, value, sub, tone = "navy", icon: IconC, delta }) {
-  const ring = { navy: "ring-navy-900/10", teal: "ring-teal-600/15", indigo: "ring-slaice-600/15" }[tone] || "ring-slate-200";
+  const accent = {
+    navy: "bg-navy-900/5 text-navy-900",
+    teal: "bg-teal-500/10 text-teal-600",
+    indigo: "bg-slaice-600/10 text-slaice-600",
+  }[tone] || "bg-slate-100 text-slate-500";
   return (
-    <Card className={`p-4 ${ring}`}>
+    <Card hover className="p-4 group">
       <div className="flex items-start justify-between">
-        <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400">{label}</div>
-        {IconC && <div className="text-teal-600"><IconC size={18} /></div>}
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</div>
+        {IconC && <div className={`w-8 h-8 rounded-xl grid place-items-center transition-transform duration-200 ease-spring group-hover:scale-110 ${accent}`}><IconC size={16} /></div>}
       </div>
-      <div className="mt-1 text-2xl font-bold text-navy-900 tnum font-display">{value}</div>
+      <div className="mt-1.5 text-2xl font-bold text-navy-900 tnum font-display tracking-tight">{value}</div>
       {sub && <div className="mt-1 text-[12px] text-slate-500 flex items-center gap-1">{delta}{sub}</div>}
     </Card>
   );
@@ -122,11 +140,11 @@ export function Field({ label, children, hint }) {
   );
 }
 export function Input(props) {
-  return <input {...props} className={`w-full rounded-xl ring-1 ring-slate-200 px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-400 outline-none ${props.className || ""}`} />;
+  return <input {...props} className={`w-full rounded-xl bg-white ring-1 ring-slate-200 px-3.5 py-2.5 text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none placeholder:text-slate-400 ${props.className || ""}`} />;
 }
 export function Select({ options = [], ...props }) {
   return (
-    <select {...props} className={`w-full rounded-xl ring-1 ring-slate-200 px-3 py-2.5 text-sm bg-white focus:ring-2 focus:ring-teal-400 outline-none ${props.className || ""}`}>
+    <select {...props} className={`w-full rounded-xl ring-1 ring-slate-200 px-3.5 py-2.5 text-sm bg-white transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none cursor-pointer ${props.className || ""}`}>
       {options.map((o) => (typeof o === "string" ? <option key={o} value={o}>{o}</option> : <option key={o.v} value={o.v}>{o.l}</option>))}
     </select>
   );
@@ -135,9 +153,9 @@ export function Select({ options = [], ...props }) {
 /* ---------- Toggle ---------- */
 export function Toggle({ on, onChange, label }) {
   return (
-    <button onClick={() => onChange(!on)} className="inline-flex items-center gap-2">
-      <span className={`w-10 h-6 rounded-full transition relative ${on ? "bg-teal-600" : "bg-slate-300"}`}>
-        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${on ? "left-[18px]" : "left-0.5"}`} />
+    <button role="switch" aria-checked={on} onClick={() => onChange(!on)} className="inline-flex items-center gap-2 group">
+      <span className={`w-10 h-6 rounded-full transition-colors duration-200 relative ${on ? "bg-teal-600" : "bg-slate-300 group-hover:bg-slate-400"}`}>
+        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all duration-200 ease-spring ${on ? "left-[18px]" : "left-0.5"}`} />
       </span>
       {label && <span className="text-sm text-slate-600">{label}</span>}
     </button>
@@ -148,9 +166,9 @@ export function Toggle({ on, onChange, label }) {
 export function Stepper({ value, onChange, min = 0 }) {
   return (
     <div className="flex items-center gap-3">
-      <button onClick={() => onChange(Math.max(min, value - 1))} className="w-8 h-8 rounded-lg ring-1 ring-slate-300 grid place-items-center hover:bg-slate-50"><Icon.minus size={15} /></button>
-      <span className="w-6 text-center font-semibold tnum">{value}</span>
-      <button onClick={() => onChange(value + 1)} className="w-8 h-8 rounded-lg ring-1 ring-slate-300 grid place-items-center hover:bg-slate-50"><Icon.plus size={15} /></button>
+      <button aria-label="Decrease" onClick={() => onChange(Math.max(min, value - 1))} className="w-8 h-8 rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90 disabled:opacity-40" disabled={value <= min}><Icon.minus size={15} /></button>
+      <span className="w-6 text-center font-semibold tnum tabular-nums">{value}</span>
+      <button aria-label="Increase" onClick={() => onChange(value + 1)} className="w-8 h-8 rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90"><Icon.plus size={15} /></button>
     </div>
   );
 }
@@ -165,12 +183,12 @@ export function Modal({ open, onClose, title, children, footer, wide }) {
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[60] grid place-items-center p-4 animate-fade-in" onClick={onClose}>
-      <div className="absolute inset-0 bg-navy-950/50 backdrop-blur-sm" />
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[60] grid place-items-center p-4 animate-fade-in" onClick={onClose}>
+      <div className="absolute inset-0 bg-navy-950/55 backdrop-blur-md" />
       <div onClick={(e) => e.stopPropagation()} className={`relative bg-white rounded-2xl shadow-float ring-1 ring-slate-200 w-full ${wide ? "max-w-2xl" : "max-w-md"} animate-pop max-h-[90vh] flex flex-col`}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <div className="font-display font-bold text-navy-900 text-lg">{title}</div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 p-1"><Icon.x size={20} /></button>
+          <button aria-label="Close" onClick={onClose} className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 p-1.5 rounded-lg transition"><Icon.x size={20} /></button>
         </div>
         <div className="p-5 overflow-y-auto">{children}</div>
         {footer && <div className="px-5 py-4 border-t border-slate-100 flex justify-end gap-2">{footer}</div>}
@@ -185,7 +203,7 @@ export function Tabs({ tabs, value, onChange, className = "" }) {
     <div className={`flex gap-1.5 flex-wrap ${className}`}>
       {tabs.map(([k, t]) => (
         <button key={k} onClick={() => onChange(k)}
-          className={`px-3.5 py-1.5 rounded-lg text-[13px] font-semibold transition ${value === k ? "bg-navy-900 text-white" : "bg-white ring-1 ring-slate-200 text-slate-600 hover:ring-teal-400"}`}>
+          className={`px-3.5 py-1.5 rounded-lg text-[13px] font-semibold transition-all duration-150 ${value === k ? "bg-navy-900 text-white shadow-sm" : "bg-white ring-1 ring-slate-200 text-slate-600 hover:ring-teal-400 hover:text-navy-900"}`}>
           {t}
         </button>
       ))}
