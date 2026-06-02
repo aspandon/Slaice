@@ -27,13 +27,20 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
   );
 }
 
-/* ---------- Modern illustrated aerial beach backdrop ----------
-   Pure SVG — no external image needed. Sea at top, soft curved shoreline,
-   warm sand, and a vegetation belt at the bottom. */
+/* ---------- Aerial beach backdrop ----------
+   Real photo on top; the SVG scene sits underneath as a graceful fallback
+   if the image is missing or still loading. */
 export function BeachBackdrop({ children, className = "", pos = "relative" }) {
   return (
     <div className={`${pos} overflow-hidden rounded-2xl ${className}`}>
       <BeachScene />
+      <img
+        src="/beach.jpeg"
+        alt=""
+        aria-hidden="true"
+        className="absolute inset-0 w-full h-full object-cover"
+        onError={(e) => { e.currentTarget.style.display = "none"; }}
+      />
       <div className="absolute inset-0">{children}</div>
     </div>
   );
