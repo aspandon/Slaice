@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle } from "../components/ui.jsx";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, useMockLoad } from "../components/ui.jsx";
 import { BarChart, LineChartMini, Donut, QR } from "../components/charts.jsx";
 import { ZONES } from "../data/beach.js";
 import { useApp } from "../app/store.jsx";
@@ -231,12 +231,12 @@ export function AdminBookings() {
     ["#BK-10410", "Maria K.", "Central · CE-92", "18 Jul", "Phone", "Unpaid", 30],
     ["#BK-10310", "Giorgos T.", "Bestbuy · BE-14", "12 Jul", "Online", "Used", 22],
   ];
+  const loading = useMockLoad();
   const rows = all.filter((r) => (r[0] + r[1] + r[2]).toLowerCase().includes(q.toLowerCase()));
-  const tone = (s) => ({ Confirmed: "green", Unpaid: "amber", Used: "slate" }[s] || "slate");
   const chan = (c) => ({ Online: "blue", "Walk-in": "amber", Phone: "indigo" }[c] || "slate");
   const exportCSV = () => {
     downloadCSV("bookings.csv", ["Booking", "Customer", "Sunbed", "Date", "Channel", "Status", "Amount (€)"], rows);
-    toast(`Exported ${rows.length} bookings to CSV.`);
+    toast(`Exported ${rows.length} bookings to CSV.`, { tone: "success" });
   };
   return (
     <div>
@@ -245,9 +245,15 @@ export function AdminBookings() {
         <div className="flex items-center gap-2 mb-3 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-sm text-slate-400">
           <Icon.search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search bookings…" className="text-sm outline-none w-full bg-transparent text-ink" />
         </div>
-        <Table cols={["Booking", "Customer", "Sunbed", "Date", "Channel", "Status", "Amount", ""]} right={[6]}
-          rows={rows.map((r) => [r[0], r[1], r[2], r[3], <Badge tone={chan(r[4])}>{r[4]}</Badge>, <Badge tone={tone(r[5])}>{r[5]}</Badge>, `€${r[6]}`,
-            <Btn size="sm" variant="ghost" icon={Icon.mail} onClick={() => toast(`Demo — QR re-sent for ${r[0]}.`)}>Resend QR</Btn>])} />
+        {loading ? (
+          <TableSkeleton rows={5} cols={8} />
+        ) : rows.length === 0 ? (
+          <EmptyState icon={Icon.search} title="No matching bookings" body={`Nothing matches “${q}”. Try a different name, sunbed code or booking ID.`} />
+        ) : (
+          <Table cols={["Booking", "Customer", "Sunbed", "Date", "Channel", "Status", "Amount", ""]} right={[6]}
+            rows={rows.map((r) => [r[0], r[1], r[2], r[3], <Badge tone={chan(r[4])}>{r[4]}</Badge>, <StatusBadge status={r[5]} />, `€${r[6]}`,
+              <Btn size="sm" variant="ghost" icon={Icon.mail} onClick={() => toast(`QR re-sent for ${r[0]}.`, { tone: "success" })}>Resend QR</Btn>])} />
+        )}
       </Card>
     </div>
   );

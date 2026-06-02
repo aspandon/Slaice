@@ -24,10 +24,14 @@ export default function App() {
   const page = pageByPersona[persona];
   const setPage = useCallback((k) => setPageByPersona((s) => ({ ...s, [persona]: k })), [persona]);
 
-  const toast = useCallback((msg) => {
+  const dismissToast = useCallback((id) => setToasts((t) => t.filter((x) => x.id !== id)), []);
+
+  // toast(message) — or toast(message, { action: { label, onClick }, tone, duration })
+  const toast = useCallback((msg, opts = {}) => {
     const id = Date.now() + Math.random();
-    setToasts((t) => [...t, { id, msg }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4200);
+    const duration = opts.duration ?? (opts.action ? 6500 : 4200);
+    setToasts((t) => [...t, { id, msg, action: opts.action, tone: opts.tone, duration }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), duration);
   }, []);
 
   const go = useCallback((p, k) => {
@@ -76,7 +80,7 @@ export default function App() {
           </footer>
         </div>
       )}
-      <Toasts items={toasts} />
+      <Toasts items={toasts} onDismiss={dismissToast} />
     </AppCtx.Provider>
   );
 }

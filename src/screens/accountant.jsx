@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Tabs, Modal } from "../components/ui.jsx";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Tabs, Modal, StatusBadge, TableSkeleton, useMockLoad } from "../components/ui.jsx";
 import { useApp } from "../app/store.jsx";
 import { downloadCSV, downloadText } from "../lib/download.js";
 
@@ -18,6 +18,7 @@ export function AccountantInvoicing() {
   ];
   const filtered = docs.filter((x) => tab === "all" || x.type === tab);
   const tone = (s) => (s.includes("✓") ? "green" : "amber");
+  const loading = useMockLoad();
   return (
     <div className="animate-fade-up">
       <PageHead actions={<Btn variant="primary" icon={Icon.download} onClick={() => { downloadCSV("invoicing.csv", ["Document", "Type", "MARK", "Amount", "Status"], filtered.map((x) => [x.d, x.t, x.mark, x.amt, x.st])); toast(`Exported ${filtered.length} documents (CSV).`); }}>Export</Btn>} />
@@ -29,12 +30,16 @@ export function AccountantInvoicing() {
       </div>
       <Tabs tabs={[["all", "All"], ["issued", "Issued"], ["cancelled", "Cancellations"], ["credited", "Credit notes"]]} value={tab} onChange={setTab} className="mb-3" />
       <Card className="p-2">
-        <Table cols={["Document", "Type", "MARK", "Amount", "Status", ""]} right={[3]}
-          rows={filtered.map((x) => [x.d, x.t, <span className="font-mono text-[12px]">{x.mark}</span>, x.amt, <Badge tone={tone(x.st)}>{x.st}</Badge>,
-            <span className="flex gap-1 justify-end">
-              <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => setView(x)}>View</Btn>
-              <Btn size="sm" variant="ghost" icon={Icon.download} onClick={() => { downloadText(`${x.d}.txt`, mockReceiptText(x), "text/plain;charset=utf-8"); toast(`Downloaded ${x.d}.`); }}>PDF</Btn>
-            </span>])} />
+        {loading ? (
+          <TableSkeleton rows={5} cols={6} />
+        ) : (
+          <Table cols={["Document", "Type", "MARK", "Amount", "Status", ""]} right={[3]}
+            rows={filtered.map((x) => [x.d, x.t, <span className="font-mono text-[12px]">{x.mark}</span>, x.amt, <StatusBadge status={x.st} />,
+              <span className="flex gap-1 justify-end">
+                <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => setView(x)}>View</Btn>
+                <Btn size="sm" variant="ghost" icon={Icon.download} onClick={() => { downloadText(`${x.d}.txt`, mockReceiptText(x), "text/plain;charset=utf-8"); toast(`Downloaded ${x.d}.`, { tone: "success" }); }}>PDF</Btn>
+              </span>])} />
+        )}
       </Card>
 
       <Modal open={!!view} onClose={() => setView(null)} title={view?.d} wide

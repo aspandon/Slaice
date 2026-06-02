@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
-import { Badge, Btn, Modal, Field, Input, Select, Toggle } from "./ui.jsx";
+import { Badge, Btn, Modal, ConfirmModal, Field, Input, Select, Toggle } from "./ui.jsx";
 import { SlaiceLogo, TenantLogo } from "./Brand.jsx";
 import { PERSONAS, NAV } from "../data/personas.js";
 import { TENANT } from "../data/beach.js";
@@ -221,11 +221,16 @@ function SettingsModal({ open, onClose }) {
   const [email, setEmail] = useState("elena@example.com");
   const [phone, setPhone] = useState("+30 694 000 0000");
   const [prefs, setPrefs] = useState({ push: true, email: true, sms: false, offers: true });
-  const cards = [
+  const [cards, setCards] = useState([
     { brand: "Visa", last4: "4242", exp: "08/27" },
     { brand: "Mastercard", last4: "5210", exp: "11/26" },
-  ];
-  const save = () => { onClose(); toast("Demo — account settings saved."); };
+  ]);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const save = () => { onClose(); toast("Account settings saved.", { tone: "success" }); };
+  const removeCard = (card) => {
+    setCards((cs) => cs.filter((c) => c.last4 !== card.last4));
+    toast(`Removed card ending ${card.last4}.`, { action: { label: "Undo", onClick: () => setCards((cs) => (cs.find((c) => c.last4 === card.last4) ? cs : [...cs, card])) } });
+  };
   return (
     <Modal open={open} onClose={onClose} title="Account settings" wide
       footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn><Btn variant="primary" icon={Icon.check} onClick={save}>Save changes</Btn></>}>
@@ -258,13 +263,15 @@ function SettingsModal({ open, onClose }) {
             <button onClick={() => toast("Demo — Stripe SetupIntent flow.")} className="text-teal-700 text-[12px] font-semibold normal-case tracking-normal inline-flex items-center gap-1"><Icon.plus size={12} /> Add card</button>
           </div>
           <div className="space-y-2">
-            {cards.map((c) => (
+            {cards.length === 0 ? (
+              <div className="text-[13px] text-slate-400 rounded-xl bg-slate-50 px-3 py-4 text-center">No saved cards. Add one for faster checkout.</div>
+            ) : cards.map((c) => (
               <div key={c.last4} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
                 <div className="flex items-center gap-3">
                   <span className="w-9 h-7 rounded-md bg-gradient-to-br from-navy-800 to-navy-950 text-white text-[10px] font-bold grid place-items-center">{c.brand.slice(0, 4).toUpperCase()}</span>
                   <div><div className="font-semibold text-sm text-navy-900">•••• {c.last4}</div><div className="text-[11px] text-slate-400">Exp {c.exp}</div></div>
                 </div>
-                <button onClick={() => toast(`Demo — removed card ending ${c.last4}.`)} className="text-slate-300 hover:text-rose-500"><Icon.trash size={15} /></button>
+                <button aria-label={`Remove card ending ${c.last4}`} onClick={() => removeCard(c)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={15} /></button>
               </div>
             ))}
           </div>
@@ -273,12 +280,21 @@ function SettingsModal({ open, onClose }) {
         <section>
           <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Security</div>
           <div className="flex gap-2 flex-wrap">
-            <Btn variant="outline" size="sm" icon={Icon.lock} onClick={() => toast("Demo — password reset e-mail sent.")}>Change password</Btn>
-            <Btn variant="outline" size="sm" icon={Icon.phone} onClick={() => toast("Demo — 2FA setup started.")}>Enable 2FA</Btn>
-            <Btn variant="ghost" size="sm" icon={Icon.trash} className="text-rose-600 hover:bg-rose-50" onClick={() => toast("Demo — account deletion requested.")}>Delete account</Btn>
+            <Btn variant="outline" size="sm" icon={Icon.lock} onClick={() => toast("Password reset e-mail sent.", { tone: "info" })}>Change password</Btn>
+            <Btn variant="outline" size="sm" icon={Icon.phone} onClick={() => toast("2FA setup started.", { tone: "info" })}>Enable 2FA</Btn>
+            <Btn variant="ghost" size="sm" icon={Icon.trash} className="text-rose-600 hover:bg-rose-50" onClick={() => setConfirmDelete(true)}>Delete account</Btn>
           </div>
         </section>
       </div>
+      <ConfirmModal
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        onConfirm={() => { onClose(); toast("Account deletion requested. You'll receive a confirmation e-mail.", { tone: "error" }); }}
+        title="Delete your account?"
+        body="This permanently removes your bookings, documents and saved cards. This action cannot be undone."
+        confirmLabel="Delete account"
+        icon={Icon.trash}
+      />
     </Modal>
   );
 }
@@ -374,16 +390,33 @@ export function MobileNav({ persona, page, setPage }) {
 }
 
 /* ---------- Toasts ---------- */
-export function Toasts({ items }) {
+export function Toasts({ items, onDismiss }) {
+  const tones = {
+    success: { ic: "checkCircle", chip: "bg-teal-500/20 text-teal-300", bar: "bg-teal-400/70" },
+    error: { ic: "alert", chip: "bg-rose-500/20 text-rose-300", bar: "bg-rose-400/70" },
+    info: { ic: "info", chip: "bg-sky-500/20 text-sky-300", bar: "bg-sky-400/70" },
+    default: { ic: "bolt", chip: "bg-gold-500/20 text-gold-400", bar: "bg-gold-400/70" },
+  };
   return (
-    <div className="fixed bottom-4 right-4 z-[70] space-y-2.5 w-[340px] max-w-[calc(100vw-2rem)]">
-      {items.map((t) => (
-        <div key={t.id} role="status" className="glass-dark text-white rounded-xl pl-3 pr-4 py-3 text-sm shadow-float ring-1 ring-white/15 animate-slide-in-right flex items-start gap-2.5 overflow-hidden relative">
-          <span className="w-7 h-7 rounded-lg bg-gold-500/20 text-gold-400 grid place-items-center shrink-0">{Icon.bolt({ size: 15 })}</span>
-          <span className="flex-1 leading-snug pt-0.5">{t.msg}</span>
-          <span className="absolute bottom-0 left-0 h-0.5 w-full bg-gold-400/70" style={{ animation: "toastprogress 4.2s linear forwards", transformOrigin: "left" }} />
-        </div>
-      ))}
+    <div className="fixed bottom-4 right-4 z-[80] space-y-2.5 w-[340px] max-w-[calc(100vw-2rem)]">
+      {items.map((t) => {
+        const tn = tones[t.tone] || tones.default;
+        const IC = Icon[tn.ic];
+        return (
+          <div key={t.id} role="status" className="glass-dark text-white rounded-xl pl-3 pr-3 py-3 text-sm shadow-float ring-1 ring-white/15 animate-slide-in-right flex items-start gap-2.5 overflow-hidden relative">
+            <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${tn.chip}`}><IC size={15} /></span>
+            <span className="flex-1 leading-snug pt-0.5">{t.msg}</span>
+            {t.action && (
+              <button onClick={() => { t.action.onClick?.(); onDismiss?.(t.id); }}
+                className="shrink-0 self-center text-[12px] font-bold text-gold-300 hover:text-gold-200 underline underline-offset-2 px-1">
+                {t.action.label}
+              </button>
+            )}
+            <button aria-label="Dismiss" onClick={() => onDismiss?.(t.id)} className="shrink-0 self-start text-white/50 hover:text-white p-0.5 -mr-1"><Icon.x size={14} /></button>
+            <span className={`absolute bottom-0 left-0 h-0.5 w-full ${tn.bar}`} style={{ animation: `toastprogress ${(t.duration || 4200) / 1000}s linear forwards`, transformOrigin: "left" }} />
+          </div>
+        );
+      })}
     </div>
   );
 }
