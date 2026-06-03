@@ -9,24 +9,43 @@ import { useApp } from "../app/store.jsx";
 
 /* ============ HOME ============ */
 export function CustomerHome() {
-  const { go } = useApp();
+  const { go, cart } = useApp();
   const tools = [
-    { k: "book", t: "Sunbed Booking", d: "Reserve your spot on the live beach map", ic: Icon.umbrella, tone: "teal" },
-    { k: "ticket", t: "Entry Ticket", d: "Buy entry for yourself or your group", ic: Icon.ticket },
-    { k: "locker", t: "Day Locker", d: "Keep your valuables safe", ic: Icon.lock },
-    { k: "parking", t: "Parking", d: "Reserve a spot at the car park", ic: Icon.car },
-    { k: "mybookings", t: "My Bookings", d: "Reservations, QR codes & status", ic: Icon.grid },
-    { k: "mydocs", t: "My Documents", d: "Receipts & invoices (MyDATA)", ic: Icon.receipt },
+    { k: "book", t: "Sunbed Booking", d: "Reserve your spot on the live beach map", ic: Icon.umbrella, tone: "teal", meta: "Live map" },
+    { k: "ticket", t: "Entry Ticket", d: "Buy entry for yourself or your group", ic: Icon.ticket, meta: "From €5" },
+    { k: "locker", t: "Day Locker", d: "Keep your valuables safe", ic: Icon.lock, meta: "80 free today" },
+    { k: "parking", t: "Parking", d: "Reserve a spot at the car park", ic: Icon.car, meta: "39 of 50 free" },
+    { k: "mybookings", t: "My Bookings", d: "Reservations, QR codes & status", ic: Icon.grid, meta: "4 active" },
+    { k: "mydocs", t: "My Documents", d: "Receipts & invoices (MyDATA)", ic: Icon.receipt, meta: "2 receipts" },
   ];
+  const cartCount = (cart || []).length;
   return (
-    <div className="animate-fade-up">
+    <div className="animate-fade-up space-y-5">
+      {/* welcome row */}
+      <Card className="glass-card-solid p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-teal-700">
+            <Icon.sun size={14} /> Good morning, Elena
+          </div>
+          <div className="mt-1 font-display font-bold text-2xl text-navy-900">Akti tou Iliou — sunny, 28°C</div>
+          <div className="text-[13px] text-slate-600 mt-0.5">Front-row sunbeds at <b>20% off</b> this weekend · gates open 09:00–20:00.</div>
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Btn variant="teal" icon={Icon.umbrella} onClick={() => go("customer", "book")}>Book a sunbed</Btn>
+          {cartCount > 0 && (
+            <Btn variant="outline" icon={Icon.card} onClick={() => go("customer", "checkout")}>Checkout · {cartCount}</Btn>
+          )}
+        </div>
+      </Card>
+
+      {/* tools grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {tools.map((t) => (
           <button key={t.k} onClick={() => go("customer", t.k)} className="text-left group">
             <Card hover className="glass-card-solid p-5 h-full">
               <div className="flex items-start justify-between">
                 <div className={`w-11 h-11 rounded-xl grid place-items-center text-white shadow-sm transition-transform duration-200 ease-spring group-hover:scale-110 group-hover:-rotate-3 ${t.tone === "teal" ? "bg-gradient-to-br from-teal-500 to-teal-700" : "bg-gradient-to-br from-navy-800 to-navy-950"}`}><t.ic size={20} /></div>
-                {t.future && <Badge tone="future">Future</Badge>}
+                {t.meta && <Badge tone="slate" className="bg-white/70">{t.meta}</Badge>}
               </div>
               <div className="mt-3 font-semibold text-navy-900 flex items-center gap-1">{t.t}<Icon.chevR size={15} className="transition-transform duration-200 group-hover:translate-x-1 text-teal-600" /></div>
               <div className="text-[13px] text-slate-600 mt-0.5">{t.d}</div>

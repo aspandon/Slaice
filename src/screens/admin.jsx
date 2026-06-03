@@ -100,7 +100,7 @@ export function AdminMapEditor() {
   const [zones, setZones] = useState(() => ZONES.map((z, i) => ({
     id: z.id, name: z.name, prefix: z.prefix, color: z.color, total: z.total,
     rows: 8, cols: Math.max(6, Math.round(z.total / 8)),
-    x: 6 + (i % 3) * 32, y: 10 + Math.floor(i / 3) * 44,
+    x: 6 + (i % 3) * 32, y: 16 + Math.floor(i / 3) * 38,
   })));
   const [selectedId, setSelectedId] = useState(zones[0].id);
   const selected = zones.find((z) => z.id === selectedId);
@@ -342,7 +342,16 @@ export function AdminUsers() {
 export function AdminReporting() {
   const { toast } = useApp();
   const [tab, setTab] = useState("exec");
-  const tabs = [["exec", "Executive"], ["revenue", "Revenue"], ["occupancy", "Occupancy"], ["bookings", "Bookings"], ["channel", "Channels"], ["customers", "Customers"], ["tickets", "Tickets"], ["daily", "Daily ops"]];
+  const tabs = [
+    ["exec", "Executive", Icon.chart],
+    ["revenue", "Revenue", Icon.cash],
+    ["occupancy", "Occupancy", Icon.umbrella],
+    ["bookings", "Bookings", Icon.grid],
+    ["channel", "Channels", Icon.globe],
+    ["customers", "Customers", Icon.users],
+    ["tickets", "Tickets", Icon.ticket],
+    ["daily", "Daily ops", Icon.clock],
+  ];
   const season = [{ l: "May", v: 48 }, { l: "Jun", v: 121 }, { l: "Jul", v: 198 }, { l: "Aug", v: 241 }, { l: "Sep", v: 96 }];
   return (
     <div className="animate-fade-up">
@@ -400,11 +409,17 @@ export function AdminReporting() {
         <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-1">Booking volume by day</div><LineChartMini data={[{ l: "Mon", v: 120 }, { l: "Tue", v: 98 }, { l: "Wed", v: 142 }, { l: "Thu", v: 165 }, { l: "Fri", v: 210 }, { l: "Sat", v: 320 }, { l: "Sun", v: 298 }]} /></Card>
       </>}
 
-      {tab === "channel" && <Card className="p-5"><div className="font-semibold text-navy-900 mb-2">Sales by channel & role</div>
-        <div className="flex items-center gap-6 flex-wrap"><Donut segments={[{ v: 40, c: "#0ea5e9" }, { v: 45, c: "#f59e0b" }, { v: 15, c: "#0D9488" }]} />
-          <div className="text-sm space-y-2">
-            <Leg c="bg-sky-500" t="Online (customer) — 40% · €281k" /><Leg c="bg-amber-500" t="Walk-in (controller) — 45% · €317k" /><Leg c="bg-teal-600" t="Cashier (on-site) — 15% · €106k" />
-          </div></div></Card>}
+      {tab === "channel" && <div className="grid lg:grid-cols-[1fr_1fr] gap-4">
+        <Card className="p-5"><div className="font-semibold text-navy-900 mb-2">Sales by channel & role</div>
+          <div className="flex items-center gap-6 flex-wrap"><Donut segments={[{ v: 40, c: "#0ea5e9" }, { v: 45, c: "#f59e0b" }, { v: 15, c: "#0D9488" }]} />
+            <div className="text-sm space-y-2">
+              <Leg c="bg-sky-500" t="Online (customer) — 40% · €281k" /><Leg c="bg-amber-500" t="Walk-in (controller) — 45% · €317k" /><Leg c="bg-teal-600" t="Cashier (on-site) — 15% · €106k" />
+            </div></div>
+        </Card>
+        <Card className="p-5"><div className="font-semibold text-navy-900 mb-2">Channel by week (€k)</div>
+          <BarChart color="#0ea5e9" data={[{ l: "W1", v: 48 }, { l: "W2", v: 56 }, { l: "W3", v: 71, hi: 1 }, { l: "W4", v: 64 }, { l: "W5", v: 78 }, { l: "W6", v: 82, hi: 1 }]} />
+        </Card>
+      </div>}
 
       {tab === "customers" && <>
         <div className="grid sm:grid-cols-3 gap-4">
@@ -494,10 +509,30 @@ export function AdminCommunicate() {
             <div className="font-semibold text-sm">Weekend at the beach</div>
             <div className="text-[12px] text-white/80 leading-snug mt-0.5 line-clamp-3">{msg}</div>
           </div>
-          <div className="rounded-2xl ring-1 ring-slate-200 bg-white/70 backdrop-blur p-4 space-y-2 text-[12px] text-slate-600">
-            <div className="flex items-center gap-2 font-semibold text-navy-900"><Icon.users size={14} /> Audience</div>
-            <div>Segment <b className="text-navy-900">{seg}</b> · est. reach <b className="text-navy-900">{reach}</b></div>
-            <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-500">Built on Users & Segments — change tags to grow the reach.</div>
+          <div className="rounded-2xl ring-1 ring-slate-200 bg-white/70 backdrop-blur p-4 space-y-3 text-[12px] text-slate-600">
+            <div className="flex items-center justify-between">
+              <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.users size={14} /> Audience</div>
+              <Badge tone="indigo">{seg}</Badge>
+            </div>
+            <div>
+              <div className="flex items-center justify-between text-[11px] mb-1">
+                <span>Est. reach</span>
+                <b className="text-navy-900 tnum">{reach}</b>
+              </div>
+              <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-slaice-500 to-teal-500" style={{ width: `${Math.min(100, (parseInt(reach.replace(/,/g, ""), 10) / 8420) * 100)}%` }} />
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-slate-500 mt-1">
+                <span>0</span>
+                <span>8,420 total</span>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-100">
+              {["VIP", "Season pass", "Regulars", "New"].map((t) => (
+                <button key={t} onClick={() => setSeg(t === "Regulars" ? "Regulars" : t)} className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ring-1 transition ${seg === t ? "bg-slaice-600 text-white ring-slaice-600" : "bg-white text-slate-600 ring-slate-200 hover:ring-slaice-400"}`}>{t}</button>
+              ))}
+            </div>
+            <div className="text-[11px] text-slate-500">Built on Users & Segments — change tags to grow the reach.</div>
           </div>
         </aside>
       </div>

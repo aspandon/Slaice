@@ -4,6 +4,16 @@ import { Card, Btn, Badge, PageHead, Table, StatCard, Field, Input, Select, Togg
 import { SlaiceLogo } from "../components/Brand.jsx";
 import { useApp } from "../app/store.jsx";
 
+function ModuleList({ modules }) {
+  return (
+    <span className="flex flex-wrap gap-1">
+      {modules.map((m) => (
+        <span key={m} className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md bg-teal-50 text-teal-700 ring-1 ring-teal-600/15">{m}</span>
+      ))}
+    </span>
+  );
+}
+
 /* ============ TENANTS ============ */
 export function PlatformTenants() {
   const { go, toast } = useApp();
@@ -20,19 +30,30 @@ export function PlatformTenants() {
       <Card className="p-2">
         <Table cols={["Tenant", "Subdomain", "Stripe", "Modules", "Status"]}
           rows={[
-            ["Akti tou Iliou", "aktitouiliou.slaice.app", <Badge tone="green">charges ✓</Badge>, "Booking · Ticket · Invoice · Pay", <Badge tone="green">Live</Badge>],
-            ["Demo Beach #2", "beach2.slaice.app", <Badge tone="amber">onboarding</Badge>, "Booking", <Badge tone="amber">Setup</Badge>],
-            ["Paralia Sun", "paraliasun.slaice.app", <Badge tone="slate">pending</Badge>, "—", <Badge tone="slate">Lead</Badge>],
+            ["Akti tou Iliou", "aktitouiliou.slaice.app", <Badge tone="green">charges ✓</Badge>, <ModuleList modules={["Booking", "Ticket", "Invoice", "Pay"]} />, <Badge tone="green">Live</Badge>],
+            ["Demo Beach #2", "beach2.slaice.app", <Badge tone="amber">onboarding</Badge>, <ModuleList modules={["Booking"]} />, <Badge tone="amber">Setup</Badge>],
+            ["Paralia Sun", "paraliasun.slaice.app", <Badge tone="slate">pending</Badge>, <span className="text-slate-500">—</span>, <Badge tone="slate">Lead</Badge>],
           ]} />
       </Card>
       <Card className="p-5 mt-4">
-        <div className="font-semibold text-navy-900 mb-2">Capability flags · Akti tou Iliou</div>
-        <div className="flex flex-wrap gap-2">
-          {["Sunbed Booking", "Entry Ticket", "e-Invoice/MyDATA", "Payments", "Reporting", "Locker (future)", "Parking (future)", "Cash Register (future)", "Loyalty (future)"].map((m, i) => (
-            <span key={i} className={`px-3 py-1.5 rounded-lg text-[13px] ring-1 ${i < 5 ? "bg-teal-50 text-teal-700 ring-teal-600/20" : "bg-slate-50 text-slate-600 ring-slate-200"}`}>{m}</span>
-          ))}
+        <div className="font-semibold text-navy-900 mb-3">Capability flags · Akti tou Iliou</div>
+        <div className="mb-3">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-teal-700 mb-1.5 flex items-center gap-1.5"><Icon.checkCircle size={11} /> Enabled · MVP</div>
+          <div className="flex flex-wrap gap-2">
+            {["Sunbed Booking", "Entry Ticket", "e-Invoice/MyDATA", "Payments", "Reporting"].map((m) => (
+              <span key={m} className="px-3 py-1.5 rounded-lg text-[13px] bg-teal-50 text-teal-700 ring-1 ring-teal-600/20">{m}</span>
+            ))}
+          </div>
         </div>
-        <Btn variant="ghost" size="sm" className="mt-3" icon={Icon.cog} onClick={() => go("platform", "superadmin")}>Manage in Super Admin</Btn>
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center gap-1.5"><Icon.clock size={11} /> Roadmap · disabled</div>
+          <div className="flex flex-wrap gap-2">
+            {["Day Locker", "Parking", "Cash Register", "Loyalty"].map((m) => (
+              <span key={m} className="px-3 py-1.5 rounded-lg text-[13px] bg-slate-50 text-slate-500 ring-1 ring-slate-200">{m}</span>
+            ))}
+          </div>
+        </div>
+        <Btn variant="ghost" size="sm" className="mt-4" icon={Icon.cog} onClick={() => go("platform", "superadmin")}>Manage in Super Admin</Btn>
       </Card>
     </div>
   );

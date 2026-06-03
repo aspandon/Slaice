@@ -104,12 +104,12 @@ export function TopBar({ persona, setPersona, page, setPage }) {
           <div className="font-display font-bold leading-tight">{TENANT.name}</div>
           <div className="text-[11px] text-white/60 -mt-0.5">{TENANT.subdomain}</div>
         </div>
-        <span className="hidden lg:flex items-center gap-1 ml-2 text-[10px] text-white/50 border-l border-white/15 pl-3">
-          powered by <span className="font-semibold text-white/80">SLA<span className="text-gold-400">i</span>CE</span>
+        <span className="hidden xl:flex items-center gap-1 ml-2 text-[11px] text-white/75 font-medium border-l border-white/15 pl-3">
+          powered by <span className="font-bold text-white">SLA<span className="text-gold-400">i</span>CE</span>
         </span>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         {/* Explore: Features + Journeys collapsed into one menu */}
         {setPage && (
           <div className="hidden md:block relative mr-1" ref={eRef}>
@@ -142,7 +142,8 @@ export function TopBar({ persona, setPersona, page, setPage }) {
           </div>
         )}
 
-        {/* basket popup */}
+        {/* basket popup — only on the customer persona */}
+        {persona === "customer" && (
         <div className="relative" ref={bRef}>
           <button onClick={() => { close(); setBOpen((o) => !o); }} className="text-white/85 hover:text-white p-2 rounded-lg hover:bg-white/10 relative" aria-label="Basket" title="Basket">
             <Icon.card size={17} />
@@ -192,6 +193,7 @@ export function TopBar({ persona, setPersona, page, setPage }) {
             </div>
           )}
         </div>
+        )}
 
         <div className="relative" ref={nRef}>
           <button onClick={() => { close(); setNOpen((o) => !o); }} className="text-white/85 hover:text-white p-2 rounded-lg hover:bg-white/10 relative" aria-label="Notifications">

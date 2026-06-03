@@ -204,7 +204,7 @@ export function ParkingBackdrop({ children, className = "" }) {
         <ellipse cx="280" cy="220" rx="60" ry="10" fill="#1f242c" opacity="0.45" />
         <ellipse cx="920" cy="580" rx="80" ry="12" fill="#1f242c" opacity="0.4" />
       </svg>
-      <div className="absolute inset-0">{children}</div>
+      <div className="relative">{children}</div>
     </div>
   );
 }
@@ -250,7 +250,7 @@ export function LockerBackdrop({ children, className = "" }) {
           <stop offset="100%" stopColor="rgba(0,0,0,0)" />
         </linearGradient>
       </svg>
-      <div className="absolute inset-0">{children}</div>
+      <div className="relative">{children}</div>
     </div>
   );
 }

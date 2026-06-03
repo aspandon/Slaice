@@ -153,18 +153,18 @@ export function EmptyState({ icon: IconC = Icon.inbox, title, body, action, comp
 }
 
 /* ---------- StatCard ---------- */
-export function StatCard({ label, value, sub, tone = "navy", icon: IconC, delta }) {
-  const accent = {
-    navy: "bg-navy-900/5 text-navy-900",
-    teal: "bg-teal-500/10 text-teal-600",
-    indigo: "bg-slaice-600/10 text-slaice-600",
-  }[tone] || "bg-slate-100 text-slate-500";
+// Tone now drives a thin left accent stripe instead of a decorative icon box —
+// keeps the visual rhythm without adding generic glyphs to every metric.
+export function StatCard({ label, value, sub, tone = "navy", delta }) {
+  const stripe = {
+    navy: "bg-navy-900/60",
+    teal: "bg-teal-500",
+    indigo: "bg-slaice-500",
+  }[tone] || "bg-slate-300";
   return (
-    <Card hover className="p-4 group">
-      <div className="flex items-start justify-between">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">{label}</div>
-        {IconC && <div className={`w-8 h-8 rounded-xl grid place-items-center transition-transform duration-200 ease-spring group-hover:scale-110 ${accent}`}><IconC size={16} /></div>}
-      </div>
+    <Card hover className="p-4 relative overflow-hidden">
+      <span aria-hidden className={`absolute left-0 top-3 bottom-3 w-1 rounded-r-full ${stripe}`} />
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">{label}</div>
       <div className="mt-1.5 text-2xl font-bold text-navy-900 tnum font-display tracking-tight">{value}</div>
       {sub && <div className="mt-1 text-[12px] text-slate-600 flex items-center gap-1">{delta}{sub}</div>}
     </Card>
@@ -327,16 +327,21 @@ export function ConfirmModal({ open, onClose, onConfirm, title = "Are you sure?"
   );
 }
 
-/* ---------- Tabs ---------- */
+/* ---------- Tabs ----------
+   Tab entries: [key, label] or [key, label, IconComponent] */
 export function Tabs({ tabs, value, onChange, className = "", scroll = false }) {
   return (
     <div className={`flex gap-1.5 ${scroll ? "overflow-x-auto no-scrollbar" : "flex-wrap"} ${className}`}>
-      {tabs.map(([k, t]) => (
-        <button key={k} onClick={() => onChange(k)}
-          className={`px-3.5 h-9 rounded-lg text-[13px] font-semibold whitespace-nowrap transition-all duration-150 ${value === k ? "bg-navy-900 text-white shadow-sm" : "glass text-slate-700 hover:text-navy-900"}`}>
-          {t}
-        </button>
-      ))}
+      {tabs.map(([k, t, IconC]) => {
+        const active = value === k;
+        return (
+          <button key={k} onClick={() => onChange(k)}
+            className={`px-3.5 h-9 rounded-lg text-[13px] font-semibold whitespace-nowrap transition-all duration-150 inline-flex items-center gap-1.5 ${active ? "bg-navy-900 text-white shadow-sm" : "glass text-slate-700 hover:text-navy-900"}`}>
+            {IconC && <IconC size={14} className={active ? "" : "text-slate-500"} />}
+            {t}
+          </button>
+        );
+      })}
     </div>
   );
 }
