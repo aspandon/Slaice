@@ -268,12 +268,14 @@ export function TopBar({ persona, setPersona, page, setPage }) {
           )}
         </div>
 
-        {/* persona switcher */}
+        {/* persona switcher — tinted with the current persona's accent */}
         <div className="relative" ref={pRef}>
-          <button onClick={() => { close(); setPOpen((o) => !o); }} className="flex items-center gap-2 bg-white/15 ring-1 ring-white/25 hover:bg-white/25 rounded-xl pl-2 pr-3 py-1.5 text-sm font-semibold">
-            <span className="w-6 h-6 rounded-lg grid place-items-center" style={{ background: cur.color }}>{Icon[cur.icon]({ size: 13 })}</span>
-            <span className="hidden md:inline">{cur.label}</span>
-            <Icon.chevD size={14} />
+          <button onClick={() => { close(); setPOpen((o) => !o); }}
+            style={{ background: cur.color + "40", borderColor: cur.color }}
+            className="flex items-center gap-2 ring-1 rounded-xl pl-2 pr-3 py-1.5 text-sm font-semibold hover:brightness-110 transition">
+            <span className="w-6 h-6 rounded-lg grid place-items-center text-white shadow" style={{ background: cur.color }}>{Icon[cur.icon]({ size: 13 })}</span>
+            <span className="hidden md:inline text-white">{cur.label}</span>
+            <Icon.chevD size={14} className="text-white/80" />
           </button>
           {pOpen && (
             <div className="glass-card absolute right-0 mt-2 w-72 text-ink rounded-xl p-1.5 z-50">
@@ -417,11 +419,11 @@ export function Sidebar({ persona, page, setPage }) {
           const active = page === it.k;
           return (
             <button key={it.k} onClick={() => setPage(it.k)}
-              className={`group relative w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-600 hover:bg-slate-100 hover:text-navy-900"}`}>
-              <span className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-full bg-teal-400 transition-all duration-200 ${active ? "h-5 opacity-100" : "h-0 opacity-0"}`} />
-              {IconC && <IconC size={17} className={active ? "" : "text-slate-400 group-hover:text-teal-600 transition-colors"} />}
+              className={`group relative w-full flex items-center gap-2.5 pl-4 pr-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-600 hover:bg-slate-100 hover:text-navy-900"}`}>
+              <span className={`absolute left-1.5 top-2 bottom-2 w-1 rounded-full transition-all duration-200 ${active ? "bg-teal-400 opacity-100" : "bg-transparent opacity-0 group-hover:bg-teal-300 group-hover:opacity-100"}`} />
+              {IconC && <IconC size={17} className={active ? "" : "text-slate-500 group-hover:text-teal-600 transition-colors"} />}
               <span className="flex-1 text-left">{it.label}</span>
-              {it.badge === "Future" && <Badge tone="future">Future</Badge>}
+              {it.badge === "Future" && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${active ? "bg-orange-300" : "bg-orange-400"}`} title="Roadmap (Future)" />}
             </button>
           );
         })}

@@ -142,7 +142,7 @@ export function AdminMapEditor() {
           <div
             ref={canvasRef}
             className="relative rounded-2xl ring-1 ring-slate-100 overflow-hidden select-none"
-            style={{ background: "linear-gradient(180deg,#88c8e8 0%,#a9dceb 35%,#f2dbb0 60%,#e5c688 100%)", height: 420 }}
+            style={{ background: "linear-gradient(180deg,#88c8e8 0%,#a9dceb 35%,#f2dbb0 60%,#e5c688 100%)", height: 560 }}
           >
             {/* shoreline accent */}
             <div className="absolute left-0 right-0" style={{ top: "52%", height: 4, background: "rgba(255,255,255,0.75)" }} />
@@ -452,19 +452,31 @@ export function AdminReporting() {
 export function AdminRefunds() {
   const { toast } = useApp();
   const [modal, setModal] = useState(null);
+  const [period, setPeriod] = useState("month");
   const [rows, setRows] = useState([
     { tx: "#TX-88210", cust: "Maria K.", amount: 30, reason: "", status: null },
     { tx: "#TX-88154", cust: "Nikos P.", amount: 22, reason: "Double booking", status: "Refunded" },
   ]);
+  const refunded = rows.filter((r) => r.status === "Refunded").reduce((a, b) => a + b.amount, 0);
+  const pending = rows.filter((r) => !r.status).length;
   return (
     <div className="animate-fade-up">
       <PageHead title="Refunds" sub="Partial or full refunds via Stripe, with reason logging and auto credit-note (MyDATA)." badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<Btn variant="outline" icon={Icon.download} onClick={() => toast("Demo — refund history CSV.")}>Export</Btn>} />
+        actions={<>
+          <Tabs tabs={[["week", "Week"], ["month", "Month"], ["season", "Season"]]} value={period} onChange={setPeriod} />
+          <Btn variant="outline" icon={Icon.download} onClick={() => toast("Demo — refund history CSV.")}>Export</Btn>
+        </>} />
+      <div className="grid sm:grid-cols-4 gap-4 mb-4">
+        <StatCard label="Refunded · this month" value={`€${refunded}`} sub="1 transaction" tone="teal" />
+        <StatCard label="Pending review" value={pending} sub="awaiting decision" />
+        <StatCard label="Refund rate" value="1.4%" sub="of total sales" />
+        <StatCard label="Top reason" value="Double booking" sub="50% of refunds" tone="indigo" />
+      </div>
       <Card className="p-2">
         <Table cols={["Transaction", "Customer", "Amount", "Reason", "Status", ""]} right={[2]}
           rows={rows.map((r, i) => [r.tx, r.cust, `€${r.amount}`, r.reason || "—",
-            r.status ? <Badge tone="green">{r.status}</Badge> : "—",
-            r.status ? <span className="text-slate-300 text-sm">done</span> : <Btn size="sm" variant="outline" icon={Icon.refund} onClick={() => setModal(i)}>Refund</Btn>])} />
+            r.status ? <Badge tone="green">{r.status}</Badge> : <Badge tone="amber">Pending</Badge>,
+            r.status ? <span className="text-slate-500 text-sm">done</span> : <Btn size="sm" variant="outline" icon={Icon.refund} onClick={() => setModal(i)}>Refund</Btn>])} />
       </Card>
       <Modal open={modal !== null} onClose={() => setModal(null)} title="Issue refund"
         footer={<><Btn variant="ghost" onClick={() => setModal(null)}>Cancel</Btn>

@@ -61,8 +61,12 @@ export function Card({ className = "", children, onClick, hover }) {
 
 /* ---------- Button ---------- */
 export function Btn({ children, variant = "primary", size = "md", onClick, icon: IconC, full, disabled, loading, className = "", type = "button" }) {
-  const base = "relative inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-150 ease-smooth active:scale-[.97] disabled:opacity-50 disabled:pointer-events-none select-none";
+  const base = "relative inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-150 ease-smooth active:scale-[.97] disabled:pointer-events-none select-none";
   const sizes = { sm: "px-3 py-1.5 text-[13px]", md: "px-4 py-2.5 text-sm", lg: "px-5 py-3 text-[15px]" };
+  // When disabled, every variant collapses to the same quiet slate ghost so a
+  // disabled CTA never looks like a heavy navy slab. Loading keeps the active
+  // variant so the spinner appears on the live colour.
+  const off = "!bg-slate-100 !text-slate-400 !ring-1 !ring-slate-200 !shadow-none";
   const variants = {
     primary: "bg-navy-900 text-white hover:bg-navy-800 shadow-btn-primary hover:shadow-lift",
     teal: "bg-teal-600 text-white hover:bg-teal-500 shadow-btn-teal hover:shadow-lift",
@@ -74,9 +78,10 @@ export function Btn({ children, variant = "primary", size = "md", onClick, icon:
     light: "bg-white/15 text-white hover:bg-white/25 ring-1 ring-white/20 backdrop-blur-sm",
     danger: "bg-rose-600 text-white hover:bg-rose-500 shadow-lift",
   };
+  const isDisabled = disabled && !loading;
   return (
     <button type={type} disabled={disabled || loading} onClick={onClick}
-      className={`${base} ${sizes[size]} ${variants[variant]} ${full ? "w-full" : ""} ${className}`}>
+      className={`${base} ${sizes[size]} ${variants[variant]} ${full ? "w-full" : ""} ${isDisabled ? off : ""} ${className}`}>
       {loading ? <Spinner size={size === "sm" ? 14 : 16} /> : IconC && <IconC size={size === "sm" ? 15 : 17} />}
       {children}
     </button>
@@ -266,8 +271,8 @@ export function Select({ options = [], ...props }) {
 export function Toggle({ on, onChange, label }) {
   return (
     <button role="switch" aria-checked={on} onClick={() => onChange(!on)} className="inline-flex items-center gap-2 group">
-      <span className={`w-10 h-6 rounded-full transition-colors duration-200 relative ${on ? "bg-teal-600" : "bg-slate-300 group-hover:bg-slate-400"}`}>
-        <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow-sm transition-all duration-200 ease-spring ${on ? "left-[18px]" : "left-0.5"}`} />
+      <span className={`w-11 h-7 rounded-full transition-colors duration-200 relative ${on ? "bg-teal-600" : "bg-slate-300 group-hover:bg-slate-400"}`}>
+        <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-sm transition-all duration-200 ease-spring ${on ? "left-[18px]" : "left-0.5"}`} />
       </span>
       {label && <span className="text-sm text-slate-600">{label}</span>}
     </button>

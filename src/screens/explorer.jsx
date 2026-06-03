@@ -38,19 +38,21 @@ export function FeatureInventory() {
         <StatCard label="Future" value={featureCounts.future} sub="Roadmap 2027–2029" icon={Icon.pkg} />
       </div>
 
-      <Card className="p-4 mb-4">
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 flex-1 min-w-[200px] text-slate-600">
-            <Icon.search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search features…" className="text-sm outline-none w-full bg-transparent text-ink" />
+      <div className="sticky top-[86px] z-20 mb-4">
+        <Card className="p-4 shadow-lift">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 bg-white px-3 py-2 flex-1 min-w-[200px] text-slate-600">
+              <Icon.search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search features…" className="text-sm outline-none w-full bg-transparent text-ink" />
+            </div>
+            <div className="flex gap-1.5">
+              {["All", "MVP", "Future"].map((s) => <button key={s} onClick={() => setStatus(s)} className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold ring-1 ${status === s ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 text-slate-600 hover:ring-teal-400"}`}>{s}</button>)}
+            </div>
           </div>
-          <div className="flex gap-1.5">
-            {["All", "MVP", "Future"].map((s) => <button key={s} onClick={() => setStatus(s)} className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold ring-1 ${status === s ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 text-slate-600 hover:ring-teal-400"}`}>{s}</button>)}
+          <div className="flex gap-1.5 flex-wrap mt-3">
+            {["All", ...CAPABILITIES].map((c) => <button key={c} onClick={() => setCap(c)} className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold ring-1 ${cap === c ? "bg-slaice-600 text-white ring-slaice-600" : "bg-white ring-slate-200 text-slate-500 hover:ring-slaice-400"}`}>{c}</button>)}
           </div>
-        </div>
-        <div className="flex gap-1.5 flex-wrap mt-3">
-          {["All", ...CAPABILITIES].map((c) => <button key={c} onClick={() => setCap(c)} className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold ring-1 ${cap === c ? "bg-slaice-600 text-white ring-slaice-600" : "bg-white ring-slate-200 text-slate-500 hover:ring-slaice-400"}`}>{c}</button>)}
-        </div>
-      </Card>
+        </Card>
+      </div>
 
       <div className="text-[12px] text-slate-600 mb-2">{list.length} feature{list.length !== 1 ? "s" : ""} shown</div>
 
@@ -124,8 +126,12 @@ export function JourneyExplorer() {
         <StatCard label="Future" value={journeyCounts.future} icon={Icon.pkg} />
       </div>
 
-      <div className="flex gap-1.5 flex-wrap mb-4">
-        {personaTabs.map(([k, t]) => <button key={k} onClick={() => setPf(k)} className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold ring-1 ${pf === k ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 text-slate-600 hover:ring-teal-400"}`}>{t}</button>)}
+      <div className="sticky top-[86px] z-20 mb-4">
+        <Card className="p-3 shadow-lift">
+          <div className="flex gap-1.5 flex-wrap">
+            {personaTabs.map(([k, t]) => <button key={k} onClick={() => setPf(k)} className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold ring-1 ${pf === k ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 text-slate-600 hover:ring-teal-400"}`}>{t}</button>)}
+          </div>
+        </Card>
       </div>
 
       <div className="grid md:grid-cols-2 gap-3">

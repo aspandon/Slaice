@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad } from "../components/ui.jsx";
+import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad, StatCard, ContextPanel, Tabs } from "../components/ui.jsx";
 import { QR } from "../components/charts.jsx";
 import { Sunbed, BeachBackdrop, ParkingBackdrop, LockerBackdrop } from "../components/Beach.jsx";
 import { downloadText } from "../lib/download.js";
@@ -11,12 +11,12 @@ import { useApp } from "../app/store.jsx";
 export function CustomerHome() {
   const { go, cart } = useApp();
   const tools = [
-    { k: "book", t: "Sunbed Booking", d: "Reserve your spot on the live beach map", ic: Icon.umbrella, tone: "teal", meta: "Live map" },
-    { k: "ticket", t: "Entry Ticket", d: "Buy entry for yourself or your group", ic: Icon.ticket, meta: "From €5" },
-    { k: "locker", t: "Day Locker", d: "Keep your valuables safe", ic: Icon.lock, meta: "80 free today" },
-    { k: "parking", t: "Parking", d: "Reserve a spot at the car park", ic: Icon.car, meta: "39 of 50 free" },
-    { k: "mybookings", t: "My Bookings", d: "Reservations, QR codes & status", ic: Icon.grid, meta: "4 active" },
-    { k: "mydocs", t: "My Documents", d: "Receipts & invoices (MyDATA)", ic: Icon.receipt, meta: "2 receipts" },
+    { k: "book", t: "Sunbed Booking", d: "Reserve your spot on the live beach map", ic: Icon.umbrella, tone: "teal", meta: "Live map", metaTone: "green" },
+    { k: "ticket", t: "Entry Ticket", d: "Buy entry for yourself or your group", ic: Icon.ticket, meta: "From €5", metaTone: "slate" },
+    { k: "locker", t: "Day Locker", d: "Keep your valuables safe", ic: Icon.lock, meta: "80 free today", metaTone: "green" },
+    { k: "parking", t: "Parking", d: "Reserve a spot at the car park", ic: Icon.car, meta: "39 of 50 free", metaTone: "green" },
+    { k: "mybookings", t: "My Bookings", d: "Reservations, QR codes & status", ic: Icon.grid, meta: "4 active", metaTone: "blue" },
+    { k: "mydocs", t: "My Documents", d: "Receipts & invoices (MyDATA)", ic: Icon.receipt, meta: "2 receipts", metaTone: "slate" },
   ];
   const cartCount = (cart || []).length;
   return (
@@ -45,7 +45,7 @@ export function CustomerHome() {
             <Card hover className="glass-card-solid p-5 h-full">
               <div className="flex items-start justify-between">
                 <div className={`w-11 h-11 rounded-xl grid place-items-center text-white shadow-sm transition-transform duration-200 ease-spring group-hover:scale-110 group-hover:-rotate-3 ${t.tone === "teal" ? "bg-gradient-to-br from-teal-500 to-teal-700" : "bg-gradient-to-br from-navy-800 to-navy-950"}`}><t.ic size={20} /></div>
-                {t.meta && <Badge tone="slate" className="bg-white/70">{t.meta}</Badge>}
+                {t.meta && <Badge tone={t.metaTone || "slate"}>{t.meta}</Badge>}
               </div>
               <div className="mt-3 font-semibold text-navy-900 flex items-center gap-1">{t.t}<Icon.chevR size={15} className="transition-transform duration-200 group-hover:translate-x-1 text-teal-600" /></div>
               <div className="text-[13px] text-slate-600 mt-0.5">{t.d}</div>
@@ -388,7 +388,8 @@ export function CustomerTicket() {
   };
 
   return (
-    <div className="animate-fade-up max-w-2xl">
+    <div className="animate-fade-up grid lg:grid-cols-[1fr_320px] gap-5">
+      <div>
       <PageHead title="Entry Ticket" sub="Buy entry for yourself or your group — pricing adapts to each person's category." badge={<Badge tone="mvp">MVP</Badge>} />
       <Card className="glass-card-solid p-5 space-y-3">
         {cats.map((c) => (
@@ -417,7 +418,12 @@ export function CustomerTicket() {
         </div>
         <Btn variant="teal" full size="lg" icon={Icon.card} disabled={!n} onClick={pay}>Add €{total} to basket</Btn>
       </Card>
-      <p className="text-[12px] text-slate-700 mt-3 flex items-center gap-1.5 bg-white/70 backdrop-blur rounded-lg px-3 py-1.5 w-max ring-1 ring-white/60"><Icon.bolt size={13} className="text-gold-500" /> Dynamic pricing by profile (resident / age). Cross-sell: tickets can also be added during sunbed checkout.</p>
+      </div>
+      <ContextPanel title="About entry tickets" items={[
+        { icon: Icon.bolt, title: "Dynamic pricing", body: "Resident, child, senior categories adapt automatically — no coupons needed." },
+        { icon: Icon.receipt, title: "ΑΠΥ or ΤΠΥ", body: "Personal receipt by default; toggle the B2B switch to issue a service invoice with VAT details." },
+        { icon: Icon.ticket, title: "Add at checkout", body: "Tickets can also be bundled during a sunbed booking — same QR at the gate." },
+      ]} footer="QR is scanned at the gate by the Controller." />
     </div>
   );
 }
@@ -645,23 +651,36 @@ export function CustomerParking() {
 export function CustomerBookings() {
   const { go, toast } = useApp();
   const [qrFor, setQrFor] = useState(null);
+  const [filter, setFilter] = useState("all");
   const loading = useMockLoad();
-  const rows = [
-    ["#BK-10428", "Central · CE-89", "Sun, 19 Jul", <StatusBadge status="Confirmed" />, "€30"],
-    ["#BK-10402", "Central · CE-92", "Sun, 19 Jul", <StatusBadge status="Confirmed" />, "€30"],
-    ["#TK-55120", "Entry · Adult ×2", "Sun, 19 Jul", <StatusBadge status="Confirmed" />, "€20"],
-    ["#BK-10310", "Bestbuy · BE-14", "Sat, 12 Jul", <StatusBadge status="Used" />, "€22"],
+  const data = [
+    { id: "#BK-10428", item: "Central · CE-89", date: "Sun, 19 Jul", status: "Confirmed", price: 30, state: "active" },
+    { id: "#BK-10402", item: "Central · CE-92", date: "Sun, 19 Jul", status: "Confirmed", price: 30, state: "active" },
+    { id: "#TK-55120", item: "Entry · Adult ×2", date: "Sun, 19 Jul", status: "Confirmed", price: 20, state: "active" },
+    { id: "#BK-10310", item: "Bestbuy · BE-14", date: "Sat, 12 Jul", status: "Used", price: 22, state: "past" },
   ];
+  const filtered = data.filter((d) => filter === "all" || d.state === filter);
+  const total = data.reduce((a, b) => a + b.price, 0);
+  const active = data.filter((d) => d.state === "active").length;
   return (
-    <div>
-      <Card className="p-2">
+    <div className="space-y-4">
+      <div className="grid sm:grid-cols-3 gap-4">
+        <StatCard label="Active bookings" value={active} sub="ready to redeem" tone="teal" />
+        <StatCard label="This season" value={`€${total}`} sub={`${data.length} confirmed`} />
+        <StatCard label="Next visit" value="Sun, 19 Jul" sub="Central zone · 2 sunbeds" tone="indigo" />
+      </div>
+      <Card className="p-4">
+        <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+          <Tabs tabs={[["all", "All"], ["active", "Active"], ["past", "Past"]]} value={filter} onChange={setFilter} />
+          <Btn size="sm" variant="outline" icon={Icon.download} onClick={() => toast("Demo — all QRs e-mailed.", { tone: "success" })}>E-mail all QRs</Btn>
+        </div>
         {loading ? (
           <TableSkeleton rows={4} cols={6} />
-        ) : rows.length === 0 ? (
-          <EmptyState icon={Icon.grid} title="No bookings yet" body="Your sunbed, ticket and locker reservations will show up here." action={<Btn variant="teal" icon={Icon.umbrella} onClick={() => go("customer", "book")}>Book a sunbed</Btn>} />
+        ) : filtered.length === 0 ? (
+          <EmptyState icon={Icon.grid} title={filter === "active" ? "No active bookings" : "No past bookings yet"} body={filter === "active" ? "Book a sunbed for this weekend — Central front-row spots are 20% off." : "Once a visit is over, it will move here."} action={<Btn variant="teal" icon={Icon.umbrella} onClick={() => go("customer", "book")}>Book a sunbed</Btn>} />
         ) : (
           <Table cols={["Booking", "Item", "Date", "Status", "Price", "QR"]} right={[4]}
-            rows={rows.map((r) => [...r, <Btn size="sm" variant="ghost" icon={Icon.qr} onClick={() => setQrFor(r[0])}>QR</Btn>])} />
+            rows={filtered.map((r) => [r.id, r.item, r.date, <StatusBadge status={r.status} />, `€${r.price}`, <Btn size="sm" variant="ghost" icon={Icon.qr} onClick={() => setQrFor(r.id)}>QR</Btn>])} />
         )}
       </Card>
       {qrFor && (
@@ -690,14 +709,29 @@ export function CustomerDocs() {
   const [view, setView] = useState(null);
   const loading = useMockLoad();
   const download = (d) => { downloadText(`${d.id}.txt`, mockCustomerReceipt(d), "text/plain;charset=utf-8"); toast(`Downloaded ${d.id}.`, { tone: "success" }); };
+  const [filter, setFilter] = useState("all");
+  const tone = (id) => id.startsWith("ΑΠΥ") ? "apy" : id.startsWith("ΤΠΥ") ? "tpy" : "credit";
+  const filtered = docs.filter((d) => filter === "all" || tone(d.id) === filter);
+  const totalAmount = docs.reduce((a, b) => a + parseInt(b.amt.replace(/[^0-9]/g, ""), 10), 0);
   return (
-    <div>
-      <Card className="p-2">
+    <div className="space-y-4">
+      <div className="grid sm:grid-cols-3 gap-4">
+        <StatCard label="Receipts this season" value={docs.length} sub={`${docs.filter((d) => tone(d.id) === "apy").length} ΑΠΥ`} tone="teal" />
+        <StatCard label="Total spend" value={`€${totalAmount}`} sub="all paid · MyDATA ✓" />
+        <StatCard label="MyDATA status" value="100%" sub="transmitted" tone="indigo" />
+      </div>
+      <Card className="p-4">
+        <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+          <Tabs tabs={[["all", "All"], ["apy", "ΑΠΥ"], ["tpy", "ΤΠΥ"], ["credit", "Credit notes"]]} value={filter} onChange={setFilter} />
+          <Btn size="sm" variant="outline" icon={Icon.download} onClick={() => toast("Demo — bulk download started.", { tone: "success" })}>Download all (ZIP)</Btn>
+        </div>
         {loading ? (
           <TableSkeleton rows={2} cols={6} />
+        ) : filtered.length === 0 ? (
+          <EmptyState icon={Icon.receipt} title="No documents in this filter" body="Try selecting another category." />
         ) : (
           <Table cols={["Document", "For", "Date", "Amount", "Status", ""]} right={[3]}
-            rows={docs.map((d) => [d.id, d.for, d.date, d.amt, <StatusBadge status="MyDATA ✓" />,
+            rows={filtered.map((d) => [d.id, d.for, d.date, d.amt, <StatusBadge status="MyDATA ✓" />,
               <span className="flex gap-1 justify-end">
                 <Btn size="sm" variant="ghost" icon={Icon.doc} onClick={() => setView(d)}>View</Btn>
                 <Btn size="sm" variant="ghost" icon={Icon.download} onClick={() => download(d)}>PDF</Btn>

@@ -53,6 +53,10 @@ export function Checkout() {
       <div>
         <PageHead title="Checkout" sub="Review your order, then pay via Stripe (hosted, tenant-branded)." badge={<Badge tone="mvp">MVP</Badge>} />
         <Card className="p-2">
+          <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100">
+            <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.card size={16} /> Your basket · {cart.length} item{cart.length !== 1 ? "s" : ""}</div>
+            <div className="text-[12px] text-slate-600">Subtotal <b className="text-navy-900 tnum">€{total.toFixed(2)}</b></div>
+          </div>
           <div className="divide-y divide-slate-100">
             {cart.map((it) => (
               <div key={it.kind + it.id} className="flex items-center justify-between px-3 py-3">
@@ -60,7 +64,7 @@ export function Checkout() {
                   <span className="w-9 h-9 rounded-lg bg-slate-100 grid place-items-center text-slate-500">{kindIcon(it.kind)}</span>
                   <div><div className="font-semibold text-sm text-navy-900">{it.label}</div><div className="text-[12px] text-slate-600">{it.sub}</div></div>
                 </div>
-                <div className="flex items-center gap-2"><span className="font-semibold tnum">€{it.price}</span><button aria-label={`Remove ${it.label}`} onClick={() => removeItem(it)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={16} /></button></div>
+                <div className="flex items-center gap-2"><span className="font-semibold tnum">€{it.price}</span><button aria-label={`Remove ${it.label}`} onClick={() => removeItem(it)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={16} /></button></div>
               </div>
             ))}
           </div>
