@@ -19,7 +19,7 @@ export function CustomerHome() {
   const secondary = [
     { k: "ticket",  t: "Entry Ticket", d: "Buy entry for your group",  ic: Icon.ticket },
     { k: "locker",  t: "Day Locker",   d: "Keep your valuables safe",  ic: Icon.lock,  meta: "80 free",    metaTone: "green" },
-    { k: "parking", t: "Parking",      d: "Reserve a spot",            ic: Icon.car,   meta: "39/50 free", metaTone: "green" },
+    { k: "parking", t: "Parking Spot", d: "Reserve a spot",            ic: Icon.car,   meta: "39/50 free", metaTone: "green" },
   ];
 
   return (
@@ -248,7 +248,7 @@ export function CustomerBooking() {
                  so they read as context rather than competing controls.
                  When a zone is active (focused), the rail collapses into a
                  breadcrumb + the WHEN block + the ambient strip. */}
-            <div className="absolute top-[148px] lg:right-[362px] left-3 right-3 z-30">
+            <div className="absolute top-[88px] lg:right-[362px] left-3 right-3 z-30">
               <div className="rounded-2xl bg-white/90 backdrop-blur-xl ring-1 ring-white/70 shadow-lg overflow-hidden">
                 {focused ? (
                   <>

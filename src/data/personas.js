@@ -20,7 +20,7 @@ export const NAV = {
     { k: "book", label: "Sunbed Booking", icon: "umbrella", badge: "MVP" },
     { k: "ticket", label: "Entry Ticket", icon: "ticket", badge: "MVP" },
     { k: "locker", label: "Day Locker", icon: "lock", badge: "MVP" },
-    { k: "parking", label: "Parking", icon: "car", badge: "MVP" },
+    { k: "parking", label: "Parking Spot", icon: "car", badge: "MVP" },
   ],
   admin: [
     { k: "dashboard", label: "Dashboard", icon: "chart", badge: "MVP" },

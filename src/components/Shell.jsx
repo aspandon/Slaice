@@ -97,20 +97,36 @@ export function TopBar({ persona, setPersona, page, setPage }) {
     toast(`Removed ${it.label}.`, { action: { label: "Undo", onClick: () => addToCart && addToCart(it) } });
   };
 
+  // Inline navigation lives in the header on the customer surface — one bar
+  // instead of two. On staff personas the same slot shows the current page
+  // title (sidebar remains the primary nav). Tenant identity + Slaice credit
+  // now live in the SiteFooter below the page content.
+  const navItems = NAV[persona] || [];
+  const currentItem = navItems.find((it) => it.k === page);
   return (
-    <header className="glass text-navy-900 rounded-2xl px-4 py-2.5 mb-4 flex items-center justify-between relative z-30 shadow-soft sticky top-2">
-      <div className="flex items-center gap-3">
-        <TenantLogo size={36} />
-        <div>
-          <div className="font-display font-bold leading-tight tracking-tight">{TENANT.name}</div>
-          <div className="text-[11px] text-slate-500 -mt-0.5">{TENANT.subdomain}</div>
+    <header className="glass text-navy-900 rounded-2xl px-2 py-1.5 mb-4 flex items-center gap-2 relative z-30 shadow-soft sticky top-2">
+      {persona === "customer" ? (
+        <nav className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0 flex-1">
+          {navItems.map((it) => {
+            const IconC = Icon[it.icon];
+            const active = page === it.k;
+            return (
+              <button key={it.k} onClick={() => setPage(it.k)}
+                className={`group flex items-center gap-1.5 h-9 px-2.5 rounded-xl text-[12.5px] font-semibold whitespace-nowrap transition shrink-0 ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-700 hover:bg-white/70 hover:text-navy-900"}`}>
+                {IconC && <IconC size={14} className={active ? "" : "text-slate-500 group-hover:text-teal-600 transition-colors"} />}
+                <span>{it.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      ) : (
+        <div className="flex items-center gap-2 pl-2 min-w-0 flex-1">
+          {currentItem && Icon[currentItem.icon] && (() => { const I = Icon[currentItem.icon]; return <I size={17} className="text-slate-500 shrink-0" />; })()}
+          <span className="font-display font-bold truncate text-[15px]">{currentItem ? currentItem.label : ""}</span>
         </div>
-        <span className="hidden xl:flex items-center gap-1 ml-2 text-[11px] text-slate-500 font-medium border-l border-slate-200 pl-3">
-          powered by <span className="font-bold text-navy-900">SLA<span className="text-gold-500">i</span>CE</span>
-        </span>
-      </div>
+      )}
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 shrink-0">
         {/* Explore: Features + Journeys collapsed into one menu */}
         {setPage && (
           <div className="hidden md:block relative mr-0.5" ref={eRef}>
@@ -487,6 +503,31 @@ export function MobilePersona({ persona, setPersona }) {
         </button>
       ))}
     </div>
+  );
+}
+
+/* ---------- Site footer ----------
+   Tenant identity + Slaice credit, centered. Lives at the bottom of every
+   page on every persona — replaces the old top-bar branding block and the
+   per-persona footer note. */
+export function SiteFooter() {
+  return (
+    <footer className="mt-10 pt-6 pb-4 flex flex-col items-center justify-center gap-2 text-center relative z-10">
+      <div className="flex items-center gap-2.5">
+        <TenantLogo size={30} />
+        <div className="leading-tight text-left">
+          <div className="font-display font-bold text-[14.5px] text-navy-900">{TENANT.name}</div>
+          <div className="text-[11px] text-slate-500">{TENANT.subdomain}</div>
+        </div>
+      </div>
+      <div className="flex items-center gap-1.5 text-[11.5px] text-slate-500">
+        <span>powered by</span>
+        <span className="font-bold text-navy-900">SLA<span className="text-gold-500">i</span>CE</span>
+      </div>
+      <div className="text-[10.5px] text-slate-400 max-w-xl px-3">
+        Non-functional clickable mockup · sample data only · no payments or backend.
+      </div>
+    </footer>
   );
 }
 

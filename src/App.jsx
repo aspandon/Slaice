@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { AppCtx } from "./app/store.jsx";
 import { DEFAULT_PAGE } from "./data/personas.js";
-import { TopBar, Sidebar, MobilePersona, MobileNav, PageTopNav, Toasts } from "./components/Shell.jsx";
+import { TopBar, Sidebar, MobilePersona, MobileNav, SiteFooter, Toasts } from "./components/Shell.jsx";
 import { AuthGate } from "./screens/auth.jsx";
 import { ConsentBanner } from "./components/ConsentBanner.jsx";
 import { BeachBackdrop } from "./components/Beach.jsx";
@@ -79,7 +79,6 @@ export default function App() {
           <MobilePersona persona={persona} setPersona={setPersona} />
           {persona === "customer" ? (
             <div className={`flex-1 ${page === "book" ? "lg:pr-[352px]" : ""}`}>
-              <PageTopNav persona={persona} page={page} setPage={setPage} />
               <main className="min-w-0">{routeFor(persona, page, { go, setPage })}</main>
             </div>
           ) : (
@@ -91,11 +90,10 @@ export default function App() {
               </div>
             </>
           )}
-          {persona !== "customer" && (
-            <footer className="text-center text-[11px] mt-8 pb-2 text-slate-500">
-              Slaice — non-functional clickable mockup · sample data only · built to navigate every persona, feature & user journey.
-            </footer>
-          )}
+          {/* Sunbed Booking takes over the whole viewport with a fixed beach
+              and its own floating basket panel, so the footer would just hide
+              under those layers — skip it there. */}
+          {!(persona === "customer" && page === "book") && <SiteFooter />}
         </div>
       )}
       <ConsentBanner />
