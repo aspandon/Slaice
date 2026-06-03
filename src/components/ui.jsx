@@ -554,7 +554,7 @@ export function DatePickerRow({ value = [], onChange, quickDays = 7, className =
           <button
             type="button"
             onClick={() => setPicker(true)}
-            className="px-3 py-2.5 min-h-[54px] rounded-xl min-w-[78px] ring-1 ring-dashed ring-slate-300 text-slate-600 hover:ring-teal-400 hover:text-teal-700 transition shrink-0 inline-flex items-center justify-center gap-1.5 text-[12px] font-semibold"
+            className="px-3 py-2.5 min-h-[64px] rounded-xl min-w-[78px] ring-1 ring-dashed ring-slate-300 text-slate-600 hover:ring-teal-400 hover:text-teal-700 transition shrink-0 inline-flex items-center justify-center gap-1.5 text-[12px] font-semibold"
             aria-label="Pick dates from calendar"
           >
             <Icon.calendar size={14} /> Pick dates
@@ -583,12 +583,12 @@ function DatePill({ on, label, sub, onClick }) {
       type="button"
       onClick={onClick}
       aria-pressed={on}
-      className={`relative px-3.5 py-2.5 min-h-[54px] rounded-xl text-center min-w-[78px] ring-1 transition shrink-0 ${
+      className={`relative px-3.5 py-2.5 min-h-[64px] rounded-xl min-w-[78px] ring-1 transition shrink-0 inline-flex flex-col items-center justify-center gap-1 ${
         on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"
       }`}
     >
-      <div className="text-[13px] font-semibold leading-tight">{label}</div>
-      <div className={`text-[11px] leading-tight mt-1 ${on ? "text-white/80" : "text-slate-600"}`}>{sub}</div>
+      <span className="text-[13px] font-semibold leading-none">{label}</span>
+      <span className={`text-[11px] leading-none ${on ? "text-white/80" : "text-slate-600"}`}>{sub}</span>
       {on && (
         <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center ring-2 ring-white">
           <Icon.check size={10} />
