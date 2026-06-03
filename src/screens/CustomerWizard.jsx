@@ -229,9 +229,13 @@ export function CustomerWizard() {
             parkingOn={parkingOn} parkingSubtotal={parkingSubtotal}
             grandTotal={grandTotal}
             cartCount={cart.length}
-            onCheckout={confirm}
-            ctaLabel={stepIdx === STEPS.length - 1 ? "Confirm & checkout" : "Confirm later"}
+            onCta={stepIdx === STEPS.length - 1 ? confirm : next}
+            ctaLabel={stepIdx === STEPS.length - 1 ? "Confirm & checkout" : "Continue"}
+            ctaDisabled={!canNext}
             confirmReady={stepIdx === STEPS.length - 1}
+            stepIdx={stepIdx}
+            totalSteps={STEPS.length}
+            onJumpToReview={() => setStepIdx(STEPS.length - 1)}
           />
         </div>
       </div>
@@ -278,9 +282,13 @@ export function CustomerWizard() {
                 parkingOn={parkingOn} parkingSubtotal={parkingSubtotal}
                 grandTotal={grandTotal}
                 cartCount={cart.length}
-                onCheckout={() => { setSheetOpen(false); confirm(); }}
-                ctaLabel={stepIdx === STEPS.length - 1 ? "Confirm & checkout" : "Confirm later"}
+                onCta={stepIdx === STEPS.length - 1 ? () => { setSheetOpen(false); confirm(); } : () => { setSheetOpen(false); next(); }}
+                ctaLabel={stepIdx === STEPS.length - 1 ? "Confirm & checkout" : "Continue"}
+                ctaDisabled={!canNext}
                 confirmReady={stepIdx === STEPS.length - 1}
+                stepIdx={stepIdx}
+                totalSteps={STEPS.length}
+                onJumpToReview={() => { setSheetOpen(false); setStepIdx(STEPS.length - 1); }}
               />
             </div>
           </div>
@@ -592,7 +600,8 @@ function BasketPanel({
   parkingOn, parkingSubtotal,
   grandTotal,
   cartCount,
-  onCheckout, ctaLabel, confirmReady,
+  onCta, ctaLabel, ctaDisabled, confirmReady,
+  stepIdx, totalSteps, onJumpToReview,
 }) {
   const Wrap = inline ? "div" : Card;
   const wrapClass = inline ? "" : "glass-card-solid p-5 shadow-float";
@@ -603,7 +612,7 @@ function BasketPanel({
           <span className="w-8 h-8 rounded-xl bg-navy-900 text-white grid place-items-center"><Icon.card size={16} /></span>
           <div>
             <div className="font-display font-bold text-navy-900 text-base leading-tight">Your booking</div>
-            <div className="text-[11px] text-slate-500 leading-tight">Live total — updates as you choose</div>
+            <div className="text-[11px] text-slate-500 leading-tight">Step {stepIdx + 1} of {totalSteps} · live total</div>
           </div>
         </div>
         {cartCount > 0 && (
@@ -667,10 +676,17 @@ function BasketPanel({
         </div>
       </div>
 
-      <Btn variant={confirmReady ? "dark" : "teal"} full size="lg" icon={confirmReady ? Icon.card : Icon.chevR} onClick={onCheckout} disabled={grandTotal === 0}>
+      <Btn variant={confirmReady ? "dark" : "teal"} full size="lg" icon={confirmReady ? Icon.card : Icon.arrowR} onClick={onCta} disabled={ctaDisabled || grandTotal === 0}>
         {ctaLabel}
       </Btn>
-      <div className="mt-2 text-center text-[11px] text-slate-500">Secured by Stripe · ΑΠΥ auto-issued to MyDATA</div>
+      {!confirmReady && stepIdx < totalSteps - 1 && (
+        <button onClick={onJumpToReview} className="mt-2 w-full text-center text-[11px] text-slate-500 hover:text-navy-900 font-semibold">
+          Skip remaining steps · review now →
+        </button>
+      )}
+      {confirmReady && (
+        <div className="mt-2 text-center text-[11px] text-slate-500">Secured by Stripe · ΑΠΥ auto-issued to MyDATA</div>
+      )}
     </Wrap>
   );
 }

@@ -58,7 +58,9 @@ export function CustomerHome() {
             <div className="flex items-center gap-2 shrink-0 flex-wrap">
               <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold rounded-full bg-white/15 px-2 py-1 ring-1 ring-white/25"><Icon.group size={12} /> Step 1 · Guests</span>
               <span className="hidden md:inline-flex items-center gap-1 text-[11px] font-semibold rounded-full bg-white/15 px-2 py-1 ring-1 ring-white/25"><Icon.umbrella size={12} /> Step 3 · Sunbeds</span>
-              <Btn variant="light" icon={Icon.arrowR} className="!text-white">Start the wizard</Btn>
+              <span className="inline-flex items-center gap-2 rounded-[14px] px-4 py-2.5 text-sm font-semibold bg-white/15 text-white ring-1 ring-white/25 backdrop-blur-sm group-hover:bg-white/25 transition">
+                Start the wizard <Icon.arrowR size={17} />
+              </span>
             </div>
           </div>
         </Card>
