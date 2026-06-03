@@ -22,7 +22,7 @@ export function ConsentBanner() {
   return (
     <>
       {!consent.decided && !prefs && (
-        <div className="fixed inset-x-0 bottom-0 z-[80] p-3 sm:p-4 animate-slide-up" role="region" aria-label="Cookie consent">
+        <div className="fixed inset-x-0 bottom-0 z-[80] p-3 sm:p-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] animate-slide-up" role="region" aria-label="Cookie consent">
           <div className="mx-auto max-w-3xl glass-card-solid rounded-3xl p-4 sm:p-5 shadow-float flex flex-col sm:flex-row sm:items-center gap-4">
             <span className="w-11 h-11 rounded-2xl bg-teal-50 text-teal-700 grid place-items-center shrink-0"><Icon.shieldCheck size={22} /></span>
             <div className="flex-1 min-w-0">

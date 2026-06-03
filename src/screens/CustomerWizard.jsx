@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, Stepper, Input, Field, DatePickerRow } from "../components/ui.jsx";
 import { Reveal, prefersReducedMotion } from "../lib/motion.jsx";
@@ -267,10 +268,15 @@ export function CustomerWizard() {
         </div>
       </div>
 
-      {/* ============ Mobile: tap-to-expand basket bar ============ */}
+      {/* ============ Mobile: tap-to-expand basket bar ============
+          Portaled to <body> so it pins to the viewport — the `animate-fade-up`
+          root's transform would otherwise anchor this `fixed` bar to the bottom
+          of the (tall) wizard, pushing it off-screen. Sits above the bottom tab
+          bar via a safe-area-aware offset. */}
+      {createPortal((
       <button
         onClick={() => setSheetOpen(true)}
-        className="lg:hidden fixed bottom-3 left-3 right-3 z-30 glass-dark text-white rounded-2xl shadow-float ring-1 ring-white/15 px-4 py-3 flex items-center justify-between gap-3"
+        className="lg:hidden fixed left-3 right-3 z-30 glass-dark text-white rounded-2xl shadow-float ring-1 ring-white/15 px-4 py-3 flex items-center justify-between gap-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))]"
       >
         <span className="flex items-center gap-2.5 min-w-0">
           <span className="w-9 h-9 rounded-xl bg-white/10 grid place-items-center shrink-0">
@@ -285,8 +291,12 @@ export function CustomerWizard() {
         </span>
         <Icon.chevD size={18} className="rotate-180 shrink-0" />
       </button>
+      ), document.body)}
 
-      {sheetOpen && (
+      {/* Portaled to <body>: this sheet lives inside the `animate-fade-up`
+          root whose transform would otherwise make `position: fixed` relative
+          to the (tall) wizard div and push the sheet off-screen. */}
+      {sheetOpen && createPortal((
         <div className="lg:hidden fixed inset-0 z-40" role="dialog" aria-modal="true">
           <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-sm animate-fade-in" onClick={() => setSheetOpen(false)} />
           <div className="absolute left-0 right-0 bottom-0 max-h-[88dvh] glass-card-solid rounded-t-2xl ring-1 ring-white/40 shadow-float flex flex-col overflow-hidden animate-slide-up pb-safe">
@@ -320,7 +330,7 @@ export function CustomerWizard() {
             </div>
           </div>
         </div>
-      )}
+      ), document.body)}
     </div>
   );
 }

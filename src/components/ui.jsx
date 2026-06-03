@@ -391,7 +391,10 @@ export function Modal({ open, onClose, title, children, footer, wide }) {
   // Bottom-sheet on phones (items-end + slide-up + rounded top), centered
   // dialog from `sm` up. dvh keeps it within the *visible* viewport on iOS
   // Safari where the toolbar makes 100vh too tall.
-  return (
+  // Portaled to <body> so `position: fixed` is relative to the viewport — many
+  // screens wrap content in `animate-fade-up`, whose lingering `transform`
+  // would otherwise become the containing block and push the panel off-screen.
+  return createPortal((
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in" onClick={onClose}>
       <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-xl" />
       <div onClick={(e) => e.stopPropagation()} className={`glass-card-solid relative w-full ${wide ? "sm:max-w-2xl" : "sm:max-w-md"} rounded-t-3xl sm:rounded-3xl animate-slide-up sm:animate-pop max-h-[92dvh] sm:max-h-[90dvh] flex flex-col pb-safe sm:pb-0`}>
@@ -403,7 +406,7 @@ export function Modal({ open, onClose, title, children, footer, wide }) {
         {footer && <div className="px-5 py-4 border-t border-slate-200/70 flex justify-end gap-2">{footer}</div>}
       </div>
     </div>
-  );
+  ), document.body);
 }
 
 /* ---------- Sheet (bottom sheet with drag-to-dismiss) ----------
