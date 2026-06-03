@@ -321,6 +321,10 @@ export function CustomerBooking() {
                 <div className="absolute bottom-24 lg:bottom-3 left-1/2 -translate-x-1/2 z-10">
                   <span className="rounded-full bg-navy-950/55 backdrop-blur px-3 py-1.5 text-white text-[12px] font-semibold ring-1 ring-white/20 shadow-md">Drag to explore · click a zone to zoom in</span>
                 </div>
+                {/* Keep pins + zone blocks inside the visible beach area on lg
+                    so the right-most zone (Bolivar) isn't hidden behind the
+                    basket panel. */}
+                <div className="absolute inset-0 lg:right-[352px]">
                 {FACILITIES.map((f) => <FacilityPin key={f.id} facility={f} />)}
                 {ZONE_BLOCKS.map((b) => {
                   const z = ZONES.find((x) => x.id === b.id);
@@ -343,6 +347,7 @@ export function CustomerBooking() {
                     </button>
                   );
                 })}
+                </div>
               </>
             )}
 
@@ -685,9 +690,9 @@ export function CustomerLocker() {
                         ? "bg-gradient-to-b from-navy-800 to-navy-950 text-white ring-2 ring-teal-400 shadow-lift"
                         : "bg-gradient-to-b from-teal-500 to-teal-700 text-white hover:from-teal-400 hover:to-teal-600 shadow-soft";
                     return (
-                      <button key={l.id} disabled={l.taken} onClick={() => toggle(l.id, l.taken)} title={`${l.id} · ${l.taken ? "Taken" : "€" + PRICE}`} className={`relative aspect-[3/4] rounded-lg grid place-items-center transition ${cl} pb-3.5`}>
+                      <button key={l.id} disabled={l.taken} onClick={() => toggle(l.id, l.taken)} title={`${l.id} · ${l.taken ? "Taken" : "€" + PRICE}`} className={`relative aspect-[3/4] rounded-lg grid place-items-center transition ${cl} pb-5`}>
                         <Icon.lock size={22} />
-                        <span className="absolute bottom-1 left-0 right-0 text-center text-[10px] font-bold leading-none tnum">{l.id}</span>
+                        <span className="absolute bottom-1.5 left-0 right-0 text-center text-[13px] font-bold leading-none tnum">{l.id}</span>
                       </button>
                     );
                   })}
@@ -781,9 +786,9 @@ export function CustomerParking() {
                           ? "bg-navy-900 text-white ring-2 ring-teal-400 shadow-lift"
                           : "bg-teal-500/95 text-white hover:bg-teal-600 shadow-soft";
                       return (
-                        <button key={id} disabled={isTaken} onClick={() => setSel(isSel ? null : id)} title={`${id} · ${isTaken ? "Taken" : "€" + PRICE}`} className={`relative aspect-square rounded-md grid place-items-center transition border border-white/70 ${cl} pb-3.5`}>
+                        <button key={id} disabled={isTaken} onClick={() => setSel(isSel ? null : id)} title={`${id} · ${isTaken ? "Taken" : "€" + PRICE}`} className={`relative aspect-square rounded-md grid place-items-center transition border border-white/70 ${cl} pb-5`}>
                           <Icon.car size={22} />
-                          <span className="absolute bottom-0.5 left-0 right-0 text-center text-[10px] font-bold leading-none tnum">{id}</span>
+                          <span className="absolute bottom-1 left-0 right-0 text-center text-[13px] font-bold leading-none tnum">{id}</span>
                         </button>
                       );
                     })}

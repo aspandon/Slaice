@@ -590,7 +590,7 @@ function DatePill({ on, label, sub, onClick }) {
       <span className="text-[13px] font-semibold leading-none">{label}</span>
       <span className={`text-[11px] leading-none ${on ? "text-white/80" : "text-slate-600"}`}>{sub}</span>
       {on && (
-        <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center ring-2 ring-white">
+        <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center ring-2 ring-navy-900">
           <Icon.check size={10} />
         </span>
       )}

@@ -1,5 +1,3 @@
-import { useState } from "react";
-
 /* ---------- Single sunbed glyph ----------
    state: "a" available · "h" on hold · "u" unavailable · sel = selected (coral, from the video) */
 export function Sunbed({ state = "a", sel = false, onClick, label, price, size = 20 }) {
@@ -30,24 +28,11 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
 }
 
 /* ---------- Beach backdrop ----------
-   Layering (bottom → top):
-     1. BeachScene SVG — ultimate fallback if the photo fails.
-     2. beach.jpeg — the real place.
-     3. children (the booking UI). */
+   BeachScene SVG fills the container; children render above it. */
 export function BeachBackdrop({ children, className = "", pos = "relative" }) {
-  const [imgOk, setImgOk] = useState(true);
   return (
     <div className={`${pos} overflow-hidden rounded-2xl ${className}`}>
       <BeachScene />
-      {imgOk && (
-        <img
-          src={`${import.meta.env.BASE_URL}beach.jpeg`}
-          alt=""
-          aria-hidden="true"
-          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-          onError={() => setImgOk(false)}
-        />
-      )}
       <div className="absolute inset-0">{children}</div>
     </div>
   );
