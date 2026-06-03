@@ -5,6 +5,7 @@ import { QR } from "../components/charts.jsx";
 import { Sunbed, BeachBackdrop, ParkingBackdrop, LockerBackdrop } from "../components/Beach.jsx";
 import { downloadText } from "../lib/download.js";
 import { ZONES, ZONE_BLOCKS, makeGrid, dateStrip } from "../data/beach.js";
+import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS } from "../data/mock.js";
 import { useApp } from "../app/store.jsx";
 
 /* ============ HOME ============ */
@@ -653,12 +654,7 @@ export function CustomerBookings() {
   const [qrFor, setQrFor] = useState(null);
   const [filter, setFilter] = useState("all");
   const loading = useMockLoad();
-  const data = [
-    { id: "#BK-10428", item: "Central · CE-89", date: "Sun, 19 Jul", status: "Confirmed", price: 30, state: "active" },
-    { id: "#BK-10402", item: "Central · CE-92", date: "Sun, 19 Jul", status: "Confirmed", price: 30, state: "active" },
-    { id: "#TK-55120", item: "Entry · Adult ×2", date: "Sun, 19 Jul", status: "Confirmed", price: 20, state: "active" },
-    { id: "#BK-10310", item: "Bestbuy · BE-14", date: "Sat, 12 Jul", status: "Used", price: 22, state: "past" },
-  ];
+  const data = CUSTOMER_BOOKINGS;
   const filtered = data.filter((d) => filter === "all" || d.state === filter);
   const total = data.reduce((a, b) => a + b.price, 0);
   const active = data.filter((d) => d.state === "active").length;
@@ -702,17 +698,17 @@ export function CustomerBookings() {
 /* ============ MY DOCUMENTS ============ */
 export function CustomerDocs() {
   const { toast } = useApp();
-  const docs = [
-    { id: "ΑΠΥ-2026-004281", for: "Sunbed booking", date: "19 Jul 2026", amt: "€30", mark: "400001020304002281", lines: [["Sunbed CE-89", "€24.19", "€5.81", "€30.00"]] },
-    { id: "ΑΠΥ-2026-004102", for: "Entry tickets ×3", date: "12 Jul 2026", amt: "€25", mark: "400001020304002102", lines: [["Adult ×2", "€16.13", "€3.87", "€20.00"], ["Child ×1", "€4.03", "€0.97", "€5.00"]] },
-  ];
+  const docs = CUSTOMER_DOCS;
   const [view, setView] = useState(null);
   const loading = useMockLoad();
   const download = (d) => { downloadText(`${d.id}.txt`, mockCustomerReceipt(d), "text/plain;charset=utf-8"); toast(`Downloaded ${d.id}.`, { tone: "success" }); };
   const [filter, setFilter] = useState("all");
   const tone = (id) => id.startsWith("ΑΠΥ") ? "apy" : id.startsWith("ΤΠΥ") ? "tpy" : "credit";
   const filtered = docs.filter((d) => filter === "all" || tone(d.id) === filter);
-  const totalAmount = docs.reduce((a, b) => a + parseInt(b.amt.replace(/[^0-9]/g, ""), 10), 0);
+  const totalAmount = docs.reduce((a, b) => {
+    const v = parseInt(b.amt.replace(/[^0-9-−]/g, "").replace("−", "-"), 10) || 0;
+    return a + v;
+  }, 0);
   return (
     <div className="space-y-4">
       <div className="grid sm:grid-cols-3 gap-4">

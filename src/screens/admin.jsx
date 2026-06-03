@@ -3,6 +3,7 @@ import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, useMockLoad, FutureBanner, ContextPanel } from "../components/ui.jsx";
 import { BarChart, LineChartMini, Donut, QR } from "../components/charts.jsx";
 import { ZONES } from "../data/beach.js";
+import { ADMIN_BOOKINGS, ADMIN_REFUNDS, CUSTOMERS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS } from "../data/mock.js";
 import { useApp } from "../app/store.jsx";
 import { downloadCSV } from "../lib/download.js";
 
@@ -224,16 +225,10 @@ export function AdminMapEditor() {
 export function AdminBookings() {
   const { toast } = useApp();
   const [q, setQ] = useState("");
-  const all = [
-    ["#BK-10428", "Elena M.", "Central · CE-89", "19 Jul", "Online", "Confirmed", 30],
-    ["#BK-10427", "Walk-in", "Macaw · MC-04", "19 Jul", "Walk-in", "Confirmed", 35],
-    ["#BK-10426", "Nikos P.", "Bestbuy · BE-12", "19 Jul", "Online", "Confirmed", 44],
-    ["#BK-10410", "Maria K.", "Central · CE-92", "18 Jul", "Phone", "Unpaid", 30],
-    ["#BK-10310", "Giorgos T.", "Bestbuy · BE-14", "12 Jul", "Online", "Used", 22],
-  ];
+  const all = ADMIN_BOOKINGS;
   const loading = useMockLoad();
   const rows = all.filter((r) => (r[0] + r[1] + r[2]).toLowerCase().includes(q.toLowerCase()));
-  const chan = (c) => ({ Online: "blue", "Walk-in": "amber", Phone: "indigo" }[c] || "slate");
+  const chan = (c) => ({ Online: "blue", "Walk-in": "amber", Phone: "indigo", Cashier: "green" }[c] || "slate");
   const exportCSV = () => {
     downloadCSV("bookings.csv", ["Booking", "Customer", "Sunbed", "Date", "Channel", "Status", "Amount (€)"], rows);
     toast(`Exported ${rows.length} bookings to CSV.`, { tone: "success" });
@@ -306,13 +301,7 @@ export function AdminUsers() {
   const { toast } = useApp();
   const [q, setQ] = useState("");
   const [tagFilter, setTagFilter] = useState("All");
-  const users = [
-    { n: "Maria K.", e: "maria.k@example.com", b: 12, tags: ["VIP", "Season pass"] },
-    { n: "Nikos P.", e: "nikos.p@example.com", b: 5, tags: ["Regular"] },
-    { n: "Elena V.", e: "elena.v@example.com", b: 28, tags: ["VIP"] },
-    { n: "Giorgos T.", e: "g.tsouris@example.com", b: 2, tags: ["New"] },
-    { n: "Dimitris A.", e: "d.aravidis@example.com", b: 14, tags: ["Regular"] },
-  ];
+  const users = CUSTOMERS.map((c) => ({ n: c.name, e: c.email, b: c.bookings, tags: c.tags }));
   const allTags = ["All", "VIP", "Season pass", "Regular", "New"];
   const tagTone = (t) => ({ VIP: "amber", "Season pass": "blue", Regular: "slate", New: "green" }[t] || "slate");
   const rows = users.filter((u) => (tagFilter === "All" || u.tags.includes(tagFilter)) && (u.n + u.e).toLowerCase().includes(q.toLowerCase()));
@@ -381,11 +370,8 @@ export function AdminReporting() {
           <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Revenue by zone (€k)</div><BarChart color="#0ea5e9" data={ZONES.map((z) => ({ l: z.name.slice(0, 4), v: Math.round(z.total * 1.1) }))} /></Card>
         </div>
         <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-2">All transactions (filterable)</div>
-          <Table cols={["Tx", "Capability", "Channel", "Status", "Amount"]} right={[4]} rows={[
-            ["#TX-88210", "Sunbed", <Badge tone="blue">Online</Badge>, <Badge tone="green">Paid</Badge>, "€30"],
-            ["#TX-88209", "Ticket", <Badge tone="amber">Cashier</Badge>, <Badge tone="green">Paid</Badge>, "€20"],
-            ["#TX-88154", "Sunbed", <Badge tone="blue">Online</Badge>, <Badge tone="red">Refunded</Badge>, "−€22"],
-          ]} /></Card>
+          <Table cols={["Tx", "Capability", "Channel", "Status", "Amount"]} right={[4]}
+            rows={REVENUE_TX.map((r) => [r[0], r[1], <Badge tone={r[2].tone}>{r[2].label}</Badge>, <Badge tone={r[3].tone}>{r[3].label}</Badge>, r[4].startsWith("−") ? <span className="text-rose-600 font-medium tnum">{r[4]}</span> : r[4]])} /></Card>
       </>}
 
       {tab === "occupancy" && <>
@@ -426,23 +412,22 @@ export function AdminReporting() {
           <StatCard label="New vs returning" value="38 / 62" sub="% this season" /><StatCard label="VIP segment rev" value="€118k" sub="17% of total" /><StatCard label="Season-pass holders" value="412" />
         </div>
         <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-2">Top customers</div>
-          <Table cols={["Customer", "Segment", "Visits", "Spend"]} right={[2, 3]} rows={[
-            ["Elena V.", <Badge tone="amber">VIP</Badge>, 28, "€1,240"], ["Maria K.", <Badge tone="blue">Season</Badge>, 21, "€890"], ["Dimitris A.", <Badge tone="slate">Regular</Badge>, 14, "€560"],
-          ]} /></Card>
+          <Table cols={["Customer", "Segment", "Visits", "Spend"]} right={[2, 3]}
+            rows={TOP_CUSTOMERS.map((c) => [c.name, <Badge tone={c.segment.tone}>{c.segment.label}</Badge>, c.visits, c.spend])} /></Card>
       </>}
 
       {tab === "tickets" && <Card className="p-5"><div className="flex items-center justify-between mb-2"><div className="font-semibold text-navy-900">Ticket history</div><Btn size="sm" variant="outline" icon={Icon.download} onClick={() => toast("Demo — CSV export.")}>CSV</Btn></div>
-        <Table cols={["Ticket", "Category", "Issuer", "Date", "Customer type", "Revenue", "Status"]} right={[5]} rows={[
-          ["#TK-55120", "Adult ×2", "Customer", "19 Jul", "VIP", "€20", <Badge tone="green">Valid</Badge>],
-          ["#TK-55119", "Resident", "Cashier", "19 Jul", "Regular", "€6", <Badge tone="slate">Used</Badge>],
-          ["#TK-55101", "Child", "Customer", "18 Jul", "New", "€5", <Badge tone="green">Valid</Badge>],
-        ]} /></Card>}
+        <Table cols={["Ticket", "Category", "Issuer", "Date", "Customer type", "Revenue", "Status"]} right={[5]}
+          rows={REPORTING_TICKETS.map((r) => [r[0], r[1], r[2], r[3], r[4], r[5], <Badge tone={r[6].tone}>{r[6].label}</Badge>])} /></Card>}
 
       {tab === "daily" && <Card className="p-5"><div className="flex items-center justify-between mb-2"><div className="font-semibold text-navy-900">Daily operations · 19 Jul 2026</div><Btn size="sm" variant="outline" icon={Icon.download} onClick={() => toast("Demo — export end-of-day report.")}>Export</Btn></div>
-        <Table cols={["Capability", "Count", "Gross", "Refunds", "Net"]} right={[1, 2, 3, 4]} rows={[
-          ["Sunbed bookings", 214, "€6,420", "−€60", "€6,360"], ["Entry tickets", 512, "€4,180", "€0", "€4,180"], ["Lockers", 38, "€190", "€0", "€190"],
-          [<b>Total</b>, <b>764</b>, <b>€10,790</b>, <b>−€60</b>, <b>€10,730</b>],
-        ]} />
+        <Table cols={["Capability", "Count", "Gross", "Refunds", "Net"]} right={[1, 2, 3, 4]} rows={(() => {
+          const totals = DAILY_OPS.reduce((a, r) => ({ c: a.c + r[1], g: a.g + parseFloat(r[2].replace(/[^0-9.]/g, "")), rf: a.rf + parseFloat(r[3].replace(/[^0-9.−-]/g, "").replace("−", "-")), n: a.n + parseFloat(r[4].replace(/[^0-9.]/g, "")) }), { c: 0, g: 0, rf: 0, n: 0 });
+          return [
+            ...DAILY_OPS.map((r) => [r[0], r[1], r[2], r[3] === "€0" ? "€0" : <span className="text-rose-600 font-medium tnum">{r[3]}</span>, r[4]]),
+            [<b>Total</b>, <b>{totals.c}</b>, <b>€{totals.g.toLocaleString()}</b>, <b className="text-rose-600">€{totals.rf.toLocaleString()}</b>, <b>€{totals.n.toLocaleString()}</b>],
+          ];
+        })()} />
         <div className="mt-3 text-[12px] text-slate-600">Documents issued: 726 ΑΠΥ · 12 ΤΠΥ · all transmitted to MyDATA ✓</div></Card>}
     </div>
   );
@@ -453,11 +438,9 @@ export function AdminRefunds() {
   const { toast } = useApp();
   const [modal, setModal] = useState(null);
   const [period, setPeriod] = useState("month");
-  const [rows, setRows] = useState([
-    { tx: "#TX-88210", cust: "Maria K.", amount: 30, reason: "", status: null },
-    { tx: "#TX-88154", cust: "Nikos P.", amount: 22, reason: "Double booking", status: "Refunded" },
-  ]);
+  const [rows, setRows] = useState(ADMIN_REFUNDS);
   const refunded = rows.filter((r) => r.status === "Refunded").reduce((a, b) => a + b.amount, 0);
+  const refundedCount = rows.filter((r) => r.status === "Refunded").length;
   const pending = rows.filter((r) => !r.status).length;
   return (
     <div className="animate-fade-up">
@@ -467,14 +450,14 @@ export function AdminRefunds() {
           <Btn variant="outline" icon={Icon.download} onClick={() => toast("Demo — refund history CSV.")}>Export</Btn>
         </>} />
       <div className="grid sm:grid-cols-4 gap-4 mb-4">
-        <StatCard label="Refunded · this month" value={`€${refunded}`} sub="1 transaction" tone="teal" />
+        <StatCard label="Refunded · this month" value={`€${refunded}`} sub={`${refundedCount} transaction${refundedCount !== 1 ? "s" : ""}`} tone="teal" />
         <StatCard label="Pending review" value={pending} sub="awaiting decision" />
         <StatCard label="Refund rate" value="1.4%" sub="of total sales" />
-        <StatCard label="Top reason" value="Double booking" sub="50% of refunds" tone="indigo" />
+        <StatCard label="Top reason" value="Double booking" sub="33% of refunds" tone="indigo" />
       </div>
       <Card className="p-2">
-        <Table cols={["Transaction", "Customer", "Amount", "Reason", "Status", ""]} right={[2]}
-          rows={rows.map((r, i) => [r.tx, r.cust, `€${r.amount}`, r.reason || "—",
+        <Table cols={["Transaction", "Date", "Customer", "Amount", "Reason", "Status", ""]} right={[3]}
+          rows={rows.map((r, i) => [r.tx, r.date || "—", r.cust, `€${r.amount}`, r.reason || "—",
             r.status ? <Badge tone="green">{r.status}</Badge> : <Badge tone="amber">Pending</Badge>,
             r.status ? <span className="text-slate-500 text-sm">done</span> : <Btn size="sm" variant="outline" icon={Icon.refund} onClick={() => setModal(i)}>Refund</Btn>])} />
       </Card>

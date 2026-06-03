@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Field, Input, Select, Toggle, FutureBanner } from "../components/ui.jsx";
 import { SlaiceLogo } from "../components/Brand.jsx";
+import { PLATFORM_TENANTS } from "../data/mock.js";
 import { useApp } from "../app/store.jsx";
 
 function ModuleList({ modules }) {
@@ -22,18 +23,21 @@ export function PlatformTenants() {
       <PageHead title="Tenants" sub="Slaice platform console — connected beaches & verticals." badge={<Badge tone="mvp">MVP</Badge>}
         actions={<Btn variant="indigo" icon={Icon.bolt} onClick={() => go("platform", "onboarding")}>Onboard tenant</Btn>} />
       <div className="grid sm:grid-cols-4 gap-4 mb-4">
-        <StatCard label="Active tenants" value="1" sub="anchor beach" tone="indigo" icon={Icon.building} />
-        <StatCard label="Pipeline" value="3" sub="small beaches" icon={Icon.trend} />
-        <StatCard label="Platform GMV" value="€704k" icon={Icon.chart} />
-        <StatCard label="Slaice fees" value="€35.2k" tone="indigo" icon={Icon.cash} />
+        <StatCard label="Active tenants" value={PLATFORM_TENANTS.filter((t) => t.status.label === "Live").length} sub="charging on Stripe" tone="indigo" />
+        <StatCard label="Pipeline" value={PLATFORM_TENANTS.filter((t) => t.status.label !== "Live").length} sub="setup + leads" />
+        <StatCard label="Platform GMV" value="€704k" sub="season to date" />
+        <StatCard label="Slaice fees" value="€35.2k" sub="5% application fee" tone="indigo" />
       </div>
       <Card className="p-2">
-        <Table cols={["Tenant", "Subdomain", "Stripe", "Modules", "Status"]}
-          rows={[
-            ["Akti tou Iliou", "aktitouiliou.slaice.app", <Badge tone="green">charges ✓</Badge>, <ModuleList modules={["Booking", "Ticket", "Invoice", "Pay"]} />, <Badge tone="green">Live</Badge>],
-            ["Demo Beach #2", "beach2.slaice.app", <Badge tone="amber">onboarding</Badge>, <ModuleList modules={["Booking"]} />, <Badge tone="amber">Setup</Badge>],
-            ["Paralia Sun", "paraliasun.slaice.app", <Badge tone="slate">pending</Badge>, <span className="text-slate-500">—</span>, <Badge tone="slate">Lead</Badge>],
-          ]} />
+        <Table cols={["Tenant", "Subdomain", "Stripe", "Modules", "MRR", "Status"]} right={[4]}
+          rows={PLATFORM_TENANTS.map((t) => [
+            t.name,
+            t.subdomain,
+            <Badge tone={t.stripe.tone}>{t.stripe.label}</Badge>,
+            t.modules.length > 0 ? <ModuleList modules={t.modules} /> : <span className="text-slate-500">—</span>,
+            t.mrr,
+            <Badge tone={t.status.tone}>{t.status.label}</Badge>,
+          ])} />
       </Card>
       <Card className="p-5 mt-4">
         <div className="font-semibold text-navy-900 mb-3">Capability flags · Akti tou Iliou</div>
@@ -161,6 +165,8 @@ export function PlatformSuperAdmin() {
   const tenants = [
     { n: "Akti tou Iliou", flags: [1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0] },
     { n: "Demo Beach #2", flags: [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0] },
+    { n: "Glyfada Bay", flags: [1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0] },
+    { n: "Kavouri Coast", flags: [1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0] },
   ];
   const webhooks = ["checkout.session.completed", "payment_intent.succeeded", "payment_intent.payment_failed", "charge.refunded", "account.updated"];
   return (

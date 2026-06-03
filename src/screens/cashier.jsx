@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Stepper, Field, Input, Select, FutureBanner, ContextPanel } from "../components/ui.jsx";
 import { QR } from "../components/charts.jsx";
+import { CASHIER_TX, CASHIER_SESSION } from "../data/mock.js";
 import { useApp } from "../app/store.jsx";
 
 /* ============ ISSUE ON-SITE TICKET ============ */
@@ -104,16 +105,18 @@ export function CashierRegister() {
       ) : (
         <>
           <div className="grid sm:grid-cols-4 gap-4">
-            <StatCard label="Session" value="#CS-204" sub="Cashier: Kostas" tone="teal" />
-            <StatCard label="Open since" value="09:14" sub="4h 22m" />
-            <StatCard label="Cash in" value="€1,240" />
-            <StatCard label="Card in" value="€3,860" />
+            <StatCard label="Session" value={CASHIER_SESSION.id} sub={`Cashier: ${CASHIER_SESSION.cashier}`} tone="teal" />
+            <StatCard label="Open since" value={CASHIER_SESSION.openedAt} sub={CASHIER_SESSION.duration} />
+            <StatCard label="Cash in" value={CASHIER_SESSION.cashIn} />
+            <StatCard label="Card in" value={CASHIER_SESSION.cardIn} />
           </div>
-          <Card className="p-2 mt-4"><Table cols={["Time", "Type", "Item", "Method", "Amount"]} right={[4]} rows={[
-            ["12:30", "Sale", "Adult ×2", <Badge tone="amber">Cash</Badge>, "€20"],
-            ["12:41", "Sale", "Resident", <Badge tone="blue">Card</Badge>, "€6"],
-            ["13:02", "Handover", "Shift change", <Badge tone="slate">—</Badge>, <span className="text-rose-600 tnum">−€500</span>],
-          ]} /></Card>
+          <Card className="p-2 mt-4">
+            <Table cols={["Time", "Type", "Item", "Method", "Amount"]} right={[4]}
+              rows={CASHIER_TX.map((r) => [r[0], r[1], r[2],
+                <Badge tone={r[3].tone}>{r[3].label}</Badge>,
+                typeof r[4] === "string" ? r[4] : <span className="text-rose-600 font-medium tnum">{r[4].label}</span>,
+              ])} />
+          </Card>
           <div className="mt-4 flex gap-2">
             <Btn variant="outline" icon={Icon.arrowR} onClick={() => toast("Demo — cash handover logged.")}>Record handover</Btn>
             <Btn variant="primary" icon={Icon.check} onClick={() => { setOpen(false); toast("Demo — session closed; statistics + CSV ready."); }}>Close session</Btn>

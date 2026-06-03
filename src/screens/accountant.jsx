@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Tabs, Modal, StatusBadge, TableSkeleton, useMockLoad } from "../components/ui.jsx";
+import { ACCOUNTANT_DOCS, ACCOUNTANT_PAYOUTS } from "../data/mock.js";
 import { useApp } from "../app/store.jsx";
 import { downloadCSV, downloadText } from "../lib/download.js";
 
@@ -29,13 +30,7 @@ export function AccountantInvoicing() {
   const { toast } = useApp();
   const [tab, setTab] = useState("all");
   const [view, setView] = useState(null);
-  const docs = [
-    { d: "ΑΠΥ-2026-004281", t: "ΑΠΥ", mark: "400001020304002281", amt: "€30", st: "MyDATA ✓", type: "issued" },
-    { d: "ΑΠΥ-2026-004280", t: "ΑΠΥ", mark: "400001020304002280", amt: "€25", st: "MyDATA ✓", type: "issued" },
-    { d: "ΤΠΥ-2026-000118", t: "ΤΠΥ", mark: "400001020304000118", amt: "€120", st: "MyDATA ✓", type: "issued" },
-    { d: "ΑΚΥ-2026-000044", t: "Cancellation", mark: "400001020304000044", amt: "−€30", st: "Issued", type: "cancelled" },
-    { d: "ΠΙΣ-2026-000012", t: "Credit (5.1)", mark: "400001020304000012", amt: "−€22", st: "MyDATA ✓", type: "credited" },
-  ];
+  const docs = ACCOUNTANT_DOCS;
   const filtered = docs.filter((x) => tab === "all" || x.type === tab);
   const tone = (s) => (s.includes("✓") ? "green" : "amber");
   const loading = useMockLoad();
@@ -103,12 +98,7 @@ function mockReceiptText(x) {
 /* ============ COMMISSION & PAYOUTS ============ */
 export function AccountantCommission() {
   const { toast } = useApp();
-  const monthly = [
-    ["May", "€48,000", "−€700", "−€2,400", "€44,900"],
-    ["Jun", "€121,000", "−€1,760", "−€6,050", "€113,190"],
-    ["Jul", "€198,000", "−€2,880", "−€9,900", "€185,220"],
-    ["Aug", "€241,000", "−€3,500", "−€12,050", "€225,450"],
-  ];
+  const monthly = ACCOUNTANT_PAYOUTS;
   return (
     <div>
       <PageHead actions={<Btn variant="primary" icon={Icon.download} onClick={() => { downloadCSV("payouts.csv", ["Month", "Gross", "Stripe fee", "Slaice 5%", "Tenant net"], monthly); toast("Exported payout statement (CSV)."); }}>Export</Btn>} />
@@ -129,10 +119,19 @@ export function AccountantCommission() {
       </Card>
       <Card className="p-5">
         <div className="font-semibold text-navy-900 mb-2">Monthly payouts (season)</div>
-        <Table cols={["Month", "Gross", "Stripe fee", "Slaice 5%", "Tenant net"]} right={[1, 2, 3, 4]} rows={[
-          ...monthly.map((r) => [r[0], r[1], neg(r[2]), neg(r[3]), <b className="tnum">{r[4]}</b>]),
-          [<b key="s">Season</b>, <b key="g" className="tnum">€704,000</b>, negBold("−€10,200"), negBold("−€35,200"), <b key="tn" className="tnum">€658,600</b>],
-        ]} />
+        <Table cols={["Month", "Gross", "Stripe fee", "Slaice 5%", "Tenant net"]} right={[1, 2, 3, 4]} rows={(() => {
+          const sums = monthly.reduce((acc, r) => ({
+            g: acc.g + parseInt(r[1].replace(/[^0-9]/g, ""), 10),
+            sf: acc.sf + parseInt(r[2].replace(/[^0-9]/g, ""), 10),
+            sl: acc.sl + parseInt(r[3].replace(/[^0-9]/g, ""), 10),
+            n: acc.n + parseInt(r[4].replace(/[^0-9]/g, ""), 10),
+          }), { g: 0, sf: 0, sl: 0, n: 0 });
+          const fmt = (v) => "€" + v.toLocaleString();
+          return [
+            ...monthly.map((r) => [r[0], r[1], neg(r[2]), neg(r[3]), <b className="tnum">{r[4]}</b>]),
+            [<b key="s">Season</b>, <b key="g" className="tnum">{fmt(sums.g)}</b>, negBold(`−${fmt(sums.sf)}`), negBold(`−${fmt(sums.sl)}`), <b key="tn" className="tnum">{fmt(sums.n)}</b>],
+          ];
+        })()} />
       </Card>
     </div>
   );

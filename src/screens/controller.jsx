@@ -1,16 +1,13 @@
 import { useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead } from "../components/ui.jsx";
+import { RECENT_VALIDATIONS } from "../data/mock.js";
 import { useApp } from "../app/store.jsx";
 
 export function ControllerScan() {
   const { toast } = useApp();
   const [scanning, setScanning] = useState(false);
-  const [recent, setRecent] = useState([
-    { id: "#BK-10428", sub: "Central · CE-89", state: "valid" },
-    { id: "#TK-55120", sub: "Entry · Adult", state: "valid" },
-    { id: "#BK-10402", sub: "Central · CE-92", state: "used" },
-  ]);
+  const [recent, setRecent] = useState(RECENT_VALIDATIONS);
   const stateTone = { valid: "green", used: "amber", invalid: "red" };
 
   const doScan = () => {
