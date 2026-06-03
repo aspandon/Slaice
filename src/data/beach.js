@@ -98,10 +98,12 @@ export const WEATHER = {
 };
 
 // Quick-pick presets for the beach overview.
+// One bed = one umbrella set = 2 people, so bed counts are half the headcount
+// (Couple → 1 set, Family · 4 → 2 sets).
 export const QUICK_PICKS = [
   { id: "solo",   label: "1 person",  beds: 1, hint: "First available · cheapest" },
-  { id: "couple", label: "Couple",    beds: 2, hint: "Side by side" },
-  { id: "family", label: "Family · 4",beds: 4, hint: "Adjacent · with shade" },
+  { id: "couple", label: "Couple",    beds: 1, hint: "One set · shared shade" },
+  { id: "family", label: "Family · 4",beds: 2, hint: "Two sets · adjacent" },
   { id: "front",  label: "Front row", beds: 2, hint: "Closest to the sea" },
 ];
 
