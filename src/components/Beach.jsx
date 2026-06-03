@@ -204,14 +204,14 @@ export function ParkingBackdrop({ children, className = "" }) {
         <ellipse cx="280" cy="220" rx="60" ry="10" fill="#1f242c" opacity="0.45" />
         <ellipse cx="920" cy="580" rx="80" ry="12" fill="#1f242c" opacity="0.4" />
       </svg>
-      <div className="absolute inset-0">{children}</div>
+      <div className="relative">{children}</div>
     </div>
   );
 }
 
 /* ---------- Locker-room backdrop ----------
-   Tiled wall + floor, soft baseboard shadow — to give the locker grid
-   a real changing-room feel. */
+   Uniform wall-tile pattern (no floor/baseboard band) so the backdrop
+   reads cleanly even when the grid is several banks tall. */
 export function LockerBackdrop({ children, className = "" }) {
   return (
     <div className={`relative overflow-hidden rounded-2xl ${className}`}>
@@ -221,36 +221,20 @@ export function LockerBackdrop({ children, className = "" }) {
             <stop offset="0%" stopColor="#eaf2f8" />
             <stop offset="100%" stopColor="#d6e2ec" />
           </linearGradient>
-          <linearGradient id="lk-floor" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#bcc8d2" />
-            <stop offset="100%" stopColor="#8a98a6" />
-          </linearGradient>
           <pattern id="lk-tile" x="0" y="0" width="80" height="80" patternUnits="userSpaceOnUse">
             <rect width="80" height="80" fill="url(#lk-wall)" />
             <path d="M 0 80 L 80 80 M 80 0 L 80 80" stroke="rgba(120, 145, 165, 0.35)" strokeWidth="1.2" />
           </pattern>
-          <pattern id="lk-floor-tile" x="0" y="0" width="120" height="60" patternUnits="userSpaceOnUse" patternTransform="skewX(-12)">
-            <rect width="120" height="60" fill="url(#lk-floor)" />
-            <path d="M 0 60 L 120 60 M 120 0 L 120 60" stroke="rgba(50, 70, 90, 0.30)" strokeWidth="1.4" />
-          </pattern>
         </defs>
-        <rect width="1200" height="560" fill="url(#lk-tile)" />
-        <rect x="0" y="540" width="1200" height="20" fill="#5a6773" />
-        <rect x="0" y="560" width="1200" height="240" fill="url(#lk-floor-tile)" />
+        <rect width="1200" height="800" fill="url(#lk-tile)" />
         {/* ceiling light strips */}
         <g fill="#fffbe6" opacity="0.85">
           <rect x="120" y="20" width="220" height="10" rx="2" />
           <rect x="500" y="20" width="220" height="10" rx="2" />
           <rect x="880" y="20" width="220" height="10" rx="2" />
         </g>
-        {/* soft baseboard shadow */}
-        <rect x="0" y="540" width="1200" height="40" fill="url(#lk-shadow)" />
-        <linearGradient id="lk-shadow" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(0,0,0,0.35)" />
-          <stop offset="100%" stopColor="rgba(0,0,0,0)" />
-        </linearGradient>
       </svg>
-      <div className="absolute inset-0">{children}</div>
+      <div className="relative">{children}</div>
     </div>
   );
 }

@@ -51,8 +51,8 @@ export default function App() {
       {!signedIn ? (
         <AuthGate />
       ) : (
-        <div className="w-full px-3 sm:px-5 py-4 relative">
-          {persona === "customer" && (
+        <div className="w-full px-3 sm:px-5 py-4 relative min-h-screen flex flex-col">
+          {persona === "customer" && page === "book" && (
             <div
               aria-hidden="true"
               className="fixed inset-0 -z-10 pointer-events-none bg-cover bg-center"
@@ -62,22 +62,24 @@ export default function App() {
           <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />
           <MobilePersona persona={persona} setPersona={setPersona} />
           {persona === "customer" ? (
-            <>
+            <div className={`flex-1 ${page === "book" ? "lg:pr-[352px]" : ""}`}>
               <PageTopNav persona={persona} page={page} setPage={setPage} />
               <main className="min-w-0">{routeFor(persona, page, { go, setPage })}</main>
-            </>
+            </div>
           ) : (
             <>
               <MobileNav persona={persona} page={page} setPage={setPage} />
-              <div className="flex gap-5">
+              <div className="flex gap-5 flex-1">
                 <Sidebar persona={persona} page={page} setPage={setPage} />
                 <main className="flex-1 min-w-0">{routeFor(persona, page, { go, setPage })}</main>
               </div>
             </>
           )}
-          <footer className="text-center text-[11px] text-slate-400 mt-8 pb-4">
-            Slaice — non-functional clickable mockup · sample data only · built to navigate every persona, feature & user journey.
-          </footer>
+          {!(persona === "customer" && page === "book") && (
+            <footer className="text-center text-[11px] mt-8 pb-2 text-slate-500">
+              Slaice — non-functional clickable mockup · sample data only · built to navigate every persona, feature & user journey.
+            </footer>
+          )}
         </div>
       )}
       <Toasts items={toasts} onDismiss={dismissToast} />

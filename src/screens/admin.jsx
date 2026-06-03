@@ -1,8 +1,9 @@
 import { useRef, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, useMockLoad } from "../components/ui.jsx";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, useMockLoad, FutureBanner, ContextPanel } from "../components/ui.jsx";
 import { BarChart, LineChartMini, Donut, QR } from "../components/charts.jsx";
 import { ZONES } from "../data/beach.js";
+import { ADMIN_BOOKINGS, ADMIN_REFUNDS, CUSTOMERS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS } from "../data/mock.js";
 import { useApp } from "../app/store.jsx";
 import { downloadCSV } from "../lib/download.js";
 
@@ -87,7 +88,7 @@ export function AdminAvailability() {
           <Field label="New price (€)"><Input type="number" defaultValue={25} /></Field>
           <Field label="Date range"><Select options={["Today", "This weekend", "Whole season"]} /></Field>
         </div>
-        <div className="mt-3 text-[12px] text-slate-400">Bulk updates write to the inventory/availability store and feed booking + invoicing.</div>
+        <div className="mt-3 text-[12px] text-slate-600">Bulk updates write to the inventory/availability store and feed booking + invoicing.</div>
       </Modal>
     </div>
   );
@@ -100,7 +101,7 @@ export function AdminMapEditor() {
   const [zones, setZones] = useState(() => ZONES.map((z, i) => ({
     id: z.id, name: z.name, prefix: z.prefix, color: z.color, total: z.total,
     rows: 8, cols: Math.max(6, Math.round(z.total / 8)),
-    x: 6 + (i % 3) * 32, y: 10 + Math.floor(i / 3) * 44,
+    x: 6 + (i % 3) * 32, y: 16 + Math.floor(i / 3) * 38,
   })));
   const [selectedId, setSelectedId] = useState(zones[0].id);
   const selected = zones.find((z) => z.id === selectedId);
@@ -142,7 +143,7 @@ export function AdminMapEditor() {
           <div
             ref={canvasRef}
             className="relative rounded-2xl ring-1 ring-slate-100 overflow-hidden select-none"
-            style={{ background: "linear-gradient(180deg,#88c8e8 0%,#a9dceb 35%,#f2dbb0 60%,#e5c688 100%)", height: 420 }}
+            style={{ background: "linear-gradient(180deg,#88c8e8 0%,#a9dceb 35%,#f2dbb0 60%,#e5c688 100%)", height: 560 }}
           >
             {/* shoreline accent */}
             <div className="absolute left-0 right-0" style={{ top: "52%", height: 4, background: "rgba(255,255,255,0.75)" }} />
@@ -197,19 +198,19 @@ export function AdminMapEditor() {
                 ))}
               </div>
             </Field>
-            <div className="text-[11px] text-slate-400">Position: <span className="tnum">{selected.x.toFixed(0)}%, {selected.y.toFixed(0)}%</span></div>
+            <div className="text-[11px] text-slate-600">Position: <span className="tnum">{selected.x.toFixed(0)}%, {selected.y.toFixed(0)}%</span></div>
             <div className="flex gap-2">
               <Btn variant="ghost" full icon={Icon.plus} onClick={add}>Add</Btn>
               <Btn variant="ghost" full icon={Icon.trash} onClick={() => remove(selected.id)} className="text-rose-600 hover:bg-rose-50" disabled={zones.length <= 1}>Remove</Btn>
             </div>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Zones</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1.5">Zones</div>
             <div className="space-y-1">
               {zones.map((z) => (
                 <button key={z.id} onClick={() => setSelectedId(z.id)} className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-[12px] ${selectedId === z.id ? "bg-slate-100" : "hover:bg-slate-50"}`}>
                   <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: z.color }} /><span className="font-semibold text-navy-900">{z.name}</span></span>
-                  <span className="text-slate-400 tnum">{z.rows * z.cols}</span>
+                  <span className="text-slate-600 tnum">{z.rows * z.cols}</span>
                 </button>
               ))}
             </div>
@@ -224,16 +225,10 @@ export function AdminMapEditor() {
 export function AdminBookings() {
   const { toast } = useApp();
   const [q, setQ] = useState("");
-  const all = [
-    ["#BK-10428", "Elena M.", "Central · CE-89", "19 Jul", "Online", "Confirmed", 30],
-    ["#BK-10427", "Walk-in", "Macaw · MC-04", "19 Jul", "Walk-in", "Confirmed", 35],
-    ["#BK-10426", "Nikos P.", "Bestbuy · BE-12", "19 Jul", "Online", "Confirmed", 44],
-    ["#BK-10410", "Maria K.", "Central · CE-92", "18 Jul", "Phone", "Unpaid", 30],
-    ["#BK-10310", "Giorgos T.", "Bestbuy · BE-14", "12 Jul", "Online", "Used", 22],
-  ];
+  const all = ADMIN_BOOKINGS;
   const loading = useMockLoad();
   const rows = all.filter((r) => (r[0] + r[1] + r[2]).toLowerCase().includes(q.toLowerCase()));
-  const chan = (c) => ({ Online: "blue", "Walk-in": "amber", Phone: "indigo" }[c] || "slate");
+  const chan = (c) => ({ Online: "blue", "Walk-in": "amber", Phone: "indigo", Cashier: "green" }[c] || "slate");
   const exportCSV = () => {
     downloadCSV("bookings.csv", ["Booking", "Customer", "Sunbed", "Date", "Channel", "Status", "Amount (€)"], rows);
     toast(`Exported ${rows.length} bookings to CSV.`, { tone: "success" });
@@ -242,7 +237,7 @@ export function AdminBookings() {
     <div>
       <PageHead actions={<Btn variant="outline" icon={Icon.download} onClick={exportCSV}>Export</Btn>} />
       <Card className="p-4">
-        <div className="flex items-center gap-2 mb-3 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-sm text-slate-400">
+        <div className="flex items-center gap-2 mb-3 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-sm text-slate-600">
           <Icon.search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search bookings…" className="text-sm outline-none w-full bg-transparent text-ink" />
         </div>
         {loading ? (
@@ -263,32 +258,40 @@ export function AdminBookings() {
 export function AdminManual() {
   const { toast } = useApp();
   const [done, setDone] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
   return (
-    <div className="animate-fade-up max-w-2xl">
-      <PageHead title="Manual / Phone Booking" sub="Reserve and block a sunbed without taking payment (VIP / phone), then send the QR to the customer." badge={<Badge tone="mvp">MVP</Badge>} />
-      <Card className="p-5">
-        <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Customer name"><Input placeholder="e.g. Maria K." defaultValue="Maria K." /></Field>
-          <Field label="Customer e-mail"><Input placeholder="maria@example.com" defaultValue="maria@example.com" /></Field>
-          <Field label="Zone"><Select options={ZONES.map((z) => z.name)} /></Field>
-          <Field label="Sunbed code"><Input placeholder="CE-92" defaultValue="CE-92" /></Field>
-          <Field label="Date"><Input type="date" /></Field>
-          <Field label="Mark as"><Select options={["Unpaid (manual)", "Comp / VIP", "Pay later"]} /></Field>
-        </div>
-        <div className="mt-4 flex gap-2">
-          <Btn variant="primary" icon={Icon.lock} onClick={() => { setDone(true); toast("Demo — sunbed blocked & QR e-mailed (booking flagged unpaid/manual)."); }}>Reserve & send QR</Btn>
-          <Btn variant="outline" icon={Icon.umbrella} onClick={() => toast("Demo — opens the live map to pick a bed.")}>Pick on map</Btn>
-        </div>
-      </Card>
-      {done && (
-        <Card className="p-5 mt-4 flex items-center gap-4 animate-fade-up">
-          <QR size={96} seed="MANUAL-CE92" />
-          <div>
-            <div className="font-semibold text-navy-900 flex items-center gap-2">Reserved <Badge tone="amber">Unpaid</Badge></div>
-            <div className="text-sm text-slate-500">Central · CE-92 — QR sent to maria@example.com. The customer can pay later or present the QR at the gate.</div>
+    <div className="animate-fade-up grid lg:grid-cols-[1fr_320px] gap-5">
+      <div>
+        <PageHead title="Manual / Phone Booking" sub="Reserve and block a sunbed without taking payment (VIP / phone), then send the QR to the customer." badge={<Badge tone="mvp">MVP</Badge>} />
+        <Card className="p-5">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Field label="Customer name"><Input placeholder="e.g. Maria K." defaultValue="Maria K." /></Field>
+            <Field label="Customer e-mail"><Input placeholder="maria@example.com" defaultValue="maria@example.com" /></Field>
+            <Field label="Zone"><Select options={ZONES.map((z) => z.name)} /></Field>
+            <Field label="Sunbed code"><Input placeholder="CE-92" defaultValue="CE-92" /></Field>
+            <Field label="Date"><Input type="date" defaultValue={today} /></Field>
+            <Field label="Mark as"><Select options={["Unpaid (manual)", "Comp / VIP", "Pay later"]} /></Field>
+          </div>
+          <div className="mt-4 flex gap-2">
+            <Btn variant="primary" icon={Icon.lock} onClick={() => { setDone(true); toast("Demo — sunbed blocked & QR e-mailed (booking flagged unpaid/manual)."); }}>Reserve & send QR</Btn>
+            <Btn variant="outline" icon={Icon.umbrella} onClick={() => toast("Demo — opens the live map to pick a bed.")}>Pick on map</Btn>
           </div>
         </Card>
-      )}
+        {done && (
+          <Card className="p-5 mt-4 flex items-center gap-4 animate-fade-up">
+            <QR size={96} seed="MANUAL-CE92" />
+            <div>
+              <div className="font-semibold text-navy-900 flex items-center gap-2">Reserved <Badge tone="amber">Unpaid</Badge></div>
+              <div className="text-sm text-slate-600">Central · CE-92 — QR sent to maria@example.com. The customer can pay later or present the QR at the gate.</div>
+            </div>
+          </Card>
+        )}
+      </div>
+      <ContextPanel title="Manual / phone bookings" items={[
+        { icon: Icon.phone, title: "Block without payment", body: "Used for phone bookings, VIP comps, and pay-later guests." },
+        { icon: Icon.mail, title: "QR by e-mail", body: "The guest gets the same gate QR as an online booking." },
+        { icon: Icon.cash, title: "Settle later", body: "Mark unpaid bookings paid in Bookings when they arrive." },
+      ]} footer="Manual bookings appear in Reporting with channel = Phone." />
     </div>
   );
 }
@@ -298,13 +301,7 @@ export function AdminUsers() {
   const { toast } = useApp();
   const [q, setQ] = useState("");
   const [tagFilter, setTagFilter] = useState("All");
-  const users = [
-    { n: "Maria K.", e: "maria@…", b: 12, tags: ["VIP", "Season pass"] },
-    { n: "Nikos P.", e: "nikos@…", b: 5, tags: ["Regular"] },
-    { n: "Elena V.", e: "elena@…", b: 28, tags: ["VIP"] },
-    { n: "Giorgos T.", e: "g.t@…", b: 2, tags: ["New"] },
-    { n: "Dimitris A.", e: "d.a@…", b: 14, tags: ["Regular"] },
-  ];
+  const users = CUSTOMERS.map((c) => ({ n: c.name, e: c.email, b: c.bookings, tags: c.tags }));
   const allTags = ["All", "VIP", "Season pass", "Regular", "New"];
   const tagTone = (t) => ({ VIP: "amber", "Season pass": "blue", Regular: "slate", New: "green" }[t] || "slate");
   const rows = users.filter((u) => (tagFilter === "All" || u.tags.includes(tagFilter)) && (u.n + u.e).toLowerCase().includes(q.toLowerCase()));
@@ -314,7 +311,7 @@ export function AdminUsers() {
         actions={<Btn variant="outline" icon={Icon.tag} onClick={() => toast("Demo — create a tag / segment.")}>New tag</Btn>} />
       <Card className="p-4">
         <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-xs flex-1 text-slate-400">
+          <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-xs flex-1 text-slate-600">
             <Icon.search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search users…" className="text-sm outline-none w-full bg-transparent text-ink" />
           </div>
           <div className="flex gap-1.5 flex-wrap">
@@ -334,12 +331,21 @@ export function AdminUsers() {
 export function AdminReporting() {
   const { toast } = useApp();
   const [tab, setTab] = useState("exec");
-  const tabs = [["exec", "Executive"], ["revenue", "Revenue"], ["occupancy", "Occupancy"], ["bookings", "Bookings"], ["channel", "Channels"], ["customers", "Customers"], ["tickets", "Tickets"], ["daily", "Daily ops"]];
+  const tabs = [
+    ["exec", "Executive", Icon.chart],
+    ["revenue", "Revenue", Icon.cash],
+    ["occupancy", "Occupancy", Icon.umbrella],
+    ["bookings", "Bookings", Icon.grid],
+    ["channel", "Channels", Icon.globe],
+    ["customers", "Customers", Icon.users],
+    ["tickets", "Tickets", Icon.ticket],
+    ["daily", "Daily ops", Icon.clock],
+  ];
   const season = [{ l: "May", v: 48 }, { l: "Jun", v: 121 }, { l: "Jul", v: 198 }, { l: "Aug", v: 241 }, { l: "Sep", v: 96 }];
   return (
     <div className="animate-fade-up">
       <PageHead actions={<><Btn variant="outline" icon={Icon.calendar} onClick={() => toast("Demo — period picker.")}>This season</Btn><Btn variant="primary" icon={Icon.download} onClick={() => { downloadCSV(`reporting-${tab}.csv`, ["Period", "Bookings"], season.map((s) => [s.l, s.v])); toast(`Exported ${tab} report (CSV).`); }}>Export</Btn></>} />
-      <Tabs tabs={tabs} value={tab} onChange={setTab} className="mb-4" />
+      <Tabs tabs={tabs} value={tab} onChange={setTab} className="mb-4" scroll />
 
       {tab === "exec" && <>
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -364,11 +370,8 @@ export function AdminReporting() {
           <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Revenue by zone (€k)</div><BarChart color="#0ea5e9" data={ZONES.map((z) => ({ l: z.name.slice(0, 4), v: Math.round(z.total * 1.1) }))} /></Card>
         </div>
         <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-2">All transactions (filterable)</div>
-          <Table cols={["Tx", "Capability", "Channel", "Status", "Amount"]} right={[4]} rows={[
-            ["#TX-88210", "Sunbed", <Badge tone="blue">Online</Badge>, <Badge tone="green">Paid</Badge>, "€30"],
-            ["#TX-88209", "Ticket", <Badge tone="amber">Cashier</Badge>, <Badge tone="green">Paid</Badge>, "€20"],
-            ["#TX-88154", "Sunbed", <Badge tone="blue">Online</Badge>, <Badge tone="red">Refunded</Badge>, "−€22"],
-          ]} /></Card>
+          <Table cols={["Tx", "Capability", "Channel", "Status", "Amount"]} right={[4]}
+            rows={REVENUE_TX.map((r) => [r[0], r[1], <Badge tone={r[2].tone}>{r[2].label}</Badge>, <Badge tone={r[3].tone}>{r[3].label}</Badge>, r[4].startsWith("−") ? <span className="text-rose-600 font-medium tnum">{r[4]}</span> : r[4]])} /></Card>
       </>}
 
       {tab === "occupancy" && <>
@@ -380,7 +383,7 @@ export function AdminReporting() {
               <div className="w-16 text-[12px] text-slate-500">{z.name}</div>
               <div className="flex gap-1">{Array.from({ length: 7 }).map((_, d) => { const v = 0.3 + ((z.total * 7 + d * 13) % 70) / 100; return <div key={d} className="w-7 h-6 rounded" style={{ background: `rgba(13,148,136,${v.toFixed(2)})` }} title={`${Math.round(v * 100)}%`} />; })}</div>
             </div>))}
-            <div className="flex gap-1 ml-[72px] pt-1 text-[10px] text-slate-400">{["M", "T", "W", "T", "F", "S", "S"].map((d, i) => <div key={i} className="w-7 text-center">{d}</div>)}</div>
+            <div className="flex gap-1 ml-[72px] pt-1 text-[10px] text-slate-600">{["M", "T", "W", "T", "F", "S", "S"].map((d, i) => <div key={i} className="w-7 text-center">{d}</div>)}</div>
           </div>
         </Card>
       </>}
@@ -392,35 +395,40 @@ export function AdminReporting() {
         <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-1">Booking volume by day</div><LineChartMini data={[{ l: "Mon", v: 120 }, { l: "Tue", v: 98 }, { l: "Wed", v: 142 }, { l: "Thu", v: 165 }, { l: "Fri", v: 210 }, { l: "Sat", v: 320 }, { l: "Sun", v: 298 }]} /></Card>
       </>}
 
-      {tab === "channel" && <Card className="p-5"><div className="font-semibold text-navy-900 mb-2">Sales by channel & role</div>
-        <div className="flex items-center gap-6 flex-wrap"><Donut segments={[{ v: 40, c: "#0ea5e9" }, { v: 45, c: "#f59e0b" }, { v: 15, c: "#0D9488" }]} />
-          <div className="text-sm space-y-2">
-            <Leg c="bg-sky-500" t="Online (customer) — 40% · €281k" /><Leg c="bg-amber-500" t="Walk-in (controller) — 45% · €317k" /><Leg c="bg-teal-600" t="Cashier (on-site) — 15% · €106k" />
-          </div></div></Card>}
+      {tab === "channel" && <div className="grid lg:grid-cols-[1fr_1fr] gap-4">
+        <Card className="p-5"><div className="font-semibold text-navy-900 mb-2">Sales by channel & role</div>
+          <div className="flex items-center gap-6 flex-wrap"><Donut segments={[{ v: 40, c: "#0ea5e9" }, { v: 45, c: "#f59e0b" }, { v: 15, c: "#0D9488" }]} />
+            <div className="text-sm space-y-2">
+              <Leg c="bg-sky-500" t="Online (customer) — 40% · €281k" /><Leg c="bg-amber-500" t="Walk-in (controller) — 45% · €317k" /><Leg c="bg-teal-600" t="Cashier (on-site) — 15% · €106k" />
+            </div></div>
+        </Card>
+        <Card className="p-5"><div className="font-semibold text-navy-900 mb-2">Channel by week (€k)</div>
+          <BarChart color="#0ea5e9" data={[{ l: "W1", v: 48 }, { l: "W2", v: 56 }, { l: "W3", v: 71, hi: 1 }, { l: "W4", v: 64 }, { l: "W5", v: 78 }, { l: "W6", v: 82, hi: 1 }]} />
+        </Card>
+      </div>}
 
       {tab === "customers" && <>
         <div className="grid sm:grid-cols-3 gap-4">
           <StatCard label="New vs returning" value="38 / 62" sub="% this season" /><StatCard label="VIP segment rev" value="€118k" sub="17% of total" /><StatCard label="Season-pass holders" value="412" />
         </div>
         <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-2">Top customers</div>
-          <Table cols={["Customer", "Segment", "Visits", "Spend"]} right={[2, 3]} rows={[
-            ["Elena V.", <Badge tone="amber">VIP</Badge>, 28, "€1,240"], ["Maria K.", <Badge tone="blue">Season</Badge>, 21, "€890"], ["Dimitris A.", <Badge tone="slate">Regular</Badge>, 14, "€560"],
-          ]} /></Card>
+          <Table cols={["Customer", "Segment", "Visits", "Spend"]} right={[2, 3]}
+            rows={TOP_CUSTOMERS.map((c) => [c.name, <Badge tone={c.segment.tone}>{c.segment.label}</Badge>, c.visits, c.spend])} /></Card>
       </>}
 
       {tab === "tickets" && <Card className="p-5"><div className="flex items-center justify-between mb-2"><div className="font-semibold text-navy-900">Ticket history</div><Btn size="sm" variant="outline" icon={Icon.download} onClick={() => toast("Demo — CSV export.")}>CSV</Btn></div>
-        <Table cols={["Ticket", "Category", "Issuer", "Date", "Customer type", "Revenue", "Status"]} right={[5]} rows={[
-          ["#TK-55120", "Adult ×2", "Customer", "19 Jul", "VIP", "€20", <Badge tone="green">Valid</Badge>],
-          ["#TK-55119", "Resident", "Cashier", "19 Jul", "Regular", "€6", <Badge tone="slate">Used</Badge>],
-          ["#TK-55101", "Child", "Customer", "18 Jul", "New", "€5", <Badge tone="green">Valid</Badge>],
-        ]} /></Card>}
+        <Table cols={["Ticket", "Category", "Issuer", "Date", "Customer type", "Revenue", "Status"]} right={[5]}
+          rows={REPORTING_TICKETS.map((r) => [r[0], r[1], r[2], r[3], r[4], r[5], <Badge tone={r[6].tone}>{r[6].label}</Badge>])} /></Card>}
 
       {tab === "daily" && <Card className="p-5"><div className="flex items-center justify-between mb-2"><div className="font-semibold text-navy-900">Daily operations · 19 Jul 2026</div><Btn size="sm" variant="outline" icon={Icon.download} onClick={() => toast("Demo — export end-of-day report.")}>Export</Btn></div>
-        <Table cols={["Capability", "Count", "Gross", "Refunds", "Net"]} right={[1, 2, 3, 4]} rows={[
-          ["Sunbed bookings", 214, "€6,420", "−€60", "€6,360"], ["Entry tickets", 512, "€4,180", "€0", "€4,180"], ["Lockers", 38, "€190", "€0", "€190"],
-          [<b>Total</b>, <b>764</b>, <b>€10,790</b>, <b>−€60</b>, <b>€10,730</b>],
-        ]} />
-        <div className="mt-3 text-[12px] text-slate-400">Documents issued: 726 ΑΠΥ · 12 ΤΠΥ · all transmitted to MyDATA ✓</div></Card>}
+        <Table cols={["Capability", "Count", "Gross", "Refunds", "Net"]} right={[1, 2, 3, 4]} rows={(() => {
+          const totals = DAILY_OPS.reduce((a, r) => ({ c: a.c + r[1], g: a.g + parseFloat(r[2].replace(/[^0-9.]/g, "")), rf: a.rf + parseFloat(r[3].replace(/[^0-9.−-]/g, "").replace("−", "-")), n: a.n + parseFloat(r[4].replace(/[^0-9.]/g, "")) }), { c: 0, g: 0, rf: 0, n: 0 });
+          return [
+            ...DAILY_OPS.map((r) => [r[0], r[1], r[2], r[3] === "€0" ? "€0" : <span className="text-rose-600 font-medium tnum">{r[3]}</span>, r[4]]),
+            [<b>Total</b>, <b>{totals.c}</b>, <b>€{totals.g.toLocaleString()}</b>, <b className="text-rose-600">€{totals.rf.toLocaleString()}</b>, <b>€{totals.n.toLocaleString()}</b>],
+          ];
+        })()} />
+        <div className="mt-3 text-[12px] text-slate-600">Documents issued: 726 ΑΠΥ · 12 ΤΠΥ · all transmitted to MyDATA ✓</div></Card>}
     </div>
   );
 }
@@ -429,19 +437,29 @@ export function AdminReporting() {
 export function AdminRefunds() {
   const { toast } = useApp();
   const [modal, setModal] = useState(null);
-  const [rows, setRows] = useState([
-    { tx: "#TX-88210", cust: "Maria K.", amount: 30, reason: "", status: null },
-    { tx: "#TX-88154", cust: "Nikos P.", amount: 22, reason: "Double booking", status: "Refunded" },
-  ]);
+  const [period, setPeriod] = useState("month");
+  const [rows, setRows] = useState(ADMIN_REFUNDS);
+  const refunded = rows.filter((r) => r.status === "Refunded").reduce((a, b) => a + b.amount, 0);
+  const refundedCount = rows.filter((r) => r.status === "Refunded").length;
+  const pending = rows.filter((r) => !r.status).length;
   return (
     <div className="animate-fade-up">
       <PageHead title="Refunds" sub="Partial or full refunds via Stripe, with reason logging and auto credit-note (MyDATA)." badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<Btn variant="outline" icon={Icon.download} onClick={() => toast("Demo — refund history CSV.")}>Export</Btn>} />
+        actions={<>
+          <Tabs tabs={[["week", "Week"], ["month", "Month"], ["season", "Season"]]} value={period} onChange={setPeriod} />
+          <Btn variant="outline" icon={Icon.download} onClick={() => toast("Demo — refund history CSV.")}>Export</Btn>
+        </>} />
+      <div className="grid sm:grid-cols-4 gap-4 mb-4">
+        <StatCard label="Refunded · this month" value={`€${refunded}`} sub={`${refundedCount} transaction${refundedCount !== 1 ? "s" : ""}`} tone="teal" />
+        <StatCard label="Pending review" value={pending} sub="awaiting decision" />
+        <StatCard label="Refund rate" value="1.4%" sub="of total sales" />
+        <StatCard label="Top reason" value="Double booking" sub="33% of refunds" tone="indigo" />
+      </div>
       <Card className="p-2">
-        <Table cols={["Transaction", "Customer", "Amount", "Reason", "Status", ""]} right={[2]}
-          rows={rows.map((r, i) => [r.tx, r.cust, `€${r.amount}`, r.reason || "—",
-            r.status ? <Badge tone="green">{r.status}</Badge> : "—",
-            r.status ? <span className="text-slate-300 text-sm">done</span> : <Btn size="sm" variant="outline" icon={Icon.refund} onClick={() => setModal(i)}>Refund</Btn>])} />
+        <Table cols={["Transaction", "Date", "Customer", "Amount", "Reason", "Status", ""]} right={[3]}
+          rows={rows.map((r, i) => [r.tx, r.date || "—", r.cust, `€${r.amount}`, r.reason || "—",
+            r.status ? <Badge tone="green">{r.status}</Badge> : <Badge tone="amber">Pending</Badge>,
+            r.status ? <span className="text-slate-500 text-sm">done</span> : <Btn size="sm" variant="outline" icon={Icon.refund} onClick={() => setModal(i)}>Refund</Btn>])} />
       </Card>
       <Modal open={modal !== null} onClose={() => setModal(null)} title="Issue refund"
         footer={<><Btn variant="ghost" onClick={() => setModal(null)}>Cancel</Btn>
@@ -451,7 +469,7 @@ export function AdminRefunds() {
             <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm flex justify-between"><span className="text-slate-500">{rows[modal].tx} · {rows[modal].cust}</span><b className="tnum">€{rows[modal].amount}</b></div>
             <Field label="Refund type"><Select options={["Full refund", "Partial refund"]} /></Field>
             <Field label="Reason"><Select options={["Weather", "Double booking", "Customer request", "Service issue"]} /></Field>
-            <div className="text-[12px] text-slate-400 flex items-center gap-1.5"><Icon.shield size={13} /> Reverses the application fee and auto-issues a credit note to MyDATA.</div>
+            <div className="text-[12px] text-slate-600 flex items-center gap-1.5"><Icon.shield size={13} /> Reverses the application fee and auto-issues a credit note to MyDATA.</div>
           </div>
         )}
       </Modal>
@@ -463,18 +481,56 @@ export function AdminRefunds() {
 export function AdminCommunicate() {
   const { toast } = useApp();
   const [seg, setSeg] = useState("VIP");
+  const [msg, setMsg] = useState("☀️ Weekend offer: 20% off front-row sunbeds at Akti tou Iliou. Book now!");
+  const reach = seg === "All users" ? "8,420" : seg === "VIP" ? "318" : "1,204";
   return (
-    <div className="animate-fade-up max-w-2xl">
+    <div className="animate-fade-up">
       <PageHead title="Communicate" sub="Message users or segments with notifications and offers — builds on tags/segmentation." badge={<Badge tone="future">Future</Badge>} />
-      <Card className="p-5 space-y-3">
-        <Field label="Audience segment"><Select value={seg} onChange={(e) => setSeg(e.target.value)} options={["VIP", "Season pass", "Regulars", "New", "All users"]} /></Field>
-        <Field label="Channel"><Select options={["Push notification", "E-mail", "SMS", "WhatsApp"]} /></Field>
-        <Field label="Message"><textarea rows={4} defaultValue="☀️ Weekend offer: 20% off front-row sunbeds at Akti tou Iliou. Book now!" className="w-full rounded-xl ring-1 ring-slate-200 px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-400 outline-none" /></Field>
-        <div className="flex items-center justify-between">
-          <div className="text-[12px] text-slate-400">Est. reach: <b className="text-navy-900">{seg === "All users" ? "8,420" : seg === "VIP" ? "318" : "1,204"}</b> users</div>
-          <Btn variant="primary" icon={Icon.bell} onClick={() => toast("Demo — campaign queued (roadmap feature).")}>Send campaign</Btn>
-        </div>
-      </Card>
+      <FutureBanner />
+      <div className="grid lg:grid-cols-[1fr_320px] gap-5">
+        <Card className="p-5 space-y-3">
+          <Field label="Audience segment"><Select value={seg} onChange={(e) => setSeg(e.target.value)} options={["VIP", "Season pass", "Regulars", "New", "All users"]} /></Field>
+          <Field label="Channel"><Select options={["Push notification", "E-mail", "SMS", "WhatsApp"]} /></Field>
+          <Field label="Message"><textarea rows={4} value={msg} onChange={(e) => setMsg(e.target.value)} className="glass-input w-full rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500/70 outline-none" /></Field>
+          <div className="flex items-center justify-between">
+            <div className="text-[12px] text-slate-600">Est. reach: <b className="text-navy-900">{reach}</b> users</div>
+            <Btn variant="primary" icon={Icon.bell} onClick={() => toast("Demo — campaign queued (roadmap feature).")}>Send campaign</Btn>
+          </div>
+        </Card>
+        <aside className="space-y-3 lg:sticky lg:top-24 h-max">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 px-1">Preview</div>
+          <div className="rounded-2xl bg-navy-950 text-white p-4 shadow-lift">
+            <div className="flex items-center gap-2 text-[11px] text-white/70 mb-2"><Icon.bell size={12} /> Akti tou Iliou · now</div>
+            <div className="font-semibold text-sm">Weekend at the beach</div>
+            <div className="text-[12px] text-white/80 leading-snug mt-0.5 line-clamp-3">{msg}</div>
+          </div>
+          <div className="rounded-2xl ring-1 ring-slate-200 bg-white/70 backdrop-blur p-4 space-y-3 text-[12px] text-slate-600">
+            <div className="flex items-center justify-between">
+              <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.users size={14} /> Audience</div>
+              <Badge tone="indigo">{seg}</Badge>
+            </div>
+            <div>
+              <div className="flex items-center justify-between text-[11px] mb-1">
+                <span>Est. reach</span>
+                <b className="text-navy-900 tnum">{reach}</b>
+              </div>
+              <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-slaice-500 to-teal-500" style={{ width: `${Math.min(100, (parseInt(reach.replace(/,/g, ""), 10) / 8420) * 100)}%` }} />
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-slate-500 mt-1">
+                <span>0</span>
+                <span>8,420 total</span>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-100">
+              {["VIP", "Season pass", "Regulars", "New"].map((t) => (
+                <button key={t} onClick={() => setSeg(t === "Regulars" ? "Regulars" : t)} className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ring-1 transition ${seg === t ? "bg-slaice-600 text-white ring-slaice-600" : "bg-white text-slate-600 ring-slate-200 hover:ring-slaice-400"}`}>{t}</button>
+              ))}
+            </div>
+            <div className="text-[11px] text-slate-500">Built on Users & Segments — change tags to grow the reach.</div>
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

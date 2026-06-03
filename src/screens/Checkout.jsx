@@ -39,7 +39,7 @@ export function Checkout() {
           <div className="flex items-center justify-center gap-2 text-[#635bff] font-bold text-lg"><Icon.stripe size={22} /> stripe</div>
           <div className="mt-4 text-sm text-slate-500">Redirecting to {TENANT.name}'s secure Stripe Checkout…</div>
           <div className="mt-5 mx-auto w-10 h-10 rounded-full border-2 border-slate-200 border-t-[#635bff] animate-spin" />
-          <div className="mt-5 text-[12px] text-slate-400">Direct charge on the tenant's connected account · application_fee €{fee}</div>
+          <div className="mt-5 text-[12px] text-slate-600">Direct charge on the tenant's connected account · application_fee €{fee}</div>
           <Btn variant="indigo" full size="lg" className="mt-5" onClick={() => setPhase("done")}>Simulate successful payment</Btn>
         </Card>
       </div>
@@ -53,19 +53,23 @@ export function Checkout() {
       <div>
         <PageHead title="Checkout" sub="Review your order, then pay via Stripe (hosted, tenant-branded)." badge={<Badge tone="mvp">MVP</Badge>} />
         <Card className="p-2">
+          <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100">
+            <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.card size={16} /> Your basket · {cart.length} item{cart.length !== 1 ? "s" : ""}</div>
+            <div className="text-[12px] text-slate-600">Subtotal <b className="text-navy-900 tnum">€{total.toFixed(2)}</b></div>
+          </div>
           <div className="divide-y divide-slate-100">
             {cart.map((it) => (
               <div key={it.kind + it.id} className="flex items-center justify-between px-3 py-3">
                 <div className="flex items-center gap-3">
                   <span className="w-9 h-9 rounded-lg bg-slate-100 grid place-items-center text-slate-500">{kindIcon(it.kind)}</span>
-                  <div><div className="font-semibold text-sm text-navy-900">{it.label}</div><div className="text-[12px] text-slate-400">{it.sub}</div></div>
+                  <div><div className="font-semibold text-sm text-navy-900">{it.label}</div><div className="text-[12px] text-slate-600">{it.sub}</div></div>
                 </div>
-                <div className="flex items-center gap-2"><span className="font-semibold tnum">€{it.price}</span><button aria-label={`Remove ${it.label}`} onClick={() => removeItem(it)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={16} /></button></div>
+                <div className="flex items-center gap-2"><span className="font-semibold tnum">€{it.price}</span><button aria-label={`Remove ${it.label}`} onClick={() => removeItem(it)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={16} /></button></div>
               </div>
             ))}
           </div>
         </Card>
-        <div className="mt-3 text-[12px] text-slate-400 flex items-center gap-1.5"><Icon.shield size={13} /> On success: booking confirmed via webhook, QR e-mailed, and an ΑΠΥ auto-issued to MyDATA.</div>
+        <div className="mt-3 text-[12px] text-slate-600 flex items-center gap-1.5"><Icon.shield size={13} /> On success: booking confirmed via webhook, QR e-mailed, and an ΑΠΥ auto-issued to MyDATA.</div>
       </div>
 
       <div className="lg:sticky lg:top-4 h-max">
@@ -76,9 +80,9 @@ export function Checkout() {
           <Row l="Slaice commission (5%)" v={`€${fee.toFixed(2)}`} muted />
           <div className="h-px bg-slate-100 my-2" />
           <Row l="You pay" v={`€${total.toFixed(2)}`} bold />
-          <div className="text-[11px] text-slate-400 mt-1">Tenant receives €{(total - stripeFee - fee).toFixed(2)} · Slaice receives €{fee.toFixed(2)}</div>
+          <div className="text-[11px] text-slate-600 mt-1">Tenant receives €{(total - stripeFee - fee).toFixed(2)} · Slaice receives €{fee.toFixed(2)}</div>
           <Btn variant="indigo" full size="lg" className="mt-4" icon={Icon.stripe} onClick={() => setPhase("redirect")}>Pay with Stripe</Btn>
-          <button onClick={() => go("customer", "book")} className="mt-2 w-full text-center text-[12px] text-slate-400 hover:text-slate-600">← Back to booking</button>
+          <button onClick={() => go("customer", "book")} className="mt-2 w-full text-center text-[12px] text-slate-600 hover:text-slate-600">← Back to booking</button>
         </Card>
       </div>
     </div>
@@ -86,7 +90,7 @@ export function Checkout() {
 }
 
 function Row({ l, v, bold, muted }) {
-  return <div className={`flex items-center justify-between text-sm py-0.5 ${bold ? "font-bold text-navy-900 text-base" : muted ? "text-slate-400" : "text-slate-600"}`}><span>{l}</span><span className="tnum">{v}</span></div>;
+  return <div className={`flex items-center justify-between text-sm py-0.5 ${bold ? "font-bold text-navy-900 text-base" : muted ? "text-slate-600" : "text-slate-600"}`}><span>{l}</span><span className="tnum">{v}</span></div>;
 }
 
 function kindIcon(kind) {
@@ -120,7 +124,7 @@ export function Confirmation({ inline }) {
           <Btn variant="outline" icon={Icon.receipt} onClick={() => { clearCart(); go("customer", "mydocs"); }}>View receipt</Btn>
         </div>
       </Card>
-      <div className="text-center mt-3 text-[11px] text-slate-400 flex items-center justify-center gap-1.5">powered by <SlaiceLogo size={18} withText /></div>
+      <div className="text-center mt-3 text-[11px] text-slate-600 flex items-center justify-center gap-1.5">powered by <SlaiceLogo size={18} withText /></div>
     </Wrapper>
   );
 }

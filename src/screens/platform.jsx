@@ -1,8 +1,19 @@
 import { useState } from "react";
 import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Field, Input, Select, Toggle } from "../components/ui.jsx";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Field, Input, Select, Toggle, FutureBanner } from "../components/ui.jsx";
 import { SlaiceLogo } from "../components/Brand.jsx";
+import { PLATFORM_TENANTS } from "../data/mock.js";
 import { useApp } from "../app/store.jsx";
+
+function ModuleList({ modules }) {
+  return (
+    <span className="flex flex-wrap gap-1">
+      {modules.map((m) => (
+        <span key={m} className="text-[11px] font-semibold px-1.5 py-0.5 rounded-md bg-teal-50 text-teal-700 ring-1 ring-teal-600/15">{m}</span>
+      ))}
+    </span>
+  );
+}
 
 /* ============ TENANTS ============ */
 export function PlatformTenants() {
@@ -12,27 +23,41 @@ export function PlatformTenants() {
       <PageHead title="Tenants" sub="Slaice platform console — connected beaches & verticals." badge={<Badge tone="mvp">MVP</Badge>}
         actions={<Btn variant="indigo" icon={Icon.bolt} onClick={() => go("platform", "onboarding")}>Onboard tenant</Btn>} />
       <div className="grid sm:grid-cols-4 gap-4 mb-4">
-        <StatCard label="Active tenants" value="1" sub="anchor beach" tone="indigo" icon={Icon.building} />
-        <StatCard label="Pipeline" value="3" sub="small beaches" icon={Icon.trend} />
-        <StatCard label="Platform GMV" value="€704k" icon={Icon.chart} />
-        <StatCard label="Slaice fees" value="€35.2k" tone="indigo" icon={Icon.cash} />
+        <StatCard label="Active tenants" value={PLATFORM_TENANTS.filter((t) => t.status.label === "Live").length} sub="charging on Stripe" tone="indigo" />
+        <StatCard label="Pipeline" value={PLATFORM_TENANTS.filter((t) => t.status.label !== "Live").length} sub="setup + leads" />
+        <StatCard label="Platform GMV" value="€704k" sub="season to date" />
+        <StatCard label="Slaice fees" value="€35.2k" sub="5% application fee" tone="indigo" />
       </div>
       <Card className="p-2">
-        <Table cols={["Tenant", "Subdomain", "Stripe", "Modules", "Status"]}
-          rows={[
-            ["Akti tou Iliou", "aktitouiliou.slaice.app", <Badge tone="green">charges ✓</Badge>, "Booking · Ticket · Invoice · Pay", <Badge tone="green">Live</Badge>],
-            ["Demo Beach #2", "beach2.slaice.app", <Badge tone="amber">onboarding</Badge>, "Booking", <Badge tone="amber">Setup</Badge>],
-            ["Paralia Sun", "paraliasun.slaice.app", <Badge tone="slate">pending</Badge>, "—", <Badge tone="slate">Lead</Badge>],
-          ]} />
+        <Table cols={["Tenant", "Subdomain", "Stripe", "Modules", "MRR", "Status"]} right={[4]}
+          rows={PLATFORM_TENANTS.map((t) => [
+            t.name,
+            t.subdomain,
+            <Badge tone={t.stripe.tone}>{t.stripe.label}</Badge>,
+            t.modules.length > 0 ? <ModuleList modules={t.modules} /> : <span className="text-slate-500">—</span>,
+            t.mrr,
+            <Badge tone={t.status.tone}>{t.status.label}</Badge>,
+          ])} />
       </Card>
       <Card className="p-5 mt-4">
-        <div className="font-semibold text-navy-900 mb-2">Capability flags · Akti tou Iliou</div>
-        <div className="flex flex-wrap gap-2">
-          {["Sunbed Booking", "Entry Ticket", "e-Invoice/MyDATA", "Payments", "Reporting", "Locker (future)", "Parking (future)", "Cash Register (future)", "Loyalty (future)"].map((m, i) => (
-            <span key={i} className={`px-3 py-1.5 rounded-lg text-[13px] ring-1 ${i < 5 ? "bg-teal-50 text-teal-700 ring-teal-600/20" : "bg-slate-50 text-slate-400 ring-slate-200"}`}>{m}</span>
-          ))}
+        <div className="font-semibold text-navy-900 mb-3">Capability flags · Akti tou Iliou</div>
+        <div className="mb-3">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-teal-700 mb-1.5 flex items-center gap-1.5"><Icon.checkCircle size={11} /> Enabled · MVP</div>
+          <div className="flex flex-wrap gap-2">
+            {["Sunbed Booking", "Entry Ticket", "e-Invoice/MyDATA", "Payments", "Reporting"].map((m) => (
+              <span key={m} className="px-3 py-1.5 rounded-lg text-[13px] bg-teal-50 text-teal-700 ring-1 ring-teal-600/20">{m}</span>
+            ))}
+          </div>
         </div>
-        <Btn variant="ghost" size="sm" className="mt-3" icon={Icon.cog} onClick={() => go("platform", "superadmin")}>Manage in Super Admin</Btn>
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-1.5 flex items-center gap-1.5"><Icon.clock size={11} /> Roadmap · disabled</div>
+          <div className="flex flex-wrap gap-2">
+            {["Day Locker", "Parking", "Cash Register", "Loyalty"].map((m) => (
+              <span key={m} className="px-3 py-1.5 rounded-lg text-[13px] bg-slate-50 text-slate-500 ring-1 ring-slate-200">{m}</span>
+            ))}
+          </div>
+        </div>
+        <Btn variant="ghost" size="sm" className="mt-4" icon={Icon.cog} onClick={() => go("platform", "superadmin")}>Manage in Super Admin</Btn>
       </Card>
     </div>
   );
@@ -49,16 +74,20 @@ export function PlatformOnboarding() {
     <div className="animate-fade-up max-w-3xl">
       <PageHead title="Tenant Onboarding" sub="Create a tenant, configure branding & modules, connect Stripe (Connect Standard), and go live." badge={<Badge tone="mvp">MVP</Badge>} />
       {/* stepper */}
-      <div className="flex items-center mb-5">
-        {steps.map((s, i) => (
-          <div key={i} className="flex items-center flex-1 last:flex-none">
-            <div className="flex items-center gap-2">
-              <span className={`w-8 h-8 rounded-full grid place-items-center text-sm font-bold ${i < step ? "bg-teal-600 text-white" : i === step ? "bg-slaice-600 text-white" : "bg-slate-200 text-slate-400"}`}>{i < step ? <Icon.check size={16} /> : i + 1}</span>
-              <span className={`text-[13px] font-semibold hidden sm:block ${i <= step ? "text-navy-900" : "text-slate-400"}`}>{s}</span>
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-600">Step {step + 1} of {steps.length}</div>
+      <div className="flex items-center mb-6">
+        {steps.map((s, i) => {
+          const done = i < step, active = i === step;
+          return (
+            <div key={i} className="flex items-center flex-1 last:flex-none">
+              <div className="flex items-center gap-2.5">
+                <span className={`w-10 h-10 rounded-full grid place-items-center text-sm font-bold ring-4 transition ${done ? "bg-teal-600 text-white ring-teal-100" : active ? "bg-slaice-600 text-white ring-slaice-100 shadow-lift" : "bg-white text-slate-500 ring-slate-100"}`}>{done ? <Icon.check size={18} /> : i + 1}</span>
+                <span className={`text-[13px] font-semibold hidden sm:block ${active ? "text-navy-900" : done ? "text-teal-700" : "text-slate-500"}`}>{s}</span>
+              </div>
+              {i < steps.length - 1 && <div className={`h-1 flex-1 mx-3 rounded-full ${done ? "bg-teal-500" : "bg-slate-200"}`} />}
             </div>
-            {i < steps.length - 1 && <div className={`h-0.5 flex-1 mx-2 ${i < step ? "bg-teal-500" : "bg-slate-200"}`} />}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <Card className="p-6">
@@ -78,7 +107,7 @@ export function PlatformOnboarding() {
               <Field label="Brand colour"><div className="flex gap-1.5">{["#0D9488", "#0ea5e9", "#f59e0b", "#a855f7", "#ef4444"].map((c) => <span key={c} className="w-7 h-7 rounded-lg ring-2 ring-white shadow cursor-pointer" style={{ background: c }} />)}</div></Field>
               <Field label="Logo"><Btn variant="outline" size="sm" icon={Icon.download} onClick={() => toast("Demo — upload logo.")}>Upload</Btn></Field>
             </div>
-            <div className="mt-4 text-[12px] font-semibold uppercase tracking-wide text-slate-400 mb-2">Enable modules</div>
+            <div className="mt-4 text-[12px] font-semibold uppercase tracking-wide text-slate-600 mb-2">Enable modules</div>
             <div className="space-y-2">
               {[["Sunbed Booking", true], ["Entry Ticket", true], ["e-Invoice / MyDATA", true], ["Payments (Stripe)", true], ["Day Locker", false], ["Parking", false], ["Cash Register", false]].map(([m, on]) => (
                 <ModuleToggle key={m} label={m} def={on} />
@@ -126,7 +155,7 @@ function ModuleToggle({ label, def }) {
   );
 }
 function Flag({ t, ok }) {
-  return <div className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 font-mono ${ok ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/15" : "bg-slate-50 text-slate-400"}`}><Icon.check size={13} /> {t}</div>;
+  return <div className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 font-mono ${ok ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/15" : "bg-slate-50 text-slate-600"}`}><Icon.check size={13} /> {t}</div>;
 }
 
 /* ============ SUPER ADMIN ============ */
@@ -136,15 +165,18 @@ export function PlatformSuperAdmin() {
   const tenants = [
     { n: "Akti tou Iliou", flags: [1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0] },
     { n: "Demo Beach #2", flags: [1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0] },
+    { n: "Glyfada Bay", flags: [1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0] },
+    { n: "Kavouri Coast", flags: [1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0] },
   ];
   const webhooks = ["checkout.session.completed", "payment_intent.succeeded", "payment_intent.payment_failed", "charge.refunded", "account.updated"];
   return (
     <div className="animate-fade-up">
       <PageHead title="Super Admin" sub="Internal Slaice console — enable/disable capability modules per tenant (feature flags) and monitor platform webhooks." badge={<Badge tone="future">Future</Badge>} />
+      <FutureBanner />
       <Card className="p-5 overflow-x-auto">
         <div className="font-semibold text-navy-900 mb-3">Capability flags per tenant</div>
         <table className="text-sm">
-          <thead><tr className="text-[11px] uppercase text-slate-400"><th className="text-left py-2 pr-4">Module</th>{tenants.map((t) => <th key={t.n} className="px-3 py-2 font-semibold">{t.n}</th>)}</tr></thead>
+          <thead><tr className="text-[11px] uppercase text-slate-600"><th className="text-left py-2 pr-4">Module</th>{tenants.map((t) => <th key={t.n} className="px-3 py-2 font-semibold">{t.n}</th>)}</tr></thead>
           <tbody className="divide-y divide-slate-100">
             {modules.map((m, mi) => (
               <tr key={m}>
@@ -164,7 +196,7 @@ export function PlatformSuperAdmin() {
             </div>
           ))}
         </div>
-        <div className="mt-3 text-[12px] text-slate-400">Signed endpoint verifies Stripe-Signature with the webhook secret before processing.</div>
+        <div className="mt-3 text-[12px] text-slate-600">Signed endpoint verifies Stripe-Signature with the webhook secret before processing.</div>
       </Card>
     </div>
   );
@@ -192,8 +224,9 @@ export function PlatformVerticals() {
     { t: "Retail Market", ic: Icon.pkg, d: "Product catalogue, cash register, e-invoice & accounting." },
   ];
   return (
-    <div className="animate-fade-up">
+    <div className="animate-fade-up pt-1">
       <PageHead title="Verticals" sub="Reuse the generic inventory, payments, e-invoice & catalogue across new markets — minimal code change." badge={<Badge tone="future">Future</Badge>} />
+      <FutureBanner />
       <div className="grid sm:grid-cols-3 gap-4 mb-4">
         {verts.map((v) => (
           <Card key={v.t} className="p-5">
@@ -206,7 +239,7 @@ export function PlatformVerticals() {
       <Card className="p-5 overflow-x-auto">
         <div className="font-semibold text-navy-900 mb-2">Cross-business capability reuse</div>
         <table className="w-full text-sm">
-          <thead><tr className="text-left text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-200">{cols.map((c, i) => <th key={i} className="py-2.5 px-3 font-semibold">{c}</th>)}</tr></thead>
+          <thead><tr className="text-left text-[11px] uppercase tracking-wide text-slate-600 border-b border-slate-200">{cols.map((c, i) => <th key={i} className="py-2.5 px-3 font-semibold">{c}</th>)}</tr></thead>
           <tbody className="divide-y divide-slate-100">
             {rows.map((r, ri) => <tr key={ri} className="hover:bg-slate-50/70">{r.map((c, ci) => <td key={ci} className={`py-2.5 px-3 ${ci === 0 ? "font-medium text-navy-900" : "text-slate-600"}`}>{c}</td>)}</tr>)}
           </tbody>
@@ -222,6 +255,7 @@ export function PlatformLanding() {
   return (
     <div className="animate-fade-up">
       <PageHead title="Landing Page · slaice.app" sub="Public marketing page at the root domain — brand, capabilities & use cases. SEO-friendly and responsive." badge={<Badge tone="future">Future</Badge>} />
+      <FutureBanner />
       <Card className="overflow-hidden">
         <div className="grad-slaice text-white p-10 md:p-14 relative">
           <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, #fff 1px, transparent 1px)", backgroundSize: "18px 18px" }} />

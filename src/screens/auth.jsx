@@ -70,7 +70,7 @@ export function AuthGate() {
             </div>
           )}
 
-          <div className="flex items-center gap-3 my-6 text-[12px] text-slate-400">
+          <div className="flex items-center gap-3 my-6 text-[12px] text-slate-600">
             <div className="h-px bg-slate-200 flex-1" /> or continue with <div className="h-px bg-slate-200 flex-1" />
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -82,7 +82,7 @@ export function AuthGate() {
             </Btn>
           </div>
 
-          <div className="mt-8 flex items-center justify-center gap-2 text-[11px] text-slate-400">
+          <div className="mt-8 flex items-center justify-center gap-2 text-[11px] text-slate-600">
             <Icon.shield size={13} /> Secured demo · no real credentials processed
           </div>
         </div>

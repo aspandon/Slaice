@@ -1,61 +1,55 @@
 import { useMemo, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad } from "../components/ui.jsx";
+import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad, StatCard, ContextPanel, Tabs } from "../components/ui.jsx";
 import { QR } from "../components/charts.jsx";
 import { Sunbed, BeachBackdrop, ParkingBackdrop, LockerBackdrop } from "../components/Beach.jsx";
 import { downloadText } from "../lib/download.js";
-import { ZONES, ZONE_BLOCKS, makeGrid, dateStrip, TENANT } from "../data/beach.js";
+import { ZONES, ZONE_BLOCKS, makeGrid, dateStrip } from "../data/beach.js";
+import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS } from "../data/mock.js";
 import { useApp } from "../app/store.jsx";
 
 /* ============ HOME ============ */
 export function CustomerHome() {
-  const { go } = useApp();
+  const { go, cart } = useApp();
   const tools = [
-    { k: "book", t: "Sunbed Booking", d: "Reserve your spot on the live beach map", ic: Icon.umbrella, tone: "teal" },
-    { k: "ticket", t: "Entry Ticket", d: "Buy entry for yourself or your group", ic: Icon.ticket },
-    { k: "locker", t: "Day Locker", d: "Keep your valuables safe", ic: Icon.lock },
-    { k: "parking", t: "Parking", d: "Reserve a spot at the car park", ic: Icon.car },
-    { k: "mybookings", t: "My Bookings", d: "Reservations, QR codes & status", ic: Icon.grid },
-    { k: "mydocs", t: "My Documents", d: "Receipts & invoices (MyDATA)", ic: Icon.receipt },
+    { k: "book", t: "Sunbed Booking", d: "Reserve your spot on the live beach map", ic: Icon.umbrella, tone: "teal", meta: "Live map", metaTone: "green" },
+    { k: "ticket", t: "Entry Ticket", d: "Buy entry for yourself or your group", ic: Icon.ticket, meta: "From €5", metaTone: "slate" },
+    { k: "locker", t: "Day Locker", d: "Keep your valuables safe", ic: Icon.lock, meta: "80 free today", metaTone: "green" },
+    { k: "parking", t: "Parking", d: "Reserve a spot at the car park", ic: Icon.car, meta: "39 of 50 free", metaTone: "green" },
+    { k: "mybookings", t: "My Bookings", d: "Reservations, QR codes & status", ic: Icon.grid, meta: "4 active", metaTone: "blue" },
+    { k: "mydocs", t: "My Documents", d: "Receipts & invoices (MyDATA)", ic: Icon.receipt, meta: "2 receipts", metaTone: "slate" },
   ];
-  const trust = [
-    { ic: Icon.star, t: "4.9", s: "guest rating" },
-    { ic: Icon.umbrella, t: "12k+", s: "beach days booked" },
-    { ic: Icon.qr, t: "Instant", s: "QR entry" },
-  ];
+  const cartCount = (cart || []).length;
   return (
-    <div className="animate-fade-up">
-      <BeachBackdrop className="p-8 md:p-12 text-white relative ring-1 ring-white/10">
-        <div className="absolute inset-0 bg-gradient-to-tr from-navy-950/70 via-navy-950/30 to-transparent" />
-        <div className="relative">
-          <Badge tone="mvp"><Icon.bolt size={11} /> {TENANT.name} · {TENANT.place}</Badge>
-          <h1 className="mt-3 text-4xl md:text-5xl font-display font-bold leading-[1.05] drop-shadow-lg">Relax. Reserve.<br className="hidden sm:block" /> Repeat.</h1>
-          <p className="mt-3 text-white/85 max-w-lg drop-shadow text-[15px]">Book ahead, skip the queues, and pick your sunbed on the live beach map.</p>
-          <div className="mt-6 flex gap-3 flex-wrap">
-            <Btn variant="teal" size="lg" icon={Icon.umbrella} onClick={() => go("customer", "book")}>Book a sunbed</Btn>
-            <Btn variant="light" size="lg" icon={Icon.ticket} onClick={() => go("customer", "ticket")}>Buy a ticket</Btn>
+    <div className="animate-fade-up space-y-5">
+      {/* welcome row */}
+      <Card className="glass-card-solid p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+        <div>
+          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-teal-700">
+            <Icon.sun size={14} /> Good morning, Elena
           </div>
-          <div className="mt-8 flex flex-wrap gap-x-7 gap-y-3">
-            {trust.map((x) => (
-              <div key={x.s} className="flex items-center gap-2.5">
-                <span className="w-9 h-9 rounded-xl glass grid place-items-center text-gold-500 ring-1 ring-white/30"><x.ic size={16} /></span>
-                <span className="leading-tight"><span className="block font-display font-bold text-lg">{x.t}</span><span className="block text-[11px] text-white/70 uppercase tracking-wide">{x.s}</span></span>
-              </div>
-            ))}
-          </div>
+          <div className="mt-1 font-display font-bold text-2xl text-navy-900">Akti tou Iliou — sunny, 28°C</div>
+          <div className="text-[13px] text-slate-600 mt-0.5">Front-row sunbeds at <b>20% off</b> this weekend · gates open 09:00–20:00.</div>
         </div>
-      </BeachBackdrop>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Btn variant="teal" icon={Icon.umbrella} onClick={() => go("customer", "book")}>Book a sunbed</Btn>
+          {cartCount > 0 && (
+            <Btn variant="outline" icon={Icon.card} onClick={() => go("customer", "checkout")}>Checkout · {cartCount}</Btn>
+          )}
+        </div>
+      </Card>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+      {/* tools grid */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {tools.map((t) => (
           <button key={t.k} onClick={() => go("customer", t.k)} className="text-left group">
-            <Card hover className="p-5 h-full">
+            <Card hover className="glass-card-solid p-5 h-full">
               <div className="flex items-start justify-between">
                 <div className={`w-11 h-11 rounded-xl grid place-items-center text-white shadow-sm transition-transform duration-200 ease-spring group-hover:scale-110 group-hover:-rotate-3 ${t.tone === "teal" ? "bg-gradient-to-br from-teal-500 to-teal-700" : "bg-gradient-to-br from-navy-800 to-navy-950"}`}><t.ic size={20} /></div>
-                {t.future && <Badge tone="future">Future</Badge>}
+                {t.meta && <Badge tone={t.metaTone || "slate"}>{t.meta}</Badge>}
               </div>
               <div className="mt-3 font-semibold text-navy-900 flex items-center gap-1">{t.t}<Icon.chevR size={15} className="transition-transform duration-200 group-hover:translate-x-1 text-teal-600" /></div>
-              <div className="text-[13px] text-slate-500 mt-0.5">{t.d}</div>
+              <div className="text-[13px] text-slate-600 mt-0.5">{t.d}</div>
             </Card>
           </button>
         ))}
@@ -110,8 +104,8 @@ export function CustomerBooking() {
       <div className="fixed inset-0 z-0">
         <div className="relative w-full h-full">
           <BeachBackdrop pos="absolute" className="inset-0 rounded-none">
-            {/* zone pill-tabs */}
-            <div className="absolute top-3 left-3 right-3 flex gap-2 overflow-x-auto z-20 pb-1 no-scrollbar">
+            {/* zone pill-tabs — pushed below TopBar + PageTopNav so they don't fight for the top edge */}
+            <div className="absolute top-[150px] lg:right-[362px] left-3 right-3 flex gap-2 overflow-x-auto z-20 pb-1 no-scrollbar">
               {ZONES.map((z) => {
                 const active = zone && zone.id === z.id;
                 return (
@@ -130,24 +124,26 @@ export function CustomerBooking() {
 
             {!focused && (
               <>
-                <div className="absolute bottom-24 lg:bottom-3 left-1/2 -translate-x-1/2 text-white/90 text-[12px] font-semibold drop-shadow z-10">Drag to explore · click a zone to zoom in</div>
+                <div className="absolute bottom-24 lg:bottom-3 left-1/2 -translate-x-1/2 z-10">
+                  <span className="rounded-full bg-navy-950/55 backdrop-blur px-3 py-1.5 text-white text-[12px] font-semibold ring-1 ring-white/20 shadow-md">Drag to explore · click a zone to zoom in</span>
+                </div>
                 {ZONE_BLOCKS.map((b) => {
                   const z = ZONES.find((x) => x.id === b.id);
                   return (
                     <button key={b.id} onClick={() => { setZoneId(z.id); setStep("grid"); }}
                       className="absolute group z-10" style={{ left: b.left, top: b.top, width: b.w, transform: `rotate(${b.rot}deg)` }}>
-                      <div className="rounded-lg bg-white/25 ring-2 ring-white/70 backdrop-blur-[1px] p-1 shadow-lg group-hover:bg-white/50 transition">
+                      <div className="rounded-lg bg-white/30 ring-2 ring-white/80 backdrop-blur-[1px] p-1 shadow-lg group-hover:bg-white/55 transition">
                         <div className="grid gap-[1px]" style={{ gridTemplateColumns: "repeat(8,1fr)" }}>
                           {Array.from({ length: 24 }).map((_, i) => {
                             const s = ["a", "a", "h", "a", "u", "a"][(i * 5 + z.total) % 6];
-                            return <div key={i} className="aspect-square" style={{ lineHeight: 0 }}><Sunbed state={s} size={14} /></div>;
+                            return <div key={i} className="aspect-square" style={{ lineHeight: 0, transform: `rotate(${-b.rot}deg)` }}><Sunbed state={s} size={14} /></div>;
                           })}
                         </div>
                       </div>
                       <div className="mt-1 mx-auto w-max flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 shadow ring-1 ring-slate-200" style={{ transform: `rotate(${-b.rot}deg)` }}>
                         <span className="w-4 h-4 rounded-full" style={{ background: z.color }} />
                         <span className="text-[11px] font-semibold text-navy-900">{z.name}</span>
-                        <span className="text-[10px] text-slate-400 tnum">{z.avail}/{z.total}</span>
+                        <span className="text-[10px] text-slate-500 tnum">{z.avail}/{z.total}</span>
                       </div>
                     </button>
                   );
@@ -189,55 +185,54 @@ export function CustomerBooking() {
       {(() => {
         const body = (
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            <div className="flex items-center gap-2 rounded-xl bg-slate-100 px-3 py-2.5 text-slate-400 text-sm"><Icon.search size={16} /> Find your perfect spot</div>
-
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5 flex items-center justify-between">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center justify-between">
                 <span className="flex items-center gap-1"><Icon.calendar size={12} /> Dates · pick one or more</span>
-                <span className="text-slate-500 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
+                <span className="text-slate-600 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
               </div>
               <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
                 {dates.slice(0, 7).map((d, i) => {
                   const on = selDates.includes(i);
                   return (
-                    <button key={i} onClick={() => toggleDate(i)} aria-pressed={on} className={`px-3 py-2 min-h-[44px] rounded-lg text-center min-w-[60px] ring-1 transition relative ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"}`}>
+                    <button key={i} onClick={() => toggleDate(i)} aria-pressed={on} className={`px-3 py-2 min-h-[44px] rounded-lg text-center min-w-[68px] ring-1 transition relative ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"}`}>
                       <div className="text-[12px] font-semibold leading-tight">{d.label}</div>
-                      <div className={`text-[10px] ${on ? "text-white/70" : "text-slate-400"}`}>{d.sub}</div>
-                      {on && <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-teal-500 text-white grid place-items-center"><Icon.check size={9} /></span>}
+                      <div className={`text-[10px] ${on ? "text-white/80" : "text-slate-500"}`}>{d.sub}</div>
+                      {on && <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center ring-2 ring-white"><Icon.check size={10} /></span>}
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Map overview</div>
-              {focused ? (
-                <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 px-3 py-2.5">
+            {focused && (
+              <div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Zone</div>
+                <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
                   <div className="flex items-center gap-2">
                     <span className="w-7 h-7 rounded-full grid place-items-center text-white" style={{ background: zone.color }}><Icon.umbrella size={13} /></span>
-                    <div><div className="font-semibold text-sm text-navy-900">{zone.name}</div><div className="text-[11px] text-slate-400">{zone.avail} of {zone.total} available · from €{zone.from}</div></div>
+                    <div><div className="font-semibold text-sm text-navy-900">{zone.name}</div><div className="text-[11px] text-slate-500">{zone.avail} of {zone.total} available · from €{zone.from}</div></div>
                   </div>
-                  <button onClick={() => { setStep("zones"); setZoneId(null); }} className="text-[12px] font-semibold text-slate-500 ring-1 ring-slate-200 rounded-lg px-2.5 py-1.5 min-h-[40px] hover:bg-slate-50">Back</button>
+                  <button onClick={() => { setStep("zones"); setZoneId(null); }} className="text-[12px] font-semibold text-slate-600 ring-1 ring-slate-200 rounded-lg px-2.5 py-1.5 min-h-[40px] hover:bg-slate-50">Back</button>
                 </div>
-              ) : (
-                <div className="text-[12px] text-slate-500 rounded-xl bg-slate-50 px-3 py-2.5">Pick a zone on the beach to zoom in, then tap sunbeds to add them. You can book several at once.</div>
-              )}
-            </div>
+              </div>
+            )}
 
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Your selection{sel.length ? ` · ${sel.length}` : ""}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Your selection{sel.length ? ` · ${sel.length}` : ""}</div>
               {sel.length === 0 ? (
-                <EmptyState compact icon={Icon.umbrella} title="No sunbeds yet" body="Tap available (blue) sunbeds on the map to add them here." className="rounded-xl bg-slate-50" />
+                <div className="text-[12px] text-slate-600 rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-2.5 flex items-center gap-2">
+                  <Icon.umbrella size={14} className="text-slate-500 shrink-0" />
+                  <span>{focused ? "Tap available (blue) sunbeds on the map to add them here." : "Pick a zone on the beach, then tap sunbeds to add them."}</span>
+                </div>
               ) : (
                 <div className="space-y-1.5">
                   {sel.map((b) => (
-                    <div key={b.id} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 px-2.5 py-2 animate-pop">
-                      <div className="flex items-center gap-2"><Sunbed state="a" sel size={18} /><div><div className="font-semibold text-[13px] text-navy-900 leading-none">{b.id}</div><div className="text-[10px] text-slate-400 mt-0.5">{b.zone}</div></div></div>
-                      <div className="flex items-center gap-1"><span className="font-semibold text-[13px] tnum">€{b.price}</span><button aria-label={`Remove ${b.id}`} onClick={() => rm(b.id)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={15} /></button></div>
+                    <div key={b.id} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-2.5 py-2 animate-pop">
+                      <div className="flex items-center gap-2"><Sunbed state="a" sel size={18} /><div><div className="font-semibold text-[13px] text-navy-900 leading-none">{b.id}</div><div className="text-[10px] text-slate-500 mt-0.5">{b.zone}</div></div></div>
+                      <div className="flex items-center gap-1"><span className="font-semibold text-[13px] tnum">€{b.price}</span><button aria-label={`Remove ${b.id}`} onClick={() => rm(b.id)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={15} /></button></div>
                     </div>
                   ))}
-                  <button onClick={clearSel} className="text-[11px] text-slate-400 hover:text-rose-500 px-1 py-1">Clear all</button>
+                  <button onClick={clearSel} className="text-[11px] text-slate-500 hover:text-rose-500 px-1 py-1">Clear all</button>
                 </div>
               )}
             </div>
@@ -245,7 +240,7 @@ export function CustomerBooking() {
             {/* cross-sell */}
             {sel.length > 0 && (
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Add to your day</div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Add to your day</div>
                 <div className="space-y-1.5">
                   <CrossSell on={extras.ticket} onClick={() => setExtras((e) => ({ ...e, ticket: !e.ticket }))} icon={Icon.ticket} title="Entry ticket — Adult" price={10} />
                   <CrossSell on={extras.locker} onClick={() => setExtras((e) => ({ ...e, locker: !e.locker }))} icon={Icon.lock} title="Day locker" price={5} />
@@ -255,18 +250,18 @@ export function CustomerBooking() {
 
             {cart.length > 0 && (
               <div>
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5 flex items-center justify-between">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center justify-between">
                   <span>In your basket · {cart.length}</span>
-                  <button onClick={() => go("customer", "checkout")} className="text-teal-700 hover:text-teal-800 normal-case tracking-normal">Checkout →</button>
+                  <button onClick={() => go("customer", "checkout")} className="text-teal-700 hover:text-teal-800 normal-case tracking-normal font-semibold">Checkout →</button>
                 </div>
                 <div className="space-y-1.5">
                   {cart.map((it) => (
                     <div key={it.kind + it.id} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-2.5 py-2">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="w-7 h-7 rounded-lg bg-slate-100 grid place-items-center text-slate-500 shrink-0">{cartIcon(it.kind)}</span>
-                        <div className="min-w-0"><div className="font-semibold text-[12px] text-navy-900 leading-tight truncate">{it.label}</div><div className="text-[10px] text-slate-400 truncate">{it.sub}</div></div>
+                        <span className="w-7 h-7 rounded-lg bg-slate-100 grid place-items-center text-slate-600 shrink-0">{cartIcon(it.kind)}</span>
+                        <div className="min-w-0"><div className="font-semibold text-[12px] text-navy-900 leading-tight truncate">{it.label}</div><div className="text-[10px] text-slate-500 truncate">{it.sub}</div></div>
                       </div>
-                      <div className="flex items-center gap-1 shrink-0"><span className="font-semibold text-[12px] tnum">€{it.price}</span><button aria-label={`Remove ${it.label}`} onClick={() => removeCartItem(it)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={14} /></button></div>
+                      <div className="flex items-center gap-1 shrink-0"><span className="font-semibold text-[12px] tnum">€{it.price}</span><button aria-label={`Remove ${it.label}`} onClick={() => removeCartItem(it)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={14} /></button></div>
                     </div>
                   ))}
                 </div>
@@ -274,8 +269,8 @@ export function CustomerBooking() {
             )}
 
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Legend</div>
-              <div className="flex items-center gap-3 text-[11px] text-slate-500 flex-wrap">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Legend</div>
+              <div className="flex items-center gap-3 text-[11px] text-slate-600 flex-wrap">
                 <span className="flex items-center gap-1"><Sunbed state="a" size={18} />Available</span>
                 <span className="flex items-center gap-1"><Sunbed state="h" size={18} />On hold</span>
                 <span className="flex items-center gap-1"><Sunbed state="u" size={18} />Unavailable</span>
@@ -306,7 +301,7 @@ export function CustomerBooking() {
         return (
           <>
             {/* Desktop: floating glass panel on the right edge */}
-            <div className="hidden lg:flex fixed top-[88px] right-3 bottom-3 w-[340px] z-20 glass rounded-2xl ring-1 ring-white/40 shadow-float flex-col overflow-hidden">
+            <div className="hidden lg:flex fixed top-[88px] right-3 bottom-3 w-[340px] z-20 glass-card-solid rounded-2xl shadow-float flex-col overflow-hidden">
               {body}
               {footer}
             </div>
@@ -359,12 +354,15 @@ function cartIcon(kind) {
 
 function CrossSell({ on, onClick, icon: IconC, title, price, future }) {
   return (
-    <button onClick={onClick} className={`w-full flex items-center justify-between rounded-xl px-3 py-2.5 ring-1 transition ${on ? "ring-teal-500 bg-teal-50" : "ring-slate-200 hover:ring-teal-400"}`}>
-      <span className="flex items-center gap-2.5">
-        <span className={`w-8 h-8 rounded-lg grid place-items-center ${on ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-500"}`}><IconC size={16} /></span>
-        <span className="text-left"><span className="block text-[13px] font-semibold text-navy-900 flex items-center gap-1.5">{title}{future && <Badge tone="future">Future</Badge>}</span><span className="block text-[11px] text-slate-400">+€{price}</span></span>
+    <button onClick={onClick} className={`w-full flex items-center justify-between rounded-xl px-3 py-2.5 ring-1 transition ${on ? "ring-teal-500 bg-teal-50" : "ring-slate-200 bg-white/70 hover:ring-teal-400"}`}>
+      <span className="flex items-center gap-2.5 min-w-0">
+        <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${on ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600"}`}><IconC size={16} /></span>
+        <span className="text-left min-w-0"><span className="block text-[13px] font-semibold text-navy-900 flex items-center gap-1.5 truncate">{title}{future && <Badge tone="future">Future</Badge>}</span><span className="block text-[11px] text-slate-600">{on ? "Added to your day" : "Add to your day"}</span></span>
       </span>
-      <span className={`w-6 h-6 rounded-full grid place-items-center ${on ? "bg-teal-600 text-white" : "ring-1 ring-slate-300 text-slate-400"}`}>{on ? <Icon.check size={14} /> : <Icon.plus size={14} />}</span>
+      <span className="flex items-center gap-1.5 shrink-0">
+        <span className={`text-[11px] font-bold tnum rounded-full px-2 py-0.5 ${on ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-700"}`}>+€{price}</span>
+        <span className={`w-6 h-6 rounded-full grid place-items-center ${on ? "bg-teal-600 text-white" : "ring-1 ring-slate-300 text-slate-500"}`}>{on ? <Icon.check size={14} /> : <Icon.plus size={14} />}</span>
+      </span>
     </button>
   );
 }
@@ -391,19 +389,20 @@ export function CustomerTicket() {
   };
 
   return (
-    <div className="animate-fade-up max-w-2xl">
+    <div className="animate-fade-up grid lg:grid-cols-[1fr_320px] gap-5">
+      <div>
       <PageHead title="Entry Ticket" sub="Buy entry for yourself or your group — pricing adapts to each person's category." badge={<Badge tone="mvp">MVP</Badge>} />
-      <Card className="p-5 space-y-3">
+      <Card className="glass-card-solid p-5 space-y-3">
         {cats.map((c) => (
-          <div key={c.k} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 px-4 py-3">
-            <div><div className="font-semibold text-navy-900">{c.t}</div><div className="text-[12px] text-slate-400">€{c.p} · {c.d}</div></div>
+          <div key={c.k} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-4 py-3">
+            <div><div className="font-semibold text-navy-900">{c.t}</div><div className="text-[12px] text-slate-600">€{c.p} · {c.d}</div></div>
             <Stepper value={qty[c.k]} onChange={(v) => setQty((q) => ({ ...q, [c.k]: v }))} />
           </div>
         ))}
 
-        <div className="rounded-xl ring-1 ring-slate-200 px-4 py-3">
+        <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-4 py-3">
           <div className="flex items-center justify-between">
-            <div><div className="font-semibold text-navy-900 text-sm">Need an invoice (ΤΠΥ)?</div><div className="text-[12px] text-slate-400">B2B — issues a service invoice instead of a receipt (ΑΠΥ).</div></div>
+            <div><div className="font-semibold text-navy-900 text-sm">Need an invoice (ΤΠΥ)?</div><div className="text-[12px] text-slate-600">B2B — issues a service invoice instead of a receipt (ΑΠΥ).</div></div>
             <Toggle on={biz} onChange={setBiz} />
           </div>
           {biz && (
@@ -415,12 +414,17 @@ export function CustomerTicket() {
         </div>
 
         <div className="flex items-center justify-between pt-2">
-          <div className="text-slate-500 text-sm">{n} ticket(s){biz ? " · ΤΠΥ" : " · ΑΠΥ"}</div>
+          <div className="text-slate-600 text-sm">{n} ticket(s){biz ? " · ΤΠΥ" : " · ΑΠΥ"}</div>
           <div className="text-2xl font-bold font-display text-navy-900 tnum">€{total}</div>
         </div>
         <Btn variant="teal" full size="lg" icon={Icon.card} disabled={!n} onClick={pay}>Add €{total} to basket</Btn>
       </Card>
-      <p className="text-[12px] text-slate-400 mt-3 flex items-center gap-1.5"><Icon.bolt size={13} /> Dynamic pricing by profile (resident / age). Cross-sell: tickets can also be added during sunbed checkout.</p>
+      </div>
+      <ContextPanel title="About entry tickets" items={[
+        { icon: Icon.bolt, title: "Dynamic pricing", body: "Resident, child, senior categories adapt automatically — no coupons needed." },
+        { icon: Icon.receipt, title: "ΑΠΥ or ΤΠΥ", body: "Personal receipt by default; toggle the B2B switch to issue a service invoice with VAT details." },
+        { icon: Icon.ticket, title: "Add at checkout", body: "Tickets can also be bundled during a sunbed booking — same QR at the gate." },
+      ]} footer="QR is scanned at the gate by the Controller." />
     </div>
   );
 }
@@ -456,28 +460,28 @@ export function CustomerLocker() {
   return (
     <div className="grid lg:grid-cols-[1fr_320px] gap-5">
       <div>
-        <Card className="p-4 mb-4">
-          <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400 mb-2 flex items-center justify-between">
+        <Card className="glass-card-solid p-4 mb-4">
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center justify-between">
             <span className="flex items-center gap-1"><Icon.calendar size={13} /> Dates · pick one or more</span>
-            <span className="text-slate-500 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
+            <span className="text-slate-600 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
             {dates.slice(0, 7).map((d, i) => {
               const on = selDates.includes(i);
               return (
                 <button key={i} onClick={() => toggleDate(i)} aria-pressed={on} className={`relative px-3.5 py-2 min-h-[44px] rounded-xl text-center min-w-[78px] ring-1 transition ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"}`}>
-                  <div className="text-[13px] font-semibold">{d.label}</div><div className={`text-[11px] ${on ? "text-white/70" : "text-slate-400"}`}>{d.sub}</div>
-                  {on && <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center"><Icon.check size={10} /></span>}
+                  <div className="text-[13px] font-semibold">{d.label}</div><div className={`text-[11px] ${on ? "text-white/80" : "text-slate-600"}`}>{d.sub}</div>
+                  {on && <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center ring-2 ring-white"><Icon.check size={10} /></span>}
                 </button>
               );
             })}
           </div>
         </Card>
-        <div className="flex items-center gap-4 text-[11px] text-white mb-2 px-1 flex-wrap drop-shadow">
-          <span className="flex items-center gap-1.5"><i className="w-4 h-4 rounded bg-teal-500 inline-block ring-1 ring-white/50" />Available</span>
-          <span className="flex items-center gap-1.5"><i className="w-4 h-4 rounded bg-navy-900 inline-block ring-1 ring-white/50" />Selected</span>
-          <span className="flex items-center gap-1.5"><i className="w-4 h-4 rounded bg-slate-200 inline-block ring-1 ring-white/50" />Taken</span>
-          <span className="ml-auto text-white/85">{free} free today</span>
+        <div className="glass rounded-xl px-3 py-2 mb-2 flex items-center gap-4 text-[11px] text-navy-900 flex-wrap">
+          <span className="flex items-center gap-1.5"><i className="w-4 h-4 rounded bg-teal-500 inline-block ring-1 ring-white/70" />Available</span>
+          <span className="flex items-center gap-1.5"><i className="w-4 h-4 rounded bg-navy-900 inline-block ring-1 ring-white/70" />Selected</span>
+          <span className="flex items-center gap-1.5"><i className="w-4 h-4 rounded bg-slate-300 inline-block ring-1 ring-slate-400" />Taken</span>
+          <span className="ml-auto font-semibold">{free} free today</span>
         </div>
         <LockerBackdrop className="p-5 ring-1 ring-white/30 shadow-float">
           <div className="relative space-y-4">
@@ -509,21 +513,21 @@ export function CustomerLocker() {
         </LockerBackdrop>
       </div>
       <div className="lg:sticky lg:top-4 h-max">
-        <Card className="p-5">
-          <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400 mb-2">Your lockers</div>
+        <Card className="glass-card-solid p-5">
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Your lockers</div>
           {sel.length === 0 ? <EmptyState compact icon={Icon.lock} title="No lockers yet" body="Tap an available locker on the left to reserve it." /> : (
             <div className="space-y-2">
               {sel.map((id) => (
-                <div key={id} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 px-3 py-2">
+                <div key={id} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2">
                   <div className="flex items-center gap-2 text-navy-900"><Icon.lock size={15} /><span className="font-semibold text-sm">Locker {id}</span></div>
-                  <div className="flex items-center gap-1"><span className="font-semibold tnum">€{PRICE * dayCount}</span><button aria-label={`Remove locker ${id}`} onClick={() => removeLocker(id)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={15} /></button></div>
+                  <div className="flex items-center gap-1"><span className="font-semibold tnum">€{PRICE * dayCount}</span><button aria-label={`Remove locker ${id}`} onClick={() => removeLocker(id)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={15} /></button></div>
                 </div>
               ))}
             </div>
           )}
-          <div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-500">{sel.length} locker(s) × {dayCount} day{dayCount > 1 ? "s" : ""}</span><span className="font-bold text-navy-900 tnum text-lg">€{total}</span></div>
+          <div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-600">{sel.length} locker(s) × {dayCount} day{dayCount > 1 ? "s" : ""}</span><span className="font-bold text-navy-900 tnum text-lg">€{total}</span></div>
           <Btn variant="teal" full size="lg" className="mt-3" disabled={!sel.length} onClick={reserve}>{sel.length ? `Add ${sel.length}×${dayCount} to basket` : "Select a locker"}</Btn>
-          <div className="mt-2 text-center text-[11px] text-slate-400">Redeem the QR at the entrance · Secured by Stripe</div>
+          <div className="mt-2 text-center text-[11px] text-slate-500">Redeem the QR at the entrance · Secured by Stripe</div>
         </Card>
       </div>
     </div>
@@ -564,29 +568,29 @@ export function CustomerParking() {
   return (
     <div className="grid lg:grid-cols-[1fr_320px] gap-5">
       <div>
-        <Card className="p-4 mb-4">
-          <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400 mb-2 flex items-center justify-between">
+        <Card className="glass-card-solid p-4 mb-4">
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center justify-between">
             <span className="flex items-center gap-1"><Icon.calendar size={13} /> Dates · pick one or more</span>
-            <span className="text-slate-500 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
+            <span className="text-slate-600 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
           </div>
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
             {dates.slice(0, 7).map((d, i) => {
               const on = selDates.includes(i);
               return (
                 <button key={i} onClick={() => toggleDate(i)} aria-pressed={on} className={`relative px-3.5 py-2 min-h-[44px] rounded-xl text-center min-w-[78px] ring-1 transition ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"}`}>
-                  <div className="text-[13px] font-semibold">{d.label}</div><div className={`text-[11px] ${on ? "text-white/70" : "text-slate-400"}`}>{d.sub}</div>
-                  {on && <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center"><Icon.check size={10} /></span>}
+                  <div className="text-[13px] font-semibold">{d.label}</div><div className={`text-[11px] ${on ? "text-white/80" : "text-slate-600"}`}>{d.sub}</div>
+                  {on && <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center ring-2 ring-white"><Icon.check size={10} /></span>}
                 </button>
               );
             })}
           </div>
         </Card>
-        <div className="flex items-center justify-between mb-2 px-1">
-          <div className="font-semibold text-white drop-shadow flex items-center gap-2"><Icon.car size={18} /> Select a spot · {free} of 50 free</div>
-          <div className="flex items-center gap-3 text-[11px] text-white drop-shadow">
-            <span className="flex items-center gap-1"><i className="w-3 h-3 rounded-sm bg-teal-500 inline-block ring-1 ring-white/40" />Free</span>
-            <span className="flex items-center gap-1"><i className="w-3 h-3 rounded-sm bg-navy-900 inline-block ring-1 ring-white/40" />Selected</span>
-            <span className="flex items-center gap-1"><i className="w-3 h-3 rounded-sm bg-slate-300 inline-block ring-1 ring-white/40" />Taken</span>
+        <div className="glass rounded-xl px-3 py-2 mb-2 flex items-center justify-between text-navy-900 flex-wrap gap-2">
+          <div className="font-semibold flex items-center gap-2 text-sm"><Icon.car size={18} /> Select a spot · {free} of 50 free</div>
+          <div className="flex items-center gap-3 text-[11px]">
+            <span className="flex items-center gap-1"><i className="w-3 h-3 rounded-sm bg-teal-500 inline-block ring-1 ring-white/60" />Free</span>
+            <span className="flex items-center gap-1"><i className="w-3 h-3 rounded-sm bg-navy-900 inline-block ring-1 ring-white/60" />Selected</span>
+            <span className="flex items-center gap-1"><i className="w-3 h-3 rounded-sm bg-slate-300 inline-block ring-1 ring-slate-400" />Taken</span>
           </div>
         </div>
         <ParkingBackdrop className="p-5 ring-1 ring-white/30 shadow-float">
@@ -621,23 +625,23 @@ export function CustomerParking() {
             })}
           </div>
         </ParkingBackdrop>
-        <p className="mt-3 text-[12px] text-white/90 drop-shadow">€{PRICE}/day per spot. Your plate is linked to the booking for gate recognition.</p>
+        <p className="mt-3 text-[12px] text-navy-900 bg-white/70 backdrop-blur rounded-lg px-3 py-1.5 ring-1 ring-white/60 w-max">€{PRICE}/day per spot. Your plate is linked to the booking for gate recognition.</p>
       </div>
       <div className="lg:sticky lg:top-4 h-max">
-        <Card className="p-5">
-          <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-400 mb-2">Your parking</div>
+        <Card className="glass-card-solid p-5">
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Your parking</div>
           <Field label="Vehicle plate"><Input value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" /></Field>
           <div className="mt-3">
             {sel ? (
-              <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 px-3 py-2">
+              <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2">
                 <div className="flex items-center gap-2 text-navy-900"><Icon.car size={15} /><span className="font-semibold text-sm">Spot {sel}</span></div>
-                <div className="flex items-center gap-1"><span className="font-semibold tnum">€{PRICE * dayCount}</span><button aria-label={`Remove spot ${sel}`} onClick={() => setSel(null)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={15} /></button></div>
+                <div className="flex items-center gap-1"><span className="font-semibold tnum">€{PRICE * dayCount}</span><button aria-label={`Remove spot ${sel}`} onClick={() => setSel(null)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={15} /></button></div>
               </div>
             ) : <EmptyState compact icon={Icon.car} title="No spot yet" body="Tap a free (green) spot in the lot to reserve it." />}
           </div>
-          <div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-500">{sel ? `1 spot × ${dayCount} day${dayCount > 1 ? "s" : ""}` : "0 spots"}</span><span className="font-bold text-navy-900 tnum text-lg">€{sel ? PRICE * dayCount : 0}</span></div>
+          <div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-600">{sel ? `1 spot × ${dayCount} day${dayCount > 1 ? "s" : ""}` : "0 spots"}</span><span className="font-bold text-navy-900 tnum text-lg">€{sel ? PRICE * dayCount : 0}</span></div>
           <Btn variant="teal" full size="lg" className="mt-3" disabled={!sel} onClick={reserve}>{sel ? `Add ${dayCount}×€${PRICE} to basket` : "Select a spot"}</Btn>
-          <div className="mt-2 text-center text-[11px] text-slate-400">Show the QR at the barrier · Secured by Stripe</div>
+          <div className="mt-2 text-center text-[11px] text-slate-500">Show the QR at the barrier · Secured by Stripe</div>
         </Card>
       </div>
     </div>
@@ -648,23 +652,31 @@ export function CustomerParking() {
 export function CustomerBookings() {
   const { go, toast } = useApp();
   const [qrFor, setQrFor] = useState(null);
+  const [filter, setFilter] = useState("all");
   const loading = useMockLoad();
-  const rows = [
-    ["#BK-10428", "Central · CE-89", "Sun, 19 Jul", <StatusBadge status="Confirmed" />, "€30"],
-    ["#BK-10402", "Central · CE-92", "Sun, 19 Jul", <StatusBadge status="Confirmed" />, "€30"],
-    ["#TK-55120", "Entry · Adult ×2", "Sun, 19 Jul", <StatusBadge status="Confirmed" />, "€20"],
-    ["#BK-10310", "Bestbuy · BE-14", "Sat, 12 Jul", <StatusBadge status="Used" />, "€22"],
-  ];
+  const data = CUSTOMER_BOOKINGS;
+  const filtered = data.filter((d) => filter === "all" || d.state === filter);
+  const total = data.reduce((a, b) => a + b.price, 0);
+  const active = data.filter((d) => d.state === "active").length;
   return (
-    <div>
-      <Card className="p-2">
+    <div className="space-y-4">
+      <div className="grid sm:grid-cols-3 gap-4">
+        <StatCard label="Active bookings" value={active} sub="ready to redeem" tone="teal" />
+        <StatCard label="This season" value={`€${total}`} sub={`${data.length} confirmed`} />
+        <StatCard label="Next visit" value="Sun, 19 Jul" sub="Central zone · 2 sunbeds" tone="indigo" />
+      </div>
+      <Card className="p-4">
+        <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+          <Tabs tabs={[["all", "All"], ["active", "Active"], ["past", "Past"]]} value={filter} onChange={setFilter} />
+          <Btn size="sm" variant="outline" icon={Icon.download} onClick={() => toast("Demo — all QRs e-mailed.", { tone: "success" })}>E-mail all QRs</Btn>
+        </div>
         {loading ? (
           <TableSkeleton rows={4} cols={6} />
-        ) : rows.length === 0 ? (
-          <EmptyState icon={Icon.grid} title="No bookings yet" body="Your sunbed, ticket and locker reservations will show up here." action={<Btn variant="teal" icon={Icon.umbrella} onClick={() => go("customer", "book")}>Book a sunbed</Btn>} />
+        ) : filtered.length === 0 ? (
+          <EmptyState icon={Icon.grid} title={filter === "active" ? "No active bookings" : "No past bookings yet"} body={filter === "active" ? "Book a sunbed for this weekend — Central front-row spots are 20% off." : "Once a visit is over, it will move here."} action={<Btn variant="teal" icon={Icon.umbrella} onClick={() => go("customer", "book")}>Book a sunbed</Btn>} />
         ) : (
           <Table cols={["Booking", "Item", "Date", "Status", "Price", "QR"]} right={[4]}
-            rows={rows.map((r) => [...r, <Btn size="sm" variant="ghost" icon={Icon.qr} onClick={() => setQrFor(r[0])}>QR</Btn>])} />
+            rows={filtered.map((r) => [r.id, r.item, r.date, <StatusBadge status={r.status} />, `€${r.price}`, <Btn size="sm" variant="ghost" icon={Icon.qr} onClick={() => setQrFor(r.id)}>QR</Btn>])} />
         )}
       </Card>
       {qrFor && (
@@ -686,21 +698,36 @@ export function CustomerBookings() {
 /* ============ MY DOCUMENTS ============ */
 export function CustomerDocs() {
   const { toast } = useApp();
-  const docs = [
-    { id: "ΑΠΥ-2026-004281", for: "Sunbed booking", date: "19 Jul 2026", amt: "€30", mark: "400001020304002281", lines: [["Sunbed CE-89", "€24.19", "€5.81", "€30.00"]] },
-    { id: "ΑΠΥ-2026-004102", for: "Entry tickets ×3", date: "12 Jul 2026", amt: "€25", mark: "400001020304002102", lines: [["Adult ×2", "€16.13", "€3.87", "€20.00"], ["Child ×1", "€4.03", "€0.97", "€5.00"]] },
-  ];
+  const docs = CUSTOMER_DOCS;
   const [view, setView] = useState(null);
   const loading = useMockLoad();
   const download = (d) => { downloadText(`${d.id}.txt`, mockCustomerReceipt(d), "text/plain;charset=utf-8"); toast(`Downloaded ${d.id}.`, { tone: "success" }); };
+  const [filter, setFilter] = useState("all");
+  const tone = (id) => id.startsWith("ΑΠΥ") ? "apy" : id.startsWith("ΤΠΥ") ? "tpy" : "credit";
+  const filtered = docs.filter((d) => filter === "all" || tone(d.id) === filter);
+  const totalAmount = docs.reduce((a, b) => {
+    const v = parseInt(b.amt.replace(/[^0-9-−]/g, "").replace("−", "-"), 10) || 0;
+    return a + v;
+  }, 0);
   return (
-    <div>
-      <Card className="p-2">
+    <div className="space-y-4">
+      <div className="grid sm:grid-cols-3 gap-4">
+        <StatCard label="Receipts this season" value={docs.length} sub={`${docs.filter((d) => tone(d.id) === "apy").length} ΑΠΥ`} tone="teal" />
+        <StatCard label="Total spend" value={`€${totalAmount}`} sub="all paid · MyDATA ✓" />
+        <StatCard label="MyDATA status" value="100%" sub="transmitted" tone="indigo" />
+      </div>
+      <Card className="p-4">
+        <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+          <Tabs tabs={[["all", "All"], ["apy", "ΑΠΥ"], ["tpy", "ΤΠΥ"], ["credit", "Credit notes"]]} value={filter} onChange={setFilter} />
+          <Btn size="sm" variant="outline" icon={Icon.download} onClick={() => toast("Demo — bulk download started.", { tone: "success" })}>Download all (ZIP)</Btn>
+        </div>
         {loading ? (
           <TableSkeleton rows={2} cols={6} />
+        ) : filtered.length === 0 ? (
+          <EmptyState icon={Icon.receipt} title="No documents in this filter" body="Try selecting another category." />
         ) : (
           <Table cols={["Document", "For", "Date", "Amount", "Status", ""]} right={[3]}
-            rows={docs.map((d) => [d.id, d.for, d.date, d.amt, <StatusBadge status="MyDATA ✓" />,
+            rows={filtered.map((d) => [d.id, d.for, d.date, d.amt, <StatusBadge status="MyDATA ✓" />,
               <span className="flex gap-1 justify-end">
                 <Btn size="sm" variant="ghost" icon={Icon.doc} onClick={() => setView(d)}>View</Btn>
                 <Btn size="sm" variant="ghost" icon={Icon.download} onClick={() => download(d)}>PDF</Btn>

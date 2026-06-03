@@ -38,33 +38,35 @@ export function FeatureInventory() {
         <StatCard label="Future" value={featureCounts.future} sub="Roadmap 2027–2029" icon={Icon.pkg} />
       </div>
 
-      <Card className="p-4 mb-4">
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 flex-1 min-w-[200px] text-slate-400">
-            <Icon.search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search features…" className="text-sm outline-none w-full bg-transparent text-ink" />
+      <div className="sticky top-[86px] z-20 mb-4">
+        <Card className="p-4 shadow-lift">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 bg-white px-3 py-2 flex-1 min-w-[200px] text-slate-600">
+              <Icon.search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search features…" className="text-sm outline-none w-full bg-transparent text-ink" />
+            </div>
+            <div className="flex gap-1.5">
+              {["All", "MVP", "Future"].map((s) => <button key={s} onClick={() => setStatus(s)} className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold ring-1 ${status === s ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 text-slate-600 hover:ring-teal-400"}`}>{s}</button>)}
+            </div>
           </div>
-          <div className="flex gap-1.5">
-            {["All", "MVP", "Future"].map((s) => <button key={s} onClick={() => setStatus(s)} className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold ring-1 ${status === s ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 text-slate-600 hover:ring-teal-400"}`}>{s}</button>)}
+          <div className="flex gap-1.5 flex-wrap mt-3">
+            {["All", ...CAPABILITIES].map((c) => <button key={c} onClick={() => setCap(c)} className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold ring-1 ${cap === c ? "bg-slaice-600 text-white ring-slaice-600" : "bg-white ring-slate-200 text-slate-500 hover:ring-slaice-400"}`}>{c}</button>)}
           </div>
-        </div>
-        <div className="flex gap-1.5 flex-wrap mt-3">
-          {["All", ...CAPABILITIES].map((c) => <button key={c} onClick={() => setCap(c)} className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold ring-1 ${cap === c ? "bg-slaice-600 text-white ring-slaice-600" : "bg-white ring-slate-200 text-slate-500 hover:ring-slaice-400"}`}>{c}</button>)}
-        </div>
-      </Card>
+        </Card>
+      </div>
 
-      <div className="text-[12px] text-slate-400 mb-2">{list.length} feature{list.length !== 1 ? "s" : ""} shown</div>
+      <div className="text-[12px] text-slate-600 mb-2">{list.length} feature{list.length !== 1 ? "s" : ""} shown</div>
 
       <div className="space-y-4">
         {Object.entries(groups).map(([capName, items]) => (
           <Card key={capName} className="p-4">
-            <div className="font-semibold text-navy-900 mb-2 flex items-center gap-2">{capName}<span className="text-[11px] text-slate-400 font-normal">· {items.length}</span></div>
+            <div className="font-semibold text-navy-900 mb-2 flex items-center gap-2">{capName}<span className="text-[11px] text-slate-600 font-normal">· {items.length}</span></div>
             <div className="grid md:grid-cols-2 gap-2">
               {items.map((f) => (
                 <button key={f.id} onClick={() => setOpen(f)} className="text-left flex items-start gap-3 rounded-xl ring-1 ring-slate-100 hover:ring-teal-400 hover:bg-slate-50/60 px-3 py-2.5 transition">
                   <span className="text-[11px] font-mono text-slate-300 mt-0.5 w-6 shrink-0">{String(f.id).padStart(2, "0")}</span>
                   <span className="flex-1">
                     <span className="text-[13px] font-medium text-navy-900 leading-snug block">{f.feature}</span>
-                    <span className="flex items-center gap-1.5 mt-1"><FeatureChip status={f.status} /><span className="text-[10px] text-slate-400">{f.src}</span></span>
+                    <span className="flex items-center gap-1.5 mt-1"><FeatureChip status={f.status} /><span className="text-[10px] text-slate-600">{f.src}</span></span>
                   </span>
                   <Icon.chevR size={15} className="text-slate-300 mt-1" />
                 </button>
@@ -85,7 +87,7 @@ export function FeatureInventory() {
             <div className="flex items-center gap-2 flex-wrap">
               <FeatureChip status={open.status} />
               <Badge tone="slate">{open.cap}</Badge>
-              <span className="text-[11px] text-slate-400">Source: {open.src}</span>
+              <span className="text-[11px] text-slate-600">Source: {open.src}</span>
             </div>
             <p className="text-sm text-slate-600 leading-relaxed">{open.desc}</p>
             {open.route && (
@@ -124,8 +126,12 @@ export function JourneyExplorer() {
         <StatCard label="Future" value={journeyCounts.future} icon={Icon.pkg} />
       </div>
 
-      <div className="flex gap-1.5 flex-wrap mb-4">
-        {personaTabs.map(([k, t]) => <button key={k} onClick={() => setPf(k)} className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold ring-1 ${pf === k ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 text-slate-600 hover:ring-teal-400"}`}>{t}</button>)}
+      <div className="sticky top-[86px] z-20 mb-4">
+        <Card className="p-3 shadow-lift">
+          <div className="flex gap-1.5 flex-wrap">
+            {personaTabs.map(([k, t]) => <button key={k} onClick={() => setPf(k)} className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold ring-1 ${pf === k ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 text-slate-600 hover:ring-teal-400"}`}>{t}</button>)}
+          </div>
+        </Card>
       </div>
 
       <div className="grid md:grid-cols-2 gap-3">
@@ -138,13 +144,13 @@ export function JourneyExplorer() {
                   <span className="w-9 h-9 rounded-xl grid place-items-center text-white shrink-0" style={{ background: p.color }}>{Icon[p.icon]({ size: 17 })}</span>
                   <div>
                     <div className="font-semibold text-navy-900 leading-tight">{j.title}</div>
-                    <div className="text-[11px] text-slate-400">{p.label} · {j.steps.length} steps</div>
+                    <div className="text-[11px] text-slate-600">{p.label} · {j.steps.length} steps</div>
                   </div>
                 </div>
                 <FeatureChip status={j.status} />
               </div>
               <div className="mt-3 flex items-center justify-between">
-                <span className="text-[11px] text-slate-400">{j.source}</span>
+                <span className="text-[11px] text-slate-600">{j.source}</span>
                 <Btn size="sm" variant="teal" icon={Icon.play} onClick={() => play(j)}>Play journey</Btn>
               </div>
             </Card>
@@ -156,7 +162,7 @@ export function JourneyExplorer() {
       <Modal open={!!active} onClose={() => setActive(null)} title={active?.title} wide
         footer={active && (
           <div className="flex items-center justify-between w-full">
-            <span className="text-[12px] text-slate-400">Step {stepIdx + 1} of {active.steps.length}</span>
+            <span className="text-[12px] text-slate-600">Step {stepIdx + 1} of {active.steps.length}</span>
             <div className="flex gap-2">
               <Btn variant="ghost" icon={Icon.arrowL} disabled={stepIdx === 0} onClick={() => setStepIdx((s) => s - 1)}>Prev</Btn>
               {active.steps[stepIdx].go && <Btn variant="outline" icon={Icon.eye} onClick={() => { const g = active.steps[stepIdx].go; setActive(null); go(g[0], g[1]); }}>Open screen</Btn>}
@@ -171,7 +177,7 @@ export function JourneyExplorer() {
             <div className="flex items-center gap-2 mb-4">
               <span className="w-8 h-8 rounded-lg grid place-items-center text-white" style={{ background: personaColor(active.persona) }}>{Icon[PERSONAS.find((p) => p.id === active.persona).icon]({ size: 15 })}</span>
               <FeatureChip status={active.status} />
-              <span className="text-[12px] text-slate-400">{active.source}</span>
+              <span className="text-[12px] text-slate-600">{active.source}</span>
             </div>
             <ol className="space-y-2">
               {active.steps.map((s, i) => (
@@ -185,7 +191,7 @@ export function JourneyExplorer() {
             </ol>
             {active.keyFeatures?.length > 0 && (
               <div className="mt-4 pt-3 border-t border-slate-100">
-                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Key features used</div>
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1.5">Key features used</div>
                 <div className="flex flex-wrap gap-1.5">
                   {active.keyFeatures.map((id) => { const f = FEATURES.find((x) => x.id === id); return f ? <Badge key={id} tone="slate">#{id} {f.feature.length > 30 ? f.feature.slice(0, 28) + "…" : f.feature}</Badge> : null; })}
                 </div>

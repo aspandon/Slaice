@@ -1,16 +1,13 @@
 import { useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead } from "../components/ui.jsx";
+import { RECENT_VALIDATIONS } from "../data/mock.js";
 import { useApp } from "../app/store.jsx";
 
 export function ControllerScan() {
   const { toast } = useApp();
   const [scanning, setScanning] = useState(false);
-  const [recent, setRecent] = useState([
-    { id: "#BK-10428", sub: "Central · CE-89", state: "valid" },
-    { id: "#TK-55120", sub: "Entry · Adult", state: "valid" },
-    { id: "#BK-10402", sub: "Central · CE-92", state: "used" },
-  ]);
+  const [recent, setRecent] = useState(RECENT_VALIDATIONS);
   const stateTone = { valid: "green", used: "amber", invalid: "red" };
 
   const doScan = () => {
@@ -38,6 +35,11 @@ export function ControllerScan() {
             {scanning && <div className="absolute left-0 right-0 h-0.5 bg-teal-500 shadow-[0_0_8px_#14b8a6] animate-[scanline_1.1s_linear_infinite]" style={{ animation: "scanline 1.1s linear infinite" }} />}
           </div>
           <Btn variant="teal" className="mt-4" icon={Icon.scan} onClick={doScan} disabled={scanning}>{scanning ? "Scanning…" : "Scan QR"}</Btn>
+          <div className="mt-4 grid grid-cols-3 gap-1.5 w-full text-[11px]">
+            <div className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/15 px-2 py-1.5"><Icon.checkCircle size={12} /> valid</div>
+            <div className="flex items-center justify-center gap-1.5 rounded-lg bg-amber-50 text-amber-700 ring-1 ring-amber-600/15 px-2 py-1.5"><Icon.clock size={12} /> used</div>
+            <div className="flex items-center justify-center gap-1.5 rounded-lg bg-rose-50 text-rose-700 ring-1 ring-rose-600/15 px-2 py-1.5"><Icon.alert size={12} /> invalid</div>
+          </div>
           <style>{`@keyframes scanline{0%{top:8px}50%{top:160px}100%{top:8px}}`}</style>
         </Card>
 
@@ -45,23 +47,19 @@ export function ControllerScan() {
           <div className="font-semibold text-navy-900 mb-3">Recent validations</div>
           <div className="space-y-2 text-sm max-h-56 overflow-y-auto">
             {recent.map((r, i) => (
-              <div key={i} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 px-3 py-2 animate-fade-in">
-                <div><div className="font-semibold text-navy-900">{r.id}</div><div className="text-[12px] text-slate-400">{r.sub}</div></div>
+              <div key={i} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 animate-fade-in">
+                <div><div className="font-semibold text-navy-900">{r.id}</div><div className="text-[12px] text-slate-600">{r.sub}</div></div>
                 <Badge tone={stateTone[r.state]}>{r.state}</Badge>
               </div>
             ))}
           </div>
-          <div className="mt-4 grid grid-cols-1 gap-2">
+          <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-1 gap-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-0.5">Walk-ins & on-the-spot</div>
             <Btn variant="outline" size="sm" icon={Icon.umbrella} onClick={() => toast("Demo — create a walk-in booking & block a sunbed.")}>Walk-in booking</Btn>
             <Btn variant="outline" size="sm" icon={Icon.ticket} onClick={() => toast("Demo — add ticket + take on-site payment via Stripe.")}>Add ticket (pay on site)</Btn>
             <Btn variant="outline" size="sm" icon={Icon.bolt} onClick={() => toast("Demo — opened same-day availability online.")}>Open same-day availability</Btn>
           </div>
         </Card>
-      </div>
-      <div className="mt-3 grid sm:grid-cols-3 gap-2 text-[12px]">
-        <div className="flex items-center gap-2 rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/15 px-3 py-2"><Icon.checkCircle size={14} /> free</div>
-        <div className="flex items-center gap-2 rounded-lg bg-amber-50 text-amber-700 ring-1 ring-amber-600/15 px-3 py-2"><Icon.lock size={14} /> blocked</div>
-        <div className="flex items-center gap-2 rounded-lg bg-sky-50 text-sky-700 ring-1 ring-sky-600/15 px-3 py-2"><Icon.umbrella size={14} /> booked</div>
       </div>
     </div>
   );
