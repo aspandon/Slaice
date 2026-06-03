@@ -14,6 +14,7 @@ export const PERSONAS = [
 export const NAV = {
   customer: [
     { k: "home", label: "Home", icon: "home" },
+    { k: "plan", label: "Plan my visit", icon: "sparkles", badge: "MVP" },
     { k: "book", label: "Sunbed Booking", icon: "umbrella", badge: "MVP" },
     { k: "ticket", label: "Entry Ticket", icon: "ticket", badge: "MVP" },
     { k: "locker", label: "Day Locker", icon: "lock", badge: "MVP" },

@@ -1,4 +1,5 @@
 import * as C from "./screens/customer.jsx";
+import * as CW from "./screens/CustomerWizard.jsx";
 import * as CO from "./screens/Checkout.jsx";
 import * as A from "./screens/admin.jsx";
 import * as CA from "./screens/cashier.jsx";
@@ -10,6 +11,7 @@ import * as E from "./screens/explorer.jsx";
 const MAP = {
   // customer
   "customer.home": () => <C.CustomerHome />,
+  "customer.plan": () => <CW.CustomerWizard />,
   "customer.book": () => <C.CustomerBooking />,
   "customer.ticket": () => <C.CustomerTicket />,
   "customer.locker": () => <C.CustomerLocker />,

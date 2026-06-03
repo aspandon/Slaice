@@ -33,12 +33,36 @@ export function CustomerHome() {
           <div className="text-[13px] text-slate-600 mt-0.5">Front-row sunbeds at <b>20% off</b> this weekend · gates open 09:00–20:00.</div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          <Btn variant="dark" icon={Icon.sparkles} onClick={() => go("customer", "plan")}>Plan my visit</Btn>
           <Btn variant="teal" icon={Icon.umbrella} onClick={() => go("customer", "book")}>Book a sunbed</Btn>
           {cartCount > 0 && (
             <Btn variant="outline" icon={Icon.card} onClick={() => go("customer", "checkout")}>Checkout · {cartCount}</Btn>
           )}
         </div>
       </Card>
+
+      {/* Hero — guided booking wizard */}
+      <Reveal as="button" onClick={() => go("customer", "plan")} className="text-left group block w-full">
+        <Card hover press className="relative overflow-hidden p-0">
+          <div className="grad-sea text-white p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
+            <span className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur grid place-items-center shrink-0 ring-1 ring-white/30">
+              <Icon.sparkles size={26} />
+            </span>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-teal-200">
+                <Icon.bolt size={12} /> New · guided booking
+              </div>
+              <div className="mt-1 font-display font-bold text-xl sm:text-2xl">Plan my full beach day in 60 seconds</div>
+              <div className="text-[13px] text-white/85 mt-0.5">Guests → dates → sunbeds → locker → parking. Watch the total update as you go.</div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
+              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold rounded-full bg-white/15 px-2 py-1 ring-1 ring-white/25"><Icon.group size={12} /> Step 1 · Guests</span>
+              <span className="hidden md:inline-flex items-center gap-1 text-[11px] font-semibold rounded-full bg-white/15 px-2 py-1 ring-1 ring-white/25"><Icon.umbrella size={12} /> Step 3 · Sunbeds</span>
+              <Btn variant="light" icon={Icon.arrowR} className="!text-white">Start the wizard</Btn>
+            </div>
+          </div>
+        </Card>
+      </Reveal>
 
       {/* tools grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
