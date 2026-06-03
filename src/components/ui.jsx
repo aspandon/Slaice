@@ -205,13 +205,18 @@ export function StatCard({ label, value, sub, tone = "navy", delta, trend, spark
 }
 
 // Split a metric string into { numeric value, formatter that re-applies the
-// affixes }. Returns null for non-numeric values (e.g. "40 / 60", dates).
+// affixes }. Returns null for non-numeric values so IDs ("#CS-204"), times
+// ("09:14"), ranges ("40 / 60") and dates ("Sun, 19 Jul") are shown as-is.
 function parseMetric(value) {
   if (typeof value !== "string" && typeof value !== "number") return null;
   const s = String(value);
+  // Skip anything that isn't a clean metric: IDs/codes (# /), times (:),
+  // or a prefix that contains letters (e.g. "CS-204").
+  if (/[#/:]/.test(s)) return null;
   const m = s.match(/^([^\d-−]*)(-?−?[\d,]*\.?\d+)([a-zA-Z%€£$]*)$/);
   if (!m) return null;
   const [, pre, numRaw, suf] = m;
+  if (/[a-zA-Z]/.test(pre)) return null;
   const neg = /^[-−]/.test(numRaw);
   const clean = numRaw.replace(/[,−-]/g, "");
   const decimals = (clean.split(".")[1] || "").length;
