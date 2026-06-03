@@ -4,6 +4,7 @@ import { DEFAULT_PAGE } from "./data/personas.js";
 import { TopBar, Sidebar, MobilePersona, MobileNav, PageTopNav, Toasts } from "./components/Shell.jsx";
 import { AuthGate } from "./screens/auth.jsx";
 import { ConsentBanner } from "./components/ConsentBanner.jsx";
+import { BeachBackdrop } from "./components/Beach.jsx";
 import { routeFor } from "./routes.jsx";
 
 const DEFAULT_CONSENT = { necessary: true, analytics: false, marketing: false, decided: false, ts: null };
@@ -70,16 +71,9 @@ export default function App() {
       ) : (
         <div className="w-full px-3 sm:px-5 py-4 relative min-h-screen flex flex-col">
           {persona === "customer" && (
-            <>
-              <div
-                aria-hidden="true"
-                className="fixed inset-0 -z-10 pointer-events-none bg-cover bg-center"
-                style={{ backgroundImage: `url(${import.meta.env.BASE_URL}beach.jpeg)` }}
-              />
-              {page !== "book" && (
-                <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none bg-white/55 backdrop-blur-sm" />
-              )}
-            </>
+            <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
+              <BeachBackdrop pos="absolute" className="inset-0 rounded-none" />
+            </div>
           )}
           <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />
           <MobilePersona persona={persona} setPersona={setPersona} />

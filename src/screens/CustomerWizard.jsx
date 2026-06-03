@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, Stepper, Input, Field, DatePickerRow } from "../components/ui.jsx";
 import { Reveal, prefersReducedMotion } from "../lib/motion.jsx";
-import { ZONES, todayISO, chipLabel } from "../data/beach.js";
+import { Sunbed } from "../components/Beach.jsx";
+import { ZONES, todayISO, chipLabel, makeGrid } from "../data/beach.js";
 import { useApp, useSpotlight } from "../app/store.jsx";
 
 /* Pricing tied to the existing customer pages so the wizard adds the same
@@ -62,6 +63,9 @@ export function CustomerWizard() {
   const [zoneId, setZoneId] = useState("central");
   const [sets, setSets] = useState(1);
   const [setsTouched, setSetsTouched] = useState(false);
+  // Explicit umbrella picks from the inline beach grid. When non-empty, these
+  // override the abstract `sets` count: the user has chosen specific beds.
+  const [bedSel, setBedSel] = useState([]);
   const [lockerOn, setLockerOn] = useState(false);
   const [lockerQty, setLockerQty] = useState(1);
   const [parkingOn, setParkingOn] = useState(false);
@@ -82,7 +86,15 @@ export function CustomerWizard() {
     else setSets((s) => Math.max(s, recommendedSets));
   }, [recommendedSets, setsTouched]);
 
-  const setSubtotal = sets * zone.from * dayCount;
+  // Bed IDs are zone-scoped — switching zone clears any picked beds.
+  useEffect(() => { setBedSel([]); }, [zoneId]);
+
+  // When the user has picked specific beds, those drive the totals and count;
+  // otherwise fall back to the abstract sets × zone.from pricing.
+  const effectiveSets = bedSel.length > 0 ? bedSel.length : sets;
+  const setSubtotal = bedSel.length > 0
+    ? bedSel.reduce((a, b) => a + b.price, 0) * dayCount
+    : sets * zone.from * dayCount;
   const ticketBreak = Object.entries(people).map(([k, n]) => ({ k, n, t: TICKET[k], total: n * TICKET[k].price * dayCount }));
   const ticketSubtotal = includeTickets ? ticketBreak.reduce((a, b) => a + b.total, 0) : 0;
   const lockerSubtotal = lockerOn ? lockerQty * LOCKER_PRICE * dayCount : 0;
@@ -103,11 +115,19 @@ export function CustomerWizard() {
     let added = 0;
     selDates.forEach((iso) => {
       const sub = chipLabel(iso).sub;
-      // sunbeds — assign synthetic IDs in the chosen zone (no map step here)
-      for (let i = 0; i < sets; i++) {
-        const id = `${zone.prefix}-${String((i + 1) * 7).padStart(2, "0")}@${iso}`;
-        addToCart({ kind: "sunbed", id, label: `Sunbed set ${i + 1}`, sub: `${zone.name} · ${sub}`, price: zone.from });
-        added++;
+      // sunbeds — use the user's picked bed IDs if any, otherwise synthesise
+      // IDs in the chosen zone (auto-assign for the abstract `sets` count).
+      if (bedSel.length > 0) {
+        bedSel.forEach((b) => {
+          addToCart({ kind: "sunbed", id: `${b.id}@${iso}`, label: `Sunbed ${b.id}`, sub: `${zone.name} · ${sub}`, price: b.price });
+          added++;
+        });
+      } else {
+        for (let i = 0; i < sets; i++) {
+          const id = `${zone.prefix}-${String((i + 1) * 7).padStart(2, "0")}@${iso}`;
+          addToCart({ kind: "sunbed", id, label: `Sunbed set ${i + 1}`, sub: `${zone.name} · ${sub}`, price: zone.from });
+          added++;
+        }
       }
       if (includeTickets) {
         ticketBreak.forEach(({ k, n, t }) => {
@@ -176,6 +196,7 @@ export function CustomerWizard() {
                 setSets={(v) => { setSets(v); setSetsTouched(true); }}
                 recommendedSets={recommendedSets}
                 dayCount={dayCount}
+                bedSel={bedSel} setBedSel={setBedSel}
               />
             )}
             {step.id === "locker" && (
@@ -188,7 +209,7 @@ export function CustomerWizard() {
               <ReviewStep
                 people={people} totalPeople={totalPeople}
                 selDates={selDates} dayCount={dayCount}
-                zone={zone} sets={sets}
+                zone={zone} sets={effectiveSets} bedSel={bedSel}
                 includeTickets={includeTickets}
                 ticketBreak={ticketBreak}
                 lockerOn={lockerOn} lockerQty={lockerQty}
@@ -226,7 +247,7 @@ export function CustomerWizard() {
           <BasketPanel
             totalPeople={totalPeople}
             dayCount={dayCount}
-            zone={zone} sets={sets}
+            zone={zone} sets={effectiveSets} bedSel={bedSel}
             setSubtotal={setSubtotal}
             includeTickets={includeTickets}
             ticketBreak={ticketBreak}
@@ -279,7 +300,7 @@ export function CustomerWizard() {
                 inline
                 totalPeople={totalPeople}
                 dayCount={dayCount}
-                zone={zone} sets={sets}
+                zone={zone} sets={effectiveSets} bedSel={bedSel}
                 setSubtotal={setSubtotal}
                 includeTickets={includeTickets}
                 ticketBreak={ticketBreak}
@@ -435,8 +456,13 @@ function DatesStep({ selDates, setSelDates }) {
 }
 
 /* ============ Step 3 — Beach bar zone & sets ============ */
-function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, dayCount }) {
+function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, dayCount, bedSel, setBedSel }) {
   const { go } = useApp();
+  const grid = useMemo(() => makeGrid(zone), [zone.id]);
+  const toggleBed = (id, price) => {
+    setBedSel((s) => s.find((b) => b.id === id) ? s.filter((b) => b.id !== id) : [...s, { id, price }]);
+  };
+  const pickedSubtotal = bedSel.reduce((a, b) => a + b.price, 0);
   return (
     <div className="space-y-4">
       <div>
@@ -479,9 +505,52 @@ function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, day
         </div>
       </div>
 
+      {/* Inline beach map — pick specific umbrellas. When any are picked, they
+          override the abstract stepper count above. */}
+      <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
+          <div className="min-w-0">
+            <div className="font-semibold text-sm text-navy-900">Pick exact umbrellas in {zone.name}</div>
+            <div className="text-[11px] text-slate-500">
+              {bedSel.length > 0
+                ? <>Using your <b>{bedSel.length}</b> picked bed{bedSel.length !== 1 ? "s" : ""} — the stepper above is ignored.</>
+                : <>Optional · tap available (blue) beds to add them, or use the stepper above to auto-assign.</>}
+            </div>
+          </div>
+          {bedSel.length > 0 && (
+            <button onClick={() => setBedSel([])} className="text-[11px] font-semibold text-slate-500 hover:text-rose-600">
+              Clear picks
+            </button>
+          )}
+        </div>
+        <div className="rounded-lg bg-gradient-to-b from-amber-50 to-amber-100/60 ring-1 ring-amber-200/70 p-2 max-h-[260px] overflow-auto no-scrollbar">
+          <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(14,minmax(0,1fr))" }}>
+            {grid.map((b) => {
+              const isSel = !!bedSel.find((x) => x.id === b.id);
+              return (
+                <div key={b.id} className="aspect-square grid place-items-center" style={{ lineHeight: 0 }}>
+                  <Sunbed state={b.s} sel={isSel} label={b.id} price={b.price} onClick={() => toggleBed(b.id, b.price)} size={16} />
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="mt-2 flex items-center justify-between gap-2 flex-wrap text-[11px] text-slate-600">
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="flex items-center gap-1"><Sunbed state="a" size={14} />Available</span>
+            <span className="flex items-center gap-1"><Sunbed state="h" size={14} />On hold</span>
+            <span className="flex items-center gap-1"><Sunbed state="u" size={14} />Unavailable</span>
+            <span className="flex items-center gap-1"><Sunbed state="a" sel size={14} />Selected</span>
+          </div>
+          {bedSel.length > 0 && (
+            <span className="font-semibold text-navy-900 tnum">€{pickedSubtotal} × {dayCount} day{dayCount !== 1 ? "s" : ""} = €{pickedSubtotal * dayCount}</span>
+          )}
+        </div>
+      </div>
+
       <div className="text-[12px] text-slate-500 flex items-center gap-1.5">
         <Icon.info size={13} className="shrink-0" />
-        Want to pick exact beds on the map?
+        Want the full-screen map experience?
         <button onClick={() => go("customer", "book")}
           className="text-teal-700 hover:text-teal-800 font-semibold">Open the live beach map →</button>
       </div>
@@ -552,15 +621,18 @@ function YesNo({ on, title, sub, icon: IconC, onClick }) {
 }
 
 /* ============ Step 6 — Review ============ */
-function ReviewStep({ people, totalPeople, selDates, dayCount, zone, sets, includeTickets, ticketBreak, lockerOn, lockerQty, parkingOn, plate, onJump }) {
+function ReviewStep({ people, totalPeople, selDates, dayCount, zone, sets, bedSel = [], includeTickets, ticketBreak, lockerOn, lockerQty, parkingOn, plate, onJump }) {
   const dateLabel = selDates.length === 1
     ? chipLabel(selDates[0]).label + ", " + chipLabel(selDates[0]).sub
     : `${selDates.length} days (${selDates.map((d) => chipLabel(d).sub).join(", ")})`;
+  const beachBody = bedSel.length > 0
+    ? `${bedSel.length} picked · ${bedSel.map((b) => b.id).join(", ")}`
+    : `${sets} umbrella set${sets !== 1 ? "s" : ""} · €${zone.from} each`;
   return (
     <div className="space-y-2">
       <ReviewRow icon={Icon.group} title="Guests" body={`${totalPeople} total · ${humanPeople(people)}`} onEdit={() => onJump("people")} />
       <ReviewRow icon={Icon.calendar} title="Dates" body={dateLabel} onEdit={() => onJump("dates")} />
-      <ReviewRow icon={Icon.umbrella} title={`Beach bar · ${zone.name}`} body={`${sets} umbrella set${sets !== 1 ? "s" : ""} · €${zone.from} each`} onEdit={() => onJump("sets")} />
+      <ReviewRow icon={Icon.umbrella} title={`Beach bar · ${zone.name}`} body={beachBody} onEdit={() => onJump("sets")} />
       <ReviewRow
         icon={Icon.ticket}
         title="Entry tickets"
@@ -599,7 +671,7 @@ function humanPeople(p) {
 function BasketPanel({
   inline = false,
   totalPeople, dayCount,
-  zone, sets, setSubtotal,
+  zone, sets, bedSel = [], setSubtotal,
   includeTickets, ticketBreak, ticketSubtotal,
   lockerOn, lockerQty, lockerSubtotal,
   parkingOn, parkingSubtotal,
@@ -629,8 +701,10 @@ function BasketPanel({
         <BasketChip icon={Icon.group} label="Guests" value={`${totalPeople} · ${dayCount} day${dayCount !== 1 ? "s" : ""}`} />
         <BasketLine
           icon={Icon.umbrella}
-          label={`${zone.name} · ${sets} set${sets !== 1 ? "s" : ""}`}
-          sub={`€${zone.from} × ${sets} × ${dayCount} day${dayCount !== 1 ? "s" : ""}`}
+          label={`${zone.name} · ${sets} ${bedSel.length > 0 ? "bed" : "set"}${sets !== 1 ? "s" : ""}`}
+          sub={bedSel.length > 0
+            ? `Picked: ${bedSel.map((b) => b.id).join(", ")} × ${dayCount} day${dayCount !== 1 ? "s" : ""}`
+            : `€${zone.from} × ${sets} × ${dayCount} day${dayCount !== 1 ? "s" : ""}`}
           amount={setSubtotal}
           on={sets > 0}
         />
