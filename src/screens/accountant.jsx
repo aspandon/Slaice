@@ -17,9 +17,12 @@ function CopyMark({ mark, toast }) {
     toast?.(`Copied MARK ${mark}.`, { tone: "success", duration: 1600 });
     setTimeout(() => setCopied(false), 1200);
   };
+  // MARK codes are 15+ digits — show head…tail in the table to keep rows
+  // tidy, with the full value in the native tooltip and in the toast.
+  const short = mark.length > 12 ? `${mark.slice(0, 6)}…${mark.slice(-4)}` : mark;
   return (
-    <button onClick={copy} title="Copy MARK to clipboard" className="inline-flex items-center gap-1.5 font-mono text-[12px] text-navy-900 hover:text-teal-700 group tnum">
-      <span>{mark}</span>
+    <button onClick={copy} title={`MARK ${mark} — click to copy`} className="inline-flex items-center gap-1.5 font-mono text-[12px] text-navy-900 hover:text-teal-700 group tnum">
+      <span>{short}</span>
       <span className="opacity-50 group-hover:opacity-100 transition-opacity">{copied ? <Icon.check size={12} className="text-teal-600" /> : <Icon.doc size={12} />}</span>
     </button>
   );

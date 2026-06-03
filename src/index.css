@@ -145,6 +145,20 @@ body {
       transform: scaleX(0);
     }
   }
+  /* Spotlight ring — pulses a teal glow around a section that a journey
+     hint just navigated to, so the eye lands on the right area. */
+  .spotlight-ring {
+    position: relative;
+    z-index: 25;
+    border-radius: 18px;
+    animation: spotlight 1.6s ease-out 2;
+    box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.55);
+  }
+  @keyframes spotlight {
+    0%   { box-shadow: 0 0 0 0   rgba(20,184,166,0.55), 0 0 0 0   rgba(20,184,166,0.35); }
+    50%  { box-shadow: 0 0 0 8px rgba(20,184,166,0.25), 0 0 24px 12px rgba(20,184,166,0.20); }
+    100% { box-shadow: 0 0 0 0   rgba(20,184,166,0.00), 0 0 0 0     rgba(20,184,166,0.00); }
+  }
 }
 
 /* Respect users who prefer reduced motion (WCAG 2.3.3). */

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Stepper, Field, Input, Select, FutureBanner, ContextPanel } from "../components/ui.jsx";
 import { QR } from "../components/charts.jsx";
-import { CASHIER_TX, CASHIER_SESSION } from "../data/mock.js";
+import { CASHIER_TX, CASHIER_SESSION, CASHIER_PAST_SESSIONS, CASHIER_LOCKER_BANKS } from "../data/mock.js";
 import { useApp } from "../app/store.jsx";
 
 /* ============ ISSUE ON-SITE TICKET ============ */
@@ -88,14 +88,29 @@ export function CashierRegister() {
       <FutureBanner />
       {!open ? (
         <div className="grid lg:grid-cols-[1fr_320px] gap-5">
-          <Card className="p-10 text-center grid place-items-center min-h-[320px]">
-            <div>
-              <div className="w-16 h-16 mx-auto rounded-2xl bg-orange-50 text-orange-500 grid place-items-center"><Icon.cash size={28} /></div>
+          <div className="space-y-4">
+            <Card className="p-6 grid place-items-center text-center">
+              <div className="w-14 h-14 rounded-2xl bg-orange-50 text-orange-500 grid place-items-center"><Icon.cash size={24} /></div>
               <div className="mt-3 font-semibold text-navy-900 text-lg">No open session</div>
-              <p className="text-sm text-slate-600 mt-1 max-w-sm mx-auto">Open a session (duration, cashier) to group on-site cash activity into a single auditable ledger.</p>
-              <Btn variant="primary" className="mt-5" icon={Icon.play} onClick={() => { setOpen(true); toast("Demo — session opened."); }}>Open session</Btn>
-            </div>
-          </Card>
+              <p className="text-sm text-slate-600 mt-1 max-w-sm">Open a session (duration, cashier) to group on-site cash activity into a single auditable ledger.</p>
+              <Btn variant="primary" className="mt-4" icon={Icon.play} onClick={() => { setOpen(true); toast("Demo — session opened."); }}>Open session</Btn>
+            </Card>
+            <Card className="p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="font-display font-bold text-navy-900">Past sessions</div>
+                <Badge tone="slate">last 5</Badge>
+              </div>
+              <Table cols={["Session", "Cashier", "Date", "Duration", "Cash", "Card", "Tx", "Status"]} right={[3,4,5,6]}
+                rows={CASHIER_PAST_SESSIONS.map((s) => [
+                  <span className="font-mono text-[12px] text-navy-900">{s.id}</span>,
+                  s.cashier, s.date, s.duration,
+                  <span className="tnum">{s.cash}</span>,
+                  <span className="tnum">{s.card}</span>,
+                  <span className="tnum">{s.tx}</span>,
+                  <Badge tone="slate">{s.status}</Badge>,
+                ])} />
+            </Card>
+          </div>
           <ContextPanel title="What a session covers" items={[
             { icon: Icon.clock, title: "Open + close", body: "A session brackets your shift from float to handover." },
             { icon: Icon.cash, title: "Cash + card", body: "Every sale lands in the session ledger, by tender." },
@@ -130,28 +145,82 @@ export function CashierRegister() {
 /* ============ SELL LOCKER (Future) ============ */
 export function CashierLocker() {
   const { toast } = useApp();
-  const [sold, setSold] = useState(false);
+  const [bankId, setBankId] = useState(CASHIER_LOCKER_BANKS[0].id);
+  const [pick, setPick] = useState(null);     // {bank, num}
+  const [sold, setSold] = useState(null);     // last sold {bank, num}
+  const bank = CASHIER_LOCKER_BANKS.find((b) => b.id === bankId);
+  const taken = new Set(bank.taken);
+  const lockerLabel = pick ? `${bank.id}${String(pick.num).padStart(2, "0")}` : null;
+  const charge = () => {
+    if (!pick) return;
+    const label = lockerLabel;
+    setSold({ bank: bank.id, num: pick.num, label, price: bank.price });
+    toast(`Demo — sold locker ${label} for €${bank.price}.`, { tone: "success" });
+    setPick(null);
+  };
   return (
     <div className="animate-fade-up">
       <PageHead title="Sell Locker" sub="Sell a day locker on site; mark it in inventory. Customer redeems at entry." badge={<Badge tone="future">Future</Badge>} />
       <FutureBanner />
       <div className="grid lg:grid-cols-[1fr_320px] gap-5">
         <Card className="p-5">
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="Locker bank"><Select options={["Bank A", "Bank B", "Bank C", "Bank D", "Bank E"]} /></Field>
-            <Field label="Locker number"><Input placeholder="A07" defaultValue="A07" /></Field>
+          <Field label="Locker bank">
+            <div className="flex flex-wrap gap-1.5">
+              {CASHIER_LOCKER_BANKS.map((b) => {
+                const active = b.id === bankId;
+                const free = b.size - b.taken.length;
+                return (
+                  <button key={b.id} onClick={() => { setBankId(b.id); setPick(null); }}
+                    className={`rounded-xl px-3 py-2 ring-1 text-left transition ${active ? "bg-navy-900 text-white ring-navy-900 shadow-sm" : "bg-white/60 ring-slate-200 text-navy-900 hover:bg-white"}`}>
+                    <div className="text-[12px] font-bold leading-none">{b.label}</div>
+                    <div className={`text-[10px] mt-1 tnum ${active ? "text-white/70" : "text-slate-500"}`}>{free}/{b.size} free · €{b.price}/day</div>
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Pick a locker — {bank.label}</div>
+              <div className="text-[11px] text-slate-500">
+                <span className="inline-flex items-center gap-1 mr-2"><span className="w-2.5 h-2.5 rounded bg-teal-500/95 ring-1 ring-white" /> free</span>
+                <span className="inline-flex items-center gap-1 mr-2"><span className="w-2.5 h-2.5 rounded bg-slate-300 ring-1 ring-white" /> taken</span>
+                <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-navy-900 ring-1 ring-white" /> selected</span>
+              </div>
+            </div>
+            <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 p-2">
+              <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(10,1fr)" }}>
+                {Array.from({ length: bank.size }).map((_, i) => {
+                  const num = i + 1;
+                  const isTaken = taken.has(num);
+                  const isSel = pick && pick.num === num;
+                  const cl = isTaken ? "bg-slate-300 text-slate-500 cursor-not-allowed" : isSel ? "bg-navy-900 text-white ring-2 ring-teal-400 shadow" : "bg-teal-500/95 text-white hover:bg-teal-600 shadow-sm";
+                  return (
+                    <button key={num} disabled={isTaken} onClick={() => setPick({ bank: bank.id, num })}
+                      className={`relative aspect-square rounded-md grid place-items-center transition ring-1 ring-white/60 ${cl} pb-3.5`}
+                      title={isTaken ? `${bank.id}${String(num).padStart(2,"0")} — taken` : `${bank.id}${String(num).padStart(2,"0")} — €${bank.price}`}>
+                      <Icon.lock size={16} />
+                      <span className="absolute bottom-0.5 left-0 right-0 text-center text-[10px] font-bold leading-none tnum">{bank.id}{String(num).padStart(2,"0")}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
-          <div className="flex items-center justify-between mt-4"><div className="text-slate-600 text-sm">1 locker · €5/day</div><div className="text-2xl font-bold font-display text-navy-900 tnum">€5</div></div>
+          <div className="flex items-center justify-between mt-4">
+            <div className="text-slate-600 text-sm">{pick ? `Locker ${lockerLabel}` : "No locker selected"} · €{bank.price}/day</div>
+            <div className="text-2xl font-bold font-display text-navy-900 tnum">€{pick ? bank.price : 0}</div>
+          </div>
           <div className="flex gap-2 mt-3">
-            <Btn variant="teal" icon={Icon.card} onClick={() => { setSold(true); toast("Demo — locker sold & marked in inventory."); }}>Charge €5</Btn>
-            <Btn variant="ghost" icon={Icon.print} disabled={!sold} onClick={() => toast("Demo — printed locker slip with QR.")}>Print</Btn>
+            <Btn variant="teal" icon={Icon.card} disabled={!pick} onClick={charge}>Charge €{pick ? bank.price : 0}</Btn>
+            <Btn variant="ghost" icon={Icon.print} disabled={!sold} onClick={() => toast("Demo — printed locker slip with QR.")}>Print slip</Btn>
           </div>
           {sold && (
-            <div className="mt-4 flex items-center gap-3 rounded-xl bg-emerald-50 ring-1 ring-emerald-600/15 px-3 py-3">
-              <QR size={64} seed="LK-A07" />
+            <div className="mt-4 flex items-center gap-3 rounded-xl bg-emerald-50 ring-1 ring-emerald-600/15 px-3 py-3 animate-fade-up">
+              <QR size={64} seed={`LK-${sold.label}`} />
               <div>
-                <div className="font-semibold text-emerald-700 flex items-center gap-1.5"><Icon.checkCircle size={16} /> Locker sold</div>
-                <div className="text-[12px] text-emerald-700/80">Bank A · A07 — slip ready to print and hand to the guest.</div>
+                <div className="font-semibold text-emerald-700 flex items-center gap-1.5"><Icon.checkCircle size={16} /> Locker sold · {sold.label}</div>
+                <div className="text-[12px] text-emerald-700/80">{bank.label} · €{sold.price} — slip ready to print and hand to the guest.</div>
               </div>
             </div>
           )}

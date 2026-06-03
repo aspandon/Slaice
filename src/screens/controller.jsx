@@ -2,10 +2,11 @@ import { useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead } from "../components/ui.jsx";
 import { RECENT_VALIDATIONS } from "../data/mock.js";
-import { useApp } from "../app/store.jsx";
+import { useApp, useSpotlight } from "../app/store.jsx";
 
 export function ControllerScan() {
   const { toast } = useApp();
+  useSpotlight("controller", "scan");
   const [scanning, setScanning] = useState(false);
   const [recent, setRecent] = useState(RECENT_VALIDATIONS);
   const stateTone = { valid: "green", used: "amber", invalid: "red" };
@@ -29,7 +30,7 @@ export function ControllerScan() {
     <div className="animate-fade-up max-w-4xl">
       <PageHead title="Gate Validation" sub="Scan booking & ticket QR codes from the browser — real-time verification. Also handle walk-ins and on-the-spot tickets." badge={<Badge tone="mvp">MVP</Badge>} />
       <div className="grid md:grid-cols-2 gap-4">
-        <Card className="p-5 grid place-items-center text-center">
+        <Card data-spotlight="scanner" className="p-5 grid place-items-center text-center">
           <div className={`w-44 h-44 rounded-2xl ring-2 ring-dashed grid place-items-center relative overflow-hidden ${scanning ? "ring-teal-500 bg-teal-50" : "ring-teal-400/60 bg-teal-50/40"} text-teal-600`}>
             <Icon.scan size={60} />
             {scanning && <div className="absolute left-0 right-0 h-0.5 bg-teal-500 shadow-[0_0_8px_#14b8a6] animate-[scanline_1.1s_linear_infinite]" style={{ animation: "scanline 1.1s linear infinite" }} />}
@@ -53,7 +54,7 @@ export function ControllerScan() {
               </div>
             ))}
           </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-1 gap-2">
+          <div data-spotlight="walkins" className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-1 gap-2 rounded-xl p-2 -mx-1">
             <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-0.5">Walk-ins & on-the-spot</div>
             <Btn variant="outline" size="sm" icon={Icon.umbrella} onClick={() => toast("Demo — create a walk-in booking & block a sunbed.")}>Walk-in booking</Btn>
             <Btn variant="outline" size="sm" icon={Icon.ticket} onClick={() => toast("Demo — add ticket + take on-site payment via Stripe.")}>Add ticket (pay on site)</Btn>

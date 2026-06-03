@@ -176,3 +176,23 @@ export const DAILY_OPS = [
 
 // Cashier register session statistics
 export const CASHIER_SESSION = { id: "#CS-204", cashier: "Kostas L.", openedAt: "09:14", duration: "4h 22m", cashIn: "€1,240", cardIn: "€3,860" };
+
+// Past closed sessions — surfaced before a new session is opened, so the
+// cashier can see what a typical day looks like instead of an empty card.
+export const CASHIER_PAST_SESSIONS = [
+  { id: "#CS-203", cashier: "Kostas L.", date: "Yesterday", duration: "8h 06m", cash: "€1,820", card: "€5,940", tx: 312, status: "Closed" },
+  { id: "#CS-202", cashier: "Eleni S.",  date: "Yesterday", duration: "7h 48m", cash: "€1,440", card: "€5,210", tx: 268, status: "Closed" },
+  { id: "#CS-201", cashier: "Kostas L.", date: "Mon",        duration: "8h 12m", cash: "€2,010", card: "€6,420", tx: 354, status: "Closed" },
+  { id: "#CS-200", cashier: "Maria T.",  date: "Sun",        duration: "9h 02m", cash: "€2,540", card: "€7,180", tx: 401, status: "Closed" },
+  { id: "#CS-199", cashier: "Eleni S.",  date: "Sat",        duration: "9h 35m", cash: "€2,720", card: "€7,840", tx: 432, status: "Closed" },
+];
+
+// Locker banks for the "Sell locker" view — each bank has 30 cells; the
+// `taken` set lets us render which are unavailable today.
+export const CASHIER_LOCKER_BANKS = [
+  { id: "A", label: "Bank A · Entrance",       size: 30, taken: [1,2,5,6,9,12,14,18,21,22,25,28], price: 5 },
+  { id: "B", label: "Bank B · Pool side",      size: 30, taken: [3,4,7,8,11,15,16,19,20,23,27,29,30], price: 5 },
+  { id: "C", label: "Bank C · North gate",     size: 30, taken: [1,2,4,8,10,13,17,19,22,24,26], price: 5 },
+  { id: "D", label: "Bank D · Family area",    size: 30, taken: [2,5,7,10,11,14,15,18,21,24,27,29], price: 7 },
+  { id: "E", label: "Bank E · Premium",        size: 30, taken: [4,5,9,12,13,16,20,23,26], price: 9 },
+];

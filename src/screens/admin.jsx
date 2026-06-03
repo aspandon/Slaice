@@ -173,7 +173,11 @@ export function AdminMapEditor() {
           </div>
           <div className="mt-3 flex items-center justify-between text-[12px] text-slate-500">
             <span>{zones.length} zone{zones.length !== 1 ? "s" : ""} · {zones.reduce((a, z) => a + z.rows * z.cols, 0)} beds total</span>
-            <Btn variant="ghost" size="sm" icon={Icon.plus} onClick={add}>Add zone</Btn>
+            <button onClick={add}
+              className="group inline-flex items-center gap-1.5 rounded-lg border-2 border-dashed border-teal-400 text-teal-700 hover:bg-teal-50 hover:border-teal-600 active:bg-teal-100 px-3 py-1.5 text-[12px] font-semibold transition shadow-sm">
+              <span className="w-5 h-5 rounded-md bg-teal-500 text-white grid place-items-center group-hover:bg-teal-600 transition"><Icon.plus size={13} /></span>
+              Add zone
+            </button>
           </div>
         </Card>
 

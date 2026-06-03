@@ -7,9 +7,9 @@ export const JOURNEYS = [
     keyFeatures: [15, 21, 25, 23, 24, 18, 19, 51],
     steps: [
       { t: "Open the tenant site", go: ["customer", "home"] },
-      { t: "Pick a date on the availability strip", go: ["customer", "book"] },
-      { t: "Browse the beach map & zoom into a zone", go: ["customer", "book"] },
-      { t: "Tap sunbeds (see ID / status / price) and add to selection", go: ["customer", "book"] },
+      { t: "Pick a date on the availability strip", go: ["customer", "book"], spotlight: "dates", tip: "Tap a date — beach map updates live." },
+      { t: "Browse the beach map & zoom into a zone", go: ["customer", "book"], spotlight: "zones", tip: "Each pill shows free %, price and a hover preview." },
+      { t: "Tap sunbeds (see ID / status / price) and add to selection", go: ["customer", "book"], spotlight: "quick-picks", tip: "Or use a quick-pick (couple · family · front row) to skip ahead." },
       { t: "Review cart + cross-sell (ticket, locker)", go: ["customer", "book"] },
       { t: "Pay via Stripe (hosted checkout)", go: ["customer", "checkout"] },
       { t: "Receive booking confirmation + QR by e-mail", go: ["customer", "mybookings"] },
@@ -179,8 +179,8 @@ export const JOURNEYS = [
     id: 19, persona: "controller", title: "Validate entry at the gate", status: "MVP", source: "RFP + Mock-up",
     keyFeatures: [36, 47, 39],
     steps: [
-      { t: "Scan booking/ticket QR from browser", go: ["controller", "scan"] },
-      { t: "Real-time verification", go: ["controller", "scan"] },
+      { t: "Scan booking/ticket QR from browser", go: ["controller", "scan"], spotlight: "scanner", tip: "Tap Scan QR — a live feed pulses the scanline." },
+      { t: "Real-time verification", go: ["controller", "scan"], spotlight: "scanner" },
       { t: "See status (free/blocked/booked, valid/used) → admit", go: ["controller", "scan"] },
     ],
   },
@@ -197,9 +197,9 @@ export const JOURNEYS = [
     id: 21, persona: "controller", title: "Add ticket / locker at control", status: "MVP", source: "RFP",
     keyFeatures: [48, 77],
     steps: [
-      { t: "Add a ticket on the spot during control", go: ["controller", "scan"] },
-      { t: "Pay on site via Stripe", go: ["controller", "scan"] },
-      { t: "(Future) redeem locker at entry", go: ["controller", "scan"] },
+      { t: "Add a ticket on the spot during control", go: ["controller", "scan"], spotlight: "walkins", tip: "Use the Walk-ins & on-the-spot panel to add tickets." },
+      { t: "Pay on site via Stripe", go: ["controller", "scan"], spotlight: "walkins", tip: "Charge via Stripe Terminal — handled in the same panel." },
+      { t: "(Future) redeem locker at entry", go: ["controller", "scan"], spotlight: "walkins" },
     ],
   },
   {

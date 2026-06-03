@@ -34,9 +34,15 @@ export default function App() {
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), duration);
   }, []);
 
-  const go = useCallback((p, k) => {
+  // `hint` carries an optional spotlight ("data-spotlight" attribute) and a
+  // short tip, so journeys can land a user on the exact section they were
+  // asked to look at. Pages call useSpotlight() to react to it.
+  const [hint, setHint] = useState(null);
+  const clearHint = useCallback(() => setHint(null), []);
+  const go = useCallback((p, k, h) => {
     setPersona(p);
     if (k) setPageByPersona((s) => ({ ...s, [p]: k }));
+    setHint(h ? { ...h, persona: p, page: k, ts: Date.now() } : null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
 
@@ -44,7 +50,7 @@ export default function App() {
   const removeFromCart = useCallback((kind, id) => setCart((c) => c.filter((x) => !(x.kind === kind && x.id === id))), []);
   const clearCart = useCallback(() => setCart([]), []);
 
-  const ctx = { toast, go, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart };
+  const ctx = { toast, go, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint };
 
   return (
     <AppCtx.Provider value={ctx}>

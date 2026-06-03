@@ -435,11 +435,14 @@ export function Sidebar({ persona, page, setPage }) {
   );
 }
 
-/* ---------- Horizontal page nav (used for the Customer persona on every viewport) ---------- */
+/* ---------- Horizontal page nav (used for the Customer persona on every viewport)
+   sticky just below the TopBar (top-2 + ~56px header height = ~68px), with a
+   near-opaque glass-card background so the "powered by SLAiCE" badge in the
+   TopBar above doesn't read through when the user scrolls. ---------- */
 export function PageTopNav({ persona, page, setPage }) {
   const items = NAV[persona];
   return (
-    <div className="relative z-30 glass rounded-2xl p-1.5 mb-4 flex gap-1.5 overflow-x-auto no-scrollbar">
+    <div className="sticky top-[68px] z-20 glass-card-solid rounded-2xl p-1.5 mb-4 flex gap-1.5 overflow-x-auto no-scrollbar">
       {items.map((it) => {
         const IconC = Icon[it.icon];
         const active = page === it.k;

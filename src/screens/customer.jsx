@@ -6,7 +6,7 @@ import { Sunbed, BeachBackdrop, ParkingBackdrop, LockerBackdrop } from "../compo
 import { downloadPDF, downloadZIP, buildPDFBytes } from "../lib/download.js";
 import { ZONES, ZONE_BLOCKS, FACILITIES, WEATHER, QUICK_PICKS, makeGrid, chipLabel, todayISO } from "../data/beach.js";
 import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS } from "../data/mock.js";
-import { useApp } from "../app/store.jsx";
+import { useApp, useSpotlight } from "../app/store.jsx";
 
 /* ============ HOME ============ */
 export function CustomerHome() {
@@ -156,6 +156,7 @@ function BeachDateStrip({ value, onChange, days = 5 }) {
 /* ============ SUNBED BOOKING (hero, matches the video) ============ */
 export function CustomerBooking() {
   const { go, toast, cart, addToCart, removeFromCart } = useApp();
+  useSpotlight("customer", "book");
   const [step, setStep] = useState("zones"); // zones | grid
   const [zoneId, setZoneId] = useState(null);
   const [selDates, setSelDates] = useState([todayISO()]); // multi-select ISO dates
@@ -243,7 +244,7 @@ export function CustomerBooking() {
             {/* Top utility bar — quick-picks (left), search (center), weather (right).
                 top-[160px] clears the persona/page-nav bands above and keeps a 50px gap
                 above the zone pills underneath. */}
-            <div className="absolute top-[160px] lg:right-[362px] left-3 right-3 z-30 flex items-center gap-2">
+            <div data-spotlight="quick-picks" className="absolute top-[160px] lg:right-[362px] left-3 right-3 z-30 flex items-center gap-2">
               <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pr-1">
                 {QUICK_PICKS.map((p) => (
                   <button key={p.id} onClick={() => applyPreset(p)}
@@ -271,7 +272,7 @@ export function CustomerBooking() {
             </div>
 
             {/* Zone pill-tabs — donut + hover-preview. */}
-            <div className="absolute top-[210px] lg:right-[362px] left-3 right-3 flex gap-2 overflow-x-auto z-20 pb-1 no-scrollbar">
+            <div data-spotlight="zones" className="absolute top-[210px] lg:right-[362px] left-3 right-3 flex gap-2 overflow-x-auto z-20 pb-1 no-scrollbar">
               {ZONES.map((z) => {
                 const active = zone && zone.id === z.id;
                 const hovered = hoveredZone === z.id;
@@ -298,7 +299,7 @@ export function CustomerBooking() {
             </div>
 
             {/* Persistent date strip — same selDates as the basket panel. */}
-            <div className="absolute top-[265px] lg:right-[362px] left-3 right-3 z-20">
+            <div data-spotlight="dates" className="absolute top-[265px] lg:right-[362px] left-3 right-3 z-20">
               <BeachDateStrip value={selDates} onChange={setSelDates} />
             </div>
 
