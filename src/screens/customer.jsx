@@ -1,12 +1,13 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad, StatCard, ContextPanel, Tabs } from "../components/ui.jsx";
-import { QR } from "../components/charts.jsx";
+import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad, StatCard, ContextPanel, Tabs, DatePickerRow } from "../components/ui.jsx";
+import { Reveal } from "../lib/motion.jsx";
+import { QR, Sparkline } from "../components/charts.jsx";
 import { Sunbed, BeachBackdrop, ParkingBackdrop, LockerBackdrop } from "../components/Beach.jsx";
-import { downloadText } from "../lib/download.js";
-import { ZONES, ZONE_BLOCKS, makeGrid, dateStrip } from "../data/beach.js";
+import { downloadPDF, downloadZIP, buildPDFBytes } from "../lib/download.js";
+import { ZONES, ZONE_BLOCKS, FACILITIES, WEATHER, QUICK_PICKS, makeGrid, chipLabel, todayISO } from "../data/beach.js";
 import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS } from "../data/mock.js";
-import { useApp } from "../app/store.jsx";
+import { useApp, useSpotlight } from "../app/store.jsx";
 
 /* ============ HOME ============ */
 export function CustomerHome() {
@@ -41,19 +42,114 @@ export function CustomerHome() {
 
       {/* tools grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {tools.map((t) => (
-          <button key={t.k} onClick={() => go("customer", t.k)} className="text-left group">
-            <Card hover className="glass-card-solid p-5 h-full">
+        {tools.map((t, i) => (
+          <Reveal as="button" key={t.k} delay={i * 60} onClick={() => go("customer", t.k)} className="text-left group">
+            <Card hover press className="glass-card-solid p-5 h-full">
               <div className="flex items-start justify-between">
-                <div className={`w-11 h-11 rounded-xl grid place-items-center text-white shadow-sm transition-transform duration-200 ease-spring group-hover:scale-110 group-hover:-rotate-3 ${t.tone === "teal" ? "bg-gradient-to-br from-teal-500 to-teal-700" : "bg-gradient-to-br from-navy-800 to-navy-950"}`}><t.ic size={20} /></div>
+                <div className={`w-11 h-11 rounded-2xl grid place-items-center text-white shadow-sm transition-transform duration-300 ease-spring group-hover:scale-110 group-hover:-rotate-3 ${t.tone === "teal" ? "bg-gradient-to-br from-teal-500 to-teal-700" : "bg-gradient-to-br from-navy-800 to-navy-950"}`}><t.ic size={20} /></div>
                 {t.meta && <Badge tone={t.metaTone || "slate"}>{t.meta}</Badge>}
               </div>
               <div className="mt-3 font-semibold text-navy-900 flex items-center gap-1">{t.t}<Icon.chevR size={15} className="transition-transform duration-200 group-hover:translate-x-1 text-teal-600" /></div>
               <div className="text-[13px] text-slate-600 mt-0.5">{t.d}</div>
             </Card>
-          </button>
+          </Reveal>
         ))}
       </div>
+    </div>
+  );
+}
+
+/* ============ SUNBED BOOKING helpers ============ */
+
+// Tiny donut showing free / total. Stroke length = free ratio, lighter
+// remainder underneath. Sized to nest inside the 7×7 zone-pill avatar.
+function ZoneDonut({ free, total, color, size = 28 }) {
+  const r = size / 2 - 2;
+  const c = 2 * Math.PI * r;
+  const pct = Math.max(0, Math.min(1, free / total));
+  return (
+    <svg width={size} height={size} className="block">
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="3.5" />
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="3.5"
+        strokeDasharray={`${c*pct} ${c}`} strokeLinecap="round"
+        transform={`rotate(-90 ${size/2} ${size/2})`} />
+    </svg>
+  );
+}
+
+// Hover tooltip rendered above the zone pill — a 6×4 sample of sunbeds so
+// the user can sneak-peek occupancy before zooming in.
+function ZonePreview({ zone }) {
+  const grid = useMemo(() => makeGrid(zone, 6, 4).slice(0, 24), [zone.id]);
+  return (
+    <div className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-2 z-30 w-44 rounded-xl bg-white shadow-float ring-1 ring-slate-200 p-2.5 animate-pop">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[11px] font-bold text-navy-900">{zone.name}</span>
+        <span className="text-[10px] text-slate-500 tnum">{zone.avail}/{zone.total} · €{zone.from}+</span>
+      </div>
+      <div className="grid gap-[2px] rounded-md p-1 bg-slate-50 ring-1 ring-slate-100" style={{ gridTemplateColumns: "repeat(6,1fr)" }}>
+        {grid.map((b) => (
+          <div key={b.id} className="aspect-square" style={{ lineHeight: 0 }}>
+            <Sunbed state={b.s} size={12} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Facility pin (bar / WC / shower / first aid) positioned over the beach.
+function FacilityPin({ facility }) {
+  const kind = facility.kind;
+  const cfg = {
+    bar:    { icon: Icon.glass,  tint: "from-amber-400 to-amber-600",  ring: "ring-amber-200" },
+    wc:     { icon: Icon.cross,  tint: "from-slate-500 to-slate-700",  ring: "ring-slate-200" },
+    shower: { icon: Icon.drop,   tint: "from-sky-400 to-sky-600",      ring: "ring-sky-200" },
+    first:  { icon: Icon.shield, tint: "from-rose-400 to-rose-600",    ring: "ring-rose-200" },
+  }[kind] || { icon: Icon.info, tint: "from-slate-500 to-slate-700", ring: "ring-slate-200" };
+  return (
+    <div className="absolute z-10 group" style={{ left: facility.left, top: facility.top }}>
+      <div className={`w-7 h-7 -translate-x-1/2 -translate-y-1/2 rounded-full grid place-items-center text-white bg-gradient-to-br ${cfg.tint} ring-2 ring-white shadow-md hover:scale-110 transition`} title={facility.label}>
+        <cfg.icon size={13} />
+      </div>
+      <div className={`absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-white px-1.5 py-0.5 text-[10px] font-semibold text-navy-900 ring-1 ${cfg.ring} shadow opacity-0 group-hover:opacity-100 transition pointer-events-none`}>
+        {facility.label}
+      </div>
+    </div>
+  );
+}
+
+// Compact horizontal date chip strip — one tap = single date, "+N" chip
+// when more than one date is selected. Sits on the beach itself.
+function BeachDateStrip({ value, onChange, days = 5 }) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const strip = Array.from({ length: days }).map((_, i) => {
+    const d = new Date(today); d.setDate(today.getDate() + i);
+    const iso = d.toISOString().slice(0, 10);
+    const sub = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    const wk  = i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString("en-GB", { weekday: "short" });
+    return { iso, sub, wk };
+  });
+  const extra = value.filter((iso) => !strip.find((s) => s.iso === iso));
+  const toggle = (iso) => {
+    if (value.includes(iso)) onChange(value.length > 1 ? value.filter((x) => x !== iso) : value);
+    else onChange([...value, iso].sort());
+  };
+  return (
+    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+      {strip.map((s) => {
+        const on = value.includes(s.iso);
+        return (
+          <button key={s.iso} onClick={() => toggle(s.iso)}
+            className={`shrink-0 rounded-xl px-2.5 py-1.5 text-left transition ring-1 shadow-sm ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white/95 text-navy-900 ring-white/80 hover:bg-white"}`}>
+            <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70 leading-none">{s.wk}</div>
+            <div className="text-[12px] font-bold tnum leading-tight">{s.sub}</div>
+          </button>
+        );
+      })}
+      {extra.length > 0 && (
+        <span className="shrink-0 rounded-xl bg-teal-500 text-white text-[11px] font-bold px-2.5 py-2 ring-1 ring-teal-300 shadow-sm">+{extra.length}</span>
+      )}
     </div>
   );
 }
@@ -61,19 +157,61 @@ export function CustomerHome() {
 /* ============ SUNBED BOOKING (hero, matches the video) ============ */
 export function CustomerBooking() {
   const { go, toast, cart, addToCart, removeFromCart } = useApp();
+  useSpotlight("customer", "book");
   const [step, setStep] = useState("zones"); // zones | grid
   const [zoneId, setZoneId] = useState(null);
-  const [selDates, setSelDates] = useState([0]); // multi-select date indices
+  const [selDates, setSelDates] = useState([todayISO()]); // multi-select ISO dates
   const [sel, setSel] = useState([]); // {id, zone, price}
   const [extras, setExtras] = useState({ ticket: false, locker: false });
   const [sheetOpen, setSheetOpen] = useState(false); // mobile basket bottom-sheet
-  const dates = useMemo(dateStrip, []);
+  const [hoveredZone, setHoveredZone] = useState(null); // zone-pill preview
+  const [search, setSearch] = useState("");
+  const [searchHit, setSearchHit] = useState(null); // {zoneId, bedId} — pulse target
   const zone = ZONES.find((z) => z.id === zoneId) || null;
   const grid = useMemo(() => (zone ? makeGrid(zone) : []), [zoneId]);
 
-  const toggleDate = (i) => setSelDates((d) => (d.includes(i) ? (d.length > 1 ? d.filter((x) => x !== i) : d) : [...d, i].sort((a, b) => a - b)));
   const addBed = (id, price) => setSel((c) => (c.find((x) => x.id === id) ? c : [...c, { id, zone: zone.name, price }]));
   const rm = (id) => setSel((c) => c.filter((x) => x.id !== id));
+
+  // Quick-pick: pick the zone with the most availability, then pick N
+  // available beds matching the preset (adjacent / front-row / cheapest).
+  const applyPreset = (preset) => {
+    const z = [...ZONES].sort((a, b) => b.avail - a.avail)[0];
+    const g = makeGrid(z);
+    let pick = [];
+    if (preset.id === "front") {
+      pick = g.filter((b) => b.s === "a" && b.r === 0).slice(0, preset.beds);
+    } else if (preset.id === "solo") {
+      pick = [...g].filter((b) => b.s === "a").sort((a, b) => a.price - b.price).slice(0, 1);
+    } else {
+      // walk rows looking for N consecutive available beds
+      for (let r = 0; r < 8 && pick.length === 0; r++) {
+        const row = g.filter((b) => b.r === r);
+        for (let c = 0; c + preset.beds <= row.length; c++) {
+          const slice = row.slice(c, c + preset.beds);
+          if (slice.every((b) => b.s === "a")) { pick = slice; break; }
+        }
+      }
+    }
+    if (pick.length === 0) { toast("No matching beds free in that zone right now.", { tone: "warn" }); return; }
+    setZoneId(z.id); setStep("grid");
+    setSel(pick.map((b) => ({ id: b.id, zone: z.name, price: b.price })));
+    toast(`${preset.label}: ${pick.length} bed${pick.length > 1 ? "s" : ""} pre-selected in ${z.name}.`, { tone: "success" });
+  };
+
+  // Search by bed id ("AK-12" / "ce 89" / "MC03") — jumps to the zone
+  // and pulses the matching tile for ~2.5s so the eye can find it.
+  const runSearch = (q) => {
+    const m = String(q).toUpperCase().match(/([A-Z]{2})[\s-]*(\d{1,3})/);
+    if (!m) { toast("Type a sunbed id like AK-12 or CE-89.", { tone: "warn" }); return; }
+    const [, pfx, num] = m;
+    const z = ZONES.find((x) => x.prefix === pfx);
+    if (!z) { toast(`No zone with prefix ${pfx}.`, { tone: "warn" }); return; }
+    const id = `${pfx}-${String(parseInt(num, 10)).padStart(2, "0")}`;
+    setZoneId(z.id); setStep("grid"); setSearchHit({ zoneId: z.id, bedId: id });
+    setTimeout(() => setSearchHit(null), 2500);
+    toast(`Jumped to ${id} in ${z.name}.`, { tone: "success" });
+  };
   const clearSel = () => { const prev = sel; setSel([]); toast("Selection cleared.", { action: { label: "Undo", onClick: () => setSel(prev) } }); };
   const removeCartItem = (it) => { removeFromCart(it.kind, it.id); toast(`Removed ${it.label}.`, { action: { label: "Undo", onClick: () => addToCart(it) } }); };
   const dayCount = selDates.length;
@@ -83,12 +221,12 @@ export function CustomerBooking() {
   const focused = step === "grid" && zone;
 
   const reserve = () => {
-    const dateLabels = selDates.map((di) => dates[di].label).join(", ");
-    selDates.forEach((di) => {
-      const d = dates[di];
-      sel.forEach((b) => addToCart({ kind: "sunbed", id: `${b.id}@${di}`, label: `Sunbed ${b.id}`, sub: `${b.zone} · ${d.label}`, price: b.price }));
-      if (extras.ticket) addToCart({ kind: "ticket", id: `ADULT@${di}`, label: "Entry ticket — Adult", sub: `Cross-sell · ${d.label}`, price: 10 });
-      if (extras.locker) addToCart({ kind: "locker", id: `LK@${di}`, label: "Day locker", sub: `Cross-sell · ${d.label}`, price: 5 });
+    const dateLabels = selDates.map((iso) => chipLabel(iso).sub).join(", ");
+    selDates.forEach((iso) => {
+      const lbl = chipLabel(iso).sub;
+      sel.forEach((b) => addToCart({ kind: "sunbed", id: `${b.id}@${iso}`, label: `Sunbed ${b.id}`, sub: `${b.zone} · ${lbl}`, price: b.price }));
+      if (extras.ticket) addToCart({ kind: "ticket", id: `ADULT@${iso}`, label: "Entry ticket — Adult", sub: `Cross-sell · ${lbl}`, price: 10 });
+      if (extras.locker) addToCart({ kind: "locker", id: `LK@${iso}`, label: "Day locker", sub: `Cross-sell · ${lbl}`, price: 5 });
     });
     const n = sel.length;
     toast(`${n} sunbed${n > 1 ? "s" : ""} × ${dayCount} day${dayCount > 1 ? "s" : ""} added (${dateLabels}).`, { tone: "success" });
@@ -104,22 +242,66 @@ export function CustomerBooking() {
       <div className="fixed inset-0 z-0">
         <div className="relative w-full h-full">
           <BeachBackdrop pos="absolute" className="inset-0 rounded-none">
-            {/* zone pill-tabs — pushed below TopBar + PageTopNav so they don't fight for the top edge */}
-            <div className="absolute top-[150px] lg:right-[362px] left-3 right-3 flex gap-2 overflow-x-auto z-20 pb-1 no-scrollbar">
+            {/* Top utility bar — quick-picks (left), search (center), weather (right).
+                top-[160px] clears the persona/page-nav bands above and keeps a 50px gap
+                above the zone pills underneath. */}
+            <div data-spotlight="quick-picks" className="absolute top-[160px] lg:right-[362px] left-3 right-3 z-30 flex items-center gap-2">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pr-1">
+                {QUICK_PICKS.map((p) => (
+                  <button key={p.id} onClick={() => applyPreset(p)}
+                    title={p.hint}
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-white/90 hover:bg-white text-navy-900 ring-1 ring-white/70 backdrop-blur px-3 py-1.5 text-[11px] font-semibold shadow-sm transition">
+                    {p.id === "couple" ? <Icon.users size={12} /> : p.id === "family" ? <Icon.group size={12} /> : p.id === "front" ? <Icon.wave size={12} /> : <Icon.umbrella size={12} />}
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <div className="hidden sm:flex flex-1 min-w-[140px] max-w-[230px] mx-auto items-center gap-1.5 rounded-full bg-white/95 ring-1 ring-white/70 backdrop-blur px-3 py-1.5 shadow-sm">
+                <Icon.search size={13} className="text-slate-400 shrink-0" />
+                <input value={search} onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && runSearch(search)}
+                  placeholder="Find a sunbed (CE-89)"
+                  className="bg-transparent outline-none text-[12px] flex-1 min-w-0 placeholder:text-slate-400" />
+                {search && <button onClick={() => { setSearch(""); setSearchHit(null); }} className="text-slate-400 hover:text-slate-700"><Icon.x size={12} /></button>}
+              </div>
+              <div className="shrink-0 ml-auto inline-flex items-center gap-2 rounded-full bg-white/95 ring-1 ring-white/70 backdrop-blur px-2.5 py-1.5 shadow-sm">
+                <span className="inline-flex items-center gap-1 text-[12px] font-bold text-amber-600"><Icon.sun size={13} />{WEATHER.tempC}°</span>
+                <span className="hidden md:inline text-[11px] text-slate-500 tnum">UV {WEATHER.uv}</span>
+                <span className="hidden md:inline-flex items-center gap-1 text-[11px] text-sky-700"><Icon.wave size={12} />{WEATHER.sea}</span>
+                <span className="hidden lg:inline text-[11px] text-slate-500">sunset {WEATHER.sunset}</span>
+              </div>
+            </div>
+
+            {/* Zone pill-tabs — donut + hover-preview. */}
+            <div data-spotlight="zones" className="absolute top-[210px] lg:right-[362px] left-3 right-3 flex gap-2 overflow-x-auto z-20 pb-1 no-scrollbar">
               {ZONES.map((z) => {
                 const active = zone && zone.id === z.id;
+                const hovered = hoveredZone === z.id;
                 return (
-                  <button key={z.id} onClick={() => { setZoneId(z.id); setStep("grid"); }}
-                    className={`flex items-center gap-2 rounded-full pl-1.5 pr-3 py-1.5 whitespace-nowrap transition shadow-md ${active ? "bg-navy-900 text-white" : "bg-white/90 backdrop-blur hover:bg-white"}`}>
-                    <span className="w-7 h-7 rounded-full grid place-items-center text-white" style={{ background: z.color }}><Icon.umbrella size={13} /></span>
-                    <span className="text-left leading-tight">
-                      <span className="block text-[12px] font-semibold">{z.name}</span>
-                      <span className={`block text-[10px] ${active ? "text-white/70" : "text-slate-400"}`}>{active ? "ACTIVE" : z.avail + " FREE"}</span>
-                    </span>
-                    {active && <Icon.check size={13} />}
-                  </button>
+                  <div key={z.id} className="relative shrink-0"
+                    onMouseEnter={() => setHoveredZone(z.id)}
+                    onMouseLeave={() => setHoveredZone((cur) => (cur === z.id ? null : cur))}>
+                    <button onClick={() => { setZoneId(z.id); setStep("grid"); }}
+                      className={`flex items-center gap-2 rounded-full pl-1 pr-3 py-1 whitespace-nowrap transition shadow-md ${active ? "bg-navy-900 text-white" : "bg-white/90 backdrop-blur hover:bg-white"}`}>
+                      <span className="relative w-9 h-9 grid place-items-center rounded-full" style={{ background: active ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.55)" }}>
+                        <ZoneDonut free={z.avail} total={z.total} color={z.color} size={32} />
+                        <span className="absolute inset-0 grid place-items-center text-[9px] font-bold text-navy-900" style={{ color: active ? "#fff" : "#0f172a" }}>{Math.round(z.avail/z.total*100)}%</span>
+                      </span>
+                      <span className="text-left leading-tight">
+                        <span className="block text-[12px] font-semibold">{z.name}</span>
+                        <span className={`block text-[10px] tnum ${active ? "text-white/70" : "text-slate-500"}`}>{active ? "ACTIVE" : `${z.avail} free · €${z.from}+`}</span>
+                      </span>
+                      {active && <Icon.check size={13} />}
+                    </button>
+                    {hovered && !active && <ZonePreview zone={z} />}
+                  </div>
                 );
               })}
+            </div>
+
+            {/* Persistent date strip — same selDates as the basket panel. */}
+            <div data-spotlight="dates" className="absolute top-[265px] lg:right-[362px] left-3 right-3 z-20">
+              <BeachDateStrip value={selDates} onChange={setSelDates} />
             </div>
 
             {!focused && (
@@ -127,6 +309,7 @@ export function CustomerBooking() {
                 <div className="absolute bottom-24 lg:bottom-3 left-1/2 -translate-x-1/2 z-10">
                   <span className="rounded-full bg-navy-950/55 backdrop-blur px-3 py-1.5 text-white text-[12px] font-semibold ring-1 ring-white/20 shadow-md">Drag to explore · click a zone to zoom in</span>
                 </div>
+                {FACILITIES.map((f) => <FacilityPin key={f.id} facility={f} />)}
                 {ZONE_BLOCKS.map((b) => {
                   const z = ZONES.find((x) => x.id === b.id);
                   return (
@@ -153,14 +336,26 @@ export function CustomerBooking() {
 
             {focused && (
               <>
-                <div className="absolute inset-0 grid place-items-center px-4 pt-20 pb-4 z-10 pointer-events-none">
-                  <div className="pointer-events-auto">
-                    <div className="rounded-2xl bg-white/45 ring-4 ring-white/80 backdrop-blur-[1px] p-3 sm:p-4 shadow-float max-w-[680px] max-h-[70vh] overflow-auto no-scrollbar">
+                {/* Breadcrumb — All beach › Zone name. */}
+                <div className="absolute top-[315px] lg:right-[362px] left-3 right-3 z-20 flex items-center gap-1.5 text-[12px]">
+                  <button onClick={() => { setStep("zones"); setZoneId(null); }}
+                    className="inline-flex items-center gap-1 rounded-full bg-white/90 backdrop-blur px-2.5 py-1 ring-1 ring-white/70 text-slate-600 hover:text-navy-900 hover:bg-white shadow-sm font-semibold">
+                    <Icon.arrowL size={12} /> All beach
+                  </button>
+                  <Icon.chevR size={12} className="text-white drop-shadow" />
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-navy-900 text-white px-2.5 py-1 ring-1 ring-navy-700 shadow-sm font-semibold">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: zone.color }} />{zone.name}
+                  </span>
+                </div>
+                <div className="absolute inset-0 grid place-items-center px-4 pt-44 pb-4 z-10 pointer-events-none">
+                  <div className="pointer-events-auto animate-scale-in">
+                    <div className="rounded-3xl bg-white/55 ring-4 ring-white/80 backdrop-blur-[1px] p-3 sm:p-4 shadow-float max-w-[680px] max-h-[64vh] overflow-auto no-scrollbar">
                       <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(14,1fr)" }}>
                         {grid.map((b) => {
                           const isSel = !!sel.find((x) => x.id === b.id);
+                          const isHit = searchHit && searchHit.zoneId === zone.id && searchHit.bedId === b.id;
                           return (
-                            <div key={b.id} className="aspect-square grid place-items-center">
+                            <div key={b.id} className={`aspect-square grid place-items-center ${isHit ? "animate-pulse rounded-md ring-4 ring-teal-400" : ""}`}>
                               <Sunbed state={b.s} sel={isSel} label={b.id} price={b.price} onClick={() => (isSel ? rm(b.id) : addBed(b.id, b.price))} />
                             </div>
                           );
@@ -190,18 +385,7 @@ export function CustomerBooking() {
                 <span className="flex items-center gap-1"><Icon.calendar size={12} /> Dates · pick one or more</span>
                 <span className="text-slate-600 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
               </div>
-              <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-                {dates.slice(0, 7).map((d, i) => {
-                  const on = selDates.includes(i);
-                  return (
-                    <button key={i} onClick={() => toggleDate(i)} aria-pressed={on} className={`px-3 py-2 min-h-[44px] rounded-lg text-center min-w-[68px] ring-1 transition relative ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"}`}>
-                      <div className="text-[12px] font-semibold leading-tight">{d.label}</div>
-                      <div className={`text-[10px] ${on ? "text-white/80" : "text-slate-500"}`}>{d.sub}</div>
-                      {on && <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center ring-2 ring-white"><Icon.check size={10} /></span>}
-                    </button>
-                  );
-                })}
-              </div>
+              <DatePickerRow value={selDates} onChange={setSelDates} />
             </div>
 
             {focused && (
@@ -369,22 +553,28 @@ function CrossSell({ on, onClick, icon: IconC, title, price, future }) {
 
 /* ============ ENTRY TICKET ============ */
 export function CustomerTicket() {
-  const { go, addToCart, clearCart, toast } = useApp();
+  const { addToCart, toast } = useApp();
   const cats = [
     { k: "adult", t: "Adult", p: 10, d: "Standard entry" },
     { k: "resident", t: "Alimos resident", p: 6, d: "Proof required at gate" },
     { k: "child", t: "Child (6–12)", p: 5, d: "Under 6 free" },
     { k: "senior", t: "Senior 65+", p: 7, d: "ID required" },
   ];
+  const [selDates, setSelDates] = useState([todayISO()]);
   const [qty, setQty] = useState({ adult: 2, resident: 0, child: 1, senior: 0 });
   const [biz, setBiz] = useState(false);
   const [vat, setVat] = useState("");
-  const total = cats.reduce((a, c) => a + c.p * qty[c.k], 0);
+  const dayCount = selDates.length;
+  const perDay = cats.reduce((a, c) => a + c.p * qty[c.k], 0);
+  const total = perDay * dayCount;
   const n = Object.values(qty).reduce((a, b) => a + b, 0);
 
   const pay = () => {
-    cats.forEach((c) => qty[c.k] > 0 && addToCart({ kind: "ticket", id: c.k, label: `${c.t} × ${qty[c.k]}`, sub: "Entry ticket", price: c.p * qty[c.k] }));
-    toast(`${n} ticket${n > 1 ? "s" : ""} added to your basket.`);
+    selDates.forEach((iso) => {
+      const sub = chipLabel(iso).sub;
+      cats.forEach((c) => qty[c.k] > 0 && addToCart({ kind: "ticket", id: `${c.k}@${iso}`, label: `${c.t} × ${qty[c.k]}`, sub: `Entry ticket · ${sub}`, price: c.p * qty[c.k] }));
+    });
+    toast(`${n} ticket${n > 1 ? "s" : ""} × ${dayCount} day${dayCount > 1 ? "s" : ""} added to your basket.`, { tone: "success" });
     setQty({ adult: 0, resident: 0, child: 0, senior: 0 });
   };
 
@@ -392,6 +582,13 @@ export function CustomerTicket() {
     <div className="animate-fade-up grid lg:grid-cols-[1fr_320px] gap-5">
       <div>
       <PageHead title="Entry Ticket" sub="Buy entry for yourself or your group — pricing adapts to each person's category." badge={<Badge tone="mvp">MVP</Badge>} />
+      <Card className="glass-card-solid p-5 mb-4">
+        <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center justify-between">
+          <span className="flex items-center gap-1.5"><Icon.calendar size={13} /> Dates · pick one or more</span>
+          <span className="text-slate-600 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
+        </div>
+        <DatePickerRow value={selDates} onChange={setSelDates} />
+      </Card>
       <Card className="glass-card-solid p-5 space-y-3">
         {cats.map((c) => (
           <div key={c.k} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-4 py-3">
@@ -414,7 +611,7 @@ export function CustomerTicket() {
         </div>
 
         <div className="flex items-center justify-between pt-2">
-          <div className="text-slate-600 text-sm">{n} ticket(s){biz ? " · ΤΠΥ" : " · ΑΠΥ"}</div>
+          <div className="text-slate-600 text-sm">{n} ticket(s) × {dayCount} day{dayCount > 1 ? "s" : ""}{biz ? " · ΤΠΥ" : " · ΑΠΥ"}</div>
           <div className="text-2xl font-bold font-display text-navy-900 tnum">€{total}</div>
         </div>
         <Btn variant="teal" full size="lg" icon={Icon.card} disabled={!n} onClick={pay}>Add €{total} to basket</Btn>
@@ -433,8 +630,7 @@ export function CustomerTicket() {
 export function CustomerLocker() {
   const { addToCart, toast } = useApp();
   const PRICE = 5;
-  const [selDates, setSelDates] = useState([0]);
-  const dates = useMemo(dateStrip, []);
+  const [selDates, setSelDates] = useState([todayISO()]);
   const banks = ["A", "B", "C", "D", "E"];
   const lockers = useMemo(() => {
     const arr = [];
@@ -443,14 +639,13 @@ export function CustomerLocker() {
   }, []);
   const [sel, setSel] = useState([]);
   const toggle = (id, taken) => { if (taken) return; setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id])); };
-  const toggleDate = (i) => setSelDates((d) => (d.includes(i) ? (d.length > 1 ? d.filter((x) => x !== i) : d) : [...d, i].sort((a, b) => a - b)));
   const dayCount = selDates.length;
   const total = sel.length * PRICE * dayCount;
   const free = lockers.filter((l) => !l.taken).length;
   const reserve = () => {
-    selDates.forEach((di) => {
-      const d = dates[di];
-      sel.forEach((id) => addToCart({ kind: "locker", id: `${id}@${di}`, label: `Locker ${id}`, sub: d.label, price: PRICE }));
+    selDates.forEach((iso) => {
+      const sub = chipLabel(iso).sub;
+      sel.forEach((id) => addToCart({ kind: "locker", id: `${id}@${iso}`, label: `Locker ${id}`, sub, price: PRICE }));
     });
     toast(`${sel.length} locker${sel.length > 1 ? "s" : ""} × ${dayCount} day${dayCount > 1 ? "s" : ""} added to your basket.`, { tone: "success" });
     setSel([]);
@@ -460,24 +655,14 @@ export function CustomerLocker() {
   return (
     <div className="grid lg:grid-cols-[1fr_320px] gap-5">
       <div>
-        <Card className="glass-card-solid p-4 mb-4">
+        <Card className="glass-card-solid p-4 mb-4 overflow-visible">
           <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center justify-between">
-            <span className="flex items-center gap-1"><Icon.calendar size={13} /> Dates · pick one or more</span>
+            <span className="flex items-center gap-1.5"><Icon.calendar size={13} /> Dates · pick one or more</span>
             <span className="text-slate-600 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            {dates.slice(0, 7).map((d, i) => {
-              const on = selDates.includes(i);
-              return (
-                <button key={i} onClick={() => toggleDate(i)} aria-pressed={on} className={`relative px-3.5 py-2 min-h-[44px] rounded-xl text-center min-w-[78px] ring-1 transition ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"}`}>
-                  <div className="text-[13px] font-semibold">{d.label}</div><div className={`text-[11px] ${on ? "text-white/80" : "text-slate-600"}`}>{d.sub}</div>
-                  {on && <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center ring-2 ring-white"><Icon.check size={10} /></span>}
-                </button>
-              );
-            })}
-          </div>
+          <DatePickerRow value={selDates} onChange={setSelDates} />
         </Card>
-        <div className="glass rounded-xl px-3 py-2 mb-2 flex items-center gap-4 text-[11px] text-navy-900 flex-wrap">
+        <div className="glass rounded-xl px-3 py-2 mb-3 mt-3 flex items-center gap-4 text-[11px] text-navy-900 flex-wrap">
           <span className="flex items-center gap-1.5"><i className="w-4 h-4 rounded bg-teal-500 inline-block ring-1 ring-white/70" />Available</span>
           <span className="flex items-center gap-1.5"><i className="w-4 h-4 rounded bg-navy-900 inline-block ring-1 ring-white/70" />Selected</span>
           <span className="flex items-center gap-1.5"><i className="w-4 h-4 rounded bg-slate-300 inline-block ring-1 ring-slate-400" />Taken</span>
@@ -486,11 +671,11 @@ export function CustomerLocker() {
         <LockerBackdrop className="p-5 ring-1 ring-white/30 shadow-float">
           <div className="relative space-y-4">
             {banks.map((bk) => (
-              <div key={bk} className="rounded-xl bg-white/35 backdrop-blur-sm ring-1 ring-white/50 p-3">
-                <div className="text-[12px] font-bold text-navy-900 mb-1.5 flex items-center gap-1.5">
-                  <Icon.lock size={12} /> Bank {bk}
+              <div key={bk} className="rounded-xl bg-white/55 backdrop-blur-sm ring-1 ring-white/60 p-3">
+                <div className="text-[12px] font-bold text-navy-900 mb-2 flex items-center gap-1.5">
+                  <Icon.lock size={13} /> Bank {bk}
                 </div>
-                <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(10,1fr)" }}>
+                <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(10,1fr)" }}>
                   {lockers.filter((l) => l.bank === bk).map((l) => {
                     const isSel = sel.includes(l.id);
                     const cl = l.taken
@@ -499,10 +684,9 @@ export function CustomerLocker() {
                         ? "bg-gradient-to-b from-navy-800 to-navy-950 text-white ring-2 ring-teal-400 shadow-lift"
                         : "bg-gradient-to-b from-teal-500 to-teal-700 text-white hover:from-teal-400 hover:to-teal-600 shadow-soft";
                     return (
-                      <button key={l.id} disabled={l.taken} onClick={() => toggle(l.id, l.taken)} title={`${l.id} · ${l.taken ? "Taken" : "€" + PRICE}`} className={`relative aspect-[3/4] rounded-md grid place-items-center transition ${cl}`}>
-                        <Icon.lock size={13} />
-                        <span className="absolute top-1 right-1 w-1 h-1 rounded-full bg-white/70" />
-                        <span className="absolute bottom-0.5 text-[7px] font-bold leading-none">{l.id}</span>
+                      <button key={l.id} disabled={l.taken} onClick={() => toggle(l.id, l.taken)} title={`${l.id} · ${l.taken ? "Taken" : "€" + PRICE}`} className={`relative aspect-[3/4] rounded-lg grid place-items-center transition ${cl} pb-3.5`}>
+                        <Icon.lock size={22} />
+                        <span className="absolute bottom-1 left-0 right-0 text-center text-[10px] font-bold leading-none tnum">{l.id}</span>
                       </button>
                     );
                   })}
@@ -538,8 +722,7 @@ export function CustomerLocker() {
 export function CustomerParking() {
   const { addToCart, toast } = useApp();
   const PRICE = 15;
-  const [selDates, setSelDates] = useState([0]);
-  const dates = useMemo(dateStrip, []);
+  const [selDates, setSelDates] = useState([todayISO()]);
   const [plate, setPlate] = useState("");
   const [sel, setSel] = useState(null);
   // 50 spots organised across 5 rows of 10 (two paired banks + one outer row).
@@ -553,13 +736,12 @@ export function CustomerParking() {
     return out;
   }, []);
   const taken = useMemo(() => new Set(["P3", "P7", "P12", "P18", "P21", "P24", "P29", "P33", "P40", "P44", "P47"]), []);
-  const toggleDate = (i) => setSelDates((d) => (d.includes(i) ? (d.length > 1 ? d.filter((x) => x !== i) : d) : [...d, i].sort((a, b) => a - b)));
   const dayCount = selDates.length;
   const free = rows.flat().length - taken.size;
   const reserve = () => {
-    selDates.forEach((di) => {
-      const d = dates[di];
-      addToCart({ kind: "parking", id: `${sel}@${di}`, label: `Parking ${sel}`, sub: `${plate || "—"} · ${d.label}`, price: PRICE });
+    selDates.forEach((iso) => {
+      const sub = chipLabel(iso).sub;
+      addToCart({ kind: "parking", id: `${sel}@${iso}`, label: `Parking ${sel}`, sub: `${plate || "—"} · ${sub}`, price: PRICE });
     });
     toast(`Parking spot ${sel} × ${dayCount} day${dayCount > 1 ? "s" : ""} added to your basket.`, { tone: "success" });
     setSel(null);
@@ -568,24 +750,14 @@ export function CustomerParking() {
   return (
     <div className="grid lg:grid-cols-[1fr_320px] gap-5">
       <div>
-        <Card className="glass-card-solid p-4 mb-4">
+        <Card className="glass-card-solid p-4 mb-4 overflow-visible">
           <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center justify-between">
-            <span className="flex items-center gap-1"><Icon.calendar size={13} /> Dates · pick one or more</span>
+            <span className="flex items-center gap-1.5"><Icon.calendar size={13} /> Dates · pick one or more</span>
             <span className="text-slate-600 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            {dates.slice(0, 7).map((d, i) => {
-              const on = selDates.includes(i);
-              return (
-                <button key={i} onClick={() => toggleDate(i)} aria-pressed={on} className={`relative px-3.5 py-2 min-h-[44px] rounded-xl text-center min-w-[78px] ring-1 transition ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"}`}>
-                  <div className="text-[13px] font-semibold">{d.label}</div><div className={`text-[11px] ${on ? "text-white/80" : "text-slate-600"}`}>{d.sub}</div>
-                  {on && <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center ring-2 ring-white"><Icon.check size={10} /></span>}
-                </button>
-              );
-            })}
-          </div>
+          <DatePickerRow value={selDates} onChange={setSelDates} />
         </Card>
-        <div className="glass rounded-xl px-3 py-2 mb-2 flex items-center justify-between text-navy-900 flex-wrap gap-2">
+        <div className="glass rounded-xl px-3 py-2 mb-3 mt-3 flex items-center justify-between text-navy-900 flex-wrap gap-2">
           <div className="font-semibold flex items-center gap-2 text-sm"><Icon.car size={18} /> Select a spot · {free} of 50 free</div>
           <div className="flex items-center gap-3 text-[11px]">
             <span className="flex items-center gap-1"><i className="w-3 h-3 rounded-sm bg-teal-500 inline-block ring-1 ring-white/60" />Free</span>
@@ -599,7 +771,7 @@ export function CustomerParking() {
               const lane = ri === 1 || ri === 3; // drive lane after row 0 and row 2
               return (
                 <div key={ri}>
-                  <div className="grid gap-1.5 mb-1.5" style={{ gridTemplateColumns: "repeat(10,1fr)" }}>
+                  <div className="grid gap-1 mb-1.5" style={{ gridTemplateColumns: "repeat(10,1fr)" }}>
                     {row.map((id) => {
                       const isTaken = taken.has(id), isSel = sel === id;
                       const cl = isTaken
@@ -608,15 +780,15 @@ export function CustomerParking() {
                           ? "bg-navy-900 text-white ring-2 ring-teal-400 shadow-lift"
                           : "bg-teal-500/95 text-white hover:bg-teal-600 shadow-soft";
                       return (
-                        <button key={id} disabled={isTaken} onClick={() => setSel(isSel ? null : id)} title={`${id} · ${isTaken ? "Taken" : "€" + PRICE}`} className={`aspect-[3/4] rounded-md grid place-items-center transition border border-white/70 ${cl}`}>
-                          <Icon.car size={14} />
-                          <span className="text-[8px] font-bold mt-0.5 tnum">{id}</span>
+                        <button key={id} disabled={isTaken} onClick={() => setSel(isSel ? null : id)} title={`${id} · ${isTaken ? "Taken" : "€" + PRICE}`} className={`relative aspect-square rounded-md grid place-items-center transition border border-white/70 ${cl} pb-3.5`}>
+                          <Icon.car size={22} />
+                          <span className="absolute bottom-0.5 left-0 right-0 text-center text-[10px] font-bold leading-none tnum">{id}</span>
                         </button>
                       );
                     })}
                   </div>
                   {lane && (
-                    <div className="my-1.5 h-6 flex items-center justify-center gap-2 text-[10px] text-yellow-200/95 tracking-widest uppercase font-bold drop-shadow">
+                    <div className="my-2 h-6 flex items-center justify-center gap-2 text-[10px] text-yellow-200/95 tracking-widest uppercase font-bold drop-shadow">
                       <span>←</span><span>drive lane</span><span>→</span>
                     </div>
                   )}
@@ -665,6 +837,22 @@ export function CustomerBookings() {
         <StatCard label="This season" value={`€${total}`} sub={`${data.length} confirmed`} />
         <StatCard label="Next visit" value="Sun, 19 Jul" sub="Central zone · 2 sunbeds" tone="indigo" />
       </div>
+      {/* Season in review (P5.6) */}
+      <Card className="overflow-hidden">
+        <div className="grad-sea text-white p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-teal-200"><Icon.sparkles size={13} /> Your season in review</div>
+            <div className="mt-1 font-display font-bold text-xl">You've had a sunny summer, Elena ☀️</div>
+            <div className="text-[13px] text-white/80 mt-0.5">9 visits · favourite zone <b className="text-white">Central</b> · you saved <b className="text-white">€34</b> with offers.</div>
+          </div>
+          <div className="flex items-center gap-5 shrink-0">
+            <div className="text-center"><div className="text-2xl font-bold font-display tnum">9</div><div className="text-[11px] text-white/70">visits</div></div>
+            <div className="text-center"><div className="text-2xl font-bold font-display tnum">€{total}</div><div className="text-[11px] text-white/70">spent</div></div>
+            <div className="w-px h-10 bg-white/20" />
+            <div className="w-28"><Sparkline data={[1,2,1,3,2,4,3,5]} color="#5EEAD4" width={112} height={36} /><div className="text-[10px] text-white/70 text-center mt-1">visits / month</div></div>
+          </div>
+        </div>
+      </Card>
       <Card className="p-4">
         <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
           <Tabs tabs={[["all", "All"], ["active", "Active"], ["past", "Past"]]} value={filter} onChange={setFilter} />
@@ -701,7 +889,13 @@ export function CustomerDocs() {
   const docs = CUSTOMER_DOCS;
   const [view, setView] = useState(null);
   const loading = useMockLoad();
-  const download = (d) => { downloadText(`${d.id}.txt`, mockCustomerReceipt(d), "text/plain;charset=utf-8"); toast(`Downloaded ${d.id}.`, { tone: "success" }); };
+  const download = (d) => { downloadPDF(`${d.id}.pdf`, customerReceiptDoc(d)); toast(`Downloaded ${d.id}.pdf`, { tone: "success" }); };
+  const downloadAll = () => {
+    const files = filtered.map((d) => ({ name: `${d.id}.pdf`, content: buildReceiptBytes(d) }));
+    if (!files.length) { toast("Nothing to bundle in this filter."); return; }
+    downloadZIP(`slaice-receipts-${new Date().toISOString().slice(0,10)}.zip`, files);
+    toast(`Bundled ${files.length} PDF${files.length === 1 ? "" : "s"} into ZIP.`, { tone: "success" });
+  };
   const [filter, setFilter] = useState("all");
   const tone = (id) => id.startsWith("ΑΠΥ") ? "apy" : id.startsWith("ΤΠΥ") ? "tpy" : "credit";
   const filtered = docs.filter((d) => filter === "all" || tone(d.id) === filter);
@@ -719,7 +913,7 @@ export function CustomerDocs() {
       <Card className="p-4">
         <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
           <Tabs tabs={[["all", "All"], ["apy", "ΑΠΥ"], ["tpy", "ΤΠΥ"], ["credit", "Credit notes"]]} value={filter} onChange={setFilter} />
-          <Btn size="sm" variant="outline" icon={Icon.download} onClick={() => toast("Demo — bulk download started.", { tone: "success" })}>Download all (ZIP)</Btn>
+          <Btn size="sm" variant="outline" icon={Icon.download} onClick={downloadAll}>Download all (ZIP)</Btn>
         </div>
         {loading ? (
           <TableSkeleton rows={2} cols={6} />
@@ -771,19 +965,28 @@ export function CustomerDocs() {
   );
 }
 
-function mockCustomerReceipt(d) {
-  const lines = d.lines.map(([l, n, v, t]) => `  ${l.padEnd(28)} net ${n}  VAT ${v}  total ${t}`).join("\n");
-  return [
-    "AKTI TOU ILIOU AE — Receipt (ΑΠΥ)",
-    "ΑΦΜ 123456789 · GR · payment 7 (Stripe online)",
-    `Document: ${d.id}`,
-    `Date: ${d.date}`,
-    `MARK: ${d.mark}`,
-    "",
-    "Lines:",
-    lines,
-    "",
-    `TOTAL: ${d.amt}`,
-    "Transmitted to AADE · MyDATA",
-  ].join("\n");
+function customerReceiptDoc(d) {
+  const kind = d.id.startsWith("ΑΠΥ") ? "Retail receipt (ΑΠΥ)"
+            : d.id.startsWith("ΤΠΥ") ? "Service receipt (ΤΠΥ)"
+            : "Credit note";
+  return {
+    title: "AKTI TOU ILIOU AE",
+    subtitle: `${kind} · ${d.id}`,
+    meta: [
+      `ΑΦΜ 123456789 · GR · payment 7 (Stripe online)`,
+      `Issued ${d.date} · for ${d.for}`,
+      `MARK ${d.mark}`,
+    ],
+    table: {
+      cols: ["Item", "Qty", "Net", "VAT", "Total"],
+      rightCols: [1, 2, 3, 4],
+      rows: d.lines.map(([l, n, v, t]) => [l, n, v, t]),
+    },
+    totals: [["Total gross", d.amt]],
+    footer: [
+      "Transmitted to AADE · MyDATA — invoiceType 2.1",
+      "Slaice POS · cashier 7 · register 1",
+    ],
+  };
 }
+function buildReceiptBytes(d) { return buildPDFBytes(customerReceiptDoc(d)); }

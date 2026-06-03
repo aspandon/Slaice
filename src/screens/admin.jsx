@@ -1,9 +1,10 @@
 import { useRef, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, useMockLoad, FutureBanner, ContextPanel } from "../components/ui.jsx";
-import { BarChart, LineChartMini, Donut, QR } from "../components/charts.jsx";
+import { BarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts.jsx";
 import { ZONES } from "../data/beach.js";
 import { ADMIN_BOOKINGS, ADMIN_REFUNDS, CUSTOMERS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS } from "../data/mock.js";
+import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr.js";
 import { useApp } from "../app/store.jsx";
 import { downloadCSV } from "../lib/download.js";
 
@@ -22,10 +23,10 @@ export function AdminDashboard() {
       <PageHead title="Dashboard" sub="Akti tou Iliou · bookings & revenue overview" badge={<Badge tone="mvp">MVP</Badge>}
         actions={<Tabs tabs={[["day", "Day"], ["week", "Week"], ["month", "Month"], ["year", "Year"]]} value={period} onChange={setPeriod} />} />
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Revenue (7d)" value="€33.4k" sub="+12% vs prev week" tone="teal" icon={Icon.chart} delta={<Icon.trend size={12} />} />
-        <StatCard label="Bookings (7d)" value="1,284" sub="online + walk-in" icon={Icon.umbrella} />
-        <StatCard label="Occupancy" value="71%" sub="avg across zones" icon={Icon.grid} />
-        <StatCard label="Avg basket" value="€41" sub="sunbed + entries" icon={Icon.card} />
+        <StatCard label="Revenue (7d)" value="€33.4k" sub="vs prev week" tone="teal" trend="+12%" />
+        <StatCard label="Bookings (7d)" value="1,284" sub="online + walk-in" trend="+8%" />
+        <StatCard label="Occupancy" value="71%" sub="avg across zones" trend="+3pp" />
+        <StatCard label="Avg basket" value="€41" sub="sunbed + entries" trend="+€2" />
       </div>
       <div className="grid lg:grid-cols-3 gap-4 mt-4">
         <Card className="p-5 lg:col-span-2">
@@ -173,7 +174,11 @@ export function AdminMapEditor() {
           </div>
           <div className="mt-3 flex items-center justify-between text-[12px] text-slate-500">
             <span>{zones.length} zone{zones.length !== 1 ? "s" : ""} · {zones.reduce((a, z) => a + z.rows * z.cols, 0)} beds total</span>
-            <Btn variant="ghost" size="sm" icon={Icon.plus} onClick={add}>Add zone</Btn>
+            <button onClick={add}
+              className="group inline-flex items-center gap-1.5 rounded-lg border-2 border-dashed border-teal-400 text-teal-700 hover:bg-teal-50 hover:border-teal-600 active:bg-teal-100 px-3 py-1.5 text-[12px] font-semibold transition shadow-sm">
+              <span className="w-5 h-5 rounded-md bg-teal-500 text-white grid place-items-center group-hover:bg-teal-600 transition"><Icon.plus size={13} /></span>
+              Add zone
+            </button>
           </div>
         </Card>
 
@@ -349,18 +354,38 @@ export function AdminReporting() {
 
       {tab === "exec" && <>
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <StatCard label="Season revenue" value="€704k" sub="+9% vs last yr" tone="teal" icon={Icon.chart} />
-          <StatCard label="Total bookings" value="26,040" sub="sets sold" icon={Icon.umbrella} />
-          <StatCard label="Avg occupancy" value="68%" icon={Icon.grid} />
-          <StatCard label="Online share" value="40%" sub="of sets" icon={Icon.globe} />
-          <StatCard label="Refund rate" value="1.4%" icon={Icon.refund} />
+          <StatCard label="Season revenue" value="€704k" sub="vs last yr" tone="teal" trend="+9%" sparkline={<Sparkline data={[48,121,198,241,96]} />} />
+          <StatCard label="Total bookings" value="26,040" sub="sets sold" trend="+7%" sparkline={<Sparkline data={[120,98,142,165,210,320,298]} color="#0ea5e9" />} />
+          <StatCard label="Avg occupancy" value="68%" sub="across zones" trend="+3pp" />
+          <StatCard label="Online share" value="40%" sub="of sets" trend="+5pp" />
+          <StatCard label="Refund rate" value="1.4%" sub="of revenue" trend="-0.3pp" tone="teal" />
+        </div>
+        {/* Leisure-industry KPIs (RevPATB ≈ RevPAR for sunbeds). */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+          <StatCard label="RevPATB" value="€18.4" sub="rev / available sunbed" tone="indigo" trend="+6%" />
+          <StatCard label="ADR" value="€27.1" sub="avg daily rate / set" trend="+4%" />
+          <StatCard label="Ancillary attach" value="0.7" sub="extras per booking" trend="+0.1" />
+          <StatCard label="No-show rate" value="2.8%" sub="of reservations" trend="-0.4pp" tone="teal" />
         </div>
         <div className="grid lg:grid-cols-3 gap-4 mt-4">
           <Card className="p-5 lg:col-span-2"><div className="font-semibold text-navy-900 mb-1">Revenue by month (€k)</div><LineChartMini data={season} /></Card>
           <Card className="p-5"><div className="font-semibold text-navy-900 mb-2">Revenue mix</div>
             <div className="flex items-center gap-4"><Donut segments={[{ v: 62, c: "#0D9488" }, { v: 28, c: "#0ea5e9" }, { v: 10, c: "#f59e0b" }]} />
-              <div className="text-sm space-y-1.5"><div>Sunbeds 62%</div><div>Tickets 28%</div><div>Other 10%</div></div></div>
+              <div className="text-sm space-y-1.5"><Leg c="bg-teal-600" t="Sunbeds 62%" /><Leg c="bg-sky-500" t="Tickets 28%" /><Leg c="bg-amber-500" t="Other 10%" /></div></div>
           </Card>
+        </div>
+        {/* Pace / pickup + an actionable insight callout. */}
+        <div className="grid lg:grid-cols-3 gap-4 mt-4">
+          <Card className="p-5 lg:col-span-2">
+            <div className="font-semibold text-navy-900 mb-1">Booking pace · on the books vs same time last year</div>
+            <BarChart color="#3a47cc" data={[{ l: "Jun", v: 121 }, { l: "Jul", v: 210, hi: 1 }, { l: "Aug", v: 198, hi: 1 }, { l: "Sep", v: 86 }, { l: "Oct", v: 22 }]} />
+          </Card>
+          <div className="rounded-3xl bg-gradient-to-br from-slaice-600 to-slaice-500 text-white p-5 shadow-lift flex flex-col">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-white/80"><Icon.sparkles size={14} /> Insight</div>
+            <div className="mt-2 font-display font-bold text-lg leading-snug">Saturdays run 23% hotter than weekdays.</div>
+            <p className="text-[13px] text-white/85 mt-1 leading-snug">Macaw hits 91% by noon. Consider dynamic weekend pricing on front-row sets to lift RevPATB.</p>
+            <Btn variant="light" size="sm" className="mt-auto self-start" icon={Icon.trend} onClick={() => toast("Demo — open dynamic pricing rules.")}>Set a rule</Btn>
+          </div>
         </div>
       </>}
 
@@ -531,6 +556,93 @@ export function AdminCommunicate() {
           </div>
         </aside>
       </div>
+    </div>
+  );
+}
+
+/* ============ PRIVACY & GDPR (Admin / controller side) ============ */
+export function AdminPrivacy() {
+  const { toast } = useApp();
+  const [tab, setTab] = useState("requests");
+  const tabs = [
+    ["requests", "Data requests", Icon.inbox],
+    ["consent", "Consent audit", Icon.sliders],
+    ["retention", "Retention", Icon.clock],
+    ["ropa", "Processing register", Icon.database],
+  ];
+  const slaTone = (d) => d < 0 ? "slate" : d <= 10 ? "red" : d <= 20 ? "amber" : "green";
+  const open = DSAR_QUEUE.filter((r) => r.status !== "Completed");
+  return (
+    <div className="animate-fade-up">
+      <PageHead actions={<><Btn variant="outline" icon={Icon.download} onClick={() => { downloadCSV("dsar-requests.csv", ["ID", "Type", "Subject", "Email", "Received", "Due (days)", "Status"], DSAR_QUEUE.map((r) => [r.id, r.type, r.subject, r.email, r.received, r.dueDays, r.status])); toast("Exported DSAR log (CSV)."); }}>Export log</Btn><Btn variant="primary" icon={Icon.shieldCheck} onClick={() => toast("Demo — privacy settings saved.")}>Save policy</Btn></>} />
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <StatCard label="Open requests" value={String(open.length)} sub="awaiting action" tone="indigo" />
+        <StatCard label="Due ≤ 10 days" value={String(DSAR_QUEUE.filter((r) => r.dueDays >= 0 && r.dueDays <= 10).length)} sub="30-day statutory SLA" tone="rose" />
+        <StatCard label="Consent rate" value="64%" sub="marketing opt-in" trend="+3pp" />
+        <StatCard label="Avg resolution" value="6.2d" sub="well within SLA" tone="teal" />
+      </div>
+      <Tabs tabs={tabs} value={tab} onChange={setTab} className="mb-4" scroll />
+
+      {tab === "requests" && (
+        <Card className="p-2">
+          <div className="px-3 pt-2 pb-1 text-[12px] text-slate-500">Data Subject Access Requests — GDPR Art. 15–20, 30-day clock.</div>
+          <Table cols={["Request", "Type", "Subject", "Received", "Due", "Status", ""]} right={[6]}
+            rows={DSAR_QUEUE.map((r) => [
+              <span className="font-mono text-[12px] text-navy-900">{r.id}</span>,
+              <Badge tone={r.type === "Erasure" ? "red" : r.type === "Access" ? "blue" : "slate"}>{r.type}</Badge>,
+              <div><div className="font-semibold text-[13px] text-navy-900">{r.subject}</div><div className="text-[11px] text-slate-500">{r.email}</div></div>,
+              r.received,
+              r.status === "Completed" ? <Badge tone="green"><Icon.check size={11} /> Done</Badge> : <Badge tone={slaTone(r.dueDays)}>{r.dueDays}d left</Badge>,
+              <Badge tone={r.status === "Completed" ? "green" : r.status === "Awaiting ID" ? "amber" : "slate"}>{r.status}</Badge>,
+              <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => toast(`Demo — handle ${r.id} (${r.type}).`)}>Handle</Btn>,
+            ])} />
+        </Card>
+      )}
+
+      {tab === "consent" && (
+        <div className="grid lg:grid-cols-2 gap-4">
+          <Card className="p-5">
+            <div className="font-semibold text-navy-900 mb-3">Consent opt-in rates</div>
+            <div className="space-y-3">
+              {[["Analytics", 71], ["Marketing — e-mail", 64], ["Marketing — SMS", 38], ["Marketing — push", 52]].map(([l, v]) => (
+                <div key={l}>
+                  <div className="flex items-center justify-between text-[12px] mb-1"><span className="text-slate-600">{l}</span><b className="text-navy-900 tnum">{v}%</b></div>
+                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-teal-500 to-teal-600" style={{ width: `${v}%` }} /></div>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Card className="p-5">
+            <div className="font-semibold text-navy-900 mb-3">Consent purposes</div>
+            <div className="space-y-2">
+              {CONSENT_PURPOSES.map((p) => (
+                <div key={p.key} className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
+                  <div className="flex items-center gap-2 font-semibold text-[13px] text-navy-900">{p.label}{p.required && <Badge tone="slate">Always on</Badge>}</div>
+                  <div className="text-[12px] text-slate-600 leading-snug mt-0.5">{p.desc}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 text-[11px] text-slate-500">Withdrawals are honoured immediately and logged with a timestamp.</div>
+          </Card>
+        </div>
+      )}
+
+      {tab === "retention" && (
+        <Card className="p-2">
+          <div className="px-3 pt-2 pb-1 text-[12px] text-slate-500">Data retention schedule — anonymised or deleted automatically at term.</div>
+          <Table cols={["Data category", "Retention", "Legal basis"]}
+            rows={RETENTION.map((r) => [r.data, <span className={r.legal ? "font-semibold text-navy-900" : ""}>{r.period}</span>, r.legal ? <Badge tone="amber">{r.basis}</Badge> : r.basis])} />
+          <div className="px-3 py-3 flex justify-end"><Btn size="sm" variant="outline" icon={Icon.database} onClick={() => toast("Demo — anonymised 1,204 customers older than 24 months.")}>Run anonymisation</Btn></div>
+        </Card>
+      )}
+
+      {tab === "ropa" && (
+        <Card className="p-2">
+          <div className="px-3 pt-2 pb-1 text-[12px] text-slate-500">Records of Processing Activities — GDPR Art. 30.</div>
+          <Table cols={["Activity", "Purpose", "Data categories", "Basis", "Retention"]}
+            rows={ROPA.map((r) => [<b className="text-navy-900">{r.activity}</b>, r.purpose, r.categories, <Badge tone="slate">{r.basis}</Badge>, r.retention])} />
+        </Card>
+      )}
     </div>
   );
 }

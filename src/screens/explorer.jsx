@@ -165,7 +165,7 @@ export function JourneyExplorer() {
             <span className="text-[12px] text-slate-600">Step {stepIdx + 1} of {active.steps.length}</span>
             <div className="flex gap-2">
               <Btn variant="ghost" icon={Icon.arrowL} disabled={stepIdx === 0} onClick={() => setStepIdx((s) => s - 1)}>Prev</Btn>
-              {active.steps[stepIdx].go && <Btn variant="outline" icon={Icon.eye} onClick={() => { const g = active.steps[stepIdx].go; setActive(null); go(g[0], g[1]); }}>Open screen</Btn>}
+              {active.steps[stepIdx].go && <Btn variant="outline" icon={Icon.eye} onClick={() => { const s = active.steps[stepIdx]; const g = s.go; setActive(null); go(g[0], g[1], s.spotlight ? { spotlight: s.spotlight, tip: s.tip || s.t } : null); }}>Open screen</Btn>}
               {stepIdx < active.steps.length - 1
                 ? <Btn variant="primary" icon={Icon.arrowR} onClick={() => setStepIdx((s) => s + 1)}>Next</Btn>
                 : <Btn variant="teal" icon={Icon.check} onClick={() => setActive(null)}>Done</Btn>}

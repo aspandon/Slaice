@@ -174,7 +174,7 @@ function BeachScene() {
 export function ParkingBackdrop({ children, className = "" }) {
   return (
     <div className={`relative overflow-hidden rounded-2xl ${className}`}>
-      <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+      <svg aria-hidden="true" className="absolute inset-0 w-full h-full opacity-90" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
         <defs>
           <linearGradient id="pk-asphalt" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%" stopColor="#3f4753" />
@@ -215,7 +215,7 @@ export function ParkingBackdrop({ children, className = "" }) {
 export function LockerBackdrop({ children, className = "" }) {
   return (
     <div className={`relative overflow-hidden rounded-2xl ${className}`}>
-      <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+      <svg aria-hidden="true" className="absolute inset-0 w-full h-full opacity-75" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
         <defs>
           <linearGradient id="lk-wall" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#eaf2f8" />
