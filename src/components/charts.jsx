@@ -6,8 +6,8 @@ function formatTick(v) {
   return Math.round(v).toString();
 }
 
-const PAD_LEFT = 36;   // px reserved for Y-axis labels
-const PAD_BOTTOM = 22; // px reserved for X-axis labels
+const PAD_LEFT = 44;   // px reserved for Y-axis labels
+const PAD_BOTTOM = 28; // px reserved for X-axis labels
 
 export function BarChart({ data, color = "#0D9488", height = 220 }) {
   const max = Math.max(...data.map((d) => d.v)) * 1.15 || 1;
@@ -15,7 +15,7 @@ export function BarChart({ data, color = "#0D9488", height = 220 }) {
   return (
     <div className="relative" style={{ height }}>
       {/* Y-axis labels */}
-      <div className="absolute left-0 top-0 flex flex-col justify-between text-[10px] font-medium text-slate-500 tnum pr-2 pointer-events-none" style={{ width: PAD_LEFT, bottom: PAD_BOTTOM }}>
+      <div className="absolute left-0 top-0 flex flex-col justify-between text-[12px] font-medium text-slate-500 tnum pr-2 pointer-events-none" style={{ width: PAD_LEFT, bottom: PAD_BOTTOM }}>
         {ticks.map((t, i) => <span key={i} className="text-right leading-none">{formatTick(max * t)}</span>)}
       </div>
       {/* Plot area */}
@@ -34,7 +34,7 @@ export function BarChart({ data, color = "#0D9488", height = 220 }) {
         </svg>
       </div>
       {/* X-axis labels */}
-      <div className="absolute right-0 bottom-0 grid text-[11px] font-medium text-slate-600 pointer-events-none" style={{ left: PAD_LEFT, height: PAD_BOTTOM, gridTemplateColumns: `repeat(${data.length}, 1fr)` }}>
+      <div className="absolute right-0 bottom-0 grid text-[12.5px] font-medium text-slate-600 pointer-events-none" style={{ left: PAD_LEFT, height: PAD_BOTTOM, gridTemplateColumns: `repeat(${data.length}, 1fr)` }}>
         {data.map((d, i) => <span key={i} className="text-center pt-1.5 truncate">{d.l}</span>)}
       </div>
     </div>
@@ -51,7 +51,7 @@ export function LineChartMini({ data, color = "#0D9488", height = 220 }) {
   const gid = `g${color.replace("#", "")}`;
   return (
     <div className="relative" style={{ height }}>
-      <div className="absolute left-0 top-0 flex flex-col justify-between text-[10px] font-medium text-slate-500 tnum pr-2 pointer-events-none" style={{ width: PAD_LEFT, bottom: PAD_BOTTOM }}>
+      <div className="absolute left-0 top-0 flex flex-col justify-between text-[12px] font-medium text-slate-500 tnum pr-2 pointer-events-none" style={{ width: PAD_LEFT, bottom: PAD_BOTTOM }}>
         {ticks.map((t, i) => <span key={i} className="text-right leading-none">{formatTick(min + span * t)}</span>)}
       </div>
       <div className="absolute top-0 right-0" style={{ left: PAD_LEFT, bottom: PAD_BOTTOM }}>
@@ -74,7 +74,7 @@ export function LineChartMini({ data, color = "#0D9488", height = 220 }) {
           })}
         </svg>
       </div>
-      <div className="absolute right-0 bottom-0 grid text-[11px] font-medium text-slate-600 pointer-events-none" style={{ left: PAD_LEFT, height: PAD_BOTTOM, gridTemplateColumns: `repeat(${data.length}, 1fr)` }}>
+      <div className="absolute right-0 bottom-0 grid text-[12.5px] font-medium text-slate-600 pointer-events-none" style={{ left: PAD_LEFT, height: PAD_BOTTOM, gridTemplateColumns: `repeat(${data.length}, 1fr)` }}>
         {data.map((d, i) => <span key={i} className="text-center pt-1.5 truncate">{d.l}</span>)}
       </div>
     </div>

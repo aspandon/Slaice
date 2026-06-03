@@ -239,14 +239,16 @@ export function FutureBanner({ children = "Preview · Roadmap 2027–2029 — fu
   );
 }
 
-/* ---------- Context panel (used on sparse forms) ---------- */
+/* ---------- Context panel (used on sparse forms) ----------
+   Title renders INSIDE the card as a header strip rather than as a label
+   above it, so the panel reads as a single self-contained surface. */
 export function ContextPanel({ title, items = [], footer }) {
   return (
-    <aside className="space-y-3 lg:sticky lg:top-24 h-max">
-      {title && (
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 px-1">{title}</div>
-      )}
+    <aside className="lg:sticky lg:top-24 h-max">
       <div className="rounded-2xl ring-1 ring-slate-200 bg-white/70 backdrop-blur p-4 space-y-3">
+        {title && (
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 pb-2 border-b border-slate-100">{title}</div>
+        )}
         {items.map((it, i) => (
           <div key={i} className="flex gap-2.5">
             {it.icon && <span className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 grid place-items-center shrink-0">{<it.icon size={14} />}</span>}

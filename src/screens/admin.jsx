@@ -35,9 +35,9 @@ export function AdminDashboard() {
         </Card>
         <Card className="p-5">
           <div className="font-semibold text-navy-900 mb-2">Revenue by capability</div>
-          <div className="flex items-center gap-4">
-            <Donut segments={[{ v: 62, c: "#0D9488" }, { v: 28, c: "#0ea5e9" }, { v: 10, c: "#f59e0b" }]} />
-            <div className="text-sm space-y-1.5">
+          <div className="flex items-center justify-center gap-5">
+            <Donut segments={[{ v: 62, c: "#0D9488" }, { v: 28, c: "#0ea5e9" }, { v: 10, c: "#f59e0b" }]} size={180} />
+            <div className="text-sm space-y-2">
               <Leg c="bg-teal-600" t="Sunbeds 62%" /><Leg c="bg-sky-500" t="Tickets 28%" /><Leg c="bg-amber-500" t="Other 10%" />
             </div>
           </div>
@@ -240,10 +240,14 @@ export function AdminBookings() {
   };
   return (
     <div>
-      <PageHead actions={<Btn variant="outline" icon={Icon.download} onClick={exportCSV}>Export</Btn>} />
       <Card className="p-4">
-        <div className="flex items-center gap-2 mb-3 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-sm text-slate-600">
-          <Icon.search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search bookings…" className="text-sm outline-none w-full bg-transparent text-ink" />
+        {/* Search + Export sit on the same row inside the card so the header
+            doesn't add a separate strip above. Export hugs the right edge. */}
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
+          <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-sm flex-1 min-w-[200px] text-slate-600">
+            <Icon.search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search bookings…" className="text-sm outline-none w-full bg-transparent text-ink" />
+          </div>
+          <Btn variant="outline" icon={Icon.download} onClick={exportCSV} className="ml-auto">Export</Btn>
         </div>
         {loading ? (
           <TableSkeleton rows={5} cols={8} />
@@ -312,16 +316,17 @@ export function AdminUsers() {
   const rows = users.filter((u) => (tagFilter === "All" || u.tags.includes(tagFilter)) && (u.n + u.e).toLowerCase().includes(q.toLowerCase()));
   return (
     <div className="animate-fade-up">
-      <PageHead title="Users & Segments" sub="Search, filter and tag customers for CRM & marketing. Interaction filter: admin sees all; a customer sees only their own." badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<Btn variant="outline" icon={Icon.tag} onClick={() => toast("Demo — create a tag / segment.")}>New tag</Btn>} />
       <Card className="p-4">
-        <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-xs flex-1 text-slate-600">
+        {/* Search · tag filters · New tag — all in one row inside the card.
+            "New tag" is pushed to the far right with ml-auto. */}
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
+          <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-xs flex-1 min-w-[180px] text-slate-600">
             <Icon.search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search users…" className="text-sm outline-none w-full bg-transparent text-ink" />
           </div>
           <div className="flex gap-1.5 flex-wrap">
             {allTags.map((t) => <button key={t} onClick={() => setTagFilter(t)} className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold ring-1 ${tagFilter === t ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 text-slate-600 hover:ring-teal-400"}`}>{t}</button>)}
           </div>
+          <Btn variant="outline" icon={Icon.tag} onClick={() => toast("Demo — create a tag / segment.")} className="ml-auto">New tag</Btn>
         </div>
         <Table cols={["Name", "Email", "Bookings", "Tags", ""]} right={[2]}
           rows={rows.map((u) => [u.n, u.e, u.b,
@@ -349,8 +354,15 @@ export function AdminReporting() {
   const season = [{ l: "May", v: 48 }, { l: "Jun", v: 121 }, { l: "Jul", v: 198 }, { l: "Aug", v: 241 }, { l: "Sep", v: 96 }];
   return (
     <div className="animate-fade-up">
-      <PageHead actions={<><Btn variant="outline" icon={Icon.calendar} onClick={() => toast("Demo — period picker.")}>This season</Btn><Btn variant="primary" icon={Icon.download} onClick={() => { downloadCSV(`reporting-${tab}.csv`, ["Period", "Bookings"], season.map((s) => [s.l, s.v])); toast(`Exported ${tab} report (CSV).`); }}>Export</Btn></>} />
-      <Tabs tabs={tabs} value={tab} onChange={setTab} className="mb-4" scroll />
+      {/* Tabs and the period / export actions share one row. Tabs take the
+          natural width on the left, actions hug the right edge. */}
+      <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <Tabs tabs={tabs} value={tab} onChange={setTab} scroll />
+        <div className="flex gap-2 ml-auto">
+          <Btn variant="outline" icon={Icon.calendar} onClick={() => toast("Demo — period picker.")}>This season</Btn>
+          <Btn variant="primary" icon={Icon.download} onClick={() => { downloadCSV(`reporting-${tab}.csv`, ["Period", "Bookings"], season.map((s) => [s.l, s.v])); toast(`Exported ${tab} report (CSV).`); }}>Export</Btn>
+        </div>
+      </div>
 
       {tab === "exec" && <>
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
