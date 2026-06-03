@@ -27,6 +27,7 @@ const MAP = {
   "admin.users": () => <A.AdminUsers />,
   "admin.reporting": () => <A.AdminReporting />,
   "admin.refunds": () => <A.AdminRefunds />,
+  "admin.privacy": () => <A.AdminPrivacy />,
   "admin.communicate": () => <A.AdminCommunicate />,
   // cashier
   "cashier.issue": () => <CA.CashierIssue />,
@@ -42,6 +43,7 @@ const MAP = {
   "platform.tenants": () => <P.PlatformTenants />,
   "platform.onboarding": () => <P.PlatformOnboarding />,
   "platform.superadmin": () => <P.PlatformSuperAdmin />,
+  "platform.compliance": () => <P.PlatformCompliance />,
   "platform.verticals": () => <P.PlatformVerticals />,
   "platform.landing": () => <P.PlatformLanding />,
 };

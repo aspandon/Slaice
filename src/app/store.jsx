@@ -13,6 +13,9 @@ export const AppCtx = createContext({
   setLang: () => {},
   hint: null,
   clearHint: () => {},
+  consent: { necessary: true, analytics: false, marketing: false, decided: false, ts: null },
+  setConsent: () => {},
+  reopenConsent: () => {},
 });
 
 export const useApp = () => useContext(AppCtx);

@@ -3,6 +3,7 @@ import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Field, Input, Select, Toggle, FutureBanner } from "../components/ui.jsx";
 import { SlaiceLogo } from "../components/Brand.jsx";
 import { PLATFORM_TENANTS } from "../data/mock.js";
+import { SUBPROCESSORS, BREACHES, TENANT_DPA } from "../data/gdpr.js";
 import { useApp } from "../app/store.jsx";
 
 function ModuleList({ modules }) {
@@ -283,6 +284,47 @@ export function PlatformLanding() {
               <div className="text-[13px] text-slate-500">{c.d}</div>
             </div>
           ))}
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+/* ============ COMPLIANCE & DPA (Platform / Slaice) ============ */
+export function PlatformCompliance() {
+  const { toast } = useApp();
+  return (
+    <div className="animate-fade-up">
+      <PageHead actions={<><Btn variant="outline" icon={Icon.download} onClick={() => toast("Demo — downloaded the GDPR/DPA pack (PDF).")}>DPA pack</Btn><Btn variant="primary" icon={Icon.shieldCheck} onClick={() => toast("Demo — compliance posture saved.")}>Save</Btn></>} />
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <StatCard label="Data residency" value="EU" sub="Frankfurt region" tone="indigo" />
+        <StatCard label="Sub-processors" value={String(SUBPROCESSORS.length)} sub="all DPA-signed" tone="teal" />
+        <StatCard label="Open incidents" value="0" sub="last 12 months" tone="teal" />
+        <StatCard label="Breach SLA" value="72h" sub="DPA notification" />
+      </div>
+      <div className="grid lg:grid-cols-2 gap-4">
+        <Card className="p-2">
+          <div className="px-3 pt-2 pb-1 font-semibold text-navy-900">Sub-processors</div>
+          <Table cols={["Provider", "Purpose", "Region", "DPA"]}
+            rows={SUBPROCESSORS.map((s) => [<b className="text-navy-900">{s.name}</b>, s.purpose, s.region, <Badge tone={s.dpa === "Signed" ? "green" : "slate"}>{s.dpa}</Badge>])} />
+        </Card>
+        <Card className="p-2">
+          <div className="px-3 pt-2 pb-1 font-semibold text-navy-900">Per-tenant DPA &amp; posture</div>
+          <Table cols={["Tenant", "DPA", "Residency", "DPO", "Reviewed"]}
+            rows={TENANT_DPA.map((t) => [<b className="text-navy-900">{t.tenant}</b>, <Badge tone={t.dpa === "Signed" ? "green" : "amber"}>{t.dpa}</Badge>, t.residency, t.dpo, t.lastReview])} />
+        </Card>
+      </div>
+      <Card className="p-5 mt-4">
+        <div className="flex items-center justify-between mb-3">
+          <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.shieldAlert size={16} className="text-teal-600" /> Breach notification register</div>
+          <Btn size="sm" variant="outline" icon={Icon.bolt} onClick={() => toast("Demo — opened the 72-hour breach workflow.")}>Start workflow</Btn>
+        </div>
+        <div className="rounded-2xl bg-teal-50/70 ring-1 ring-teal-600/15 p-4 flex items-center gap-3">
+          <span className="w-10 h-10 rounded-xl bg-white text-teal-700 grid place-items-center shrink-0 shadow-sm"><Icon.shieldCheck size={20} /></span>
+          <div>
+            <div className="font-semibold text-navy-900">All clear</div>
+            <div className="text-[13px] text-slate-600">{BREACHES[0].note} If an incident occurs, affected tenants and supervisory authorities are notified within 72 hours.</div>
+          </div>
         </div>
       </Card>
     </div>

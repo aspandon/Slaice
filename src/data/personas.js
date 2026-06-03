@@ -30,6 +30,7 @@ export const NAV = {
     { k: "users", label: "Users & Segments", icon: "users", badge: "MVP" },
     { k: "reporting", label: "Reporting & Analytics", icon: "trend", badge: "MVP" },
     { k: "refunds", label: "Refunds", icon: "refund", badge: "MVP" },
+    { k: "privacy", label: "Privacy & GDPR", icon: "shieldCheck", badge: "MVP" },
     { k: "communicate", label: "Communicate", icon: "bell", badge: "Future" },
   ],
   cashier: [
@@ -49,6 +50,7 @@ export const NAV = {
     { k: "tenants", label: "Tenants", icon: "building", badge: "MVP" },
     { k: "onboarding", label: "Tenant Onboarding", icon: "bolt", badge: "MVP" },
     { k: "superadmin", label: "Super Admin", icon: "cog", badge: "Future" },
+    { k: "compliance", label: "Compliance & DPA", icon: "shield", badge: "MVP" },
     { k: "verticals", label: "Verticals", icon: "pkg", badge: "Future" },
     { k: "landing", label: "Landing Page", icon: "globe", badge: "Future" },
   ],

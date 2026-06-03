@@ -41,6 +41,10 @@ export function AccountantInvoicing() {
   return (
     <div className="animate-fade-up">
       <PageHead actions={<Btn variant="primary" icon={Icon.download} onClick={() => { downloadCSV("invoicing.csv", ["Document", "Type", "MARK", "Amount", "Status"], filtered.map((x) => [x.d, x.t, x.mark, x.amt, x.st])); toast(`Exported ${filtered.length} documents (CSV).`); }}>Export</Btn>} />
+      <div className="mb-4 flex items-start gap-2.5 rounded-2xl bg-amber-50/70 ring-1 ring-amber-600/15 px-3.5 py-2.5 text-[12px] text-amber-800">
+        <Icon.shieldAlert size={15} className="shrink-0 mt-0.5 text-amber-600" />
+        <span className="leading-snug"><b>GDPR &amp; tax law:</b> issued ΑΠΥ/ΤΠΥ and their myDATA records are retained for <b>5 years</b> and are exempt from customer erasure requests — a legal-obligation basis overrides the right to be forgotten for these documents.</span>
+      </div>
       <div className="grid sm:grid-cols-4 gap-4 mb-4">
         <StatCard label="Docs today" value="738" sub="726 ΑΠΥ · 12 ΤΠΥ" tone="teal" icon={Icon.receipt} />
         <StatCard label="Transmitted" value="100%" sub="to MyDATA" tone="teal" icon={Icon.checkCircle} />

@@ -3,7 +3,10 @@ import { AppCtx } from "./app/store.jsx";
 import { DEFAULT_PAGE } from "./data/personas.js";
 import { TopBar, Sidebar, MobilePersona, MobileNav, PageTopNav, Toasts } from "./components/Shell.jsx";
 import { AuthGate } from "./screens/auth.jsx";
+import { ConsentBanner } from "./components/ConsentBanner.jsx";
 import { routeFor } from "./routes.jsx";
+
+const DEFAULT_CONSENT = { necessary: true, analytics: false, marketing: false, decided: false, ts: null };
 
 const LS_KEY = "slaice.v1";
 const loadLS = () => { try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; } };
@@ -16,10 +19,18 @@ export default function App() {
   const [signedIn, setSignedIn] = useState(!!saved.signedIn);
   const [lang, setLang] = useState(saved.lang || "EN");
   const [cart, setCart] = useState(saved.cart || []); // { kind, id, label, sub, price }
+  const [consent, setConsentState] = useState(saved.consent || DEFAULT_CONSENT);
 
   useEffect(() => {
-    localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart }));
-  }, [persona, pageByPersona, signedIn, lang, cart]);
+    localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent }));
+  }, [persona, pageByPersona, signedIn, lang, cart, consent]);
+
+  // Record a consent decision with a timestamp (used by the cookie banner and
+  // the customer Privacy Centre; surfaced in the admin consent audit).
+  const setConsent = useCallback((patch) => {
+    setConsentState((c) => ({ ...c, ...patch, decided: true, ts: new Date().toISOString() }));
+  }, []);
+  const reopenConsent = useCallback(() => setConsentState((c) => ({ ...c, decided: false })), []);
 
   const page = pageByPersona[persona];
   const setPage = useCallback((k) => setPageByPersona((s) => ({ ...s, [persona]: k })), [persona]);
@@ -50,7 +61,7 @@ export default function App() {
   const removeFromCart = useCallback((kind, id) => setCart((c) => c.filter((x) => !(x.kind === kind && x.id === id))), []);
   const clearCart = useCallback(() => setCart([]), []);
 
-  const ctx = { toast, go, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint };
+  const ctx = { toast, go, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent };
 
   return (
     <AppCtx.Provider value={ctx}>
@@ -93,6 +104,7 @@ export default function App() {
           )}
         </div>
       )}
+      <ConsentBanner />
       <Toasts items={toasts} onDismiss={dismissToast} />
     </AppCtx.Provider>
   );

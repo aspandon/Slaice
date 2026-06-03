@@ -4,6 +4,7 @@ import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Selec
 import { BarChart, LineChartMini, Donut, QR } from "../components/charts.jsx";
 import { ZONES } from "../data/beach.js";
 import { ADMIN_BOOKINGS, ADMIN_REFUNDS, CUSTOMERS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS } from "../data/mock.js";
+import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr.js";
 import { useApp } from "../app/store.jsx";
 import { downloadCSV } from "../lib/download.js";
 
@@ -535,6 +536,93 @@ export function AdminCommunicate() {
           </div>
         </aside>
       </div>
+    </div>
+  );
+}
+
+/* ============ PRIVACY & GDPR (Admin / controller side) ============ */
+export function AdminPrivacy() {
+  const { toast } = useApp();
+  const [tab, setTab] = useState("requests");
+  const tabs = [
+    ["requests", "Data requests", Icon.inbox],
+    ["consent", "Consent audit", Icon.sliders],
+    ["retention", "Retention", Icon.clock],
+    ["ropa", "Processing register", Icon.database],
+  ];
+  const slaTone = (d) => d < 0 ? "slate" : d <= 10 ? "red" : d <= 20 ? "amber" : "green";
+  const open = DSAR_QUEUE.filter((r) => r.status !== "Completed");
+  return (
+    <div className="animate-fade-up">
+      <PageHead actions={<><Btn variant="outline" icon={Icon.download} onClick={() => { downloadCSV("dsar-requests.csv", ["ID", "Type", "Subject", "Email", "Received", "Due (days)", "Status"], DSAR_QUEUE.map((r) => [r.id, r.type, r.subject, r.email, r.received, r.dueDays, r.status])); toast("Exported DSAR log (CSV)."); }}>Export log</Btn><Btn variant="primary" icon={Icon.shieldCheck} onClick={() => toast("Demo — privacy settings saved.")}>Save policy</Btn></>} />
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <StatCard label="Open requests" value={String(open.length)} sub="awaiting action" tone="indigo" />
+        <StatCard label="Due ≤ 10 days" value={String(DSAR_QUEUE.filter((r) => r.dueDays >= 0 && r.dueDays <= 10).length)} sub="30-day statutory SLA" tone="rose" />
+        <StatCard label="Consent rate" value="64%" sub="marketing opt-in" trend="+3pp" />
+        <StatCard label="Avg resolution" value="6.2d" sub="well within SLA" tone="teal" />
+      </div>
+      <Tabs tabs={tabs} value={tab} onChange={setTab} className="mb-4" scroll />
+
+      {tab === "requests" && (
+        <Card className="p-2">
+          <div className="px-3 pt-2 pb-1 text-[12px] text-slate-500">Data Subject Access Requests — GDPR Art. 15–20, 30-day clock.</div>
+          <Table cols={["Request", "Type", "Subject", "Received", "Due", "Status", ""]} right={[6]}
+            rows={DSAR_QUEUE.map((r) => [
+              <span className="font-mono text-[12px] text-navy-900">{r.id}</span>,
+              <Badge tone={r.type === "Erasure" ? "red" : r.type === "Access" ? "blue" : "slate"}>{r.type}</Badge>,
+              <div><div className="font-semibold text-[13px] text-navy-900">{r.subject}</div><div className="text-[11px] text-slate-500">{r.email}</div></div>,
+              r.received,
+              r.status === "Completed" ? <Badge tone="green"><Icon.check size={11} /> Done</Badge> : <Badge tone={slaTone(r.dueDays)}>{r.dueDays}d left</Badge>,
+              <Badge tone={r.status === "Completed" ? "green" : r.status === "Awaiting ID" ? "amber" : "slate"}>{r.status}</Badge>,
+              <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => toast(`Demo — handle ${r.id} (${r.type}).`)}>Handle</Btn>,
+            ])} />
+        </Card>
+      )}
+
+      {tab === "consent" && (
+        <div className="grid lg:grid-cols-2 gap-4">
+          <Card className="p-5">
+            <div className="font-semibold text-navy-900 mb-3">Consent opt-in rates</div>
+            <div className="space-y-3">
+              {[["Analytics", 71], ["Marketing — e-mail", 64], ["Marketing — SMS", 38], ["Marketing — push", 52]].map(([l, v]) => (
+                <div key={l}>
+                  <div className="flex items-center justify-between text-[12px] mb-1"><span className="text-slate-600">{l}</span><b className="text-navy-900 tnum">{v}%</b></div>
+                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-teal-500 to-teal-600" style={{ width: `${v}%` }} /></div>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Card className="p-5">
+            <div className="font-semibold text-navy-900 mb-3">Consent purposes</div>
+            <div className="space-y-2">
+              {CONSENT_PURPOSES.map((p) => (
+                <div key={p.key} className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
+                  <div className="flex items-center gap-2 font-semibold text-[13px] text-navy-900">{p.label}{p.required && <Badge tone="slate">Always on</Badge>}</div>
+                  <div className="text-[12px] text-slate-600 leading-snug mt-0.5">{p.desc}</div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-3 text-[11px] text-slate-500">Withdrawals are honoured immediately and logged with a timestamp.</div>
+          </Card>
+        </div>
+      )}
+
+      {tab === "retention" && (
+        <Card className="p-2">
+          <div className="px-3 pt-2 pb-1 text-[12px] text-slate-500">Data retention schedule — anonymised or deleted automatically at term.</div>
+          <Table cols={["Data category", "Retention", "Legal basis"]}
+            rows={RETENTION.map((r) => [r.data, <span className={r.legal ? "font-semibold text-navy-900" : ""}>{r.period}</span>, r.legal ? <Badge tone="amber">{r.basis}</Badge> : r.basis])} />
+          <div className="px-3 py-3 flex justify-end"><Btn size="sm" variant="outline" icon={Icon.database} onClick={() => toast("Demo — anonymised 1,204 customers older than 24 months.")}>Run anonymisation</Btn></div>
+        </Card>
+      )}
+
+      {tab === "ropa" && (
+        <Card className="p-2">
+          <div className="px-3 pt-2 pb-1 text-[12px] text-slate-500">Records of Processing Activities — GDPR Art. 30.</div>
+          <Table cols={["Activity", "Purpose", "Data categories", "Basis", "Retention"]}
+            rows={ROPA.map((r) => [<b className="text-navy-900">{r.activity}</b>, r.purpose, r.categories, <Badge tone="slate">{r.basis}</Badge>, r.retention])} />
+        </Card>
+      )}
     </div>
   );
 }

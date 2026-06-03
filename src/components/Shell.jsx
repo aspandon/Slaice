@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
-import { Badge, Btn, Modal, ConfirmModal, Field, Input, Select, Toggle, EmptyState } from "./ui.jsx";
+import { Badge, Btn, Modal, Field, Input, Select, Toggle, EmptyState } from "./ui.jsx";
+import { PrivacyCenter } from "./PrivacyCenter.jsx";
 import { SlaiceLogo, TenantLogo } from "./Brand.jsx";
 import { PERSONAS, NAV } from "../data/personas.js";
 import { TENANT } from "../data/beach.js";
@@ -320,7 +321,7 @@ function SettingsModal({ open, onClose }) {
     { brand: "Visa", last4: "4242", exp: "08/27" },
     { brand: "Mastercard", last4: "5210", exp: "11/26" },
   ]);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [privacy, setPrivacy] = useState(false);
   const save = () => { onClose(); toast("Account settings saved.", { tone: "success" }); };
   const removeCard = (card) => {
     setCards((cs) => cs.filter((c) => c.last4 !== card.last4));
@@ -373,23 +374,26 @@ function SettingsModal({ open, onClose }) {
         </section>
 
         <section>
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Privacy &amp; data</div>
+          <button onClick={() => setPrivacy(true)} className="w-full text-left flex items-center gap-3 rounded-2xl ring-1 ring-slate-200 bg-white/70 px-3.5 py-3 hover:ring-teal-400 hover:bg-slate-50 transition group">
+            <span className="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 grid place-items-center shrink-0"><Icon.shieldCheck size={20} /></span>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-sm text-navy-900">Privacy Centre</div>
+              <div className="text-[12px] text-slate-600 leading-snug">Export your data, manage consents, see who processes it, or delete your account.</div>
+            </div>
+            <Icon.chevR size={18} className="text-slate-300 group-hover:text-teal-600 group-hover:translate-x-0.5 transition" />
+          </button>
+        </section>
+
+        <section>
           <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Security</div>
           <div className="flex gap-2 flex-wrap">
             <Btn variant="outline" size="sm" icon={Icon.lock} onClick={() => toast("Password reset e-mail sent.", { tone: "info" })}>Change password</Btn>
             <Btn variant="outline" size="sm" icon={Icon.phone} onClick={() => toast("2FA setup started.", { tone: "info" })}>Enable 2FA</Btn>
-            <Btn variant="ghost" size="sm" icon={Icon.trash} className="text-rose-600 hover:bg-rose-50" onClick={() => setConfirmDelete(true)}>Delete account</Btn>
           </div>
         </section>
       </div>
-      <ConfirmModal
-        open={confirmDelete}
-        onClose={() => setConfirmDelete(false)}
-        onConfirm={() => { onClose(); toast("Account deletion requested. You'll receive a confirmation e-mail.", { tone: "error" }); }}
-        title="Delete your account?"
-        body="This permanently removes your bookings, documents and saved cards. This action cannot be undone."
-        confirmLabel="Delete account"
-        icon={Icon.trash}
-      />
+      <PrivacyCenter open={privacy} onClose={() => setPrivacy(false)} />
     </Modal>
   );
 }
