@@ -12,6 +12,8 @@ export const PERSONAS = [
 
 // Sidebar navigation per persona. badge "MVP"/"Future" shows the roadmap status.
 export const NAV = {
+  // My Bookings / My Documents are account-area destinations — reachable from
+  // the avatar menu in the TopBar, not duplicated in the primary sub-nav.
   customer: [
     { k: "home", label: "Home", icon: "home" },
     { k: "plan", label: "Plan my visit", icon: "sparkles", badge: "MVP" },
@@ -19,8 +21,6 @@ export const NAV = {
     { k: "ticket", label: "Entry Ticket", icon: "ticket", badge: "MVP" },
     { k: "locker", label: "Day Locker", icon: "lock", badge: "MVP" },
     { k: "parking", label: "Parking", icon: "car", badge: "MVP" },
-    { k: "mybookings", label: "My Bookings", icon: "grid", badge: "MVP" },
-    { k: "mydocs", label: "My Documents", icon: "receipt", badge: "MVP" },
   ],
   admin: [
     { k: "dashboard", label: "Dashboard", icon: "chart", badge: "MVP" },

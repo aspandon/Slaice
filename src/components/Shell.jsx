@@ -251,6 +251,7 @@ export function TopBar({ persona, setPersona, page, setPage }) {
                 <div className="text-[12px] text-slate-500">elena@example.com</div>
               </div>
               <button onClick={() => { setAOpen(false); go("customer", "mybookings"); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm hover:bg-slate-100"><Icon.grid size={15} /> My bookings</button>
+              <button onClick={() => { setAOpen(false); go("customer", "mydocs"); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm hover:bg-slate-100"><Icon.receipt size={15} /> My documents</button>
               <button onClick={() => { setAOpen(false); setSettingsOpen(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm hover:bg-slate-100"><Icon.cog size={15} /> Account settings</button>
               <div className="px-3 pt-2 pb-1 mt-1 border-t border-slate-100 text-[10px] uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-1.5"><Icon.globe size={11} /> Language</div>
               <div className="px-1.5 pb-1 grid grid-cols-2 gap-1">
@@ -269,15 +270,27 @@ export function TopBar({ persona, setPersona, page, setPage }) {
           )}
         </div>
 
-        {/* persona switcher — tinted with the current persona's accent */}
+        {/* Persona switcher. On the customer surface it's a quiet "Demo" chip
+            so it doesn't read as a real account control; on staff personas it
+            keeps the accent-tinted treatment that signals "you are in role X". */}
         <div className="relative" ref={pRef}>
-          <button onClick={() => { close(); setPOpen((o) => !o); }}
-            style={{ background: cur.color + "14", borderColor: cur.color + "55" }}
-            className="flex items-center gap-2 ring-1 rounded-xl pl-1.5 pr-3 py-1.5 text-sm font-semibold hover:brightness-[.98] transition">
-            <span className="w-6 h-6 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: cur.color }}>{Icon[cur.icon]({ size: 13 })}</span>
-            <span className="hidden md:inline text-navy-900">{cur.label}</span>
-            <Icon.chevD size={14} className="text-slate-400" />
-          </button>
+          {persona === "customer" ? (
+            <button onClick={() => { close(); setPOpen((o) => !o); }}
+              title="Demo — view as another persona"
+              className="flex items-center gap-1.5 bg-slate-100/80 hover:bg-slate-200/80 rounded-xl px-2.5 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500 hover:text-navy-900 transition">
+              <Icon.layers size={13} />
+              <span className="hidden md:inline">Demo</span>
+              <Icon.chevD size={12} />
+            </button>
+          ) : (
+            <button onClick={() => { close(); setPOpen((o) => !o); }}
+              style={{ background: cur.color + "14", borderColor: cur.color + "55" }}
+              className="flex items-center gap-2 ring-1 rounded-xl pl-1.5 pr-3 py-1.5 text-sm font-semibold hover:brightness-[.98] transition">
+              <span className="w-6 h-6 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: cur.color }}>{Icon[cur.icon]({ size: 13 })}</span>
+              <span className="hidden md:inline text-navy-900">{cur.label}</span>
+              <Icon.chevD size={14} className="text-slate-400" />
+            </button>
+          )}
           {pOpen && (
             <div className="glass-card-solid absolute right-0 mt-2 w-72 text-ink rounded-xl p-1.5 z-[60] shadow-float">
               <div className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">View as persona</div>

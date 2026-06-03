@@ -9,74 +9,82 @@ import { ZONES, ZONE_BLOCKS, FACILITIES, WEATHER, QUICK_PICKS, makeGrid, chipLab
 import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS } from "../data/mock.js";
 import { useApp, useSpotlight } from "../app/store.jsx";
 
-/* ============ HOME ============ */
+/* ============ HOME ============
+   One promo chip, one unified hero (greeting + weather + wizard CTA), one
+   dominant Sunbed Booking row, and three secondary tiles. Account-area
+   destinations (My Bookings / My Documents) live in the avatar menu. */
 export function CustomerHome() {
-  const { go, cart } = useApp();
-  const tools = [
-    { k: "book", t: "Sunbed Booking", d: "Reserve your spot on the live beach map", ic: Icon.umbrella, tone: "teal", meta: "Live map", metaTone: "green" },
-    { k: "ticket", t: "Entry Ticket", d: "Buy entry for yourself or your group", ic: Icon.ticket, meta: "From €5", metaTone: "slate" },
-    { k: "locker", t: "Day Locker", d: "Keep your valuables safe", ic: Icon.lock, meta: "80 free today", metaTone: "green" },
-    { k: "parking", t: "Parking", d: "Reserve a spot at the car park", ic: Icon.car, meta: "39 of 50 free", metaTone: "green" },
-    { k: "mybookings", t: "My Bookings", d: "Reservations, QR codes & status", ic: Icon.grid, meta: "4 active", metaTone: "blue" },
-    { k: "mydocs", t: "My Documents", d: "Receipts & invoices (MyDATA)", ic: Icon.receipt, meta: "2 receipts", metaTone: "slate" },
+  const { go } = useApp();
+  const [promoDismissed, setPromoDismissed] = useState(false);
+  const secondary = [
+    { k: "ticket",  t: "Entry Ticket", d: "Buy entry for your group",  ic: Icon.ticket },
+    { k: "locker",  t: "Day Locker",   d: "Keep your valuables safe",  ic: Icon.lock,  meta: "80 free",    metaTone: "green" },
+    { k: "parking", t: "Parking",      d: "Reserve a spot",            ic: Icon.car,   meta: "39/50 free", metaTone: "green" },
   ];
-  const cartCount = (cart || []).length;
-  return (
-    <div className="animate-fade-up space-y-5">
-      {/* welcome row */}
-      <Card className="glass-card-solid p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-teal-700">
-            <Icon.sun size={14} /> Good morning, Elena
-          </div>
-          <div className="mt-1 font-display font-bold text-2xl text-navy-900">Akti tou Iliou — sunny, 28°C</div>
-          <div className="text-[13px] text-slate-600 mt-0.5">Front-row sunbeds at <b>20% off</b> this weekend · gates open 09:00–20:00.</div>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          <Btn variant="dark" icon={Icon.sparkles} onClick={() => go("customer", "plan")}>Plan my visit</Btn>
-          <Btn variant="teal" icon={Icon.umbrella} onClick={() => go("customer", "book")}>Book a sunbed</Btn>
-          {cartCount > 0 && (
-            <Btn variant="outline" icon={Icon.card} onClick={() => go("customer", "checkout")}>Checkout · {cartCount}</Btn>
-          )}
-        </div>
-      </Card>
 
-      {/* Hero — guided booking wizard */}
+  return (
+    <div className="animate-fade-up space-y-4">
+      {!promoDismissed && (
+        <div className="flex items-center gap-2.5 rounded-2xl bg-gradient-to-r from-amber-50 to-gold-50 ring-1 ring-gold-200 px-3 py-2">
+          <span className="w-7 h-7 rounded-lg grid place-items-center bg-gold-500 text-white shrink-0 shadow-sm"><Icon.bolt size={14} /></span>
+          <span className="flex-1 min-w-0 text-[13px] text-navy-900">
+            <b className="font-semibold">20% off</b> front-row sunbeds this weekend
+            <span className="text-slate-500 hidden sm:inline"> · gates open 09:00–20:00</span>
+          </span>
+          <button onClick={() => go("customer", "book")} className="text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 rounded-md px-2 py-1 whitespace-nowrap">Claim →</button>
+          <button aria-label="Dismiss offer" onClick={() => setPromoDismissed(true)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-400 hover:text-navy-900 hover:bg-white/60 shrink-0"><Icon.x size={14} /></button>
+        </div>
+      )}
+
       <Reveal as="button" onClick={() => go("customer", "plan")} className="text-left group block w-full">
         <Card hover press className="relative overflow-hidden p-0">
-          <div className="grad-sea text-white p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center gap-4">
-            <span className="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur grid place-items-center shrink-0 ring-1 ring-white/30">
-              <Icon.sparkles size={26} />
+          <div className="grad-sea text-white p-6 sm:p-8">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-teal-200">
+              <Icon.sun size={13} /> Good morning, Elena · sunny, 28°
+            </div>
+            <div className="mt-2 font-display font-bold text-2xl sm:text-3xl leading-tight max-w-2xl">
+              Plan your full beach day in 60 seconds
+            </div>
+            <div className="text-[13.5px] text-white/85 mt-1.5 max-w-xl">
+              Guests, dates, sunbeds, locker, parking — one guided flow with a live total.
+            </div>
+            <span className="mt-5 inline-flex items-center gap-2 rounded-[14px] px-4 py-2.5 text-sm font-semibold bg-white text-navy-900 shadow-sm group-hover:translate-x-0.5 transition">
+              <Icon.sparkles size={16} /> Start guided booking <Icon.arrowR size={16} />
             </span>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-teal-200">
-                <Icon.bolt size={12} /> New · guided booking
-              </div>
-              <div className="mt-1 font-display font-bold text-xl sm:text-2xl">Plan my full beach day in 60 seconds</div>
-              <div className="text-[13px] text-white/85 mt-0.5">Guests → dates → sunbeds → locker → parking. Watch the total update as you go.</div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0 flex-wrap">
-              <span className="hidden sm:inline-flex items-center gap-1 text-[11px] font-semibold rounded-full bg-white/15 px-2 py-1 ring-1 ring-white/25"><Icon.group size={12} /> Step 1 · Guests</span>
-              <span className="hidden md:inline-flex items-center gap-1 text-[11px] font-semibold rounded-full bg-white/15 px-2 py-1 ring-1 ring-white/25"><Icon.umbrella size={12} /> Step 3 · Sunbeds</span>
-              <span className="inline-flex items-center gap-2 rounded-[14px] px-4 py-2.5 text-sm font-semibold bg-white/15 text-white ring-1 ring-white/25 backdrop-blur-sm group-hover:bg-white/25 transition">
-                Start the wizard <Icon.arrowR size={17} />
-              </span>
-            </div>
           </div>
         </Card>
       </Reveal>
 
-      {/* tools grid */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {tools.map((t, i) => (
+      <Reveal as="button" onClick={() => go("customer", "book")} className="text-left group block w-full">
+        <Card hover press className="glass-card-solid p-5 sm:p-6 flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl grid place-items-center text-white shadow-sm bg-gradient-to-br from-teal-500 to-teal-700 transition-transform duration-300 ease-spring group-hover:scale-110 group-hover:-rotate-3 shrink-0">
+            <Icon.umbrella size={26} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-display font-bold text-lg sm:text-xl text-navy-900 flex items-center gap-1.5">
+              Sunbed Booking
+              <Icon.chevR size={17} className="transition-transform duration-200 group-hover:translate-x-1 text-teal-600" />
+            </div>
+            <div className="text-[13.5px] text-slate-600 mt-0.5">Pick your spot on the live beach map — sea-view, shaded, or front-row.</div>
+          </div>
+          <Badge tone="green" className="hidden sm:inline-flex shrink-0">Live map</Badge>
+        </Card>
+      </Reveal>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {secondary.map((t, i) => (
           <Reveal as="button" key={t.k} delay={i * 60} onClick={() => go("customer", t.k)} className="text-left group">
-            <Card hover press className="glass-card-solid p-5 h-full">
+            <Card hover press className="glass-card-solid p-4 h-full">
               <div className="flex items-start justify-between">
-                <div className={`w-11 h-11 rounded-2xl grid place-items-center text-white shadow-sm transition-transform duration-300 ease-spring group-hover:scale-110 group-hover:-rotate-3 ${t.tone === "teal" ? "bg-gradient-to-br from-teal-500 to-teal-700" : "bg-gradient-to-br from-navy-800 to-navy-950"}`}><t.ic size={20} /></div>
+                <div className="w-10 h-10 rounded-xl grid place-items-center text-white shadow-sm bg-gradient-to-br from-navy-800 to-navy-950 transition-transform duration-300 ease-spring group-hover:scale-110 group-hover:-rotate-3">
+                  <t.ic size={18} />
+                </div>
                 {t.meta && <Badge tone={t.metaTone || "slate"}>{t.meta}</Badge>}
               </div>
-              <div className="mt-3 font-semibold text-navy-900 flex items-center gap-1">{t.t}<Icon.chevR size={15} className="transition-transform duration-200 group-hover:translate-x-1 text-teal-600" /></div>
-              <div className="text-[13px] text-slate-600 mt-0.5">{t.d}</div>
+              <div className="mt-3 font-semibold text-navy-900 flex items-center gap-1 text-[14.5px]">
+                {t.t}<Icon.chevR size={14} className="transition-transform duration-200 group-hover:translate-x-1 text-teal-600" />
+              </div>
+              <div className="text-[12.5px] text-slate-600 mt-0.5">{t.d}</div>
             </Card>
           </Reveal>
         ))}
