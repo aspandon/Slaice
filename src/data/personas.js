@@ -12,15 +12,15 @@ export const PERSONAS = [
 
 // Sidebar navigation per persona. badge "MVP"/"Future" shows the roadmap status.
 export const NAV = {
+  // My Bookings / My Documents are account-area destinations — reachable from
+  // the avatar menu in the TopBar, not duplicated in the primary sub-nav.
   customer: [
     { k: "home", label: "Home", icon: "home" },
     { k: "plan", label: "Plan my visit", icon: "sparkles", badge: "MVP" },
     { k: "book", label: "Sunbed Booking", icon: "umbrella", badge: "MVP" },
     { k: "ticket", label: "Entry Ticket", icon: "ticket", badge: "MVP" },
     { k: "locker", label: "Day Locker", icon: "lock", badge: "MVP" },
-    { k: "parking", label: "Parking", icon: "car", badge: "MVP" },
-    { k: "mybookings", label: "My Bookings", icon: "grid", badge: "MVP" },
-    { k: "mydocs", label: "My Documents", icon: "receipt", badge: "MVP" },
+    { k: "parking", label: "Parking Spot", icon: "car", badge: "MVP" },
   ],
   admin: [
     { k: "dashboard", label: "Dashboard", icon: "chart", badge: "MVP" },
@@ -54,6 +54,13 @@ export const NAV = {
     { k: "compliance", label: "Compliance & DPA", icon: "shield", badge: "MVP" },
     { k: "verticals", label: "Verticals", icon: "pkg", badge: "Future" },
     { k: "landing", label: "Landing Page", icon: "globe", badge: "Future" },
+    // Feature Inventory and User Journeys used to live behind a global
+    // "Explore" dropdown; they now belong to the Platform/Slaice persona
+    // since they're internal demo / discovery tools. The "__" prefix is
+    // detected by routeFor() in routes.jsx and short-circuits the persona
+    // map to the explorer screens.
+    { k: "__features", label: "Feature Inventory", icon: "layers" },
+    { k: "__journeys", label: "User Journeys", icon: "list" },
   ],
 };
 

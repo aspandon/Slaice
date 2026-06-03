@@ -23,7 +23,7 @@ const STEPS = [
   { id: "dates",   label: "Dates",    icon: "calendar", sub: "Pick one or more days" },
   { id: "sets",    label: "Beach bar",icon: "umbrella", sub: "Choose your zone & sets" },
   { id: "locker",  label: "Locker",   icon: "lock",     sub: "Add a day locker (optional)", optional: true },
-  { id: "parking", label: "Parking",  icon: "car",      sub: "Reserve a spot (optional)",    optional: true },
+  { id: "parking", label: "Parking Spot", icon: "car", sub: "Reserve a spot (optional)",    optional: true },
   { id: "review",  label: "Review",   icon: "checkCircle", sub: "Confirm & checkout" },
 ];
 
@@ -640,7 +640,7 @@ function ReviewStep({ people, totalPeople, selDates, dayCount, zone, sets, bedSe
         onEdit={() => onJump("people")}
       />
       <ReviewRow icon={Icon.lock} title="Day locker" body={lockerOn ? `${lockerQty} locker${lockerQty !== 1 ? "s" : ""}` : "Not added"} onEdit={() => onJump("locker")} />
-      <ReviewRow icon={Icon.car} title="Parking" body={parkingOn ? `1 spot · ${plate || "plate pending"}` : "Not added"} onEdit={() => onJump("parking")} />
+      <ReviewRow icon={Icon.car} title="Parking Spot" body={parkingOn ? `1 spot · ${plate || "plate pending"}` : "Not added"} onEdit={() => onJump("parking")} />
     </div>
   );
 }
