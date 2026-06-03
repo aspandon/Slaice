@@ -74,14 +74,12 @@ export function TopBar({ persona, setPersona, page, setPage }) {
   const cartCount = (cart || []).length;
   const cartTotal = (cart || []).reduce((a, b) => a + b.price, 0);
   const [pOpen, setPOpen] = useState(false);
-  const [eOpen, setEOpen] = useState(false);
   const [aOpen, setAOpen] = useState(false);
   const [nOpen, setNOpen] = useState(false);
   const [bOpen, setBOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const cur = PERSONAS.find((p) => p.id === persona);
-  const close = () => { setPOpen(false); setEOpen(false); setAOpen(false); setNOpen(false); setBOpen(false); };
-  const eRef = useOutsideClose(eOpen, setEOpen);
+  const close = () => { setPOpen(false); setAOpen(false); setNOpen(false); setBOpen(false); };
   const nRef = useOutsideClose(nOpen, setNOpen);
   const aRef = useOutsideClose(aOpen, setAOpen);
   const pRef = useOutsideClose(pOpen, setPOpen);
@@ -127,38 +125,6 @@ export function TopBar({ persona, setPersona, page, setPage }) {
       )}
 
       <div className="flex items-center gap-2 shrink-0">
-        {/* Explore: Features + Journeys collapsed into one menu */}
-        {setPage && (
-          <div className="hidden md:block relative mr-0.5" ref={eRef}>
-            <button onClick={() => { close(); setEOpen((o) => !o); }}
-              className={`flex items-center gap-1.5 text-[13px] px-3 py-2 rounded-xl font-semibold transition ${(page === "__features" || page === "__journeys") ? "bg-slaice-600 text-white shadow-sm" : "bg-slate-100/80 text-slate-700 hover:bg-slate-200/80 hover:text-navy-900"}`}
-              title="Explore Features & Journeys">
-              <Icon.layers size={14} /> <span className="hidden lg:inline">Explore</span> <Icon.chevD size={13} />
-            </button>
-            {eOpen && (
-              <div className="glass-card-solid absolute right-0 mt-2 w-60 text-ink rounded-xl p-1.5 z-[60] shadow-float">
-                <div className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Explore the platform</div>
-                <button onClick={() => { setEOpen(false); setPage("__features"); }}
-                  className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-sm ${page === "__features" ? "bg-slate-100" : ""} hover:bg-slate-100`}>
-                  <span className="w-7 h-7 rounded-lg bg-slaice-100 text-slaice-700 grid place-items-center shrink-0 mt-0.5"><Icon.layers size={14} /></span>
-                  <span className="text-left">
-                    <span className="font-semibold text-navy-900 block">Feature Inventory</span>
-                    <span className="block text-[11px] text-slate-600 leading-tight">All 91 RFP features, searchable & filterable.</span>
-                  </span>
-                </button>
-                <button onClick={() => { setEOpen(false); setPage("__journeys"); }}
-                  className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-sm ${page === "__journeys" ? "bg-slate-100" : ""} hover:bg-slate-100`}>
-                  <span className="w-7 h-7 rounded-lg bg-teal-100 text-teal-700 grid place-items-center shrink-0 mt-0.5"><Icon.list size={14} /></span>
-                  <span className="text-left">
-                    <span className="font-semibold text-navy-900 block">User Journeys</span>
-                    <span className="block text-[11px] text-slate-600 leading-tight">25 end-to-end journeys with a step-by-step player.</span>
-                  </span>
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
         {/* basket popup — only on the customer persona */}
         {persona === "customer" && (
         <div className="relative" ref={bRef}>

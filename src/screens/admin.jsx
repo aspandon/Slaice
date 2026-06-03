@@ -415,13 +415,40 @@ export function AdminReporting() {
         <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Occupancy by zone (%)</div>
           <BarChart color="#0ea5e9" data={[{ l: "Akan", v: 67 }, { l: "Cen", v: 83 }, { l: "Mac", v: 91, hi: 1 }, { l: "Best", v: 78 }, { l: "Main", v: 68 }, { l: "Bol", v: 66 }]} /></Card>
         <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-3">Utilisation heatmap (week × zone)</div>
-          <div className="space-y-1.5">
-            {ZONES.map((z) => (<div key={z.id} className="flex items-center gap-2">
-              <div className="w-16 text-[12px] text-slate-500">{z.name}</div>
-              <div className="flex gap-1">{Array.from({ length: 7 }).map((_, d) => { const v = 0.3 + ((z.total * 7 + d * 13) % 70) / 100; return <div key={d} className="w-7 h-6 rounded" style={{ background: `rgba(13,148,136,${v.toFixed(2)})` }} title={`${Math.round(v * 100)}%`} />; })}</div>
-            </div>))}
-            <div className="flex gap-1 ml-[72px] pt-1 text-[10px] text-slate-600">{["M", "T", "W", "T", "F", "S", "S"].map((d, i) => <div key={i} className="w-7 text-center">{d}</div>)}</div>
-          </div>
+          {/* Sequential 5-step palette common in hospitality / yield reports:
+              cool light = capacity to sell, warm = approaching peak. Matches
+              what STR / RMS dashboards typically show for occupancy. */}
+          {(() => {
+            const buckets = [
+              { max: 0.20, color: "#dbeafe", label: "0–20%",   tone: "Empty" },
+              { max: 0.40, color: "#99f6e4", label: "20–40%",  tone: "Low" },
+              { max: 0.60, color: "#5eead4", label: "40–60%",  tone: "Moderate" },
+              { max: 0.80, color: "#fbbf24", label: "60–80%",  tone: "Busy" },
+              { max: 1.01, color: "#ef4444", label: "80–100%", tone: "Peak" },
+            ];
+            const colorFor = (v) => (buckets.find((b) => v <= b.max) || buckets[buckets.length - 1]).color;
+            return (
+              <>
+                <div className="space-y-1.5">
+                  {ZONES.map((z) => (<div key={z.id} className="flex items-center gap-2">
+                    <div className="w-16 text-[12px] text-slate-500">{z.name}</div>
+                    <div className="flex gap-1">{Array.from({ length: 7 }).map((_, d) => { const v = 0.3 + ((z.total * 7 + d * 13) % 70) / 100; return <div key={d} className="w-7 h-6 rounded ring-1 ring-white/60" style={{ background: colorFor(v) }} title={`${Math.round(v * 100)}%`} />; })}</div>
+                  </div>))}
+                  <div className="flex gap-1 ml-[72px] pt-1 text-[10px] text-slate-600">{["M", "T", "W", "T", "F", "S", "S"].map((d, i) => <div key={i} className="w-7 text-center">{d}</div>)}</div>
+                </div>
+                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-3 flex-wrap text-[11.5px] text-slate-600">
+                  <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10.5px]">Occupancy</span>
+                  {buckets.map((b) => (
+                    <span key={b.label} className="inline-flex items-center gap-1.5">
+                      <i className="w-4 h-4 rounded ring-1 ring-white/60 inline-block" style={{ background: b.color }} />
+                      <span className="tnum">{b.label}</span>
+                      <span className="text-slate-400">· {b.tone}</span>
+                    </span>
+                  ))}
+                </div>
+              </>
+            );
+          })()}
         </Card>
       </>}
 
@@ -433,11 +460,13 @@ export function AdminReporting() {
       </>}
 
       {tab === "channel" && <div className="grid lg:grid-cols-[1fr_1fr] gap-4">
-        <Card className="p-5"><div className="font-semibold text-navy-900 mb-2">Sales by channel & role</div>
-          <div className="flex items-center gap-6 flex-wrap"><Donut segments={[{ v: 40, c: "#0ea5e9" }, { v: 45, c: "#f59e0b" }, { v: 15, c: "#0D9488" }]} />
-            <div className="text-sm space-y-2">
+        <Card className="p-5"><div className="font-semibold text-navy-900 mb-3">Sales by channel & role</div>
+          <div className="flex items-center justify-center gap-7 flex-wrap py-3">
+            <Donut segments={[{ v: 40, c: "#0ea5e9" }, { v: 45, c: "#f59e0b" }, { v: 15, c: "#0D9488" }]} size={200} />
+            <div className="text-[14px] space-y-3">
               <Leg c="bg-sky-500" t="Online (customer) — 40% · €281k" /><Leg c="bg-amber-500" t="Walk-in (controller) — 45% · €317k" /><Leg c="bg-teal-600" t="Cashier (on-site) — 15% · €106k" />
-            </div></div>
+            </div>
+          </div>
         </Card>
         <Card className="p-5"><div className="font-semibold text-navy-900 mb-2">Channel by week (€k)</div>
           <BarChart color="#0ea5e9" data={[{ l: "W1", v: 48 }, { l: "W2", v: 56 }, { l: "W3", v: 71, hi: 1 }, { l: "W4", v: 64 }, { l: "W5", v: 78 }, { l: "W6", v: 82, hi: 1 }]} />

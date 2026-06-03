@@ -54,6 +54,13 @@ export const NAV = {
     { k: "compliance", label: "Compliance & DPA", icon: "shield", badge: "MVP" },
     { k: "verticals", label: "Verticals", icon: "pkg", badge: "Future" },
     { k: "landing", label: "Landing Page", icon: "globe", badge: "Future" },
+    // Feature Inventory and User Journeys used to live behind a global
+    // "Explore" dropdown; they now belong to the Platform/Slaice persona
+    // since they're internal demo / discovery tools. The "__" prefix is
+    // detected by routeFor() in routes.jsx and short-circuits the persona
+    // map to the explorer screens.
+    { k: "__features", label: "Feature Inventory", icon: "layers" },
+    { k: "__journeys", label: "User Journeys", icon: "list" },
   ],
 };
 
