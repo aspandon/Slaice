@@ -73,14 +73,14 @@ export function TopBar({ persona, setPersona, page, setPage }) {
   const cartCount = (cart || []).length;
   const cartTotal = (cart || []).reduce((a, b) => a + b.price, 0);
   const [pOpen, setPOpen] = useState(false);
-  const [lOpen, setLOpen] = useState(false);
+  const [eOpen, setEOpen] = useState(false);
   const [aOpen, setAOpen] = useState(false);
   const [nOpen, setNOpen] = useState(false);
   const [bOpen, setBOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const cur = PERSONAS.find((p) => p.id === persona);
-  const close = () => { setPOpen(false); setLOpen(false); setAOpen(false); setNOpen(false); setBOpen(false); };
-  const lRef = useOutsideClose(lOpen, setLOpen);
+  const close = () => { setPOpen(false); setEOpen(false); setAOpen(false); setNOpen(false); setBOpen(false); };
+  const eRef = useOutsideClose(eOpen, setEOpen);
   const nRef = useOutsideClose(nOpen, setNOpen);
   const aRef = useOutsideClose(aOpen, setAOpen);
   const pRef = useOutsideClose(pOpen, setPOpen);
@@ -110,39 +110,37 @@ export function TopBar({ persona, setPersona, page, setPage }) {
       </div>
 
       <div className="flex items-center gap-2">
-        {/* inventory & journeys quick-links */}
+        {/* Explore: Features + Journeys collapsed into one menu */}
         {setPage && (
-          <div className="hidden md:flex items-center gap-1.5 mr-1">
-            <button onClick={() => setPage("__features")}
-              className={`flex items-center gap-1.5 text-[13px] px-2.5 py-1.5 rounded-lg ring-1 ring-white/15 transition ${page === "__features" ? "bg-slaice-600 text-white" : "bg-white/10 text-white/85 hover:bg-white/20 hover:text-white"}`}
-              title="Feature Inventory">
-              <Icon.layers size={14} /> <span className="hidden lg:inline">Features</span>
+          <div className="hidden md:block relative mr-1" ref={eRef}>
+            <button onClick={() => { close(); setEOpen((o) => !o); }}
+              className={`flex items-center gap-1.5 text-[13px] px-2.5 py-1.5 rounded-lg ring-1 ring-white/15 transition ${(page === "__features" || page === "__journeys") ? "bg-slaice-600 text-white" : "bg-white/10 text-white/85 hover:bg-white/20 hover:text-white"}`}
+              title="Explore Features & Journeys">
+              <Icon.layers size={14} /> <span className="hidden lg:inline">Explore</span> <Icon.chevD size={13} />
             </button>
-            <button onClick={() => setPage("__journeys")}
-              className={`flex items-center gap-1.5 text-[13px] px-2.5 py-1.5 rounded-lg ring-1 ring-white/15 transition ${page === "__journeys" ? "bg-slaice-600 text-white" : "bg-white/10 text-white/85 hover:bg-white/20 hover:text-white"}`}
-              title="User Journeys">
-              <Icon.list size={14} /> <span className="hidden lg:inline">Journeys</span>
-            </button>
+            {eOpen && (
+              <div className="glass-card absolute right-0 mt-2 w-60 text-ink rounded-xl p-1.5 z-50">
+                <div className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Explore the platform</div>
+                <button onClick={() => { setEOpen(false); setPage("__features"); }}
+                  className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-sm ${page === "__features" ? "bg-slate-100" : ""} hover:bg-slate-100`}>
+                  <span className="w-7 h-7 rounded-lg bg-slaice-100 text-slaice-700 grid place-items-center shrink-0 mt-0.5"><Icon.layers size={14} /></span>
+                  <span className="text-left">
+                    <span className="font-semibold text-navy-900 block">Feature Inventory</span>
+                    <span className="block text-[11px] text-slate-600 leading-tight">All 91 RFP features, searchable & filterable.</span>
+                  </span>
+                </button>
+                <button onClick={() => { setEOpen(false); setPage("__journeys"); }}
+                  className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-sm ${page === "__journeys" ? "bg-slate-100" : ""} hover:bg-slate-100`}>
+                  <span className="w-7 h-7 rounded-lg bg-teal-100 text-teal-700 grid place-items-center shrink-0 mt-0.5"><Icon.list size={14} /></span>
+                  <span className="text-left">
+                    <span className="font-semibold text-navy-900 block">User Journeys</span>
+                    <span className="block text-[11px] text-slate-600 leading-tight">25 end-to-end journeys with a step-by-step player.</span>
+                  </span>
+                </button>
+              </div>
+            )}
           </div>
         )}
-
-        {/* language */}
-        <div className="relative" ref={lRef}>
-          <button onClick={() => { close(); setLOpen((o) => !o); }} className="hidden sm:flex items-center gap-1.5 text-[13px] text-white/85 hover:text-white px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 ring-1 ring-white/15">
-            <Icon.globe size={15} /> {lang} <Icon.chevD size={13} />
-          </button>
-          {lOpen && (
-            <div className="glass-card absolute right-0 mt-2 w-44 text-ink rounded-xl p-1.5 z-50">
-              {LANGS.map((l) => (
-                <button key={l.code} onClick={() => { setLang(l.code); setLOpen(false); }}
-                  className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-sm hover:bg-slate-100 ${lang === l.code ? "bg-slate-50" : ""}`}>
-                  <span><span className="font-semibold mr-2">{l.code}</span>{l.label}</span>
-                  {lang === l.code && <Icon.check size={15} />}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
 
         {/* basket popup */}
         <div className="relative" ref={bRef}>
@@ -244,14 +242,26 @@ export function TopBar({ persona, setPersona, page, setPage }) {
             <Icon.chevD size={14} />
           </button>
           {aOpen && (
-            <div className="glass-card absolute right-0 mt-2 w-56 text-ink rounded-xl p-1.5 z-50">
+            <div className="glass-card absolute right-0 mt-2 w-60 text-ink rounded-xl p-1.5 z-50">
               <div className="px-3 py-2 border-b border-slate-100 mb-1">
                 <div className="font-semibold text-sm text-navy-900">Elena M.</div>
-                <div className="text-[12px] text-slate-400">elena@example.com</div>
+                <div className="text-[12px] text-slate-500">elena@example.com</div>
               </div>
               <button onClick={() => { setAOpen(false); go("customer", "mybookings"); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm hover:bg-slate-100"><Icon.grid size={15} /> My bookings</button>
               <button onClick={() => { setAOpen(false); setSettingsOpen(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm hover:bg-slate-100"><Icon.cog size={15} /> Account settings</button>
-              <button onClick={() => { setAOpen(false); setSignedIn(false); toast("Signed out (demo)."); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-rose-600 hover:bg-rose-50"><Icon.arrowL size={15} /> Sign out</button>
+              <div className="px-3 pt-2 pb-1 mt-1 border-t border-slate-100 text-[10px] uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-1.5"><Icon.globe size={11} /> Language</div>
+              <div className="px-1.5 pb-1 grid grid-cols-2 gap-1">
+                {LANGS.map((l) => (
+                  <button key={l.code} onClick={() => setLang(l.code)}
+                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-[12px] ${lang === l.code ? "bg-slate-100 font-semibold text-navy-900" : "text-slate-700 hover:bg-slate-100"}`}>
+                    <span><span className="font-semibold mr-1.5">{l.code}</span><span className="text-slate-500">{l.label}</span></span>
+                    {lang === l.code && <Icon.check size={12} className="text-teal-600" />}
+                  </button>
+                ))}
+              </div>
+              <div className="border-t border-slate-100 mt-1 pt-1">
+                <button onClick={() => { setAOpen(false); setSignedIn(false); toast("Signed out (demo)."); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-rose-600 hover:bg-rose-50"><Icon.arrowL size={15} /> Sign out</button>
+              </div>
             </div>
           )}
         </div>

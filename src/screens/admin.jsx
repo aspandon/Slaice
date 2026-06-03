@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, useMockLoad } from "../components/ui.jsx";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, useMockLoad, FutureBanner, ContextPanel } from "../components/ui.jsx";
 import { BarChart, LineChartMini, Donut, QR } from "../components/charts.jsx";
 import { ZONES } from "../data/beach.js";
 import { useApp } from "../app/store.jsx";
@@ -87,7 +87,7 @@ export function AdminAvailability() {
           <Field label="New price (€)"><Input type="number" defaultValue={25} /></Field>
           <Field label="Date range"><Select options={["Today", "This weekend", "Whole season"]} /></Field>
         </div>
-        <div className="mt-3 text-[12px] text-slate-400">Bulk updates write to the inventory/availability store and feed booking + invoicing.</div>
+        <div className="mt-3 text-[12px] text-slate-600">Bulk updates write to the inventory/availability store and feed booking + invoicing.</div>
       </Modal>
     </div>
   );
@@ -197,19 +197,19 @@ export function AdminMapEditor() {
                 ))}
               </div>
             </Field>
-            <div className="text-[11px] text-slate-400">Position: <span className="tnum">{selected.x.toFixed(0)}%, {selected.y.toFixed(0)}%</span></div>
+            <div className="text-[11px] text-slate-600">Position: <span className="tnum">{selected.x.toFixed(0)}%, {selected.y.toFixed(0)}%</span></div>
             <div className="flex gap-2">
               <Btn variant="ghost" full icon={Icon.plus} onClick={add}>Add</Btn>
               <Btn variant="ghost" full icon={Icon.trash} onClick={() => remove(selected.id)} className="text-rose-600 hover:bg-rose-50" disabled={zones.length <= 1}>Remove</Btn>
             </div>
           </div>
           <div className="mt-4 pt-3 border-t border-slate-100">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Zones</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1.5">Zones</div>
             <div className="space-y-1">
               {zones.map((z) => (
                 <button key={z.id} onClick={() => setSelectedId(z.id)} className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-[12px] ${selectedId === z.id ? "bg-slate-100" : "hover:bg-slate-50"}`}>
                   <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: z.color }} /><span className="font-semibold text-navy-900">{z.name}</span></span>
-                  <span className="text-slate-400 tnum">{z.rows * z.cols}</span>
+                  <span className="text-slate-600 tnum">{z.rows * z.cols}</span>
                 </button>
               ))}
             </div>
@@ -242,7 +242,7 @@ export function AdminBookings() {
     <div>
       <PageHead actions={<Btn variant="outline" icon={Icon.download} onClick={exportCSV}>Export</Btn>} />
       <Card className="p-4">
-        <div className="flex items-center gap-2 mb-3 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-sm text-slate-400">
+        <div className="flex items-center gap-2 mb-3 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-sm text-slate-600">
           <Icon.search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search bookings…" className="text-sm outline-none w-full bg-transparent text-ink" />
         </div>
         {loading ? (
@@ -263,32 +263,40 @@ export function AdminBookings() {
 export function AdminManual() {
   const { toast } = useApp();
   const [done, setDone] = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
   return (
-    <div className="animate-fade-up max-w-2xl">
-      <PageHead title="Manual / Phone Booking" sub="Reserve and block a sunbed without taking payment (VIP / phone), then send the QR to the customer." badge={<Badge tone="mvp">MVP</Badge>} />
-      <Card className="p-5">
-        <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Customer name"><Input placeholder="e.g. Maria K." defaultValue="Maria K." /></Field>
-          <Field label="Customer e-mail"><Input placeholder="maria@example.com" defaultValue="maria@example.com" /></Field>
-          <Field label="Zone"><Select options={ZONES.map((z) => z.name)} /></Field>
-          <Field label="Sunbed code"><Input placeholder="CE-92" defaultValue="CE-92" /></Field>
-          <Field label="Date"><Input type="date" /></Field>
-          <Field label="Mark as"><Select options={["Unpaid (manual)", "Comp / VIP", "Pay later"]} /></Field>
-        </div>
-        <div className="mt-4 flex gap-2">
-          <Btn variant="primary" icon={Icon.lock} onClick={() => { setDone(true); toast("Demo — sunbed blocked & QR e-mailed (booking flagged unpaid/manual)."); }}>Reserve & send QR</Btn>
-          <Btn variant="outline" icon={Icon.umbrella} onClick={() => toast("Demo — opens the live map to pick a bed.")}>Pick on map</Btn>
-        </div>
-      </Card>
-      {done && (
-        <Card className="p-5 mt-4 flex items-center gap-4 animate-fade-up">
-          <QR size={96} seed="MANUAL-CE92" />
-          <div>
-            <div className="font-semibold text-navy-900 flex items-center gap-2">Reserved <Badge tone="amber">Unpaid</Badge></div>
-            <div className="text-sm text-slate-500">Central · CE-92 — QR sent to maria@example.com. The customer can pay later or present the QR at the gate.</div>
+    <div className="animate-fade-up grid lg:grid-cols-[1fr_320px] gap-5">
+      <div>
+        <PageHead title="Manual / Phone Booking" sub="Reserve and block a sunbed without taking payment (VIP / phone), then send the QR to the customer." badge={<Badge tone="mvp">MVP</Badge>} />
+        <Card className="p-5">
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Field label="Customer name"><Input placeholder="e.g. Maria K." defaultValue="Maria K." /></Field>
+            <Field label="Customer e-mail"><Input placeholder="maria@example.com" defaultValue="maria@example.com" /></Field>
+            <Field label="Zone"><Select options={ZONES.map((z) => z.name)} /></Field>
+            <Field label="Sunbed code"><Input placeholder="CE-92" defaultValue="CE-92" /></Field>
+            <Field label="Date"><Input type="date" defaultValue={today} /></Field>
+            <Field label="Mark as"><Select options={["Unpaid (manual)", "Comp / VIP", "Pay later"]} /></Field>
+          </div>
+          <div className="mt-4 flex gap-2">
+            <Btn variant="primary" icon={Icon.lock} onClick={() => { setDone(true); toast("Demo — sunbed blocked & QR e-mailed (booking flagged unpaid/manual)."); }}>Reserve & send QR</Btn>
+            <Btn variant="outline" icon={Icon.umbrella} onClick={() => toast("Demo — opens the live map to pick a bed.")}>Pick on map</Btn>
           </div>
         </Card>
-      )}
+        {done && (
+          <Card className="p-5 mt-4 flex items-center gap-4 animate-fade-up">
+            <QR size={96} seed="MANUAL-CE92" />
+            <div>
+              <div className="font-semibold text-navy-900 flex items-center gap-2">Reserved <Badge tone="amber">Unpaid</Badge></div>
+              <div className="text-sm text-slate-600">Central · CE-92 — QR sent to maria@example.com. The customer can pay later or present the QR at the gate.</div>
+            </div>
+          </Card>
+        )}
+      </div>
+      <ContextPanel title="Manual / phone bookings" items={[
+        { icon: Icon.phone, title: "Block without payment", body: "Used for phone bookings, VIP comps, and pay-later guests." },
+        { icon: Icon.mail, title: "QR by e-mail", body: "The guest gets the same gate QR as an online booking." },
+        { icon: Icon.cash, title: "Settle later", body: "Mark unpaid bookings paid in Bookings when they arrive." },
+      ]} footer="Manual bookings appear in Reporting with channel = Phone." />
     </div>
   );
 }
@@ -299,11 +307,11 @@ export function AdminUsers() {
   const [q, setQ] = useState("");
   const [tagFilter, setTagFilter] = useState("All");
   const users = [
-    { n: "Maria K.", e: "maria@…", b: 12, tags: ["VIP", "Season pass"] },
-    { n: "Nikos P.", e: "nikos@…", b: 5, tags: ["Regular"] },
-    { n: "Elena V.", e: "elena@…", b: 28, tags: ["VIP"] },
-    { n: "Giorgos T.", e: "g.t@…", b: 2, tags: ["New"] },
-    { n: "Dimitris A.", e: "d.a@…", b: 14, tags: ["Regular"] },
+    { n: "Maria K.", e: "maria.k@example.com", b: 12, tags: ["VIP", "Season pass"] },
+    { n: "Nikos P.", e: "nikos.p@example.com", b: 5, tags: ["Regular"] },
+    { n: "Elena V.", e: "elena.v@example.com", b: 28, tags: ["VIP"] },
+    { n: "Giorgos T.", e: "g.tsouris@example.com", b: 2, tags: ["New"] },
+    { n: "Dimitris A.", e: "d.aravidis@example.com", b: 14, tags: ["Regular"] },
   ];
   const allTags = ["All", "VIP", "Season pass", "Regular", "New"];
   const tagTone = (t) => ({ VIP: "amber", "Season pass": "blue", Regular: "slate", New: "green" }[t] || "slate");
@@ -314,7 +322,7 @@ export function AdminUsers() {
         actions={<Btn variant="outline" icon={Icon.tag} onClick={() => toast("Demo — create a tag / segment.")}>New tag</Btn>} />
       <Card className="p-4">
         <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-xs flex-1 text-slate-400">
+          <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-xs flex-1 text-slate-600">
             <Icon.search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search users…" className="text-sm outline-none w-full bg-transparent text-ink" />
           </div>
           <div className="flex gap-1.5 flex-wrap">
@@ -339,7 +347,7 @@ export function AdminReporting() {
   return (
     <div className="animate-fade-up">
       <PageHead actions={<><Btn variant="outline" icon={Icon.calendar} onClick={() => toast("Demo — period picker.")}>This season</Btn><Btn variant="primary" icon={Icon.download} onClick={() => { downloadCSV(`reporting-${tab}.csv`, ["Period", "Bookings"], season.map((s) => [s.l, s.v])); toast(`Exported ${tab} report (CSV).`); }}>Export</Btn></>} />
-      <Tabs tabs={tabs} value={tab} onChange={setTab} className="mb-4" />
+      <Tabs tabs={tabs} value={tab} onChange={setTab} className="mb-4" scroll />
 
       {tab === "exec" && <>
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
@@ -380,7 +388,7 @@ export function AdminReporting() {
               <div className="w-16 text-[12px] text-slate-500">{z.name}</div>
               <div className="flex gap-1">{Array.from({ length: 7 }).map((_, d) => { const v = 0.3 + ((z.total * 7 + d * 13) % 70) / 100; return <div key={d} className="w-7 h-6 rounded" style={{ background: `rgba(13,148,136,${v.toFixed(2)})` }} title={`${Math.round(v * 100)}%`} />; })}</div>
             </div>))}
-            <div className="flex gap-1 ml-[72px] pt-1 text-[10px] text-slate-400">{["M", "T", "W", "T", "F", "S", "S"].map((d, i) => <div key={i} className="w-7 text-center">{d}</div>)}</div>
+            <div className="flex gap-1 ml-[72px] pt-1 text-[10px] text-slate-600">{["M", "T", "W", "T", "F", "S", "S"].map((d, i) => <div key={i} className="w-7 text-center">{d}</div>)}</div>
           </div>
         </Card>
       </>}
@@ -420,7 +428,7 @@ export function AdminReporting() {
           ["Sunbed bookings", 214, "€6,420", "−€60", "€6,360"], ["Entry tickets", 512, "€4,180", "€0", "€4,180"], ["Lockers", 38, "€190", "€0", "€190"],
           [<b>Total</b>, <b>764</b>, <b>€10,790</b>, <b>−€60</b>, <b>€10,730</b>],
         ]} />
-        <div className="mt-3 text-[12px] text-slate-400">Documents issued: 726 ΑΠΥ · 12 ΤΠΥ · all transmitted to MyDATA ✓</div></Card>}
+        <div className="mt-3 text-[12px] text-slate-600">Documents issued: 726 ΑΠΥ · 12 ΤΠΥ · all transmitted to MyDATA ✓</div></Card>}
     </div>
   );
 }
@@ -451,7 +459,7 @@ export function AdminRefunds() {
             <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm flex justify-between"><span className="text-slate-500">{rows[modal].tx} · {rows[modal].cust}</span><b className="tnum">€{rows[modal].amount}</b></div>
             <Field label="Refund type"><Select options={["Full refund", "Partial refund"]} /></Field>
             <Field label="Reason"><Select options={["Weather", "Double booking", "Customer request", "Service issue"]} /></Field>
-            <div className="text-[12px] text-slate-400 flex items-center gap-1.5"><Icon.shield size={13} /> Reverses the application fee and auto-issues a credit note to MyDATA.</div>
+            <div className="text-[12px] text-slate-600 flex items-center gap-1.5"><Icon.shield size={13} /> Reverses the application fee and auto-issues a credit note to MyDATA.</div>
           </div>
         )}
       </Modal>
@@ -463,18 +471,36 @@ export function AdminRefunds() {
 export function AdminCommunicate() {
   const { toast } = useApp();
   const [seg, setSeg] = useState("VIP");
+  const [msg, setMsg] = useState("☀️ Weekend offer: 20% off front-row sunbeds at Akti tou Iliou. Book now!");
+  const reach = seg === "All users" ? "8,420" : seg === "VIP" ? "318" : "1,204";
   return (
-    <div className="animate-fade-up max-w-2xl">
+    <div className="animate-fade-up">
       <PageHead title="Communicate" sub="Message users or segments with notifications and offers — builds on tags/segmentation." badge={<Badge tone="future">Future</Badge>} />
-      <Card className="p-5 space-y-3">
-        <Field label="Audience segment"><Select value={seg} onChange={(e) => setSeg(e.target.value)} options={["VIP", "Season pass", "Regulars", "New", "All users"]} /></Field>
-        <Field label="Channel"><Select options={["Push notification", "E-mail", "SMS", "WhatsApp"]} /></Field>
-        <Field label="Message"><textarea rows={4} defaultValue="☀️ Weekend offer: 20% off front-row sunbeds at Akti tou Iliou. Book now!" className="w-full rounded-xl ring-1 ring-slate-200 px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-400 outline-none" /></Field>
-        <div className="flex items-center justify-between">
-          <div className="text-[12px] text-slate-400">Est. reach: <b className="text-navy-900">{seg === "All users" ? "8,420" : seg === "VIP" ? "318" : "1,204"}</b> users</div>
-          <Btn variant="primary" icon={Icon.bell} onClick={() => toast("Demo — campaign queued (roadmap feature).")}>Send campaign</Btn>
-        </div>
-      </Card>
+      <FutureBanner />
+      <div className="grid lg:grid-cols-[1fr_320px] gap-5">
+        <Card className="p-5 space-y-3">
+          <Field label="Audience segment"><Select value={seg} onChange={(e) => setSeg(e.target.value)} options={["VIP", "Season pass", "Regulars", "New", "All users"]} /></Field>
+          <Field label="Channel"><Select options={["Push notification", "E-mail", "SMS", "WhatsApp"]} /></Field>
+          <Field label="Message"><textarea rows={4} value={msg} onChange={(e) => setMsg(e.target.value)} className="glass-input w-full rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500/70 outline-none" /></Field>
+          <div className="flex items-center justify-between">
+            <div className="text-[12px] text-slate-600">Est. reach: <b className="text-navy-900">{reach}</b> users</div>
+            <Btn variant="primary" icon={Icon.bell} onClick={() => toast("Demo — campaign queued (roadmap feature).")}>Send campaign</Btn>
+          </div>
+        </Card>
+        <aside className="space-y-3 lg:sticky lg:top-24 h-max">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 px-1">Preview</div>
+          <div className="rounded-2xl bg-navy-950 text-white p-4 shadow-lift">
+            <div className="flex items-center gap-2 text-[11px] text-white/70 mb-2"><Icon.bell size={12} /> Akti tou Iliou · now</div>
+            <div className="font-semibold text-sm">Weekend at the beach</div>
+            <div className="text-[12px] text-white/80 leading-snug mt-0.5 line-clamp-3">{msg}</div>
+          </div>
+          <div className="rounded-2xl ring-1 ring-slate-200 bg-white/70 backdrop-blur p-4 space-y-2 text-[12px] text-slate-600">
+            <div className="flex items-center gap-2 font-semibold text-navy-900"><Icon.users size={14} /> Audience</div>
+            <div>Segment <b className="text-navy-900">{seg}</b> · est. reach <b className="text-navy-900">{reach}</b></div>
+            <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-500">Built on Users & Segments — change tags to grow the reach.</div>
+          </div>
+        </aside>
+      </div>
     </div>
   );
 }

@@ -17,7 +17,7 @@ body {
   background-image:
     radial-gradient(900px 560px at 92% -10%, rgba(45, 212, 191, 0.55), transparent 60%),
     radial-gradient(780px 520px at -8% 8%, rgba(99, 102, 241, 0.45), transparent 60%),
-    radial-gradient(700px 520px at 50% 110%, rgba(242, 183, 5, 0.30), transparent 55%),
+    radial-gradient(560px 360px at 50% 130%, rgba(242, 183, 5, 0.14), transparent 55%),
     radial-gradient(1100px 700px at 30% 40%, rgba(56, 189, 248, 0.28), transparent 60%);
   background-attachment: fixed;
   font-family: "Inter", ui-sans-serif, system-ui, sans-serif;

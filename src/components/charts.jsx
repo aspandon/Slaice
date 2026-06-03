@@ -1,45 +1,83 @@
-// Dependency-free SVG charts.
+// Dependency-free SVG charts with readable axis labels (HTML overlay so the
+// type-size doesn't get distorted by SVG scaling).
 
-export function BarChart({ data, color = "#0D9488", height = 150 }) {
+function formatTick(v) {
+  if (v >= 1000) return (v / 1000).toFixed(v >= 10000 ? 0 : 1).replace(/\.0$/, "") + "k";
+  return Math.round(v).toString();
+}
+
+const PAD_LEFT = 36;   // px reserved for Y-axis labels
+const PAD_BOTTOM = 22; // px reserved for X-axis labels
+
+export function BarChart({ data, color = "#0D9488", height = 220 }) {
   const max = Math.max(...data.map((d) => d.v)) * 1.15 || 1;
-  const bw = 100 / data.length;
+  const ticks = [1, 0.66, 0.33, 0];
   return (
-    <svg viewBox={`0 0 100 ${height / 2}`} className="w-full" style={{ height }}>
-      {[0.25, 0.5, 0.75, 1].map((g, i) => (
-        <line key={i} x1="0" x2="100" y1={(height / 2) * (1 - g)} y2={(height / 2) * (1 - g)} stroke="#eef2f6" strokeWidth="0.4" />
-      ))}
-      {data.map((d, i) => {
-        const h = (d.v / max) * (height / 2 - 8);
-        return (
-          <g key={i}>
-            <rect x={i * bw + bw * 0.2} y={height / 2 - h - 6} width={bw * 0.6} height={h} rx="1" fill={color} opacity={d.hi ? 1 : 0.78} />
-            <text x={i * bw + bw * 0.5} y={height / 2 - 1} fontSize="2.6" textAnchor="middle" fill="#94a3b8">{d.l}</text>
-          </g>
-        );
-      })}
-    </svg>
+    <div className="relative" style={{ height }}>
+      {/* Y-axis labels */}
+      <div className="absolute left-0 top-0 flex flex-col justify-between text-[10px] font-medium text-slate-500 tnum pr-2 pointer-events-none" style={{ width: PAD_LEFT, bottom: PAD_BOTTOM }}>
+        {ticks.map((t, i) => <span key={i} className="text-right leading-none">{formatTick(max * t)}</span>)}
+      </div>
+      {/* Plot area */}
+      <div className="absolute top-0 right-0" style={{ left: PAD_LEFT, bottom: PAD_BOTTOM }}>
+        <svg viewBox="0 0 100 60" preserveAspectRatio="none" className="w-full h-full">
+          {ticks.map((t, i) => (
+            <line key={i} x1="0" x2="100" y1={60 * (1 - t)} y2={60 * (1 - t)} stroke="#e2e8f0" strokeWidth="0.25" strokeDasharray="0.8 0.8" />
+          ))}
+          {data.map((d, i) => {
+            const h = (d.v / max) * 60;
+            const bw = 100 / data.length;
+            return (
+              <rect key={i} x={i * bw + bw * 0.18} y={60 - h} width={bw * 0.64} height={h} rx="0.6" fill={color} opacity={d.hi ? 1 : 0.78} />
+            );
+          })}
+        </svg>
+      </div>
+      {/* X-axis labels */}
+      <div className="absolute right-0 bottom-0 grid text-[11px] font-medium text-slate-600 pointer-events-none" style={{ left: PAD_LEFT, height: PAD_BOTTOM, gridTemplateColumns: `repeat(${data.length}, 1fr)` }}>
+        {data.map((d, i) => <span key={i} className="text-center pt-1.5 truncate">{d.l}</span>)}
+      </div>
+    </div>
   );
 }
 
-export function LineChartMini({ data, color = "#0D9488", height = 150 }) {
+export function LineChartMini({ data, color = "#0D9488", height = 220 }) {
   const max = Math.max(...data.map((d) => d.v)) * 1.1 || 1;
   const min = Math.min(...data.map((d) => d.v)) * 0.9;
-  const pts = data.map((d, i) => `${(i / (data.length - 1)) * 100},${height / 2 - ((d.v - min) / (max - min)) * (height / 2 - 8) - 4}`).join(" ");
-  const area = `0,${height / 2} ${pts} 100,${height / 2}`;
+  const span = max - min || 1;
+  const ticks = [1, 0.66, 0.33, 0];
+  const pts = data.map((d, i) => `${(i / (data.length - 1)) * 100},${60 - ((d.v - min) / span) * 60}`).join(" ");
+  const area = `0,60 ${pts} 100,60`;
   const gid = `g${color.replace("#", "")}`;
   return (
-    <svg viewBox={`0 0 100 ${height / 2}`} className="w-full" style={{ height }}>
-      <defs>
-        <linearGradient id={gid} x1="0" x2="0" y1="0" y2="1">
-          <stop offset="0%" stopColor={color} stopOpacity="0.25" />
-          <stop offset="100%" stopColor={color} stopOpacity="0" />
-        </linearGradient>
-      </defs>
-      {[0.33, 0.66, 1].map((g, i) => <line key={i} x1="0" x2="100" y1={(height / 2) * (1 - g)} y2={(height / 2) * (1 - g)} stroke="#eef2f6" strokeWidth="0.4" />)}
-      <polygon points={area} fill={`url(#${gid})`} />
-      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.2" strokeLinejoin="round" />
-      {data.map((d, i) => <text key={i} x={(i / (data.length - 1)) * 100} y={height / 2 - 0.5} fontSize="2.4" textAnchor="middle" fill="#94a3b8">{d.l}</text>)}
-    </svg>
+    <div className="relative" style={{ height }}>
+      <div className="absolute left-0 top-0 flex flex-col justify-between text-[10px] font-medium text-slate-500 tnum pr-2 pointer-events-none" style={{ width: PAD_LEFT, bottom: PAD_BOTTOM }}>
+        {ticks.map((t, i) => <span key={i} className="text-right leading-none">{formatTick(min + span * t)}</span>)}
+      </div>
+      <div className="absolute top-0 right-0" style={{ left: PAD_LEFT, bottom: PAD_BOTTOM }}>
+        <svg viewBox="0 0 100 60" preserveAspectRatio="none" className="w-full h-full">
+          <defs>
+            <linearGradient id={gid} x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity="0.35" />
+              <stop offset="100%" stopColor={color} stopOpacity="0" />
+            </linearGradient>
+          </defs>
+          {ticks.map((t, i) => (
+            <line key={i} x1="0" x2="100" y1={60 * (1 - t)} y2={60 * (1 - t)} stroke="#e2e8f0" strokeWidth="0.25" strokeDasharray="0.8 0.8" />
+          ))}
+          <polygon points={area} fill={`url(#${gid})`} />
+          <polyline points={pts} fill="none" stroke={color} strokeWidth="0.8" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          {data.map((d, i) => {
+            const x = (i / (data.length - 1)) * 100;
+            const y = 60 - ((d.v - min) / span) * 60;
+            return <circle key={i} cx={x} cy={y} r="0.8" fill={color} />;
+          })}
+        </svg>
+      </div>
+      <div className="absolute right-0 bottom-0 grid text-[11px] font-medium text-slate-600 pointer-events-none" style={{ left: PAD_LEFT, height: PAD_BOTTOM, gridTemplateColumns: `repeat(${data.length}, 1fr)` }}>
+        {data.map((d, i) => <span key={i} className="text-center pt-1.5 truncate">{d.l}</span>)}
+      </div>
+    </div>
   );
 }
 
@@ -57,7 +95,7 @@ export function Donut({ segments, size = 120 }) {
           strokeDasharray={`${dash} ${c - dash}`} strokeDashoffset={-off} transform="rotate(-90 50 50)" strokeLinecap="butt" />;
       })}
       <text x="50" y="48" textAnchor="middle" fontSize="11" fontWeight="700" fill="#0B2545">{total}</text>
-      <text x="50" y="60" textAnchor="middle" fontSize="6" fill="#94a3b8">total</text>
+      <text x="50" y="60" textAnchor="middle" fontSize="6" fill="#64748b">total</text>
     </svg>
   );
 }

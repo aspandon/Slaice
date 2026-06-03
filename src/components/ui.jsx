@@ -162,12 +162,45 @@ export function StatCard({ label, value, sub, tone = "navy", icon: IconC, delta 
   return (
     <Card hover className="p-4 group">
       <div className="flex items-start justify-between">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">{label}</div>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">{label}</div>
         {IconC && <div className={`w-8 h-8 rounded-xl grid place-items-center transition-transform duration-200 ease-spring group-hover:scale-110 ${accent}`}><IconC size={16} /></div>}
       </div>
       <div className="mt-1.5 text-2xl font-bold text-navy-900 tnum font-display tracking-tight">{value}</div>
-      {sub && <div className="mt-1 text-[12px] text-slate-500 flex items-center gap-1">{delta}{sub}</div>}
+      {sub && <div className="mt-1 text-[12px] text-slate-600 flex items-center gap-1">{delta}{sub}</div>}
     </Card>
+  );
+}
+
+/* ---------- Future banner (Roadmap preview heads-up) ---------- */
+export function FutureBanner({ children = "Preview · Roadmap 2027–2029 — fully clickable mockup, not part of the MVP." }) {
+  return (
+    <div className="mb-4 flex items-center gap-2 rounded-xl bg-orange-50 ring-1 ring-orange-500/20 px-3 py-2 text-[12px] text-orange-700">
+      <Icon.bolt size={14} className="shrink-0 text-orange-500" />
+      <span className="leading-snug">{children}</span>
+    </div>
+  );
+}
+
+/* ---------- Context panel (used on sparse forms) ---------- */
+export function ContextPanel({ title, items = [], footer }) {
+  return (
+    <aside className="space-y-3 lg:sticky lg:top-24 h-max">
+      {title && (
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 px-1">{title}</div>
+      )}
+      <div className="rounded-2xl ring-1 ring-slate-200 bg-white/70 backdrop-blur p-4 space-y-3">
+        {items.map((it, i) => (
+          <div key={i} className="flex gap-2.5">
+            {it.icon && <span className="w-7 h-7 rounded-lg bg-slate-100 text-slate-600 grid place-items-center shrink-0">{<it.icon size={14} />}</span>}
+            <div className="min-w-0 flex-1">
+              {it.title && <div className="text-[13px] font-semibold text-navy-900 leading-tight">{it.title}</div>}
+              {it.body && <div className="text-[12px] text-slate-600 leading-snug mt-0.5">{it.body}</div>}
+            </div>
+          </div>
+        ))}
+        {footer && <div className="pt-2 border-t border-slate-100 text-[11px] text-slate-500 leading-snug">{footer}</div>}
+      </div>
+    </aside>
   );
 }
 
@@ -188,7 +221,7 @@ export function Table({ cols, rows, right = [] }) {
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-left text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-200">
+          <tr className="text-left text-[11px] uppercase tracking-wider text-slate-600 border-b border-slate-200">
             {cols.map((c, i) => (
               <th key={i} className={`py-2.5 px-3 font-semibold ${right.includes(i) ? "text-right" : ""}`}>{c}</th>
             ))}
@@ -212,9 +245,9 @@ export function Table({ cols, rows, right = [] }) {
 export function Field({ label, children, hint }) {
   return (
     <label className="block">
-      {label && <div className="text-[12px] font-semibold text-slate-500 mb-1">{label}</div>}
+      {label && <div className="text-[12px] font-semibold text-slate-700 mb-1">{label}</div>}
       {children}
-      {hint && <div className="text-[11px] text-slate-400 mt-1">{hint}</div>}
+      {hint && <div className="text-[11px] text-slate-500 mt-1">{hint}</div>}
     </label>
   );
 }
@@ -295,12 +328,12 @@ export function ConfirmModal({ open, onClose, onConfirm, title = "Are you sure?"
 }
 
 /* ---------- Tabs ---------- */
-export function Tabs({ tabs, value, onChange, className = "" }) {
+export function Tabs({ tabs, value, onChange, className = "", scroll = false }) {
   return (
-    <div className={`flex gap-1.5 flex-wrap ${className}`}>
+    <div className={`flex gap-1.5 ${scroll ? "overflow-x-auto no-scrollbar" : "flex-wrap"} ${className}`}>
       {tabs.map(([k, t]) => (
         <button key={k} onClick={() => onChange(k)}
-          className={`px-3.5 py-1.5 rounded-lg text-[13px] font-semibold transition-all duration-150 ${value === k ? "bg-navy-900 text-white shadow-sm" : "glass text-slate-700 hover:text-navy-900"}`}>
+          className={`px-3.5 h-9 rounded-lg text-[13px] font-semibold whitespace-nowrap transition-all duration-150 ${value === k ? "bg-navy-900 text-white shadow-sm" : "glass text-slate-700 hover:text-navy-900"}`}>
           {t}
         </button>
       ))}

@@ -4,21 +4,42 @@ import { Card, Btn, Badge, PageHead, Table, StatCard, Tabs, Modal, StatusBadge, 
 import { useApp } from "../app/store.jsx";
 import { downloadCSV, downloadText } from "../lib/download.js";
 
+const neg = (v) => <span className="text-rose-600 font-medium tnum">{v}</span>;
+const negBold = (v) => <b className="text-rose-600 tnum">{v}</b>;
+
+function CopyMark({ mark, toast }) {
+  const [copied, setCopied] = useState(false);
+  const copy = (e) => {
+    e.stopPropagation();
+    try { navigator.clipboard.writeText(mark); } catch {}
+    setCopied(true);
+    toast?.(`Copied MARK ${mark}.`, { tone: "success", duration: 1600 });
+    setTimeout(() => setCopied(false), 1200);
+  };
+  return (
+    <button onClick={copy} title="Copy MARK to clipboard" className="inline-flex items-center gap-1.5 font-mono text-[12px] text-navy-900 hover:text-teal-700 group tnum">
+      <span>{mark}</span>
+      <span className="opacity-50 group-hover:opacity-100 transition-opacity">{copied ? <Icon.check size={12} className="text-teal-600" /> : <Icon.doc size={12} />}</span>
+    </button>
+  );
+}
+
 /* ============ e-INVOICING & MyDATA ============ */
 export function AccountantInvoicing() {
   const { toast } = useApp();
   const [tab, setTab] = useState("all");
   const [view, setView] = useState(null);
   const docs = [
-    { d: "ΑΠΥ-2026-004281", t: "ΑΠΥ", mark: "400001…2281", amt: "€30", st: "MyDATA ✓", type: "issued" },
-    { d: "ΑΠΥ-2026-004280", t: "ΑΠΥ", mark: "400001…2280", amt: "€25", st: "MyDATA ✓", type: "issued" },
-    { d: "ΤΠΥ-2026-000118", t: "ΤΠΥ", mark: "400001…0118", amt: "€120", st: "MyDATA ✓", type: "issued" },
-    { d: "ΑΚΥ-2026-000044", t: "Cancellation", mark: "400001…0044", amt: "−€30", st: "Issued", type: "cancelled" },
-    { d: "ΠΙΣ-2026-000012", t: "Credit (5.1)", mark: "400001…0012", amt: "−€22", st: "MyDATA ✓", type: "credited" },
+    { d: "ΑΠΥ-2026-004281", t: "ΑΠΥ", mark: "400001020304002281", amt: "€30", st: "MyDATA ✓", type: "issued" },
+    { d: "ΑΠΥ-2026-004280", t: "ΑΠΥ", mark: "400001020304002280", amt: "€25", st: "MyDATA ✓", type: "issued" },
+    { d: "ΤΠΥ-2026-000118", t: "ΤΠΥ", mark: "400001020304000118", amt: "€120", st: "MyDATA ✓", type: "issued" },
+    { d: "ΑΚΥ-2026-000044", t: "Cancellation", mark: "400001020304000044", amt: "−€30", st: "Issued", type: "cancelled" },
+    { d: "ΠΙΣ-2026-000012", t: "Credit (5.1)", mark: "400001020304000012", amt: "−€22", st: "MyDATA ✓", type: "credited" },
   ];
   const filtered = docs.filter((x) => tab === "all" || x.type === tab);
   const tone = (s) => (s.includes("✓") ? "green" : "amber");
   const loading = useMockLoad();
+  const amountCell = (a) => (a.startsWith("−") ? neg(a) : a);
   return (
     <div className="animate-fade-up">
       <PageHead actions={<Btn variant="primary" icon={Icon.download} onClick={() => { downloadCSV("invoicing.csv", ["Document", "Type", "MARK", "Amount", "Status"], filtered.map((x) => [x.d, x.t, x.mark, x.amt, x.st])); toast(`Exported ${filtered.length} documents (CSV).`); }}>Export</Btn>} />
@@ -34,7 +55,7 @@ export function AccountantInvoicing() {
           <TableSkeleton rows={5} cols={6} />
         ) : (
           <Table cols={["Document", "Type", "MARK", "Amount", "Status", ""]} right={[3]}
-            rows={filtered.map((x) => [x.d, x.t, <span className="font-mono text-[12px]">{x.mark}</span>, x.amt, <StatusBadge status={x.st} />,
+            rows={filtered.map((x) => [x.d, x.t, <CopyMark mark={x.mark} toast={toast} />, amountCell(x.amt), <StatusBadge status={x.st} />,
               <span className="flex gap-1 justify-end">
                 <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => setView(x)}>View</Btn>
                 <Btn size="sm" variant="ghost" icon={Icon.download} onClick={() => { downloadText(`${x.d}.txt`, mockReceiptText(x), "text/plain;charset=utf-8"); toast(`Downloaded ${x.d}.`, { tone: "success" }); }}>PDF</Btn>
@@ -47,7 +68,7 @@ export function AccountantInvoicing() {
         {view && (
           <div className="text-sm">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
-              <div><div className="font-display font-bold text-navy-900 text-lg">{view.t}</div><div className="text-slate-400 text-[12px]">Akti tou Iliou ΑΕ · ΑΦΜ 123456789 · GR</div></div>
+              <div><div className="font-display font-bold text-navy-900 text-lg">{view.t}</div><div className="text-slate-600 text-[12px]">Akti tou Iliou ΑΕ · ΑΦΜ 123456789 · GR</div></div>
               <Badge tone={tone(view.st)}>{view.st}</Badge>
             </div>
             <Table cols={["Line", "Net", "VAT 24%", "Total"]} right={[1, 2, 3]} rows={[
@@ -55,7 +76,7 @@ export function AccountantInvoicing() {
               ["Entry ticket", "€16.13", "€3.87", "€20.00"],
             ]} />
             <div className="flex justify-between mt-3 font-semibold text-navy-900"><span>Total gross</span><span className="tnum">€30.00</span></div>
-            <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-[12px] text-slate-500 font-mono">MARK: {view.mark} · invoiceType 2.1 · payment 7 (Stripe online)</div>
+            <div className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-[12px] text-slate-600 font-mono">MARK: {view.mark} · invoiceType 2.1 · payment 7 (Stripe online)</div>
           </div>
         )}
       </Modal>
@@ -100,14 +121,17 @@ export function AccountantCommission() {
       <Card className="p-5 mb-4">
         <div className="font-semibold text-navy-900 mb-2">Gross → net (this month)</div>
         <Table cols={["Line", "Amount"]} right={[1]} rows={[
-          ["Gross sales", "€198,400"], ["Stripe fees", "−€2,900"], ["Slaice commission (5%)", "−€9,920"], [<b>Tenant net</b>, <b>€185,580</b>],
+          ["Gross sales", "€198,400"],
+          ["Stripe fees", neg("−€2,900")],
+          ["Slaice commission (5%)", neg("−€9,920")],
+          [<b>Tenant net</b>, <b className="tnum">€185,580</b>],
         ]} />
       </Card>
       <Card className="p-5">
         <div className="font-semibold text-navy-900 mb-2">Monthly payouts (season)</div>
         <Table cols={["Month", "Gross", "Stripe fee", "Slaice 5%", "Tenant net"]} right={[1, 2, 3, 4]} rows={[
-          ...monthly,
-          [<b key="s">Season</b>, <b key="g">€704,000</b>, <b key="sf">−€10,200</b>, <b key="sl">−€35,200</b>, <b key="tn">€658,600</b>],
+          ...monthly.map((r) => [r[0], r[1], neg(r[2]), neg(r[3]), <b className="tnum">{r[4]}</b>]),
+          [<b key="s">Season</b>, <b key="g" className="tnum">€704,000</b>, negBold("−€10,200"), negBold("−€35,200"), <b key="tn" className="tnum">€658,600</b>],
         ]} />
       </Card>
     </div>
