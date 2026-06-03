@@ -52,7 +52,7 @@ export default function App() {
         <AuthGate />
       ) : (
         <div className="w-full px-3 sm:px-5 py-4 relative">
-          {persona === "customer" && (
+          {persona === "customer" && page === "book" && (
             <div
               aria-hidden="true"
               className="fixed inset-0 -z-10 pointer-events-none bg-cover bg-center"
@@ -62,10 +62,10 @@ export default function App() {
           <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />
           <MobilePersona persona={persona} setPersona={setPersona} />
           {persona === "customer" ? (
-            <>
+            <div className={page === "book" ? "lg:pr-[352px]" : ""}>
               <PageTopNav persona={persona} page={page} setPage={setPage} />
               <main className="min-w-0">{routeFor(persona, page, { go, setPage })}</main>
-            </>
+            </div>
           ) : (
             <>
               <MobileNav persona={persona} page={page} setPage={setPage} />
@@ -75,7 +75,7 @@ export default function App() {
               </div>
             </>
           )}
-          <footer className="text-center text-[11px] text-slate-400 mt-8 pb-4">
+          <footer className={`text-center text-[11px] mt-8 pb-4 ${persona === "customer" && page === "book" ? "text-white/80 drop-shadow" : "text-slate-500"}`}>
             Slaice — non-functional clickable mockup · sample data only · built to navigate every persona, feature & user journey.
           </footer>
         </div>

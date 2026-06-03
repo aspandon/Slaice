@@ -1,10 +1,35 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
-import { Badge, Btn, Modal, ConfirmModal, Field, Input, Select, Toggle } from "./ui.jsx";
+import { Badge, Btn, Modal, ConfirmModal, Field, Input, Select, Toggle, EmptyState } from "./ui.jsx";
 import { SlaiceLogo, TenantLogo } from "./Brand.jsx";
 import { PERSONAS, NAV } from "../data/personas.js";
 import { TENANT } from "../data/beach.js";
 import { LANGS, useApp } from "../app/store.jsx";
+
+/* Close on click outside + Escape. Returns a ref to attach to the popover root. */
+function useOutsideClose(open, setOpen) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open, setOpen]);
+  return ref;
+}
+
+function cartGlyph(kind) {
+  const m = { sunbed: Icon.umbrella, ticket: Icon.ticket, locker: Icon.lock, parking: Icon.car };
+  const I = m[kind] || Icon.card;
+  return <I size={13} />;
+}
 
 /* ---------- Per-persona notification feeds (mocked) ---------- */
 const FEEDS = {
@@ -44,20 +69,32 @@ const FEEDS = {
 
 /* ---------- Top bar ---------- */
 export function TopBar({ persona, setPersona, page, setPage }) {
-  const { lang, setLang, signedIn, setSignedIn, go, toast, cart } = useApp();
+  const { lang, setLang, signedIn, setSignedIn, go, toast, cart, removeFromCart, addToCart } = useApp();
   const cartCount = (cart || []).length;
+  const cartTotal = (cart || []).reduce((a, b) => a + b.price, 0);
   const [pOpen, setPOpen] = useState(false);
   const [lOpen, setLOpen] = useState(false);
   const [aOpen, setAOpen] = useState(false);
   const [nOpen, setNOpen] = useState(false);
+  const [bOpen, setBOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const cur = PERSONAS.find((p) => p.id === persona);
-  const close = () => { setPOpen(false); setLOpen(false); setAOpen(false); setNOpen(false); };
+  const close = () => { setPOpen(false); setLOpen(false); setAOpen(false); setNOpen(false); setBOpen(false); };
+  const lRef = useOutsideClose(lOpen, setLOpen);
+  const nRef = useOutsideClose(nOpen, setNOpen);
+  const aRef = useOutsideClose(aOpen, setAOpen);
+  const pRef = useOutsideClose(pOpen, setPOpen);
+  const bRef = useOutsideClose(bOpen, setBOpen);
   const baseFeed = FEEDS[persona] || FEEDS.customer;
   const [readIds, setReadIds] = useState(new Set());
   const feed = useMemo(() => baseFeed.map((n, i) => ({ ...n, id: `${persona}-${i}`, read: readIds.has(`${persona}-${i}`) })), [baseFeed, persona, readIds]);
   const unread = feed.filter((n) => !n.read).length;
   const markAll = () => setReadIds(new Set(feed.map((n) => n.id)));
+  const removeBasketItem = (it) => {
+    if (!removeFromCart) return;
+    removeFromCart(it.kind, it.id);
+    toast(`Removed ${it.label}.`, { action: { label: "Undo", onClick: () => addToCart && addToCart(it) } });
+  };
 
   return (
     <header className="glass-dark text-white rounded-2xl px-4 py-3 mb-4 flex items-center justify-between relative z-30 ring-1 ring-white/10 shadow-lift sticky top-2">
@@ -90,12 +127,12 @@ export function TopBar({ persona, setPersona, page, setPage }) {
         )}
 
         {/* language */}
-        <div className="relative">
+        <div className="relative" ref={lRef}>
           <button onClick={() => { close(); setLOpen((o) => !o); }} className="hidden sm:flex items-center gap-1.5 text-[13px] text-white/85 hover:text-white px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 ring-1 ring-white/15">
             <Icon.globe size={15} /> {lang} <Icon.chevD size={13} />
           </button>
           {lOpen && (
-            <div className="glass-card absolute right-0 mt-2 w-44 text-ink rounded-xl p-1.5 z-40">
+            <div className="glass-card absolute right-0 mt-2 w-44 text-ink rounded-xl p-1.5 z-50">
               {LANGS.map((l) => (
                 <button key={l.code} onClick={() => { setLang(l.code); setLOpen(false); }}
                   className={`w-full flex items-center justify-between px-2.5 py-2 rounded-lg text-sm hover:bg-slate-100 ${lang === l.code ? "bg-slate-50" : ""}`}>
@@ -107,14 +144,58 @@ export function TopBar({ persona, setPersona, page, setPage }) {
           )}
         </div>
 
-        <button onClick={() => go("customer", "checkout")} className="text-white/85 hover:text-white p-2 rounded-lg hover:bg-white/10 relative" title="Basket">
-          <Icon.card size={17} />
-          {cartCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 grid place-items-center text-[10px] font-bold bg-gold-400 text-navy-950 rounded-full ring-2 ring-navy-900">{cartCount}</span>
+        {/* basket popup */}
+        <div className="relative" ref={bRef}>
+          <button onClick={() => { close(); setBOpen((o) => !o); }} className="text-white/85 hover:text-white p-2 rounded-lg hover:bg-white/10 relative" aria-label="Basket" title="Basket">
+            <Icon.card size={17} />
+            {cartCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 grid place-items-center text-[10px] font-bold bg-teal-400 text-navy-950 rounded-full ring-2 ring-navy-900">{cartCount}</span>
+            )}
+          </button>
+          {bOpen && (
+            <div className="glass-card absolute right-0 mt-2 w-[320px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-50">
+              <div className="flex items-center justify-between px-2 py-1.5">
+                <div className="font-semibold text-navy-900 text-sm flex items-center gap-2">
+                  <Icon.card size={14} /> Your basket
+                  {cartCount > 0 && <Badge tone="green">{cartCount} item{cartCount > 1 ? "s" : ""}</Badge>}
+                </div>
+                {cartCount > 0 && <span className="text-[12px] font-bold text-navy-900 tnum">€{cartTotal}</span>}
+              </div>
+              {cartCount === 0 ? (
+                <div className="px-2 pb-2">
+                  <EmptyState compact icon={Icon.card} title="Cart is empty" body="Add a sunbed, ticket or locker to get started." className="rounded-xl bg-white/40" />
+                  <Btn variant="teal" full size="sm" icon={Icon.umbrella} className="mt-2" onClick={() => { setBOpen(false); go("customer", "book"); }}>Book a sunbed</Btn>
+                </div>
+              ) : (
+                <>
+                  <div className="max-h-[300px] overflow-y-auto space-y-1 pr-0.5">
+                    {(cart || []).map((it) => (
+                      <div key={it.kind + it.id} className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-white/60 transition">
+                        <span className="w-8 h-8 rounded-lg bg-slate-100 grid place-items-center text-slate-600 shrink-0">{cartGlyph(it.kind)}</span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-semibold text-[13px] text-navy-900 truncate">{it.label}</span>
+                          <span className="block text-[11px] text-slate-500 truncate">{it.sub}</span>
+                        </span>
+                        <span className="text-[12px] font-semibold text-navy-900 tnum shrink-0">€{it.price}</span>
+                        <button aria-label={`Remove ${it.label}`} onClick={() => removeBasketItem(it)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 shrink-0"><Icon.trash size={13} /></button>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="px-2 pt-2 mt-1 border-t border-white/40 space-y-1.5">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-slate-600">Subtotal</span>
+                      <span className="font-bold text-navy-900 tnum">€{cartTotal}</span>
+                    </div>
+                    <Btn variant="teal" full size="sm" icon={Icon.card} onClick={() => { setBOpen(false); go("customer", "checkout"); }}>Checkout</Btn>
+                    <button onClick={() => { setBOpen(false); go("customer", "book"); }} className="w-full text-center text-[11px] text-slate-500 hover:text-navy-900 py-1">Continue shopping</button>
+                  </div>
+                </>
+              )}
+            </div>
           )}
-        </button>
+        </div>
 
-        <div className="relative">
+        <div className="relative" ref={nRef}>
           <button onClick={() => { close(); setNOpen((o) => !o); }} className="text-white/85 hover:text-white p-2 rounded-lg hover:bg-white/10 relative" aria-label="Notifications">
             <Icon.bell size={17} />
             {unread > 0 && (
@@ -122,7 +203,7 @@ export function TopBar({ persona, setPersona, page, setPage }) {
             )}
           </button>
           {nOpen && (
-            <div className="glass-card absolute right-0 mt-2 w-[360px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-40">
+            <div className="glass-card absolute right-0 mt-2 w-[340px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-50">
               <div className="flex items-center justify-between px-2 py-1.5">
                 <div className="font-semibold text-navy-900 text-sm flex items-center gap-2">
                   <Icon.bell size={14} /> Notifications
@@ -157,13 +238,13 @@ export function TopBar({ persona, setPersona, page, setPage }) {
         </div>
 
         {/* avatar menu */}
-        <div className="relative">
+        <div className="relative" ref={aRef}>
           <button onClick={() => { close(); setAOpen((o) => !o); }} className="flex items-center gap-2 bg-white/10 ring-1 ring-white/15 hover:bg-white/20 rounded-xl pl-1 pr-2 py-1">
             <span className="w-7 h-7 rounded-lg grid place-items-center text-white text-xs font-bold" style={{ background: "linear-gradient(135deg,#f59e0b,#ef4444)" }}>EM</span>
             <Icon.chevD size={14} />
           </button>
           {aOpen && (
-            <div className="glass-card absolute right-0 mt-2 w-56 text-ink rounded-xl p-1.5 z-40">
+            <div className="glass-card absolute right-0 mt-2 w-56 text-ink rounded-xl p-1.5 z-50">
               <div className="px-3 py-2 border-b border-slate-100 mb-1">
                 <div className="font-semibold text-sm text-navy-900">Elena M.</div>
                 <div className="text-[12px] text-slate-400">elena@example.com</div>
@@ -176,14 +257,14 @@ export function TopBar({ persona, setPersona, page, setPage }) {
         </div>
 
         {/* persona switcher */}
-        <div className="relative">
+        <div className="relative" ref={pRef}>
           <button onClick={() => { close(); setPOpen((o) => !o); }} className="flex items-center gap-2 bg-white/15 ring-1 ring-white/25 hover:bg-white/25 rounded-xl pl-2 pr-3 py-1.5 text-sm font-semibold">
             <span className="w-6 h-6 rounded-lg grid place-items-center" style={{ background: cur.color }}>{Icon[cur.icon]({ size: 13 })}</span>
             <span className="hidden md:inline">{cur.label}</span>
             <Icon.chevD size={14} />
           </button>
           {pOpen && (
-            <div className="glass-card absolute right-0 mt-2 w-72 text-ink rounded-xl p-1.5 z-40">
+            <div className="glass-card absolute right-0 mt-2 w-72 text-ink rounded-xl p-1.5 z-50">
               <div className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">View as persona</div>
               {PERSONAS.map((p) => (
                 <button key={p.id} onClick={() => { setPersona(p.id); setPOpen(false); }}
@@ -344,14 +425,14 @@ export function Sidebar({ persona, page, setPage }) {
 export function PageTopNav({ persona, page, setPage }) {
   const items = NAV[persona];
   return (
-    <div className="glass rounded-2xl p-1.5 mb-4 flex gap-1.5 overflow-x-auto no-scrollbar">
+    <div className="relative z-30 glass rounded-2xl p-1.5 mb-4 flex gap-1.5 overflow-x-auto no-scrollbar">
       {items.map((it) => {
         const IconC = Icon[it.icon];
         const active = page === it.k;
         return (
           <button key={it.k} onClick={() => setPage(it.k)}
-            className={`group flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all duration-150 ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-600 hover:bg-white/70 hover:text-navy-900"}`}>
-            {IconC && <IconC size={16} className={active ? "" : "text-slate-400 group-hover:text-teal-600 transition-colors"} />}
+            className={`group flex items-center gap-2 h-10 px-3 rounded-xl text-sm font-semibold whitespace-nowrap transition-all duration-150 ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-700 hover:bg-white/70 hover:text-navy-900"}`}>
+            {IconC && <IconC size={16} className={active ? "" : "text-slate-500 group-hover:text-teal-600 transition-colors"} />}
             <span>{it.label}</span>
             {it.badge === "Future" && <Badge tone="future">Future</Badge>}
           </button>
@@ -398,7 +479,7 @@ export function Toasts({ items, onDismiss }) {
     default: { ic: "bolt", chip: "bg-gold-500/20 text-gold-400", bar: "bg-gold-400/70" },
   };
   return (
-    <div className="fixed bottom-4 right-4 z-[80] space-y-2.5 w-[340px] max-w-[calc(100vw-2rem)]">
+    <div className="fixed bottom-20 lg:bottom-4 right-4 z-[80] space-y-2.5 w-[340px] max-w-[calc(100vw-2rem)]">
       {items.map((t) => {
         const tn = tones[t.tone] || tones.default;
         const IC = Icon[tn.ic];
