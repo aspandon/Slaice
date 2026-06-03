@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, useMockLoad, FutureBanner, ContextPanel } from "../components/ui.jsx";
-import { BarChart, LineChartMini, Donut, QR } from "../components/charts.jsx";
+import { BarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts.jsx";
 import { ZONES } from "../data/beach.js";
 import { ADMIN_BOOKINGS, ADMIN_REFUNDS, CUSTOMERS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS } from "../data/mock.js";
 import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr.js";
@@ -354,18 +354,38 @@ export function AdminReporting() {
 
       {tab === "exec" && <>
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <StatCard label="Season revenue" value="€704k" sub="+9% vs last yr" tone="teal" icon={Icon.chart} />
-          <StatCard label="Total bookings" value="26,040" sub="sets sold" icon={Icon.umbrella} />
-          <StatCard label="Avg occupancy" value="68%" icon={Icon.grid} />
-          <StatCard label="Online share" value="40%" sub="of sets" icon={Icon.globe} />
-          <StatCard label="Refund rate" value="1.4%" icon={Icon.refund} />
+          <StatCard label="Season revenue" value="€704k" sub="vs last yr" tone="teal" trend="+9%" sparkline={<Sparkline data={[48,121,198,241,96]} />} />
+          <StatCard label="Total bookings" value="26,040" sub="sets sold" trend="+7%" sparkline={<Sparkline data={[120,98,142,165,210,320,298]} color="#0ea5e9" />} />
+          <StatCard label="Avg occupancy" value="68%" sub="across zones" trend="+3pp" />
+          <StatCard label="Online share" value="40%" sub="of sets" trend="+5pp" />
+          <StatCard label="Refund rate" value="1.4%" sub="of revenue" trend="-0.3pp" tone="teal" />
+        </div>
+        {/* Leisure-industry KPIs (RevPATB ≈ RevPAR for sunbeds). */}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+          <StatCard label="RevPATB" value="€18.4" sub="rev / available sunbed" tone="indigo" trend="+6%" />
+          <StatCard label="ADR" value="€27.1" sub="avg daily rate / set" trend="+4%" />
+          <StatCard label="Ancillary attach" value="0.7" sub="extras per booking" trend="+0.1" />
+          <StatCard label="No-show rate" value="2.8%" sub="of reservations" trend="-0.4pp" tone="teal" />
         </div>
         <div className="grid lg:grid-cols-3 gap-4 mt-4">
           <Card className="p-5 lg:col-span-2"><div className="font-semibold text-navy-900 mb-1">Revenue by month (€k)</div><LineChartMini data={season} /></Card>
           <Card className="p-5"><div className="font-semibold text-navy-900 mb-2">Revenue mix</div>
             <div className="flex items-center gap-4"><Donut segments={[{ v: 62, c: "#0D9488" }, { v: 28, c: "#0ea5e9" }, { v: 10, c: "#f59e0b" }]} />
-              <div className="text-sm space-y-1.5"><div>Sunbeds 62%</div><div>Tickets 28%</div><div>Other 10%</div></div></div>
+              <div className="text-sm space-y-1.5"><Leg c="bg-teal-600" t="Sunbeds 62%" /><Leg c="bg-sky-500" t="Tickets 28%" /><Leg c="bg-amber-500" t="Other 10%" /></div></div>
           </Card>
+        </div>
+        {/* Pace / pickup + an actionable insight callout. */}
+        <div className="grid lg:grid-cols-3 gap-4 mt-4">
+          <Card className="p-5 lg:col-span-2">
+            <div className="font-semibold text-navy-900 mb-1">Booking pace · on the books vs same time last year</div>
+            <BarChart color="#3a47cc" data={[{ l: "Jun", v: 121 }, { l: "Jul", v: 210, hi: 1 }, { l: "Aug", v: 198, hi: 1 }, { l: "Sep", v: 86 }, { l: "Oct", v: 22 }]} />
+          </Card>
+          <div className="rounded-3xl bg-gradient-to-br from-slaice-600 to-slaice-500 text-white p-5 shadow-lift flex flex-col">
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-white/80"><Icon.sparkles size={14} /> Insight</div>
+            <div className="mt-2 font-display font-bold text-lg leading-snug">Saturdays run 23% hotter than weekdays.</div>
+            <p className="text-[13px] text-white/85 mt-1 leading-snug">Macaw hits 91% by noon. Consider dynamic weekend pricing on front-row sets to lift RevPATB.</p>
+            <Btn variant="light" size="sm" className="mt-auto self-start" icon={Icon.trend} onClick={() => toast("Demo — open dynamic pricing rules.")}>Set a rule</Btn>
+          </div>
         </div>
       </>}
 

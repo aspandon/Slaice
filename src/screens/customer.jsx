@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad, StatCard, ContextPanel, Tabs, DatePickerRow } from "../components/ui.jsx";
 import { Reveal } from "../lib/motion.jsx";
-import { QR } from "../components/charts.jsx";
+import { QR, Sparkline } from "../components/charts.jsx";
 import { Sunbed, BeachBackdrop, ParkingBackdrop, LockerBackdrop } from "../components/Beach.jsx";
 import { downloadPDF, downloadZIP, buildPDFBytes } from "../lib/download.js";
 import { ZONES, ZONE_BLOCKS, FACILITIES, WEATHER, QUICK_PICKS, makeGrid, chipLabel, todayISO } from "../data/beach.js";
@@ -837,6 +837,22 @@ export function CustomerBookings() {
         <StatCard label="This season" value={`€${total}`} sub={`${data.length} confirmed`} />
         <StatCard label="Next visit" value="Sun, 19 Jul" sub="Central zone · 2 sunbeds" tone="indigo" />
       </div>
+      {/* Season in review (P5.6) */}
+      <Card className="overflow-hidden">
+        <div className="grad-sea text-white p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-teal-200"><Icon.sparkles size={13} /> Your season in review</div>
+            <div className="mt-1 font-display font-bold text-xl">You've had a sunny summer, Elena ☀️</div>
+            <div className="text-[13px] text-white/80 mt-0.5">9 visits · favourite zone <b className="text-white">Central</b> · you saved <b className="text-white">€34</b> with offers.</div>
+          </div>
+          <div className="flex items-center gap-5 shrink-0">
+            <div className="text-center"><div className="text-2xl font-bold font-display tnum">9</div><div className="text-[11px] text-white/70">visits</div></div>
+            <div className="text-center"><div className="text-2xl font-bold font-display tnum">€{total}</div><div className="text-[11px] text-white/70">spent</div></div>
+            <div className="w-px h-10 bg-white/20" />
+            <div className="w-28"><Sparkline data={[1,2,1,3,2,4,3,5]} color="#5EEAD4" width={112} height={36} /><div className="text-[10px] text-white/70 text-center mt-1">visits / month</div></div>
+          </div>
+        </div>
+      </Card>
       <Card className="p-4">
         <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
           <Tabs tabs={[["all", "All"], ["active", "Active"], ["past", "Past"]]} value={filter} onChange={setFilter} />

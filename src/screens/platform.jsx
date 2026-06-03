@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Field, Input, Select, Toggle, FutureBanner } from "../components/ui.jsx";
+import { Sparkline, Funnel, LineChartMini } from "../components/charts.jsx";
 import { SlaiceLogo } from "../components/Brand.jsx";
 import { PLATFORM_TENANTS } from "../data/mock.js";
 import { SUBPROCESSORS, BREACHES, TENANT_DPA } from "../data/gdpr.js";
@@ -28,6 +29,24 @@ export function PlatformTenants() {
         <StatCard label="Pipeline" value={PLATFORM_TENANTS.filter((t) => t.status.label !== "Live").length} sub="setup + leads" />
         <StatCard label="Platform GMV" value="€704k" sub="season to date" />
         <StatCard label="Slaice fees" value="€35.2k" sub="5% application fee" tone="indigo" />
+      </div>
+      {/* SaaS metrics (P5.5) */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <StatCard label="MRR" value="€18.6k" sub="ARR €223k" tone="indigo" trend="+6.4%" sparkline={<Sparkline data={[9,11,12,14,16,17,18.6]} color="#3a47cc" />} />
+        <StatCard label="Net revenue retention" value="112%" sub="expansion > churn" tone="teal" trend="+2pp" />
+        <StatCard label="Logo churn" value="1.1%" sub="monthly" tone="teal" trend="-0.2pp" />
+        <StatCard label="ARPA" value="€1,062" sub="per tenant / mo" trend="+€48" />
+      </div>
+      <div className="grid lg:grid-cols-3 gap-4 mb-4">
+        <Card className="p-5 lg:col-span-2">
+          <div className="font-semibold text-navy-900 mb-1">MRR growth (€k)</div>
+          <LineChartMini color="#3a47cc" data={[{ l: "Jan", v: 9 }, { l: "Feb", v: 11 }, { l: "Mar", v: 12.4 }, { l: "Apr", v: 14.1 }, { l: "May", v: 16.2 }, { l: "Jun", v: 18.6 }]} />
+        </Card>
+        <Card className="p-5">
+          <div className="font-semibold text-navy-900 mb-3">Onboarding funnel</div>
+          <Funnel steps={[{ l: "Leads", v: 48 }, { l: "Trials", v: 22 }, { l: "KYC passed", v: 14 }, { l: "Live", v: 11 }]} />
+          <div className="mt-3 text-[11px] text-slate-500">Avg time-to-activate: <b className="text-navy-900">6.5 days</b></div>
+        </Card>
       </div>
       <Card className="p-2">
         <Table cols={["Tenant", "Subdomain", "Stripe", "Modules", "MRR", "Status"]} right={[4]}

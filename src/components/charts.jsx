@@ -100,6 +100,52 @@ export function Donut({ segments, size = 120 }) {
   );
 }
 
+// Inline sparkline — a tiny trend line for KPI tiles.
+export function Sparkline({ data, color = "#0D9488", width = 96, height = 28 }) {
+  const max = Math.max(...data) * 1.05 || 1;
+  const min = Math.min(...data) * 0.95;
+  const span = max - min || 1;
+  const pts = data.map((v, i) => `${(i / (data.length - 1)) * 100},${30 - ((v - min) / span) * 28 - 1}`).join(" ");
+  const gid = `sl${color.replace("#", "")}`;
+  return (
+    <svg viewBox="0 0 100 30" preserveAspectRatio="none" style={{ width, height }} className="overflow-visible">
+      <defs><linearGradient id={gid} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity="0.28" /><stop offset="100%" stopColor={color} stopOpacity="0" /></linearGradient></defs>
+      <polygon points={`0,30 ${pts} 100,30`} fill={`url(#${gid})`} />
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+// Horizontal stacked bar — segments sum to 100% of the track width.
+export function StackedBar({ segments, height = 10, className = "" }) {
+  const total = segments.reduce((a, s) => a + s.v, 0) || 1;
+  return (
+    <div className={`w-full rounded-full overflow-hidden flex ${className}`} style={{ height }}>
+      {segments.map((s, i) => (
+        <div key={i} style={{ width: `${(s.v / total) * 100}%`, background: s.c }} title={`${s.l}: ${Math.round((s.v / total) * 100)}%`} />
+      ))}
+    </div>
+  );
+}
+
+// Conversion funnel — each step a shrinking bar with a count + drop-off.
+export function Funnel({ steps, color = "#3a47cc" }) {
+  const top = steps[0]?.v || 1;
+  return (
+    <div className="space-y-1.5">
+      {steps.map((s, i) => {
+        const pct = Math.round((s.v / top) * 100);
+        return (
+          <div key={i}>
+            <div className="flex items-center justify-between text-[12px] mb-0.5"><span className="text-slate-600">{s.l}</span><span className="tnum font-semibold text-navy-900">{s.v.toLocaleString()} · {pct}%</span></div>
+            <div className="h-6 rounded-lg bg-slate-100 overflow-hidden"><div className="h-full rounded-lg flex items-center" style={{ width: `${pct}%`, background: color, opacity: 0.55 + 0.45 * (s.v / top) }} /></div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // Deterministic faux-QR for mockups.
 export function QR({ size = 120, seed = "SLAICE" }) {
   const n = 21;

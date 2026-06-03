@@ -1,9 +1,15 @@
 import { useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Stepper, Field, Input, Select, FutureBanner, ContextPanel } from "../components/ui.jsx";
-import { QR } from "../components/charts.jsx";
+import { QR, StackedBar } from "../components/charts.jsx";
 import { CASHIER_TX, CASHIER_SESSION, CASHIER_PAST_SESSIONS, CASHIER_LOCKER_BANKS } from "../data/mock.js";
 import { useApp } from "../app/store.jsx";
+
+const ZRow = ({ label, value }) => (
+  <div className="flex items-center justify-between border-b border-slate-100 last:border-0 pb-1.5 last:pb-0">
+    <span className="text-slate-600">{label}</span><span className="font-semibold text-navy-900 tnum">{value}</span>
+  </div>
+);
 
 /* ============ ISSUE ON-SITE TICKET ============ */
 export function CashierIssue() {
@@ -125,6 +131,37 @@ export function CashierRegister() {
             <StatCard label="Cash in" value={CASHIER_SESSION.cashIn} />
             <StatCard label="Card in" value={CASHIER_SESSION.cardIn} />
           </div>
+          {/* Z-report — the end-of-shift summary every POS produces. */}
+          <div className="grid lg:grid-cols-3 gap-4 mt-4">
+            <Card className="p-5">
+              <div className="font-semibold text-navy-900 mb-2">Tender mix</div>
+              <StackedBar segments={[{ l: "Card", v: 3860, c: "#0ea5e9" }, { l: "Cash", v: 1240, c: "#f59e0b" }]} height={12} />
+              <div className="flex items-center justify-between text-[12px] mt-2">
+                <span className="inline-flex items-center gap-1.5 text-slate-600"><i className="w-2.5 h-2.5 rounded-sm bg-sky-500" /> Card €3,860</span>
+                <span className="inline-flex items-center gap-1.5 text-slate-600"><i className="w-2.5 h-2.5 rounded-sm bg-amber-500" /> Cash €1,240</span>
+              </div>
+            </Card>
+            <Card className="p-5">
+              <div className="font-semibold text-navy-900 mb-3">Shift stats</div>
+              <div className="space-y-2 text-[13px]">
+                <ZRow label="Transactions" value="312" />
+                <ZRow label="Avg transaction" value="€16.34" />
+                <ZRow label="Items / receipt" value="2.1" />
+                <ZRow label="Voids / refunds" value="3 · €40" />
+                <ZRow label="Busiest hour" value="12:00–13:00" />
+              </div>
+            </Card>
+            <Card className="p-5">
+              <div className="font-semibold text-navy-900 mb-3">Cash reconciliation</div>
+              <div className="space-y-2 text-[13px]">
+                <ZRow label="Opening float" value="€100" />
+                <ZRow label="Expected drawer" value="€1,340" />
+                <ZRow label="Counted" value="€1,335" />
+                <ZRow label="Variance" value={<span className="text-rose-600 font-semibold">−€5</span>} />
+              </div>
+              <div className="mt-3 text-[11px] text-amber-700 bg-amber-50 ring-1 ring-amber-600/15 rounded-lg px-2.5 py-1.5">Small shortfall — recount before closing.</div>
+            </Card>
+          </div>
           <Card className="p-2 mt-4">
             <Table cols={["Time", "Type", "Item", "Method", "Amount"]} right={[4]}
               rows={CASHIER_TX.map((r) => [r[0], r[1], r[2],
@@ -133,6 +170,7 @@ export function CashierRegister() {
               ])} />
           </Card>
           <div className="mt-4 flex gap-2">
+            <Btn variant="outline" icon={Icon.print} onClick={() => toast("Demo — printed Z-report.")}>Print Z-report</Btn>
             <Btn variant="outline" icon={Icon.arrowR} onClick={() => toast("Demo — cash handover logged.")}>Record handover</Btn>
             <Btn variant="primary" icon={Icon.check} onClick={() => { setOpen(false); toast("Demo — session closed; statistics + CSV ready."); }}>Close session</Btn>
           </div>

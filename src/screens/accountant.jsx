@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Tabs, Modal, StatusBadge, TableSkeleton, useMockLoad } from "../components/ui.jsx";
+import { Donut } from "../components/charts.jsx";
 import { ACCOUNTANT_DOCS, ACCOUNTANT_PAYOUTS } from "../data/mock.js";
 import { useApp } from "../app/store.jsx";
 import { downloadCSV, downloadPDF } from "../lib/download.js";
@@ -154,6 +155,48 @@ export function AccountantCommission() {
           ];
         })()} />
       </Card>
+
+      {/* VAT, MyDATA health & payout reconciliation (P5.4) */}
+      <div className="grid lg:grid-cols-3 gap-4 mt-4">
+        <Card className="p-5">
+          <div className="font-semibold text-navy-900 mb-2">VAT collected by rate</div>
+          <Table cols={["Rate", "Net", "VAT"]} right={[1, 2]} rows={[
+            ["24% (standard)", "€512,300", "€122,952"],
+            ["13% (reduced F&B)", "€84,100", "€10,933"],
+            ["6% (super-reduced)", "€7,400", "€444"],
+            [<b>Total</b>, <b className="tnum">€603,800</b>, <b className="tnum">€134,329</b>],
+          ]} />
+        </Card>
+        <Card className="p-5">
+          <div className="font-semibold text-navy-900 mb-2">myDATA transmission</div>
+          <div className="flex items-center gap-4">
+            <Donut segments={[{ v: 99.6, c: "#0D9488" }, { v: 0.4, c: "#f59e0b" }]} size={104} />
+            <div className="text-sm space-y-1.5">
+              <Leg c="bg-teal-600" t="Accepted 99.6%" />
+              <Leg c="bg-amber-500" t="Retry queue 0.4%" />
+              <div className="text-[12px] text-slate-500 pt-1">3 docs retrying · auto-resubmit</div>
+            </div>
+          </div>
+        </Card>
+        <Card className="p-5">
+          <div className="font-semibold text-navy-900 mb-2">Payout reconciliation</div>
+          <div className="space-y-2 text-[13px]">
+            <RecRow label="Stripe balance" value="€187,420" />
+            <RecRow label="In transit to bank" value="€185,580" />
+            <RecRow label="Fees withheld" value="−€1,840" neg />
+            <RecRow label="Unreconciled" value="€0" ok />
+          </div>
+          <div className="mt-3 text-[11px] text-teal-700 bg-teal-50 ring-1 ring-teal-600/15 rounded-lg px-2.5 py-1.5 inline-flex items-center gap-1.5"><Icon.checkCircle size={13} /> Bank statement matched to the cent.</div>
+        </Card>
+      </div>
     </div>
   );
 }
+
+const Leg = ({ c, t }) => <div className="flex items-center gap-2 text-[13px] text-slate-700"><i className={`w-3 h-3 rounded-sm ${c} inline-block`} />{t}</div>;
+const RecRow = ({ label, value, neg, ok }) => (
+  <div className="flex items-center justify-between border-b border-slate-100 last:border-0 pb-1.5 last:pb-0">
+    <span className="text-slate-600">{label}</span>
+    <span className={`font-semibold tnum ${neg ? "text-rose-600" : ok ? "text-teal-700" : "text-navy-900"}`}>{value}</span>
+  </div>
+);
