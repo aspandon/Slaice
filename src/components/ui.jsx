@@ -495,6 +495,9 @@ export function FeatureChip({ status }) {
    modal for any future date. Always keeps at least one date selected. */
 export function DatePickerRow({ value = [], onChange, quickDays = 7, className = "" }) {
   const [picker, setPicker] = useState(false);
+  const scrollRef = useRef(null);
+  const [canL, setCanL] = useState(false);
+  const [canR, setCanR] = useState(false);
   const strip = useMemo(() => dateStrip(quickDays), [quickDays]);
   const stripSet = useMemo(() => new Set(strip.map((d) => d.iso)), [strip]);
   const extras = useMemo(() => value.filter((iso) => !stripSet.has(iso)).sort(), [value, stripSet]);
@@ -503,26 +506,68 @@ export function DatePickerRow({ value = [], onChange, quickDays = 7, className =
     if (has && value.length === 1) return; // keep at least one
     onChange(has ? value.filter((x) => x !== iso) : [...value, iso].sort());
   };
+  const updateArrows = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanL(el.scrollLeft > 2);
+    setCanR(Math.ceil(el.scrollLeft + el.clientWidth) < el.scrollWidth - 2);
+  };
+  useEffect(() => {
+    updateArrows();
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", updateArrows, { passive: true });
+    window.addEventListener("resize", updateArrows);
+    return () => {
+      el.removeEventListener("scroll", updateArrows);
+      window.removeEventListener("resize", updateArrows);
+    };
+  }, [strip.length, extras.length]);
+  const nudge = (dir) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * Math.max(140, el.clientWidth * 0.7), behavior: "smooth" });
+  };
   return (
     <div className={className}>
-      <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-        {strip.map((d) => {
-          const on = value.includes(d.iso);
-          return (
-            <DatePill key={d.iso} on={on} label={d.label} sub={d.sub} onClick={() => toggle(d.iso)} />
-          );
-        })}
-        {extras.map((iso) => {
-          const lbl = chipLabel(iso);
-          return <DatePill key={iso} on label={lbl.label} sub={lbl.sub} onClick={() => toggle(iso)} />;
-        })}
+      <div className="flex items-center gap-1.5">
         <button
           type="button"
-          onClick={() => setPicker(true)}
-          className="px-3 py-2 min-h-[44px] rounded-xl min-w-[78px] ring-1 ring-dashed ring-slate-300 text-slate-600 hover:ring-teal-400 hover:text-teal-700 transition shrink-0 inline-flex items-center justify-center gap-1.5 text-[12px] font-semibold"
-          aria-label="Pick dates from calendar"
+          aria-label="Scroll dates left"
+          onClick={() => nudge(-1)}
+          disabled={!canL}
+          className="shrink-0 w-7 h-9 grid place-items-center rounded-lg ring-1 ring-slate-200 bg-white text-slate-600 hover:text-navy-900 hover:ring-teal-400 transition disabled:opacity-30 disabled:cursor-not-allowed"
         >
-          <Icon.calendar size={14} /> Pick dates
+          <Icon.arrowL size={14} />
+        </button>
+        <div ref={scrollRef} className="flex-1 flex gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth">
+          {strip.map((d) => {
+            const on = value.includes(d.iso);
+            return (
+              <DatePill key={d.iso} on={on} label={d.label} sub={d.sub} onClick={() => toggle(d.iso)} />
+            );
+          })}
+          {extras.map((iso) => {
+            const lbl = chipLabel(iso);
+            return <DatePill key={iso} on label={lbl.label} sub={lbl.sub} onClick={() => toggle(iso)} />;
+          })}
+          <button
+            type="button"
+            onClick={() => setPicker(true)}
+            className="px-3 py-2.5 min-h-[64px] rounded-xl min-w-[78px] ring-1 ring-dashed ring-slate-300 text-slate-600 hover:ring-teal-400 hover:text-teal-700 transition shrink-0 inline-flex items-center justify-center gap-1.5 text-[12px] font-semibold"
+            aria-label="Pick dates from calendar"
+          >
+            <Icon.calendar size={14} /> Pick dates
+          </button>
+        </div>
+        <button
+          type="button"
+          aria-label="Scroll dates right"
+          onClick={() => nudge(1)}
+          disabled={!canR}
+          className="shrink-0 w-7 h-9 grid place-items-center rounded-lg ring-1 ring-slate-200 bg-white text-slate-600 hover:text-navy-900 hover:ring-teal-400 transition disabled:opacity-30 disabled:cursor-not-allowed"
+        >
+          <Icon.arrowR size={14} />
         </button>
       </div>
       {picker && (
@@ -538,12 +583,12 @@ function DatePill({ on, label, sub, onClick }) {
       type="button"
       onClick={onClick}
       aria-pressed={on}
-      className={`relative px-3.5 py-2 min-h-[44px] rounded-xl text-center min-w-[78px] ring-1 transition shrink-0 ${
+      className={`relative px-3.5 py-2.5 min-h-[64px] rounded-xl min-w-[78px] ring-1 transition shrink-0 inline-flex flex-col items-center justify-center gap-1 ${
         on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"
       }`}
     >
-      <div className="text-[13px] font-semibold leading-tight">{label}</div>
-      <div className={`text-[11px] ${on ? "text-white/80" : "text-slate-600"}`}>{sub}</div>
+      <span className="text-[13px] font-semibold leading-none">{label}</span>
+      <span className={`text-[11px] leading-none ${on ? "text-white/80" : "text-slate-600"}`}>{sub}</span>
       {on && (
         <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center ring-2 ring-white">
           <Icon.check size={10} />
