@@ -62,4 +62,10 @@ export const Icon = {
   alert: (p) => <I {...p} d={<><path d="M10.3 3.3 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.3a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4M12 17v.01" /></>} />,
   clock: (p) => <I {...p} d={<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>} />,
   inbox: (p) => <I {...p} d={<><path d="M3 13h5l1 3h6l1-3h5" /><path d="M5 6h14l2 7v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-5z" /></>} />,
+  drop: (p) => <I {...p} d={<path d="M12 3s7 8 7 13a7 7 0 0 1-14 0c0-5 7-13 7-13Z" />} />,
+  glass: (p) => <I {...p} d={<><path d="M5 4h14l-2 7a5 5 0 0 1-10 0L5 4Z" /><path d="M12 16v5M8 21h8" /></>} />,
+  wave: (p) => <I {...p} d={<path d="M3 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0M3 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0" />} />,
+  wind: (p) => <I {...p} d={<path d="M3 8h11a3 3 0 1 0-3-3M3 16h15a3 3 0 1 1-3 3M3 12h9" />} />,
+  cross: (p) => <I {...p} d={<><circle cx="12" cy="12" r="9" /><path d="M12 7v10M7 12h10" /></>} />,
+  group: (p) => <I {...p} d={<><circle cx="8" cy="8" r="3" /><circle cx="16" cy="8" r="3" /><path d="M2 20a6 6 0 0 1 12 0M10 20a6 6 0 0 1 12 0" /></>} />,
 };

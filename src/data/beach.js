@@ -75,6 +75,36 @@ export const dateStrip = (n = 7) => {
   });
 };
 
+// Static facility pins overlaid on the beach overview. Coordinates are in
+// the same percentage space as ZONE_BLOCKS, so they sit on the sand strip.
+export const FACILITIES = [
+  { id: "bar1",   kind: "bar",     label: "Beach bar",     left: "9%",  top: "62%" },
+  { id: "bar2",   kind: "bar",     label: "Sunset bar",    left: "73%", top: "63%" },
+  { id: "wc1",    kind: "wc",      label: "Restrooms",     left: "35%", top: "60%" },
+  { id: "wc2",    kind: "wc",      label: "Restrooms",     left: "62%", top: "61%" },
+  { id: "shower", kind: "shower",  label: "Outdoor shower", left: "26%", top: "65%" },
+  { id: "shower2",kind: "shower",  label: "Outdoor shower", left: "53%", top: "65%" },
+  { id: "first",  kind: "first",   label: "First aid",     left: "44%", top: "60%" },
+];
+
+// Mocked live weather + tide line for the overview chip.
+export const WEATHER = {
+  tempC: 28,
+  cond: "Sunny",
+  wind: "Light NE 8 kn",
+  sea: "Calm · 0.3 m",
+  uv: 8,
+  sunset: "20:42",
+};
+
+// Quick-pick presets for the beach overview.
+export const QUICK_PICKS = [
+  { id: "solo",   label: "1 person",  beds: 1, hint: "First available · cheapest" },
+  { id: "couple", label: "Couple",    beds: 2, hint: "Side by side" },
+  { id: "family", label: "Family · 4",beds: 4, hint: "Adjacent · with shade" },
+  { id: "front",  label: "Front row", beds: 2, hint: "Closest to the sea" },
+];
+
 export const TENANT = {
   name: "Akti tou Iliou",
   place: "Alimos",

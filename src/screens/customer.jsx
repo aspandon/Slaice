@@ -4,7 +4,7 @@ import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, Empty
 import { QR } from "../components/charts.jsx";
 import { Sunbed, BeachBackdrop, ParkingBackdrop, LockerBackdrop } from "../components/Beach.jsx";
 import { downloadPDF, downloadZIP, buildPDFBytes } from "../lib/download.js";
-import { ZONES, ZONE_BLOCKS, makeGrid, chipLabel, todayISO } from "../data/beach.js";
+import { ZONES, ZONE_BLOCKS, FACILITIES, WEATHER, QUICK_PICKS, makeGrid, chipLabel, todayISO } from "../data/beach.js";
 import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS } from "../data/mock.js";
 import { useApp } from "../app/store.jsx";
 
@@ -58,6 +58,101 @@ export function CustomerHome() {
   );
 }
 
+/* ============ SUNBED BOOKING helpers ============ */
+
+// Tiny donut showing free / total. Stroke length = free ratio, lighter
+// remainder underneath. Sized to nest inside the 7×7 zone-pill avatar.
+function ZoneDonut({ free, total, color, size = 28 }) {
+  const r = size / 2 - 2;
+  const c = 2 * Math.PI * r;
+  const pct = Math.max(0, Math.min(1, free / total));
+  return (
+    <svg width={size} height={size} className="block">
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="3.5" />
+      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="3.5"
+        strokeDasharray={`${c*pct} ${c}`} strokeLinecap="round"
+        transform={`rotate(-90 ${size/2} ${size/2})`} />
+    </svg>
+  );
+}
+
+// Hover tooltip rendered above the zone pill — a 6×4 sample of sunbeds so
+// the user can sneak-peek occupancy before zooming in.
+function ZonePreview({ zone }) {
+  const grid = useMemo(() => makeGrid(zone, 6, 4).slice(0, 24), [zone.id]);
+  return (
+    <div className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-2 z-30 w-44 rounded-xl bg-white shadow-float ring-1 ring-slate-200 p-2.5 animate-pop">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[11px] font-bold text-navy-900">{zone.name}</span>
+        <span className="text-[10px] text-slate-500 tnum">{zone.avail}/{zone.total} · €{zone.from}+</span>
+      </div>
+      <div className="grid gap-[2px] rounded-md p-1 bg-slate-50 ring-1 ring-slate-100" style={{ gridTemplateColumns: "repeat(6,1fr)" }}>
+        {grid.map((b) => (
+          <div key={b.id} className="aspect-square" style={{ lineHeight: 0 }}>
+            <Sunbed state={b.s} size={12} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Facility pin (bar / WC / shower / first aid) positioned over the beach.
+function FacilityPin({ facility }) {
+  const kind = facility.kind;
+  const cfg = {
+    bar:    { icon: Icon.glass,  tint: "from-amber-400 to-amber-600",  ring: "ring-amber-200" },
+    wc:     { icon: Icon.cross,  tint: "from-slate-500 to-slate-700",  ring: "ring-slate-200" },
+    shower: { icon: Icon.drop,   tint: "from-sky-400 to-sky-600",      ring: "ring-sky-200" },
+    first:  { icon: Icon.shield, tint: "from-rose-400 to-rose-600",    ring: "ring-rose-200" },
+  }[kind] || { icon: Icon.info, tint: "from-slate-500 to-slate-700", ring: "ring-slate-200" };
+  return (
+    <div className="absolute z-10 group" style={{ left: facility.left, top: facility.top }}>
+      <div className={`w-7 h-7 -translate-x-1/2 -translate-y-1/2 rounded-full grid place-items-center text-white bg-gradient-to-br ${cfg.tint} ring-2 ring-white shadow-md hover:scale-110 transition`} title={facility.label}>
+        <cfg.icon size={13} />
+      </div>
+      <div className={`absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-white px-1.5 py-0.5 text-[10px] font-semibold text-navy-900 ring-1 ${cfg.ring} shadow opacity-0 group-hover:opacity-100 transition pointer-events-none`}>
+        {facility.label}
+      </div>
+    </div>
+  );
+}
+
+// Compact horizontal date chip strip — one tap = single date, "+N" chip
+// when more than one date is selected. Sits on the beach itself.
+function BeachDateStrip({ value, onChange, days = 5 }) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  const strip = Array.from({ length: days }).map((_, i) => {
+    const d = new Date(today); d.setDate(today.getDate() + i);
+    const iso = d.toISOString().slice(0, 10);
+    const sub = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+    const wk  = i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString("en-GB", { weekday: "short" });
+    return { iso, sub, wk };
+  });
+  const extra = value.filter((iso) => !strip.find((s) => s.iso === iso));
+  const toggle = (iso) => {
+    if (value.includes(iso)) onChange(value.length > 1 ? value.filter((x) => x !== iso) : value);
+    else onChange([...value, iso].sort());
+  };
+  return (
+    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+      {strip.map((s) => {
+        const on = value.includes(s.iso);
+        return (
+          <button key={s.iso} onClick={() => toggle(s.iso)}
+            className={`shrink-0 rounded-xl px-2.5 py-1.5 text-left transition ring-1 shadow-sm ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white/95 text-navy-900 ring-white/80 hover:bg-white"}`}>
+            <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70 leading-none">{s.wk}</div>
+            <div className="text-[12px] font-bold tnum leading-tight">{s.sub}</div>
+          </button>
+        );
+      })}
+      {extra.length > 0 && (
+        <span className="shrink-0 rounded-xl bg-teal-500 text-white text-[11px] font-bold px-2.5 py-2 ring-1 ring-teal-300 shadow-sm">+{extra.length}</span>
+      )}
+    </div>
+  );
+}
+
 /* ============ SUNBED BOOKING (hero, matches the video) ============ */
 export function CustomerBooking() {
   const { go, toast, cart, addToCart, removeFromCart } = useApp();
@@ -67,11 +162,54 @@ export function CustomerBooking() {
   const [sel, setSel] = useState([]); // {id, zone, price}
   const [extras, setExtras] = useState({ ticket: false, locker: false });
   const [sheetOpen, setSheetOpen] = useState(false); // mobile basket bottom-sheet
+  const [hoveredZone, setHoveredZone] = useState(null); // zone-pill preview
+  const [search, setSearch] = useState("");
+  const [searchHit, setSearchHit] = useState(null); // {zoneId, bedId} — pulse target
   const zone = ZONES.find((z) => z.id === zoneId) || null;
   const grid = useMemo(() => (zone ? makeGrid(zone) : []), [zoneId]);
 
   const addBed = (id, price) => setSel((c) => (c.find((x) => x.id === id) ? c : [...c, { id, zone: zone.name, price }]));
   const rm = (id) => setSel((c) => c.filter((x) => x.id !== id));
+
+  // Quick-pick: pick the zone with the most availability, then pick N
+  // available beds matching the preset (adjacent / front-row / cheapest).
+  const applyPreset = (preset) => {
+    const z = [...ZONES].sort((a, b) => b.avail - a.avail)[0];
+    const g = makeGrid(z);
+    let pick = [];
+    if (preset.id === "front") {
+      pick = g.filter((b) => b.s === "a" && b.r === 0).slice(0, preset.beds);
+    } else if (preset.id === "solo") {
+      pick = [...g].filter((b) => b.s === "a").sort((a, b) => a.price - b.price).slice(0, 1);
+    } else {
+      // walk rows looking for N consecutive available beds
+      for (let r = 0; r < 8 && pick.length === 0; r++) {
+        const row = g.filter((b) => b.r === r);
+        for (let c = 0; c + preset.beds <= row.length; c++) {
+          const slice = row.slice(c, c + preset.beds);
+          if (slice.every((b) => b.s === "a")) { pick = slice; break; }
+        }
+      }
+    }
+    if (pick.length === 0) { toast("No matching beds free in that zone right now.", { tone: "warn" }); return; }
+    setZoneId(z.id); setStep("grid");
+    setSel(pick.map((b) => ({ id: b.id, zone: z.name, price: b.price })));
+    toast(`${preset.label}: ${pick.length} bed${pick.length > 1 ? "s" : ""} pre-selected in ${z.name}.`, { tone: "success" });
+  };
+
+  // Search by bed id ("AK-12" / "ce 89" / "MC03") — jumps to the zone
+  // and pulses the matching tile for ~2.5s so the eye can find it.
+  const runSearch = (q) => {
+    const m = String(q).toUpperCase().match(/([A-Z]{2})[\s-]*(\d{1,3})/);
+    if (!m) { toast("Type a sunbed id like AK-12 or CE-89.", { tone: "warn" }); return; }
+    const [, pfx, num] = m;
+    const z = ZONES.find((x) => x.prefix === pfx);
+    if (!z) { toast(`No zone with prefix ${pfx}.`, { tone: "warn" }); return; }
+    const id = `${pfx}-${String(parseInt(num, 10)).padStart(2, "0")}`;
+    setZoneId(z.id); setStep("grid"); setSearchHit({ zoneId: z.id, bedId: id });
+    setTimeout(() => setSearchHit(null), 2500);
+    toast(`Jumped to ${id} in ${z.name}.`, { tone: "success" });
+  };
   const clearSel = () => { const prev = sel; setSel([]); toast("Selection cleared.", { action: { label: "Undo", onClick: () => setSel(prev) } }); };
   const removeCartItem = (it) => { removeFromCart(it.kind, it.id); toast(`Removed ${it.label}.`, { action: { label: "Undo", onClick: () => addToCart(it) } }); };
   const dayCount = selDates.length;
@@ -102,22 +240,66 @@ export function CustomerBooking() {
       <div className="fixed inset-0 z-0">
         <div className="relative w-full h-full">
           <BeachBackdrop pos="absolute" className="inset-0 rounded-none">
-            {/* zone pill-tabs — pushed below TopBar + PageTopNav so they don't fight for the top edge */}
-            <div className="absolute top-[150px] lg:right-[362px] left-3 right-3 flex gap-2 overflow-x-auto z-20 pb-1 no-scrollbar">
+            {/* Top utility bar — quick-picks (left), search (center), weather (right).
+                top-[160px] clears the persona/page-nav bands above and keeps a 50px gap
+                above the zone pills underneath. */}
+            <div className="absolute top-[160px] lg:right-[362px] left-3 right-3 z-30 flex items-center gap-2">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pr-1">
+                {QUICK_PICKS.map((p) => (
+                  <button key={p.id} onClick={() => applyPreset(p)}
+                    title={p.hint}
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-white/90 hover:bg-white text-navy-900 ring-1 ring-white/70 backdrop-blur px-3 py-1.5 text-[11px] font-semibold shadow-sm transition">
+                    {p.id === "couple" ? <Icon.users size={12} /> : p.id === "family" ? <Icon.group size={12} /> : p.id === "front" ? <Icon.wave size={12} /> : <Icon.umbrella size={12} />}
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <div className="hidden sm:flex flex-1 min-w-[140px] max-w-[230px] mx-auto items-center gap-1.5 rounded-full bg-white/95 ring-1 ring-white/70 backdrop-blur px-3 py-1.5 shadow-sm">
+                <Icon.search size={13} className="text-slate-400 shrink-0" />
+                <input value={search} onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && runSearch(search)}
+                  placeholder="Find a sunbed (CE-89)"
+                  className="bg-transparent outline-none text-[12px] flex-1 min-w-0 placeholder:text-slate-400" />
+                {search && <button onClick={() => { setSearch(""); setSearchHit(null); }} className="text-slate-400 hover:text-slate-700"><Icon.x size={12} /></button>}
+              </div>
+              <div className="shrink-0 ml-auto inline-flex items-center gap-2 rounded-full bg-white/95 ring-1 ring-white/70 backdrop-blur px-2.5 py-1.5 shadow-sm">
+                <span className="inline-flex items-center gap-1 text-[12px] font-bold text-amber-600"><Icon.sun size={13} />{WEATHER.tempC}°</span>
+                <span className="hidden md:inline text-[11px] text-slate-500 tnum">UV {WEATHER.uv}</span>
+                <span className="hidden md:inline-flex items-center gap-1 text-[11px] text-sky-700"><Icon.wave size={12} />{WEATHER.sea}</span>
+                <span className="hidden lg:inline text-[11px] text-slate-500">sunset {WEATHER.sunset}</span>
+              </div>
+            </div>
+
+            {/* Zone pill-tabs — donut + hover-preview. */}
+            <div className="absolute top-[210px] lg:right-[362px] left-3 right-3 flex gap-2 overflow-x-auto z-20 pb-1 no-scrollbar">
               {ZONES.map((z) => {
                 const active = zone && zone.id === z.id;
+                const hovered = hoveredZone === z.id;
                 return (
-                  <button key={z.id} onClick={() => { setZoneId(z.id); setStep("grid"); }}
-                    className={`flex items-center gap-2 rounded-full pl-1.5 pr-3 py-1.5 whitespace-nowrap transition shadow-md ${active ? "bg-navy-900 text-white" : "bg-white/90 backdrop-blur hover:bg-white"}`}>
-                    <span className="w-7 h-7 rounded-full grid place-items-center text-white" style={{ background: z.color }}><Icon.umbrella size={13} /></span>
-                    <span className="text-left leading-tight">
-                      <span className="block text-[12px] font-semibold">{z.name}</span>
-                      <span className={`block text-[10px] ${active ? "text-white/70" : "text-slate-400"}`}>{active ? "ACTIVE" : z.avail + " FREE"}</span>
-                    </span>
-                    {active && <Icon.check size={13} />}
-                  </button>
+                  <div key={z.id} className="relative shrink-0"
+                    onMouseEnter={() => setHoveredZone(z.id)}
+                    onMouseLeave={() => setHoveredZone((cur) => (cur === z.id ? null : cur))}>
+                    <button onClick={() => { setZoneId(z.id); setStep("grid"); }}
+                      className={`flex items-center gap-2 rounded-full pl-1 pr-3 py-1 whitespace-nowrap transition shadow-md ${active ? "bg-navy-900 text-white" : "bg-white/90 backdrop-blur hover:bg-white"}`}>
+                      <span className="relative w-9 h-9 grid place-items-center rounded-full" style={{ background: active ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.55)" }}>
+                        <ZoneDonut free={z.avail} total={z.total} color={z.color} size={32} />
+                        <span className="absolute inset-0 grid place-items-center text-[9px] font-bold text-navy-900" style={{ color: active ? "#fff" : "#0f172a" }}>{Math.round(z.avail/z.total*100)}%</span>
+                      </span>
+                      <span className="text-left leading-tight">
+                        <span className="block text-[12px] font-semibold">{z.name}</span>
+                        <span className={`block text-[10px] tnum ${active ? "text-white/70" : "text-slate-500"}`}>{active ? "ACTIVE" : `${z.avail} free · €${z.from}+`}</span>
+                      </span>
+                      {active && <Icon.check size={13} />}
+                    </button>
+                    {hovered && !active && <ZonePreview zone={z} />}
+                  </div>
                 );
               })}
+            </div>
+
+            {/* Persistent date strip — same selDates as the basket panel. */}
+            <div className="absolute top-[265px] lg:right-[362px] left-3 right-3 z-20">
+              <BeachDateStrip value={selDates} onChange={setSelDates} />
             </div>
 
             {!focused && (
@@ -125,6 +307,7 @@ export function CustomerBooking() {
                 <div className="absolute bottom-24 lg:bottom-3 left-1/2 -translate-x-1/2 z-10">
                   <span className="rounded-full bg-navy-950/55 backdrop-blur px-3 py-1.5 text-white text-[12px] font-semibold ring-1 ring-white/20 shadow-md">Drag to explore · click a zone to zoom in</span>
                 </div>
+                {FACILITIES.map((f) => <FacilityPin key={f.id} facility={f} />)}
                 {ZONE_BLOCKS.map((b) => {
                   const z = ZONES.find((x) => x.id === b.id);
                   return (
@@ -151,14 +334,26 @@ export function CustomerBooking() {
 
             {focused && (
               <>
-                <div className="absolute inset-0 grid place-items-center px-4 pt-20 pb-4 z-10 pointer-events-none">
+                {/* Breadcrumb — All beach › Zone name. */}
+                <div className="absolute top-[315px] lg:right-[362px] left-3 right-3 z-20 flex items-center gap-1.5 text-[12px]">
+                  <button onClick={() => { setStep("zones"); setZoneId(null); }}
+                    className="inline-flex items-center gap-1 rounded-full bg-white/90 backdrop-blur px-2.5 py-1 ring-1 ring-white/70 text-slate-600 hover:text-navy-900 hover:bg-white shadow-sm font-semibold">
+                    <Icon.arrowL size={12} /> All beach
+                  </button>
+                  <Icon.chevR size={12} className="text-white drop-shadow" />
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-navy-900 text-white px-2.5 py-1 ring-1 ring-navy-700 shadow-sm font-semibold">
+                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: zone.color }} />{zone.name}
+                  </span>
+                </div>
+                <div className="absolute inset-0 grid place-items-center px-4 pt-44 pb-4 z-10 pointer-events-none">
                   <div className="pointer-events-auto">
-                    <div className="rounded-2xl bg-white/45 ring-4 ring-white/80 backdrop-blur-[1px] p-3 sm:p-4 shadow-float max-w-[680px] max-h-[70vh] overflow-auto no-scrollbar">
+                    <div className="rounded-2xl bg-white/45 ring-4 ring-white/80 backdrop-blur-[1px] p-3 sm:p-4 shadow-float max-w-[680px] max-h-[64vh] overflow-auto no-scrollbar">
                       <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(14,1fr)" }}>
                         {grid.map((b) => {
                           const isSel = !!sel.find((x) => x.id === b.id);
+                          const isHit = searchHit && searchHit.zoneId === zone.id && searchHit.bedId === b.id;
                           return (
-                            <div key={b.id} className="aspect-square grid place-items-center">
+                            <div key={b.id} className={`aspect-square grid place-items-center ${isHit ? "animate-pulse rounded-md ring-4 ring-teal-400" : ""}`}>
                               <Sunbed state={b.s} sel={isSel} label={b.id} price={b.price} onClick={() => (isSel ? rm(b.id) : addBed(b.id, b.price))} />
                             </div>
                           );
