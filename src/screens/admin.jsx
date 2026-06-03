@@ -35,7 +35,7 @@ export function AdminDashboard() {
         </Card>
         <Card className="p-5">
           <div className="font-semibold text-navy-900 mb-2">Revenue by capability</div>
-          <div className="flex items-center justify-center gap-5">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-5">
             <Donut segments={[{ v: 62, c: "#0D9488" }, { v: 28, c: "#0ea5e9" }, { v: 10, c: "#f59e0b" }]} size={180} />
             <div className="text-sm space-y-2">
               <Leg c="bg-teal-600" t="Sunbeds 62%" /><Leg c="bg-sky-500" t="Tickets 28%" /><Leg c="bg-amber-500" t="Other 10%" />

@@ -10,6 +10,11 @@ function trigger(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+// Public alias — download an already-built Blob (used by the wallet pass).
+export function downloadBlob(blob, filename) {
+  trigger(blob, filename);
+}
+
 const escapeCSV = (v) => {
   if (v === null || v === undefined) return "";
   const s = String(v);
@@ -232,8 +237,9 @@ function w32(buf, o, v) {
   buf[o + 2] = (v >>> 16) & 0xFF; buf[o + 3] = (v >>> 24) & 0xFF;
 }
 
+// Build a ZIP (STORE) in memory and return the bytes.
 // files: [{ name: string, content: Uint8Array | string }]
-export function downloadZIP(filename, files) {
+export function zipBytes(files) {
   const enc = new TextEncoder();
   const entries = files.map((f) => {
     const data = typeof f.content === "string" ? enc.encode(f.content) : f.content;
@@ -294,6 +300,9 @@ export function downloadZIP(filename, files) {
   for (const p of localParts)   { out.set(p, pos); pos += p.length; }
   for (const p of centralParts) { out.set(p, pos); pos += p.length; }
   out.set(eocd, pos);
+  return out;
+}
 
-  trigger(new Blob([out], { type: "application/zip" }), filename);
+export function downloadZIP(filename, files) {
+  trigger(new Blob([zipBytes(files)], { type: "application/zip" }), filename);
 }

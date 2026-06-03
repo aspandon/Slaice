@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad, StatCard, ContextPanel, Tabs, DatePickerRow } from "../components/ui.jsx";
+import { WalletButtons } from "../components/WalletPass.jsx";
 import { Reveal } from "../lib/motion.jsx";
 import { QR, Sparkline } from "../components/charts.jsx";
 import { Sunbed, BeachBackdrop, ParkingBackdrop, LockerBackdrop } from "../components/Beach.jsx";
@@ -133,7 +134,9 @@ function ZonePreview({ zone }) {
 }
 
 // Facility pin (bar / WC / shower / first aid) positioned over the beach.
+// Label shows on hover (desktop) AND on tap (touch) so it's never hover-only.
 function FacilityPin({ facility }) {
+  const [show, setShow] = useState(false);
   const kind = facility.kind;
   const cfg = {
     bar:    { icon: Icon.glass,  tint: "from-amber-400 to-amber-600",  ring: "ring-amber-200" },
@@ -143,10 +146,14 @@ function FacilityPin({ facility }) {
   }[kind] || { icon: Icon.info, tint: "from-slate-500 to-slate-700", ring: "ring-slate-200" };
   return (
     <div className="absolute z-10 group" style={{ left: facility.left, top: facility.top }}>
-      <div className={`w-7 h-7 -translate-x-1/2 -translate-y-1/2 rounded-full grid place-items-center text-white bg-gradient-to-br ${cfg.tint} ring-2 ring-white shadow-md hover:scale-110 transition`} title={facility.label}>
-        <cfg.icon size={13} />
-      </div>
-      <div className={`absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-white px-1.5 py-0.5 text-[10px] font-semibold text-navy-900 ring-1 ${cfg.ring} shadow opacity-0 group-hover:opacity-100 transition pointer-events-none`}>
+      <button
+        type="button"
+        onClick={() => setShow((s) => !s)}
+        aria-label={facility.label}
+        className={`w-8 h-8 -translate-x-1/2 -translate-y-1/2 rounded-full grid place-items-center text-white bg-gradient-to-br ${cfg.tint} ring-2 ring-white shadow-md hover:scale-110 active:scale-95 transition`}>
+        <cfg.icon size={14} />
+      </button>
+      <div className={`absolute left-1/2 top-full mt-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-white px-1.5 py-0.5 text-[10px] font-semibold text-navy-900 ring-1 ${cfg.ring} shadow transition pointer-events-none ${show ? "opacity-100" : "opacity-0"} group-hover:opacity-100`}>
         {facility.label}
       </div>
     </div>
@@ -409,8 +416,10 @@ export function CustomerBooking() {
               <>
                 <div className="absolute inset-0 grid place-items-center px-4 pt-44 pb-4 z-10 pointer-events-none">
                   <div className="pointer-events-auto animate-scale-in">
-                    <div className="rounded-3xl bg-white/55 ring-4 ring-white/80 backdrop-blur-[1px] p-3 sm:p-4 shadow-float max-w-[680px] max-h-[64vh] overflow-auto no-scrollbar">
-                      <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(14,1fr)" }}>
+                    <div className="rounded-3xl bg-white/55 ring-4 ring-white/80 backdrop-blur-[1px] p-3 sm:p-4 shadow-float max-w-[680px] max-h-[62dvh] overflow-auto no-scrollbar">
+                      {/* Fewer columns on phones so each sunbed stays a real
+                          tap target; widens to 14 across on desktop. */}
+                      <div className="grid gap-1.5 grid-cols-8 min-[420px]:grid-cols-10 sm:grid-cols-12 md:grid-cols-[repeat(14,minmax(0,1fr))]">
                         {grid.map((b) => {
                           const isSel = !!sel.find((x) => x.id === b.id);
                           const isHit = searchHit && searchHit.zoneId === zone.id && searchHit.bedId === b.id;
@@ -553,7 +562,7 @@ export function CustomerBooking() {
             {/* Mobile: collapsed summary bar (tap to expand a bottom sheet) */}
             <button
               onClick={() => setSheetOpen(true)}
-              className="lg:hidden fixed bottom-3 left-3 right-3 z-30 glass-dark text-white rounded-2xl shadow-float ring-1 ring-white/15 px-4 py-3 flex items-center justify-between gap-3"
+              className="lg:hidden fixed left-3 right-3 z-30 glass-dark text-white rounded-2xl shadow-float ring-1 ring-white/15 px-4 py-3 flex items-center justify-between gap-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))]"
             >
               <span className="flex items-center gap-2.5 min-w-0">
                 <span className="w-9 h-9 rounded-xl bg-white/10 grid place-items-center shrink-0 relative">
@@ -572,7 +581,7 @@ export function CustomerBooking() {
             {sheetOpen && (
               <div className="lg:hidden fixed inset-0 z-40" role="dialog" aria-modal="true">
                 <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-sm animate-fade-in" onClick={() => setSheetOpen(false)} />
-                <div className="absolute left-0 right-0 bottom-0 max-h-[88vh] glass rounded-t-2xl ring-1 ring-white/40 shadow-float flex flex-col overflow-hidden animate-slide-up">
+                <div className="absolute left-0 right-0 bottom-0 max-h-[88dvh] glass rounded-t-2xl ring-1 ring-white/40 shadow-float flex flex-col overflow-hidden animate-slide-up pb-safe">
                   <div className="flex items-center justify-between px-4 pt-3 pb-1 shrink-0">
                     <span className="mx-auto w-10 h-1 rounded-full bg-slate-300 absolute left-1/2 -translate-x-1/2 top-2" />
                     <div className="font-display font-bold text-navy-900">Your basket</div>
@@ -949,17 +958,21 @@ export function CustomerBookings() {
           <EmptyState icon={Icon.grid} title={filter === "active" ? "No active bookings" : "No past bookings yet"} body={filter === "active" ? "Book a sunbed for this weekend — Central front-row spots are 20% off." : "Once a visit is over, it will move here."} action={<Btn variant="teal" icon={Icon.umbrella} onClick={() => go("customer", "book")}>Book a sunbed</Btn>} />
         ) : (
           <Table cols={["Booking", "Item", "Date", "Status", "Price", "QR"]} right={[4]}
-            rows={filtered.map((r) => [r.id, r.item, r.date, <StatusBadge status={r.status} />, `€${r.price}`, <Btn size="sm" variant="ghost" icon={Icon.qr} onClick={() => setQrFor(r.id)}>QR</Btn>])} />
+            rows={filtered.map((r) => [r.id, r.item, r.date, <StatusBadge status={r.status} />, `€${r.price}`, <Btn size="sm" variant="ghost" icon={Icon.qr} onClick={() => setQrFor(r)}>QR</Btn>])} />
         )}
       </Card>
       {qrFor && (
         <div className="fixed inset-0 z-[60] grid place-items-center p-4" onClick={() => setQrFor(null)}>
           <div className="absolute inset-0 bg-navy-950/50 backdrop-blur-sm" />
-          <div onClick={(e) => e.stopPropagation()} className="relative bg-white rounded-2xl p-6 shadow-float text-center animate-pop">
+          <div onClick={(e) => e.stopPropagation()} className="relative bg-white rounded-2xl p-6 shadow-float text-center animate-pop w-full max-w-sm max-h-[90dvh] overflow-y-auto overscroll-contain">
             <div className="text-[12px] uppercase tracking-wide text-slate-400 font-semibold">Entry QR</div>
-            <div className="font-display font-bold text-navy-900 text-lg mb-3">{qrFor}</div>
-            <QR size={200} seed={qrFor} />
+            <div className="font-display font-bold text-navy-900 text-lg mb-3">{qrFor.id}</div>
+            <div className="grid place-items-center"><QR size={200} seed={qrFor.id} /></div>
             <div className="mt-3 text-[12px] text-slate-500">Show at the gate · the controller validates in real time.</div>
+            <WalletButtons
+              className="mt-4 pt-4 border-t border-slate-100"
+              pass={{ ref: qrFor.id, holder: "Elena M.", zone: qrFor.item || "Akti tou Iliou", date: qrFor.date || "", seat: "—", guests: 1, total: `€${qrFor.price ?? ""}` }}
+            />
             <Btn variant="outline" className="mt-4" icon={Icon.mail} onClick={() => { toast("QR re-sent to your e-mail.", { tone: "success" }); }}>Resend by e-mail</Btn>
           </div>
         </div>

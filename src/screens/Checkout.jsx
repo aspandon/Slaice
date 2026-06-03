@@ -3,6 +3,7 @@ import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, EmptyState } from "../components/ui.jsx";
 import { QR } from "../components/charts.jsx";
 import { SlaiceLogo, TenantLogo } from "../components/Brand.jsx";
+import { WalletButtons } from "../components/WalletPass.jsx";
 import { TENANT } from "../data/beach.js";
 import { useApp } from "../app/store.jsx";
 
@@ -34,7 +35,7 @@ export function Checkout() {
 
   if (phase === "redirect") {
     return (
-      <div className="animate-fade-in grid place-items-center min-h-[60vh]">
+      <div className="animate-fade-in grid place-items-center min-h-[60dvh]">
         <Card className="p-10 max-w-md w-full text-center">
           <div className="flex items-center justify-center gap-2 text-[#635bff] font-bold text-lg"><Icon.stripe size={22} /> stripe</div>
           <div className="mt-4 text-sm text-slate-500">Redirecting to {TENANT.name}'s secure Stripe Checkout…</div>
@@ -101,11 +102,26 @@ function kindIcon(kind) {
 
 export function Confirmation({ inline }) {
   const { cart, clearCart, go, toast } = useApp();
-  const ref = "BK-" + (10400 + Math.floor(Math.random() * 99));
+  // Stable across re-renders so the QR and wallet pass don't change.
+  const [ref] = useState(() => "BK-" + (10400 + Math.floor(Math.random() * 99)));
+  // Derive a representative wallet pass from the basket.
+  const sunbeds = cart.filter((i) => i.kind === "sunbed");
+  const total = cart.reduce((a, b) => a + b.price, 0);
+  const first = sunbeds[0] || cart[0];
+  const [zone, date] = (first?.sub || "Akti tou Iliou · Today").split(" · ");
+  const pass = {
+    ref,
+    holder: "Elena M.",
+    zone: zone || "Akti tou Iliou",
+    date: date || "Today",
+    seat: sunbeds.map((s) => s.label.replace(/^Sunbed\s+/, "")).join(", ") || "—",
+    guests: sunbeds.length || cart.filter((i) => i.kind === "ticket").length || 1,
+    total: `€${total}`,
+  };
   const Wrapper = inline ? "div" : "div";
   return (
     <Wrapper className="animate-fade-up max-w-xl mx-auto">
-      <Card className="p-8 text-center">
+      <Card className="p-6 sm:p-8 text-center">
         <div className="w-16 h-16 mx-auto rounded-2xl bg-teal-600 text-white grid place-items-center animate-pop"><Icon.check size={34} /></div>
         <h2 className="mt-4 font-display font-bold text-2xl text-navy-900">Payment successful</h2>
         <p className="text-sm text-slate-500 mt-1">Your booking is confirmed. The QR below has been e-mailed to you, and a MyDATA receipt (ΑΠΥ) was issued.</p>
@@ -113,7 +129,10 @@ export function Confirmation({ inline }) {
         <div className="my-5 grid place-items-center"><QR size={180} seed={ref} /></div>
         <div className="font-mono text-sm text-navy-900 font-semibold">#{ref}</div>
 
-        <div className="mt-5 grid sm:grid-cols-3 gap-2 text-[12px]">
+        {/* Add to Apple / Google Wallet */}
+        <WalletButtons pass={pass} className="mt-6 pt-5 border-t border-slate-100" />
+
+        <div className="mt-6 grid sm:grid-cols-3 gap-2 text-[12px]">
           <Pill icon={Icon.checkCircle} t="Stripe paid" tone="green" />
           <Pill icon={Icon.mail} t="QR e-mailed" tone="green" />
           <Pill icon={Icon.receipt} t="ΑΠΥ → MyDATA ✓" tone="green" />

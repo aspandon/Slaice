@@ -67,7 +67,9 @@ export function Card({ className = "", children, onClick, hover, press }) {
    (tint — light-accent fill), and quiet (ghost/outline). Springy press. */
 export function Btn({ children, variant = "primary", size = "md", onClick, icon: IconC, full, disabled, loading, className = "", type = "button" }) {
   const base = "relative inline-flex items-center justify-center gap-2 rounded-[14px] font-semibold transition-all duration-150 ease-spring active:scale-[.96] disabled:pointer-events-none select-none";
-  const sizes = { sm: "px-3 py-1.5 text-[13px]", md: "px-4 py-2.5 text-sm", lg: "px-5 py-3 text-[15px]" };
+  // min-heights enforce a comfortable touch target (≈ Apple HIG 44pt for md/lg)
+  // without shrinking any existing layout.
+  const sizes = { sm: "px-3 py-1.5 text-[13px] min-h-[36px]", md: "px-4 py-2.5 text-sm min-h-[44px]", lg: "px-5 py-3 text-[15px] min-h-[48px]" };
   // When disabled, every variant collapses to the same quiet slate ghost so a
   // disabled CTA never looks like a heavy navy slab. Loading keeps the active
   // variant so the spinner appears on the live colour.
@@ -276,29 +278,58 @@ export function PageHead({ actions }) {
 }
 
 /* ---------- Table ----------
-   Airier rows, hairline dividers and a sticky frosted header. */
+   Airier rows, hairline dividers and a sticky frosted header on `sm`+.
+   Under `sm` the same data reflows into stacked "label: value" cards so wide
+   tables never force a sideways scroll on a phone. Column headers double as
+   the field labels in the card view. */
 export function Table({ cols, rows, right = [] }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm border-separate border-spacing-0">
-        <thead>
-          <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500">
-            {cols.map((c, i) => (
-              <th key={i} className={`sticky top-0 z-10 bg-white/85 backdrop-blur-sm py-3 px-3.5 font-semibold border-b border-slate-200/80 ${right.includes(i) ? "text-right" : ""}`}>{c}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r, ri) => (
-            <tr key={ri} className="transition-colors hover:bg-slate-50/80">
-              {r.map((cell, ci) => (
-                <td key={ci} className={`py-3.5 px-3.5 border-b border-slate-100/80 ${right.includes(ci) ? "text-right tnum" : ""}`}>{cell}</td>
+    <>
+      {/* Mobile: stacked cards */}
+      <div className="sm:hidden space-y-2.5">
+        {rows.map((r, ri) => {
+          // First non-empty cell is the card's heading; the rest become rows.
+          const headIdx = cols.findIndex((c) => c);
+          return (
+            <div key={ri} className="rounded-2xl ring-1 ring-slate-200 bg-white/80 p-3.5">
+              {headIdx > -1 && <div className="font-semibold text-navy-900 text-[15px] mb-2">{r[headIdx]}</div>}
+              <div className="space-y-1.5">
+                {r.map((cell, ci) =>
+                  ci === headIdx ? null : (
+                    <div key={ci} className="flex items-center justify-between gap-3 text-[13px]">
+                      {cols[ci] ? <span className="text-slate-500 shrink-0">{cols[ci]}</span> : <span />}
+                      <span className={`min-w-0 text-right ${right.includes(ci) ? "tnum" : ""}`}>{cell}</span>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* sm+ : real table with a sticky frosted header */}
+      <div className="hidden sm:block overflow-x-auto">
+        <table className="w-full text-sm border-separate border-spacing-0">
+          <thead>
+            <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500">
+              {cols.map((c, i) => (
+                <th key={i} className={`sticky top-0 z-10 bg-white/85 backdrop-blur-sm py-3 px-3.5 font-semibold border-b border-slate-200/80 ${right.includes(i) ? "text-right" : ""}`}>{c}</th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {rows.map((r, ri) => (
+              <tr key={ri} className="transition-colors hover:bg-slate-50/80">
+                {r.map((cell, ci) => (
+                  <td key={ci} className={`py-3.5 px-3.5 border-b border-slate-100/80 ${right.includes(ci) ? "text-right tnum" : ""}`}>{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
 
@@ -312,12 +343,14 @@ export function Field({ label, children, hint }) {
     </label>
   );
 }
+// text-base on mobile (16px) prevents iOS Safari's focus-zoom; tightens to
+// text-sm from the `sm` breakpoint up.
 export function Input(props) {
-  return <input {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none placeholder:text-slate-400 ${props.className || ""}`} />;
+  return <input {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-base sm:text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none placeholder:text-slate-400 ${props.className || ""}`} />;
 }
 export function Select({ options = [], ...props }) {
   return (
-    <select {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none cursor-pointer ${props.className || ""}`}>
+    <select {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-base sm:text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none cursor-pointer ${props.className || ""}`}>
       {options.map((o) => (typeof o === "string" ? <option key={o} value={o}>{o}</option> : <option key={o.v} value={o.v}>{o.l}</option>))}
     </select>
   );
@@ -339,9 +372,9 @@ export function Toggle({ on, onChange, label }) {
 export function Stepper({ value, onChange, min = 0 }) {
   return (
     <div className="flex items-center gap-3">
-      <button aria-label="Decrease" onClick={() => onChange(Math.max(min, value - 1))} className="w-8 h-8 rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90 disabled:opacity-40" disabled={value <= min}><Icon.minus size={15} /></button>
+      <button aria-label="Decrease" onClick={() => onChange(Math.max(min, value - 1))} className="w-11 h-11 sm:w-10 sm:h-10 rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90 disabled:opacity-40" disabled={value <= min}><Icon.minus size={16} /></button>
       <span className="w-6 text-center font-semibold tnum tabular-nums">{value}</span>
-      <button aria-label="Increase" onClick={() => onChange(value + 1)} className="w-8 h-8 rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90"><Icon.plus size={15} /></button>
+      <button aria-label="Increase" onClick={() => onChange(value + 1)} className="w-11 h-11 sm:w-10 sm:h-10 rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90"><Icon.plus size={16} /></button>
     </div>
   );
 }
@@ -355,15 +388,18 @@ export function Modal({ open, onClose, title, children, footer, wide }) {
     return () => window.removeEventListener("keydown", h);
   }, [open, onClose]);
   if (!open) return null;
+  // Bottom-sheet on phones (items-end + slide-up + rounded top), centered
+  // dialog from `sm` up. dvh keeps it within the *visible* viewport on iOS
+  // Safari where the toolbar makes 100vh too tall.
   return (
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[60] grid place-items-center p-4 animate-fade-in" onClick={onClose}>
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in" onClick={onClose}>
       <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-xl" />
-      <div onClick={(e) => e.stopPropagation()} className={`glass-card-solid relative rounded-3xl w-full ${wide ? "max-w-2xl" : "max-w-md"} animate-pop max-h-[90vh] flex flex-col`}>
+      <div onClick={(e) => e.stopPropagation()} className={`glass-card-solid relative w-full ${wide ? "sm:max-w-2xl" : "sm:max-w-md"} rounded-t-3xl sm:rounded-3xl animate-slide-up sm:animate-pop max-h-[92dvh] sm:max-h-[90dvh] flex flex-col pb-safe sm:pb-0`}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200/70">
           <div className="font-display font-bold text-navy-900 text-lg">{title}</div>
-          <button aria-label="Close" onClick={onClose} className="text-slate-400 hover:text-slate-800 hover:bg-slate-100 p-1.5 rounded-full transition"><Icon.x size={20} /></button>
+          <button aria-label="Close" onClick={onClose} className="w-10 h-10 grid place-items-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition"><Icon.x size={20} /></button>
         </div>
-        <div className="p-5 overflow-y-auto">{children}</div>
+        <div className="p-5 overflow-y-auto overscroll-contain">{children}</div>
         {footer && <div className="px-5 py-4 border-t border-slate-200/70 flex justify-end gap-2">{footer}</div>}
       </div>
     </div>
@@ -407,7 +443,7 @@ export function Sheet({ open, onClose, title, children, footer }) {
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center animate-fade-in" onClick={onClose}>
       <div className="absolute inset-0 bg-navy-950/45 backdrop-blur-xl" />
       <div ref={panelRef} onClick={(e) => e.stopPropagation()}
-        className="glass-card-solid relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl animate-slide-up sm:animate-pop max-h-[92vh] flex flex-col transition-transform duration-300 ease-spring">
+        className="glass-card-solid relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl animate-slide-up sm:animate-pop max-h-[92dvh] flex flex-col transition-transform duration-300 ease-spring pb-safe sm:pb-0">
         <div onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
           className="pt-2.5 pb-1 grid place-items-center cursor-grab active:cursor-grabbing touch-none">
           <span className="w-10 h-1.5 rounded-full bg-slate-300" />
@@ -415,10 +451,10 @@ export function Sheet({ open, onClose, title, children, footer }) {
         {title && (
           <div className="flex items-center justify-between px-5 py-2 border-b border-slate-200/70">
             <div className="font-display font-bold text-navy-900 text-lg">{title}</div>
-            <button aria-label="Close" onClick={onClose} className="text-slate-400 hover:text-slate-800 hover:bg-slate-100 p-1.5 rounded-full transition"><Icon.x size={20} /></button>
+            <button aria-label="Close" onClick={onClose} className="w-10 h-10 grid place-items-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition"><Icon.x size={20} /></button>
           </div>
         )}
-        <div className="p-5 overflow-y-auto">{children}</div>
+        <div className="p-5 overflow-y-auto overscroll-contain">{children}</div>
         {footer && <div className="px-5 py-4 border-t border-slate-200/70 flex justify-end gap-2">{footer}</div>}
       </div>
     </div>

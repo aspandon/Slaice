@@ -19,13 +19,10 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 body {
-  /* Calm, near-neutral canvas with a single whisper of teal/indigo so frosted
-     surfaces still read as glass — far quieter than the old 4-layer gradient. */
+  /* Calm, near-neutral canvas. The teal/indigo wash lives on a fixed pseudo-
+     element (below) rather than `background-attachment: fixed`, which is broken
+     / janky on iOS Safari and Android Chrome. */
   background-color: #f6f8fb;
-  background-image:
-    radial-gradient(1200px 800px at 88% -12%, rgba(45, 212, 191, 0.10), transparent 60%),
-    radial-gradient(1000px 700px at -6% 4%, rgba(99, 102, 241, 0.07), transparent 60%);
-  background-attachment: fixed;
   font-family: var(--font-sans);
   font-feature-settings: "cv11", "ss01", "calt", "liga";
   letter-spacing: -0.011em;
@@ -33,6 +30,30 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* Remove the grey tap flash on iOS Safari / Android Chrome; we have a proper
+     :focus-visible ring for keyboard users instead. */
+  -webkit-tap-highlight-color: transparent;
+}
+/* Fixed ambient wash — replaces background-attachment: fixed (cross-browser). */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1200px 800px at 88% -12%, rgba(45, 212, 191, 0.10), transparent 60%),
+    radial-gradient(1000px 700px at -6% 4%, rgba(99, 102, 241, 0.07), transparent 60%);
+}
+
+/* iOS Safari zooms the page in when focusing an input whose font is under
+   16px. Force ≥16px on small screens so focus never triggers a zoom. */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 /* Accessible keyboard focus (WCAG 2.4.7) — visible only for keyboard users. */
@@ -136,6 +157,43 @@ body {
     -webkit-backdrop-filter: saturate(180%) blur(22px);
     border: 1px solid rgba(255, 255, 255, 0.16);
     box-shadow: 0 12px 40px -18px rgba(11, 37, 69, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  }
+
+  /* Fallback for engines without backdrop-filter (older Firefox, some Android
+     WebViews, GPU-blocked Safari): make the "glass" surfaces near-opaque so
+     text never loses contrast over the beach/photo backdrops. */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .glass {
+      background: rgba(255, 255, 255, 0.94);
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.98);
+    }
+    .glass-card-solid {
+      background: rgba(255, 255, 255, 0.99);
+    }
+    .glass-input {
+      background: rgba(255, 255, 255, 0.96);
+    }
+    .glass-dark {
+      background: linear-gradient(135deg, rgba(11, 37, 69, 0.95), rgba(19, 49, 92, 0.92));
+    }
+  }
+
+  /* Safe-area helpers for notched / home-indicator devices (iOS, some Android).
+     Pair `pb-safe` with a fixed bottom bar; `h-safe-bottom` reserves the inset
+     as spacer height. Falls back to 0 where env() is unsupported. */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  .h-safe-bottom {
+    height: env(safe-area-inset-bottom, 0px);
+  }
+  .inset-safe-bottom {
+    bottom: env(safe-area-inset-bottom, 0px);
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
