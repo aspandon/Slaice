@@ -61,6 +61,7 @@ export function CustomerWizard() {
   const [selDates, setSelDates] = useState([todayISO()]);
   const [zoneId, setZoneId] = useState("central");
   const [sets, setSets] = useState(1);
+  const [setsTouched, setSetsTouched] = useState(false);
   const [lockerOn, setLockerOn] = useState(false);
   const [lockerQty, setLockerQty] = useState(1);
   const [parkingOn, setParkingOn] = useState(false);
@@ -72,11 +73,14 @@ export function CustomerWizard() {
   const dayCount = selDates.length;
   const zone = ZONES.find((z) => z.id === zoneId) || ZONES[0];
 
-  // Auto-bump set count when the head-count grows past what's covered.
-  // Never auto-shrink — users may deliberately want fewer sets than people.
+  // Follow the recommendation as guests change, so switching presets
+  // (Solo/Couple/Family/Group) re-balances the basket. Once the user has
+  // explicitly picked a set count on the Sets step, hold that number and only
+  // auto-bump upward to never under-cover the group.
   useEffect(() => {
-    if (recommendedSets > sets) setSets(recommendedSets);
-  }, [recommendedSets]);
+    if (!setsTouched) setSets(recommendedSets);
+    else setSets((s) => Math.max(s, recommendedSets));
+  }, [recommendedSets, setsTouched]);
 
   const setSubtotal = sets * zone.from * dayCount;
   const ticketBreak = Object.entries(people).map(([k, n]) => ({ k, n, t: TICKET[k], total: n * TICKET[k].price * dayCount }));
@@ -159,6 +163,7 @@ export function CustomerWizard() {
                 people={people} setPeople={setPeople}
                 includeTickets={includeTickets} setIncludeTickets={setIncludeTickets}
                 recommendedSets={recommendedSets}
+                onPreset={(v) => { setPeople(v); setSetsTouched(false); }}
               />
             )}
             {step.id === "dates" && (
@@ -167,7 +172,8 @@ export function CustomerWizard() {
             {step.id === "sets" && (
               <SetsStep
                 zone={zone} zoneId={zoneId} setZoneId={setZoneId}
-                sets={sets} setSets={setSets}
+                sets={sets}
+                setSets={(v) => { setSets(v); setSetsTouched(true); }}
                 recommendedSets={recommendedSets}
                 dayCount={dayCount}
               />
@@ -337,9 +343,8 @@ function ProgressRail({ stepIdx, onJump }) {
 }
 
 /* ============ Step 1 — People ============ */
-function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, recommendedSets }) {
+function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, recommendedSets, onPreset }) {
   const totalPeople = Object.values(people).reduce((a, b) => a + b, 0);
-  const preset = (next) => setPeople(next);
   const presets = [
     { id: "solo",   label: "Solo",       sub: "1 person",     v: { adult: 1, resident: 0, child: 0, senior: 0 } },
     { id: "couple", label: "Couple",     sub: "2 people",     v: { adult: 2, resident: 0, child: 0, senior: 0 } },
@@ -355,7 +360,7 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, reco
           {presets.map((p) => {
             const match = JSON.stringify(p.v) === JSON.stringify(people);
             return (
-              <button key={p.id} onClick={() => preset(p.v)}
+              <button key={p.id} onClick={() => onPreset(p.v)}
                 className={`text-left rounded-xl px-3 py-2 ring-1 transition ${match ? "bg-navy-900 text-white ring-navy-900" : "bg-white/70 ring-slate-200 hover:ring-teal-400"}`}>
                 <div className="text-[13px] font-semibold leading-tight">{p.label}</div>
                 <div className={`text-[11px] leading-tight ${match ? "text-white/70" : "text-slate-500"}`}>{p.sub}</div>
