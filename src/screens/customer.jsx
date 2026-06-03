@@ -1,10 +1,10 @@
 import { useMemo, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad, StatCard, ContextPanel, Tabs } from "../components/ui.jsx";
+import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad, StatCard, ContextPanel, Tabs, DatePickerRow } from "../components/ui.jsx";
 import { QR } from "../components/charts.jsx";
 import { Sunbed, BeachBackdrop, ParkingBackdrop, LockerBackdrop } from "../components/Beach.jsx";
 import { downloadText } from "../lib/download.js";
-import { ZONES, ZONE_BLOCKS, makeGrid, dateStrip } from "../data/beach.js";
+import { ZONES, ZONE_BLOCKS, makeGrid, chipLabel, todayISO } from "../data/beach.js";
 import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS } from "../data/mock.js";
 import { useApp } from "../app/store.jsx";
 
@@ -63,15 +63,13 @@ export function CustomerBooking() {
   const { go, toast, cart, addToCart, removeFromCart } = useApp();
   const [step, setStep] = useState("zones"); // zones | grid
   const [zoneId, setZoneId] = useState(null);
-  const [selDates, setSelDates] = useState([0]); // multi-select date indices
+  const [selDates, setSelDates] = useState([todayISO()]); // multi-select ISO dates
   const [sel, setSel] = useState([]); // {id, zone, price}
   const [extras, setExtras] = useState({ ticket: false, locker: false });
   const [sheetOpen, setSheetOpen] = useState(false); // mobile basket bottom-sheet
-  const dates = useMemo(dateStrip, []);
   const zone = ZONES.find((z) => z.id === zoneId) || null;
   const grid = useMemo(() => (zone ? makeGrid(zone) : []), [zoneId]);
 
-  const toggleDate = (i) => setSelDates((d) => (d.includes(i) ? (d.length > 1 ? d.filter((x) => x !== i) : d) : [...d, i].sort((a, b) => a - b)));
   const addBed = (id, price) => setSel((c) => (c.find((x) => x.id === id) ? c : [...c, { id, zone: zone.name, price }]));
   const rm = (id) => setSel((c) => c.filter((x) => x.id !== id));
   const clearSel = () => { const prev = sel; setSel([]); toast("Selection cleared.", { action: { label: "Undo", onClick: () => setSel(prev) } }); };
@@ -83,12 +81,12 @@ export function CustomerBooking() {
   const focused = step === "grid" && zone;
 
   const reserve = () => {
-    const dateLabels = selDates.map((di) => dates[di].label).join(", ");
-    selDates.forEach((di) => {
-      const d = dates[di];
-      sel.forEach((b) => addToCart({ kind: "sunbed", id: `${b.id}@${di}`, label: `Sunbed ${b.id}`, sub: `${b.zone} · ${d.label}`, price: b.price }));
-      if (extras.ticket) addToCart({ kind: "ticket", id: `ADULT@${di}`, label: "Entry ticket — Adult", sub: `Cross-sell · ${d.label}`, price: 10 });
-      if (extras.locker) addToCart({ kind: "locker", id: `LK@${di}`, label: "Day locker", sub: `Cross-sell · ${d.label}`, price: 5 });
+    const dateLabels = selDates.map((iso) => chipLabel(iso).sub).join(", ");
+    selDates.forEach((iso) => {
+      const lbl = chipLabel(iso).sub;
+      sel.forEach((b) => addToCart({ kind: "sunbed", id: `${b.id}@${iso}`, label: `Sunbed ${b.id}`, sub: `${b.zone} · ${lbl}`, price: b.price }));
+      if (extras.ticket) addToCart({ kind: "ticket", id: `ADULT@${iso}`, label: "Entry ticket — Adult", sub: `Cross-sell · ${lbl}`, price: 10 });
+      if (extras.locker) addToCart({ kind: "locker", id: `LK@${iso}`, label: "Day locker", sub: `Cross-sell · ${lbl}`, price: 5 });
     });
     const n = sel.length;
     toast(`${n} sunbed${n > 1 ? "s" : ""} × ${dayCount} day${dayCount > 1 ? "s" : ""} added (${dateLabels}).`, { tone: "success" });
@@ -190,18 +188,7 @@ export function CustomerBooking() {
                 <span className="flex items-center gap-1"><Icon.calendar size={12} /> Dates · pick one or more</span>
                 <span className="text-slate-600 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
               </div>
-              <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
-                {dates.slice(0, 7).map((d, i) => {
-                  const on = selDates.includes(i);
-                  return (
-                    <button key={i} onClick={() => toggleDate(i)} aria-pressed={on} className={`px-3 py-2 min-h-[44px] rounded-lg text-center min-w-[68px] ring-1 transition relative ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"}`}>
-                      <div className="text-[12px] font-semibold leading-tight">{d.label}</div>
-                      <div className={`text-[10px] ${on ? "text-white/80" : "text-slate-500"}`}>{d.sub}</div>
-                      {on && <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center ring-2 ring-white"><Icon.check size={10} /></span>}
-                    </button>
-                  );
-                })}
-              </div>
+              <DatePickerRow value={selDates} onChange={setSelDates} />
             </div>
 
             {focused && (
@@ -369,22 +356,28 @@ function CrossSell({ on, onClick, icon: IconC, title, price, future }) {
 
 /* ============ ENTRY TICKET ============ */
 export function CustomerTicket() {
-  const { go, addToCart, clearCart, toast } = useApp();
+  const { addToCart, toast } = useApp();
   const cats = [
     { k: "adult", t: "Adult", p: 10, d: "Standard entry" },
     { k: "resident", t: "Alimos resident", p: 6, d: "Proof required at gate" },
     { k: "child", t: "Child (6–12)", p: 5, d: "Under 6 free" },
     { k: "senior", t: "Senior 65+", p: 7, d: "ID required" },
   ];
+  const [selDates, setSelDates] = useState([todayISO()]);
   const [qty, setQty] = useState({ adult: 2, resident: 0, child: 1, senior: 0 });
   const [biz, setBiz] = useState(false);
   const [vat, setVat] = useState("");
-  const total = cats.reduce((a, c) => a + c.p * qty[c.k], 0);
+  const dayCount = selDates.length;
+  const perDay = cats.reduce((a, c) => a + c.p * qty[c.k], 0);
+  const total = perDay * dayCount;
   const n = Object.values(qty).reduce((a, b) => a + b, 0);
 
   const pay = () => {
-    cats.forEach((c) => qty[c.k] > 0 && addToCart({ kind: "ticket", id: c.k, label: `${c.t} × ${qty[c.k]}`, sub: "Entry ticket", price: c.p * qty[c.k] }));
-    toast(`${n} ticket${n > 1 ? "s" : ""} added to your basket.`);
+    selDates.forEach((iso) => {
+      const sub = chipLabel(iso).sub;
+      cats.forEach((c) => qty[c.k] > 0 && addToCart({ kind: "ticket", id: `${c.k}@${iso}`, label: `${c.t} × ${qty[c.k]}`, sub: `Entry ticket · ${sub}`, price: c.p * qty[c.k] }));
+    });
+    toast(`${n} ticket${n > 1 ? "s" : ""} × ${dayCount} day${dayCount > 1 ? "s" : ""} added to your basket.`, { tone: "success" });
     setQty({ adult: 0, resident: 0, child: 0, senior: 0 });
   };
 
@@ -392,6 +385,13 @@ export function CustomerTicket() {
     <div className="animate-fade-up grid lg:grid-cols-[1fr_320px] gap-5">
       <div>
       <PageHead title="Entry Ticket" sub="Buy entry for yourself or your group — pricing adapts to each person's category." badge={<Badge tone="mvp">MVP</Badge>} />
+      <Card className="glass-card-solid p-5 mb-4">
+        <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center justify-between">
+          <span className="flex items-center gap-1.5"><Icon.calendar size={13} /> Dates · pick one or more</span>
+          <span className="text-slate-600 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
+        </div>
+        <DatePickerRow value={selDates} onChange={setSelDates} />
+      </Card>
       <Card className="glass-card-solid p-5 space-y-3">
         {cats.map((c) => (
           <div key={c.k} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-4 py-3">
@@ -414,7 +414,7 @@ export function CustomerTicket() {
         </div>
 
         <div className="flex items-center justify-between pt-2">
-          <div className="text-slate-600 text-sm">{n} ticket(s){biz ? " · ΤΠΥ" : " · ΑΠΥ"}</div>
+          <div className="text-slate-600 text-sm">{n} ticket(s) × {dayCount} day{dayCount > 1 ? "s" : ""}{biz ? " · ΤΠΥ" : " · ΑΠΥ"}</div>
           <div className="text-2xl font-bold font-display text-navy-900 tnum">€{total}</div>
         </div>
         <Btn variant="teal" full size="lg" icon={Icon.card} disabled={!n} onClick={pay}>Add €{total} to basket</Btn>
@@ -433,8 +433,7 @@ export function CustomerTicket() {
 export function CustomerLocker() {
   const { addToCart, toast } = useApp();
   const PRICE = 5;
-  const [selDates, setSelDates] = useState([0]);
-  const dates = useMemo(dateStrip, []);
+  const [selDates, setSelDates] = useState([todayISO()]);
   const banks = ["A", "B", "C", "D", "E"];
   const lockers = useMemo(() => {
     const arr = [];
@@ -443,14 +442,13 @@ export function CustomerLocker() {
   }, []);
   const [sel, setSel] = useState([]);
   const toggle = (id, taken) => { if (taken) return; setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id])); };
-  const toggleDate = (i) => setSelDates((d) => (d.includes(i) ? (d.length > 1 ? d.filter((x) => x !== i) : d) : [...d, i].sort((a, b) => a - b)));
   const dayCount = selDates.length;
   const total = sel.length * PRICE * dayCount;
   const free = lockers.filter((l) => !l.taken).length;
   const reserve = () => {
-    selDates.forEach((di) => {
-      const d = dates[di];
-      sel.forEach((id) => addToCart({ kind: "locker", id: `${id}@${di}`, label: `Locker ${id}`, sub: d.label, price: PRICE }));
+    selDates.forEach((iso) => {
+      const sub = chipLabel(iso).sub;
+      sel.forEach((id) => addToCart({ kind: "locker", id: `${id}@${iso}`, label: `Locker ${id}`, sub, price: PRICE }));
     });
     toast(`${sel.length} locker${sel.length > 1 ? "s" : ""} × ${dayCount} day${dayCount > 1 ? "s" : ""} added to your basket.`, { tone: "success" });
     setSel([]);
@@ -460,24 +458,14 @@ export function CustomerLocker() {
   return (
     <div className="grid lg:grid-cols-[1fr_320px] gap-5">
       <div>
-        <Card className="glass-card-solid p-4 mb-4">
+        <Card className="glass-card-solid p-4 mb-4 overflow-visible">
           <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center justify-between">
-            <span className="flex items-center gap-1"><Icon.calendar size={13} /> Dates · pick one or more</span>
+            <span className="flex items-center gap-1.5"><Icon.calendar size={13} /> Dates · pick one or more</span>
             <span className="text-slate-600 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            {dates.slice(0, 7).map((d, i) => {
-              const on = selDates.includes(i);
-              return (
-                <button key={i} onClick={() => toggleDate(i)} aria-pressed={on} className={`relative px-3.5 py-2 min-h-[44px] rounded-xl text-center min-w-[78px] ring-1 transition ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"}`}>
-                  <div className="text-[13px] font-semibold">{d.label}</div><div className={`text-[11px] ${on ? "text-white/80" : "text-slate-600"}`}>{d.sub}</div>
-                  {on && <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center ring-2 ring-white"><Icon.check size={10} /></span>}
-                </button>
-              );
-            })}
-          </div>
+          <DatePickerRow value={selDates} onChange={setSelDates} />
         </Card>
-        <div className="glass rounded-xl px-3 py-2 mb-2 flex items-center gap-4 text-[11px] text-navy-900 flex-wrap">
+        <div className="glass rounded-xl px-3 py-2 mb-3 mt-3 flex items-center gap-4 text-[11px] text-navy-900 flex-wrap">
           <span className="flex items-center gap-1.5"><i className="w-4 h-4 rounded bg-teal-500 inline-block ring-1 ring-white/70" />Available</span>
           <span className="flex items-center gap-1.5"><i className="w-4 h-4 rounded bg-navy-900 inline-block ring-1 ring-white/70" />Selected</span>
           <span className="flex items-center gap-1.5"><i className="w-4 h-4 rounded bg-slate-300 inline-block ring-1 ring-slate-400" />Taken</span>
@@ -486,11 +474,11 @@ export function CustomerLocker() {
         <LockerBackdrop className="p-5 ring-1 ring-white/30 shadow-float">
           <div className="relative space-y-4">
             {banks.map((bk) => (
-              <div key={bk} className="rounded-xl bg-white/35 backdrop-blur-sm ring-1 ring-white/50 p-3">
-                <div className="text-[12px] font-bold text-navy-900 mb-1.5 flex items-center gap-1.5">
-                  <Icon.lock size={12} /> Bank {bk}
+              <div key={bk} className="rounded-xl bg-white/55 backdrop-blur-sm ring-1 ring-white/60 p-3">
+                <div className="text-[12px] font-bold text-navy-900 mb-2 flex items-center gap-1.5">
+                  <Icon.lock size={13} /> Bank {bk}
                 </div>
-                <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(10,1fr)" }}>
+                <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(10,1fr)" }}>
                   {lockers.filter((l) => l.bank === bk).map((l) => {
                     const isSel = sel.includes(l.id);
                     const cl = l.taken
@@ -499,10 +487,9 @@ export function CustomerLocker() {
                         ? "bg-gradient-to-b from-navy-800 to-navy-950 text-white ring-2 ring-teal-400 shadow-lift"
                         : "bg-gradient-to-b from-teal-500 to-teal-700 text-white hover:from-teal-400 hover:to-teal-600 shadow-soft";
                     return (
-                      <button key={l.id} disabled={l.taken} onClick={() => toggle(l.id, l.taken)} title={`${l.id} · ${l.taken ? "Taken" : "€" + PRICE}`} className={`relative aspect-[3/4] rounded-md grid place-items-center transition ${cl}`}>
-                        <Icon.lock size={13} />
-                        <span className="absolute top-1 right-1 w-1 h-1 rounded-full bg-white/70" />
-                        <span className="absolute bottom-0.5 text-[7px] font-bold leading-none">{l.id}</span>
+                      <button key={l.id} disabled={l.taken} onClick={() => toggle(l.id, l.taken)} title={`${l.id} · ${l.taken ? "Taken" : "€" + PRICE}`} className={`relative aspect-[3/4] rounded-lg grid place-items-center transition ${cl} pb-3.5`}>
+                        <Icon.lock size={22} />
+                        <span className="absolute bottom-1 left-0 right-0 text-center text-[10px] font-bold leading-none tnum">{l.id}</span>
                       </button>
                     );
                   })}
@@ -538,8 +525,7 @@ export function CustomerLocker() {
 export function CustomerParking() {
   const { addToCart, toast } = useApp();
   const PRICE = 15;
-  const [selDates, setSelDates] = useState([0]);
-  const dates = useMemo(dateStrip, []);
+  const [selDates, setSelDates] = useState([todayISO()]);
   const [plate, setPlate] = useState("");
   const [sel, setSel] = useState(null);
   // 50 spots organised across 5 rows of 10 (two paired banks + one outer row).
@@ -553,13 +539,12 @@ export function CustomerParking() {
     return out;
   }, []);
   const taken = useMemo(() => new Set(["P3", "P7", "P12", "P18", "P21", "P24", "P29", "P33", "P40", "P44", "P47"]), []);
-  const toggleDate = (i) => setSelDates((d) => (d.includes(i) ? (d.length > 1 ? d.filter((x) => x !== i) : d) : [...d, i].sort((a, b) => a - b)));
   const dayCount = selDates.length;
   const free = rows.flat().length - taken.size;
   const reserve = () => {
-    selDates.forEach((di) => {
-      const d = dates[di];
-      addToCart({ kind: "parking", id: `${sel}@${di}`, label: `Parking ${sel}`, sub: `${plate || "—"} · ${d.label}`, price: PRICE });
+    selDates.forEach((iso) => {
+      const sub = chipLabel(iso).sub;
+      addToCart({ kind: "parking", id: `${sel}@${iso}`, label: `Parking ${sel}`, sub: `${plate || "—"} · ${sub}`, price: PRICE });
     });
     toast(`Parking spot ${sel} × ${dayCount} day${dayCount > 1 ? "s" : ""} added to your basket.`, { tone: "success" });
     setSel(null);
@@ -568,24 +553,14 @@ export function CustomerParking() {
   return (
     <div className="grid lg:grid-cols-[1fr_320px] gap-5">
       <div>
-        <Card className="glass-card-solid p-4 mb-4">
+        <Card className="glass-card-solid p-4 mb-4 overflow-visible">
           <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center justify-between">
-            <span className="flex items-center gap-1"><Icon.calendar size={13} /> Dates · pick one or more</span>
+            <span className="flex items-center gap-1.5"><Icon.calendar size={13} /> Dates · pick one or more</span>
             <span className="text-slate-600 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
           </div>
-          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            {dates.slice(0, 7).map((d, i) => {
-              const on = selDates.includes(i);
-              return (
-                <button key={i} onClick={() => toggleDate(i)} aria-pressed={on} className={`relative px-3.5 py-2 min-h-[44px] rounded-xl text-center min-w-[78px] ring-1 transition ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"}`}>
-                  <div className="text-[13px] font-semibold">{d.label}</div><div className={`text-[11px] ${on ? "text-white/80" : "text-slate-600"}`}>{d.sub}</div>
-                  {on && <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center ring-2 ring-white"><Icon.check size={10} /></span>}
-                </button>
-              );
-            })}
-          </div>
+          <DatePickerRow value={selDates} onChange={setSelDates} />
         </Card>
-        <div className="glass rounded-xl px-3 py-2 mb-2 flex items-center justify-between text-navy-900 flex-wrap gap-2">
+        <div className="glass rounded-xl px-3 py-2 mb-3 mt-3 flex items-center justify-between text-navy-900 flex-wrap gap-2">
           <div className="font-semibold flex items-center gap-2 text-sm"><Icon.car size={18} /> Select a spot · {free} of 50 free</div>
           <div className="flex items-center gap-3 text-[11px]">
             <span className="flex items-center gap-1"><i className="w-3 h-3 rounded-sm bg-teal-500 inline-block ring-1 ring-white/60" />Free</span>
@@ -599,7 +574,7 @@ export function CustomerParking() {
               const lane = ri === 1 || ri === 3; // drive lane after row 0 and row 2
               return (
                 <div key={ri}>
-                  <div className="grid gap-1.5 mb-1.5" style={{ gridTemplateColumns: "repeat(10,1fr)" }}>
+                  <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: "repeat(10,1fr)" }}>
                     {row.map((id) => {
                       const isTaken = taken.has(id), isSel = sel === id;
                       const cl = isTaken
@@ -608,15 +583,15 @@ export function CustomerParking() {
                           ? "bg-navy-900 text-white ring-2 ring-teal-400 shadow-lift"
                           : "bg-teal-500/95 text-white hover:bg-teal-600 shadow-soft";
                       return (
-                        <button key={id} disabled={isTaken} onClick={() => setSel(isSel ? null : id)} title={`${id} · ${isTaken ? "Taken" : "€" + PRICE}`} className={`aspect-[3/4] rounded-md grid place-items-center transition border border-white/70 ${cl}`}>
-                          <Icon.car size={14} />
-                          <span className="text-[8px] font-bold mt-0.5 tnum">{id}</span>
+                        <button key={id} disabled={isTaken} onClick={() => setSel(isSel ? null : id)} title={`${id} · ${isTaken ? "Taken" : "€" + PRICE}`} className={`relative aspect-[3/4] rounded-lg grid place-items-center transition border border-white/70 ${cl} pb-3.5`}>
+                          <Icon.car size={22} />
+                          <span className="absolute bottom-1 left-0 right-0 text-center text-[10px] font-bold leading-none tnum">{id}</span>
                         </button>
                       );
                     })}
                   </div>
                   {lane && (
-                    <div className="my-1.5 h-6 flex items-center justify-center gap-2 text-[10px] text-yellow-200/95 tracking-widest uppercase font-bold drop-shadow">
+                    <div className="my-2 h-6 flex items-center justify-center gap-2 text-[10px] text-yellow-200/95 tracking-widest uppercase font-bold drop-shadow">
                       <span>←</span><span>drive lane</span><span>→</span>
                     </div>
                   )}

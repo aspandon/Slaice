@@ -1,5 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Icon } from "../lib/icons.jsx";
+import { chipLabel, dateStrip, fromISO, todayISO, toISO } from "../data/beach.js";
 
 /* ---------- Badge ---------- */
 export function Badge({ tone = "slate", children, className = "" }) {
@@ -354,4 +356,155 @@ export function Tabs({ tabs, value, onChange, className = "", scroll = false }) 
 /* ---------- Empty / placeholder ---------- */
 export function FeatureChip({ status }) {
   return status === "MVP" ? <Badge tone="mvp">MVP</Badge> : <Badge tone="future">Future</Badge>;
+}
+
+/* ---------- DatePickerRow ----------
+   Multi-select date picker used across Sunbed, Ticket, Locker, Parking flows.
+   `value` is an array of ISO YYYY-MM-DD strings. Shows the next 7 days as quick
+   pills + any extra picks as chips + a "Pick dates" tile that opens a calendar
+   modal for any future date. Always keeps at least one date selected. */
+export function DatePickerRow({ value = [], onChange, quickDays = 7, className = "" }) {
+  const [picker, setPicker] = useState(false);
+  const strip = useMemo(() => dateStrip(quickDays), [quickDays]);
+  const stripSet = useMemo(() => new Set(strip.map((d) => d.iso)), [strip]);
+  const extras = useMemo(() => value.filter((iso) => !stripSet.has(iso)).sort(), [value, stripSet]);
+  const toggle = (iso) => {
+    const has = value.includes(iso);
+    if (has && value.length === 1) return; // keep at least one
+    onChange(has ? value.filter((x) => x !== iso) : [...value, iso].sort());
+  };
+  return (
+    <div className={className}>
+      <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+        {strip.map((d) => {
+          const on = value.includes(d.iso);
+          return (
+            <DatePill key={d.iso} on={on} label={d.label} sub={d.sub} onClick={() => toggle(d.iso)} />
+          );
+        })}
+        {extras.map((iso) => {
+          const lbl = chipLabel(iso);
+          return <DatePill key={iso} on label={lbl.label} sub={lbl.sub} onClick={() => toggle(iso)} />;
+        })}
+        <button
+          type="button"
+          onClick={() => setPicker(true)}
+          className="px-3 py-2 min-h-[44px] rounded-xl min-w-[78px] ring-1 ring-dashed ring-slate-300 text-slate-600 hover:ring-teal-400 hover:text-teal-700 transition shrink-0 inline-flex items-center justify-center gap-1.5 text-[12px] font-semibold"
+          aria-label="Pick dates from calendar"
+        >
+          <Icon.calendar size={14} /> Pick dates
+        </button>
+      </div>
+      {picker && (
+        <DateCalendarModal value={value} onChange={onChange} onClose={() => setPicker(false)} />
+      )}
+    </div>
+  );
+}
+
+function DatePill({ on, label, sub, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={on}
+      className={`relative px-3.5 py-2 min-h-[44px] rounded-xl text-center min-w-[78px] ring-1 transition shrink-0 ${
+        on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"
+      }`}
+    >
+      <div className="text-[13px] font-semibold leading-tight">{label}</div>
+      <div className={`text-[11px] ${on ? "text-white/80" : "text-slate-600"}`}>{sub}</div>
+      {on && (
+        <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center ring-2 ring-white">
+          <Icon.check size={10} />
+        </span>
+      )}
+    </button>
+  );
+}
+
+function DateCalendarModal({ value, onChange, onClose }) {
+  const [month, setMonth] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth(), 1);
+  });
+  const todayIso = todayISO();
+  const today = fromISO(todayIso);
+  useEffect(() => {
+    const onKey = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+  const cells = useMemo(() => {
+    const first = new Date(month.getFullYear(), month.getMonth(), 1);
+    const last = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+    const startWeekday = (first.getDay() + 6) % 7; // Mon=0..Sun=6
+    const out = [];
+    for (let i = 0; i < startWeekday; i++) out.push(null);
+    for (let i = 1; i <= last.getDate(); i++) {
+      const d = new Date(month.getFullYear(), month.getMonth(), i);
+      out.push({ iso: toISO(d), day: i, past: d < today });
+    }
+    return out;
+  }, [month, today]);
+  const toggle = (iso) => {
+    const has = value.includes(iso);
+    if (has && value.length === 1) return;
+    onChange(has ? value.filter((x) => x !== iso) : [...value, iso].sort());
+  };
+  const monthStart = new Date(month.getFullYear(), month.getMonth(), 1);
+  const todayMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const canPrev = monthStart > todayMonth;
+  const title = monthStart.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  return createPortal((
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[70] grid place-items-center p-4 animate-fade-in" onClick={onClose}>
+      <div className="absolute inset-0 bg-navy-950/45 backdrop-blur-xl" />
+      <div onClick={(e) => e.stopPropagation()} className="glass-card-solid relative rounded-2xl w-full max-w-sm animate-pop">
+        <div className="px-4 py-3 border-b border-white/40 flex items-center justify-between">
+          <div className="font-display font-bold text-navy-900 inline-flex items-center gap-2"><Icon.calendar size={16} /> Pick dates</div>
+          <button aria-label="Close" onClick={onClose} className="text-slate-500 hover:text-navy-900 hover:bg-white/40 p-1.5 rounded-lg"><Icon.x size={18} /></button>
+        </div>
+        <div className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} disabled={!canPrev}
+              className="w-9 h-9 grid place-items-center rounded-lg ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Previous month"><Icon.arrowL size={15} /></button>
+            <div className="font-semibold text-navy-900">{title}</div>
+            <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
+              className="w-9 h-9 grid place-items-center rounded-lg ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50"
+              aria-label="Next month"><Icon.arrowR size={15} /></button>
+          </div>
+          <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <div key={d}>{d}</div>)}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {cells.map((c, i) => {
+              if (!c) return <div key={`b-${i}`} />;
+              const sel = value.includes(c.iso);
+              const isToday = c.iso === todayIso;
+              return (
+                <button key={c.iso} type="button" disabled={c.past} onClick={() => toggle(c.iso)}
+                  className={`relative aspect-square rounded-lg text-sm font-medium transition ${
+                    c.past
+                      ? "text-slate-300 cursor-not-allowed"
+                      : sel
+                        ? "bg-navy-900 text-white shadow-sm hover:bg-navy-800"
+                        : isToday
+                          ? "bg-teal-50 text-teal-700 ring-1 ring-teal-200 hover:bg-teal-100"
+                          : "text-navy-900 hover:bg-slate-100"
+                  }`}>
+                  {c.day}
+                  {sel && <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-teal-300" />}
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-3 flex items-center justify-between text-[12px] text-slate-600">
+            <span><b className="text-navy-900 tnum">{value.length}</b> date{value.length !== 1 ? "s" : ""} selected</span>
+            <button onClick={onClose} className="font-semibold text-teal-700 hover:text-teal-800">Done</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  ), document.body);
 }

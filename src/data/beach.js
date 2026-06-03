@@ -36,13 +36,42 @@ export function makeGrid(zone, cols = 14, rows = 8) {
   return arr;
 }
 
-export const dateStrip = () => {
-  const days = ["Today", "Tomorrow", "Sat", "Sun", "Mon", "Tue", "Wed"];
+// --- Date helpers (ISO YYYY-MM-DD is the canonical key) ---
+export function toISO(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+export function fromISO(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+export function todayISO() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return toISO(d);
+}
+// { label, sub } for a date — "Today"/"Tomorrow"/weekday + dd MMM
+export function chipLabel(iso) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = fromISO(iso);
+  const diff = Math.round((d - today) / 86400000);
+  const sub = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  if (diff === 0) return { label: "Today", sub };
+  if (diff === 1) return { label: "Tomorrow", sub };
+  return { label: d.toLocaleDateString("en-GB", { weekday: "short" }), sub };
+}
+// Quick strip: today + next n-1 days, each with iso + label + sub.
+export const dateStrip = (n = 7) => {
   const base = new Date();
-  return days.map((d, i) => {
+  base.setHours(0, 0, 0, 0);
+  return Array.from({ length: n }).map((_, i) => {
     const dt = new Date(base);
     dt.setDate(base.getDate() + i);
-    return { label: d, sub: dt.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) };
+    const iso = toISO(dt);
+    return { iso, ...chipLabel(iso) };
   });
 };
 

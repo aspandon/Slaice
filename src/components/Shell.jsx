@@ -119,7 +119,7 @@ export function TopBar({ persona, setPersona, page, setPage }) {
               <Icon.layers size={14} /> <span className="hidden lg:inline">Explore</span> <Icon.chevD size={13} />
             </button>
             {eOpen && (
-              <div className="glass-card absolute right-0 mt-2 w-60 text-ink rounded-xl p-1.5 z-50">
+              <div className="glass-card-solid absolute right-0 mt-2 w-60 text-ink rounded-xl p-1.5 z-[60] shadow-float">
                 <div className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">Explore the platform</div>
                 <button onClick={() => { setEOpen(false); setPage("__features"); }}
                   className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-sm ${page === "__features" ? "bg-slate-100" : ""} hover:bg-slate-100`}>
@@ -152,7 +152,7 @@ export function TopBar({ persona, setPersona, page, setPage }) {
             )}
           </button>
           {bOpen && (
-            <div className="glass-card absolute right-0 mt-2 w-[320px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-50">
+            <div className="glass-card-solid absolute right-0 mt-2 w-[320px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-[60] shadow-float">
               <div className="flex items-center justify-between px-2 py-1.5">
                 <div className="font-semibold text-navy-900 text-sm flex items-center gap-2">
                   <Icon.card size={14} /> Your basket
@@ -203,7 +203,7 @@ export function TopBar({ persona, setPersona, page, setPage }) {
             )}
           </button>
           {nOpen && (
-            <div className="glass-card absolute right-0 mt-2 w-[340px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-50">
+            <div className="glass-card-solid absolute right-0 mt-2 w-[340px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-[60] shadow-float">
               <div className="flex items-center justify-between px-2 py-1.5">
                 <div className="font-semibold text-navy-900 text-sm flex items-center gap-2">
                   <Icon.bell size={14} /> Notifications
@@ -244,7 +244,7 @@ export function TopBar({ persona, setPersona, page, setPage }) {
             <Icon.chevD size={14} />
           </button>
           {aOpen && (
-            <div className="glass-card absolute right-0 mt-2 w-60 text-ink rounded-xl p-1.5 z-50">
+            <div className="glass-card-solid absolute right-0 mt-2 w-60 text-ink rounded-xl p-1.5 z-[60] shadow-float">
               <div className="px-3 py-2 border-b border-slate-100 mb-1">
                 <div className="font-semibold text-sm text-navy-900">Elena M.</div>
                 <div className="text-[12px] text-slate-500">elena@example.com</div>
@@ -278,7 +278,7 @@ export function TopBar({ persona, setPersona, page, setPage }) {
             <Icon.chevD size={14} className="text-white/80" />
           </button>
           {pOpen && (
-            <div className="glass-card absolute right-0 mt-2 w-72 text-ink rounded-xl p-1.5 z-50">
+            <div className="glass-card-solid absolute right-0 mt-2 w-72 text-ink rounded-xl p-1.5 z-[60] shadow-float">
               <div className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">View as persona</div>
               {PERSONAS.map((p) => (
                 <button key={p.id} onClick={() => { setPersona(p.id); setPOpen(false); }}
@@ -301,12 +301,12 @@ export function TopBar({ persona, setPersona, page, setPage }) {
 
 function toneBg(tone) {
   return {
-    green: "bg-teal-100 text-teal-700",
-    amber: "bg-amber-100 text-amber-700",
-    indigo: "bg-slaice-100 text-slaice-700",
-    slate: "bg-slate-100 text-slate-600",
-    blue: "bg-sky-100 text-sky-700",
-  }[tone] || "bg-slate-100 text-slate-600";
+    green: "bg-teal-100 text-teal-700 ring-1 ring-teal-200",
+    amber: "bg-amber-100 text-amber-700 ring-1 ring-amber-200",
+    indigo: "bg-slaice-100 text-slaice-700 ring-1 ring-slaice-100",
+    slate: "bg-slate-200 text-slate-700 ring-1 ring-slate-300",
+    blue: "bg-sky-100 text-sky-700 ring-1 ring-sky-200",
+  }[tone] || "bg-slate-200 text-slate-700 ring-1 ring-slate-300";
 }
 
 /* ---------- Account Settings (modal) ---------- */
