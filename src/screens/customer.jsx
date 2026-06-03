@@ -3,7 +3,7 @@ import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad, StatCard, ContextPanel, Tabs, DatePickerRow } from "../components/ui.jsx";
 import { QR } from "../components/charts.jsx";
 import { Sunbed, BeachBackdrop, ParkingBackdrop, LockerBackdrop } from "../components/Beach.jsx";
-import { downloadText } from "../lib/download.js";
+import { downloadPDF, downloadZIP, buildPDFBytes } from "../lib/download.js";
 import { ZONES, ZONE_BLOCKS, makeGrid, chipLabel, todayISO } from "../data/beach.js";
 import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS } from "../data/mock.js";
 import { useApp } from "../app/store.jsx";
@@ -574,7 +574,7 @@ export function CustomerParking() {
               const lane = ri === 1 || ri === 3; // drive lane after row 0 and row 2
               return (
                 <div key={ri}>
-                  <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: "repeat(10,1fr)" }}>
+                  <div className="grid gap-1 mb-1.5" style={{ gridTemplateColumns: "repeat(10,1fr)" }}>
                     {row.map((id) => {
                       const isTaken = taken.has(id), isSel = sel === id;
                       const cl = isTaken
@@ -583,9 +583,9 @@ export function CustomerParking() {
                           ? "bg-navy-900 text-white ring-2 ring-teal-400 shadow-lift"
                           : "bg-teal-500/95 text-white hover:bg-teal-600 shadow-soft";
                       return (
-                        <button key={id} disabled={isTaken} onClick={() => setSel(isSel ? null : id)} title={`${id} · ${isTaken ? "Taken" : "€" + PRICE}`} className={`relative aspect-[3/4] rounded-lg grid place-items-center transition border border-white/70 ${cl} pb-3.5`}>
+                        <button key={id} disabled={isTaken} onClick={() => setSel(isSel ? null : id)} title={`${id} · ${isTaken ? "Taken" : "€" + PRICE}`} className={`relative aspect-square rounded-md grid place-items-center transition border border-white/70 ${cl} pb-3.5`}>
                           <Icon.car size={22} />
-                          <span className="absolute bottom-1 left-0 right-0 text-center text-[10px] font-bold leading-none tnum">{id}</span>
+                          <span className="absolute bottom-0.5 left-0 right-0 text-center text-[10px] font-bold leading-none tnum">{id}</span>
                         </button>
                       );
                     })}
@@ -676,7 +676,13 @@ export function CustomerDocs() {
   const docs = CUSTOMER_DOCS;
   const [view, setView] = useState(null);
   const loading = useMockLoad();
-  const download = (d) => { downloadText(`${d.id}.txt`, mockCustomerReceipt(d), "text/plain;charset=utf-8"); toast(`Downloaded ${d.id}.`, { tone: "success" }); };
+  const download = (d) => { downloadPDF(`${d.id}.pdf`, customerReceiptDoc(d)); toast(`Downloaded ${d.id}.pdf`, { tone: "success" }); };
+  const downloadAll = () => {
+    const files = filtered.map((d) => ({ name: `${d.id}.pdf`, content: buildReceiptBytes(d) }));
+    if (!files.length) { toast("Nothing to bundle in this filter."); return; }
+    downloadZIP(`slaice-receipts-${new Date().toISOString().slice(0,10)}.zip`, files);
+    toast(`Bundled ${files.length} PDF${files.length === 1 ? "" : "s"} into ZIP.`, { tone: "success" });
+  };
   const [filter, setFilter] = useState("all");
   const tone = (id) => id.startsWith("ΑΠΥ") ? "apy" : id.startsWith("ΤΠΥ") ? "tpy" : "credit";
   const filtered = docs.filter((d) => filter === "all" || tone(d.id) === filter);
@@ -694,7 +700,7 @@ export function CustomerDocs() {
       <Card className="p-4">
         <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
           <Tabs tabs={[["all", "All"], ["apy", "ΑΠΥ"], ["tpy", "ΤΠΥ"], ["credit", "Credit notes"]]} value={filter} onChange={setFilter} />
-          <Btn size="sm" variant="outline" icon={Icon.download} onClick={() => toast("Demo — bulk download started.", { tone: "success" })}>Download all (ZIP)</Btn>
+          <Btn size="sm" variant="outline" icon={Icon.download} onClick={downloadAll}>Download all (ZIP)</Btn>
         </div>
         {loading ? (
           <TableSkeleton rows={2} cols={6} />
@@ -746,19 +752,28 @@ export function CustomerDocs() {
   );
 }
 
-function mockCustomerReceipt(d) {
-  const lines = d.lines.map(([l, n, v, t]) => `  ${l.padEnd(28)} net ${n}  VAT ${v}  total ${t}`).join("\n");
-  return [
-    "AKTI TOU ILIOU AE — Receipt (ΑΠΥ)",
-    "ΑΦΜ 123456789 · GR · payment 7 (Stripe online)",
-    `Document: ${d.id}`,
-    `Date: ${d.date}`,
-    `MARK: ${d.mark}`,
-    "",
-    "Lines:",
-    lines,
-    "",
-    `TOTAL: ${d.amt}`,
-    "Transmitted to AADE · MyDATA",
-  ].join("\n");
+function customerReceiptDoc(d) {
+  const kind = d.id.startsWith("ΑΠΥ") ? "Retail receipt (ΑΠΥ)"
+            : d.id.startsWith("ΤΠΥ") ? "Service receipt (ΤΠΥ)"
+            : "Credit note";
+  return {
+    title: "AKTI TOU ILIOU AE",
+    subtitle: `${kind} · ${d.id}`,
+    meta: [
+      `ΑΦΜ 123456789 · GR · payment 7 (Stripe online)`,
+      `Issued ${d.date} · for ${d.for}`,
+      `MARK ${d.mark}`,
+    ],
+    table: {
+      cols: ["Item", "Qty", "Net", "VAT", "Total"],
+      rightCols: [1, 2, 3, 4],
+      rows: d.lines.map(([l, n, v, t]) => [l, n, v, t]),
+    },
+    totals: [["Total gross", d.amt]],
+    footer: [
+      "Transmitted to AADE · MyDATA — invoiceType 2.1",
+      "Slaice POS · cashier 7 · register 1",
+    ],
+  };
 }
+function buildReceiptBytes(d) { return buildPDFBytes(customerReceiptDoc(d)); }

@@ -3,7 +3,7 @@ import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Tabs, Modal, StatusBadge, TableSkeleton, useMockLoad } from "../components/ui.jsx";
 import { ACCOUNTANT_DOCS, ACCOUNTANT_PAYOUTS } from "../data/mock.js";
 import { useApp } from "../app/store.jsx";
-import { downloadCSV, downloadText } from "../lib/download.js";
+import { downloadCSV, downloadPDF } from "../lib/download.js";
 
 const neg = (v) => <span className="text-rose-600 font-medium tnum">{v}</span>;
 const negBold = (v) => <b className="text-rose-600 tnum">{v}</b>;
@@ -53,13 +53,13 @@ export function AccountantInvoicing() {
             rows={filtered.map((x) => [x.d, x.t, <CopyMark mark={x.mark} toast={toast} />, amountCell(x.amt), <StatusBadge status={x.st} />,
               <span className="flex gap-1 justify-end">
                 <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => setView(x)}>View</Btn>
-                <Btn size="sm" variant="ghost" icon={Icon.download} onClick={() => { downloadText(`${x.d}.txt`, mockReceiptText(x), "text/plain;charset=utf-8"); toast(`Downloaded ${x.d}.`, { tone: "success" }); }}>PDF</Btn>
+                <Btn size="sm" variant="ghost" icon={Icon.download} onClick={() => { downloadPDF(`${x.d}.pdf`, accountantReceiptDoc(x)); toast(`Downloaded ${x.d}.pdf`, { tone: "success" }); }}>PDF</Btn>
               </span>])} />
         )}
       </Card>
 
       <Modal open={!!view} onClose={() => setView(null)} title={view?.d} wide
-        footer={<><Btn variant="ghost" onClick={() => setView(null)}>Close</Btn><Btn variant="primary" icon={Icon.download} onClick={() => { downloadText(`${view.d}.txt`, mockReceiptText(view), "text/plain;charset=utf-8"); setView(null); toast(`Downloaded ${view.d}.`); }}>Download PDF</Btn></>}>
+        footer={<><Btn variant="ghost" onClick={() => setView(null)}>Close</Btn><Btn variant="primary" icon={Icon.download} onClick={() => { downloadPDF(`${view.d}.pdf`, accountantReceiptDoc(view)); setView(null); toast(`Downloaded ${view.d}.pdf`); }}>Download PDF</Btn></>}>
         {view && (
           <div className="text-sm">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
@@ -79,20 +79,34 @@ export function AccountantInvoicing() {
   );
 }
 
-function mockReceiptText(x) {
-  return [
-    "AKTI TOU ILIOU AE · GR · ΑΦΜ 123456789",
-    `${x.t} ${x.d}`,
-    `MARK: ${x.mark}`,
-    `Amount: ${x.amt}`,
-    `Status: ${x.st}`,
-    "",
-    "Net €8.06 · VAT 24% €1.94 · Total €10.00 — Sunbed",
-    "Net €16.13 · VAT 24% €3.87 · Total €20.00 — Entry ticket",
-    "",
-    "Payment type 7 (Stripe online) · invoiceType 2.1",
-    "Transmitted to AADE · MyDATA",
-  ].join("\n");
+function accountantReceiptDoc(x) {
+  const isCredit = x.t === "Credit note";
+  const sign = x.amt.startsWith("−") ? "−" : "";
+  return {
+    title: "AKTI TOU ILIOU AE",
+    subtitle: `${x.t} · ${x.d}`,
+    meta: [
+      "ΑΦΜ 123456789 · GR · payment 7 (Stripe online)",
+      `MARK ${x.mark}`,
+      `MyDATA status: ${x.st}`,
+    ],
+    table: {
+      cols: ["Line", "Net", "VAT 24%", "Total"],
+      rightCols: [1, 2, 3],
+      rows: isCredit ? [
+        ["Refund — sunbed booking", "−€8.06", "−€1.94", "−€10.00"],
+        ["Refund — entry ticket",  "−€16.13", "−€3.87", "−€20.00"],
+      ] : [
+        ["Sunbed booking", "€8.06", "€1.94", "€10.00"],
+        ["Entry ticket",   "€16.13", "€3.87", "€20.00"],
+      ],
+    },
+    totals: [["Total gross", `${sign}€30.00`]],
+    footer: [
+      "Transmitted to AADE · MyDATA — invoiceType 2.1",
+      "Slaice POS · cashier 7 · register 1",
+    ],
+  };
 }
 
 /* ============ COMMISSION & PAYOUTS ============ */
