@@ -10,81 +10,81 @@ import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS } from "../data/mock.js";
 import { useApp, useSpotlight } from "../app/store.jsx";
 
 /* ============ HOME ============
-   One promo chip, one unified hero (greeting + weather + wizard CTA), one
-   dominant Sunbed Booking row, and three secondary tiles. Account-area
-   destinations (My Bookings / My Documents) live in the avatar menu. */
+   Unified glass aesthetic over the beach backdrop: a slim promo pill, a
+   hero card with soft gradient orbs (no heavy colored slab), and a single
+   service grid where Sunbed Booking is the featured tile. */
 export function CustomerHome() {
   const { go } = useApp();
   const [promoDismissed, setPromoDismissed] = useState(false);
-  const secondary = [
-    { k: "ticket",  t: "Entry Ticket", d: "Buy entry for your group",  ic: Icon.ticket },
-    { k: "locker",  t: "Day Locker",   d: "Keep your valuables safe",  ic: Icon.lock,  meta: "80 free",    metaTone: "green" },
-    { k: "parking", t: "Parking Spot", d: "Reserve a spot",            ic: Icon.car,   meta: "39/50 free", metaTone: "green" },
+  const services = [
+    { k: "book",    t: "Sunbed Booking", d: "Pick your spot on the live beach map", ic: Icon.umbrella, accent: "teal",   meta: "Live map",    metaTone: "green", featured: true },
+    { k: "ticket",  t: "Entry Ticket",   d: "Buy entry for your group",             ic: Icon.ticket,   accent: "navy" },
+    { k: "locker",  t: "Day Locker",     d: "Keep your valuables safe",             ic: Icon.lock,     accent: "amber",  meta: "80 free",     metaTone: "green" },
+    { k: "parking", t: "Parking Spot",   d: "Reserve a spot",                       ic: Icon.car,      accent: "indigo", meta: "39/50 free",  metaTone: "green" },
   ];
+  const accents = {
+    teal:   "from-teal-400 to-teal-600",
+    navy:   "from-navy-700 to-navy-900",
+    amber:  "from-amber-400 to-gold-600",
+    indigo: "from-slaice-500 to-slaice-700",
+  };
 
   return (
     <div className="animate-fade-up space-y-4">
       {!promoDismissed && (
-        <div className="flex items-center gap-2.5 rounded-2xl bg-gradient-to-r from-amber-50 to-gold-50 ring-1 ring-gold-200 px-3 py-2">
-          <span className="w-7 h-7 rounded-lg grid place-items-center bg-gold-500 text-white shrink-0 shadow-sm"><Icon.bolt size={14} /></span>
+        <div className="glass rounded-2xl px-3.5 py-2.5 flex items-center gap-2.5">
+          <span className="w-7 h-7 rounded-lg grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm"><Icon.bolt size={14} /></span>
           <span className="flex-1 min-w-0 text-[13px] text-navy-900">
             <b className="font-semibold">20% off</b> front-row sunbeds this weekend
-            <span className="text-slate-500 hidden sm:inline"> · gates open 09:00–20:00</span>
+            <span className="text-slate-700 hidden sm:inline"> · gates open 09:00–20:00</span>
           </span>
           <button onClick={() => go("customer", "book")} className="text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 rounded-md px-2 py-1 whitespace-nowrap">Claim →</button>
-          <button aria-label="Dismiss offer" onClick={() => setPromoDismissed(true)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-400 hover:text-navy-900 hover:bg-white/60 shrink-0"><Icon.x size={14} /></button>
+          <button aria-label="Dismiss offer" onClick={() => setPromoDismissed(true)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-500 hover:text-navy-900 hover:bg-white/60 shrink-0"><Icon.x size={14} /></button>
         </div>
       )}
 
       <Reveal as="button" onClick={() => go("customer", "plan")} className="text-left group block w-full">
-        <Card hover press className="relative overflow-hidden p-0">
-          <div className="grad-sea text-white p-6 sm:p-8">
-            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-teal-200">
-              <Icon.sun size={13} /> Good morning, Elena · sunny, 28°
+        <Card hover press className="glass-card-solid relative overflow-hidden p-6 sm:p-9">
+          <div aria-hidden className="absolute -top-28 -right-20 w-80 h-80 rounded-full bg-gradient-to-br from-teal-300/45 via-teal-400/20 to-transparent blur-3xl" />
+          <div aria-hidden className="absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-gradient-to-tr from-gold-300/35 via-amber-300/15 to-transparent blur-3xl" />
+          <div aria-hidden className="absolute top-1/3 right-1/3 w-44 h-44 rounded-full bg-gradient-to-br from-coral-300/25 to-transparent blur-2xl" />
+
+          <div className="relative">
+            <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700">
+              <span className="w-6 h-6 rounded-full grid place-items-center bg-gradient-to-br from-amber-300 to-amber-500 text-white shadow-sm"><Icon.sun size={11} /></span>
+              Good morning, Elena · Sunny 28°
             </div>
-            <div className="mt-2 font-display font-bold text-2xl sm:text-3xl leading-tight max-w-2xl">
-              Plan your full beach day in 60 seconds
-            </div>
-            <div className="text-[13.5px] text-white/85 mt-1.5 max-w-xl">
+            <h1 className="mt-3 font-display font-bold text-[28px] sm:text-[36px] leading-[1.05] tracking-tight text-navy-900 max-w-2xl">
+              Plan your full beach day <span className="text-teal-700">in 60 seconds</span>
+            </h1>
+            <div className="text-[14px] text-slate-700 mt-3 max-w-xl">
               Guests, dates, sunbeds, locker, parking — one guided flow with a live total.
             </div>
-            <span className="mt-5 inline-flex items-center gap-2 rounded-[14px] px-4 py-2.5 text-sm font-semibold bg-white text-navy-900 shadow-sm group-hover:translate-x-0.5 transition">
+            <span className="mt-6 inline-flex items-center gap-2 rounded-[14px] px-5 py-2.5 text-sm font-semibold bg-navy-900 text-white shadow-btn-primary group-hover:translate-x-0.5 transition">
               <Icon.sparkles size={16} /> Start guided booking <Icon.arrowR size={16} />
             </span>
           </div>
         </Card>
       </Reveal>
 
-      <Reveal as="button" onClick={() => go("customer", "book")} className="text-left group block w-full">
-        <Card hover press className="glass-card-solid p-5 sm:p-6 flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl grid place-items-center text-white shadow-sm bg-gradient-to-br from-teal-500 to-teal-700 transition-transform duration-300 ease-spring group-hover:scale-110 group-hover:-rotate-3 shrink-0">
-            <Icon.umbrella size={26} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-display font-bold text-lg sm:text-xl text-navy-900 flex items-center gap-1.5">
-              Sunbed Booking
-              <Icon.chevR size={17} className="transition-transform duration-200 group-hover:translate-x-1 text-teal-600" />
-            </div>
-            <div className="text-[13.5px] text-slate-600 mt-0.5">Pick your spot on the live beach map — sea-view, shaded, or front-row.</div>
-          </div>
-          <Badge tone="green" className="hidden sm:inline-flex shrink-0">Live map</Badge>
-        </Card>
-      </Reveal>
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {secondary.map((t, i) => (
-          <Reveal as="button" key={t.k} delay={i * 60} onClick={() => go("customer", t.k)} className="text-left group">
-            <Card hover press className="glass-card-solid p-4 h-full">
-              <div className="flex items-start justify-between">
-                <div className="w-10 h-10 rounded-xl grid place-items-center text-white shadow-sm bg-gradient-to-br from-navy-800 to-navy-950 transition-transform duration-300 ease-spring group-hover:scale-110 group-hover:-rotate-3">
-                  <t.ic size={18} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        {services.map((t, i) => (
+          <Reveal as="button" key={t.k} delay={i * 60} onClick={() => go("customer", t.k)}
+            className={`text-left group ${t.featured ? "sm:col-span-2 lg:col-span-2" : ""}`}>
+            <Card hover press className="glass-card relative overflow-hidden p-5 h-full">
+              {t.featured && (
+                <div aria-hidden className="absolute -top-16 -right-10 w-44 h-44 rounded-full bg-gradient-to-br from-teal-300/35 to-transparent blur-2xl" />
+              )}
+              <div className="relative flex items-start justify-between gap-2">
+                <div className={`w-11 h-11 rounded-2xl grid place-items-center text-white shadow-sm bg-gradient-to-br ${accents[t.accent]} transition-transform duration-300 ease-spring group-hover:scale-110 group-hover:-rotate-3`}>
+                  <t.ic size={20} />
                 </div>
                 {t.meta && <Badge tone={t.metaTone || "slate"}>{t.meta}</Badge>}
               </div>
-              <div className="mt-3 font-semibold text-navy-900 flex items-center gap-1 text-[14.5px]">
-                {t.t}<Icon.chevR size={14} className="transition-transform duration-200 group-hover:translate-x-1 text-teal-600" />
+              <div className="relative mt-3 font-display font-bold text-navy-900 flex items-center gap-1 text-[15.5px]">
+                {t.t}<Icon.chevR size={15} className="transition-transform duration-200 group-hover:translate-x-1 text-teal-600" />
               </div>
-              <div className="text-[12.5px] text-slate-600 mt-0.5">{t.d}</div>
+              <div className="relative text-[12.5px] text-slate-700 mt-0.5">{t.d}</div>
             </Card>
           </Reveal>
         ))}
