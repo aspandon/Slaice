@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  /* Apple-leaning system stack: real SF on Apple devices, Inter everywhere else. */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif;
+}
+
 html,
 body,
 #root {
@@ -10,20 +16,20 @@ body,
 }
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 body {
-  /* Vivid ambient backdrop — colourful enough that frosted-glass surfaces actually read as glass. */
-  background-color: #eaf2fb;
+  /* Calm, near-neutral canvas with a single whisper of teal/indigo so frosted
+     surfaces still read as glass — far quieter than the old 4-layer gradient. */
+  background-color: #f6f8fb;
   background-image:
-    radial-gradient(900px 560px at 92% -10%, rgba(45, 212, 191, 0.55), transparent 60%),
-    radial-gradient(780px 520px at -8% 8%, rgba(99, 102, 241, 0.45), transparent 60%),
-    radial-gradient(560px 360px at 50% 130%, rgba(242, 183, 5, 0.14), transparent 55%),
-    radial-gradient(1100px 700px at 30% 40%, rgba(56, 189, 248, 0.28), transparent 60%);
+    radial-gradient(1200px 800px at 88% -12%, rgba(45, 212, 191, 0.10), transparent 60%),
+    radial-gradient(1000px 700px at -6% 4%, rgba(99, 102, 241, 0.07), transparent 60%);
   background-attachment: fixed;
-  font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-sans);
   font-feature-settings: "cv11", "ss01", "calt", "liga";
-  letter-spacing: -0.01em;
-  color: #1e293b;
+  letter-spacing: -0.011em;
+  color: #111827;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -33,14 +39,14 @@ body {
 :focus-visible {
   outline: 2px solid #0d9488;
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 *:focus:not(:focus-visible) {
   outline: none;
 }
 
 ::selection {
-  background: rgba(13, 148, 136, 0.22);
+  background: rgba(13, 148, 136, 0.20);
   color: #0b2545;
 }
 
@@ -63,6 +69,15 @@ body {
   background: transparent;
 }
 
+@layer base {
+  /* Display weight/tracking — bold, tight, no serif. */
+  .font-display {
+    font-family: var(--font-display);
+    letter-spacing: -0.022em;
+    font-feature-settings: "ss01", "cv11";
+  }
+}
+
 @layer utilities {
   .tnum {
     font-variant-numeric: tabular-nums;
@@ -78,43 +93,49 @@ body {
     background: radial-gradient(900px 500px at 80% -20%, rgba(242, 183, 5, 0.25), transparent 55%),
       linear-gradient(150deg, #2f3bb3 0%, #3a47cc 55%, #4a57e0 120%);
   }
-  /* Frosted-glass surface for floating bars/menus. */
+
+  /* ===== Materials =====
+     Apple uses real "material" for CHROME (bars, sheets, popovers) and clean
+     opaque SURFACES for content. Names are kept for compatibility; values are
+     retuned for clearer figure/ground and softer, ambient depth. */
+
+  /* Chrome material — translucent, blurred. For floating bars/menus. */
   .glass {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.30));
+    background: rgba(255, 255, 255, 0.68);
     backdrop-filter: saturate(180%) blur(20px);
     -webkit-backdrop-filter: saturate(180%) blur(20px);
-    border: 1px solid rgba(255, 255, 255, 0.45);
-    box-shadow: 0 8px 32px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  }
-  /* Card-weight glass: a touch more opaque so dense content stays readable. */
-  .glass-card {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(255, 255, 255, 0.72));
-    backdrop-filter: saturate(180%) blur(22px);
-    -webkit-backdrop-filter: saturate(180%) blur(22px);
-    border: 1px solid rgba(255, 255, 255, 0.65);
-    box-shadow: 0 10px 36px rgba(15, 23, 42, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.7);
-  }
-  /* Stronger glass for content cards that sit on top of a photo backdrop. */
-  .glass-card-solid {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(255, 255, 255, 0.88));
-    backdrop-filter: saturate(180%) blur(24px);
-    -webkit-backdrop-filter: saturate(180%) blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.7);
-    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.85);
-  }
-  /* Subtle input-weight glass. */
-  .glass-input {
-    background: rgba(255, 255, 255, 0.55);
-    backdrop-filter: saturate(160%) blur(10px);
-    -webkit-backdrop-filter: saturate(160%) blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 1px 1px rgba(15, 23, 42, 0.03), 0 12px 32px -16px rgba(15, 23, 42, 0.18);
+  }
+  /* Content surface — near-solid, clean, ambient shadow (the default Card). */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: saturate(140%) blur(14px);
+    -webkit-backdrop-filter: saturate(140%) blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 18px 40px -24px rgba(15, 23, 42, 0.22);
+  }
+  /* Strongest surface — for content cards over a photo backdrop. */
+  .glass-card-solid {
+    background: rgba(255, 255, 255, 0.97);
+    backdrop-filter: saturate(150%) blur(18px);
+    -webkit-backdrop-filter: saturate(150%) blur(18px);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 24px 60px -28px rgba(15, 23, 42, 0.30);
+  }
+  /* Subtle input-weight material. */
+  .glass-input {
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: saturate(150%) blur(8px);
+    -webkit-backdrop-filter: saturate(150%) blur(8px);
+    border: 1px solid rgba(15, 23, 42, 0.08);
   }
   .glass-dark {
-    background: linear-gradient(135deg, rgba(11, 37, 69, 0.62), rgba(19, 49, 92, 0.48));
+    background: linear-gradient(135deg, rgba(11, 37, 69, 0.66), rgba(19, 49, 92, 0.5));
     backdrop-filter: saturate(180%) blur(22px);
     -webkit-backdrop-filter: saturate(180%) blur(22px);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    box-shadow: 0 8px 32px rgba(11, 37, 69, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow: 0 12px 40px -18px rgba(11, 37, 69, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.14);
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
@@ -123,6 +144,7 @@ body {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
   /* Loading skeleton shimmer. */
   .skeleton {
     background: linear-gradient(90deg, #eef2f7 25%, #e2e8f0 37%, #eef2f7 63%);
@@ -145,19 +167,54 @@ body {
       transform: scaleX(0);
     }
   }
-  /* Spotlight ring — pulses a teal glow around a section that a journey
-     hint just navigated to, so the eye lands on the right area. */
+
+  /* ===== Apple-like motion primitives ===== */
+
+  /* Scroll-driven reveal — element starts shifted/faded, .is-in adds the
+     resting state. JS (useReveal) toggles .is-in via IntersectionObserver. */
+  .reveal {
+    opacity: 0;
+    transform: translateY(14px) scale(0.99);
+    transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+      transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+    will-change: opacity, transform;
+  }
+  .reveal.is-in {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* Pressable — spring scale-down on active, for tappable cards/tiles. */
+  .pressable {
+    transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .pressable:active {
+    transform: scale(0.97);
+  }
+
+  /* Sheet drag — momentary disable of transition while a finger is dragging. */
+  .sheet-dragging {
+    transition: none !important;
+  }
+
+  /* Spotlight ring — pulses a glow around a section a journey hint lands on. */
   .spotlight-ring {
     position: relative;
     z-index: 25;
-    border-radius: 18px;
+    border-radius: 20px;
     animation: spotlight 1.6s ease-out 2;
     box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.55);
   }
   @keyframes spotlight {
-    0%   { box-shadow: 0 0 0 0   rgba(20,184,166,0.55), 0 0 0 0   rgba(20,184,166,0.35); }
-    50%  { box-shadow: 0 0 0 8px rgba(20,184,166,0.25), 0 0 24px 12px rgba(20,184,166,0.20); }
-    100% { box-shadow: 0 0 0 0   rgba(20,184,166,0.00), 0 0 0 0     rgba(20,184,166,0.00); }
+    0% {
+      box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.55), 0 0 0 0 rgba(20, 184, 166, 0.35);
+    }
+    50% {
+      box-shadow: 0 0 0 8px rgba(20, 184, 166, 0.22), 0 0 26px 12px rgba(20, 184, 166, 0.18);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(20, 184, 166, 0), 0 0 0 0 rgba(20, 184, 166, 0);
+    }
   }
 }
 
@@ -172,5 +229,9 @@ body {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
   }
 }

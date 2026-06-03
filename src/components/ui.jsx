@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../lib/icons.jsx";
+import { useCountUp, prefersReducedMotion } from "../lib/motion.jsx";
 import { chipLabel, dateStrip, fromISO, todayISO, toISO } from "../data/beach.js";
 
 /* ---------- Badge ---------- */
@@ -52,31 +53,35 @@ export function StatusBadge({ status, label, className = "" }) {
 }
 
 /* ---------- Card ---------- */
-export function Card({ className = "", children, onClick, hover }) {
+export function Card({ className = "", children, onClick, hover, press }) {
   return (
     <div onClick={onClick}
-      className={`glass-card rounded-2xl ${hover ? "transition duration-200 ease-smooth hover:-translate-y-0.5 hover:shadow-lift" : ""} ${className}`}>
+      className={`glass-card rounded-3xl ${hover ? "transition duration-300 ease-spring hover:-translate-y-1 hover:shadow-lift" : ""} ${press ? "pressable cursor-pointer" : ""} ${className}`}>
       {children}
     </div>
   );
 }
 
-/* ---------- Button ---------- */
+/* ---------- Button ----------
+   Apple-style hierarchy: filled (primary/teal/dark/indigo/danger), tinted
+   (tint — light-accent fill), and quiet (ghost/outline). Springy press. */
 export function Btn({ children, variant = "primary", size = "md", onClick, icon: IconC, full, disabled, loading, className = "", type = "button" }) {
-  const base = "relative inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-all duration-150 ease-smooth active:scale-[.97] disabled:pointer-events-none select-none";
+  const base = "relative inline-flex items-center justify-center gap-2 rounded-[14px] font-semibold transition-all duration-150 ease-spring active:scale-[.96] disabled:pointer-events-none select-none";
   const sizes = { sm: "px-3 py-1.5 text-[13px]", md: "px-4 py-2.5 text-sm", lg: "px-5 py-3 text-[15px]" };
   // When disabled, every variant collapses to the same quiet slate ghost so a
   // disabled CTA never looks like a heavy navy slab. Loading keeps the active
   // variant so the spinner appears on the live colour.
-  const off = "!bg-slate-100 !text-slate-400 !ring-1 !ring-slate-200 !shadow-none";
+  const off = "!bg-slate-100 !text-slate-400 !ring-0 !shadow-none";
   const variants = {
     primary: "bg-navy-900 text-white hover:bg-navy-800 shadow-btn-primary hover:shadow-lift",
     teal: "bg-teal-600 text-white hover:bg-teal-500 shadow-btn-teal hover:shadow-lift",
     coral: "bg-coral-600 text-white hover:bg-coral-500 shadow-lift",
     dark: "bg-navy-950 text-white hover:bg-navy-900 shadow-btn-primary hover:shadow-lift",
     indigo: "bg-slaice-600 text-white hover:bg-slaice-500 shadow-lift",
-    ghost: "bg-slate-100 text-navy-900 hover:bg-slate-200",
-    outline: "ring-1 ring-slate-300 text-navy-900 hover:bg-slate-50 hover:ring-slate-400 bg-white",
+    // Tinted secondary — Apple's light-accent button.
+    tint: "bg-teal-50 text-teal-700 hover:bg-teal-100 ring-1 ring-teal-600/15",
+    ghost: "bg-slate-100/80 text-navy-900 hover:bg-slate-200/90",
+    outline: "ring-1 ring-slate-200 text-navy-900 hover:bg-slate-50 hover:ring-slate-300 bg-white/80",
     light: "bg-white/15 text-white hover:bg-white/25 ring-1 ring-white/20 backdrop-blur-sm",
     danger: "bg-rose-600 text-white hover:bg-rose-500 shadow-lift",
   };
@@ -159,23 +164,64 @@ export function EmptyState({ icon: IconC = Icon.inbox, title, body, action, comp
   );
 }
 
-/* ---------- StatCard ---------- */
-// Tone now drives a thin left accent stripe instead of a decorative icon box —
-// keeps the visual rhythm without adding generic glyphs to every metric.
-export function StatCard({ label, value, sub, tone = "navy", delta }) {
+/* ---------- StatCard ----------
+   Tone drives a thin left accent stripe. When `value` is a plain number (or a
+   number with a leading €/% wrapper via numPrefix/numSuffix) the figure counts
+   up on first view for a lively, Apple-like dashboard. `trend` shows a small
+   up/down delta chip. */
+export function StatCard({ label, value, sub, tone = "navy", delta, trend, sparkline }) {
   const stripe = {
     navy: "bg-navy-900/60",
     teal: "bg-teal-500",
     indigo: "bg-slaice-500",
+    amber: "bg-amber-500",
+    rose: "bg-rose-500",
   }[tone] || "bg-slate-300";
+  // Parse "€33.4k", "1,284", "71%" → animate the numeric part, keep affixes.
+  const parsed = useMemo(() => parseMetric(value), [value]);
+  const { ref, display } = useCountUp(parsed ? parsed.n : 0, {
+    duration: 1000,
+    format: (n) => parsed ? parsed.fmt(n) : "",
+  });
+  const trendUp = trend && !String(trend).trim().startsWith("-") && !String(trend).trim().startsWith("−");
   return (
     <Card hover className="p-4 relative overflow-hidden">
       <span aria-hidden className={`absolute left-0 top-3 bottom-3 w-1 rounded-r-full ${stripe}`} />
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">{label}</div>
-      <div className="mt-1.5 text-2xl font-bold text-navy-900 tnum font-display tracking-tight">{value}</div>
-      {sub && <div className="mt-1 text-[12px] text-slate-600 flex items-center gap-1">{delta}{sub}</div>}
+      <div className="flex items-start justify-between gap-2">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">{label}</div>
+        {trend && (
+          <span className={`inline-flex items-center gap-0.5 text-[11px] font-bold tnum rounded-full px-1.5 py-0.5 ${trendUp ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}>
+            <Icon.trend size={11} className={trendUp ? "" : "-scale-y-100"} />{trend}
+          </span>
+        )}
+      </div>
+      <div ref={ref} className="mt-1.5 text-[26px] leading-none font-bold text-navy-900 tnum font-display tracking-tight">
+        {parsed ? display : value}
+      </div>
+      {sparkline && <div className="mt-2 -mb-1">{sparkline}</div>}
+      {sub && <div className="mt-1.5 text-[12px] text-slate-600 flex items-center gap-1">{delta}{sub}</div>}
     </Card>
   );
+}
+
+// Split a metric string into { numeric value, formatter that re-applies the
+// affixes }. Returns null for non-numeric values (e.g. "40 / 60", dates).
+function parseMetric(value) {
+  if (typeof value !== "string" && typeof value !== "number") return null;
+  const s = String(value);
+  const m = s.match(/^([^\d-−]*)(-?−?[\d,]*\.?\d+)([a-zA-Z%€£$]*)$/);
+  if (!m) return null;
+  const [, pre, numRaw, suf] = m;
+  const neg = /^[-−]/.test(numRaw);
+  const clean = numRaw.replace(/[,−-]/g, "");
+  const decimals = (clean.split(".")[1] || "").length;
+  const n = parseFloat(clean) * (neg ? -1 : 1);
+  if (!isFinite(n)) return null;
+  const fmt = (v) => {
+    const fixed = Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+    return `${pre}${v < 0 ? "−" : ""}${fixed}${suf}`;
+  };
+  return { n, fmt };
 }
 
 /* ---------- Future banner (Roadmap preview heads-up) ---------- */
@@ -222,23 +268,24 @@ export function PageHead({ actions }) {
   );
 }
 
-/* ---------- Table ---------- */
+/* ---------- Table ----------
+   Airier rows, hairline dividers and a sticky frosted header. */
 export function Table({ cols, rows, right = [] }) {
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm">
+      <table className="w-full text-sm border-separate border-spacing-0">
         <thead>
-          <tr className="text-left text-[11px] uppercase tracking-wider text-slate-600 border-b border-slate-200">
+          <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500">
             {cols.map((c, i) => (
-              <th key={i} className={`py-2.5 px-3 font-semibold ${right.includes(i) ? "text-right" : ""}`}>{c}</th>
+              <th key={i} className={`sticky top-0 z-10 bg-white/85 backdrop-blur-sm py-3 px-3.5 font-semibold border-b border-slate-200/80 ${right.includes(i) ? "text-right" : ""}`}>{c}</th>
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody>
           {rows.map((r, ri) => (
-            <tr key={ri} className="hover:bg-slate-50/70">
+            <tr key={ri} className="transition-colors hover:bg-slate-50/80">
               {r.map((cell, ci) => (
-                <td key={ci} className={`py-2.5 px-3 ${right.includes(ci) ? "text-right tnum" : ""}`}>{cell}</td>
+                <td key={ci} className={`py-3.5 px-3.5 border-b border-slate-100/80 ${right.includes(ci) ? "text-right tnum" : ""}`}>{cell}</td>
               ))}
             </tr>
           ))}
@@ -304,16 +351,71 @@ export function Modal({ open, onClose, title, children, footer, wide }) {
   return (
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-[60] grid place-items-center p-4 animate-fade-in" onClick={onClose}>
       <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-xl" />
-      <div onClick={(e) => e.stopPropagation()} className={`glass-card relative rounded-2xl w-full ${wide ? "max-w-2xl" : "max-w-md"} animate-pop max-h-[90vh] flex flex-col`}>
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/40">
+      <div onClick={(e) => e.stopPropagation()} className={`glass-card-solid relative rounded-3xl w-full ${wide ? "max-w-2xl" : "max-w-md"} animate-pop max-h-[90vh] flex flex-col`}>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200/70">
           <div className="font-display font-bold text-navy-900 text-lg">{title}</div>
-          <button aria-label="Close" onClick={onClose} className="text-slate-500 hover:text-slate-800 hover:bg-white/40 p-1.5 rounded-lg transition"><Icon.x size={20} /></button>
+          <button aria-label="Close" onClick={onClose} className="text-slate-400 hover:text-slate-800 hover:bg-slate-100 p-1.5 rounded-full transition"><Icon.x size={20} /></button>
         </div>
         <div className="p-5 overflow-y-auto">{children}</div>
-        {footer && <div className="px-5 py-4 border-t border-white/40 flex justify-end gap-2">{footer}</div>}
+        {footer && <div className="px-5 py-4 border-t border-slate-200/70 flex justify-end gap-2">{footer}</div>}
       </div>
     </div>
   );
+}
+
+/* ---------- Sheet (bottom sheet with drag-to-dismiss) ----------
+   Slides up from the bottom; a grabber lets the user drag it down to close.
+   Centred + width-capped on desktop so it works on every viewport. */
+export function Sheet({ open, onClose, title, children, footer }) {
+  const panelRef = useRef(null);
+  const drag = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [open, onClose]);
+  if (!open) return null;
+  const onDown = (e) => {
+    const panel = panelRef.current;
+    drag.current = { startY: e.clientY, dy: 0 };
+    panel.classList.add("sheet-dragging");
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const onMove = (e) => {
+    if (!drag.current) return;
+    const dy = Math.max(0, e.clientY - drag.current.startY);
+    drag.current.dy = dy;
+    panelRef.current.style.transform = `translateY(${dy}px)`;
+  };
+  const onUp = () => {
+    const panel = panelRef.current;
+    if (!panel || !drag.current) return;
+    panel.classList.remove("sheet-dragging");
+    if (drag.current.dy > 120) { onClose(); }
+    else { panel.style.transform = ""; }
+    drag.current = null;
+  };
+  return createPortal((
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center animate-fade-in" onClick={onClose}>
+      <div className="absolute inset-0 bg-navy-950/45 backdrop-blur-xl" />
+      <div ref={panelRef} onClick={(e) => e.stopPropagation()}
+        className="glass-card-solid relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl animate-slide-up sm:animate-pop max-h-[92vh] flex flex-col transition-transform duration-300 ease-spring">
+        <div onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
+          className="pt-2.5 pb-1 grid place-items-center cursor-grab active:cursor-grabbing touch-none">
+          <span className="w-10 h-1.5 rounded-full bg-slate-300" />
+        </div>
+        {title && (
+          <div className="flex items-center justify-between px-5 py-2 border-b border-slate-200/70">
+            <div className="font-display font-bold text-navy-900 text-lg">{title}</div>
+            <button aria-label="Close" onClick={onClose} className="text-slate-400 hover:text-slate-800 hover:bg-slate-100 p-1.5 rounded-full transition"><Icon.x size={20} /></button>
+          </div>
+        )}
+        <div className="p-5 overflow-y-auto">{children}</div>
+        {footer && <div className="px-5 py-4 border-t border-slate-200/70 flex justify-end gap-2">{footer}</div>}
+      </div>
+    </div>
+  ), document.body);
 }
 
 /* ---------- Confirm dialog ----------
@@ -334,17 +436,40 @@ export function ConfirmModal({ open, onClose, onConfirm, title = "Are you sure?"
   );
 }
 
-/* ---------- Tabs ----------
-   Tab entries: [key, label] or [key, label, IconComponent] */
+/* ---------- Tabs (iOS segmented control) ----------
+   Tab entries: [key, label] or [key, label, IconComponent]. A white pill
+   slides under the active tab with a spring; the track is a soft inset. */
 export function Tabs({ tabs, value, onChange, className = "", scroll = false }) {
+  const trackRef = useRef(null);
+  const btnRefs = useRef({});
+  const [pill, setPill] = useState(null);
+  useEffect(() => {
+    const btn = btnRefs.current[value];
+    const track = trackRef.current;
+    if (!btn || !track) return;
+    const measure = () => {
+      const b = btn.getBoundingClientRect();
+      const t = track.getBoundingClientRect();
+      setPill({ left: b.left - t.left + track.scrollLeft, width: b.width, top: b.top - t.top, height: b.height });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(track); ro.observe(btn);
+    window.addEventListener("resize", measure);
+    return () => { ro.disconnect(); window.removeEventListener("resize", measure); };
+  }, [value, tabs]);
   return (
-    <div className={`flex gap-1.5 ${scroll ? "overflow-x-auto no-scrollbar" : "flex-wrap"} ${className}`}>
+    <div ref={trackRef} className={`relative inline-flex gap-1 p-1 rounded-2xl bg-slate-100/80 ring-1 ring-slate-200/60 ${scroll ? "overflow-x-auto no-scrollbar max-w-full" : "flex-wrap"} ${className}`}>
+      {pill && (
+        <span aria-hidden className="absolute rounded-xl bg-white shadow-soft transition-all duration-300 ease-spring"
+          style={{ left: pill.left, width: pill.width, top: pill.top, height: pill.height }} />
+      )}
       {tabs.map(([k, t, IconC]) => {
         const active = value === k;
         return (
-          <button key={k} onClick={() => onChange(k)}
-            className={`px-3.5 h-9 rounded-lg text-[13px] font-semibold whitespace-nowrap transition-all duration-150 inline-flex items-center gap-1.5 ${active ? "bg-navy-900 text-white shadow-sm" : "glass text-slate-700 hover:text-navy-900"}`}>
-            {IconC && <IconC size={14} className={active ? "" : "text-slate-500"} />}
+          <button key={k} ref={(el) => (btnRefs.current[k] = el)} onClick={() => onChange(k)}
+            className={`relative z-10 px-3.5 h-9 rounded-xl text-[13px] font-semibold whitespace-nowrap transition-colors duration-200 inline-flex items-center gap-1.5 ${active ? "text-navy-900" : "text-slate-500 hover:text-navy-900"}`}>
+            {IconC && <IconC size={14} className={active ? "text-teal-600" : "text-slate-400"} />}
             {t}
           </button>
         );

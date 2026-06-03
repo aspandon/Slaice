@@ -4,9 +4,11 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['"Inter"', "ui-sans-serif", "system-ui", "-apple-system", "Segoe UI", "Roboto", "sans-serif"],
+        sans: ["-apple-system", "BlinkMacSystemFont", '"SF Pro Text"', '"Inter"', "system-ui", '"Segoe UI"', "Roboto", "sans-serif"],
         mono: ['"IBM Plex Mono"', "ui-monospace", "monospace"],
-        display: ['"Fraunces"', "ui-serif", "Georgia", "serif"],
+        // Display now uses the SF/Inter system stack (no serif); tracking is
+        // tightened in the .font-display base layer.
+        display: ["-apple-system", "BlinkMacSystemFont", '"SF Pro Display"', '"Inter"', "system-ui", "sans-serif"],
       },
       colors: {
         // Tenant-branded beach experience (Akti tou Iliou) — navy + teal
@@ -20,18 +22,24 @@ export default {
         sand: "#E9E3D5",
         ink: "#1E293B",
       },
+      borderRadius: {
+        "4xl": "2rem",
+      },
       boxShadow: {
-        soft: "0 1px 2px rgba(15,23,42,.04), 0 8px 24px -14px rgba(15,23,42,.16)",
-        lift: "0 1px 2px rgba(15,23,42,.05), 0 10px 30px -12px rgba(15,23,42,.22), 0 2px 8px -4px rgba(15,23,42,.08)",
-        float: "0 18px 50px -16px rgba(11,37,69,.40), 0 4px 12px -6px rgba(11,37,69,.18)",
-        ring: "0 0 0 1px rgba(15,23,42,.06)",
+        // Ambient elevation: large blur, low alpha, layered — Apple-style depth.
+        soft: "0 1px 2px rgba(15,23,42,.04), 0 12px 28px -18px rgba(15,23,42,.18)",
+        lift: "0 1px 2px rgba(15,23,42,.04), 0 20px 44px -24px rgba(15,23,42,.26)",
+        float: "0 2px 8px -4px rgba(11,37,69,.14), 0 32px 70px -28px rgba(11,37,69,.40)",
+        ring: "0 0 0 1px rgba(15,23,42,.05)",
         glow: "0 0 0 4px rgba(13,148,136,.14)",
-        "btn-primary": "0 1px 2px rgba(11,37,69,.30), 0 8px 18px -8px rgba(11,37,69,.45)",
-        "btn-teal": "0 1px 2px rgba(13,148,136,.30), 0 8px 18px -8px rgba(13,148,136,.45)",
+        "btn-primary": "0 1px 2px rgba(11,37,69,.24), 0 10px 22px -12px rgba(11,37,69,.45)",
+        "btn-teal": "0 1px 2px rgba(13,148,136,.24), 0 10px 22px -12px rgba(13,148,136,.45)",
       },
       transitionTimingFunction: {
         spring: "cubic-bezier(.34,1.56,.64,1)",
         smooth: "cubic-bezier(.4,0,.2,1)",
+        // Apple's signature decelerate curve.
+        ios: "cubic-bezier(.22,1,.36,1)",
       },
       keyframes: {
         fadeUp: { from: { opacity: 0, transform: "translateY(10px)" }, to: { opacity: 1, transform: "translateY(0)" } },
@@ -46,13 +54,13 @@ export default {
         spinSlow: { to: { transform: "rotate(360deg)" } },
       },
       animation: {
-        "fade-up": "fadeUp .4s cubic-bezier(.4,0,.2,1) both",
-        "fade-down": "fadeDown .3s cubic-bezier(.4,0,.2,1) both",
+        "fade-up": "fadeUp .5s cubic-bezier(.22,1,.36,1) both",
+        "fade-down": "fadeDown .3s cubic-bezier(.22,1,.36,1) both",
         "fade-in": "fadeIn .3s ease both",
-        pop: "pop .28s cubic-bezier(.34,1.56,.64,1) both",
-        "scale-in": "scaleIn .2s cubic-bezier(.4,0,.2,1) both",
-        "slide-in-right": "slideInRight .35s cubic-bezier(.4,0,.2,1) both",
-        "slide-up": "slideUp .3s cubic-bezier(.34,1.56,.64,1) both",
+        pop: "pop .3s cubic-bezier(.34,1.56,.64,1) both",
+        "scale-in": "scaleIn .22s cubic-bezier(.22,1,.36,1) both",
+        "slide-in-right": "slideInRight .35s cubic-bezier(.22,1,.36,1) both",
+        "slide-up": "slideUp .34s cubic-bezier(.34,1.56,.64,1) both",
         floaty: "floaty 5s ease-in-out infinite",
         shimmer: "shimmer 1.6s infinite",
       },
