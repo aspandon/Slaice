@@ -22,10 +22,10 @@ export function AdminDashboard() {
       <PageHead title="Dashboard" sub="Akti tou Iliou · bookings & revenue overview" badge={<Badge tone="mvp">MVP</Badge>}
         actions={<Tabs tabs={[["day", "Day"], ["week", "Week"], ["month", "Month"], ["year", "Year"]]} value={period} onChange={setPeriod} />} />
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Revenue (7d)" value="€33.4k" sub="+12% vs prev week" tone="teal" icon={Icon.chart} delta={<Icon.trend size={12} />} />
-        <StatCard label="Bookings (7d)" value="1,284" sub="online + walk-in" icon={Icon.umbrella} />
-        <StatCard label="Occupancy" value="71%" sub="avg across zones" icon={Icon.grid} />
-        <StatCard label="Avg basket" value="€41" sub="sunbed + entries" icon={Icon.card} />
+        <StatCard label="Revenue (7d)" value="€33.4k" sub="vs prev week" tone="teal" trend="+12%" />
+        <StatCard label="Bookings (7d)" value="1,284" sub="online + walk-in" trend="+8%" />
+        <StatCard label="Occupancy" value="71%" sub="avg across zones" trend="+3pp" />
+        <StatCard label="Avg basket" value="€41" sub="sunbed + entries" trend="+€2" />
       </div>
       <div className="grid lg:grid-cols-3 gap-4 mt-4">
         <Card className="p-5 lg:col-span-2">

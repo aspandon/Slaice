@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad, StatCard, ContextPanel, Tabs, DatePickerRow } from "../components/ui.jsx";
+import { Reveal } from "../lib/motion.jsx";
 import { QR } from "../components/charts.jsx";
 import { Sunbed, BeachBackdrop, ParkingBackdrop, LockerBackdrop } from "../components/Beach.jsx";
 import { downloadPDF, downloadZIP, buildPDFBytes } from "../lib/download.js";
@@ -41,17 +42,17 @@ export function CustomerHome() {
 
       {/* tools grid */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {tools.map((t) => (
-          <button key={t.k} onClick={() => go("customer", t.k)} className="text-left group">
-            <Card hover className="glass-card-solid p-5 h-full">
+        {tools.map((t, i) => (
+          <Reveal as="button" key={t.k} delay={i * 60} onClick={() => go("customer", t.k)} className="text-left group">
+            <Card hover press className="glass-card-solid p-5 h-full">
               <div className="flex items-start justify-between">
-                <div className={`w-11 h-11 rounded-xl grid place-items-center text-white shadow-sm transition-transform duration-200 ease-spring group-hover:scale-110 group-hover:-rotate-3 ${t.tone === "teal" ? "bg-gradient-to-br from-teal-500 to-teal-700" : "bg-gradient-to-br from-navy-800 to-navy-950"}`}><t.ic size={20} /></div>
+                <div className={`w-11 h-11 rounded-2xl grid place-items-center text-white shadow-sm transition-transform duration-300 ease-spring group-hover:scale-110 group-hover:-rotate-3 ${t.tone === "teal" ? "bg-gradient-to-br from-teal-500 to-teal-700" : "bg-gradient-to-br from-navy-800 to-navy-950"}`}><t.ic size={20} /></div>
                 {t.meta && <Badge tone={t.metaTone || "slate"}>{t.meta}</Badge>}
               </div>
               <div className="mt-3 font-semibold text-navy-900 flex items-center gap-1">{t.t}<Icon.chevR size={15} className="transition-transform duration-200 group-hover:translate-x-1 text-teal-600" /></div>
               <div className="text-[13px] text-slate-600 mt-0.5">{t.d}</div>
             </Card>
-          </button>
+          </Reveal>
         ))}
       </div>
     </div>
@@ -347,8 +348,8 @@ export function CustomerBooking() {
                   </span>
                 </div>
                 <div className="absolute inset-0 grid place-items-center px-4 pt-44 pb-4 z-10 pointer-events-none">
-                  <div className="pointer-events-auto">
-                    <div className="rounded-2xl bg-white/45 ring-4 ring-white/80 backdrop-blur-[1px] p-3 sm:p-4 shadow-float max-w-[680px] max-h-[64vh] overflow-auto no-scrollbar">
+                  <div className="pointer-events-auto animate-scale-in">
+                    <div className="rounded-3xl bg-white/55 ring-4 ring-white/80 backdrop-blur-[1px] p-3 sm:p-4 shadow-float max-w-[680px] max-h-[64vh] overflow-auto no-scrollbar">
                       <div className="grid gap-1.5" style={{ gridTemplateColumns: "repeat(14,1fr)" }}>
                         {grid.map((b) => {
                           const isSel = !!sel.find((x) => x.id === b.id);
