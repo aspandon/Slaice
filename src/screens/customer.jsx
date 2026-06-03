@@ -119,41 +119,6 @@ function FacilityPin({ facility }) {
   );
 }
 
-// Compact horizontal date chip strip — one tap = single date, "+N" chip
-// when more than one date is selected. Sits on the beach itself.
-function BeachDateStrip({ value, onChange, days = 5 }) {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const strip = Array.from({ length: days }).map((_, i) => {
-    const d = new Date(today); d.setDate(today.getDate() + i);
-    const iso = d.toISOString().slice(0, 10);
-    const sub = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-    const wk  = i === 0 ? "Today" : i === 1 ? "Tomorrow" : d.toLocaleDateString("en-GB", { weekday: "short" });
-    return { iso, sub, wk };
-  });
-  const extra = value.filter((iso) => !strip.find((s) => s.iso === iso));
-  const toggle = (iso) => {
-    if (value.includes(iso)) onChange(value.length > 1 ? value.filter((x) => x !== iso) : value);
-    else onChange([...value, iso].sort());
-  };
-  return (
-    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-      {strip.map((s) => {
-        const on = value.includes(s.iso);
-        return (
-          <button key={s.iso} onClick={() => toggle(s.iso)}
-            className={`shrink-0 rounded-xl px-2.5 py-1.5 text-left transition ring-1 shadow-sm ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white/95 text-navy-900 ring-white/80 hover:bg-white"}`}>
-            <div className="text-[10px] font-semibold uppercase tracking-wide opacity-70 leading-none">{s.wk}</div>
-            <div className="text-[12px] font-bold tnum leading-tight">{s.sub}</div>
-          </button>
-        );
-      })}
-      {extra.length > 0 && (
-        <span className="shrink-0 rounded-xl bg-teal-500 text-white text-[11px] font-bold px-2.5 py-2 ring-1 ring-teal-300 shadow-sm">+{extra.length}</span>
-      )}
-    </div>
-  );
-}
-
 /* ============ SUNBED BOOKING (hero, matches the video) ============ */
 export function CustomerBooking() {
   const { go, toast, cart, addToCart, removeFromCart } = useApp();
@@ -242,66 +207,87 @@ export function CustomerBooking() {
       <div className="fixed inset-0 z-0">
         <div className="relative w-full h-full">
           <BeachBackdrop pos="absolute" className="inset-0 rounded-none">
-            {/* Top utility bar — quick-picks (left), search (center), weather (right).
-                top-[160px] clears the persona/page-nav bands above and keeps a 50px gap
-                above the zone pills underneath. */}
-            <div data-spotlight="quick-picks" className="absolute top-[160px] lg:right-[362px] left-3 right-3 z-30 flex items-center gap-2">
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pr-1">
-                {QUICK_PICKS.map((p) => (
-                  <button key={p.id} onClick={() => applyPreset(p)}
-                    title={p.hint}
-                    className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-white/90 hover:bg-white text-navy-900 ring-1 ring-white/70 backdrop-blur px-3 py-1.5 text-[11px] font-semibold shadow-sm transition">
-                    {p.id === "couple" ? <Icon.users size={12} /> : p.id === "family" ? <Icon.group size={12} /> : p.id === "front" ? <Icon.wave size={12} /> : <Icon.umbrella size={12} />}
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-              <div className="hidden sm:flex flex-1 min-w-[140px] max-w-[230px] mx-auto items-center gap-1.5 rounded-full bg-white/95 ring-1 ring-white/70 backdrop-blur px-3 py-1.5 shadow-sm">
-                <Icon.search size={13} className="text-slate-400 shrink-0" />
-                <input value={search} onChange={(e) => setSearch(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && runSearch(search)}
-                  placeholder="Find a sunbed (CE-89)"
-                  className="bg-transparent outline-none text-[12px] flex-1 min-w-0 placeholder:text-slate-400" />
-                {search && <button onClick={() => { setSearch(""); setSearchHit(null); }} className="text-slate-400 hover:text-slate-700"><Icon.x size={12} /></button>}
-              </div>
-              <div className="shrink-0 ml-auto inline-flex items-center gap-2 rounded-full bg-white/95 ring-1 ring-white/70 backdrop-blur px-2.5 py-1.5 shadow-sm">
-                <span className="inline-flex items-center gap-1 text-[12px] font-bold text-amber-600"><Icon.sun size={13} />{WEATHER.tempC}°</span>
-                <span className="hidden md:inline text-[11px] text-slate-500 tnum">UV {WEATHER.uv}</span>
-                <span className="hidden md:inline-flex items-center gap-1 text-[11px] text-sky-700"><Icon.wave size={12} />{WEATHER.sea}</span>
-                <span className="hidden lg:inline text-[11px] text-slate-500">sunset {WEATHER.sunset}</span>
-              </div>
-            </div>
-
-            {/* Zone pill-tabs — donut + hover-preview. */}
-            <div data-spotlight="zones" className="absolute top-[210px] lg:right-[362px] left-3 right-3 flex gap-2 overflow-x-auto z-20 pb-1 no-scrollbar">
-              {ZONES.map((z) => {
-                const active = zone && zone.id === z.id;
-                const hovered = hoveredZone === z.id;
-                return (
-                  <div key={z.id} className="relative shrink-0"
-                    onMouseEnter={() => setHoveredZone(z.id)}
-                    onMouseLeave={() => setHoveredZone((cur) => (cur === z.id ? null : cur))}>
-                    <button onClick={() => { setZoneId(z.id); setStep("grid"); }}
-                      className={`flex items-center gap-2 rounded-full pl-1 pr-3 py-1 whitespace-nowrap transition shadow-md ${active ? "bg-navy-900 text-white" : "bg-white/90 backdrop-blur hover:bg-white"}`}>
-                      <span className="relative w-9 h-9 grid place-items-center rounded-full" style={{ background: active ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.55)" }}>
-                        <ZoneDonut free={z.avail} total={z.total} color={z.color} size={32} />
-                        <span className="absolute inset-0 grid place-items-center text-[9px] font-bold text-navy-900" style={{ color: active ? "#fff" : "#0f172a" }}>{Math.round(z.avail/z.total*100)}%</span>
-                      </span>
-                      <span className="text-left leading-tight">
-                        <span className="block text-[12px] font-semibold">{z.name}</span>
-                        <span className={`block text-[10px] tnum ${active ? "text-white/70" : "text-slate-500"}`}>{active ? "ACTIVE" : `${z.avail} free · €${z.from}+`}</span>
-                      </span>
-                      {active && <Icon.check size={13} />}
-                    </button>
-                    {hovered && !active && <ZonePreview zone={z} />}
+            {/* ===== Unified control rail — one glass panel with three sections.
+                 Row 1: quick-picks · search · weather
+                 Row 2: zone pills (overview) OR breadcrumb (zoomed in)
+                 Row 3: date strip with scroll arrows. */}
+            <div className="absolute top-[160px] lg:right-[362px] left-3 right-3 z-30">
+              <div className="rounded-2xl bg-white/85 backdrop-blur-xl ring-1 ring-white/70 shadow-lg overflow-visible">
+                {/* — Row 1 — quick-picks · search · weather — */}
+                <div data-spotlight="quick-picks" className="flex items-center gap-2 px-2.5 py-1.5 border-b border-slate-200/60">
+                  <div className="flex items-center gap-0.5 overflow-x-auto no-scrollbar shrink min-w-0">
+                    {QUICK_PICKS.map((p) => (
+                      <button key={p.id} onClick={() => applyPreset(p)} title={p.hint}
+                        className="shrink-0 inline-flex items-center gap-1.5 rounded-full hover:bg-slate-100 text-navy-900 px-2.5 py-1 text-[11px] font-semibold transition">
+                        {p.id === "couple" ? <Icon.users size={12} /> : p.id === "family" ? <Icon.group size={12} /> : p.id === "front" ? <Icon.wave size={12} /> : <Icon.umbrella size={12} />}
+                        {p.label}
+                      </button>
+                    ))}
                   </div>
-                );
-              })}
-            </div>
+                  <div className="hidden sm:flex flex-1 min-w-[140px] max-w-[260px] mx-auto items-center gap-1.5 rounded-full bg-slate-100/80 px-3 py-1.5">
+                    <Icon.search size={13} className="text-slate-400 shrink-0" />
+                    <input value={search} onChange={(e) => setSearch(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && runSearch(search)}
+                      placeholder="Find a sunbed (CE-89)"
+                      className="bg-transparent outline-none text-[12px] flex-1 min-w-0 placeholder:text-slate-400" />
+                    {search && <button onClick={() => { setSearch(""); setSearchHit(null); }} className="text-slate-400 hover:text-slate-700"><Icon.x size={12} /></button>}
+                  </div>
+                  <div className="shrink-0 ml-auto inline-flex items-center gap-2 pl-1">
+                    <span className="inline-flex items-center gap-1 text-[12px] font-bold text-amber-600"><Icon.sun size={13} />{WEATHER.tempC}°</span>
+                    <span className="hidden md:inline text-[11px] text-slate-500 tnum">UV {WEATHER.uv}</span>
+                    <span className="hidden md:inline-flex items-center gap-1 text-[11px] text-sky-700"><Icon.wave size={12} />{WEATHER.sea}</span>
+                    <span className="hidden lg:inline text-[11px] text-slate-500">sunset {WEATHER.sunset}</span>
+                  </div>
+                </div>
 
-            {/* Persistent date strip — same selDates as the basket panel. */}
-            <div data-spotlight="dates" className="absolute top-[265px] lg:right-[362px] left-3 right-3 z-20">
-              <BeachDateStrip value={selDates} onChange={setSelDates} />
+                {/* — Row 2 — zone pills OR breadcrumb — */}
+                <div className="px-2.5 py-1.5 border-b border-slate-200/60">
+                  {focused ? (
+                    <div className="flex items-center gap-2 text-[12px]">
+                      <button onClick={() => { setStep("zones"); setZoneId(null); }}
+                        className="inline-flex items-center gap-1 rounded-full hover:bg-slate-100 px-2.5 py-1 text-slate-600 hover:text-navy-900 font-semibold transition">
+                        <Icon.arrowL size={12} /> All beach
+                      </button>
+                      <Icon.chevR size={12} className="text-slate-400 shrink-0" />
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-navy-900 text-white px-2.5 py-1 font-semibold">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ background: zone.color }} />{zone.name}
+                      </span>
+                      <span className="ml-auto text-[11px] text-slate-500 tnum">{zone.avail}/{zone.total} free · from €{zone.from}</span>
+                    </div>
+                  ) : (
+                    <div data-spotlight="zones" className="flex gap-1.5 overflow-x-auto no-scrollbar">
+                      {ZONES.map((z) => {
+                        const active = zone && zone.id === z.id;
+                        const hovered = hoveredZone === z.id;
+                        return (
+                          <div key={z.id} className="relative shrink-0"
+                            onMouseEnter={() => setHoveredZone(z.id)}
+                            onMouseLeave={() => setHoveredZone((cur) => (cur === z.id ? null : cur))}>
+                            <button onClick={() => { setZoneId(z.id); setStep("grid"); }}
+                              className={`flex items-center gap-1.5 rounded-full pl-0.5 pr-2.5 py-0.5 whitespace-nowrap transition ${active ? "bg-navy-900 text-white" : "hover:bg-slate-100"}`}>
+                              <span className="relative w-7 h-7 grid place-items-center rounded-full" style={{ background: active ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.04)" }}>
+                                <ZoneDonut free={z.avail} total={z.total} color={z.color} size={26} />
+                                <span className="absolute inset-0 grid place-items-center text-[8px] font-bold" style={{ color: active ? "#fff" : "#0f172a" }}>{Math.round(z.avail/z.total*100)}%</span>
+                              </span>
+                              <span className="text-left leading-tight">
+                                <span className="block text-[11.5px] font-semibold">{z.name}</span>
+                                <span className={`block text-[9.5px] tnum ${active ? "text-white/70" : "text-slate-500"}`}>{active ? "ACTIVE" : `${z.avail} · €${z.from}+`}</span>
+                              </span>
+                              {active && <Icon.check size={12} />}
+                            </button>
+                            {hovered && !active && <ZonePreview zone={z} />}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {/* — Row 3 — date strip — */}
+                <div data-spotlight="dates" className="px-2.5 py-2">
+                  <DatePickerRow value={selDates} onChange={setSelDates} />
+                </div>
+              </div>
             </div>
 
             {!focused && (
@@ -336,17 +322,6 @@ export function CustomerBooking() {
 
             {focused && (
               <>
-                {/* Breadcrumb — All beach › Zone name. */}
-                <div className="absolute top-[315px] lg:right-[362px] left-3 right-3 z-20 flex items-center gap-1.5 text-[12px]">
-                  <button onClick={() => { setStep("zones"); setZoneId(null); }}
-                    className="inline-flex items-center gap-1 rounded-full bg-white/90 backdrop-blur px-2.5 py-1 ring-1 ring-white/70 text-slate-600 hover:text-navy-900 hover:bg-white shadow-sm font-semibold">
-                    <Icon.arrowL size={12} /> All beach
-                  </button>
-                  <Icon.chevR size={12} className="text-white drop-shadow" />
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-navy-900 text-white px-2.5 py-1 ring-1 ring-navy-700 shadow-sm font-semibold">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ background: zone.color }} />{zone.name}
-                  </span>
-                </div>
                 <div className="absolute inset-0 grid place-items-center px-4 pt-44 pb-4 z-10 pointer-events-none">
                   <div className="pointer-events-auto animate-scale-in">
                     <div className="rounded-3xl bg-white/55 ring-4 ring-white/80 backdrop-blur-[1px] p-3 sm:p-4 shadow-float max-w-[680px] max-h-[64vh] overflow-auto no-scrollbar">
