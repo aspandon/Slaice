@@ -6,7 +6,7 @@ import type { CartItem, CartKind, Consent, LangCode, PersonaId } from "../domain
 // Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
 // highlight the section a journey points at.
 export interface SpotlightHint {
-  spotlight: string;
+  spotlight?: string;
   tip?: string;
   persona?: PersonaId;
   page?: string;
