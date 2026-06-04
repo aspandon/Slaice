@@ -118,7 +118,7 @@ export const ADMIN_REFUNDS = [
 ];
 
 // Cashier register session transactions
-export const CASHIER_TX = [
+export const CASHIER_TX: [string, string, string, { type: string; tone: string; label: string }, string | { negative: boolean; label: string }][] = [
   ["09:14", "Float in", "Opening cash", { type: "tone", tone: "slate", label: "Open" }, "+€100"],
   ["09:38", "Sale", "Adult", { type: "tone", tone: "amber", label: "Cash" }, "€10"],
   ["10:02", "Sale", "Adult ×2", { type: "tone", tone: "blue", label: "Card" }, "€20"],

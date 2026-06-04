@@ -1,19 +1,23 @@
 import { useState } from "react";
+import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { Icon } from "../lib/icons";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Tabs, Modal, StatusBadge, TableSkeleton, useMockLoad } from "../components/ui";
 import { Donut } from "../components/charts";
 import { ACCOUNTANT_DOCS, ACCOUNTANT_PAYOUTS } from "../data/mock";
 import { useApp } from "../app/store";
+import type { AppContextValue } from "../app/store";
 import { downloadCSV, downloadPDF } from "../lib/download";
 
-const neg = (v) => <span className="text-rose-600 font-medium tnum">{v}</span>;
-const negBold = (v) => <b className="text-rose-600 tnum">{v}</b>;
+type AccountantDoc = (typeof ACCOUNTANT_DOCS)[number];
 
-function CopyMark({ mark, toast }) {
+const neg = (v: ReactNode) => <span className="text-rose-600 font-medium tnum">{v}</span>;
+const negBold = (v: ReactNode) => <b className="text-rose-600 tnum">{v}</b>;
+
+function CopyMark({ mark, toast }: { mark: string; toast?: AppContextValue["toast"] }) {
   const [copied, setCopied] = useState(false);
-  const copy = (e) => {
+  const copy = (e: ReactMouseEvent) => {
     e.stopPropagation();
-    try { navigator.clipboard.writeText(mark); } catch {}
+    try { navigator.clipboard.writeText(mark); } catch { /* clipboard unavailable */ }
     setCopied(true);
     toast?.(`Copied MARK ${mark}.`, { tone: "success", duration: 1600 });
     setTimeout(() => setCopied(false), 1200);
@@ -33,12 +37,12 @@ function CopyMark({ mark, toast }) {
 export function AccountantInvoicing() {
   const { toast } = useApp();
   const [tab, setTab] = useState("all");
-  const [view, setView] = useState(null);
+  const [view, setView] = useState<AccountantDoc | null>(null);
   const docs = ACCOUNTANT_DOCS;
   const filtered = docs.filter((x) => tab === "all" || x.type === tab);
-  const tone = (s) => (s.includes("✓") ? "green" : "amber");
+  const tone = (s: string) => (s.includes("✓") ? "green" : "amber");
   const loading = useMockLoad();
-  const amountCell = (a) => (a.startsWith("−") ? neg(a) : a);
+  const amountCell = (a: string) => (a.startsWith("−") ? neg(a) : a);
   return (
     <div className="animate-fade-up">
       <PageHead actions={<Btn variant="primary" icon={Icon.download} onClick={() => { downloadCSV("invoicing.csv", ["Document", "Type", "MARK", "Amount", "Status"], filtered.map((x) => [x.d, x.t, x.mark, x.amt, x.st])); toast(`Exported ${filtered.length} documents (CSV).`); }}>Export</Btn>} />
@@ -67,7 +71,7 @@ export function AccountantInvoicing() {
       </Card>
 
       <Modal open={!!view} onClose={() => setView(null)} title={view?.d} wide
-        footer={<><Btn variant="ghost" onClick={() => setView(null)}>Close</Btn><Btn variant="primary" icon={Icon.download} onClick={() => { downloadPDF(`${view.d}.pdf`, accountantReceiptDoc(view)); setView(null); toast(`Downloaded ${view.d}.pdf`); }}>Download PDF</Btn></>}>
+        footer={<><Btn variant="ghost" onClick={() => setView(null)}>Close</Btn><Btn variant="primary" icon={Icon.download} onClick={() => { if (!view) return; downloadPDF(`${view.d}.pdf`, accountantReceiptDoc(view)); setView(null); toast(`Downloaded ${view.d}.pdf`); }}>Download PDF</Btn></>}>
         {view && (
           <div className="text-sm">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
@@ -87,7 +91,7 @@ export function AccountantInvoicing() {
   );
 }
 
-function accountantReceiptDoc(x) {
+function accountantReceiptDoc(x: AccountantDoc) {
   const isCredit = x.t === "Credit note";
   const sign = x.amt.startsWith("−") ? "−" : "";
   return {
@@ -148,7 +152,7 @@ export function AccountantCommission() {
             sl: acc.sl + parseInt(r[3].replace(/[^0-9]/g, ""), 10),
             n: acc.n + parseInt(r[4].replace(/[^0-9]/g, ""), 10),
           }), { g: 0, sf: 0, sl: 0, n: 0 });
-          const fmt = (v) => "€" + v.toLocaleString();
+          const fmt = (v: number) => "€" + v.toLocaleString();
           return [
             ...monthly.map((r) => [r[0], r[1], neg(r[2]), neg(r[3]), <b className="tnum">{r[4]}</b>]),
             [<b key="s">Season</b>, <b key="g" className="tnum">{fmt(sums.g)}</b>, negBold(`−${fmt(sums.sf)}`), negBold(`−${fmt(sums.sl)}`), <b key="tn" className="tnum">{fmt(sums.n)}</b>],
@@ -193,8 +197,8 @@ export function AccountantCommission() {
   );
 }
 
-const Leg = ({ c, t }) => <div className="flex items-center gap-2 text-[13px] text-slate-700"><i className={`w-3 h-3 rounded-sm ${c} inline-block`} />{t}</div>;
-const RecRow = ({ label, value, neg, ok }) => (
+const Leg = ({ c, t }: { c: string; t: ReactNode }) => <div className="flex items-center gap-2 text-[13px] text-slate-700"><i className={`w-3 h-3 rounded-sm ${c} inline-block`} />{t}</div>;
+const RecRow = ({ label, value, neg, ok }: { label?: ReactNode; value?: ReactNode; neg?: boolean; ok?: boolean }) => (
   <div className="flex items-center justify-between border-b border-slate-100 last:border-0 pb-1.5 last:pb-0">
     <span className="text-slate-600">{label}</span>
     <span className={`font-semibold tnum ${neg ? "text-rose-600" : ok ? "text-teal-700" : "text-navy-900"}`}>{value}</span>

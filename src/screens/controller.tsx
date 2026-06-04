@@ -10,7 +10,7 @@ export function ControllerScan() {
   useSpotlight("controller", "scan");
   const [scanning, setScanning] = useState(false);
   const [recent, setRecent] = useState(RECENT_VALIDATIONS);
-  const stateTone = { valid: "green", used: "amber", invalid: "red" };
+  const stateTone: Record<string, string> = { valid: "green", used: "amber", invalid: "red" };
 
   const doScan = () => {
     setScanning(true);

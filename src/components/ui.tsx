@@ -233,6 +233,8 @@ export function StatCard({ label, value, sub, tone = "navy", delta, trend, spark
   trend?: string;
   sparkline?: ReactNode;
   instant?: boolean;
+  /** Accepted for call-site compatibility; the current design omits the icon. */
+  icon?: IconRenderer;
 }) {
   const stripeMap: Record<string, string> = {
     navy: "bg-navy-900/60",

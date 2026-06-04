@@ -1,11 +1,12 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { Icon } from "../lib/icons";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Stepper, Field, Input, Select, FutureBanner, ContextPanel } from "../components/ui";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Stepper, Field, Input, FutureBanner, ContextPanel } from "../components/ui";
 import { QR, StackedBar } from "../components/charts";
 import { CASHIER_TX, CASHIER_SESSION, CASHIER_PAST_SESSIONS, CASHIER_LOCKER_BANKS } from "../data/mock";
 import { useApp } from "../app/store";
 
-const ZRow = ({ label, value }) => (
+const ZRow = ({ label, value }: { label?: ReactNode; value?: ReactNode }) => (
   <div className="flex items-center justify-between border-b border-slate-100 last:border-0 pb-1.5 last:pb-0">
     <span className="text-slate-600">{label}</span><span className="font-semibold text-navy-900 tnum">{value}</span>
   </div>
@@ -15,7 +16,7 @@ const ZRow = ({ label, value }) => (
 export function CashierIssue() {
   const { toast } = useApp();
   const cats = [{ k: "adult", t: "Adult", p: 10 }, { k: "resident", t: "Resident", p: 6 }, { k: "child", t: "Child", p: 5 }];
-  const [qty, setQty] = useState({ adult: 2, resident: 0, child: 0 });
+  const [qty, setQty] = useState<Record<string, number>>({ adult: 2, resident: 0, child: 0 });
   const [issued, setIssued] = useState(false);
   const total = cats.reduce((a, c) => a + c.p * qty[c.k], 0);
   const n = Object.values(qty).reduce((a, b) => a + b, 0);
@@ -58,7 +59,7 @@ export function CashierIssue() {
 export function CashierRedeem() {
   const { toast } = useApp();
   const [code, setCode] = useState("");
-  const [result, setResult] = useState(null);
+  const [result, setResult] = useState<"valid" | "used" | null>(null);
   const redeem = () => { const ok = !/used/i.test(code); setResult(ok ? "valid" : "used"); toast(ok ? "Demo — ticket redeemed (marked used)." : "Demo — already redeemed."); };
   return (
     <div className="animate-fade-up grid lg:grid-cols-[1fr_320px] gap-5">
@@ -184,14 +185,14 @@ export function CashierRegister() {
 export function CashierLocker() {
   const { toast } = useApp();
   const [bankId, setBankId] = useState(CASHIER_LOCKER_BANKS[0].id);
-  const [pick, setPick] = useState(null);     // {bank, num}
-  const [sold, setSold] = useState(null);     // last sold {bank, num}
-  const bank = CASHIER_LOCKER_BANKS.find((b) => b.id === bankId);
+  const [pick, setPick] = useState<{ bank: string; num: number } | null>(null);
+  const [sold, setSold] = useState<{ bank: string; num: number; label: string; price: number } | null>(null);
+  const bank = CASHIER_LOCKER_BANKS.find((b) => b.id === bankId) ?? CASHIER_LOCKER_BANKS[0];
   const taken = new Set(bank.taken);
   const lockerLabel = pick ? `${bank.id}${String(pick.num).padStart(2, "0")}` : null;
   const charge = () => {
     if (!pick) return;
-    const label = lockerLabel;
+    const label = `${bank.id}${String(pick.num).padStart(2, "0")}`;
     setSold({ bank: bank.id, num: pick.num, label, price: bank.price });
     toast(`Demo — sold locker ${label} for €${bank.price}.`, { tone: "success" });
     setPick(null);
