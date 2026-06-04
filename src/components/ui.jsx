@@ -179,6 +179,26 @@ export function EmptyState({ icon: IconC = Icon.inbox, title, body, action, comp
   );
 }
 
+/* ---------- ErrorState ----------
+   The error half of the async state matrix: explain what failed and offer a
+   way forward (retry). Pair with useAsync's `error`/`refetch`. */
+export function ErrorState({ title = "Couldn't load this", body = "Something went wrong fetching the data. Please try again.", onRetry, compact = false, className = "" }) {
+  return (
+    <div role="alert" className={`flex flex-col items-center justify-center text-center ${compact ? "py-7 px-4" : "py-12 px-6"} ${className}`}>
+      <span className={`${compact ? "w-11 h-11" : "w-14 h-14"} rounded-2xl bg-rose-50 text-rose-500 grid place-items-center mb-3`}>
+        <Icon.alert size={compact ? 20 : 26} />
+      </span>
+      <div className="font-semibold text-navy-900">{title}</div>
+      {body && <div className="text-[13px] text-slate-500 mt-1 max-w-xs leading-relaxed">{body}</div>}
+      {onRetry && (
+        <div className="mt-4">
+          <Btn variant="outline" size="sm" icon={Icon.refund} onClick={onRetry}>Try again</Btn>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ---------- StatCard ----------
    Tone drives a thin left accent stripe. When `value` is a plain number (or a
    number with a leading €/% wrapper via numPrefix/numSuffix) the figure counts

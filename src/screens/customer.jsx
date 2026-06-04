@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../lib/icons";
-import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad, StatCard, ContextPanel, Tabs, DatePickerRow, Modal, StickyActionBar } from "../components/ui";
+import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, ErrorState, StatusBadge, TableSkeleton, CardGridSkeleton, StatCard, ContextPanel, Tabs, DatePickerRow, Modal, StickyActionBar } from "../components/ui";
 import { WalletButtons } from "../components/WalletPass";
 import { Reveal } from "../lib/motion";
 import { QR, Sparkline } from "../components/charts";
 import { Sunbed, BeachBackdrop } from "../components/Beach";
 import { downloadPDF, downloadZIP, buildPDFBytes } from "../lib/download";
 import { ZONES, ZONE_BLOCKS, FACILITIES, WEATHER, QUICK_PICKS, makeGrid, chipLabel, todayISO } from "../data/beach";
-import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS } from "../data/mock";
+import { listCustomerBookings, listCustomerDocuments } from "../api";
+import { useAsync } from "../lib/useAsync";
 import { useApp, useSpotlight, useT } from "../app/store";
 
 /* ============ HOME ============
@@ -1017,18 +1018,22 @@ export function CustomerBookings() {
   const { go, toast } = useApp();
   const [qrFor, setQrFor] = useState(null);
   const [filter, setFilter] = useState("all");
-  const loading = useMockLoad();
-  const data = CUSTOMER_BOOKINGS;
+  const bookings = useAsync(listCustomerBookings);
+  const data = bookings.status === "success" ? bookings.data : [];
   const filtered = data.filter((d) => filter === "all" || d.state === filter);
   const total = data.reduce((a, b) => a + b.price, 0);
   const active = data.filter((d) => d.state === "active").length;
   return (
     <div className="space-y-4">
-      <div className="grid sm:grid-cols-3 gap-4">
-        <StatCard label="Active bookings" value={active} sub="ready to redeem" tone="teal" />
-        <StatCard label="This season" value={`€${total}`} sub={`${data.length} confirmed`} />
-        <StatCard label="Next visit" value="Sun, 19 Jul" sub="Central zone · 2 sunbeds" tone="indigo" />
-      </div>
+      {bookings.status === "loading" ? (
+        <CardGridSkeleton count={3} className="grid sm:grid-cols-3 gap-4" />
+      ) : (
+        <div className="grid sm:grid-cols-3 gap-4">
+          <StatCard label="Active bookings" value={active} sub="ready to redeem" tone="teal" />
+          <StatCard label="This season" value={`€${total}`} sub={`${data.length} confirmed`} />
+          <StatCard label="Next visit" value="Sun, 19 Jul" sub="Central zone · 2 sunbeds" tone="indigo" />
+        </div>
+      )}
       {/* Season in review (P5.6) */}
       <Card className="overflow-hidden">
         <div className="grad-sea text-white p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
@@ -1050,8 +1055,10 @@ export function CustomerBookings() {
           <Tabs tabs={[["all", "All"], ["active", "Active"], ["past", "Past"]]} value={filter} onChange={setFilter} />
           <Btn size="sm" variant="outline" icon={Icon.download} onClick={() => toast("Demo — all QRs e-mailed.", { tone: "success" })}>E-mail all QRs</Btn>
         </div>
-        {loading ? (
+        {bookings.status === "loading" ? (
           <TableSkeleton rows={4} cols={6} />
+        ) : bookings.status === "error" ? (
+          <ErrorState compact body="We couldn't load your bookings." onRetry={bookings.refetch} />
         ) : filtered.length === 0 ? (
           <EmptyState icon={Icon.grid} title={filter === "active" ? "No active bookings" : "No past bookings yet"} body={filter === "active" ? "Book a sunbed for this weekend — Central front-row spots are 20% off." : "Once a visit is over, it will move here."} action={<Btn variant="teal" icon={Icon.umbrella} onClick={() => go("customer", "book")}>Book a sunbed</Btn>} />
         ) : (
@@ -1079,9 +1086,9 @@ export function CustomerBookings() {
 /* ============ MY DOCUMENTS ============ */
 export function CustomerDocs() {
   const { toast } = useApp();
-  const docs = CUSTOMER_DOCS;
+  const docsQ = useAsync(listCustomerDocuments);
+  const docs = docsQ.status === "success" ? docsQ.data : [];
   const [view, setView] = useState(null);
-  const loading = useMockLoad();
   const download = (d) => { downloadPDF(`${d.id}.pdf`, customerReceiptDoc(d)); toast(`Downloaded ${d.id}.pdf`, { tone: "success" }); };
   const downloadAll = () => {
     const files = filtered.map((d) => ({ name: `${d.id}.pdf`, content: buildReceiptBytes(d) }));
@@ -1098,18 +1105,24 @@ export function CustomerDocs() {
   }, 0);
   return (
     <div className="space-y-4">
-      <div className="grid sm:grid-cols-3 gap-4">
-        <StatCard label="Receipts this season" value={docs.length} sub={`${docs.filter((d) => tone(d.id) === "apy").length} ΑΠΥ`} tone="teal" />
-        <StatCard label="Total spend" value={`€${totalAmount}`} sub="all paid · MyDATA ✓" />
-        <StatCard label="MyDATA status" value="100%" sub="transmitted" tone="indigo" />
-      </div>
+      {docsQ.status === "loading" ? (
+        <CardGridSkeleton count={3} className="grid sm:grid-cols-3 gap-4" />
+      ) : (
+        <div className="grid sm:grid-cols-3 gap-4">
+          <StatCard label="Receipts this season" value={docs.length} sub={`${docs.filter((d) => tone(d.id) === "apy").length} ΑΠΥ`} tone="teal" />
+          <StatCard label="Total spend" value={`€${totalAmount}`} sub="all paid · MyDATA ✓" />
+          <StatCard label="MyDATA status" value="100%" sub="transmitted" tone="indigo" />
+        </div>
+      )}
       <Card className="p-4">
         <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
           <Tabs tabs={[["all", "All"], ["apy", "ΑΠΥ"], ["tpy", "ΤΠΥ"], ["credit", "Credit notes"]]} value={filter} onChange={setFilter} />
           <Btn size="sm" variant="outline" icon={Icon.download} onClick={downloadAll}>Download all (ZIP)</Btn>
         </div>
-        {loading ? (
+        {docsQ.status === "loading" ? (
           <TableSkeleton rows={2} cols={6} />
+        ) : docsQ.status === "error" ? (
+          <ErrorState compact body="We couldn't load your documents." onRetry={docsQ.refetch} />
         ) : filtered.length === 0 ? (
           <EmptyState icon={Icon.receipt} title="No documents in this filter" body="Try selecting another category." />
         ) : (
