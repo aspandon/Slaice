@@ -12,6 +12,16 @@
 import { TENANT } from "../data/beach";
 import { zipBytes, downloadBlob } from "./download";
 
+export interface PassData {
+  ref: string;
+  holder?: string;
+  zone?: string;
+  date?: string;
+  seat?: string;
+  guests?: number | string;
+  total?: string;
+}
+
 /* ---------- platform detection ---------- */
 // 'ios' | 'android' | 'other' — used to surface the right badge first.
 export function detectWalletPlatform() {
@@ -27,7 +37,7 @@ export function detectWalletPlatform() {
 /* ---------- SHA-1 (sync, dependency-free) ----------
    Used for the .pkpass manifest. Works on every browser and in non-secure
    contexts (unlike crypto.subtle, which is async + secure-context only). */
-export function sha1Hex(bytes) {
+export function sha1Hex(bytes: Uint8Array | string) {
   const data = typeof bytes === "string" ? new TextEncoder().encode(bytes) : bytes;
   const ml = data.length * 8;
   // pad
@@ -43,7 +53,7 @@ export function sha1Hex(bytes) {
 
   let h0 = 0x67452301, h1 = 0xEFCDAB89, h2 = 0x98BADCFE, h3 = 0x10325476, h4 = 0xC3D2E1F0;
   const w = new Uint32Array(80);
-  const rol = (n, s) => (n << s) | (n >>> (32 - s));
+  const rol = (n: number, s: number) => (n << s) | (n >>> (32 - s));
   for (let i = 0; i < total; i += 64) {
     for (let j = 0; j < 16; j++) w[j] = dv.getUint32(i + j * 4, false);
     for (let j = 16; j < 80; j++) w[j] = rol(w[j - 3] ^ w[j - 8] ^ w[j - 14] ^ w[j - 16], 1);
@@ -59,7 +69,7 @@ export function sha1Hex(bytes) {
     }
     h0 = (h0 + a) >>> 0; h1 = (h1 + b) >>> 0; h2 = (h2 + c) >>> 0; h3 = (h3 + d) >>> 0; h4 = (h4 + e) >>> 0;
   }
-  const hex = (n) => n.toString(16).padStart(8, "0");
+  const hex = (n: number) => n.toString(16).padStart(8, "0");
   return hex(h0) + hex(h1) + hex(h2) + hex(h3) + hex(h4);
 }
 
@@ -68,7 +78,7 @@ export function sha1Hex(bytes) {
 const FALLBACK_PNG_B64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
 
-function b64ToBytes(b64) {
+function b64ToBytes(b64: string) {
   const bin = atob(b64);
   const out = new Uint8Array(bin.length);
   for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
@@ -76,7 +86,7 @@ function b64ToBytes(b64) {
 }
 
 // Draw a branded square (navy field + gold sun) and return PNG bytes.
-function brandPng(size) {
+function brandPng(size: number) {
   try {
     const c = document.createElement("canvas");
     c.width = size; c.height = size;
@@ -106,7 +116,7 @@ function brandPng(size) {
 }
 
 /* ---------- Apple Wallet (.pkpass) ---------- */
-export function buildPassJson(pass) {
+export function buildPassJson(pass: PassData) {
   const qr = {
     format: "PKBarcodeFormatQR",
     message: pass.ref,
@@ -147,7 +157,7 @@ export function buildPassJson(pass) {
 
 // Returns the .pkpass bytes (a real ZIP). No signature.p7s — that is produced
 // server-side from the Pass Type ID certificate in production.
-export function buildPkpassBytes(pass) {
+export function buildPkpassBytes(pass: PassData) {
   const passJson = JSON.stringify(buildPassJson(pass), null, 2);
   const icon = brandPng(29);
   const icon2x = brandPng(58);
@@ -158,19 +168,19 @@ export function buildPkpassBytes(pass) {
     { name: "icon@2x.png", content: icon2x },
     { name: "logo.png", content: logo },
   ];
-  const manifest = {};
+  const manifest: Record<string, string> = {};
   for (const f of files) manifest[f.name] = sha1Hex(f.content);
   files.push({ name: "manifest.json", content: JSON.stringify(manifest, null, 2) });
   return zipBytes(files);
 }
 
-export function downloadPkpass(pass) {
+export function downloadPkpass(pass: PassData) {
   const bytes = buildPkpassBytes(pass);
-  downloadBlob(new Blob([bytes], { type: "application/vnd.apple.pkpass" }), `slaice-${pass.ref}.pkpass`);
+  downloadBlob(new Blob([bytes as BlobPart], { type: "application/vnd.apple.pkpass" }), `slaice-${pass.ref}.pkpass`);
 }
 
 /* ---------- Google Wallet (Save link) ---------- */
-function base64url(obj) {
+function base64url(obj: unknown) {
   const json = typeof obj === "string" ? obj : JSON.stringify(obj);
   const b64 = btoa(unescape(encodeURIComponent(json)));
   return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -179,7 +189,7 @@ function base64url(obj) {
 // The EventTicket claims a backend would sign. We return the object + a
 // representative save URL (token unsigned — production signs with the issuer's
 // service-account key).
-export function buildGoogleSave(pass) {
+export function buildGoogleSave(pass: PassData) {
   const obj = {
     iss: "slaice@beach.iam.gserviceaccount.com",
     aud: "google",
@@ -203,7 +213,7 @@ export function buildGoogleSave(pass) {
 }
 
 // Copy the Save link to the clipboard (clipboard API with a legacy fallback).
-export async function copyGoogleSaveLink(pass) {
+export async function copyGoogleSaveLink(pass: PassData) {
   const { url } = buildGoogleSave(pass);
   try {
     if (navigator.clipboard && navigator.clipboard.writeText) {

@@ -1,5 +1,5 @@
 // Trigger a browser download from in-memory data.
-function trigger(blob, filename) {
+function trigger(blob: Blob, filename: string) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -11,33 +11,41 @@ function trigger(blob, filename) {
 }
 
 // Public alias — download an already-built Blob (used by the wallet pass).
-export function downloadBlob(blob, filename) {
+export function downloadBlob(blob: Blob, filename: string) {
   trigger(blob, filename);
 }
 
-const escapeCSV = (v) => {
+const escapeCSV = (v: unknown): string => {
   if (v === null || v === undefined) return "";
   const s = String(v);
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
-export function downloadCSV(filename, header, rows) {
+export function downloadCSV(filename: string, header: (string | number)[], rows: (string | number)[][]) {
   const lines = [header.map(escapeCSV).join(",")];
   rows.forEach((r) => lines.push(r.map(escapeCSV).join(",")));
   trigger(new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8;" }), filename);
 }
 
-export function downloadText(filename, text, mime = "text/plain;charset=utf-8") {
+export function downloadText(filename: string, text: string, mime = "text/plain;charset=utf-8") {
   trigger(new Blob([text], { type: mime }), filename);
 }
 
+export interface IcsEvent {
+  uid: string;
+  title: string;
+  start: string;
+  end: string;
+  location?: string;
+  description?: string;
+}
+
 // Build + download an .ics calendar invite. `start`/`end` are ISO YYYY-MM-DD
-// (all-day event). Lets a guest add their beach day to Apple/Google/Outlook
-// calendars from the confirmation screen.
-export function downloadICS(filename, { uid, title, start, end, location, description }) {
-  const day = (d) => d.replace(/-/g, "");
-  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "") ;
-  const esc = (s = "") => String(s).replace(/([,;\\])/g, "\\$1").replace(/\n/g, "\\n");
+// (all-day event). Lets a guest add their beach day to Apple/Google/Outlook.
+export function downloadICS(filename: string, { uid, title, start, end, location, description }: IcsEvent) {
+  const day = (d: string) => d.replace(/-/g, "");
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "");
+  const esc = (s: string = "") => String(s).replace(/([,;\\])/g, "\\$1").replace(/\n/g, "\\n");
   const ics = [
     "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Slaice//Beach//EN", "CALSCALE:GREGORIAN",
     "BEGIN:VEVENT", `UID:${uid}`, `DTSTAMP:${stamp}`,
@@ -51,16 +59,11 @@ export function downloadICS(filename, { uid, title, start, end, location, descri
 }
 
 /* ============================================================
-   Zero-dependency PDF 1.4 emitter.
-   Renders a receipt-style document with Helvetica + Helvetica-Bold
-   (PDF base fonts, no embedding). Strings are encoded in WinAnsi;
-   Greek letters are transliterated to Latin so they render rather
-   than turning into "?". Returns a real `application/pdf` Blob.
+   Zero-dependency PDF 1.4 emitter (Helvetica base fonts, WinAnsi;
+   Greek transliterated to Latin). Returns an application/pdf Uint8Array.
    ============================================================ */
 
-// Greek → Latin transliteration (uppercase + lowercase) so customer
-// labels like ΑΠΥ / ΤΠΥ / ΑΦΜ stay readable in WinAnsi.
-const GREEK = {
+const GREEK: Record<string, string> = {
   "Α":"A","Β":"B","Γ":"G","Δ":"D","Ε":"E","Ζ":"Z","Η":"I","Θ":"Th",
   "Ι":"I","Κ":"K","Λ":"L","Μ":"M","Ν":"N","Ξ":"X","Ο":"O","Π":"P",
   "Ρ":"R","Σ":"S","Τ":"T","Υ":"Y","Φ":"F","Χ":"Ch","Ψ":"Ps","Ω":"O",
@@ -68,16 +71,14 @@ const GREEK = {
   "ι":"i","κ":"k","λ":"l","μ":"m","ν":"n","ξ":"x","ο":"o","π":"p",
   "ρ":"r","σ":"s","ς":"s","τ":"t","υ":"y","φ":"f","χ":"ch","ψ":"ps","ω":"o",
 };
-function transliterate(s) {
+function transliterate(s: string): string {
   let out = "";
   for (const ch of String(s)) out += GREEK[ch] ?? ch;
   return out;
 }
 
-// WinAnsi single-byte encoding (CP1252). Maps the high-range chars we
-// actually use (€, bullets, en-dash, smart quotes, etc.); everything
-// outside falls back to '?'.
-const WINANSI_MAP = {
+// WinAnsi single-byte encoding (CP1252) for the high-range chars we use.
+const WINANSI_MAP: Record<number, number> = {
   0x20AC:0x80, 0x201A:0x82, 0x0192:0x83, 0x201E:0x84, 0x2026:0x85,
   0x2020:0x86, 0x2021:0x87, 0x02C6:0x88, 0x2030:0x89, 0x0160:0x8A,
   0x2039:0x8B, 0x0152:0x8C, 0x017D:0x8E, 0x2018:0x91, 0x2019:0x92,
@@ -85,10 +86,10 @@ const WINANSI_MAP = {
   0x02DC:0x98, 0x2122:0x99, 0x0161:0x9A, 0x203A:0x9B, 0x0153:0x9C,
   0x017E:0x9E, 0x0178:0x9F,
 };
-function toWinAnsi(s) {
-  const out = [];
+function toWinAnsi(s: string): number[] {
+  const out: number[] = [];
   for (const ch of transliterate(s)) {
-    const cp = ch.codePointAt(0);
+    const cp = ch.codePointAt(0) ?? 0;
     if (cp < 0x80 || (cp >= 0xA0 && cp <= 0xFF)) out.push(cp);
     else if (WINANSI_MAP[cp] !== undefined) out.push(WINANSI_MAP[cp]);
     else out.push(0x3F); // ?
@@ -97,7 +98,7 @@ function toWinAnsi(s) {
 }
 
 // Build a PDF string literal — wraps in () and escapes ( ) \ .
-function pdfStr(s) {
+function pdfStr(s: string): string {
   const bs = toWinAnsi(s);
   let out = "(";
   for (const b of bs) {
@@ -107,41 +108,34 @@ function pdfStr(s) {
   return out + ")";
 }
 
-/* downloadPDF(filename, doc)
-   doc = {
-     title:    string  — large headline at the top
-     subtitle: string? — secondary headline
-     meta:     string[]? — small grey lines under the subtitle
-     table:    { cols: string[], rows: string[][], rightCols?: number[] }?
-     totals:   [label, value][]? — right-aligned summary lines
-     footer:   string[]? — small grey paragraphs at the bottom
-   }
-*/
-export function downloadPDF(filename, doc) {
-  trigger(new Blob([buildPDFBytes(doc)], { type: "application/pdf" }), filename);
+export interface PdfDoc {
+  title?: string;
+  subtitle?: string;
+  meta?: string[];
+  table?: { cols: string[]; rows: (string | number)[][]; rightCols?: number[] };
+  totals?: string[][];
+  footer?: string[];
 }
 
-export function buildPDFBytes(doc) {
+export function downloadPDF(filename: string, doc: PdfDoc) {
+  trigger(new Blob([buildPDFBytes(doc) as BlobPart], { type: "application/pdf" }), filename);
+}
+
+export function buildPDFBytes(doc: PdfDoc): Uint8Array {
   // Page geometry: A4 portrait (595 × 842 pt). Margins 50pt left/right.
   const W = 595, MARGIN = 50, RIGHT = 545;
-  const stream = [];
+  const stream: string[] = [];
   let y = 800;
 
   // --- drawing helpers (write into the content stream) -------------------
-  const setFont = (key, size) => stream.push(`/${key} ${size} Tf`);
-  const setGrey = (g) => stream.push(`${g} ${g} ${g} rg`);
+  const setFont = (key: string, size: number) => stream.push(`/${key} ${size} Tf`);
+  const setGrey = (g: number) => stream.push(`${g} ${g} ${g} rg`);
   const black = () => stream.push(`0 0 0 rg`);
-  const text = (x, yy, s) => stream.push(`BT ${x} ${yy} Td ${pdfStr(s)} Tj ET`);
-  const rectFill = (x, yy, w, h, g) => stream.push(`${g} ${g} ${g} rg ${x} ${yy} ${w} ${h} re f`);
-  const line = (x1, y1, x2, y2, g = 0.85) => stream.push(`${g} ${g} ${g} RG 0.6 w ${x1} ${y1} m ${x2} ${y2} l S`);
+  const text = (x: number, yy: number, s: string) => stream.push(`BT ${x} ${yy} Td ${pdfStr(s)} Tj ET`);
+  const line = (x1: number, y1: number, x2: number, y2: number, g = 0.85) => stream.push(`${g} ${g} ${g} RG 0.6 w ${x1} ${y1} m ${x2} ${y2} l S`);
 
-  // Cheap text-width estimate for Helvetica at the given size — good enough
-  // to right-align prices. Real metrics aren't worth the bytes here.
-  const tw = (s, size) => {
-    // average glyph ~0.5em; digits and . slightly narrower
-    const wa = toWinAnsi(s).length;
-    return wa * size * 0.5;
-  };
+  // Cheap text-width estimate for Helvetica — good enough to right-align prices.
+  const tw = (s: string, size: number) => toWinAnsi(s).length * size * 0.5;
 
   // --- title block --------------------------------------------------------
   black();
@@ -158,9 +152,8 @@ export function buildPDFBytes(doc) {
   if (doc.table) {
     const { cols, rows, rightCols = [] } = doc.table;
     const n = cols.length;
-    // Column x positions: first col wide, rest evenly spaced on the right.
     const restW = 300;
-    const colX = [MARGIN];
+    const colX: number[] = [MARGIN];
     const stepW = restW / (n - 1);
     for (let i = 1; i < n; i++) colX.push(RIGHT - restW + (i - 1) * stepW);
     // header
@@ -201,7 +194,7 @@ export function buildPDFBytes(doc) {
   }
 
   // --- assemble PDF objects ----------------------------------------------
-  const objects = [];
+  const objects: string[] = [];
   objects[1] = `<< /Type /Catalog /Pages 2 0 R >>`;
   objects[2] = `<< /Type /Pages /Kids [3 0 R] /Count 1 >>`;
   objects[3] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> >> /Contents 6 0 R >>`;
@@ -212,7 +205,7 @@ export function buildPDFBytes(doc) {
 
   // Concatenate into a binary string with byte-accurate offsets.
   let body = "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
-  const offsets = [];
+  const offsets: number[] = [];
   for (let i = 1; i <= 6; i++) {
     offsets[i] = body.length;
     body += `${i} 0 obj\n${objects[i]}\nendobj\n`;
@@ -230,12 +223,10 @@ export function buildPDFBytes(doc) {
 
 /* ============================================================
    Zero-dependency ZIP writer (STORE / no compression).
-   Used by "Download all (ZIP)" so the customer gets one bundle.
    ============================================================ */
 
-// CRC32 table — built once on first use.
-let CRC_TABLE = null;
-function crc32(bytes) {
+let CRC_TABLE: Uint32Array | null = null;
+function crc32(bytes: Uint8Array): number {
   if (!CRC_TABLE) {
     CRC_TABLE = new Uint32Array(256);
     for (let n = 0; n < 256; n++) {
@@ -250,15 +241,19 @@ function crc32(bytes) {
 }
 
 // Write a little-endian uint16 / uint32 into a Uint8Array at offset.
-function w16(buf, o, v) { buf[o] = v & 0xFF; buf[o + 1] = (v >>> 8) & 0xFF; }
-function w32(buf, o, v) {
+function w16(buf: Uint8Array, o: number, v: number) { buf[o] = v & 0xFF; buf[o + 1] = (v >>> 8) & 0xFF; }
+function w32(buf: Uint8Array, o: number, v: number) {
   buf[o] = v & 0xFF; buf[o + 1] = (v >>> 8) & 0xFF;
   buf[o + 2] = (v >>> 16) & 0xFF; buf[o + 3] = (v >>> 24) & 0xFF;
 }
 
+export interface ZipFile {
+  name: string;
+  content: Uint8Array | string;
+}
+
 // Build a ZIP (STORE) in memory and return the bytes.
-// files: [{ name: string, content: Uint8Array | string }]
-export function zipBytes(files) {
+export function zipBytes(files: ZipFile[]): Uint8Array {
   const enc = new TextEncoder();
   const entries = files.map((f) => {
     const data = typeof f.content === "string" ? enc.encode(f.content) : f.content;
@@ -266,8 +261,8 @@ export function zipBytes(files) {
   });
 
   // Local file headers + data
-  const localParts = [];
-  const centralParts = [];
+  const localParts: Uint8Array[] = [];
+  const centralParts: Uint8Array[] = [];
   let offset = 0;
   for (const e of entries) {
     const localHdr = new Uint8Array(30 + e.name.length);
@@ -322,6 +317,6 @@ export function zipBytes(files) {
   return out;
 }
 
-export function downloadZIP(filename, files) {
-  trigger(new Blob([zipBytes(files)], { type: "application/zip" }), filename);
+export function downloadZIP(filename: string, files: ZipFile[]) {
+  trigger(new Blob([zipBytes(files) as BlobPart], { type: "application/zip" }), filename);
 }
