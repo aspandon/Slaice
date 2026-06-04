@@ -8,6 +8,7 @@ import { CommandPalette } from "./components/CommandPalette.jsx";
 import { BeachBackdrop } from "./components/Beach.jsx";
 import { routeFor } from "./routes.jsx";
 import { parseHash, buildHash } from "./app/router.js";
+import { HTML_LANG } from "./app/i18n.js";
 
 const DEFAULT_CONSENT = { necessary: true, analytics: false, marketing: false, decided: false, ts: null };
 
@@ -42,6 +43,11 @@ export default function App() {
 
   // Record a consent decision with a timestamp (used by the cookie banner and
   // the customer Privacy Centre; surfaced in the admin consent audit).
+  // Keep <html lang> in sync with the chosen language (a11y / SEO correctness).
+  useEffect(() => {
+    document.documentElement.lang = HTML_LANG[lang] || "en";
+  }, [lang]);
+
   const setConsent = useCallback((patch) => {
     setConsentState((c) => ({ ...c, ...patch, decided: true, ts: new Date().toISOString() }));
   }, []);

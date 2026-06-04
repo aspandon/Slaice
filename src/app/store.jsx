@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect } from "react";
+import { translate } from "./i18n.js";
 
 // Global app context: toasts, cross-persona navigation, auth + tenant theme.
 // `hint` is an optional spotlight set by go(...,{spotlight,tip}) so the
@@ -19,6 +20,12 @@ export const AppCtx = createContext({
 });
 
 export const useApp = () => useContext(AppCtx);
+
+// Translation helper bound to the active language: t(key, fallback).
+export function useT() {
+  const { lang } = useContext(AppCtx);
+  return (key, fallback) => translate(lang, key, fallback);
+}
 
 // When the active hint matches the current persona+page, find the element
 // with data-spotlight="<name>", scroll it into view and add a teal pulse
