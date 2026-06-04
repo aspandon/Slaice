@@ -40,38 +40,37 @@ export function Reveal({ as: Tag = "div", delay = 0, className = "", children, .
   );
 }
 
-/* useCountUp — animates from 0 → value when the element enters the viewport.
+/* useCountUp — animates from 0 → value once, on mount.
    Returns { ref, display } where display is the formatted current number.
-   `format` receives the live numeric value. */
-export function useCountUp(value, { duration = 900, format = (n) => Math.round(n).toLocaleString() } = {}) {
+   `format` receives the live numeric value.
+
+   The animation runs as soon as the component mounts rather than waiting for an
+   IntersectionObserver: a stat that sits below the fold was previously stuck at
+   "0" until the user happened to scroll it into view, which reads as broken /
+   missing data on a dashboard. Pass `instant` to skip the animation entirely
+   (operational/ops screens where the real figure should appear immediately). */
+export function useCountUp(value, { duration = 900, instant = false, format = (n) => Math.round(n).toLocaleString() } = {}) {
   const ref = useRef(null);
-  const [display, setDisplay] = useState(() => format(prefersReducedMotion() ? value : 0));
+  const skip = instant || prefersReducedMotion();
+  const [display, setDisplay] = useState(() => format(skip ? value : 0));
   const started = useRef(false);
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    if (prefersReducedMotion()) { setDisplay(format(value)); return; }
-    const run = () => {
-      if (started.current) return;
-      started.current = true;
-      const t0 = performance.now();
-      const tick = (t) => {
-        const p = Math.min(1, (t - t0) / duration);
-        // easeOutCubic
-        const eased = 1 - Math.pow(1 - p, 3);
-        setDisplay(format(value * eased));
-        if (p < 1) requestAnimationFrame(tick);
-        else setDisplay(format(value));
-      };
-      requestAnimationFrame(tick);
+    if (skip) { setDisplay(format(value)); return; }
+    // Only animate the very first time; later value changes jump straight there.
+    if (started.current) { setDisplay(format(value)); return; }
+    started.current = true;
+    const t0 = performance.now();
+    let raf = 0;
+    const tick = (t) => {
+      const p = Math.min(1, (t - t0) / duration);
+      const eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
+      setDisplay(format(value * eased));
+      if (p < 1) raf = requestAnimationFrame(tick);
+      else setDisplay(format(value));
     };
-    const io = new IntersectionObserver(
-      (entries) => entries.forEach((e) => e.isIntersecting && run()),
-      { threshold: 0.4 }
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [value, duration]);
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [value, duration, skip]);
   return { ref, display };
 }
 

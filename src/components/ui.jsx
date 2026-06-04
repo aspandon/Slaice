@@ -171,7 +171,7 @@ export function EmptyState({ icon: IconC = Icon.inbox, title, body, action, comp
    number with a leading €/% wrapper via numPrefix/numSuffix) the figure counts
    up on first view for a lively, Apple-like dashboard. `trend` shows a small
    up/down delta chip. */
-export function StatCard({ label, value, sub, tone = "navy", delta, trend, sparkline }) {
+export function StatCard({ label, value, sub, tone = "navy", delta, trend, sparkline, instant = false }) {
   const stripe = {
     navy: "bg-navy-900/60",
     teal: "bg-teal-500",
@@ -180,9 +180,12 @@ export function StatCard({ label, value, sub, tone = "navy", delta, trend, spark
     rose: "bg-rose-500",
   }[tone] || "bg-slate-300";
   // Parse "€33.4k", "1,284", "71%" → animate the numeric part, keep affixes.
+  // `instant` skips the count-up (operational dashboards show the real figure
+  // immediately rather than ticking up from zero).
   const parsed = useMemo(() => parseMetric(value), [value]);
   const { ref, display } = useCountUp(parsed ? parsed.n : 0, {
     duration: 1000,
+    instant,
     format: (n) => parsed ? parsed.fmt(n) : "",
   });
   const trendUp = trend && !String(trend).trim().startsWith("-") && !String(trend).trim().startsWith("−");

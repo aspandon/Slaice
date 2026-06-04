@@ -66,10 +66,10 @@ export function ControllerScan() {
 
       {/* Gate throughput analytics (P5.3) */}
       <div className="grid sm:grid-cols-4 gap-4 mt-4">
-        <StatCard label="Scanned today" value="1,284" sub="entries validated" tone="teal" trend="+6%" />
-        <StatCard label="Throughput" value="312/hr" sub="peak 11:00–13:00" />
-        <StatCard label="No-shows" value="2.8%" sub="booked, not arrived" tone="amber" />
-        <StatCard label="Duplicate scans" value="4" sub="flagged today" tone="rose" />
+        <StatCard instant label="Scanned today" value="1,284" sub="entries validated" tone="teal" trend="+6%" />
+        <StatCard instant label="Throughput" value="312/hr" sub="peak 11:00–13:00" />
+        <StatCard instant label="No-shows" value="2.8%" sub="booked, not arrived" tone="amber" />
+        <StatCard instant label="Duplicate scans" value="4" sub="flagged today" tone="rose" />
       </div>
       <Card className="p-5 mt-4">
         <div className="font-semibold text-navy-900 mb-1">Gate throughput by hour</div>
