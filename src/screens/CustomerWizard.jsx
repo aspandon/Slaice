@@ -533,13 +533,17 @@ function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, day
             </button>
           )}
         </div>
-        <div className="rounded-lg bg-gradient-to-b from-amber-50 to-amber-100/60 ring-1 ring-amber-200/70 p-2 max-h-[260px] overflow-auto no-scrollbar">
-          <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(14,minmax(0,1fr))" }}>
+        {/* Auto-fill columns keep each umbrella a healthy size and reflow with the
+            container — bigger, densely-packed beds on desktop; ~6 tappable columns
+            on phones — instead of 14 fixed columns that stranded tiny 16px glyphs
+            in huge cells. `fill` scales each glyph to its cell. */}
+        <div className="rounded-lg bg-gradient-to-b from-amber-50 to-amber-100/60 ring-1 ring-amber-200/70 p-2 max-h-[300px] sm:max-h-[360px] overflow-auto no-scrollbar">
+          <div className="grid gap-1 sm:gap-1.5 grid-cols-[repeat(auto-fill,minmax(40px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(50px,1fr))]">
             {grid.map((b) => {
               const isSel = !!bedSel.find((x) => x.id === b.id);
               return (
-                <div key={b.id} className="aspect-square grid place-items-center" style={{ lineHeight: 0 }}>
-                  <Sunbed state={b.s} sel={isSel} label={b.id} price={b.price} onClick={() => toggleBed(b.id, b.price)} size={16} />
+                <div key={b.id} className="aspect-square p-0.5" style={{ lineHeight: 0 }}>
+                  <Sunbed block fill state={b.s} sel={isSel} label={b.id} price={b.price} onClick={() => toggleBed(b.id, b.price)} />
                 </div>
               );
             })}
