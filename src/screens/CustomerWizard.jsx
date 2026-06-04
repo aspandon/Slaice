@@ -221,25 +221,25 @@ export function CustomerWizard() {
                 }}
               />
             )}
+            {/* Footer nav — moved inside the step card so each step's Back /
+                Continue sit on the same surface as its content. */}
+            <div className="flex items-center justify-between gap-3 mt-6 pt-4 border-t border-slate-200/70">
+              <Btn variant="ghost" icon={Icon.arrowL} onClick={back} disabled={stepIdx === 0}>Back</Btn>
+              <div className="text-[12px] text-slate-500 hidden sm:block">
+                {step.optional && <button onClick={next} className="font-semibold hover:text-navy-900">Skip this step →</button>}
+              </div>
+              {stepIdx < STEPS.length - 1 ? (
+                <Btn variant="teal" onClick={next} disabled={!canNext}>
+                  Continue <Icon.arrowR size={15} />
+                </Btn>
+              ) : (
+                <Btn variant="dark" icon={Icon.card} onClick={confirm} disabled={grandTotal === 0}>
+                  Confirm & checkout · €{grandTotal}
+                </Btn>
+              )}
+            </div>
           </Card>
         </Reveal>
-
-        {/* Footer nav */}
-        <div className="flex items-center justify-between gap-3">
-          <Btn variant="ghost" icon={Icon.arrowL} onClick={back} disabled={stepIdx === 0}>Back</Btn>
-          <div className="text-[12px] text-slate-500 hidden sm:block">
-            {step.optional && <button onClick={next} className="font-semibold hover:text-navy-900">Skip this step →</button>}
-          </div>
-          {stepIdx < STEPS.length - 1 ? (
-            <Btn variant="teal" onClick={next} disabled={!canNext}>
-              Continue <Icon.arrowR size={15} />
-            </Btn>
-          ) : (
-            <Btn variant="dark" icon={Icon.card} onClick={confirm} disabled={grandTotal === 0}>
-              Confirm & checkout · €{grandTotal}
-            </Btn>
-          )}
-        </div>
       </div>
 
       {/* ============ RIGHT: live basket panel (desktop) ============ */}
