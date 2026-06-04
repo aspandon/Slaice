@@ -14,13 +14,23 @@ import {
   UsersRound, ShieldCheck, ShieldAlert, FileDown, Database, SlidersHorizontal,
   Sparkles, CircleHelp, Wallet, LogOut, Moon, Armchair,
 } from "lucide-react";
+import type { LucideIcon, LucideProps } from "lucide-react";
+import type { ReactElement } from "react";
+
+// Our icon props: lucide's, plus the legacy `sw` (stroke width) alias.
+type IconProps = LucideProps & { sw?: number };
+export type IconRenderer = (props: IconProps) => ReactElement;
 
 // Wrap a lucide component so it accepts our { size, className, sw } props.
-const w = (L) => ({ size = 18, className = "", sw = 1.75, ...rest }) => (
-  <L size={size} className={className} strokeWidth={sw} absoluteStrokeWidth {...rest} />
-);
+const w =
+  (L: LucideIcon): IconRenderer =>
+  ({ size = 18, className = "", sw = 1.75, ...rest }) => (
+    <L size={size} className={className} strokeWidth={sw} absoluteStrokeWidth {...rest} />
+  );
 
-export const Icon = {
+// Typed as a string-indexed record so dynamic lookups (Icon[item.icon]) stay
+// valid once call sites are TypeScript.
+export const Icon: Record<string, IconRenderer> = {
   // — core / navigation —
   umbrella: w(Umbrella),
   ticket: w(Ticket),
