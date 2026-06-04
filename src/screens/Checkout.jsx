@@ -5,6 +5,8 @@ import { QR } from "../components/charts.jsx";
 import { SlaiceLogo, TenantLogo } from "../components/Brand.jsx";
 import { WalletButtons } from "../components/WalletPass.jsx";
 import { TENANT } from "../data/beach.js";
+import { todayISO, toISO } from "../data/beach.js";
+import { downloadICS } from "../lib/download.js";
 import { useApp } from "../app/store.jsx";
 
 const FEE = 0.05; // Slaice application fee (5%)
@@ -176,6 +178,16 @@ export function Confirmation({ inline }) {
 
         <div className="mt-6 flex gap-2 justify-center flex-wrap">
           <Btn variant="teal" icon={Icon.grid} onClick={() => { clearCart(); go("customer", "mybookings"); }}>View my bookings</Btn>
+          <Btn variant="outline" icon={Icon.calendar} onClick={() => {
+            const start = todayISO();
+            const end = toISO(new Date(Date.now() + 86400000));
+            downloadICS(`beach-day-${ref}.ics`, {
+              uid: `${ref}@slaice`, title: `Beach day · ${pass.zone}`, start, end,
+              location: `${TENANT.name}, ${TENANT.place}`,
+              description: `Booking ${ref} · ${pass.seat !== "—" ? "Sunbeds " + pass.seat : "Entry"} · ${pass.total}. Show your QR at the gate.`,
+            });
+            toast("Calendar invite downloaded (.ics).", { tone: "success" });
+          }}>Add to calendar</Btn>
           <Btn variant="outline" icon={Icon.receipt} onClick={() => { clearCart(); go("customer", "mydocs"); }}>View receipt</Btn>
         </div>
       </Card>

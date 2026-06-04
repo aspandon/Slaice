@@ -44,6 +44,16 @@ export function CustomerHome() {
         </div>
       )}
 
+      {/* Returning-guest shortcut — jump straight back to the favourite zone. */}
+      <button onClick={() => go("customer", "book")} className="glass rounded-2xl px-3.5 py-2.5 w-full flex items-center gap-3 text-left hover:bg-white/70 transition group">
+        <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={17} /></span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-[13px] font-semibold text-navy-900">Rebook your usual</span>
+          <span className="block text-[11.5px] text-slate-600 truncate">Central · front row — your favourite zone last season</span>
+        </span>
+        <Icon.chevR size={16} className="text-slate-400 group-hover:text-teal-600 group-hover:translate-x-0.5 transition shrink-0" />
+      </button>
+
       <Reveal as="button" onClick={() => go("customer", "plan")} className="text-left group block w-full">
         <Card hover press className="glass-card-solid relative overflow-hidden p-6 sm:p-9">
           <div aria-hidden className="absolute -top-28 -right-20 w-80 h-80 rounded-full bg-gradient-to-br from-teal-300/45 via-teal-400/20 to-transparent blur-3xl" />
@@ -170,6 +180,7 @@ export function CustomerBooking() {
   const [sel, setSel] = useState([]); // {id, zone, price}
   const [extras, setExtras] = useState({ ticket: false, locker: false });
   const [sheetOpen, setSheetOpen] = useState(false); // mobile basket bottom-sheet
+  const [railOpen, setRailOpen] = useState(false); // mobile: expand Who/When/Where controls
   const [hoveredZone, setHoveredZone] = useState(null); // zone-pill preview
   const [search, setSearch] = useState("");
   const [searchHit, setSearchHit] = useState(null); // {zoneId, bedId} — pulse target
@@ -245,9 +256,12 @@ export function CustomerBooking() {
   };
   const clearSel = () => { const prev = sel; setSel([]); toast("Selection cleared.", { action: { label: "Undo", onClick: () => setSel(prev) } }); };
   const removeCartItem = (it) => { removeFromCart(it.kind, it.id); toast(`Removed ${it.label}.`, { action: { label: "Undo", onClick: () => addToCart(it) } }); };
+  // Bundle pricing — adding a ticket/locker alongside a sunbed is cheaper than
+  // buying it standalone (€10→€8, €5→€4), nudging attach rate.
+  const BUNDLE = { ticket: 8, locker: 4 };
   const dayCount = selDates.length;
   const sunTotal = sel.reduce((a, b) => a + b.price, 0) * dayCount;
-  const extrasTotal = ((extras.ticket ? 10 : 0) + (extras.locker ? 5 : 0)) * dayCount;
+  const extrasTotal = ((extras.ticket ? BUNDLE.ticket : 0) + (extras.locker ? BUNDLE.locker : 0)) * dayCount;
   const total = sunTotal + extrasTotal;
   const focused = step === "grid" && zone;
 
@@ -256,8 +270,8 @@ export function CustomerBooking() {
     selDates.forEach((iso) => {
       const lbl = chipLabel(iso).sub;
       sel.forEach((b) => addToCart({ kind: "sunbed", id: `${b.id}@${iso}`, label: `Sunbed ${b.id}`, sub: `${b.zone} · ${lbl}`, price: b.price }));
-      if (extras.ticket) addToCart({ kind: "ticket", id: `ADULT@${iso}`, label: "Entry ticket — Adult", sub: `Cross-sell · ${lbl}`, price: 10 });
-      if (extras.locker) addToCart({ kind: "locker", id: `LK@${iso}`, label: "Day locker", sub: `Cross-sell · ${lbl}`, price: 5 });
+      if (extras.ticket) addToCart({ kind: "ticket", id: `ADULT@${iso}`, label: "Entry ticket — Adult", sub: `Bundle · ${lbl}`, price: BUNDLE.ticket });
+      if (extras.locker) addToCart({ kind: "locker", id: `LK@${iso}`, label: "Day locker", sub: `Bundle · ${lbl}`, price: BUNDLE.locker });
     });
     const n = sel.length;
     toast(`${n} sunbed${n > 1 ? "s" : ""} × ${dayCount} day${dayCount > 1 ? "s" : ""} added (${dateLabels}).`, { tone: "success" });
@@ -309,7 +323,18 @@ export function CustomerBooking() {
                     </div>
                   </>
                 ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-slate-200/70 border-b border-slate-200/60">
+                  <>
+                    {/* Mobile: collapse the Who/When/Where controls so the beach
+                        map gets room; always expanded from lg up. */}
+                    <button onClick={() => setRailOpen((o) => !o)}
+                      className="lg:hidden w-full flex items-center justify-between px-4 py-2.5 border-b border-slate-200/60 text-left">
+                      <span className="flex items-center gap-2 text-[13px] font-semibold text-navy-900">
+                        <Icon.sparkles size={14} className="text-teal-600" /> Plan your spot
+                        <span className="font-normal text-slate-500">· {dayCount} day{dayCount > 1 ? "s" : ""}</span>
+                      </span>
+                      <Icon.chevD size={16} className={`text-slate-400 transition-transform ${railOpen ? "rotate-180" : ""}`} />
+                    </button>
+                  <div className={`${railOpen ? "grid" : "hidden"} lg:grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-slate-200/70 border-b border-slate-200/60`}>
                     {/* GUESTS — quick-pick presets as the primary control. */}
                     <div data-spotlight="quick-picks" className="p-4">
                       <div className="flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-wider text-slate-500 mb-1">
@@ -378,6 +403,7 @@ export function CustomerBooking() {
                       </div>
                     </div>
                   </div>
+                  </>
                 )}
 
                 {/* Ambient strip — weather context + a discreet sunbed search.
@@ -526,8 +552,8 @@ export function CustomerBooking() {
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Add to your day</div>
                 <div className="space-y-1.5">
-                  <CrossSell on={extras.ticket} onClick={() => setExtras((e) => ({ ...e, ticket: !e.ticket }))} icon={Icon.ticket} title="Entry ticket — Adult" price={10} />
-                  <CrossSell on={extras.locker} onClick={() => setExtras((e) => ({ ...e, locker: !e.locker }))} icon={Icon.lock} title="Day locker" price={5} />
+                  <CrossSell on={extras.ticket} onClick={() => setExtras((e) => ({ ...e, ticket: !e.ticket }))} icon={Icon.ticket} title="Entry ticket — Adult" price={BUNDLE.ticket} was={10} />
+                  <CrossSell on={extras.locker} onClick={() => setExtras((e) => ({ ...e, locker: !e.locker }))} icon={Icon.lock} title="Day locker" price={BUNDLE.locker} was={5} />
                 </div>
               </div>
             )}
@@ -636,14 +662,16 @@ function cartIcon(kind) {
   return <I size={15} />;
 }
 
-function CrossSell({ on, onClick, icon: IconC, title, price, future }) {
+function CrossSell({ on, onClick, icon: IconC, title, price, was, future }) {
+  const saving = was && was > price ? was - price : 0;
   return (
     <button onClick={onClick} className={`w-full flex items-center justify-between rounded-xl px-3 py-2.5 ring-1 transition ${on ? "ring-teal-500 bg-teal-50" : "ring-slate-200 bg-white/70 hover:ring-teal-400"}`}>
       <span className="flex items-center gap-2.5 min-w-0">
         <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${on ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600"}`}><IconC size={16} /></span>
-        <span className="text-left min-w-0"><span className="block text-[13px] font-semibold text-navy-900 flex items-center gap-1.5 truncate">{title}{future && <Badge tone="future">Future</Badge>}</span><span className="block text-[11px] text-slate-600">{on ? "Added to your day" : "Add to your day"}</span></span>
+        <span className="text-left min-w-0"><span className="block text-[13px] font-semibold text-navy-900 flex items-center gap-1.5 truncate">{title}{future && <Badge tone="future">Future</Badge>}</span><span className="block text-[11px] text-slate-600">{saving ? `Bundle & save €${saving}` : on ? "Added to your day" : "Add to your day"}</span></span>
       </span>
       <span className="flex items-center gap-1.5 shrink-0">
+        {saving > 0 && <span className="text-[11px] text-slate-400 line-through tnum">€{was}</span>}
         <span className={`text-[11px] font-bold tnum rounded-full px-2 py-0.5 ${on ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-700"}`}>+€{price}</span>
         <span className={`w-6 h-6 rounded-full grid place-items-center ${on ? "bg-teal-600 text-white" : "ring-1 ring-slate-300 text-slate-500"}`}>{on ? <Icon.check size={14} /> : <Icon.plus size={14} />}</span>
       </span>
@@ -668,8 +696,11 @@ export function CustomerTicket() {
   const perDay = cats.reduce((a, c) => a + c.p * qty[c.k], 0);
   const total = perDay * dayCount;
   const n = Object.values(qty).reduce((a, b) => a + b, 0);
+  // Greek ΑΦΜ is 9 digits — only enforced when a B2B invoice (ΤΠΥ) is requested.
+  const vatOk = !biz || /^\d{9}$/.test(vat.trim());
 
   const pay = () => {
+    if (biz && !vatOk) { toast("Enter a valid 9-digit ΑΦΜ for the invoice.", { tone: "warn" }); return; }
     selDates.forEach((iso) => {
       const sub = chipLabel(iso).sub;
       cats.forEach((c) => qty[c.k] > 0 && addToCart({ kind: "ticket", id: `${c.k}@${iso}`, label: `${c.t} × ${qty[c.k]}`, sub: `Entry ticket · ${sub}`, price: c.p * qty[c.k] }));
@@ -709,7 +740,10 @@ export function CustomerTicket() {
           </div>
           {biz && (
             <div className="grid sm:grid-cols-2 gap-2 mt-3 animate-fade-in">
-              <Field label="VAT number (ΑΦΜ)"><Input value={vat} onChange={(e) => setVat(e.target.value)} placeholder="123456789" /></Field>
+              <Field label="VAT number (ΑΦΜ)" hint={vat && !vatOk ? undefined : "9 digits"}>
+                <Input value={vat} onChange={(e) => setVat(e.target.value.replace(/[^\d]/g, "").slice(0, 9))} inputMode="numeric" placeholder="123456789" aria-invalid={!!(vat && !vatOk)} className={vat && !vatOk ? "ring-2 ring-rose-400" : ""} />
+                {vat && !vatOk && <div className="text-[11px] text-rose-600 flex items-center gap-1 mt-1"><Icon.alert size={11} /> ΑΦΜ must be 9 digits.</div>}
+              </Field>
               <Field label="Company name"><Input placeholder="Acme Ltd." /></Field>
             </div>
           )}
@@ -719,7 +753,7 @@ export function CustomerTicket() {
           <div className="text-slate-600 text-sm">{n} ticket(s) × {dayCount} day{dayCount > 1 ? "s" : ""}{biz ? " · ΤΠΥ" : " · ΑΠΥ"}</div>
           <div className="text-2xl font-bold font-display text-navy-900 tnum">€{total}</div>
         </div>
-        <Btn variant="teal" full size="lg" icon={Icon.card} disabled={!n} onClick={pay}>Add €{total} to basket</Btn>
+        <Btn variant="teal" full size="lg" icon={Icon.card} disabled={!n || !vatOk} onClick={pay}>Add €{total} to basket</Btn>
       </Card>
 
       {/* "About entry tickets" — now stacked below the main box rather than
@@ -748,7 +782,7 @@ export function CustomerTicket() {
             <div className="text-[13px] font-semibold text-navy-900 truncate">{n ? `${n} ticket${n > 1 ? "s" : ""} · €${total}` : "No tickets yet"}</div>
             <div className="text-[11px] text-slate-500">{biz ? "ΤΠΥ invoice" : "ΑΠΥ receipt"} · {dayCount} day{dayCount > 1 ? "s" : ""}</div>
           </div>
-          <Btn variant="teal" size="md" icon={Icon.card} disabled={!n} onClick={pay}>Add €{total}</Btn>
+          <Btn variant="teal" size="md" icon={Icon.card} disabled={!n || !vatOk} onClick={pay}>Add €{total}</Btn>
         </div>
       </StickyActionBar>
     </div>
