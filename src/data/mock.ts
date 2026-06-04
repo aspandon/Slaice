@@ -66,7 +66,7 @@ export const CUSTOMER_DOCS: CustomerDocument[] = [
 ];
 
 // Admin all bookings (tenant-wide) — channel: Online | Walk-in | Phone | Cashier
-export const ADMIN_BOOKINGS = [
+export const ADMIN_BOOKINGS: [string, string, string, string, string, string, number][] = [
   ["#BK-10428", "Elena V.", "Central · CE-89", "19 Jul", "Online", "Confirmed", 30],
   ["#BK-10427", "Walk-in", "Macaw · MC-04", "19 Jul", "Walk-in", "Confirmed", 35],
   ["#BK-10426", "Nikos P.", "Bestbuy · BE-12", "19 Jul", "Online", "Confirmed", 44],
@@ -222,7 +222,7 @@ export const TOP_CUSTOMERS = [
 ];
 
 // Reporting · Revenue · Transactions tab
-export const REVENUE_TX = [
+export const REVENUE_TX: [string, string, { tone: string; label: string }, { tone: string; label: string }, string][] = [
   ["#TX-88210", "Sunbed", { tone: "blue", label: "Online" }, { tone: "green", label: "Paid" }, "€30"],
   ["#TX-88209", "Ticket", { tone: "amber", label: "Cashier" }, { tone: "green", label: "Paid" }, "€20"],
   ["#TX-88208", "Sunbed", { tone: "blue", label: "Online" }, { tone: "green", label: "Paid" }, "€44"],
@@ -242,7 +242,7 @@ export const REVENUE_TX = [
 ];
 
 // Reporting · Tickets tab
-export const REPORTING_TICKETS = [
+export const REPORTING_TICKETS: [string, string, string, string, string, string, { tone: string; label: string }][] = [
   ["#TK-55122", "Resident ×3", "Customer", "19 Jul", "Regular", "€18", { tone: "green", label: "Valid" }],
   ["#TK-55121", "Adult", "Controller", "19 Jul", "Walk-in", "€10", { tone: "green", label: "Valid" }],
   ["#TK-55120", "Adult ×2", "Customer", "19 Jul", "VIP", "€20", { tone: "green", label: "Valid" }],
@@ -260,7 +260,7 @@ export const REPORTING_TICKETS = [
 ];
 
 // Reporting · Daily ops tab
-export const DAILY_OPS = [
+export const DAILY_OPS: [string, number, string, string, string][] = [
   ["Sunbed bookings", 214, "€6,420", "−€60", "€6,360"],
   ["Entry tickets", 512, "€4,180", "€0", "€4,180"],
   ["Day lockers", 38, "€190", "€0", "€190"],

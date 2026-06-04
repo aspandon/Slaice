@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { Icon } from "../lib/icons";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, ErrorState, useMockLoad, FutureBanner, ContextPanel } from "../components/ui";
+import type { TabEntry } from "../components/ui";
 import { BarChart, HBarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts";
 import { ZONES } from "../data/beach";
 import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS } from "../data/mock";
@@ -14,12 +16,12 @@ import { useAsync } from "../lib/useAsync";
 export function AdminDashboard() {
   const { go } = useApp();
   const [period, setPeriod] = useState("week");
-  const rev = {
+  const rev = ({
     day: [{ l: "8h", v: 400 }, { l: "10h", v: 900 }, { l: "12h", v: 1500, hi: 1 }, { l: "14h", v: 1300 }, { l: "16h", v: 1100 }, { l: "18h", v: 700 }],
     week: [{ l: "Mon", v: 3200 }, { l: "Tue", v: 2950 }, { l: "Wed", v: 3600 }, { l: "Thu", v: 4100 }, { l: "Fri", v: 5200, hi: 1 }, { l: "Sat", v: 7400, hi: 1 }, { l: "Sun", v: 6900, hi: 1 }],
     month: [{ l: "W1", v: 21000 }, { l: "W2", v: 24500 }, { l: "W3", v: 28800, hi: 1 }, { l: "W4", v: 26400 }],
     year: [{ l: "May", v: 48 }, { l: "Jun", v: 121 }, { l: "Jul", v: 198, hi: 1 }, { l: "Aug", v: 241, hi: 1 }, { l: "Sep", v: 96 }],
-  }[period];
+  } as Record<string, { l: string; v: number; hi?: number }[]>)[period];
   return (
     <div className="animate-fade-up">
       <PageHead title="Dashboard" sub="Akti tou Iliou · bookings & revenue overview" badge={<Badge tone="mvp">MVP</Badge>}
@@ -63,7 +65,7 @@ export function AdminDashboard() {
     </div>
   );
 }
-const Leg = ({ c, t }) => <div className="flex items-center gap-2"><i className={`w-3 h-3 rounded-sm ${c} inline-block`} />{t}</div>;
+const Leg = ({ c, t }: { c: string; t: ReactNode }) => <div className="flex items-center gap-2"><i className={`w-3 h-3 rounded-sm ${c} inline-block`} />{t}</div>;
 
 /* ============ AVAILABILITY & PRICING ============ */
 export function AdminAvailability() {
@@ -98,18 +100,19 @@ export function AdminAvailability() {
 }
 
 /* ============ MAP LAYOUT EDITOR ============ */
+interface EditorZone { id: string; name: string; prefix: string; color: string; total: number; rows: number; cols: number; x: number; y: number; }
 export function AdminMapEditor() {
   const { toast } = useApp();
   // Each zone has a name, prefix, colour, rows, cols, and a position in % of the canvas.
-  const [zones, setZones] = useState(() => ZONES.map((z, i) => ({
+  const [zones, setZones] = useState<EditorZone[]>(() => ZONES.map((z, i) => ({
     id: z.id, name: z.name, prefix: z.prefix, color: z.color, total: z.total,
     rows: 8, cols: Math.max(6, Math.round(z.total / 8)),
     x: 6 + (i % 3) * 32, y: 16 + Math.floor(i / 3) * 38,
   })));
   const [selectedId, setSelectedId] = useState(zones[0].id);
-  const selected = zones.find((z) => z.id === selectedId);
-  const update = (id, patch) => setZones((zs) => zs.map((z) => (z.id === id ? { ...z, ...patch } : z)));
-  const remove = (id) => setZones((zs) => (zs.length > 1 ? zs.filter((z) => z.id !== id) : zs));
+  const selected = zones.find((z) => z.id === selectedId) ?? zones[0];
+  const update = (id: string, patch: Partial<EditorZone>) => setZones((zs) => zs.map((z) => (z.id === id ? { ...z, ...patch } : z)));
+  const remove = (id: string) => setZones((zs) => (zs.length > 1 ? zs.filter((z) => z.id !== id) : zs));
   const add = () => {
     const palette = ["#0ea5e9", "#22c55e", "#f59e0b", "#a855f7", "#ef4444", "#6366f1", "#14b8a6"];
     const used = new Set(zones.map((z) => z.color));
@@ -118,17 +121,20 @@ export function AdminMapEditor() {
     const z = { id, name: `Zone ${zones.length + 1}`, prefix: `Z${zones.length + 1}`, color, total: 60, rows: 6, cols: 10, x: 30, y: 40 };
     setZones((zs) => [...zs, z]); setSelectedId(id);
   };
-  const canvasRef = useRef(null);
-  const dragRef = useRef(null);
-  const onPointerDown = (e, id) => {
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>, id: string) => {
     setSelectedId(id);
-    const r = canvasRef.current.getBoundingClientRect();
+    const canvas = canvasRef.current;
     const z = zones.find((x) => x.id === id);
+    if (!canvas || !z) return;
+    const r = canvas.getBoundingClientRect();
     dragRef.current = { id, dx: e.clientX - (r.left + (z.x / 100) * r.width), dy: e.clientY - (r.top + (z.y / 100) * r.height) };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
-  const onPointerMove = (e) => {
-    const d = dragRef.current; if (!d) return;
+  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    if (!d || !canvasRef.current) return;
     const r = canvasRef.current.getBoundingClientRect();
     const x = ((e.clientX - d.dx - r.left) / r.width) * 100;
     const y = ((e.clientY - d.dy - r.top) / r.height) * 100;
@@ -238,7 +244,7 @@ export function AdminBookings() {
   const all = ADMIN_BOOKINGS;
   const loading = useMockLoad();
   const rows = all.filter((r) => (r[0] + r[1] + r[2]).toLowerCase().includes(q.toLowerCase()));
-  const chan = (c) => ({ Online: "blue", "Walk-in": "amber", Phone: "indigo", Cashier: "green" }[c] || "slate");
+  const chan = (c: string) => ({ Online: "blue", "Walk-in": "amber", Phone: "indigo", Cashier: "green" }[c] || "slate");
   const exportCSV = () => {
     downloadCSV("bookings.csv", ["Booking", "Customer", "Sunbed", "Date", "Channel", "Status", "Amount (€)"], rows);
     toast(`Exported ${rows.length} bookings to CSV.`, { tone: "success" });
@@ -318,7 +324,7 @@ export function AdminUsers() {
   const customersQ = useAsync(listCustomers);
   const users = (customersQ.status === "success" ? customersQ.data : []).map((c) => ({ n: c.name, e: c.email, b: c.bookings, tags: c.tags }));
   const allTags = ["All", "VIP", "Season pass", "Regular", "New"];
-  const tagTone = (t) => ({ VIP: "amber", "Season pass": "blue", Regular: "slate", New: "green" }[t] || "slate");
+  const tagTone = (t: string) => ({ VIP: "amber", "Season pass": "blue", Regular: "slate", New: "green" }[t] || "slate");
   const rows = users.filter((u) => (tagFilter === "All" || u.tags.includes(tagFilter)) && (u.n + u.e).toLowerCase().includes(q.toLowerCase()));
   return (
     <div className="animate-fade-up">
@@ -355,7 +361,7 @@ export function AdminUsers() {
 export function AdminReporting() {
   const { toast } = useApp();
   const [tab, setTab] = useState("exec");
-  const tabs = [
+  const tabs: TabEntry[] = [
     ["exec", "Executive", Icon.chart],
     ["revenue", "Revenue", Icon.cash],
     ["occupancy", "Occupancy", Icon.umbrella],
@@ -440,7 +446,7 @@ export function AdminReporting() {
               { max: 0.80, color: "#fbbf24", label: "60–80%",  tone: "Busy" },
               { max: 1.01, color: "#ef4444", label: "80–100%", tone: "Peak" },
             ];
-            const colorFor = (v) => (buckets.find((b) => v <= b.max) || buckets[buckets.length - 1]).color;
+            const colorFor = (v: number) => (buckets.find((b) => v <= b.max) || buckets[buckets.length - 1]).color;
             return (
               <>
                 <div className="space-y-1.5">
@@ -516,7 +522,7 @@ export function AdminReporting() {
 /* ============ REFUNDS ============ */
 export function AdminRefunds() {
   const { toast } = useApp();
-  const [modal, setModal] = useState(null);
+  const [modal, setModal] = useState<number | null>(null);
   const [period, setPeriod] = useState("month");
   const [rows, setRows] = useState(ADMIN_REFUNDS);
   const refunded = rows.filter((r) => r.status === "Refunded").reduce((a, b) => a + b.amount, 0);
@@ -619,13 +625,13 @@ export function AdminCommunicate() {
 export function AdminPrivacy() {
   const { toast } = useApp();
   const [tab, setTab] = useState("requests");
-  const tabs = [
+  const tabs: TabEntry[] = [
     ["requests", "Data requests", Icon.inbox],
     ["consent", "Consent audit", Icon.sliders],
     ["retention", "Retention", Icon.clock],
     ["ropa", "Processing register", Icon.database],
   ];
-  const slaTone = (d) => d < 0 ? "slate" : d <= 10 ? "red" : d <= 20 ? "amber" : "green";
+  const slaTone = (d: number) => d < 0 ? "slate" : d <= 10 ? "red" : d <= 20 ? "amber" : "green";
   const open = DSAR_QUEUE.filter((r) => r.status !== "Completed");
   return (
     <div className="animate-fade-up">
