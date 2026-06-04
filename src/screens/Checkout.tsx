@@ -1,13 +1,15 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { Icon } from "../lib/icons";
+import type { IconRenderer } from "../lib/icons";
 import { Card, Btn, Badge, PageHead, EmptyState } from "../components/ui";
 import { QR } from "../components/charts";
 import { SlaiceLogo, TenantLogo } from "../components/Brand";
 import { WalletButtons } from "../components/WalletPass";
-import { TENANT } from "../data/beach";
-import { todayISO, toISO } from "../data/beach";
+import { TENANT, todayISO, toISO } from "../data/beach";
 import { downloadICS } from "../lib/download";
 import { useApp } from "../app/store";
+import type { CartItem } from "../domain/types";
 import { SLAICE_FEE_RATE, STRIPE_FEE_RATE } from "../domain/pricing";
 
 // Stable booking-reference sequence — avoids the collisions/irreproducibility of
@@ -17,15 +19,14 @@ const nextBookingRef = () => "BK-" + ++BOOKING_SEQ;
 
 export function Checkout() {
   const { cart, removeFromCart, addToCart, go, toast } = useApp();
-  const [phase, setPhase] = useState("cart"); // cart | redirect | done
+  const [phase, setPhase] = useState<"cart" | "redirect" | "done">("cart");
   // The buyer never needs the marketplace split — it's hidden by default and
-  // revealed only via an explicit demo toggle (real customers see Subtotal →
-  // Total; the commission/payout breakdown lives in the Accountant views).
+  // revealed only via an explicit demo toggle.
   const [showEconomics, setShowEconomics] = useState(false);
   const total = cart.reduce((a, b) => a + b.price, 0);
   const fee = +(total * SLAICE_FEE_RATE).toFixed(2);
   const stripeFee = +(total * STRIPE_FEE_RATE).toFixed(2);
-  const removeItem = (it) => { removeFromCart(it.kind, it.id); toast(`Removed ${it.label}.`, { action: { label: "Undo", onClick: () => addToCart(it) } }); };
+  const removeItem = (it: CartItem) => { removeFromCart(it.kind, it.id); toast(`Removed ${it.label}.`, { action: { label: "Undo", onClick: () => addToCart(it) } }); };
 
   if (cart.length === 0 && phase === "cart") {
     return (
@@ -103,8 +104,6 @@ export function Checkout() {
 
           <Btn variant="indigo" full size="lg" className="mt-4" icon={Icon.stripe} onClick={() => setPhase("redirect")}>Pay with Stripe</Btn>
 
-          {/* Trust / reassurance (Baymard): payment security, accepted cards,
-              and an at-a-glance cancellation policy before the buyer commits. */}
           <div className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-slate-500"><Icon.lock size={12} /> Secured by Stripe · we never store card details</div>
           <div className="mt-2 flex items-center justify-center gap-1.5 opacity-90">
             {["VISA", "MC", "AMEX", "APPLE"].map((b) => (
@@ -126,17 +125,17 @@ export function Checkout() {
   );
 }
 
-function Row({ l, v, bold, muted }) {
+function Row({ l, v, bold, muted }: { l?: ReactNode; v?: ReactNode; bold?: boolean; muted?: boolean }) {
   return <div className={`flex items-center justify-between text-sm py-0.5 ${bold ? "font-bold text-navy-900 text-base" : muted ? "text-slate-600" : "text-slate-600"}`}><span>{l}</span><span className="tnum">{v}</span></div>;
 }
 
-function kindIcon(kind) {
-  const m = { sunbed: Icon.umbrella, ticket: Icon.ticket, locker: Icon.lock, parking: Icon.car };
+function kindIcon(kind: string) {
+  const m: Record<string, IconRenderer> = { sunbed: Icon.umbrella, ticket: Icon.ticket, locker: Icon.lock, parking: Icon.car };
   const I = m[kind] || Icon.card;
   return <I size={17} />;
 }
 
-export function Confirmation({ inline }) {
+export function Confirmation({ inline }: { inline?: boolean }) {
   const { cart, clearCart, go, toast } = useApp();
   // Stable across re-renders so the QR and wallet pass don't change.
   const [ref] = useState(nextBookingRef);
@@ -169,9 +168,9 @@ export function Confirmation({ inline }) {
         <WalletButtons pass={pass} className="mt-6 pt-5 border-t border-slate-100" />
 
         <div className="mt-6 grid sm:grid-cols-3 gap-2 text-[12px]">
-          <Pill icon={Icon.checkCircle} t="Stripe paid" tone="green" />
-          <Pill icon={Icon.mail} t="QR e-mailed" tone="green" />
-          <Pill icon={Icon.receipt} t="ΑΠΥ → MyDATA ✓" tone="green" />
+          <Pill icon={Icon.checkCircle} t="Stripe paid" />
+          <Pill icon={Icon.mail} t="QR e-mailed" />
+          <Pill icon={Icon.receipt} t="ΑΠΥ → MyDATA ✓" />
         </div>
 
         <div className="mt-6 flex gap-2 justify-center flex-wrap">
@@ -194,6 +193,6 @@ export function Confirmation({ inline }) {
   );
 }
 
-function Pill({ icon: IconC, t, tone }) {
+function Pill({ icon: IconC, t }: { icon: IconRenderer; t?: ReactNode }) {
   return <div className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/15 py-1.5 font-semibold"><IconC size={14} /> {t}</div>;
 }

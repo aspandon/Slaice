@@ -1,3 +1,5 @@
+import type { ReactElement } from "react";
+import type { PersonaId } from "./domain/types";
 import * as C from "./screens/customer";
 import * as CW from "./screens/CustomerWizard";
 import * as CO from "./screens/Checkout";
@@ -7,7 +9,7 @@ import * as CT from "./screens/controller";
 import * as AC from "./screens/accountant";
 import * as P from "./screens/platform";
 
-const MAP = {
+const MAP: Record<string, () => ReactElement> = {
   // customer
   "customer.home": () => <C.CustomerHome />,
   "customer.plan": () => <CW.CustomerWizard />,
@@ -49,7 +51,7 @@ const MAP = {
   "platform.landing": () => <P.PlatformLanding />,
 };
 
-export function routeFor(persona, page) {
+export function routeFor(persona: PersonaId, page: string): ReactElement {
   const fn = MAP[`${persona}.${page}`];
   return fn ? fn() : <A.AdminDashboard />;
 }

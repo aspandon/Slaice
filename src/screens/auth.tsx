@@ -35,7 +35,7 @@ export function AuthGate() {
     toast("Demo — magic link 'sent'. Click continue.");
   };
 
-  const sso = (p) => {
+  const sso = (p: string) => {
     toast(`Demo — ${p} SSO. Signing you in…`);
     setTimeout(() => setSignedIn(true), 500);
   };
