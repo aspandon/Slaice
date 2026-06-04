@@ -1,4 +1,5 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { Icon } from "../lib/icons";
 import { Sheet } from "./ui";
 import { QR } from "./charts";
@@ -7,15 +8,25 @@ import { TENANT } from "../data/beach";
 import { useApp } from "../app/store";
 import { detectWalletPlatform, downloadPkpass, copyGoogleSaveLink } from "../lib/wallet";
 
+export interface WalletPassData {
+  ref: string;
+  holder?: string;
+  date?: string;
+  zone?: string;
+  seat?: string;
+  guests?: number | string;
+  total?: string;
+}
+
 /* ---------- Official-style badges ---------- */
-function AppleLogo({ size = 18 }) {
+function AppleLogo({ size = 18 }: { size?: number }) {
   return (
     <svg viewBox="0 0 24 24" width={size} height={size} fill="currentColor" aria-hidden="true">
       <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.08zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
     </svg>
   );
 }
-function GoogleG({ size = 18 }) {
+function GoogleG({ size = 18 }: { size?: number }) {
   return (
     <svg viewBox="0 0 48 48" width={size} height={size} aria-hidden="true">
       <path fill="#4285F4" d="M45.12 24.5c0-1.56-.14-3.06-.4-4.5H24v8.51h11.84c-.51 2.75-2.06 5.08-4.39 6.64v5.52h7.11c4.16-3.83 6.56-9.47 6.56-16.17z" />
@@ -27,7 +38,7 @@ function GoogleG({ size = 18 }) {
 }
 
 // A black pill that mirrors the official "Add to … Wallet" badges.
-function WalletBadge({ onClick, logo, label }) {
+function WalletBadge({ onClick, logo, label }: { onClick?: () => void; logo?: ReactNode; label?: ReactNode }) {
   return (
     <button
       type="button"
@@ -42,9 +53,8 @@ function WalletBadge({ onClick, logo, label }) {
   );
 }
 
-/* ---------- Public: the two badges + preview/confirm sheet ----------
-   `pass` = { ref, holder, date, zone, seat, guests, total } */
-export function WalletButtons({ pass, className = "" }) {
+/* ---------- Public: the two badges + preview/confirm sheet ---------- */
+export function WalletButtons({ pass, className = "" }: { pass: WalletPassData; className?: string }) {
   const [open, setOpen] = useState(false);
   const platform = detectWalletPlatform();
   // Lead with the badge that matches the user's device.
@@ -61,7 +71,7 @@ export function WalletButtons({ pass, className = "" }) {
 }
 
 /* ---------- The pass preview (looks like a real wallet pass) ---------- */
-function PassPreview({ pass }) {
+function PassPreview({ pass }: { pass: WalletPassData }) {
   return (
     <div className="rounded-3xl overflow-hidden shadow-float ring-1 ring-black/5 max-w-[340px] mx-auto">
       <div className="grad-sea text-white p-5">
@@ -77,10 +87,10 @@ function PassPreview({ pass }) {
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-y-3 gap-x-2">
-          <Field label="Beach zone" value={pass.zone || "Akti tou Iliou"} />
-          <Field label="Date" value={pass.date || "—"} />
-          <Field label="Sunbed" value={pass.seat || "—"} />
-          <Field label="Guests" value={String(pass.guests ?? "—")} />
+          <PassField label="Beach zone" value={pass.zone || "Akti tou Iliou"} />
+          <PassField label="Date" value={pass.date || "—"} />
+          <PassField label="Sunbed" value={pass.seat || "—"} />
+          <PassField label="Guests" value={String(pass.guests ?? "—")} />
         </div>
       </div>
 
@@ -96,7 +106,7 @@ function PassPreview({ pass }) {
     </div>
   );
 }
-function Field({ label, value }) {
+function PassField({ label, value }: { label: ReactNode; value: ReactNode }) {
   return (
     <div className="min-w-0">
       <div className="text-[9px] uppercase tracking-wider text-teal-200/90 font-semibold">{label}</div>
@@ -105,7 +115,7 @@ function Field({ label, value }) {
   );
 }
 
-function WalletSheet({ open, onClose, pass, platform }) {
+function WalletSheet({ open, onClose, pass, platform }: { open: boolean; onClose: () => void; pass: WalletPassData; platform: string }) {
   const { toast } = useApp();
   const addApple = () => {
     downloadPkpass(pass);

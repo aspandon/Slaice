@@ -1,6 +1,8 @@
 import { useState } from "react";
+import type { ReactNode } from "react";
 import { Icon } from "../lib/icons";
 import { Modal, Btn, Badge, Tabs, Toggle, Table, ConfirmModal } from "./ui";
+import type { TabEntry } from "./ui";
 import { useApp } from "../app/store";
 import { PROCESSORS, RETENTION, DATA_RIGHTS } from "../data/gdpr";
 import { downloadZIP, buildPDFBytes } from "../lib/download";
@@ -9,7 +11,7 @@ import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS } from "../data/mock";
 /* Customer Privacy Centre (P4.2) — access/portability, consent management,
    transparency on processors, and a proper erasure flow with the legal
    retention caveat. Opened from Account settings. */
-export function PrivacyCenter({ open, onClose }) {
+export function PrivacyCenter({ open, onClose }: { open?: boolean; onClose: () => void }) {
   const { consent, setConsent, reopenConsent, toast } = useApp();
   const [tab, setTab] = useState("data");
   const [confirmErase, setConfirmErase] = useState(false);
@@ -53,7 +55,7 @@ export function PrivacyCenter({ open, onClose }) {
     }, 600);
   };
 
-  const tabs = [
+  const tabs: TabEntry[] = [
     ["data", "Your data", Icon.fileDown],
     ["consent", "Consents", Icon.sliders],
     ["who", "Who sees it", Icon.users],
@@ -152,7 +154,7 @@ export function PrivacyCenter({ open, onClose }) {
   );
 }
 
-function ConsentToggle({ label, desc, on, set }) {
+function ConsentToggle({ label, desc, on, set }: { label?: ReactNode; desc?: ReactNode; on?: boolean; set: (v: boolean) => void }) {
   return (
     <div className="flex items-center justify-between rounded-2xl ring-1 ring-slate-200 bg-white/70 px-3.5 py-3">
       <div className="min-w-0 pr-3">

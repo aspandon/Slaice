@@ -1,16 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../lib/icons";
 import { PERSONAS, NAV } from "../data/personas";
+import type { PersonaId } from "../domain/types";
 import { useApp } from "../app/store";
 
 /* ⌘K / Ctrl-K command palette — fast navigation across every persona's screens.
    Opens on the keyboard shortcut or a `slaice:cmdk` window event (dispatched by
    the top-bar search button). Arrow keys move, Enter navigates, Esc closes. */
 
+interface CmdItem {
+  persona: PersonaId;
+  personaLabel: string;
+  personaColor: string;
+  page: string;
+  label: string;
+  icon: string;
+  account: boolean;
+  future: boolean;
+}
+
 // Flatten every destination across all personas into one searchable list.
-function buildIndex() {
-  const out = [];
+function buildIndex(): CmdItem[] {
+  const out: CmdItem[] = [];
   PERSONAS.forEach((p) => {
     (NAV[p.id] || []).forEach((it) => {
       out.push({
@@ -33,13 +46,13 @@ export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
-  const inputRef = useRef(null);
-  const listRef = useRef(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const index = useMemo(buildIndex, []);
 
   // Global open triggers: ⌘K / Ctrl-K and the custom event from the top bar.
   useEffect(() => {
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && (e.key === "k" || e.key === "K")) {
         e.preventDefault();
         setOpen((o) => !o);
@@ -60,7 +73,7 @@ export function CommandPalette() {
     const match = index.filter((d) =>
       !term ||
       d.label.toLowerCase().includes(term) ||
-      d.personaLabel.toLowerCase().includes(term)
+      d.personaLabel.toLowerCase().includes(term),
     );
     return match
       .sort((a, b) => (a.persona === persona ? -1 : 0) - (b.persona === persona ? -1 : 0))
@@ -72,9 +85,9 @@ export function CommandPalette() {
     if (open) { setQ(""); setTimeout(() => inputRef.current?.focus(), 30); }
   }, [open]);
 
-  const choose = (d) => { setOpen(false); go(d.persona, d.page); };
+  const choose = (d: CmdItem) => { setOpen(false); go(d.persona, d.page); };
 
-  const onKeyDown = (e) => {
+  const onKeyDown = (e: ReactKeyboardEvent) => {
     if (e.key === "Escape") { setOpen(false); return; }
     if (e.key === "ArrowDown") { e.preventDefault(); setActive((i) => Math.min(results.length - 1, i + 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setActive((i) => Math.max(0, i - 1)); }

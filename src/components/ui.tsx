@@ -618,7 +618,7 @@ export function ConfirmModal({ open, onClose, onConfirm, title = "Are you sure?"
 
 /* ---------- Tabs (iOS segmented control) ----------
    Tab entries: [key, label] or [key, label, IconComponent]. */
-type TabEntry = [string, ReactNode] | [string, ReactNode, IconRenderer];
+export type TabEntry = [string, ReactNode] | [string, ReactNode, IconRenderer];
 export function Tabs({ tabs, value, onChange, className = "", scroll = false }: {
   tabs: TabEntry[];
   value: string;
