@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { AppCtx } from "./app/store.jsx";
 import { DEFAULT_PAGE } from "./data/personas.js";
-import { TopBar, Sidebar, MobilePersona, MobileNav, SiteFooter, Toasts } from "./components/Shell.jsx";
+import { TopBar, Sidebar, BottomTabBar, SiteFooter, Toasts } from "./components/Shell.jsx";
 import { AuthGate } from "./screens/auth.jsx";
 import { ConsentBanner } from "./components/ConsentBanner.jsx";
 import { BeachBackdrop } from "./components/Beach.jsx";
@@ -23,7 +23,12 @@ export default function App() {
   const [consent, setConsentState] = useState(saved.consent || DEFAULT_CONSENT);
 
   useEffect(() => {
-    localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent }));
+    // Guard the write: Safari Private Mode (older) and a full quota throw
+    // QuotaExceededError on setItem — without this the whole app would crash
+    // in private browsing.
+    try {
+      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent }));
+    } catch { /* storage unavailable (private mode / quota) — ignore */ }
   }, [persona, pageByPersona, signedIn, lang, cart, consent]);
 
   // Record a consent decision with a timestamp (used by the cookie banner and
@@ -69,32 +74,34 @@ export default function App() {
       {!signedIn ? (
         <AuthGate />
       ) : (
-        <div className="w-full px-3 sm:px-5 py-4 relative min-h-screen flex flex-col">
+        // Sunbed Booking takes over the whole viewport (fixed beach + its own
+        // floating basket bar), so the global footer and bottom tab bar are
+        // skipped there — navigation stays reachable from the TopBar title.
+        (() => {
+          const immersive = persona === "customer" && page === "book";
+          return (
+        <div className={`w-full px-3 sm:px-5 pt-4 relative min-h-dvh flex flex-col ${immersive ? "pb-4" : "pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-4"}`}>
           {persona === "customer" && (
             <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
               <BeachBackdrop pos="absolute" className="inset-0 rounded-none" />
             </div>
           )}
           <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />
-          <MobilePersona persona={persona} setPersona={setPersona} />
           {persona === "customer" ? (
             <div className={`flex-1 ${page === "book" ? "lg:pr-[352px]" : ""}`}>
               <main className="min-w-0">{routeFor(persona, page, { go, setPage })}</main>
             </div>
           ) : (
-            <>
-              <MobileNav persona={persona} page={page} setPage={setPage} />
-              <div className="flex gap-5 flex-1">
-                <Sidebar persona={persona} page={page} setPage={setPage} />
-                <main className="flex-1 min-w-0">{routeFor(persona, page, { go, setPage })}</main>
-              </div>
-            </>
+            <div className="flex gap-5 flex-1">
+              <Sidebar persona={persona} page={page} setPage={setPage} />
+              <main className="flex-1 min-w-0">{routeFor(persona, page, { go, setPage })}</main>
+            </div>
           )}
-          {/* Sunbed Booking takes over the whole viewport with a fixed beach
-              and its own floating basket panel, so the footer would just hide
-              under those layers — skip it there. */}
-          {!(persona === "customer" && page === "book") && <SiteFooter />}
+          {!immersive && <SiteFooter />}
+          {!immersive && <BottomTabBar persona={persona} page={page} setPage={setPage} />}
         </div>
+          );
+        })()
       )}
       <ConsentBanner />
       <Toasts items={toasts} onDismiss={dismissToast} />

@@ -1,6 +1,10 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{js,jsx}"],
+  // Only emit `hover:` styles on devices that actually support hover (pointer:
+  // fine). Without this, tapping a control on a phone/tablet leaves its hover
+  // state "stuck" until you tap elsewhere — a cross-browser touch bug.
+  future: { hoverOnlyWhenSupported: true },
   theme: {
     extend: {
       fontFamily: {

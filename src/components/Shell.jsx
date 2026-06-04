@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
-import { Badge, Btn, Modal, Field, Input, Select, Toggle, EmptyState } from "./ui.jsx";
+import { Badge, Btn, Modal, Sheet, Field, Input, Select, Toggle, EmptyState } from "./ui.jsx";
 import { PrivacyCenter } from "./PrivacyCenter.jsx";
 import { SlaiceLogo, TenantLogo } from "./Brand.jsx";
 import { PERSONAS, NAV } from "../data/personas.js";
@@ -77,6 +77,7 @@ export function TopBar({ persona, setPersona, page, setPage }) {
   const [aOpen, setAOpen] = useState(false);
   const [nOpen, setNOpen] = useState(false);
   const [bOpen, setBOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false); // mobile page-nav sheet
   const [settingsOpen, setSettingsOpen] = useState(false);
   const cur = PERSONAS.find((p) => p.id === persona);
   const close = () => { setPOpen(false); setAOpen(false); setNOpen(false); setBOpen(false); };
@@ -101,10 +102,14 @@ export function TopBar({ persona, setPersona, page, setPage }) {
   // now live in the SiteFooter below the page content.
   const navItems = NAV[persona] || [];
   const currentItem = navItems.find((it) => it.k === page);
+  const CurrentIcon = currentItem && Icon[currentItem.icon];
   return (
     <header className="glass text-navy-900 rounded-2xl px-2 py-1.5 mb-4 flex items-center gap-2 relative z-30 shadow-soft sticky top-2">
-      {persona === "customer" ? (
-        <nav className="flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0 flex-1">
+      {/* Customer keeps its inline nav on desktop only — on phones it would
+          crowd the action cluster, so page nav moves to the bottom tab bar and
+          a tappable title here opens the full page-nav sheet. */}
+      {persona === "customer" && (
+        <nav className="hidden md:flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0 flex-1">
           {navItems.map((it) => {
             const IconC = Icon[it.icon];
             const active = page === it.k;
@@ -117,18 +122,24 @@ export function TopBar({ persona, setPersona, page, setPage }) {
             );
           })}
         </nav>
-      ) : (
-        <div className="flex items-center gap-2 pl-2 min-w-0 flex-1">
-          {currentItem && Icon[currentItem.icon] && (() => { const I = Icon[currentItem.icon]; return <I size={17} className="text-slate-500 shrink-0" />; })()}
-          <span className="font-display font-bold truncate text-[15px]">{currentItem ? currentItem.label : ""}</span>
-        </div>
       )}
+      {/* Mobile (all personas): current page title — tap to open the nav sheet.
+          On staff personas this also shows on desktop (sidebar is the real nav,
+          this is just a heading), so it's non-interactive from md up there. */}
+      <button
+        onClick={() => setNavOpen(true)}
+        className={`${persona === "customer" ? "md:hidden" : "md:pointer-events-none"} flex items-center gap-2 pl-1.5 pr-2 h-11 rounded-xl min-w-0 flex-1 hover:bg-white/60 md:hover:bg-transparent transition`}
+        aria-label="Open navigation">
+        {CurrentIcon && <CurrentIcon size={17} className="text-slate-500 shrink-0" />}
+        <span className="font-display font-bold truncate text-[15px]">{currentItem ? currentItem.label : ""}</span>
+        <Icon.chevD size={15} className="text-slate-400 shrink-0 md:hidden" />
+      </button>
 
       <div className="flex items-center gap-2 shrink-0">
         {/* basket popup — only on the customer persona */}
         {persona === "customer" && (
         <div className="relative" ref={bRef}>
-          <button onClick={() => { close(); setBOpen((o) => !o); }} className="text-slate-500 hover:text-navy-900 p-2 rounded-xl hover:bg-slate-100 relative transition" aria-label="Basket" title="Basket">
+          <button onClick={() => { close(); setBOpen((o) => !o); }} className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 relative transition" aria-label="Basket" title="Basket">
             <Icon.card size={18} />
             {cartCount > 0 && (
               <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 grid place-items-center text-[10px] font-bold bg-teal-500 text-white rounded-full ring-2 ring-white">{cartCount}</span>
@@ -179,7 +190,7 @@ export function TopBar({ persona, setPersona, page, setPage }) {
         )}
 
         <div className="relative" ref={nRef}>
-          <button onClick={() => { close(); setNOpen((o) => !o); }} className="text-slate-500 hover:text-navy-900 p-2 rounded-xl hover:bg-slate-100 relative transition" aria-label="Notifications">
+          <button onClick={() => { close(); setNOpen((o) => !o); }} className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 relative transition" aria-label="Notifications">
             <Icon.bell size={18} />
             {unread > 0 && (
               <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 grid place-items-center text-[10px] font-bold bg-gold-500 text-white rounded-full ring-2 ring-white">{unread}</span>
@@ -291,7 +302,36 @@ export function TopBar({ persona, setPersona, page, setPage }) {
         </div>
       </div>
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <NavSheet open={navOpen} onClose={() => setNavOpen(false)} persona={persona} page={page} setPage={setPage} />
     </header>
+  );
+}
+
+/* ---------- Mobile page-nav sheet ----------
+   The single source of truth for "where can I go" on a phone — opened from the
+   TopBar title and from the bottom tab bar's "More". Lists every page for the
+   active persona with icons, active state and roadmap (Future) badges. */
+export function NavSheet({ open, onClose, persona, page, setPage }) {
+  const items = NAV[persona] || [];
+  const p = PERSONAS.find((x) => x.id === persona);
+  return (
+    <Sheet open={open} onClose={onClose} title={p ? p.label : "Menu"}>
+      <div className="grid grid-cols-1 gap-1.5">
+        {items.map((it) => {
+          const IconC = Icon[it.icon];
+          const active = page === it.k;
+          return (
+            <button key={it.k} onClick={() => { setPage(it.k); onClose(); }}
+              className={`flex items-center gap-3 px-3 min-h-[52px] rounded-xl text-[15px] font-semibold transition ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-700 hover:bg-slate-100"}`}>
+              {IconC && <IconC size={19} className={active ? "" : "text-slate-500"} />}
+              <span className="flex-1 text-left">{it.label}</span>
+              {it.badge === "Future" && <Badge tone="future">Future</Badge>}
+              {active && <Icon.check size={17} />}
+            </button>
+          );
+        })}
+      </div>
+    </Sheet>
   );
 }
 
@@ -458,17 +498,44 @@ export function PageTopNav({ persona, page, setPage }) {
   );
 }
 
-/* ---------- Mobile persona tabs ---------- */
-export function MobilePersona({ persona, setPersona }) {
+/* ---------- Bottom tab bar (mobile) ----------
+   Replaces the two stacked horizontal scroll-strips (persona tabs + page
+   pills). Shows the first few destinations for the active persona as fixed
+   tabs and folds the rest behind "More" (the NavSheet). Fixed to the bottom
+   with safe-area padding so it clears the iOS home indicator. md:hidden —
+   desktop uses the sidebar / inline nav. */
+export function BottomTabBar({ persona, page, setPage }) {
+  const [moreOpen, setMoreOpen] = useState(false);
+  const items = NAV[persona] || [];
+  // Up to 4 primary tabs; if there are more, the 5th slot becomes "More".
+  const primary = items.length > 5 ? items.slice(0, 4) : items.slice(0, 5);
+  const overflow = items.slice(primary.length);
+  const hasMore = overflow.length > 0;
+  const moreActive = overflow.some((it) => it.k === page);
+  const Tab = ({ icon, label, active, onClick, badge }) => {
+    const IconC = typeof icon === "string" ? Icon[icon] : icon;
+    return (
+      <button onClick={onClick}
+        className={`relative flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 h-14 px-1 transition ${active ? "text-teal-700" : "text-slate-500"}`}>
+        {active && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-teal-500" />}
+        {IconC && <IconC size={21} />}
+        <span className="text-[10.5px] font-semibold leading-none truncate max-w-full">{label}</span>
+        {badge === "Future" && <span className="absolute top-1.5 right-1/2 translate-x-3 w-1.5 h-1.5 rounded-full bg-orange-400" />}
+      </button>
+    );
+  };
   return (
-    <div className="md:hidden flex gap-1.5 overflow-x-auto mb-4 pb-1 no-scrollbar">
-      {PERSONAS.map((p) => (
-        <button key={p.id} onClick={() => setPersona(p.id)}
-          className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold whitespace-nowrap ring-1 ${persona === p.id ? "bg-navy-900 text-white ring-navy-900" : "glass text-slate-700"}`}>
-          {p.label}
-        </button>
-      ))}
-    </div>
+    <>
+      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 glass border-t border-white/40 pb-safe shadow-[0_-8px_24px_-16px_rgba(15,23,42,0.35)]">
+        <div className="flex items-stretch px-1">
+          {primary.map((it) => (
+            <Tab key={it.k} icon={it.icon} label={it.label.split(" ")[0]} badge={it.badge} active={page === it.k} onClick={() => setPage(it.k)} />
+          ))}
+          {hasMore && <Tab icon={Icon.layers} label="More" active={moreActive} onClick={() => setMoreOpen(true)} />}
+        </div>
+      </nav>
+      <NavSheet open={moreOpen} onClose={() => setMoreOpen(false)} persona={persona} page={page} setPage={setPage} />
+    </>
   );
 }
 
@@ -478,36 +545,21 @@ export function MobilePersona({ persona, setPersona }) {
    per-persona footer note. */
 export function SiteFooter() {
   return (
-    <footer className="mt-10 pt-6 pb-4 flex flex-col items-center justify-center gap-2 text-center relative z-10">
-      <div className="flex items-center gap-2.5">
-        <TenantLogo size={30} />
-        <div className="leading-tight text-left">
-          <div className="font-display font-bold text-[14.5px] text-navy-900">{TENANT.name}</div>
-          <div className="text-[11px] text-slate-500">{TENANT.subdomain}</div>
+    <footer className="mt-10 pt-6 pb-4 flex justify-center relative z-10">
+      <div className="glass rounded-2xl px-5 py-3 flex flex-col items-center gap-2 text-center">
+        <div className="flex items-center gap-2.5">
+          <TenantLogo size={30} />
+          <div className="leading-tight text-left">
+            <div className="font-display font-bold text-[14.5px] text-navy-900">{TENANT.name}</div>
+            <div className="text-[11px] text-slate-700">{TENANT.subdomain}</div>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5 text-[11.5px] text-slate-700">
+          <span>powered by</span>
+          <span className="font-bold text-navy-900">SLA<span className="text-gold-600">i</span>CE</span>
         </div>
       </div>
-      <div className="flex items-center gap-1.5 text-[11.5px] text-slate-500">
-        <span>powered by</span>
-        <span className="font-bold text-navy-900">SLA<span className="text-gold-500">i</span>CE</span>
-      </div>
-      <div className="text-[10.5px] text-slate-400 max-w-xl px-3">
-        Non-functional clickable mockup · sample data only · no payments or backend.
-      </div>
     </footer>
-  );
-}
-
-/* ---------- Mobile page nav ---------- */
-export function MobileNav({ persona, page, setPage }) {
-  return (
-    <div className="md:hidden flex gap-1.5 overflow-x-auto mb-4 pb-1 no-scrollbar">
-      {NAV[persona].map((it) => (
-        <button key={it.k} onClick={() => setPage(it.k)}
-          className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold whitespace-nowrap ring-1 ${page === it.k ? "bg-teal-600 text-white ring-teal-600" : "glass text-slate-700"}`}>
-          {it.label}
-        </button>
-      ))}
-    </div>
   );
 }
 
@@ -520,7 +572,7 @@ export function Toasts({ items, onDismiss }) {
     default: { ic: "bolt", chip: "bg-gold-500/20 text-gold-400", bar: "bg-gold-400/70" },
   };
   return (
-    <div className="fixed bottom-20 lg:bottom-4 right-4 z-[80] space-y-2.5 w-[340px] max-w-[calc(100vw-2rem)]">
+    <div className="fixed right-4 z-[80] space-y-2.5 w-[340px] max-w-[calc(100vw-2rem)] bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:bottom-4">
       {items.map((t) => {
         const tn = tones[t.tone] || tones.default;
         const IC = Icon[tn.ic];
