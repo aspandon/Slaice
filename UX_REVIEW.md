@@ -18,6 +18,31 @@ nav sheets).
 
 ---
 
+## ✅ Implementation status (all items addressed)
+
+This backlog has been implemented across seven commits on
+`claude/modest-planck-KEPM6`. Production build is green (`vite build`, 1613
+modules). Summary of what shipped:
+
+| Area | What changed |
+| --- | --- |
+| **P0 count‑up** | `useCountUp` animates on mount (never stuck at 0); `instant` flag on ops dashboards (Controller, Reporting) shows real figures immediately. |
+| **P0 checkout** | Customer sees **Subtotal → Total** only; marketplace split moved behind a "Show platform economics" demo toggle. Added reassurance (security, accepted cards, free‑cancellation + refund/terms), stable booking ref. |
+| **P0 routing** | Dependency‑free hash routing — deep links, refresh‑stable, Back/Forward, clean explorer slugs. |
+| **P1 nav** | ⌘K command palette + staff search field; My Bookings/Documents surfaced in the mobile nav "Account" group; purpose‑built bottom‑tab labels. |
+| **P1 a11y** | Dialog focus trap / initial focus / focus‑return / `aria-labelledby`; hand‑rolled overlays routed through `Modal`; chart accessible names; contextual stepper labels; contrast bumps. |
+| **P1 mobile** | Sticky CTAs on Locker/Parking/Ticket; ≥44px sunbed targets; booking rail collapses on phones; footer no longer stranded on short pages. |
+| **P1 i18n** | i18n layer + `useT()`; `<html lang>` tracks the language; customer **Home** fully translated EN/ΕΛ/DE/FR (switcher‑driven). |
+| **P2/P3** | Booking **hold timer**; cross‑sell **bundle discount**; **Add‑to‑Calendar (.ics)**; "Rebook your usual" shortcut; email + ΑΦΜ validation; required parking plate. |
+
+**Already present (no change needed), discovered during implementation:** the date
+picker already has a full calendar modal (item 6.3); the onboarding wizard's
+"Back" is already disabled on step 1 (item 7.2). **Deferred [demo‑ok]:** full‑app
+translation beyond Home, the production marketing‑site split, and code‑splitting
+the 531 kB bundle — noted for production, out of scope for the mockup.
+
+---
+
 ## 0. What's already excellent (keep it)
 
 The fundamentals most teams miss are already here, so this review aims higher than
