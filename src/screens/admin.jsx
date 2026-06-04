@@ -1,12 +1,14 @@
 import { useRef, useState } from "react";
 import { Icon } from "../lib/icons";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, useMockLoad, FutureBanner, ContextPanel } from "../components/ui";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, ErrorState, useMockLoad, FutureBanner, ContextPanel } from "../components/ui";
 import { BarChart, HBarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts";
 import { ZONES } from "../data/beach";
-import { ADMIN_BOOKINGS, ADMIN_REFUNDS, CUSTOMERS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS } from "../data/mock";
+import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS } from "../data/mock";
 import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr";
 import { useApp } from "../app/store";
 import { downloadCSV } from "../lib/download";
+import { listCustomers } from "../api";
+import { useAsync } from "../lib/useAsync";
 
 /* ============ DASHBOARD ============ */
 export function AdminDashboard() {
@@ -313,7 +315,8 @@ export function AdminUsers() {
   const { toast } = useApp();
   const [q, setQ] = useState("");
   const [tagFilter, setTagFilter] = useState("All");
-  const users = CUSTOMERS.map((c) => ({ n: c.name, e: c.email, b: c.bookings, tags: c.tags }));
+  const customersQ = useAsync(listCustomers);
+  const users = (customersQ.status === "success" ? customersQ.data : []).map((c) => ({ n: c.name, e: c.email, b: c.bookings, tags: c.tags }));
   const allTags = ["All", "VIP", "Season pass", "Regular", "New"];
   const tagTone = (t) => ({ VIP: "amber", "Season pass": "blue", Regular: "slate", New: "green" }[t] || "slate");
   const rows = users.filter((u) => (tagFilter === "All" || u.tags.includes(tagFilter)) && (u.n + u.e).toLowerCase().includes(q.toLowerCase()));
@@ -331,10 +334,18 @@ export function AdminUsers() {
           </div>
           <Btn variant="outline" icon={Icon.tag} onClick={() => toast("Demo — create a tag / segment.")} className="ml-auto">New tag</Btn>
         </div>
-        <Table cols={["Name", "Email", "Bookings", "Tags", ""]} right={[2]}
-          rows={rows.map((u) => [u.n, u.e, u.b,
-            <span className="flex gap-1 flex-wrap">{u.tags.map((t) => <Badge key={t} tone={tagTone(t)}>{t}</Badge>)}</span>,
-            <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => toast(`Demo — ${u.n}'s activity (interaction filter).`)}>Activity</Btn>])} />
+        {customersQ.status === "loading" ? (
+          <TableSkeleton rows={6} cols={5} />
+        ) : customersQ.status === "error" ? (
+          <ErrorState compact body="We couldn't load the customer list." onRetry={customersQ.refetch} />
+        ) : rows.length === 0 ? (
+          <EmptyState compact icon={Icon.users} title="No users match" body="Try a different search or tag filter." />
+        ) : (
+          <Table cols={["Name", "Email", "Bookings", "Tags", ""]} right={[2]}
+            rows={rows.map((u) => [u.n, u.e, u.b,
+              <span className="flex gap-1 flex-wrap">{u.tags.map((t) => <Badge key={t} tone={tagTone(t)}>{t}</Badge>)}</span>,
+              <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => toast(`Demo — ${u.n}'s activity (interaction filter).`)}>Activity</Btn>])} />
+        )}
       </Card>
     </div>
   );
