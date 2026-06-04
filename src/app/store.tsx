@@ -1,0 +1,107 @@
+import { createContext, useContext, useEffect } from "react";
+import type { ReactNode } from "react";
+import { translate } from "./i18n";
+import type { CartItem, CartKind, Consent, LangCode, PersonaId } from "../domain/types";
+
+// Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
+// highlight the section a journey points at.
+export interface SpotlightHint {
+  spotlight: string;
+  tip?: string;
+  persona?: PersonaId;
+  page?: string;
+  ts?: number;
+}
+
+export interface ToastOptions {
+  action?: { label: string; onClick: () => void };
+  tone?: "success" | "error" | "info" | "warn";
+  duration?: number;
+}
+
+// The shape every screen reads via useApp(): toasts, cross-persona navigation,
+// auth, language, the shared cart and consent.
+export interface AppContextValue {
+  toast: (msg: ReactNode, opts?: ToastOptions) => void;
+  /** go(persona, page?, hint?) — navigate, optionally with a spotlight. */
+  go: (persona: PersonaId, page?: string, hint?: Partial<SpotlightHint> | null) => void;
+  persona: PersonaId;
+  signedIn: boolean;
+  setSignedIn: (v: boolean) => void;
+  lang: LangCode;
+  setLang: (l: LangCode) => void;
+  cart: CartItem[];
+  addToCart: (item: CartItem) => void;
+  removeFromCart: (kind: CartKind, id: string) => void;
+  clearCart: () => void;
+  hint: SpotlightHint | null;
+  clearHint: () => void;
+  consent: Consent;
+  setConsent: (patch: Partial<Consent>) => void;
+  reopenConsent: () => void;
+}
+
+const DEFAULT_CONSENT: Consent = {
+  necessary: true,
+  analytics: false,
+  marketing: false,
+  decided: false,
+  ts: null,
+};
+
+// Default value (only used absent a Provider, which App always renders).
+export const AppCtx = createContext<AppContextValue>({
+  toast: () => {},
+  go: () => {},
+  persona: "customer",
+  signedIn: false,
+  setSignedIn: () => {},
+  lang: "EN",
+  setLang: () => {},
+  cart: [],
+  addToCart: () => {},
+  removeFromCart: () => {},
+  clearCart: () => {},
+  hint: null,
+  clearHint: () => {},
+  consent: DEFAULT_CONSENT,
+  setConsent: () => {},
+  reopenConsent: () => {},
+});
+
+export const useApp = (): AppContextValue => useContext(AppCtx);
+
+// Translation helper bound to the active language: t(key, fallback).
+export function useT() {
+  const { lang } = useContext(AppCtx);
+  return (key: string, fallback?: string) => translate(lang, key, fallback);
+}
+
+// When the active hint matches the current persona+page, find the element with
+// data-spotlight="<name>", scroll it into view and add a teal pulse ring for
+// ~3s. The hint is cleared after firing so it only triggers once.
+export function useSpotlight(persona: PersonaId, page: string) {
+  const { hint, clearHint, toast } = useContext(AppCtx);
+  useEffect(() => {
+    if (!hint || hint.persona !== persona || (hint.page && hint.page !== page)) return;
+    const t = setTimeout(() => {
+      const el = document.querySelector(`[data-spotlight="${hint.spotlight}"]`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("spotlight-ring");
+        setTimeout(() => el.classList.remove("spotlight-ring"), 3200);
+      }
+      if (hint.tip) toast(hint.tip, { tone: "success", duration: 4500 });
+      clearHint();
+    }, 350); // give the page a tick to mount
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hint, persona, page]);
+}
+
+export const LANGS: { code: LangCode; label: string }[] = [
+  { code: "EN", label: "English" },
+  { code: "ΕΛ", label: "Ελληνικά" },
+  { code: "DE", label: "Deutsch" },
+  { code: "FR", label: "Français" },
+];
