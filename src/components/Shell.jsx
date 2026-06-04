@@ -101,6 +101,9 @@ export function TopBar({ persona, setPersona, page, setPage }) {
   // title (sidebar remains the primary nav). Tenant identity + Slaice credit
   // now live in the SiteFooter below the page content.
   const navItems = NAV[persona] || [];
+  // Account destinations (My Bookings / Documents) live in the avatar menu +
+  // mobile nav sheet — keep them out of the desktop inline primary nav.
+  const primaryNav = navItems.filter((it) => it.area !== "account");
   const currentItem = navItems.find((it) => it.k === page);
   const CurrentIcon = currentItem && Icon[currentItem.icon];
   return (
@@ -110,7 +113,7 @@ export function TopBar({ persona, setPersona, page, setPage }) {
           a tappable title here opens the full page-nav sheet. */}
       {persona === "customer" && (
         <nav className="hidden md:flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0 flex-1">
-          {navItems.map((it) => {
+          {primaryNav.map((it) => {
             const IconC = Icon[it.icon];
             const active = page === it.k;
             return (
@@ -187,6 +190,23 @@ export function TopBar({ persona, setPersona, page, setPage }) {
             </div>
           )}
         </div>
+        )}
+
+        {/* Global search / command palette (⌘K). On staff personas it's a
+            labelled field; on the customer surface it's a compact icon so it
+            doesn't crowd the basket + persona cluster. */}
+        {persona === "customer" ? (
+          <button onClick={() => window.dispatchEvent(new Event("slaice:cmdk"))} aria-label="Search (⌘K)" title="Search ⌘K"
+            className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 transition">
+            <Icon.search size={18} />
+          </button>
+        ) : (
+          <button onClick={() => window.dispatchEvent(new Event("slaice:cmdk"))} aria-label="Search (⌘K)"
+            className="hidden sm:flex items-center gap-2 h-10 pl-2.5 pr-2 rounded-xl bg-slate-100/80 hover:bg-slate-200/80 text-slate-500 hover:text-navy-900 transition">
+            <Icon.search size={15} />
+            <span className="text-[12.5px] font-medium">Search…</span>
+            <kbd className="text-[10px] font-semibold text-slate-400 bg-white ring-1 ring-slate-200 rounded px-1 py-0.5">⌘K</kbd>
+          </button>
         )}
 
         <div className="relative" ref={nRef}>
@@ -312,24 +332,33 @@ export function TopBar({ persona, setPersona, page, setPage }) {
    TopBar title and from the bottom tab bar's "More". Lists every page for the
    active persona with icons, active state and roadmap (Future) badges. */
 export function NavSheet({ open, onClose, persona, page, setPage }) {
-  const items = NAV[persona] || [];
+  const all = NAV[persona] || [];
+  const items = all.filter((it) => it.area !== "account");
+  const account = all.filter((it) => it.area === "account");
   const p = PERSONAS.find((x) => x.id === persona);
+  const Row = (it) => {
+    const IconC = Icon[it.icon];
+    const active = page === it.k;
+    return (
+      <button key={it.k} onClick={() => { setPage(it.k); onClose(); }}
+        className={`flex items-center gap-3 px-3 min-h-[52px] rounded-xl text-[15px] font-semibold transition ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-700 hover:bg-slate-100"}`}>
+        {IconC && <IconC size={19} className={active ? "" : "text-slate-500"} />}
+        <span className="flex-1 text-left">{it.label}</span>
+        {it.badge === "Future" && <Badge tone="future">Future</Badge>}
+        {active && <Icon.check size={17} />}
+      </button>
+    );
+  };
   return (
     <Sheet open={open} onClose={onClose} title={p ? p.label : "Menu"}>
       <div className="grid grid-cols-1 gap-1.5">
-        {items.map((it) => {
-          const IconC = Icon[it.icon];
-          const active = page === it.k;
-          return (
-            <button key={it.k} onClick={() => { setPage(it.k); onClose(); }}
-              className={`flex items-center gap-3 px-3 min-h-[52px] rounded-xl text-[15px] font-semibold transition ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-700 hover:bg-slate-100"}`}>
-              {IconC && <IconC size={19} className={active ? "" : "text-slate-500"} />}
-              <span className="flex-1 text-left">{it.label}</span>
-              {it.badge === "Future" && <Badge tone="future">Future</Badge>}
-              {active && <Icon.check size={17} />}
-            </button>
-          );
-        })}
+        {items.map(Row)}
+        {account.length > 0 && (
+          <>
+            <div className="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Account</div>
+            {account.map(Row)}
+          </>
+        )}
       </div>
     </Sheet>
   );
@@ -507,11 +536,13 @@ export function PageTopNav({ persona, page, setPage }) {
 export function BottomTabBar({ persona, page, setPage }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const items = NAV[persona] || [];
+  // Account destinations always live behind "More" (the nav sheet), never as a
+  // fixed tab. Primary tabs are drawn from the main destinations.
+  const mainItems = items.filter((it) => it.area !== "account");
   // Up to 4 primary tabs; if there are more, the 5th slot becomes "More".
-  const primary = items.length > 5 ? items.slice(0, 4) : items.slice(0, 5);
-  const overflow = items.slice(primary.length);
-  const hasMore = overflow.length > 0;
-  const moreActive = overflow.some((it) => it.k === page);
+  const primary = mainItems.length > 5 ? mainItems.slice(0, 4) : mainItems.slice(0, 5);
+  const hasMore = items.length > primary.length;
+  const moreActive = !primary.some((it) => it.k === page);
   const Tab = ({ icon, label, active, onClick, badge }) => {
     const IconC = typeof icon === "string" ? Icon[icon] : icon;
     return (
@@ -529,7 +560,7 @@ export function BottomTabBar({ persona, page, setPage }) {
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 glass border-t border-white/40 pb-safe shadow-[0_-8px_24px_-16px_rgba(15,23,42,0.35)]">
         <div className="flex items-stretch px-1">
           {primary.map((it) => (
-            <Tab key={it.k} icon={it.icon} label={it.label.split(" ")[0]} badge={it.badge} active={page === it.k} onClick={() => setPage(it.k)} />
+            <Tab key={it.k} icon={it.icon} label={it.short || it.label.split(" ")[0]} badge={it.badge} active={page === it.k} onClick={() => setPage(it.k)} />
           ))}
           {hasMore && <Tab icon={Icon.layers} label="More" active={moreActive} onClick={() => setMoreOpen(true)} />}
         </div>

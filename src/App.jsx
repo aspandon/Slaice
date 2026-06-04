@@ -4,6 +4,7 @@ import { DEFAULT_PAGE } from "./data/personas.js";
 import { TopBar, Sidebar, BottomTabBar, SiteFooter, Toasts } from "./components/Shell.jsx";
 import { AuthGate } from "./screens/auth.jsx";
 import { ConsentBanner } from "./components/ConsentBanner.jsx";
+import { CommandPalette } from "./components/CommandPalette.jsx";
 import { BeachBackdrop } from "./components/Beach.jsx";
 import { routeFor } from "./routes.jsx";
 import { parseHash, buildHash } from "./app/router.js";
@@ -142,6 +143,7 @@ export default function App() {
         })()
       )}
       <ConsentBanner />
+      {signedIn && <CommandPalette />}
       <Toasts items={toasts} onDismiss={dismissToast} />
     </AppCtx.Provider>
   );
