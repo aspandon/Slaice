@@ -107,7 +107,7 @@ export function TopBar({ persona, setPersona, page, setPage }) {
   const currentItem = navItems.find((it) => it.k === page);
   const CurrentIcon = currentItem && Icon[currentItem.icon];
   return (
-    <header className="glass text-navy-900 rounded-2xl px-2 py-1.5 mb-4 flex items-center gap-2 relative z-30 shadow-soft sticky top-2">
+    <header className={`${persona === "customer" ? "glass-card" : "glass"} text-navy-900 rounded-2xl px-2 py-1.5 mb-4 flex items-center gap-2 relative z-30 shadow-soft sticky top-2`}>
       {/* Customer keeps its inline nav on desktop only — on phones it would
           crowd the action cluster, so page nav moves to the bottom tab bar and
           a tappable title here opens the full page-nav sheet. */}
@@ -547,10 +547,10 @@ export function BottomTabBar({ persona, page, setPage }) {
     const IconC = typeof icon === "string" ? Icon[icon] : icon;
     return (
       <button onClick={onClick}
-        className={`relative flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 h-14 px-1 transition ${active ? "text-teal-700" : "text-slate-500"}`}>
+        className={`relative flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 h-14 px-1 transition ${active ? "text-teal-700" : "text-slate-600"}`}>
         {active && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-teal-500" />}
         {IconC && <IconC size={21} />}
-        <span className="text-[10.5px] font-semibold leading-none truncate max-w-full">{label}</span>
+        <span className="text-[11px] font-semibold leading-none truncate max-w-full">{label}</span>
         {badge === "Future" && <span className="absolute top-1.5 right-1/2 translate-x-3 w-1.5 h-1.5 rounded-full bg-orange-400" />}
       </button>
     );
