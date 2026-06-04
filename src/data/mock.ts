@@ -1,6 +1,7 @@
 // Sample data shared across screens. Deterministic; safe for the mockup.
+import type { Customer, CustomerBooking, CustomerDocument } from "../domain/types";
 
-export const CUSTOMERS = [
+export const CUSTOMERS: Customer[] = [
   { id: 1, name: "Maria K.", email: "maria.kontou@example.com", phone: "+30 694 100 0001", bookings: 12, spend: 384, tags: ["VIP", "Season pass"], lastVisit: "Sun, 19 Jul" },
   { id: 2, name: "Nikos P.", email: "nikos.papas@example.com", phone: "+30 694 100 0002", bookings: 5, spend: 142, tags: ["Regular"], lastVisit: "Sat, 12 Jul" },
   { id: 3, name: "Elena V.", email: "elena.vlachos@example.com", phone: "+30 694 100 0003", bookings: 28, spend: 1240, tags: ["VIP"], lastVisit: "Sun, 19 Jul" },
@@ -28,7 +29,7 @@ export const CUSTOMERS = [
 ];
 
 // Customer-side bookings (Elena's view of "My Bookings")
-export const CUSTOMER_BOOKINGS = [
+export const CUSTOMER_BOOKINGS: CustomerBooking[] = [
   { id: "#BK-10455", item: "Sunbed · Central · CE-77", date: "Sat, 25 Jul", status: "Confirmed", price: 25, state: "active" },
   { id: "#TK-55180", item: "Entry · Adult ×2 + Child", date: "Sat, 25 Jul", status: "Confirmed", price: 25, state: "active" },
   { id: "#PK-4080", item: "Parking · Spot P03", date: "Sat, 25 Jul", status: "Confirmed", price: 15, state: "active" },
@@ -48,7 +49,7 @@ export const CUSTOMER_BOOKINGS = [
 ];
 
 // Customer documents (Elena's MyDATA receipts/invoices)
-export const CUSTOMER_DOCS = [
+export const CUSTOMER_DOCS: CustomerDocument[] = [
   { id: "ΑΠΥ-2026-004281", for: "Sunbed booking", date: "19 Jul 2026", amt: "€30", mark: "400001020304002281", lines: [["Sunbed CE-89", "€24.19", "€5.81", "€30.00"]] },
   { id: "ΑΠΥ-2026-004280", for: "Locker + Parking", date: "19 Jul 2026", amt: "€20", mark: "400001020304002280", lines: [["Locker A07", "€4.03", "€0.97", "€5.00"], ["Parking P12", "€12.10", "€2.90", "€15.00"]] },
   { id: "ΑΠΥ-2026-004102", for: "Entry tickets ×3", date: "12 Jul 2026", amt: "€25", mark: "400001020304002102", lines: [["Adult ×2", "€16.13", "€3.87", "€20.00"], ["Child ×1", "€4.03", "€0.97", "€5.00"]] },

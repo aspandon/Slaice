@@ -31,16 +31,16 @@ function resolve<T>(value: T, ms: number = LATENCY_MS): Promise<T> {
 
 /* ---------- Customer ---------- */
 export function listCustomerBookings(): Promise<CustomerBooking[]> {
-  return resolve(CUSTOMER_BOOKINGS as CustomerBooking[]);
+  return resolve(CUSTOMER_BOOKINGS);
 }
 
 export function listCustomerDocuments(): Promise<CustomerDocument[]> {
-  return resolve(CUSTOMER_DOCS as CustomerDocument[]);
+  return resolve(CUSTOMER_DOCS);
 }
 
 /* ---------- Admin / CRM ---------- */
 export function listCustomers(): Promise<Customer[]> {
-  return resolve(CUSTOMERS as Customer[]);
+  return resolve(CUSTOMERS);
 }
 
 export function listZones(): Promise<Zone[]> {
