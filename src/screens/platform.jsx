@@ -94,7 +94,9 @@ export function PlatformOnboarding() {
     <div className="animate-fade-up max-w-3xl">
       <PageHead title="Tenant Onboarding" sub="Create a tenant, configure branding & modules, connect Stripe (Connect Standard), and go live." badge={<Badge tone="mvp">MVP</Badge>} />
       {/* stepper */}
-      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-600">Step {step + 1} of {steps.length}</div>
+      {/* On mobile the per-step labels under the circles are hidden, so name the
+          current step here for context. */}
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-wider text-slate-600">Step {step + 1} of {steps.length}<span className="sm:hidden text-slate-500"> · {steps[step]}</span></div>
       <div className="flex items-center mb-6">
         {steps.map((s, i) => {
           const done = i < step, active = i === step;

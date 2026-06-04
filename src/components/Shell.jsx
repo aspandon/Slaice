@@ -134,7 +134,13 @@ export function TopBar({ persona, setPersona, page, setPage }) {
         className={`${persona === "customer" ? "md:hidden" : "md:pointer-events-none"} flex items-center gap-2 pl-1.5 pr-2 h-11 rounded-xl min-w-0 flex-1 hover:bg-white/60 md:hover:bg-transparent transition`}
         aria-label="Open navigation">
         {CurrentIcon && <CurrentIcon size={17} className="text-slate-500 shrink-0" />}
-        <span className="font-display font-bold truncate text-[15px]">{currentItem ? currentItem.label : ""}</span>
+        {/* Mobile shows the concise label (matches the highlighted bottom tab and
+            avoids truncation behind the action cluster); desktop staff headings
+            keep the full page name. */}
+        <span className="font-display font-bold truncate text-[15px]">
+          <span className="md:hidden">{currentItem ? (currentItem.short || currentItem.label) : ""}</span>
+          <span className="hidden md:inline">{currentItem ? currentItem.label : ""}</span>
+        </span>
         <Icon.chevD size={15} className="text-slate-400 shrink-0 md:hidden" />
       </button>
 
@@ -197,7 +203,7 @@ export function TopBar({ persona, setPersona, page, setPage }) {
             doesn't crowd the basket + persona cluster. */}
         {persona === "customer" ? (
           <button onClick={() => window.dispatchEvent(new Event("slaice:cmdk"))} aria-label="Search (⌘K)" title="Search ⌘K"
-            className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 transition">
+            className="text-slate-500 hover:text-navy-900 w-10 h-10 hidden sm:grid place-items-center rounded-xl hover:bg-slate-100 transition">
             <Icon.search size={18} />
           </button>
         ) : (
@@ -424,12 +430,12 @@ function SettingsModal({ open, onClose }) {
           </div>
           <div className="space-y-2">
             {cards.length === 0 ? (
-              <div className="text-[13px] text-slate-400 rounded-xl bg-slate-50 px-3 py-4 text-center">No saved cards. Add one for faster checkout.</div>
+              <div className="text-[13px] text-slate-500 rounded-xl bg-slate-50 px-3 py-4 text-center">No saved cards. Add one for faster checkout.</div>
             ) : cards.map((c) => (
               <div key={c.last4} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
                 <div className="flex items-center gap-3">
                   <span className="w-9 h-7 rounded-md bg-gradient-to-br from-navy-800 to-navy-950 text-white text-[10px] font-bold grid place-items-center">{c.brand.slice(0, 4).toUpperCase()}</span>
-                  <div><div className="font-semibold text-sm text-navy-900">•••• {c.last4}</div><div className="text-[11px] text-slate-400">Exp {c.exp}</div></div>
+                  <div><div className="font-semibold text-sm text-navy-900">•••• {c.last4}</div><div className="text-[11px] text-slate-500">Exp {c.exp}</div></div>
                 </div>
                 <button aria-label={`Remove card ending ${c.last4}`} onClick={() => removeCard(c)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={15} /></button>
               </div>
@@ -465,7 +471,7 @@ function SettingsModal({ open, onClose }) {
 function PrefRow({ label, sub, on, set }) {
   return (
     <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
-      <div><div className="font-semibold text-sm text-navy-900">{label}</div><div className="text-[11px] text-slate-400">{sub}</div></div>
+      <div><div className="font-semibold text-sm text-navy-900">{label}</div><div className="text-[11px] text-slate-500">{sub}</div></div>
       <Toggle on={on} onChange={set} />
     </div>
   );

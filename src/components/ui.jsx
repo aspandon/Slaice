@@ -247,11 +247,13 @@ function parseMetric(value) {
   return { n, fmt };
 }
 
-/* ---------- Future banner (Roadmap preview heads-up) ---------- */
+/* ---------- Future banner (Roadmap preview heads-up) ----------
+   Indigo "info" styling (not amber) so it reads as a roadmap note rather than
+   a warning/error — it ties to the Slaice platform brand colour. */
 export function FutureBanner({ children = "Preview · Roadmap 2027–2029 — fully clickable mockup, not part of the MVP." }) {
   return (
-    <div className="mb-4 flex items-center gap-2 rounded-xl bg-orange-50 ring-1 ring-orange-500/20 px-3 py-2 text-[12px] text-orange-700">
-      <Icon.bolt size={14} className="shrink-0 text-orange-500" />
+    <div className="mb-4 flex items-center gap-2 rounded-xl bg-slaice-100 ring-1 ring-slaice-600/20 px-3 py-2 text-[12px] text-slaice-700">
+      <Icon.info size={14} className="shrink-0 text-slaice-600" />
       <span className="leading-snug">{children}</span>
     </div>
   );

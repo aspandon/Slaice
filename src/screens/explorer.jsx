@@ -63,7 +63,7 @@ export function FeatureInventory() {
             <div className="grid md:grid-cols-2 gap-2">
               {items.map((f) => (
                 <button key={f.id} onClick={() => setOpen(f)} className="text-left flex items-start gap-3 rounded-xl ring-1 ring-slate-100 hover:ring-teal-400 hover:bg-slate-50/60 px-3 py-2.5 transition">
-                  <span className="text-[11px] font-mono text-slate-300 mt-0.5 w-6 shrink-0">{String(f.id).padStart(2, "0")}</span>
+                  <span className="text-[11px] font-mono text-slate-400 mt-0.5 w-6 shrink-0">{String(f.id).padStart(2, "0")}</span>
                   <span className="flex-1">
                     <span className="text-[13px] font-medium text-navy-900 leading-snug block">{f.feature}</span>
                     <span className="flex items-center gap-1.5 mt-1"><FeatureChip status={f.status} /><span className="text-[10px] text-slate-600">{f.src}</span></span>
