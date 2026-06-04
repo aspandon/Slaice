@@ -33,7 +33,7 @@ modules). Summary of what shipped:
 | **P1 a11y** | Dialog focus trap / initial focus / focus‑return / `aria-labelledby`; hand‑rolled overlays routed through `Modal`; chart accessible names; contextual stepper labels; contrast bumps. |
 | **P1 mobile** | Sticky CTAs on Locker/Parking/Ticket; ≥44px sunbed targets; booking rail collapses on phones; footer no longer stranded on short pages. |
 | **P1 i18n** | i18n layer + `useT()`; `<html lang>` tracks the language; customer **Home** fully translated EN/ΕΛ/DE/FR (switcher‑driven). |
-| **P2/P3** | Booking **hold timer**; cross‑sell **bundle discount**; **Add‑to‑Calendar (.ics)**; "Rebook your usual" shortcut; email + ΑΦΜ validation; required parking plate. |
+| **P2/P3** | Booking **hold timer**; cross‑sell **bundle discount**; **Add‑to‑Calendar (.ics)**; "Rebook your usual" shortcut; email + ΑΦΜ validation; required parking plate; **loading states** on sign‑in; **post‑visit NPS** + **Season Pass upsell**; availability **totals summary**; map‑editor mobile hint; weather‑aware nudge; "basket saved" reassurance. |
 
 **Already present (no change needed), discovered during implementation:** the date
 picker already has a full calendar modal (item 6.3); the onboarding wizard's
