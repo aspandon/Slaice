@@ -11,7 +11,7 @@ import { CONSENT_PURPOSES } from "../data/gdpr";
 export function ConsentBanner() {
   const { consent, setConsent, toast } = useApp();
   const [prefs, setPrefs] = useState(false);
-  const [draft, setDraft] = useState({ analytics: consent.analytics, marketing: consent.marketing });
+  const [draft, setDraft] = useState<Record<string, boolean>>({ analytics: consent.analytics, marketing: consent.marketing });
 
   if (consent.decided && !prefs) return null;
 

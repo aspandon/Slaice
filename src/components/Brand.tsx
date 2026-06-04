@@ -1,5 +1,5 @@
 // SLAiCE platform logo — gold wave swoosh in a circle ("Live Through Digital").
-export function SlaiceLogo({ size = 36, withText = false, light = false }) {
+export function SlaiceLogo({ size = 36, withText = false, light = false }: { size?: number; withText?: boolean; light?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
       <svg width={size} height={size} viewBox="0 0 48 48">
@@ -20,7 +20,7 @@ export function SlaiceLogo({ size = 36, withText = false, light = false }) {
 }
 
 // Tenant logo — Akti tou Iliou (sun over sea), as in the video sidebar.
-export function TenantLogo({ size = 34 }) {
+export function TenantLogo({ size = 34 }: { size?: number }) {
   return (
     <span className="rounded-xl grid place-items-center shrink-0" style={{ width: size, height: size, background: "linear-gradient(160deg,#0B2545,#13315c)" }}>
       <svg width={size * 0.66} height={size * 0.66} viewBox="0 0 24 24">
