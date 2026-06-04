@@ -38,6 +38,9 @@ export default tseslint.config(
       "jsx-a11y/click-events-have-key-events": "warn",
       "jsx-a11y/no-static-element-interactions": "warn",
       "jsx-a11y/no-noninteractive-element-interactions": "warn",
+      // The kit's Input/Select are valid form controls, so wrapping them in a
+      // <label>/<Field> is a correct (implicit) association.
+      "jsx-a11y/label-has-associated-control": ["error", { controlComponents: ["Input", "Select"] }],
     },
   },
   prettier,
