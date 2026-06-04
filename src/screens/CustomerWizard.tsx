@@ -7,11 +7,18 @@ import { Sunbed } from "../components/Beach";
 import { ZONES, todayISO, chipLabel, makeGrid } from "../data/beach";
 import { useApp, useSpotlight } from "../app/store";
 import { TICKET_PRICES, TICKET_META, LOCKER_PRICE, PARKING_PRICE } from "../domain/pricing";
+import type { Dispatch, ReactNode, SetStateAction } from "react";
+import type { IconRenderer } from "../lib/icons";
+
+type People = Record<string, number>;
+interface BedPick { id: string; price: number }
+type WizardZone = (typeof ZONES)[number];
+interface TicketBreakItem { k: string; n: number; t: { price: number; label: string; sub: string }; total: number }
 
 /* Pricing now comes from the shared domain module (single source of truth), so
    the wizard, the standalone screens and Checkout can never disagree on a
    price. One "set" = 1 umbrella + 2 sunbeds (capacity 2). */
-const TICKET = {
+const TICKET: Record<string, { price: number; label: string; sub: string }> = {
   adult:    { price: TICKET_PRICES.adult,    ...TICKET_META.adult },
   resident: { price: TICKET_PRICES.resident, ...TICKET_META.resident },
   child:    { price: TICKET_PRICES.child,     ...TICKET_META.child },
@@ -29,7 +36,7 @@ const STEPS = [
 
 /* Smoothly tween a numeric value whenever it changes — used by the live total
    so the user actually sees the balance move when toggling a service. */
-function useAnimatedNumber(value, duration = 480) {
+function useAnimatedNumber(value: number, duration = 480) {
   const [display, setDisplay] = useState(value);
   const prev = useRef(value);
   useEffect(() => {
@@ -38,8 +45,8 @@ function useAnimatedNumber(value, duration = 480) {
     const to = value;
     if (from === to) return;
     const t0 = performance.now();
-    let raf;
-    const tick = (t) => {
+    let raf = 0;
+    const tick = (t: number) => {
       const p = Math.min(1, (t - t0) / duration);
       const eased = 1 - Math.pow(1 - p, 3);
       setDisplay(from + (to - from) * eased);
@@ -57,7 +64,7 @@ export function CustomerWizard() {
   useSpotlight("customer", "plan");
 
   const [stepIdx, setStepIdx] = useState(0);
-  const [people, setPeople] = useState({ adult: 2, resident: 0, child: 0, senior: 0 });
+  const [people, setPeople] = useState<People>({ adult: 2, resident: 0, child: 0, senior: 0 });
   const [includeTickets, setIncludeTickets] = useState(true);
   const [selDates, setSelDates] = useState([todayISO()]);
   const [zoneId, setZoneId] = useState("central");
@@ -65,7 +72,7 @@ export function CustomerWizard() {
   const [setsTouched, setSetsTouched] = useState(false);
   // Explicit umbrella picks from the inline beach grid. When non-empty, these
   // override the abstract `sets` count: the user has chosen specific beds.
-  const [bedSel, setBedSel] = useState([]);
+  const [bedSel, setBedSel] = useState<BedPick[]>([]);
   const [lockerOn, setLockerOn] = useState(false);
   const [lockerQty, setLockerQty] = useState(1);
   const [parkingOn, setParkingOn] = useState(false);
@@ -335,7 +342,7 @@ export function CustomerWizard() {
 }
 
 /* ============ Progress rail ============ */
-function ProgressRail({ stepIdx, onJump }) {
+function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number) => void }) {
   return (
     <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
       {STEPS.map((s, i) => {
@@ -373,7 +380,14 @@ function ProgressRail({ stepIdx, onJump }) {
 }
 
 /* ============ Step 1 — People ============ */
-function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, recommendedSets, onPreset }) {
+function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, recommendedSets, onPreset }: {
+  people: People;
+  setPeople: Dispatch<SetStateAction<People>>;
+  includeTickets: boolean;
+  setIncludeTickets: Dispatch<SetStateAction<boolean>>;
+  recommendedSets: number;
+  onPreset: (v: People) => void;
+}) {
   const totalPeople = Object.values(people).reduce((a, b) => a + b, 0);
   const presets = [
     { id: "solo",   label: "Solo",       sub: "1 person",     v: { adult: 1, resident: 0, child: 0, senior: 0 } },
@@ -449,7 +463,7 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, reco
 }
 
 /* ============ Step 2 — Dates ============ */
-function DatesStep({ selDates, setSelDates }) {
+function DatesStep({ selDates, setSelDates }: { selDates: string[]; setSelDates: Dispatch<SetStateAction<string[]>> }) {
   return (
     <div className="space-y-3">
       <DatePickerRow value={selDates} onChange={setSelDates} />
@@ -465,10 +479,20 @@ function DatesStep({ selDates, setSelDates }) {
 }
 
 /* ============ Step 3 — Beach bar zone & sets ============ */
-function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, dayCount, bedSel, setBedSel }) {
+function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, dayCount, bedSel, setBedSel }: {
+  zone: WizardZone;
+  zoneId: string;
+  setZoneId: Dispatch<SetStateAction<string>>;
+  sets: number;
+  setSets: (v: number) => void;
+  recommendedSets: number;
+  dayCount: number;
+  bedSel: BedPick[];
+  setBedSel: Dispatch<SetStateAction<BedPick[]>>;
+}) {
   const { go } = useApp();
   const grid = useMemo(() => makeGrid(zone), [zone.id]);
-  const toggleBed = (id, price) => {
+  const toggleBed = (id: string, price: number) => {
     setBedSel((s) => s.find((b) => b.id === id) ? s.filter((b) => b.id !== id) : [...s, { id, price }]);
   };
   const pickedSubtotal = bedSel.reduce((a, b) => a + b.price, 0);
@@ -572,7 +596,7 @@ function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, day
 }
 
 /* ============ Step 4 — Locker ============ */
-function LockerStep({ on, setOn, qty, setQty, dayCount }) {
+function LockerStep({ on, setOn, qty, setQty, dayCount }: { on: boolean; setOn: Dispatch<SetStateAction<boolean>>; qty: number; setQty: Dispatch<SetStateAction<number>>; dayCount: number }) {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
@@ -596,7 +620,7 @@ function LockerStep({ on, setOn, qty, setQty, dayCount }) {
 }
 
 /* ============ Step 5 — Parking ============ */
-function ParkingStep({ on, setOn, plate, setPlate, dayCount }) {
+function ParkingStep({ on, setOn, plate, setPlate, dayCount }: { on: boolean; setOn: Dispatch<SetStateAction<boolean>>; plate: string; setPlate: Dispatch<SetStateAction<string>>; dayCount: number }) {
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
@@ -618,7 +642,7 @@ function ParkingStep({ on, setOn, plate, setPlate, dayCount }) {
   );
 }
 
-function YesNo({ on, title, sub, icon: IconC, onClick }) {
+function YesNo({ on, title, sub, icon: IconC, onClick }: { on: boolean; value?: string; title: ReactNode; sub: ReactNode; icon: IconRenderer; onClick: () => void }) {
   return (
     <button onClick={onClick}
       className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 ring-1 transition text-left ${on ? "ring-teal-500 bg-teal-50" : "ring-slate-200 bg-white/70 hover:ring-teal-400"}`}>
@@ -634,7 +658,22 @@ function YesNo({ on, title, sub, icon: IconC, onClick }) {
 }
 
 /* ============ Step 6 — Review ============ */
-function ReviewStep({ people, totalPeople, selDates, dayCount, zone, sets, bedSel = [], includeTickets, ticketBreak, lockerOn, lockerQty, parkingOn, plate, onJump }) {
+function ReviewStep({ people, totalPeople, selDates, zone, sets, bedSel = [], includeTickets, ticketBreak, lockerOn, lockerQty, parkingOn, plate, onJump }: {
+  people: People;
+  totalPeople: number;
+  selDates: string[];
+  dayCount: number;
+  zone: WizardZone;
+  sets: number;
+  bedSel?: BedPick[];
+  includeTickets: boolean;
+  ticketBreak: TicketBreakItem[];
+  lockerOn: boolean;
+  lockerQty: number;
+  parkingOn: boolean;
+  plate: string;
+  onJump: (id: string) => void;
+}) {
   const dateLabel = selDates.length === 1
     ? chipLabel(selDates[0]).label + ", " + chipLabel(selDates[0]).sub
     : `${selDates.length} days (${selDates.map((d) => chipLabel(d).sub).join(", ")})`;
@@ -658,7 +697,7 @@ function ReviewStep({ people, totalPeople, selDates, dayCount, zone, sets, bedSe
   );
 }
 
-function ReviewRow({ icon: IconC, title, body, onEdit }) {
+function ReviewRow({ icon: IconC, title, body, onEdit }: { icon: IconRenderer; title: ReactNode; body: ReactNode; onEdit: () => void }) {
   return (
     <div className="flex items-center gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
       <span className="w-9 h-9 rounded-lg bg-slate-100 text-slate-600 grid place-items-center shrink-0"><IconC size={16} /></span>
@@ -671,7 +710,7 @@ function ReviewRow({ icon: IconC, title, body, onEdit }) {
   );
 }
 
-function humanPeople(p) {
+function humanPeople(p: People) {
   const parts = [];
   if (p.adult)    parts.push(`${p.adult} adult${p.adult !== 1 ? "s" : ""}`);
   if (p.resident) parts.push(`${p.resident} resident${p.resident !== 1 ? "s" : ""}`);
@@ -685,13 +724,38 @@ function BasketPanel({
   inline = false,
   totalPeople, dayCount,
   zone, sets, bedSel = [], setSubtotal,
-  includeTickets, ticketBreak, ticketSubtotal,
+  includeTickets, ticketBreak,
   lockerOn, lockerQty, lockerSubtotal,
   parkingOn, parkingSubtotal,
   grandTotal,
   cartCount,
   onCta, ctaLabel, ctaDisabled, confirmReady,
   stepIdx, totalSteps, onJumpToReview,
+}: {
+  inline?: boolean;
+  totalPeople: number;
+  dayCount: number;
+  zone: WizardZone;
+  sets: number;
+  bedSel?: BedPick[];
+  setSubtotal: number;
+  includeTickets: boolean;
+  ticketBreak: TicketBreakItem[];
+  ticketSubtotal?: number;
+  lockerOn: boolean;
+  lockerQty: number;
+  lockerSubtotal: number;
+  parkingOn: boolean;
+  parkingSubtotal: number;
+  grandTotal: number;
+  cartCount: number;
+  onCta: () => void;
+  ctaLabel: ReactNode;
+  ctaDisabled: boolean;
+  confirmReady: boolean;
+  stepIdx: number;
+  totalSteps: number;
+  onJumpToReview: () => void;
 }) {
   const Wrap = inline ? "div" : Card;
   const wrapClass = inline ? "" : "glass-card-solid p-5 shadow-float";
@@ -784,12 +848,12 @@ function BasketPanel({
 }
 
 /* Renders an integer euro amount, smoothly tweened on change. */
-function LiveEuro({ value }) {
+function LiveEuro({ value }: { value: number }) {
   const display = useAnimatedNumber(value);
   return <span className="tnum">{Math.round(display).toLocaleString()}</span>;
 }
 
-function BasketChip({ icon: IconC, label, value }) {
+function BasketChip({ icon: IconC, label, value }: { icon: IconRenderer; label: ReactNode; value: ReactNode }) {
   return (
     <div className="flex items-center gap-2.5 rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-2">
       <span className="w-7 h-7 rounded-lg bg-white text-slate-600 grid place-items-center shrink-0"><IconC size={14} /></span>
@@ -801,7 +865,7 @@ function BasketChip({ icon: IconC, label, value }) {
   );
 }
 
-function BasketLine({ icon: IconC, label, sub, amount, on, muted }) {
+function BasketLine({ icon: IconC, label, sub, amount, on, muted }: { icon: IconRenderer; label: ReactNode; sub: ReactNode; amount: number; on?: boolean; muted?: boolean }) {
   return (
     <div className={`flex items-center gap-2.5 rounded-xl px-3 py-2 transition-all ${muted ? "bg-slate-50 ring-1 ring-slate-200" : "bg-white ring-1 ring-slate-200"} ${on ? "animate-pop" : ""}`}>
       <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${muted ? "bg-slate-100 text-slate-400" : "bg-teal-50 text-teal-700"}`}><IconC size={14} /></span>
