@@ -44,5 +44,5 @@ export function listCustomers(): Promise<Customer[]> {
 }
 
 export function listZones(): Promise<Zone[]> {
-  return resolve(ZONES as Zone[]);
+  return resolve(ZONES);
 }

@@ -109,8 +109,11 @@ export interface Persona {
 export interface NavItem {
   k: string;
   label: string;
+  /** Purpose-built abbreviation for the compact mobile bottom-tab bar. */
+  short?: string;
   icon: string;
   badge?: "MVP" | "Future";
+  /** "account" marks personal destinations kept out of the desktop primary nav. */
   area?: string;
 }
 

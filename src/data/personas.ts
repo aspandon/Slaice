@@ -1,7 +1,8 @@
 // Personas (RFP roles). "Call Agent" is represented inside Manager/Admin (full access),
 // matching the RFP role matrix where Call Agent ≈ Admin minus tenant configuration.
+import type { NavItem, Persona, PersonaId } from "../domain/types";
 
-export const PERSONAS = [
+export const PERSONAS: Persona[] = [
   { id: "customer", label: "Customer", icon: "umbrella", color: "#0D9488", blurb: "Πελάτης — online booking, tickets, QR entry, documents" },
   { id: "admin", label: "Manager / Admin", icon: "chart", color: "#0B2545", blurb: "Διαχειριστής / Call Agent — config, availability, CRM, reporting" },
   { id: "cashier", label: "Cashier", icon: "cash", color: "#0ea5e9", blurb: "Ταμίας — on-site ticket issuing, printing, cash register" },
@@ -11,13 +12,10 @@ export const PERSONAS = [
 ];
 
 // Sidebar navigation per persona. badge "MVP"/"Future" shows the roadmap status.
-export const NAV = {
-  // My Bookings / My Documents are account-area destinations — reachable from
-  // the avatar menu in the TopBar, not duplicated in the primary sub-nav.
-  // `short` is the label used in the compact mobile bottom-tab bar (a purpose-
-  // built abbreviation, not a naive first-word split). `area: "account"` marks
-  // personal destinations: shown in the mobile nav sheet + the avatar menu, but
-  // kept out of the desktop inline primary nav.
+// `short` is the label used in the compact mobile bottom-tab bar. `area: "account"`
+// marks personal destinations: shown in the mobile nav sheet + the avatar menu, but
+// kept out of the desktop inline primary nav.
+export const NAV: Record<PersonaId, NavItem[]> = {
   customer: [
     { k: "home", label: "Home", short: "Home", icon: "home" },
     { k: "plan", label: "Plan my visit", short: "Plan", icon: "sparkles", badge: "MVP" },
@@ -63,7 +61,11 @@ export const NAV = {
   ],
 };
 
-export const DEFAULT_PAGE = {
-  customer: "home", admin: "dashboard", cashier: "issue",
-  controller: "scan", accountant: "invoicing", platform: "tenants",
+export const DEFAULT_PAGE: Record<PersonaId, string> = {
+  customer: "home",
+  admin: "dashboard",
+  cashier: "issue",
+  controller: "scan",
+  accountant: "invoicing",
+  platform: "tenants",
 };
