@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import * as Popover from "@radix-ui/react-popover";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon } from "../lib/icons";
 import type { IconRenderer } from "../lib/icons";
 import { Badge, Btn, Modal, Sheet, Field, Input, Select, Toggle, EmptyState } from "./ui";
@@ -13,25 +15,6 @@ import type { CartItem, LangCode, NavItem, PersonaId } from "../domain/types";
 interface NavProps { persona: PersonaId; page: string; setPage: (k: string) => void }
 interface FeedItem { ic: string; tone: string; t: string; b: string; time: string }
 interface ToastItem { id: number; msg: ReactNode; action?: { label: string; onClick?: () => void }; tone?: string; duration?: number }
-
-/* Close on click outside + Escape. Returns a ref to attach to the popover root. */
-function useOutsideClose(open: boolean, setOpen: (v: boolean) => void) {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open, setOpen]);
-  return ref;
-}
 
 function cartGlyph(kind: string) {
   const m: Record<string, IconRenderer> = { sunbed: Icon.umbrella, ticket: Icon.ticket, locker: Icon.lock, parking: Icon.car };
@@ -80,18 +63,14 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
   const { lang, setLang, setSignedIn, go, toast, cart, removeFromCart, addToCart } = useApp();
   const cartCount = (cart || []).length;
   const cartTotal = (cart || []).reduce((a, b) => a + b.price, 0);
-  const [pOpen, setPOpen] = useState(false);
-  const [aOpen, setAOpen] = useState(false);
-  const [nOpen, setNOpen] = useState(false);
-  const [bOpen, setBOpen] = useState(false);
+  // Basket + notifications are controlled Popovers so their in-panel CTAs can
+  // close them on navigation; the account + persona menus are uncontrolled
+  // Radix DropdownMenus that close themselves on select.
+  const [basketOpen, setBasketOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false); // mobile page-nav sheet
   const [settingsOpen, setSettingsOpen] = useState(false);
   const cur = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[0];
-  const close = () => { setPOpen(false); setAOpen(false); setNOpen(false); setBOpen(false); };
-  const nRef = useOutsideClose(nOpen, setNOpen);
-  const aRef = useOutsideClose(aOpen, setAOpen);
-  const pRef = useOutsideClose(pOpen, setPOpen);
-  const bRef = useOutsideClose(bOpen, setBOpen);
   const baseFeed = FEEDS[persona] || FEEDS.customer;
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const feed = useMemo(() => baseFeed.map((n, i) => ({ ...n, id: `${persona}-${i}`, read: readIds.has(`${persona}-${i}`) })), [baseFeed, persona, readIds]);
@@ -154,15 +133,17 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
       <div className="flex items-center gap-2 shrink-0">
         {/* basket popup — only on the customer persona */}
         {persona === "customer" && (
-        <div className="relative" ref={bRef}>
-          <button onClick={() => { close(); setBOpen((o) => !o); }} className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 relative transition" aria-label="Basket" title="Basket">
-            <Icon.card size={18} />
-            {cartCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 grid place-items-center text-[10px] font-bold bg-teal-500 text-white rounded-full ring-2 ring-white">{cartCount}</span>
-            )}
-          </button>
-          {bOpen && (
-            <div className="glass-card-solid absolute right-0 mt-2 w-[320px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-[60] shadow-float">
+        <Popover.Root open={basketOpen} onOpenChange={setBasketOpen}>
+          <Popover.Trigger asChild>
+            <button className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 data-[state=open]:bg-slate-100 data-[state=open]:text-navy-900 relative transition" aria-label="Basket" title="Basket">
+              <Icon.card size={18} />
+              {cartCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 grid place-items-center text-[10px] font-bold bg-teal-500 text-white rounded-full ring-2 ring-white">{cartCount}</span>
+              )}
+            </button>
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content align="end" sideOffset={8} aria-label="Basket" className="glass-card-solid w-[320px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
               <div className="flex items-center justify-between px-2 py-1.5">
                 <div className="font-semibold text-navy-900 text-sm flex items-center gap-2">
                   <Icon.card size={14} /> Your basket
@@ -173,7 +154,7 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
               {cartCount === 0 ? (
                 <div className="px-2 pb-2">
                   <EmptyState compact icon={Icon.card} title="Cart is empty" body="Add a sunbed, ticket or locker to get started." className="rounded-xl bg-slate-50" />
-                  <Btn variant="teal" full size="sm" icon={Icon.umbrella} className="mt-2" onClick={() => { setBOpen(false); go("customer", "book"); }}>Book a sunbed</Btn>
+                  <Btn variant="teal" full size="sm" icon={Icon.umbrella} className="mt-2" onClick={() => { setBasketOpen(false); go("customer", "book"); }}>Book a sunbed</Btn>
                 </div>
               ) : (
                 <>
@@ -195,14 +176,14 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
                       <span className="text-slate-600">Subtotal</span>
                       <span className="font-bold text-navy-900 tnum">€{cartTotal}</span>
                     </div>
-                    <Btn variant="teal" full size="sm" icon={Icon.card} onClick={() => { setBOpen(false); go("customer", "checkout"); }}>Checkout</Btn>
-                    <button onClick={() => { setBOpen(false); go("customer", "book"); }} className="w-full text-center text-[11px] text-slate-500 hover:text-navy-900 py-1">Continue shopping</button>
+                    <Btn variant="teal" full size="sm" icon={Icon.card} onClick={() => { setBasketOpen(false); go("customer", "checkout"); }}>Checkout</Btn>
+                    <button onClick={() => { setBasketOpen(false); go("customer", "book"); }} className="w-full text-center text-[11px] text-slate-500 hover:text-navy-900 py-1">Continue shopping</button>
                   </div>
                 </>
               )}
-            </div>
-          )}
-        </div>
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
         )}
 
         {/* Global search / command palette (⌘K). On staff personas it's a
@@ -222,15 +203,17 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
           </button>
         )}
 
-        <div className="relative" ref={nRef}>
-          <button onClick={() => { close(); setNOpen((o) => !o); }} className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 relative transition" aria-label="Notifications">
-            <Icon.bell size={18} />
-            {unread > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 grid place-items-center text-[10px] font-bold bg-gold-500 text-white rounded-full ring-2 ring-white">{unread}</span>
-            )}
-          </button>
-          {nOpen && (
-            <div className="glass-card-solid absolute right-0 mt-2 w-[340px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-[60] shadow-float">
+        <Popover.Root open={notifOpen} onOpenChange={setNotifOpen}>
+          <Popover.Trigger asChild>
+            <button className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 data-[state=open]:bg-slate-100 data-[state=open]:text-navy-900 relative transition" aria-label="Notifications">
+              <Icon.bell size={18} />
+              {unread > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 grid place-items-center text-[10px] font-bold bg-gold-500 text-white rounded-full ring-2 ring-white">{unread}</span>
+              )}
+            </button>
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content align="end" sideOffset={8} aria-label="Notifications" className="glass-card-solid w-[340px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
               <div className="flex items-center justify-between px-2 py-1.5">
                 <div className="font-semibold text-navy-900 text-sm flex items-center gap-2">
                   <Icon.bell size={14} /> Notifications
@@ -258,81 +241,86 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
               </div>
               <div className="px-2 py-1.5 border-t border-slate-200/70 mt-1 text-[11px] text-slate-500 flex items-center justify-between">
                 <span>Showing {feed.length} for {cur.label}</span>
-                <button onClick={() => { setNOpen(false); toast("Demo — notification settings."); }} className="hover:text-navy-900 inline-flex items-center gap-1"><Icon.cog size={12} /> Settings</button>
+                <button onClick={() => { setNotifOpen(false); toast("Demo — notification settings."); }} className="hover:text-navy-900 inline-flex items-center gap-1"><Icon.cog size={12} /> Settings</button>
               </div>
-            </div>
-          )}
-        </div>
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
 
         {/* avatar menu */}
-        <div className="relative" ref={aRef}>
-          <button onClick={() => { close(); setAOpen((o) => !o); }} className="flex items-center gap-1.5 bg-slate-100/80 hover:bg-slate-200/80 rounded-xl pl-1 pr-1.5 py-1 transition">
-            <span className="w-7 h-7 rounded-lg grid place-items-center text-white text-xs font-bold" style={{ background: "linear-gradient(135deg,#f59e0b,#ef4444)" }}>EM</span>
-            <Icon.chevD size={14} className="text-slate-500" />
-          </button>
-          {aOpen && (
-            <div className="glass-card-solid absolute right-0 mt-2 w-60 text-ink rounded-xl p-1.5 z-[60] shadow-float">
+        <DropdownMenu.Root modal={false}>
+          <DropdownMenu.Trigger asChild>
+            <button aria-label="Account menu" className="flex items-center gap-1.5 bg-slate-100/80 hover:bg-slate-200/80 data-[state=open]:bg-slate-200/80 rounded-xl pl-1 pr-1.5 py-1 transition">
+              <span className="w-7 h-7 rounded-lg grid place-items-center text-white text-xs font-bold" style={{ background: "linear-gradient(135deg,#f59e0b,#ef4444)" }}>EM</span>
+              <Icon.chevD size={14} className="text-slate-500" />
+            </button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content align="end" sideOffset={8} className="glass-card-solid w-60 text-ink rounded-xl p-1.5 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
               <div className="px-3 py-2 border-b border-slate-100 mb-1">
                 <div className="font-semibold text-sm text-navy-900">Elena M.</div>
                 <div className="text-[12px] text-slate-500">elena@example.com</div>
               </div>
-              <button onClick={() => { setAOpen(false); go("customer", "mybookings"); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm hover:bg-slate-100"><Icon.grid size={15} /> My bookings</button>
-              <button onClick={() => { setAOpen(false); go("customer", "mydocs"); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm hover:bg-slate-100"><Icon.receipt size={15} /> My documents</button>
-              <button onClick={() => { setAOpen(false); setSettingsOpen(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm hover:bg-slate-100"><Icon.cog size={15} /> Account settings</button>
-              <div className="px-3 pt-2 pb-1 mt-1 border-t border-slate-100 text-[10px] uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-1.5"><Icon.globe size={11} /> Language</div>
-              <div className="px-1.5 pb-1 grid grid-cols-2 gap-1">
+              <DropdownMenu.Item onSelect={() => go("customer", "mybookings")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.grid size={15} /> My bookings</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => go("customer", "mydocs")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.receipt size={15} /> My documents</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => setSettingsOpen(true)} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.cog size={15} /> Account settings</DropdownMenu.Item>
+              <DropdownMenu.Label className="px-3 pt-2 pb-1 mt-1 border-t border-slate-100 text-[10px] uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-1.5"><Icon.globe size={11} /> Language</DropdownMenu.Label>
+              <DropdownMenu.RadioGroup value={lang} onValueChange={(v) => setLang(v as LangCode)} className="px-1.5 pb-1 grid grid-cols-2 gap-1">
                 {LANGS.map((l) => (
-                  <button key={l.code} onClick={() => setLang(l.code)}
-                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-[12px] ${lang === l.code ? "bg-slate-100 font-semibold text-navy-900" : "text-slate-700 hover:bg-slate-100"}`}>
+                  <DropdownMenu.RadioItem key={l.code} value={l.code} onSelect={(e) => e.preventDefault()}
+                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-[12px] cursor-pointer select-none outline-none ${lang === l.code ? "bg-slate-100 font-semibold text-navy-900" : "text-slate-700 hover:bg-slate-100 data-[highlighted]:bg-slate-100"}`}>
                     <span><span className="font-semibold mr-1.5">{l.code}</span><span className="text-slate-500">{l.label}</span></span>
                     {lang === l.code && <Icon.check size={12} className="text-teal-600" />}
-                  </button>
+                  </DropdownMenu.RadioItem>
                 ))}
-              </div>
+              </DropdownMenu.RadioGroup>
               <div className="border-t border-slate-100 mt-1 pt-1">
-                <button onClick={() => { setAOpen(false); setSignedIn(false); toast("Signed out (demo)."); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-rose-600 hover:bg-rose-50"><Icon.arrowL size={15} /> Sign out</button>
+                <DropdownMenu.Item onSelect={() => { setSignedIn(false); toast("Signed out (demo)."); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-rose-600 cursor-pointer select-none outline-none hover:bg-rose-50 data-[highlighted]:bg-rose-50"><Icon.arrowL size={15} /> Sign out</DropdownMenu.Item>
               </div>
-            </div>
-          )}
-        </div>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
 
         {/* Persona switcher. On the customer surface it's a quiet "Demo" chip
             so it doesn't read as a real account control; on staff personas it
             keeps the accent-tinted treatment that signals "you are in role X". */}
-        <div className="relative" ref={pRef}>
-          {persona === "customer" ? (
-            <button onClick={() => { close(); setPOpen((o) => !o); }}
-              title="Demo — view as another persona"
-              className="flex items-center gap-1.5 bg-slate-100/80 hover:bg-slate-200/80 rounded-xl px-2.5 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500 hover:text-navy-900 transition">
-              <Icon.layers size={13} />
-              <span className="hidden md:inline">Demo</span>
-              <Icon.chevD size={12} />
-            </button>
-          ) : (
-            <button onClick={() => { close(); setPOpen((o) => !o); }}
-              style={{ background: cur.color + "14", borderColor: cur.color + "55" }}
-              className="flex items-center gap-2 ring-1 rounded-xl pl-1.5 pr-3 py-1.5 text-sm font-semibold hover:brightness-[.98] transition">
-              <span className="w-6 h-6 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: cur.color }}>{(() => { const I = Icon[cur.icon]; return I ? <I size={13} /> : null; })()}</span>
-              <span className="hidden md:inline text-navy-900">{cur.label}</span>
-              <Icon.chevD size={14} className="text-slate-400" />
-            </button>
-          )}
-          {pOpen && (
-            <div className="glass-card-solid absolute right-0 mt-2 w-72 text-ink rounded-xl p-1.5 z-[60] shadow-float">
-              <div className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">View as persona</div>
+        <DropdownMenu.Root modal={false}>
+          <DropdownMenu.Trigger asChild>
+            {persona === "customer" ? (
+              <button
+                title="Demo — view as another persona" aria-label="Switch persona (demo)"
+                className="flex items-center gap-1.5 bg-slate-100/80 hover:bg-slate-200/80 data-[state=open]:bg-slate-200/80 rounded-xl px-2.5 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500 hover:text-navy-900 data-[state=open]:text-navy-900 transition">
+                <Icon.layers size={13} />
+                <span className="hidden md:inline">Demo</span>
+                <Icon.chevD size={12} />
+              </button>
+            ) : (
+              <button
+                aria-label={`Switch persona — currently ${cur.label}`}
+                style={{ background: cur.color + "14", borderColor: cur.color + "55" }}
+                className="flex items-center gap-2 ring-1 rounded-xl pl-1.5 pr-3 py-1.5 text-sm font-semibold hover:brightness-[.98] transition">
+                <span className="w-6 h-6 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: cur.color }}>{(() => { const I = Icon[cur.icon]; return I ? <I size={13} /> : null; })()}</span>
+                <span className="hidden md:inline text-navy-900">{cur.label}</span>
+                <Icon.chevD size={14} className="text-slate-400" />
+              </button>
+            )}
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content align="end" sideOffset={8} className="glass-card-solid w-72 text-ink rounded-xl p-1.5 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
+              <DropdownMenu.Label className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">View as persona</DropdownMenu.Label>
               {PERSONAS.map((p) => (
-                <button key={p.id} onClick={() => { setPersona(p.id); setPOpen(false); }}
-                  className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-sm ${persona === p.id ? "bg-slate-100" : ""} hover:bg-slate-100`}>
+                <DropdownMenu.Item key={p.id} onSelect={() => setPersona(p.id)}
+                  className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none ${persona === p.id ? "bg-slate-100" : ""} hover:bg-slate-100 data-[highlighted]:bg-slate-100`}>
                   <span className="w-7 h-7 rounded-lg grid place-items-center text-white shrink-0 mt-0.5" style={{ background: p.color }}>{(() => { const I = Icon[p.icon]; return I ? <I size={14} /> : null; })()}</span>
                   <span className="text-left">
                     <span className="font-semibold flex items-center gap-1.5">{p.label}{persona === p.id && <Icon.check size={14} />}</span>
                     <span className="block text-[11px] text-slate-500 leading-tight">{p.blurb}</span>
                   </span>
-                </button>
+                </DropdownMenu.Item>
               ))}
-            </div>
-          )}
-        </div>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
       </div>
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <NavSheet open={navOpen} onClose={() => setNavOpen(false)} persona={persona} page={page} setPage={setPage} />
