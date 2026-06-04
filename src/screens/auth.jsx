@@ -11,6 +11,7 @@ export function AuthGate() {
   const [email, setEmail] = useState("elena@example.com");
   const [sent, setSent] = useState(false);
   const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(null); // which provider/action is signing in
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
   const submit = (e) => {
@@ -19,7 +20,8 @@ export function AuthGate() {
     setErr(""); setSent(true); toast("Demo — magic link 'sent'. Click continue.");
   };
 
-  const sso = (p) => { toast(`Demo — ${p} SSO. Signing you in…`); setTimeout(() => setSignedIn(true), 500); };
+  const sso = (p) => { setBusy(p); toast(`Demo — ${p} SSO. Signing you in…`); setTimeout(() => setSignedIn(true), 650); };
+  const continueDemo = () => { setBusy("magic"); setTimeout(() => setSignedIn(true), 650); };
 
   return (
     <div className="min-h-full grid lg:grid-cols-2">
@@ -75,7 +77,7 @@ export function AuthGate() {
               <div className="w-12 h-12 mx-auto rounded-xl bg-teal-600 text-white grid place-items-center"><Icon.mail size={22} /></div>
               <div className="mt-2 font-semibold text-navy-900">Check your inbox</div>
               <div className="text-[13px] text-slate-500">We sent a sign-in link to <b>{email}</b>.</div>
-              <Btn variant="teal" full size="lg" className="mt-4" icon={Icon.arrowR} onClick={() => setSignedIn(true)}>Continue (demo)</Btn>
+              <Btn variant="teal" full size="lg" className="mt-4" icon={Icon.arrowR} loading={busy === "magic"} onClick={continueDemo}>Continue (demo)</Btn>
             </div>
           )}
 
@@ -83,19 +85,19 @@ export function AuthGate() {
             <div className="h-px bg-slate-200 flex-1" /> or continue with <div className="h-px bg-slate-200 flex-1" />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <Btn variant="outline" onClick={() => sso("Google")}>
+            <Btn variant="outline" loading={busy === "Google"} disabled={!!busy} onClick={() => sso("Google")}>
               <span className="font-bold text-[15px]"><span className="text-[#4285F4]">G</span><span className="text-[#EA4335]">o</span><span className="text-[#FBBC05]">o</span><span className="text-[#4285F4]">g</span><span className="text-[#34A853]">l</span><span className="text-[#EA4335]">e</span></span>
             </Btn>
-            <Btn variant="outline" onClick={() => sso("Microsoft")}>
+            <Btn variant="outline" loading={busy === "Microsoft"} disabled={!!busy} onClick={() => sso("Microsoft")}>
               <span className="grid grid-cols-2 gap-0.5 w-3.5 h-3.5"><i className="bg-[#F25022]" /><i className="bg-[#7FBA00]" /><i className="bg-[#00A4EF]" /><i className="bg-[#FFB900]" /></span> Microsoft
             </Btn>
-            <Btn variant="outline" onClick={() => sso("Apple")}>
+            <Btn variant="outline" loading={busy === "Apple"} disabled={!!busy} onClick={() => sso("Apple")}>
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="w-4 h-4 text-navy-900">
                 <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.08zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
               </svg>
               Apple
             </Btn>
-            <Btn variant="outline" onClick={() => sso("Facebook")}>
+            <Btn variant="outline" loading={busy === "Facebook"} disabled={!!busy} onClick={() => sso("Facebook")}>
               <svg viewBox="0 0 24 24" fill="#1877F2" aria-hidden="true" className="w-4 h-4">
                 <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
               </svg>

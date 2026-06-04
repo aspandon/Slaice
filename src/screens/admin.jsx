@@ -68,6 +68,9 @@ export function AdminAvailability() {
   const { toast } = useApp();
   const [bulk, setBulk] = useState(false);
   const [rows, setRows] = useState(ZONES.map((z) => ({ ...z, open: z.avail / z.total > 0.3 })));
+  const totalBeds = rows.reduce((a, z) => a + z.total, 0);
+  const totalAvail = rows.reduce((a, z) => a + z.avail, 0);
+  const openCount = rows.filter((z) => z.open).length;
   return (
     <div className="animate-fade-up">
       <PageHead title="Availability & Pricing" sub="Single or bulk updates to availability and per-sunbed pricing." badge={<Badge tone="mvp">MVP</Badge>}
@@ -80,6 +83,13 @@ export function AdminAvailability() {
             <Toggle on={z.open} onChange={(v) => setRows((r) => r.map((x, xi) => (xi === i ? { ...x, open: v } : x)))} />,
             <Badge tone={z.open ? "green" : "amber"}>{z.open ? "Open" : "Closed"}</Badge>,
           ])} />
+        {/* Totals so the short table reads as a summary, not a sparse list. */}
+        <div className="flex flex-wrap items-center justify-end gap-x-6 gap-y-1 px-3.5 py-2.5 mt-1 border-t border-slate-200/70 text-[13px]">
+          <span className="text-slate-500">{openCount} of {rows.length} zones open</span>
+          <span className="text-slate-600">Total sunbeds <b className="text-navy-900 tnum">{totalBeds.toLocaleString()}</b></span>
+          <span className="text-slate-600">Available now <b className="text-teal-700 tnum">{totalAvail.toLocaleString()}</b></span>
+          <span className="text-slate-600">Occupancy <b className="text-navy-900 tnum">{Math.round((1 - totalAvail / totalBeds) * 100)}%</b></span>
+        </div>
       </Card>
       <Modal open={bulk} onClose={() => setBulk(false)} title="Bulk pricing" wide
         footer={<><Btn variant="ghost" onClick={() => setBulk(false)}>Cancel</Btn><Btn variant="primary" icon={Icon.check} onClick={() => { setBulk(false); toast("Demo — bulk price applied to the selection."); }}>Apply</Btn></>}>
@@ -139,6 +149,10 @@ export function AdminMapEditor() {
   return (
     <div>
       <PageHead actions={<><Btn variant="outline" icon={Icon.download} onClick={() => toast("Demo — upload aerial background.")}>Background</Btn><Btn variant="primary" icon={Icon.check} onClick={save}>Save layout</Btn></>} />
+      {/* Drag-positioning zones is fiddly on a phone — point editors to desktop. */}
+      <div className="lg:hidden mb-3 flex items-center gap-2 rounded-xl bg-sky-50 ring-1 ring-sky-600/15 px-3 py-2 text-[12px] text-sky-800">
+        <Icon.info size={14} className="shrink-0 text-sky-600" /> The map editor works best on a larger screen — drag-to-position is easier with a mouse.
+      </div>
       <div className="grid lg:grid-cols-[1fr_320px] gap-4">
         <Card className="p-5">
           <div

@@ -419,6 +419,10 @@ export function CustomerBooking() {
                       className="bg-transparent outline-none text-[12px] flex-1 min-w-0 placeholder:text-slate-400" />
                     {search && <button onClick={() => { setSearch(""); setSearchHit(null); }} className="text-slate-400 hover:text-slate-700"><Icon.x size={12} /></button>}
                   </div>
+                  {/* Weather-aware nudge derived from today's conditions. */}
+                  <span className="hidden lg:inline-flex items-center gap-1 text-[11px] text-amber-700 bg-amber-50 ring-1 ring-amber-200 rounded-full px-2 py-0.5">
+                    <Icon.bolt size={11} /> {WEATHER.uv >= 7 ? "High UV — shaded bays fill fast" : "Perfect beach weather today"}
+                  </span>
                   <div className="ml-auto inline-flex items-center gap-3 text-slate-600">
                     <span className="inline-flex items-center gap-1 font-bold text-amber-600"><Icon.sun size={13} />{WEATHER.tempC}°</span>
                     <span className="hidden md:inline tnum text-slate-500">UV {WEATHER.uv}</span>
@@ -1014,6 +1018,7 @@ export function CustomerBookings() {
   const { go, toast } = useApp();
   const [qrFor, setQrFor] = useState(null);
   const [filter, setFilter] = useState("all");
+  const [rated, setRated] = useState(null); // post-visit NPS
   const loading = useMockLoad();
   const data = CUSTOMER_BOOKINGS;
   const filtered = data.filter((d) => filter === "all" || d.state === filter);
@@ -1042,6 +1047,35 @@ export function CustomerBookings() {
           </div>
         </div>
       </Card>
+
+      {/* Post-visit review (NPS) + season-pass upsell. */}
+      <div className="grid sm:grid-cols-2 gap-4">
+        <Card className="p-4">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-1.5"><Icon.star size={12} /> How was your last visit?</div>
+          <div className="text-[12.5px] text-slate-600 mt-0.5">Central · CE-89 · Sun 12 Jul</div>
+          {rated == null ? (
+            <div className="mt-3 flex items-center gap-2">
+              {[1, 2, 3, 4, 5].map((nstar) => (
+                <button key={nstar} aria-label={`Rate ${nstar} of 5 stars`} onClick={() => { setRated(nstar); toast(nstar >= 4 ? "Thanks! Glad you enjoyed it ☀️" : "Thanks — we'll pass this to the team.", { tone: "success" }); }}
+                  className="w-10 h-10 rounded-xl ring-1 ring-slate-200 grid place-items-center text-slate-400 hover:ring-amber-400 hover:text-amber-500 hover:bg-amber-50 transition">
+                  <Icon.star size={18} />
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-3 flex items-center gap-2 text-[13px] text-teal-700 font-semibold"><Icon.checkCircle size={16} /> Thanks for the {rated}-star rating!</div>
+          )}
+        </Card>
+        <Card className="p-4 flex items-center gap-3">
+          <span className="w-11 h-11 rounded-2xl bg-gradient-to-br from-gold-400 to-gold-600 text-white grid place-items-center shrink-0 shadow-sm"><Icon.sparkles size={20} /></span>
+          <div className="min-w-0 flex-1">
+            <div className="font-display font-bold text-navy-900 text-[15px]">A Season Pass would save you €74</div>
+            <div className="text-[12px] text-slate-600 leading-snug">At 9 visits it pays for itself — unlimited entry + priority front-row.</div>
+          </div>
+          <Btn size="sm" variant="primary" onClick={() => toast("Demo — Season Pass purchase flow.")}>Get pass</Btn>
+        </Card>
+      </div>
+
       <Card className="p-4">
         <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
           <Tabs tabs={[["all", "All"], ["active", "Active"], ["past", "Past"]]} value={filter} onChange={setFilter} />

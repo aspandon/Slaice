@@ -82,6 +82,7 @@ export function Checkout() {
           </div>
         </Card>
         <div className="mt-3 text-[12px] text-slate-600 flex items-center gap-1.5"><Icon.shield size={13} /> On success: booking confirmed via webhook, QR e-mailed, and an ΑΠΥ auto-issued to MyDATA.</div>
+        <div className="mt-1.5 text-[11px] text-slate-500 flex items-center gap-1.5"><Icon.check size={12} className="text-teal-600" /> Your basket is saved on this device — finish whenever you're ready.</div>
       </div>
 
       <div className="lg:sticky lg:top-4 h-max">
