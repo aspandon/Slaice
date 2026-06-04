@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { Icon } from "../lib/icons";
-import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, ErrorState, StatusBadge, TableSkeleton, CardGridSkeleton, StatCard, ContextPanel, Tabs, DatePickerRow, Modal, StickyActionBar } from "../components/ui";
+import type { IconRenderer } from "../lib/icons";
+import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, ErrorState, StatusBadge, TableSkeleton, CardGridSkeleton, StatCard, Tabs, DatePickerRow, Modal, StickyActionBar } from "../components/ui";
 import { WalletButtons } from "../components/WalletPass";
 import { Reveal } from "../lib/motion";
 import { QR, Sparkline } from "../components/charts";
@@ -10,7 +12,12 @@ import { ZONES, ZONE_BLOCKS, FACILITIES, WEATHER, QUICK_PICKS, makeGrid, chipLab
 import { listCustomerBookings, listCustomerDocuments } from "../api";
 import { useAsync } from "../lib/useAsync";
 import { LOCKER_PRICE } from "../domain/pricing";
+import type { CartItem, CustomerBooking, CustomerDocument } from "../domain/types";
 import { useApp, useSpotlight, useT } from "../app/store";
+
+type Zone = (typeof ZONES)[number];
+type Facility = (typeof FACILITIES)[number];
+interface SelBed { id: string; zone: string; price: number }
 
 /* ============ HOME ============
    Unified glass aesthetic over the beach backdrop: a slim promo pill, a
@@ -26,7 +33,7 @@ export function CustomerHome() {
     { k: "locker",  t: tr("home.tile.locker.t"),  d: tr("home.tile.locker.d"),  ic: Icon.lock,     accent: "amber",  meta: tr("home.tile.locker.meta"),  metaTone: "green" },
     { k: "parking", t: tr("home.tile.parking.t"), d: tr("home.tile.parking.d"), ic: Icon.car,      accent: "indigo", meta: tr("home.tile.parking.meta"), metaTone: "green" },
   ];
-  const accents = {
+  const accents: Record<string, string> = {
     teal:   "from-teal-400 to-teal-600",
     navy:   "from-navy-700 to-navy-900",
     amber:  "from-amber-400 to-gold-600",
@@ -113,7 +120,7 @@ export function CustomerHome() {
 
 // Hover tooltip rendered above the zone pill — a 6×4 sample of sunbeds so
 // the user can sneak-peek occupancy before zooming in.
-function ZonePreview({ zone }) {
+function ZonePreview({ zone }: { zone: Zone }) {
   const grid = useMemo(() => makeGrid(zone, 6, 4).slice(0, 24), [zone.id]);
   return (
     <div className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-2 z-30 w-44 rounded-xl bg-white shadow-float ring-1 ring-slate-200 p-2.5 animate-pop">
@@ -134,7 +141,7 @@ function ZonePreview({ zone }) {
 
 // Facility pin (bar / WC / shower / first aid) positioned over the beach.
 // Label shows on hover (desktop) AND on tap (touch) so it's never hover-only.
-function FacilityPin({ facility }) {
+function FacilityPin({ facility }: { facility: Facility }) {
   const [show, setShow] = useState(false);
   const kind = facility.kind;
   const cfg = {
@@ -163,16 +170,16 @@ function FacilityPin({ facility }) {
 export function CustomerBooking() {
   const { go, toast, cart, addToCart, removeFromCart } = useApp();
   useSpotlight("customer", "book");
-  const [step, setStep] = useState("zones"); // zones | grid
-  const [zoneId, setZoneId] = useState(null);
+  const [step, setStep] = useState<"zones" | "grid">("zones");
+  const [zoneId, setZoneId] = useState<string | null>(null);
   const [selDates, setSelDates] = useState([todayISO()]); // multi-select ISO dates
-  const [sel, setSel] = useState([]); // {id, zone, price}
+  const [sel, setSel] = useState<SelBed[]>([]);
   const [extras, setExtras] = useState({ ticket: false, locker: false });
   const [sheetOpen, setSheetOpen] = useState(false); // mobile basket bottom-sheet
   const [railOpen, setRailOpen] = useState(false); // mobile: expand Who/When/Where controls
-  const [hoveredZone, setHoveredZone] = useState(null); // zone-pill preview
+  const [hoveredZone, setHoveredZone] = useState<string | null>(null); // zone-pill preview
   const [search, setSearch] = useState("");
-  const [searchHit, setSearchHit] = useState(null); // {zoneId, bedId} — pulse target
+  const [searchHit, setSearchHit] = useState<{ zoneId: string; bedId: string } | null>(null);
   const zone = ZONES.find((z) => z.id === zoneId) || null;
   const grid = useMemo(() => (zone ? makeGrid(zone) : []), [zoneId]);
 
@@ -181,7 +188,7 @@ export function CustomerBooking() {
   // hold starts on first selection, resets when the selection is cleared, and
   // releases the beds (with a toast) when it lapses.
   const HOLD_MS = 10 * 60 * 1000;
-  const [holdUntil, setHoldUntil] = useState(null);
+  const [holdUntil, setHoldUntil] = useState<number | null>(null);
   const [nowTs, setNowTs] = useState(Date.now());
   useEffect(() => {
     if (sel.length === 0) { setHoldUntil(null); return; }
@@ -199,17 +206,17 @@ export function CustomerBooking() {
       toast("Your held sunbeds were released — pick again when you're ready.", { tone: "warn" });
     }
   }, [holdLeft, holdUntil]);
-  const mmss = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
+  const mmss = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
 
-  const addBed = (id, price) => setSel((c) => (c.find((x) => x.id === id) ? c : [...c, { id, zone: zone.name, price }]));
-  const rm = (id) => setSel((c) => c.filter((x) => x.id !== id));
+  const addBed = (id: string, price: number) => { if (!zone) return; setSel((c) => (c.find((x) => x.id === id) ? c : [...c, { id, zone: zone.name, price }])); };
+  const rm = (id: string) => setSel((c) => c.filter((x) => x.id !== id));
 
   // Quick-pick: pick the zone with the most availability, then pick N
   // available beds matching the preset (adjacent / front-row / cheapest).
-  const applyPreset = (preset) => {
+  const applyPreset = (preset: (typeof QUICK_PICKS)[number]) => {
     const z = [...ZONES].sort((a, b) => b.avail - a.avail)[0];
     const g = makeGrid(z);
-    let pick = [];
+    let pick: typeof g = [];
     if (preset.id === "front") {
       pick = g.filter((b) => b.s === "a" && b.r === 0).slice(0, preset.beds);
     } else if (preset.id === "solo") {
@@ -232,7 +239,7 @@ export function CustomerBooking() {
 
   // Search by bed id ("AK-12" / "ce 89" / "MC03") — jumps to the zone
   // and pulses the matching tile for ~2.5s so the eye can find it.
-  const runSearch = (q) => {
+  const runSearch = (q: string) => {
     const m = String(q).toUpperCase().match(/([A-Z]{2})[\s-]*(\d{1,3})/);
     if (!m) { toast("Type a sunbed id like AK-12 or CE-89.", { tone: "warn" }); return; }
     const [, pfx, num] = m;
@@ -244,7 +251,7 @@ export function CustomerBooking() {
     toast(`Jumped to ${id} in ${z.name}.`, { tone: "success" });
   };
   const clearSel = () => { const prev = sel; setSel([]); toast("Selection cleared.", { action: { label: "Undo", onClick: () => setSel(prev) } }); };
-  const removeCartItem = (it) => { removeFromCart(it.kind, it.id); toast(`Removed ${it.label}.`, { action: { label: "Undo", onClick: () => addToCart(it) } }); };
+  const removeCartItem = (it: CartItem) => { removeFromCart(it.kind, it.id); toast(`Removed ${it.label}.`, { action: { label: "Undo", onClick: () => addToCart(it) } }); };
   // Bundle pricing — adding a ticket/locker alongside a sunbed is cheaper than
   // buying it standalone (€10→€8, €5→€4), nudging attach rate.
   const BUNDLE = { ticket: 8, locker: 4 };
@@ -435,13 +442,14 @@ export function CustomerBooking() {
                 {FACILITIES.map((f) => <FacilityPin key={f.id} facility={f} />)}
                 {ZONE_BLOCKS.map((b) => {
                   const z = ZONES.find((x) => x.id === b.id);
+                  if (!z) return null;
                   return (
                     <button key={b.id} onClick={() => { setZoneId(z.id); setStep("grid"); }}
                       className="absolute group z-10" style={{ left: b.left, top: b.top, width: b.w, transform: `rotate(${b.rot}deg)` }}>
                       <div className="rounded-lg bg-white/30 ring-2 ring-white/80 backdrop-blur-[1px] p-1 shadow-lg group-hover:bg-white/55 transition">
                         <div className="grid gap-[1px]" style={{ gridTemplateColumns: "repeat(8,1fr)" }}>
                           {Array.from({ length: 24 }).map((_, i) => {
-                            const s = ["a", "a", "h", "a", "u", "a"][(i * 5 + z.total) % 6];
+                            const s = (["a", "a", "h", "a", "u", "a"] as const)[(i * 5 + z.total) % 6];
                             return <div key={i} className="aspect-square" style={{ lineHeight: 0, transform: `rotate(${-b.rot}deg)` }}><Sunbed state={s} size={14} /></div>;
                           })}
                         </div>
@@ -650,13 +658,13 @@ export function CustomerBooking() {
   );
 }
 
-function cartIcon(kind) {
-  const m = { sunbed: Icon.umbrella, ticket: Icon.ticket, locker: Icon.lock, parking: Icon.car };
+function cartIcon(kind: string) {
+  const m: Record<string, IconRenderer> = { sunbed: Icon.umbrella, ticket: Icon.ticket, locker: Icon.lock, parking: Icon.car };
   const I = m[kind] || Icon.card;
   return <I size={15} />;
 }
 
-function CrossSell({ on, onClick, icon: IconC, title, price, was, future }) {
+function CrossSell({ on, onClick, icon: IconC, title, price, was, future }: { on: boolean; onClick: () => void; icon: IconRenderer; title: ReactNode; price: number; was?: number; future?: boolean }) {
   const saving = was && was > price ? was - price : 0;
   return (
     <button onClick={onClick} className={`w-full flex items-center justify-between rounded-xl px-3 py-2.5 ring-1 transition ${on ? "ring-teal-500 bg-teal-50" : "ring-slate-200 bg-white/70 hover:ring-teal-400"}`}>
@@ -683,7 +691,7 @@ export function CustomerTicket() {
     { k: "senior", t: "Senior 65+", p: 7, d: "ID required" },
   ];
   const [selDates, setSelDates] = useState([todayISO()]);
-  const [qty, setQty] = useState({ adult: 2, resident: 0, child: 1, senior: 0 });
+  const [qty, setQty] = useState<Record<string, number>>({ adult: 2, resident: 0, child: 1, senior: 0 });
   const [biz, setBiz] = useState(false);
   const [vat, setVat] = useState("");
   const dayCount = selDates.length;
@@ -785,7 +793,7 @@ export function CustomerTicket() {
 
 /* Deterministic 4-digit access PIN for a locker code — stable per id so the
    same locker always shows the same PIN (demo only). */
-function lockerPin(id) {
+function lockerPin(id: string) {
   const n = (id.charCodeAt(0) * 137 + parseInt(id.slice(1), 10) * 911) % 9000 + 1000;
   return String(n);
 }
@@ -802,7 +810,7 @@ export function CustomerLocker() {
   // Free-locker pool (same occupancy rule as before) — we assign the next N
   // free codes rather than make the guest pick one off a grid.
   const freeCodes = useMemo(() => {
-    const arr = [];
+    const arr: string[] = [];
     ["A", "B", "C", "D", "E"].forEach((bk) => {
       for (let i = 1; i <= 20; i++) {
         if ((bk.charCodeAt(0) + i * 7) % 5 !== 0) arr.push(`${bk}${String(i).padStart(2, "0")}`);
@@ -1017,7 +1025,7 @@ export function CustomerParking() {
 /* ============ MY BOOKINGS ============ */
 export function CustomerBookings() {
   const { go, toast } = useApp();
-  const [qrFor, setQrFor] = useState(null);
+  const [qrFor, setQrFor] = useState<CustomerBooking | null>(null);
   const [filter, setFilter] = useState("all");
   const bookings = useAsync(listCustomerBookings);
   const data = bookings.status === "success" ? bookings.data : [];
@@ -1089,8 +1097,8 @@ export function CustomerDocs() {
   const { toast } = useApp();
   const docsQ = useAsync(listCustomerDocuments);
   const docs = docsQ.status === "success" ? docsQ.data : [];
-  const [view, setView] = useState(null);
-  const download = (d) => { downloadPDF(`${d.id}.pdf`, customerReceiptDoc(d)); toast(`Downloaded ${d.id}.pdf`, { tone: "success" }); };
+  const [view, setView] = useState<CustomerDocument | null>(null);
+  const download = (d: CustomerDocument) => { downloadPDF(`${d.id}.pdf`, customerReceiptDoc(d)); toast(`Downloaded ${d.id}.pdf`, { tone: "success" }); };
   const downloadAll = () => {
     const files = filtered.map((d) => ({ name: `${d.id}.pdf`, content: buildReceiptBytes(d) }));
     if (!files.length) { toast("Nothing to bundle in this filter."); return; }
@@ -1098,7 +1106,7 @@ export function CustomerDocs() {
     toast(`Bundled ${files.length} PDF${files.length === 1 ? "" : "s"} into ZIP.`, { tone: "success" });
   };
   const [filter, setFilter] = useState("all");
-  const tone = (id) => id.startsWith("ΑΠΥ") ? "apy" : id.startsWith("ΤΠΥ") ? "tpy" : "credit";
+  const tone = (id: string) => id.startsWith("ΑΠΥ") ? "apy" : id.startsWith("ΤΠΥ") ? "tpy" : "credit";
   const filtered = docs.filter((d) => filter === "all" || tone(d.id) === filter);
   const totalAmount = docs.reduce((a, b) => {
     const v = parseInt(b.amt.replace(/[^0-9-−]/g, "").replace("−", "-"), 10) || 0;
@@ -1138,7 +1146,7 @@ export function CustomerDocs() {
       <Modal open={!!view} onClose={() => setView(null)} title={view?.id ?? "Document"}
         footer={<>
           <Btn variant="ghost" onClick={() => setView(null)}>Close</Btn>
-          <Btn variant="primary" icon={Icon.download} onClick={() => { download(view); setView(null); }}>Download</Btn>
+          <Btn variant="primary" icon={Icon.download} onClick={() => { if (!view) return; download(view); setView(null); }}>Download</Btn>
         </>}>
         {view && (
           <div className="text-sm">
@@ -1165,7 +1173,7 @@ export function CustomerDocs() {
   );
 }
 
-function customerReceiptDoc(d) {
+function customerReceiptDoc(d: CustomerDocument) {
   const kind = d.id.startsWith("ΑΠΥ") ? "Retail receipt (ΑΠΥ)"
             : d.id.startsWith("ΤΠΥ") ? "Service receipt (ΤΠΥ)"
             : "Credit note";
@@ -1189,4 +1197,4 @@ function customerReceiptDoc(d) {
     ],
   };
 }
-function buildReceiptBytes(d) { return buildPDFBytes(customerReceiptDoc(d)); }
+function buildReceiptBytes(d: CustomerDocument) { return buildPDFBytes(customerReceiptDoc(d)); }
