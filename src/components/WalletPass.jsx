@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Icon } from "../lib/icons.jsx";
-import { Sheet } from "./ui.jsx";
-import { QR } from "./charts.jsx";
-import { TenantLogo } from "./Brand.jsx";
-import { TENANT } from "../data/beach.js";
-import { useApp } from "../app/store.jsx";
-import { detectWalletPlatform, downloadPkpass, copyGoogleSaveLink } from "../lib/wallet.js";
+import { Icon } from "../lib/icons";
+import { Sheet } from "./ui";
+import { QR } from "./charts";
+import { TenantLogo } from "./Brand";
+import { TENANT } from "../data/beach";
+import { useApp } from "../app/store";
+import { detectWalletPlatform, downloadPkpass, copyGoogleSaveLink } from "../lib/wallet";
 
 /* ---------- Official-style badges ---------- */
 function AppleLogo({ size = 18 }) {

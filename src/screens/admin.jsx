@@ -1,12 +1,12 @@
 import { useRef, useState } from "react";
-import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, useMockLoad, FutureBanner, ContextPanel } from "../components/ui.jsx";
-import { BarChart, HBarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts.jsx";
-import { ZONES } from "../data/beach.js";
-import { ADMIN_BOOKINGS, ADMIN_REFUNDS, CUSTOMERS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS } from "../data/mock.js";
-import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr.js";
-import { useApp } from "../app/store.jsx";
-import { downloadCSV } from "../lib/download.js";
+import { Icon } from "../lib/icons";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, useMockLoad, FutureBanner, ContextPanel } from "../components/ui";
+import { BarChart, HBarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts";
+import { ZONES } from "../data/beach";
+import { ADMIN_BOOKINGS, ADMIN_REFUNDS, CUSTOMERS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS } from "../data/mock";
+import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr";
+import { useApp } from "../app/store";
+import { downloadCSV } from "../lib/download";
 
 /* ============ DASHBOARD ============ */
 export function AdminDashboard() {

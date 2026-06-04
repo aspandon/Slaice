@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, StatCard } from "../components/ui.jsx";
-import { BarChart } from "../components/charts.jsx";
-import { RECENT_VALIDATIONS } from "../data/mock.js";
-import { useApp, useSpotlight } from "../app/store.jsx";
+import { Icon } from "../lib/icons";
+import { Card, Btn, Badge, PageHead, StatCard } from "../components/ui";
+import { BarChart } from "../components/charts";
+import { RECENT_VALIDATIONS } from "../data/mock";
+import { useApp, useSpotlight } from "../app/store";
 
 export function ControllerScan() {
   const { toast } = useApp();

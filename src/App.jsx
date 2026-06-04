@@ -1,14 +1,14 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { AppCtx } from "./app/store.jsx";
-import { DEFAULT_PAGE } from "./data/personas.js";
-import { TopBar, Sidebar, BottomTabBar, SiteFooter, Toasts } from "./components/Shell.jsx";
-import { AuthGate } from "./screens/auth.jsx";
-import { ConsentBanner } from "./components/ConsentBanner.jsx";
-import { CommandPalette } from "./components/CommandPalette.jsx";
-import { BeachBackdrop } from "./components/Beach.jsx";
-import { routeFor } from "./routes.jsx";
-import { parseHash, buildHash } from "./app/router.js";
-import { HTML_LANG } from "./app/i18n.js";
+import { AppCtx } from "./app/store";
+import { DEFAULT_PAGE } from "./data/personas";
+import { TopBar, Sidebar, BottomTabBar, SiteFooter, Toasts } from "./components/Shell";
+import { AuthGate } from "./screens/auth";
+import { ConsentBanner } from "./components/ConsentBanner";
+import { CommandPalette } from "./components/CommandPalette";
+import { BeachBackdrop } from "./components/Beach";
+import { routeFor } from "./routes";
+import { parseHash, buildHash } from "./app/router";
+import { HTML_LANG } from "./app/i18n";
 
 const DEFAULT_CONSENT = { necessary: true, analytics: false, marketing: false, decided: false, ts: null };
 

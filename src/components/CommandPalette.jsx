@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Icon } from "../lib/icons.jsx";
-import { PERSONAS, NAV } from "../data/personas.js";
-import { useApp } from "../app/store.jsx";
+import { Icon } from "../lib/icons";
+import { PERSONAS, NAV } from "../data/personas";
+import { useApp } from "../app/store";
 
 /* ⌘K / Ctrl-K command palette — fast navigation across every persona's screens.
    Opens on the keyboard shortcut or a `slaice:cmdk` window event (dispatched by

@@ -1,11 +1,11 @@
-import * as C from "./screens/customer.jsx";
-import * as CW from "./screens/CustomerWizard.jsx";
-import * as CO from "./screens/Checkout.jsx";
-import * as A from "./screens/admin.jsx";
-import * as CA from "./screens/cashier.jsx";
-import * as CT from "./screens/controller.jsx";
-import * as AC from "./screens/accountant.jsx";
-import * as P from "./screens/platform.jsx";
+import * as C from "./screens/customer";
+import * as CW from "./screens/CustomerWizard";
+import * as CO from "./screens/Checkout";
+import * as A from "./screens/admin";
+import * as CA from "./screens/cashier";
+import * as CT from "./screens/controller";
+import * as AC from "./screens/accountant";
+import * as P from "./screens/platform";
 
 const MAP = {
   // customer

@@ -4,7 +4,7 @@
 // without pulling in react-router or needing any server rewrite (the static
 // deploy keeps working).
 
-import { PERSONAS, NAV } from "../data/personas.js";
+import { PERSONAS, NAV } from "../data/personas";
 
 // Customer account/flow destinations that aren't in the primary NAV but are
 // still legitimate (deep-linkable) pages.

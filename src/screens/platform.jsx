@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Field, Input, Select, Toggle, FutureBanner } from "../components/ui.jsx";
-import { Sparkline, Funnel, LineChartMini } from "../components/charts.jsx";
-import { SlaiceLogo } from "../components/Brand.jsx";
-import { PLATFORM_TENANTS } from "../data/mock.js";
-import { SUBPROCESSORS, BREACHES, TENANT_DPA } from "../data/gdpr.js";
-import { useApp } from "../app/store.jsx";
+import { Icon } from "../lib/icons";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Field, Input, Select, Toggle, FutureBanner } from "../components/ui";
+import { Sparkline, Funnel, LineChartMini } from "../components/charts";
+import { SlaiceLogo } from "../components/Brand";
+import { PLATFORM_TENANTS } from "../data/mock";
+import { SUBPROCESSORS, BREACHES, TENANT_DPA } from "../data/gdpr";
+import { useApp } from "../app/store";
 
 function ModuleList({ modules }) {
   return (

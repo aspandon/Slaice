@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Icon } from "../lib/icons.jsx";
-import { Btn, Sheet, Toggle } from "./ui.jsx";
-import { useApp } from "../app/store.jsx";
-import { CONSENT_PURPOSES } from "../data/gdpr.js";
+import { Icon } from "../lib/icons";
+import { Btn, Sheet, Toggle } from "./ui";
+import { useApp } from "../app/store";
+import { CONSENT_PURPOSES } from "../data/gdpr";
 
 /* GDPR cookie/consent banner (P4.1).
    Shown until the visitor makes a choice; "Manage preferences" opens a

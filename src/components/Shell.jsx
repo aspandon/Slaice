@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Icon } from "../lib/icons.jsx";
-import { Badge, Btn, Modal, Sheet, Field, Input, Select, Toggle, EmptyState } from "./ui.jsx";
-import { PrivacyCenter } from "./PrivacyCenter.jsx";
-import { SlaiceLogo, TenantLogo } from "./Brand.jsx";
-import { PERSONAS, NAV } from "../data/personas.js";
-import { TENANT } from "../data/beach.js";
-import { LANGS, useApp } from "../app/store.jsx";
+import { Icon } from "../lib/icons";
+import { Badge, Btn, Modal, Sheet, Field, Input, Select, Toggle, EmptyState } from "./ui";
+import { PrivacyCenter } from "./PrivacyCenter";
+import { SlaiceLogo, TenantLogo } from "./Brand";
+import { PERSONAS, NAV } from "../data/personas";
+import { TENANT } from "../data/beach";
+import { LANGS, useApp } from "../app/store";
 
 /* Close on click outside + Escape. Returns a ref to attach to the popover root. */
 function useOutsideClose(open, setOpen) {

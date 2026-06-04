@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Icon } from "../lib/icons.jsx";
-import { Btn, Input } from "../components/ui.jsx";
-import { SlaiceLogo, TenantLogo } from "../components/Brand.jsx";
-import { BeachBackdrop } from "../components/Beach.jsx";
-import { TENANT } from "../data/beach.js";
-import { useApp } from "../app/store.jsx";
+import { Icon } from "../lib/icons";
+import { Btn, Input } from "../components/ui";
+import { SlaiceLogo, TenantLogo } from "../components/Brand";
+import { BeachBackdrop } from "../components/Beach";
+import { TENANT } from "../data/beach";
+import { useApp } from "../app/store";
 
 export function AuthGate() {
   const { setSignedIn, toast } = useApp();

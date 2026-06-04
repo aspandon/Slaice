@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Tabs, Modal, StatusBadge, TableSkeleton, useMockLoad } from "../components/ui.jsx";
-import { Donut } from "../components/charts.jsx";
-import { ACCOUNTANT_DOCS, ACCOUNTANT_PAYOUTS } from "../data/mock.js";
-import { useApp } from "../app/store.jsx";
-import { downloadCSV, downloadPDF } from "../lib/download.js";
+import { Icon } from "../lib/icons";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Tabs, Modal, StatusBadge, TableSkeleton, useMockLoad } from "../components/ui";
+import { Donut } from "../components/charts";
+import { ACCOUNTANT_DOCS, ACCOUNTANT_PAYOUTS } from "../data/mock";
+import { useApp } from "../app/store";
+import { downloadCSV, downloadPDF } from "../lib/download";
 
 const neg = (v) => <span className="text-rose-600 font-medium tnum">{v}</span>;
 const negBold = (v) => <b className="text-rose-600 tnum">{v}</b>;

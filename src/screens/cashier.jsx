@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Stepper, Field, Input, Select, FutureBanner, ContextPanel } from "../components/ui.jsx";
-import { QR, StackedBar } from "../components/charts.jsx";
-import { CASHIER_TX, CASHIER_SESSION, CASHIER_PAST_SESSIONS, CASHIER_LOCKER_BANKS } from "../data/mock.js";
-import { useApp } from "../app/store.jsx";
+import { Icon } from "../lib/icons";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Stepper, Field, Input, Select, FutureBanner, ContextPanel } from "../components/ui";
+import { QR, StackedBar } from "../components/charts";
+import { CASHIER_TX, CASHIER_SESSION, CASHIER_PAST_SESSIONS, CASHIER_LOCKER_BANKS } from "../data/mock";
+import { useApp } from "../app/store";
 
 const ZRow = ({ label, value }) => (
   <div className="flex items-center justify-between border-b border-slate-100 last:border-0 pb-1.5 last:pb-0">

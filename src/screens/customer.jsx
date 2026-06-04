@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad, StatCard, ContextPanel, Tabs, DatePickerRow, Modal, StickyActionBar } from "../components/ui.jsx";
-import { WalletButtons } from "../components/WalletPass.jsx";
-import { Reveal } from "../lib/motion.jsx";
-import { QR, Sparkline } from "../components/charts.jsx";
-import { Sunbed, BeachBackdrop } from "../components/Beach.jsx";
-import { downloadPDF, downloadZIP, buildPDFBytes } from "../lib/download.js";
-import { ZONES, ZONE_BLOCKS, FACILITIES, WEATHER, QUICK_PICKS, makeGrid, chipLabel, todayISO } from "../data/beach.js";
-import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS } from "../data/mock.js";
-import { useApp, useSpotlight, useT } from "../app/store.jsx";
+import { Icon } from "../lib/icons";
+import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad, StatCard, ContextPanel, Tabs, DatePickerRow, Modal, StickyActionBar } from "../components/ui";
+import { WalletButtons } from "../components/WalletPass";
+import { Reveal } from "../lib/motion";
+import { QR, Sparkline } from "../components/charts";
+import { Sunbed, BeachBackdrop } from "../components/Beach";
+import { downloadPDF, downloadZIP, buildPDFBytes } from "../lib/download";
+import { ZONES, ZONE_BLOCKS, FACILITIES, WEATHER, QUICK_PICKS, makeGrid, chipLabel, todayISO } from "../data/beach";
+import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS } from "../data/mock";
+import { useApp, useSpotlight, useT } from "../app/store";
 
 /* ============ HOME ============
    Unified glass aesthetic over the beach backdrop: a slim promo pill, a

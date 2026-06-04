@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, Stepper, Input, Field, DatePickerRow } from "../components/ui.jsx";
-import { Reveal, prefersReducedMotion } from "../lib/motion.jsx";
-import { Sunbed } from "../components/Beach.jsx";
-import { ZONES, todayISO, chipLabel, makeGrid } from "../data/beach.js";
-import { useApp, useSpotlight } from "../app/store.jsx";
+import { Icon } from "../lib/icons";
+import { Card, Btn, Badge, Stepper, Input, Field, DatePickerRow } from "../components/ui";
+import { Reveal, prefersReducedMotion } from "../lib/motion";
+import { Sunbed } from "../components/Beach";
+import { ZONES, todayISO, chipLabel, makeGrid } from "../data/beach";
+import { useApp, useSpotlight } from "../app/store";
 
 /* Pricing tied to the existing customer pages so the wizard adds the same
    items to the cart as the standalone screens. One "set" = 1 umbrella + 2

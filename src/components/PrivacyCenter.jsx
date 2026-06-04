@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { Icon } from "../lib/icons.jsx";
-import { Modal, Btn, Badge, Tabs, Toggle, Table, ConfirmModal } from "./ui.jsx";
-import { useApp } from "../app/store.jsx";
-import { PROCESSORS, RETENTION, DATA_RIGHTS } from "../data/gdpr.js";
-import { downloadZIP, buildPDFBytes } from "../lib/download.js";
-import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS } from "../data/mock.js";
+import { Icon } from "../lib/icons";
+import { Modal, Btn, Badge, Tabs, Toggle, Table, ConfirmModal } from "./ui";
+import { useApp } from "../app/store";
+import { PROCESSORS, RETENTION, DATA_RIGHTS } from "../data/gdpr";
+import { downloadZIP, buildPDFBytes } from "../lib/download";
+import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS } from "../data/mock";
 
 /* Customer Privacy Centre (P4.2) — access/portability, consent management,
    transparency on processors, and a proper erasure flow with the legal

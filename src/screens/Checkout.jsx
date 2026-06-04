@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, EmptyState } from "../components/ui.jsx";
-import { QR } from "../components/charts.jsx";
-import { SlaiceLogo, TenantLogo } from "../components/Brand.jsx";
-import { WalletButtons } from "../components/WalletPass.jsx";
-import { TENANT } from "../data/beach.js";
-import { todayISO, toISO } from "../data/beach.js";
-import { downloadICS } from "../lib/download.js";
-import { useApp } from "../app/store.jsx";
+import { Icon } from "../lib/icons";
+import { Card, Btn, Badge, PageHead, EmptyState } from "../components/ui";
+import { QR } from "../components/charts";
+import { SlaiceLogo, TenantLogo } from "../components/Brand";
+import { WalletButtons } from "../components/WalletPass";
+import { TENANT } from "../data/beach";
+import { todayISO, toISO } from "../data/beach";
+import { downloadICS } from "../lib/download";
+import { useApp } from "../app/store";
 
 const FEE = 0.05; // Slaice application fee (5%)
 const STRIPE = 0.015; // ~1.5% Stripe processing

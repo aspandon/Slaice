@@ -1,8 +1,8 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Icon } from "../lib/icons.jsx";
-import { useCountUp, prefersReducedMotion } from "../lib/motion.jsx";
-import { chipLabel, dateStrip, fromISO, todayISO, toISO } from "../data/beach.js";
+import { Icon } from "../lib/icons";
+import { useCountUp, prefersReducedMotion } from "../lib/motion";
+import { chipLabel, dateStrip, fromISO, todayISO, toISO } from "../data/beach";
 
 /* ---------- Badge ---------- */
 export function Badge({ tone = "slate", children, className = "" }) {

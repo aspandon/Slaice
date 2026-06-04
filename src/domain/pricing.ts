@@ -6,7 +6,7 @@
  * the future backend one obvious contract surface to take over.
  */
 
-import type { CartItem, TicketCategory } from "./types.ts";
+import type { CartItem, TicketCategory } from "./types";
 
 /** Mock economics, mirrors the Checkout summary. */
 export const SLAICE_FEE_RATE = 0.05; // Slaice application fee

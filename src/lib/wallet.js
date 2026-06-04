@@ -9,8 +9,8 @@
 //   • a Google Wallet "Save" link with the real EventTicket claims.
 // Both are honestly labelled as demo in the UI.
 
-import { TENANT } from "../data/beach.js";
-import { zipBytes, downloadBlob } from "./download.js";
+import { TENANT } from "../data/beach";
+import { zipBytes, downloadBlob } from "./download";
 
 /* ---------- platform detection ---------- */
 // 'ios' | 'android' | 'other' — used to surface the right badge first.

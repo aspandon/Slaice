@@ -18,9 +18,9 @@ import type {
   CustomerBooking,
   CustomerDocument,
   Zone,
-} from "../domain/types.ts";
-import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS, CUSTOMERS } from "../data/mock.js";
-import { ZONES } from "../data/beach.js";
+} from "../domain/types";
+import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS, CUSTOMERS } from "../data/mock";
+import { ZONES } from "../data/beach";
 
 /** Simulated network latency (ms) so loading states are real, not cosmetic. */
 const LATENCY_MS = 450;

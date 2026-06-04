@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect } from "react";
-import { translate } from "./i18n.js";
+import { translate } from "./i18n";
 
 // Global app context: toasts, cross-persona navigation, auth + tenant theme.
 // `hint` is an optional spotlight set by go(...,{spotlight,tip}) so the
