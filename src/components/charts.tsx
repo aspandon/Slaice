@@ -1,14 +1,29 @@
 // Dependency-free SVG charts with readable axis labels (HTML overlay so the
 // type-size doesn't get distorted by SVG scaling).
 
-function formatTick(v) {
+interface SeriesPoint {
+  l: string;
+  v: number;
+  hi?: number;
+}
+interface DonutSegment {
+  v: number;
+  c: string;
+  l?: string;
+}
+interface FunnelStep {
+  l: string;
+  v: number;
+}
+
+function formatTick(v: number): string {
   if (v >= 1000) return (v / 1000).toFixed(v >= 10000 ? 0 : 1).replace(/\.0$/, "") + "k";
   return Math.round(v).toString();
 }
 
 // Build a concise text summary so a chart is announced as a single labelled
 // image (WCAG 1.1.1) — e.g. "Bar chart. 9h: 90, 10h: 180, …".
-function seriesSummary(kind, data, label) {
+function seriesSummary(kind: string, data: SeriesPoint[], label?: string): string {
   const series = data.map((d) => `${d.l}: ${d.v}`).join(", ");
   return `${label || kind}. ${series}`;
 }
@@ -16,7 +31,7 @@ function seriesSummary(kind, data, label) {
 const PAD_LEFT = 44;   // px reserved for Y-axis labels
 const PAD_BOTTOM = 28; // px reserved for X-axis labels
 
-export function BarChart({ data, color = "#0D9488", height = 220, label }) {
+export function BarChart({ data, color = "#0D9488", height = 220, label }: { data: SeriesPoint[]; color?: string; height?: number; label?: string }) {
   const max = Math.max(...data.map((d) => d.v)) * 1.15 || 1;
   const ticks = [1, 0.66, 0.33, 0];
   return (
@@ -51,7 +66,7 @@ export function BarChart({ data, color = "#0D9488", height = 220, label }) {
 // Horizontal bars — best for category data (e.g. zones) where vertical x-axis
 // labels would otherwise truncate to cryptic abbreviations. Full labels sit on
 // the left; the value sits at the end of each bar.
-export function HBarChart({ data, color = "#0D9488", unit = "", max, label }) {
+export function HBarChart({ data, color = "#0D9488", unit = "", max, label }: { data: SeriesPoint[]; color?: string; unit?: string; max?: number; label?: string }) {
   const m = max || Math.max(...data.map((d) => d.v)) * 1.05 || 1;
   return (
     <div role="img" aria-label={seriesSummary("Bar chart", data, label)} className="space-y-2 py-1">
@@ -68,7 +83,7 @@ export function HBarChart({ data, color = "#0D9488", unit = "", max, label }) {
   );
 }
 
-export function LineChartMini({ data, color = "#0D9488", height = 220, label }) {
+export function LineChartMini({ data, color = "#0D9488", height = 220, label }: { data: SeriesPoint[]; color?: string; height?: number; label?: string }) {
   const max = Math.max(...data.map((d) => d.v)) * 1.1 || 1;
   const min = Math.min(...data.map((d) => d.v)) * 0.9;
   const span = max - min || 1;
@@ -108,7 +123,7 @@ export function LineChartMini({ data, color = "#0D9488", height = 220, label }) 
   );
 }
 
-export function Donut({ segments, size = 120, label }) {
+export function Donut({ segments, size = 120, label }: { segments: DonutSegment[]; size?: number; label?: string }) {
   const total = segments.reduce((a, s) => a + s.v, 0);
   let acc = 0;
   const r = 42, c = 2 * Math.PI * r;
@@ -129,7 +144,7 @@ export function Donut({ segments, size = 120, label }) {
 }
 
 // Inline sparkline — a tiny trend line for KPI tiles.
-export function Sparkline({ data, color = "#0D9488", width = 96, height = 28 }) {
+export function Sparkline({ data, color = "#0D9488", width = 96, height = 28 }: { data: number[]; color?: string; width?: number; height?: number }) {
   const max = Math.max(...data) * 1.05 || 1;
   const min = Math.min(...data) * 0.95;
   const span = max - min || 1;
@@ -145,7 +160,7 @@ export function Sparkline({ data, color = "#0D9488", width = 96, height = 28 }) 
 }
 
 // Horizontal stacked bar — segments sum to 100% of the track width.
-export function StackedBar({ segments, height = 10, className = "" }) {
+export function StackedBar({ segments, height = 10, className = "" }: { segments: DonutSegment[]; height?: number; className?: string }) {
   const total = segments.reduce((a, s) => a + s.v, 0) || 1;
   return (
     <div className={`w-full rounded-full overflow-hidden flex ${className}`} style={{ height }}>
@@ -157,7 +172,7 @@ export function StackedBar({ segments, height = 10, className = "" }) {
 }
 
 // Conversion funnel — each step a shrinking bar with a count + drop-off.
-export function Funnel({ steps, color = "#3a47cc" }) {
+export function Funnel({ steps, color = "#3a47cc" }: { steps: FunnelStep[]; color?: string }) {
   const top = steps[0]?.v || 1;
   return (
     <div className="space-y-1.5">
@@ -175,24 +190,24 @@ export function Funnel({ steps, color = "#3a47cc" }) {
 }
 
 // Deterministic faux-QR for mockups.
-export function QR({ size = 120, seed = "SLAICE" }) {
+export function QR({ size = 120, seed = "SLAICE" }: { size?: number; seed?: string }) {
   const n = 21;
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
-  const rnd = (i) => {
+  const rnd = (i: number) => {
     let x = (h ^ (i * 2654435761)) >>> 0;
     x ^= x << 13; x ^= x >>> 17; x ^= x << 5;
     return (x >>> 0) % 100 < 48;
   };
-  const cells = [];
-  const finder = (cx, cy) => {
+  const cells: [number, number][] = [];
+  const finder = (cx: number, cy: number) => {
     for (let y = 0; y < 7; y++) for (let x = 0; x < 7; x++) {
       const on = x === 0 || x === 6 || y === 0 || y === 6 || (x >= 2 && x <= 4 && y >= 2 && y <= 4);
       if (on) cells.push([cx + x, cy + y]);
     }
   };
   finder(0, 0); finder(n - 7, 0); finder(0, n - 7);
-  const inFinder = (x, y) => (x < 8 && y < 8) || (x > n - 9 && y < 8) || (x < 8 && y > n - 9);
+  const inFinder = (x: number, y: number) => (x < 8 && y < 8) || (x > n - 9 && y < 8) || (x < 8 && y > n - 9);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (!inFinder(x, y) && rnd(y * n + x)) cells.push([x, y]);
   return (
     <svg viewBox={`0 0 ${n} ${n}`} style={{ width: size, height: size }} className="rounded-lg bg-white" role="img" aria-label={`QR code for ${seed}`}>
