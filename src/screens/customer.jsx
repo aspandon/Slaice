@@ -9,6 +9,7 @@ import { downloadPDF, downloadZIP, buildPDFBytes } from "../lib/download";
 import { ZONES, ZONE_BLOCKS, FACILITIES, WEATHER, QUICK_PICKS, makeGrid, chipLabel, todayISO } from "../data/beach";
 import { listCustomerBookings, listCustomerDocuments } from "../api";
 import { useAsync } from "../lib/useAsync";
+import { LOCKER_PRICE } from "../domain/pricing";
 import { useApp, useSpotlight, useT } from "../app/store";
 
 /* ============ HOME ============
@@ -795,7 +796,7 @@ function lockerPin(id) {
    and access PINs. No floor map to hunt through. */
 export function CustomerLocker() {
   const { addToCart, toast } = useApp();
-  const PRICE = 5;
+  const PRICE = LOCKER_PRICE;
   const [selDates, setSelDates] = useState([todayISO()]);
   const [qty, setQty] = useState(1);
   // Free-locker pool (same occupancy rule as before) — we assign the next N

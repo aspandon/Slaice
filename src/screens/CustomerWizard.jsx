@@ -6,18 +6,17 @@ import { Reveal, prefersReducedMotion } from "../lib/motion";
 import { Sunbed } from "../components/Beach";
 import { ZONES, todayISO, chipLabel, makeGrid } from "../data/beach";
 import { useApp, useSpotlight } from "../app/store";
+import { TICKET_PRICES, TICKET_META, LOCKER_PRICE, PARKING_PRICE } from "../domain/pricing";
 
-/* Pricing tied to the existing customer pages so the wizard adds the same
-   items to the cart as the standalone screens. One "set" = 1 umbrella + 2
-   sunbeds (capacity 2). */
+/* Pricing now comes from the shared domain module (single source of truth), so
+   the wizard, the standalone screens and Checkout can never disagree on a
+   price. One "set" = 1 umbrella + 2 sunbeds (capacity 2). */
 const TICKET = {
-  adult:    { price: 10, label: "Adult",            sub: "Standard entry" },
-  resident: { price: 6,  label: "Alimos resident",  sub: "Proof at gate" },
-  child:    { price: 5,  label: "Child (6–12)",     sub: "Under 6 free" },
-  senior:   { price: 7,  label: "Senior 65+",       sub: "ID required" },
+  adult:    { price: TICKET_PRICES.adult,    ...TICKET_META.adult },
+  resident: { price: TICKET_PRICES.resident, ...TICKET_META.resident },
+  child:    { price: TICKET_PRICES.child,     ...TICKET_META.child },
+  senior:   { price: TICKET_PRICES.senior,    ...TICKET_META.senior },
 };
-const LOCKER_PRICE = 5;
-const PARKING_PRICE = 15;
 
 const STEPS = [
   { id: "people",  label: "Guests",   icon: "group",    sub: "Tell us who's coming" },

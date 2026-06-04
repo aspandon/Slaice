@@ -305,7 +305,7 @@ export function TopBar({ persona, setPersona, page, setPage }) {
             <button onClick={() => { close(); setPOpen((o) => !o); }}
               style={{ background: cur.color + "14", borderColor: cur.color + "55" }}
               className="flex items-center gap-2 ring-1 rounded-xl pl-1.5 pr-3 py-1.5 text-sm font-semibold hover:brightness-[.98] transition">
-              <span className="w-6 h-6 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: cur.color }}>{Icon[cur.icon]({ size: 13 })}</span>
+              <span className="w-6 h-6 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: cur.color }}>{(() => { const I = Icon[cur.icon]; return I ? <I size={13} /> : null; })()}</span>
               <span className="hidden md:inline text-navy-900">{cur.label}</span>
               <Icon.chevD size={14} className="text-slate-400" />
             </button>
@@ -316,7 +316,7 @@ export function TopBar({ persona, setPersona, page, setPage }) {
               {PERSONAS.map((p) => (
                 <button key={p.id} onClick={() => { setPersona(p.id); setPOpen(false); }}
                   className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-sm ${persona === p.id ? "bg-slate-100" : ""} hover:bg-slate-100`}>
-                  <span className="w-7 h-7 rounded-lg grid place-items-center text-white shrink-0 mt-0.5" style={{ background: p.color }}>{Icon[p.icon]({ size: 14 })}</span>
+                  <span className="w-7 h-7 rounded-lg grid place-items-center text-white shrink-0 mt-0.5" style={{ background: p.color }}>{(() => { const I = Icon[p.icon]; return I ? <I size={14} /> : null; })()}</span>
                   <span className="text-left">
                     <span className="font-semibold flex items-center gap-1.5">{p.label}{persona === p.id && <Icon.check size={14} />}</span>
                     <span className="block text-[11px] text-slate-500 leading-tight">{p.blurb}</span>
@@ -484,7 +484,7 @@ export function Sidebar({ persona, page, setPage }) {
   return (
     <aside className="w-60 shrink-0 glass rounded-2xl p-3 h-max sticky top-[86px] hidden md:block z-20">
       <div className="px-2 py-2 flex items-center gap-2">
-        <span className="w-6 h-6 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: p.color }}>{Icon[p.icon]({ size: 13 })}</span>
+        <span className="w-6 h-6 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: p.color }}>{(() => { const I = Icon[p.icon]; return I ? <I size={13} /> : null; })()}</span>
         <span className="text-[12px] font-semibold uppercase tracking-wider text-slate-500">{p.label}</span>
       </div>
       <nav className="space-y-0.5 mt-1">

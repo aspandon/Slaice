@@ -8,9 +8,7 @@ import { TENANT } from "../data/beach";
 import { todayISO, toISO } from "../data/beach";
 import { downloadICS } from "../lib/download";
 import { useApp } from "../app/store";
-
-const FEE = 0.05; // Slaice application fee (5%)
-const STRIPE = 0.015; // ~1.5% Stripe processing
+import { SLAICE_FEE_RATE, STRIPE_FEE_RATE } from "../domain/pricing";
 
 // Stable booking-reference sequence — avoids the collisions/irreproducibility of
 // Math.random() and keeps the confirmation QR consistent within a session.
@@ -25,8 +23,8 @@ export function Checkout() {
   // Total; the commission/payout breakdown lives in the Accountant views).
   const [showEconomics, setShowEconomics] = useState(false);
   const total = cart.reduce((a, b) => a + b.price, 0);
-  const fee = +(total * FEE).toFixed(2);
-  const stripeFee = +(total * STRIPE).toFixed(2);
+  const fee = +(total * SLAICE_FEE_RATE).toFixed(2);
+  const stripeFee = +(total * STRIPE_FEE_RATE).toFixed(2);
   const removeItem = (it) => { removeFromCart(it.kind, it.id); toast(`Removed ${it.label}.`, { action: { label: "Undo", onClick: () => addToCart(it) } }); };
 
   if (cart.length === 0 && phase === "cart") {
