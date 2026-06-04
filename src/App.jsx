@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { AppCtx } from "./app/store";
 import { DEFAULT_PAGE } from "./data/personas";
 import { TopBar, Sidebar, BottomTabBar, SiteFooter, Toasts } from "./components/Shell";
@@ -112,7 +112,13 @@ export default function App() {
   const removeFromCart = useCallback((kind, id) => setCart((c) => c.filter((x) => !(x.kind === kind && x.id === id))), []);
   const clearCart = useCallback(() => setCart([]), []);
 
-  const ctx = { toast, go, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent };
+  // Memoised so the provider value keeps a stable identity across renders (all
+  // the functions are already useCallback-stable); consumers then re-render
+  // only when a value they read actually changes, not on every App render.
+  const ctx = useMemo(
+    () => ({ toast, go, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent }),
+    [toast, go, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent],
+  );
 
   return (
     <AppCtx.Provider value={ctx}>
