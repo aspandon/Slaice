@@ -1,21 +1,28 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { Icon } from "../lib/icons";
+import type { IconRenderer } from "../lib/icons";
 import { Badge, Btn, Modal, Sheet, Field, Input, Select, Toggle, EmptyState } from "./ui";
 import { PrivacyCenter } from "./PrivacyCenter";
-import { SlaiceLogo, TenantLogo } from "./Brand";
+import { TenantLogo } from "./Brand";
 import { PERSONAS, NAV } from "../data/personas";
 import { TENANT } from "../data/beach";
 import { LANGS, useApp } from "../app/store";
+import type { CartItem, LangCode, NavItem, PersonaId } from "../domain/types";
+
+interface NavProps { persona: PersonaId; page: string; setPage: (k: string) => void }
+interface FeedItem { ic: string; tone: string; t: string; b: string; time: string }
+interface ToastItem { id: number; msg: ReactNode; action?: { label: string; onClick?: () => void }; tone?: string; duration?: number }
 
 /* Close on click outside + Escape. Returns a ref to attach to the popover root. */
-function useOutsideClose(open, setOpen) {
-  const ref = useRef(null);
+function useOutsideClose(open: boolean, setOpen: (v: boolean) => void) {
+  const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
-    const onDown = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
-    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setOpen(false); };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
     return () => {
@@ -26,14 +33,14 @@ function useOutsideClose(open, setOpen) {
   return ref;
 }
 
-function cartGlyph(kind) {
-  const m = { sunbed: Icon.umbrella, ticket: Icon.ticket, locker: Icon.lock, parking: Icon.car };
+function cartGlyph(kind: string) {
+  const m: Record<string, IconRenderer> = { sunbed: Icon.umbrella, ticket: Icon.ticket, locker: Icon.lock, parking: Icon.car };
   const I = m[kind] || Icon.card;
   return <I size={13} />;
 }
 
 /* ---------- Per-persona notification feeds (mocked) ---------- */
-const FEEDS = {
+const FEEDS: Record<string, FeedItem[]> = {
   customer: [
     { ic: "checkCircle", tone: "green", t: "Booking confirmed", b: "Central · CE-89, Sun 19 Jul · QR ready in My Bookings.", time: "2m" },
     { ic: "bolt", tone: "amber", t: "Weather alert — Sat", b: "Light winds expected. We'll re-confirm 24h before.", time: "1h" },
@@ -69,8 +76,8 @@ const FEEDS = {
 };
 
 /* ---------- Top bar ---------- */
-export function TopBar({ persona, setPersona, page, setPage }) {
-  const { lang, setLang, signedIn, setSignedIn, go, toast, cart, removeFromCart, addToCart } = useApp();
+export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setPersona: (p: PersonaId) => void }) {
+  const { lang, setLang, setSignedIn, go, toast, cart, removeFromCart, addToCart } = useApp();
   const cartCount = (cart || []).length;
   const cartTotal = (cart || []).reduce((a, b) => a + b.price, 0);
   const [pOpen, setPOpen] = useState(false);
@@ -79,18 +86,18 @@ export function TopBar({ persona, setPersona, page, setPage }) {
   const [bOpen, setBOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false); // mobile page-nav sheet
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const cur = PERSONAS.find((p) => p.id === persona);
+  const cur = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[0];
   const close = () => { setPOpen(false); setAOpen(false); setNOpen(false); setBOpen(false); };
   const nRef = useOutsideClose(nOpen, setNOpen);
   const aRef = useOutsideClose(aOpen, setAOpen);
   const pRef = useOutsideClose(pOpen, setPOpen);
   const bRef = useOutsideClose(bOpen, setBOpen);
   const baseFeed = FEEDS[persona] || FEEDS.customer;
-  const [readIds, setReadIds] = useState(new Set());
+  const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const feed = useMemo(() => baseFeed.map((n, i) => ({ ...n, id: `${persona}-${i}`, read: readIds.has(`${persona}-${i}`) })), [baseFeed, persona, readIds]);
   const unread = feed.filter((n) => !n.read).length;
   const markAll = () => setReadIds(new Set(feed.map((n) => n.id)));
-  const removeBasketItem = (it) => {
+  const removeBasketItem = (it: CartItem) => {
     if (!removeFromCart) return;
     removeFromCart(it.kind, it.id);
     toast(`Removed ${it.label}.`, { action: { label: "Undo", onClick: () => addToCart && addToCart(it) } });
@@ -337,12 +344,12 @@ export function TopBar({ persona, setPersona, page, setPage }) {
    The single source of truth for "where can I go" on a phone — opened from the
    TopBar title and from the bottom tab bar's "More". Lists every page for the
    active persona with icons, active state and roadmap (Future) badges. */
-export function NavSheet({ open, onClose, persona, page, setPage }) {
+export function NavSheet({ open, onClose, persona, page, setPage }: NavProps & { open: boolean; onClose: () => void }) {
   const all = NAV[persona] || [];
   const items = all.filter((it) => it.area !== "account");
   const account = all.filter((it) => it.area === "account");
-  const p = PERSONAS.find((x) => x.id === persona);
-  const Row = (it) => {
+  const p = PERSONAS.find((x) => x.id === persona) ?? PERSONAS[0];
+  const Row = (it: NavItem) => {
     const IconC = Icon[it.icon];
     const active = page === it.k;
     return (
@@ -370,7 +377,7 @@ export function NavSheet({ open, onClose, persona, page, setPage }) {
   );
 }
 
-function toneBg(tone) {
+function toneBg(tone: string) {
   return {
     green: "bg-teal-100 text-teal-700 ring-1 ring-teal-200",
     amber: "bg-amber-100 text-amber-700 ring-1 ring-amber-200",
@@ -381,19 +388,19 @@ function toneBg(tone) {
 }
 
 /* ---------- Account Settings (modal) ---------- */
-function SettingsModal({ open, onClose }) {
+function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast, lang, setLang } = useApp();
   const [name, setName] = useState("Elena Manoli");
   const [email, setEmail] = useState("elena@example.com");
   const [phone, setPhone] = useState("+30 694 000 0000");
   const [prefs, setPrefs] = useState({ push: true, email: true, sms: false, offers: true });
-  const [cards, setCards] = useState([
+  const [cards, setCards] = useState<{ brand: string; last4: string; exp: string }[]>([
     { brand: "Visa", last4: "4242", exp: "08/27" },
     { brand: "Mastercard", last4: "5210", exp: "11/26" },
   ]);
   const [privacy, setPrivacy] = useState(false);
   const save = () => { onClose(); toast("Account settings saved.", { tone: "success" }); };
-  const removeCard = (card) => {
+  const removeCard = (card: { brand: string; last4: string; exp: string }) => {
     setCards((cs) => cs.filter((c) => c.last4 !== card.last4));
     toast(`Removed card ending ${card.last4}.`, { action: { label: "Undo", onClick: () => setCards((cs) => (cs.find((c) => c.last4 === card.last4) ? cs : [...cs, card])) } });
   };
@@ -408,7 +415,7 @@ function SettingsModal({ open, onClose }) {
             <Field label="E-mail"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
             <Field label="Phone"><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
             <Field label="Language">
-              <Select value={lang} onChange={(e) => setLang(e.target.value)} options={LANGS.map((l) => ({ v: l.code, l: `${l.code} — ${l.label}` }))} />
+              <Select value={lang} onChange={(e) => setLang(e.target.value as LangCode)} options={LANGS.map((l) => ({ v: l.code, l: `${l.code} — ${l.label}` }))} />
             </Field>
           </div>
         </section>
@@ -468,7 +475,7 @@ function SettingsModal({ open, onClose }) {
   );
 }
 
-function PrefRow({ label, sub, on, set }) {
+function PrefRow({ label, sub, on, set }: { label: ReactNode; sub: ReactNode; on: boolean; set: (v: boolean) => void }) {
   return (
     <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
       <div><div className="font-semibold text-sm text-navy-900">{label}</div><div className="text-[11px] text-slate-500">{sub}</div></div>
@@ -478,9 +485,9 @@ function PrefRow({ label, sub, on, set }) {
 }
 
 /* ---------- Sidebar ---------- */
-export function Sidebar({ persona, page, setPage }) {
+export function Sidebar({ persona, page, setPage }: NavProps) {
   const items = NAV[persona];
-  const p = PERSONAS.find((x) => x.id === persona);
+  const p = PERSONAS.find((x) => x.id === persona) ?? PERSONAS[0];
   return (
     <aside className="w-60 shrink-0 glass rounded-2xl p-3 h-max sticky top-[86px] hidden md:block z-20">
       <div className="px-2 py-2 flex items-center gap-2">
@@ -513,7 +520,7 @@ export function Sidebar({ persona, page, setPage }) {
    sticky just below the TopBar (top-2 + ~56px header height = ~68px), with a
    near-opaque glass-card background so the "powered by SLAiCE" badge in the
    TopBar above doesn't read through when the user scrolls. ---------- */
-export function PageTopNav({ persona, page, setPage }) {
+export function PageTopNav({ persona, page, setPage }: NavProps) {
   const items = NAV[persona];
   return (
     <div className="sticky top-[68px] z-20 glass-card-solid rounded-2xl p-1.5 mb-4 flex gap-1.5 overflow-x-auto no-scrollbar">
@@ -539,7 +546,7 @@ export function PageTopNav({ persona, page, setPage }) {
    tabs and folds the rest behind "More" (the NavSheet). Fixed to the bottom
    with safe-area padding so it clears the iOS home indicator. md:hidden —
    desktop uses the sidebar / inline nav. */
-export function BottomTabBar({ persona, page, setPage }) {
+export function BottomTabBar({ persona, page, setPage }: NavProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const items = NAV[persona] || [];
   // Account destinations always live behind "More" (the nav sheet), never as a
@@ -549,7 +556,7 @@ export function BottomTabBar({ persona, page, setPage }) {
   const primary = mainItems.length > 5 ? mainItems.slice(0, 4) : mainItems.slice(0, 5);
   const hasMore = items.length > primary.length;
   const moreActive = !primary.some((it) => it.k === page);
-  const Tab = ({ icon, label, active, onClick, badge }) => {
+  const Tab = ({ icon, label, active, onClick, badge }: { icon: string | IconRenderer; label: ReactNode; active: boolean; onClick: () => void; badge?: string }) => {
     const IconC = typeof icon === "string" ? Icon[icon] : icon;
     return (
       <button onClick={onClick}
@@ -601,8 +608,8 @@ export function SiteFooter() {
 }
 
 /* ---------- Toasts ---------- */
-export function Toasts({ items, onDismiss }) {
-  const tones = {
+export function Toasts({ items, onDismiss }: { items: ToastItem[]; onDismiss?: (id: number) => void }) {
+  const tones: Record<string, { ic: string; chip: string; bar: string }> = {
     success: { ic: "checkCircle", chip: "bg-teal-500/20 text-teal-300", bar: "bg-teal-400/70" },
     error: { ic: "alert", chip: "bg-rose-500/20 text-rose-300", bar: "bg-rose-400/70" },
     info: { ic: "info", chip: "bg-sky-500/20 text-sky-300", bar: "bg-sky-400/70" },
@@ -611,14 +618,14 @@ export function Toasts({ items, onDismiss }) {
   return (
     <div className="fixed right-4 z-[80] space-y-2.5 w-[340px] max-w-[calc(100vw-2rem)] bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:bottom-4">
       {items.map((t) => {
-        const tn = tones[t.tone] || tones.default;
+        const tn = tones[t.tone || "default"] || tones.default;
         const IC = Icon[tn.ic];
         return (
           <div key={t.id} role="status" className="glass-dark text-white rounded-xl pl-3 pr-3 py-3 text-sm shadow-float ring-1 ring-white/15 animate-slide-in-right flex items-start gap-2.5 overflow-hidden relative">
             <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${tn.chip}`}><IC size={15} /></span>
             <span className="flex-1 leading-snug pt-0.5">{t.msg}</span>
             {t.action && (
-              <button onClick={() => { t.action.onClick?.(); onDismiss?.(t.id); }}
+              <button onClick={() => { t.action?.onClick?.(); onDismiss?.(t.id); }}
                 className="shrink-0 self-center text-[12px] font-bold text-gold-300 hover:text-gold-200 underline underline-offset-2 px-1">
                 {t.action.label}
               </button>
