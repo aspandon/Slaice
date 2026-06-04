@@ -90,7 +90,7 @@ function PassPreview({ pass }) {
           <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Booking</div>
           <div className="font-mono font-semibold text-navy-900 text-sm">#{pass.ref}</div>
           {pass.total && <div className="text-[12px] text-slate-500 mt-1">{pass.total} · paid</div>}
-          <div className="text-[11px] text-slate-400 mt-1.5">Scan at the gate</div>
+          <div className="text-[11px] text-slate-500 mt-1.5">Scan at the gate</div>
         </div>
       </div>
     </div>

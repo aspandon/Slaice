@@ -1,6 +1,6 @@
 /* ---------- Single sunbed glyph ----------
    state: "a" available · "h" on hold · "u" unavailable · sel = selected (coral, from the video) */
-export function Sunbed({ state = "a", sel = false, onClick, label, price, size = 20, block = false }) {
+export function Sunbed({ state = "a", sel = false, onClick, label, price, size = 20, block = false, fill = false }) {
   const colA = sel ? "#e2552f" : state === "u" ? "#cbd5e1" : state === "h" ? "#f5b54a" : "#5cc0f0";
   const colB = sel ? "#fb8a63" : state === "u" ? "#e2e8f0" : state === "h" ? "#fcd98a" : "#ffffff";
   const dim = state === "u";
@@ -11,10 +11,13 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
       aria-label={`Sunbed ${label || ""}${dim ? " unavailable" : state === "h" ? " on hold" : ` €${price}`}${sel ? ", selected" : ""}`}
       aria-pressed={sel}
       title={`${label || ""} · ${dim ? "Unavailable" : state === "h" ? "On hold" : "€" + price}`}
-      className={`group relative ${block ? "w-full h-full grid place-items-center" : ""} ${dim ? "cursor-not-allowed" : "cursor-pointer hover:-translate-y-1.5 hover:scale-[1.18] hover:z-20"} transition-transform duration-200 ease-spring`}
+      // `fill` lets the glyph scale to its cell (used by the wizard's pick grid so
+      // each umbrella grows on desktop yet stays tappable on phones); `block`
+      // alone keeps a fixed `size` but a full-cell hit area.
+      className={`group relative ${block || fill ? "w-full h-full grid place-items-center" : ""} ${dim ? "cursor-not-allowed" : "cursor-pointer hover:-translate-y-1.5 hover:scale-[1.18] hover:z-20"} transition-transform duration-200 ease-spring`}
       style={{ lineHeight: 0, willChange: "transform" }}
     >
-      <svg width={size} height={size} viewBox="0 0 24 24" className="drop-shadow-sm transition-[filter] duration-200 group-hover:drop-shadow-[0_8px_10px_rgba(11,37,69,0.5)]">
+      <svg width={fill ? "100%" : size} height={fill ? "100%" : size} viewBox="0 0 24 24" className={`${fill ? "w-full h-full " : ""}drop-shadow-sm transition-[filter] duration-200 group-hover:drop-shadow-[0_8px_10px_rgba(11,37,69,0.5)]`}>
         <path d="M12 13 L3 9 A10 10 0 0 1 12 4 Z" fill={colA} />
         <path d="M12 13 L21 9 A10 10 0 0 0 12 4 Z" fill={colB} stroke={sel ? colA : "#e7eef5"} strokeWidth="0.6" />
         <rect x="11.4" y="12" width="1.2" height="7" rx="0.5" fill={dim ? "#cbd5e1" : "#7c8a99"} />

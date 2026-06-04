@@ -4,7 +4,7 @@ import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, Empty
 import { WalletButtons } from "../components/WalletPass.jsx";
 import { Reveal } from "../lib/motion.jsx";
 import { QR, Sparkline } from "../components/charts.jsx";
-import { Sunbed, BeachBackdrop, ParkingBackdrop, LockerBackdrop } from "../components/Beach.jsx";
+import { Sunbed, BeachBackdrop } from "../components/Beach.jsx";
 import { downloadPDF, downloadZIP, buildPDFBytes } from "../lib/download.js";
 import { ZONES, ZONE_BLOCKS, FACILITIES, WEATHER, QUICK_PICKS, makeGrid, chipLabel, todayISO } from "../data/beach.js";
 import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS } from "../data/mock.js";
@@ -33,28 +33,8 @@ export function CustomerHome() {
 
   return (
     <div className="animate-fade-up space-y-4">
-      {!promoDismissed && (
-        <div className="glass rounded-2xl px-3.5 py-2.5 flex items-center gap-2.5">
-          <span className="w-7 h-7 rounded-lg grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm"><Icon.bolt size={14} /></span>
-          <span className="flex-1 min-w-0 text-[13px] text-navy-900">
-            <b className="font-semibold">{tr("home.promo.bold")}</b> {tr("home.promo.text")}
-            <span className="text-slate-700 hidden sm:inline"> · {tr("home.promo.hours")}</span>
-          </span>
-          <button onClick={() => go("customer", "book")} className="text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 rounded-md px-2 py-1 whitespace-nowrap">{tr("home.promo.claim")} →</button>
-          <button aria-label="Dismiss offer" onClick={() => setPromoDismissed(true)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-500 hover:text-navy-900 hover:bg-white/60 shrink-0"><Icon.x size={14} /></button>
-        </div>
-      )}
-
-      {/* Returning-guest shortcut — jump straight back to the favourite zone. */}
-      <button onClick={() => go("customer", "book")} className="glass rounded-2xl px-3.5 py-2.5 w-full flex items-center gap-3 text-left hover:bg-white/70 transition group">
-        <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={17} /></span>
-        <span className="flex-1 min-w-0">
-          <span className="block text-[13px] font-semibold text-navy-900">{tr("home.rebook.title")}</span>
-          <span className="block text-[11.5px] text-slate-600 truncate">{tr("home.rebook.sub")}</span>
-        </span>
-        <Icon.chevR size={16} className="text-slate-400 group-hover:text-teal-600 group-hover:translate-x-0.5 transition shrink-0" />
-      </button>
-
+      {/* Guided-booking hero — the primary entry point, so it sits first,
+          directly under the nav; the promo bar and shortcuts follow below. */}
       <Reveal as="button" onClick={() => go("customer", "plan")} className="text-left group block w-full">
         <Card hover press className="glass-card-solid relative overflow-hidden p-6 sm:p-9">
           <div aria-hidden className="absolute -top-28 -right-20 w-80 h-80 rounded-full bg-gradient-to-br from-teal-300/45 via-teal-400/20 to-transparent blur-3xl" />
@@ -78,6 +58,28 @@ export function CustomerHome() {
           </div>
         </Card>
       </Reveal>
+
+      {!promoDismissed && (
+        <div className="glass rounded-2xl px-3.5 py-2.5 flex items-center gap-2.5">
+          <span className="w-7 h-7 rounded-lg grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm"><Icon.bolt size={14} /></span>
+          <span className="flex-1 min-w-0 text-[13px] text-navy-900">
+            <b className="font-semibold">{tr("home.promo.bold")}</b> {tr("home.promo.text")}
+            <span className="text-slate-700 hidden sm:inline"> · {tr("home.promo.hours")}</span>
+          </span>
+          <button onClick={() => go("customer", "book")} className="text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 rounded-md px-2 py-1 whitespace-nowrap">{tr("home.promo.claim")} →</button>
+          <button aria-label="Dismiss offer" onClick={() => setPromoDismissed(true)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-500 hover:text-navy-900 hover:bg-white/60 shrink-0"><Icon.x size={14} /></button>
+        </div>
+      )}
+
+      {/* Returning-guest shortcut — jump straight back to the favourite zone. */}
+      <button onClick={() => go("customer", "book")} className="glass rounded-2xl px-3.5 py-2.5 w-full flex items-center gap-3 text-left hover:bg-white/70 transition group">
+        <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={17} /></span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-[13px] font-semibold text-navy-900">{tr("home.rebook.title")}</span>
+          <span className="block text-[12px] text-slate-600 truncate">{tr("home.rebook.sub")}</span>
+        </span>
+        <Icon.chevR size={16} className="text-slate-400 group-hover:text-teal-600 group-hover:translate-x-0.5 transition shrink-0" />
+      </button>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {services.map((t, i) => (
@@ -106,22 +108,6 @@ export function CustomerHome() {
 }
 
 /* ============ SUNBED BOOKING helpers ============ */
-
-// Tiny donut showing free / total. Stroke length = free ratio, lighter
-// remainder underneath. Sized to nest inside the 7×7 zone-pill avatar.
-function ZoneDonut({ free, total, color, size = 28 }) {
-  const r = size / 2 - 2;
-  const c = 2 * Math.PI * r;
-  const pct = Math.max(0, Math.min(1, free / total));
-  return (
-    <svg width={size} height={size} className="block">
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="3.5" />
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="3.5"
-        strokeDasharray={`${c*pct} ${c}`} strokeLinecap="round"
-        transform={`rotate(-90 ${size/2} ${size/2})`} />
-    </svg>
-  );
-}
 
 // Hover tooltip rendered above the zone pill — a 6×4 sample of sunbeds so
 // the user can sneak-peek occupancy before zooming in.
@@ -342,13 +328,19 @@ export function CustomerBooking() {
                         <Icon.users size={12} className="text-teal-600" /> Guests
                       </div>
                       <div className="font-display font-semibold text-[15px] text-navy-900 mb-2.5">Pick a party size</div>
-                      <div className="flex flex-wrap gap-1.5">
+                      {/* Date-box styled cards so Guests reads as the same
+                          family of tiles as the When date strip. */}
+                      <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
                         {QUICK_PICKS.map((p) => {
                           const I = p.id === "couple" ? Icon.users : p.id === "family" ? Icon.group : p.id === "front" ? Icon.wave : Icon.umbrella;
                           return (
                             <button key={p.id} onClick={() => applyPreset(p)} title={p.hint}
-                              className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100/80 hover:bg-navy-900 hover:text-white text-navy-900 px-3 py-2 text-[12.5px] font-semibold transition">
-                              <I size={13} /> {p.label}
+                              className="shrink-0 min-w-[84px] min-h-[64px] px-3 py-2.5 rounded-xl ring-1 bg-white ring-slate-200 hover:ring-teal-400 hover:-translate-y-0.5 transition inline-flex flex-col items-center justify-center gap-1 text-navy-900">
+                              <span className="flex items-center gap-1 leading-none">
+                                <I size={13} className="text-teal-600" />
+                                <span className="text-[12.5px] font-semibold">{p.label}</span>
+                              </span>
+                              <span className="text-[10.5px] text-slate-500 leading-none">{p.beds} set{p.beds !== 1 ? "s" : ""}</span>
                             </button>
                           );
                         })}
@@ -379,7 +371,10 @@ export function CustomerBooking() {
                         <span className="text-[11px] text-slate-500">{ZONES.length} zones</span>
                       </div>
                       <div className="font-display font-semibold text-[15px] text-navy-900 mb-2.5">Choose a zone</div>
-                      <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
+                      {/* Date-box styled cards (matching When); a small colour
+                          dot keeps each zone's identity, the % + price sits on
+                          the sub line like a date's day-of-month. */}
+                      <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
                         {ZONES.map((z) => {
                           const hovered = hoveredZone === z.id;
                           return (
@@ -387,15 +382,12 @@ export function CustomerBooking() {
                               onMouseEnter={() => setHoveredZone(z.id)}
                               onMouseLeave={() => setHoveredZone((cur) => (cur === z.id ? null : cur))}>
                               <button onClick={() => { setZoneId(z.id); setStep("grid"); }}
-                                className="flex items-center gap-1.5 rounded-xl bg-slate-100/80 hover:bg-navy-900 hover:text-white text-navy-900 pl-1 pr-3 py-1 whitespace-nowrap transition group">
-                                <span className="relative w-8 h-8 grid place-items-center rounded-full bg-white/90 group-hover:bg-white/15 transition">
-                                  <ZoneDonut free={z.avail} total={z.total} color={z.color} size={30} />
-                                  <span className="absolute inset-0 grid place-items-center text-[9px] font-bold text-navy-900 group-hover:text-white transition">{Math.round(z.avail/z.total*100)}%</span>
+                                className="min-w-[92px] min-h-[64px] px-3 py-2.5 rounded-xl ring-1 bg-white ring-slate-200 hover:ring-teal-400 hover:-translate-y-0.5 transition inline-flex flex-col items-center justify-center gap-1">
+                                <span className="flex items-center gap-1.5 leading-none">
+                                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: z.color }} />
+                                  <span className="text-[12.5px] font-semibold text-navy-900">{z.name}</span>
                                 </span>
-                                <span className="text-left leading-tight">
-                                  <span className="block text-[12.5px] font-semibold">{z.name}</span>
-                                  <span className="block text-[10px] tnum text-slate-500 group-hover:text-white/70 transition">{z.avail} · €{z.from}+</span>
-                                </span>
+                                <span className="text-[10.5px] tnum text-slate-500 leading-none">{Math.round(z.avail / z.total * 100)}% · €{z.from}+</span>
                               </button>
                               {hovered && <ZonePreview zone={z} />}
                             </div>
@@ -605,7 +597,6 @@ export function CustomerBooking() {
                 Checkout · {cart.length} item{cart.length > 1 ? "s" : ""} · €{cartTotal}
               </Btn>
             )}
-            <button onClick={() => go("admin", "map")} className="mt-2 w-full text-center text-[11px] text-slate-500 hover:text-slate-700 flex items-center justify-center gap-1"><Icon.cog size={12} /> Edit map layout</button>
           </div>
         );
 
@@ -790,219 +781,231 @@ export function CustomerTicket() {
   );
 }
 
-/* ============ DAY LOCKER ============ */
+/* Deterministic 4-digit access PIN for a locker code — stable per id so the
+   same locker always shows the same PIN (demo only). */
+function lockerPin(id) {
+  const n = (id.charCodeAt(0) * 137 + parseInt(id.slice(1), 10) * 911) % 9000 + 1000;
+  return String(n);
+}
+
+/* ============ DAY LOCKER ============
+   Reserve-and-assign model (luggage-storage / gym-locker convention): the guest
+   chooses how many lockers and which days — the system assigns the locker codes
+   and access PINs. No floor map to hunt through. */
 export function CustomerLocker() {
   const { addToCart, toast } = useApp();
   const PRICE = 5;
   const [selDates, setSelDates] = useState([todayISO()]);
-  const banks = ["A", "B", "C", "D", "E"];
-  const lockers = useMemo(() => {
+  const [qty, setQty] = useState(1);
+  // Free-locker pool (same occupancy rule as before) — we assign the next N
+  // free codes rather than make the guest pick one off a grid.
+  const freeCodes = useMemo(() => {
     const arr = [];
-    banks.forEach((bk) => { for (let i = 1; i <= 20; i++) { const id = `${bk}${String(i).padStart(2, "0")}`; arr.push({ id, bank: bk, taken: (bk.charCodeAt(0) + i * 7) % 5 === 0 }); } });
+    ["A", "B", "C", "D", "E"].forEach((bk) => {
+      for (let i = 1; i <= 20; i++) {
+        if ((bk.charCodeAt(0) + i * 7) % 5 !== 0) arr.push(`${bk}${String(i).padStart(2, "0")}`);
+      }
+    });
     return arr;
   }, []);
-  const [sel, setSel] = useState([]);
-  const toggle = (id, taken) => { if (taken) return; setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id])); };
+  const free = freeCodes.length;
+  const assigned = useMemo(() => freeCodes.slice(0, qty), [freeCodes, qty]);
   const dayCount = selDates.length;
-  const total = sel.length * PRICE * dayCount;
-  const free = lockers.filter((l) => !l.taken).length;
+  const total = qty * PRICE * dayCount;
   const reserve = () => {
     selDates.forEach((iso) => {
       const sub = chipLabel(iso).sub;
-      sel.forEach((id) => addToCart({ kind: "locker", id: `${id}@${iso}`, label: `Locker ${id}`, sub, price: PRICE }));
+      assigned.forEach((id) => addToCart({ kind: "locker", id: `${id}@${iso}`, label: `Locker ${id}`, sub: `PIN ${lockerPin(id)} · ${sub}`, price: PRICE }));
     });
-    toast(`${sel.length} locker${sel.length > 1 ? "s" : ""} × ${dayCount} day${dayCount > 1 ? "s" : ""} added to your basket.`, { tone: "success" });
-    setSel([]);
+    toast(`${qty} locker${qty > 1 ? "s" : ""} × ${dayCount} day${dayCount > 1 ? "s" : ""} added to your basket.`, { tone: "success" });
   };
-  const removeLocker = (id) => { setSel((s) => s.filter((x) => x !== id)); toast(`Locker ${id} removed.`, { action: { label: "Undo", onClick: () => setSel((s) => (s.includes(id) ? s : [...s, id])) } }); };
+
+  const perks = [
+    { icon: Icon.lock,  title: "Secure & private",   body: "Steel day locker by the beach bar — fits two beach bags, a tablet and your valuables." },
+    { icon: Icon.qr,    title: "Open with QR or PIN", body: "Unlock from your phone; we also assign a backup 4-digit PIN, shown on the right." },
+    { icon: Icon.clock, title: "All-day access",      body: "Come and go as you like until closing — re-lock it between swims." },
+  ];
 
   return (
-    <div className="grid lg:grid-cols-[1fr_320px] gap-5 pb-28 lg:pb-0">
-      <div>
-        {/* Dates card. Locker legend (Available/Selected/Taken + free count)
-            lives in a divider strip at the bottom of this same card so it
-            doesn't read as a separate floating row. */}
-        <Card className="glass-card-solid p-4 mb-4 overflow-visible">
+    <div className="grid lg:grid-cols-[1fr_340px] gap-5 pb-28 lg:pb-0">
+      <div className="space-y-4 min-w-0">
+        <Card className="glass-card-solid p-5 relative overflow-hidden">
+          <div aria-hidden className="absolute -top-12 -right-10 w-44 h-44 rounded-full bg-gradient-to-br from-teal-300/35 to-transparent blur-2xl" />
+          <div className="relative flex items-center gap-3">
+            <span className="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-500 to-teal-700 text-white grid place-items-center shadow-sm shrink-0"><Icon.lock size={22} /></span>
+            <div className="min-w-0">
+              <div className="font-display font-bold text-navy-900 text-xl">Day locker</div>
+              <div className="text-[12.5px] text-slate-600">Keep your phone, keys and valuables safe while you swim. €{PRICE}/locker/day · {free} free today.</div>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="glass-card-solid p-4 overflow-visible">
           <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center justify-between">
             <span className="flex items-center gap-1.5"><Icon.calendar size={13} /> Dates · pick one or more</span>
             <span className="text-slate-600 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
           </div>
           <DatePickerRow value={selDates} onChange={setSelDates} />
-          <div className="mt-3 pt-3 border-t border-slate-200/70 flex items-center gap-4 text-[11.5px] text-navy-900 flex-wrap">
-            <span className="flex items-center gap-1.5"><i className="w-3.5 h-3.5 rounded bg-teal-500 inline-block ring-1 ring-white/70" />Available</span>
-            <span className="flex items-center gap-1.5"><i className="w-3.5 h-3.5 rounded bg-navy-900 inline-block ring-1 ring-white/70" />Selected</span>
-            <span className="flex items-center gap-1.5"><i className="w-3.5 h-3.5 rounded bg-slate-300 inline-block ring-1 ring-slate-400" />Taken</span>
-            <span className="ml-auto font-semibold">{free} free today</span>
-          </div>
         </Card>
-        <LockerBackdrop className="p-5 ring-1 ring-white/30 shadow-float">
-          <div className="relative space-y-4">
-            {banks.map((bk) => (
-              <div key={bk} className="rounded-xl bg-white/55 backdrop-blur-sm ring-1 ring-white/60 p-3">
-                <div className="text-[12px] font-bold text-navy-900 mb-2 flex items-center gap-1.5">
-                  <Icon.lock size={13} /> Bank {bk}
-                </div>
-                <div className="grid gap-2" style={{ gridTemplateColumns: "repeat(10,1fr)" }}>
-                  {lockers.filter((l) => l.bank === bk).map((l) => {
-                    const isSel = sel.includes(l.id);
-                    const cl = l.taken
-                      ? "bg-gradient-to-b from-slate-300 to-slate-400 text-slate-100 cursor-not-allowed"
-                      : isSel
-                        ? "bg-gradient-to-b from-navy-800 to-navy-950 text-white ring-2 ring-teal-400 shadow-lift"
-                        : "bg-gradient-to-b from-teal-500 to-teal-700 text-white hover:from-teal-400 hover:to-teal-600 shadow-soft";
-                    return (
-                      <button key={l.id} disabled={l.taken} onClick={() => toggle(l.id, l.taken)} title={`${l.id} · ${l.taken ? "Taken" : "€" + PRICE}`} className={`relative aspect-[3/4] rounded-lg grid place-items-center transition ${cl} pb-5`}>
-                        <Icon.lock size={22} />
-                        <span className="absolute bottom-1.5 left-0 right-0 text-center text-[13px] font-bold leading-none tnum">{l.id}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+
+        <Card className="glass-card-solid p-5">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <div className="font-semibold text-navy-900">How many lockers?</div>
+              <div className="text-[12px] text-slate-600">{qty} × €{PRICE} × {dayCount} day{dayCount > 1 ? "s" : ""} · assigned automatically</div>
+            </div>
+            <Stepper label="lockers" value={qty} onChange={(v) => setQty(Math.max(1, Math.min(free, v)))} min={1} />
+          </div>
+          <div className="mt-4 grid sm:grid-cols-3 gap-3">
+            {perks.map((p, i) => (
+              <div key={i} className="rounded-xl ring-1 ring-slate-200 bg-white/70 p-3">
+                <span className="w-8 h-8 rounded-lg bg-teal-50 text-teal-700 grid place-items-center mb-2"><p.icon size={16} /></span>
+                <div className="text-[13px] font-semibold text-navy-900">{p.title}</div>
+                <div className="text-[12px] text-slate-600 leading-snug mt-0.5">{p.body}</div>
               </div>
             ))}
           </div>
-        </LockerBackdrop>
+        </Card>
       </div>
+
       <div className="lg:sticky lg:top-4 h-max">
         <Card className="glass-card-solid p-5">
           <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Your lockers</div>
-          {sel.length === 0 ? <EmptyState compact icon={Icon.lock} title="No lockers yet" body="Tap an available locker on the left to reserve it." /> : (
-            <div className="space-y-2">
-              {sel.map((id) => (
-                <div key={id} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2">
-                  <div className="flex items-center gap-2 text-navy-900"><Icon.lock size={15} /><span className="font-semibold text-sm">Locker {id}</span></div>
-                  <div className="flex items-center gap-1"><span className="font-semibold tnum">€{PRICE * dayCount}</span><button aria-label={`Remove locker ${id}`} onClick={() => removeLocker(id)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={15} /></button></div>
+          <div className="rounded-xl bg-teal-50/70 ring-1 ring-teal-200 px-3 py-2.5 flex items-start gap-2.5 mb-3">
+            <Icon.bolt size={15} className="text-teal-700 mt-0.5 shrink-0" />
+            <div className="text-[12px] text-teal-900 leading-snug">We auto-assign the next free locker{qty > 1 ? "s" : ""} — your code{qty > 1 ? "s" : ""} &amp; PIN unlock the bank by the beach bar.</div>
+          </div>
+          <div className="space-y-2">
+            {assigned.map((id) => (
+              <div key={id} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
+                <div className="flex items-center gap-2.5 min-w-0 text-navy-900">
+                  <span className="w-9 h-9 rounded-lg bg-gradient-to-br from-navy-800 to-navy-950 text-white grid place-items-center shrink-0"><Icon.lock size={16} /></span>
+                  <div className="leading-tight min-w-0">
+                    <div className="font-semibold text-sm">Locker {id}</div>
+                    <div className="text-[11px] text-slate-500 tnum">PIN {lockerPin(id)}</div>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-          <div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-600">{sel.length} locker(s) × {dayCount} day{dayCount > 1 ? "s" : ""}</span><span className="font-bold text-navy-900 tnum text-lg">€{total}</span></div>
-          <Btn variant="teal" full size="lg" className="mt-3" disabled={!sel.length} onClick={reserve}>{sel.length ? `Add ${sel.length}×${dayCount} to basket` : "Select a locker"}</Btn>
-          <div className="mt-2 text-center text-[11px] text-slate-500">Redeem the QR at the entrance · Secured by Stripe</div>
+                <span className="font-semibold tnum shrink-0">€{PRICE * dayCount}</span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-600">{qty} locker{qty > 1 ? "s" : ""} × {dayCount} day{dayCount > 1 ? "s" : ""}</span><span className="font-bold text-navy-900 tnum text-lg">€{total}</span></div>
+          <Btn variant="teal" full size="lg" className="mt-3" disabled={!qty} onClick={reserve}>Add {qty}×{dayCount} to basket</Btn>
+          <div className="mt-2 text-center text-[11px] text-slate-500">Code &amp; PIN saved to My Bookings · Secured by Stripe</div>
         </Card>
       </div>
-      {/* Mobile: keep the CTA reachable without scrolling past 5 locker banks. */}
+
+      {/* Mobile: keep the CTA reachable without scrolling. */}
       <StickyActionBar>
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
-            <div className="text-[13px] font-semibold text-navy-900 truncate">{sel.length ? `${sel.length} locker${sel.length > 1 ? "s" : ""} · €${total}` : "No lockers yet"}</div>
-            <div className="text-[11px] text-slate-500">Tap available lockers above</div>
+            <div className="text-[13px] font-semibold text-navy-900 truncate">{qty} locker{qty > 1 ? "s" : ""} · €{total}</div>
+            <div className="text-[11px] text-slate-500 truncate tnum">{assigned.join(", ") || "—"}</div>
           </div>
-          <Btn variant="teal" size="md" disabled={!sel.length} onClick={reserve}>{sel.length ? `Add ${sel.length}×${dayCount}` : "Add"}</Btn>
+          <Btn variant="teal" size="md" disabled={!qty} onClick={reserve}>Add €{total}</Btn>
         </div>
       </StickyActionBar>
     </div>
   );
 }
 
-/* ============ PARKING ============ */
+/* ============ PARKING ============
+   Reserve-and-assign model (SpotHero / airport-parking convention): the guest
+   enters a plate and we assign the best free spot near the entrance — the
+   barrier camera reads the plate on arrival. No lot map to pick from. */
 export function CustomerParking() {
   const { addToCart, toast } = useApp();
   const PRICE = 15;
   const [selDates, setSelDates] = useState([todayISO()]);
   const [plate, setPlate] = useState("");
-  const [sel, setSel] = useState(null);
-  // 50 spots organised across 5 rows of 10 (two paired banks + one outer row).
-  const rows = useMemo(() => {
-    const out = [];
-    for (let r = 0; r < 5; r++) {
-      const row = [];
-      for (let c = 1; c <= 10; c++) row.push(`P${r * 10 + c}`);
-      out.push(row);
-    }
-    return out;
-  }, []);
   const taken = useMemo(() => new Set(["P3", "P7", "P12", "P18", "P21", "P24", "P29", "P33", "P40", "P44", "P47"]), []);
+  const freeSpots = useMemo(() => Array.from({ length: 50 }, (_, i) => `P${i + 1}`).filter((s) => !taken.has(s)), [taken]);
+  const spot = freeSpots[0]; // best available, nearest the entrance
+  const free = freeSpots.length;
   const dayCount = selDates.length;
-  const free = rows.flat().length - taken.size;
+  const total = PRICE * dayCount;
   const reserve = () => {
-    if (!sel || !plate.trim()) { toast("Add a vehicle plate so the barrier can recognise you.", { tone: "warn" }); return; }
+    if (!plate.trim()) { toast("Add a vehicle plate so the barrier can recognise you.", { tone: "warn" }); return; }
     selDates.forEach((iso) => {
       const sub = chipLabel(iso).sub;
-      addToCart({ kind: "parking", id: `${sel}@${iso}`, label: `Parking ${sel}`, sub: `${plate} · ${sub}`, price: PRICE });
+      addToCart({ kind: "parking", id: `${spot}@${iso}`, label: `Parking ${spot}`, sub: `${plate} · ${sub}`, price: PRICE });
     });
-    toast(`Parking spot ${sel} × ${dayCount} day${dayCount > 1 ? "s" : ""} added to your basket.`, { tone: "success" });
-    setSel(null);
+    toast(`Parking spot ${spot} × ${dayCount} day${dayCount > 1 ? "s" : ""} added to your basket.`, { tone: "success" });
   };
 
+  const perks = [
+    { icon: Icon.scan,     title: "Plate recognition",  body: "The barrier camera reads your plate — no ticket, the gate just opens." },
+    { icon: Icon.umbrella, title: "Steps from the sand", body: "Shaded lot beside the main entrance, a short walk to every zone." },
+    { icon: Icon.qr,       title: "Backup QR",          body: "Can't read the plate? Show the QR from My Bookings at the barrier." },
+  ];
+
   return (
-    <div className="grid lg:grid-cols-[1fr_320px] gap-5 pb-28 lg:pb-0">
-      <div>
-        {/* Dates card. Parking status (X of 50 free) + Free/Selected/Taken
-            legend live in a divider strip at the bottom of the same card so
-            it doesn't read as a separate floating row. */}
-        <Card className="glass-card-solid p-4 mb-4 overflow-visible">
+    <div className="grid lg:grid-cols-[1fr_340px] gap-5 pb-28 lg:pb-0">
+      <div className="space-y-4 min-w-0">
+        <Card className="glass-card-solid p-5 relative overflow-hidden">
+          <div aria-hidden className="absolute -top-12 -right-10 w-44 h-44 rounded-full bg-gradient-to-br from-indigo-300/35 to-transparent blur-2xl" />
+          <div className="relative flex items-center gap-3">
+            <span className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slaice-500 to-slaice-700 text-white grid place-items-center shadow-sm shrink-0"><Icon.car size={22} /></span>
+            <div className="min-w-0">
+              <div className="font-display font-bold text-navy-900 text-xl">Parking spot</div>
+              <div className="text-[12.5px] text-slate-600">Reserve a spot by the entrance — we assign it and the gate reads your plate. €{PRICE}/spot/day · {free} of 50 free.</div>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="glass-card-solid p-4 overflow-visible">
           <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center justify-between">
             <span className="flex items-center gap-1.5"><Icon.calendar size={13} /> Dates · pick one or more</span>
             <span className="text-slate-600 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
           </div>
           <DatePickerRow value={selDates} onChange={setSelDates} />
-          <div className="mt-3 pt-3 border-t border-slate-200/70 flex items-center justify-between text-navy-900 flex-wrap gap-2">
-            <div className="font-semibold flex items-center gap-2 text-[13.5px]"><Icon.car size={17} /> Select a spot · {free} of 50 free</div>
-            <div className="flex items-center gap-3 text-[11.5px]">
-              <span className="flex items-center gap-1.5"><i className="w-3.5 h-3.5 rounded-sm bg-teal-500 inline-block ring-1 ring-white/60" />Free</span>
-              <span className="flex items-center gap-1.5"><i className="w-3.5 h-3.5 rounded-sm bg-navy-900 inline-block ring-1 ring-white/60" />Selected</span>
-              <span className="flex items-center gap-1.5"><i className="w-3.5 h-3.5 rounded-sm bg-slate-300 inline-block ring-1 ring-slate-400" />Taken</span>
-            </div>
+        </Card>
+
+        <Card className="glass-card-solid p-5">
+          <Field label="Vehicle plate" hint="Used by the gate camera to let you in automatically — required.">
+            <Input value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" />
+          </Field>
+          <div className="mt-4 grid sm:grid-cols-3 gap-3">
+            {perks.map((p, i) => (
+              <div key={i} className="rounded-xl ring-1 ring-slate-200 bg-white/70 p-3">
+                <span className="w-8 h-8 rounded-lg bg-indigo-50 text-slaice-700 grid place-items-center mb-2"><p.icon size={16} /></span>
+                <div className="text-[13px] font-semibold text-navy-900">{p.title}</div>
+                <div className="text-[12px] text-slate-600 leading-snug mt-0.5">{p.body}</div>
+              </div>
+            ))}
           </div>
         </Card>
-        <ParkingBackdrop className="p-5 ring-1 ring-white/30 shadow-float">
-          <div className="relative">
-            {rows.map((row, ri) => {
-              const lane = ri === 1 || ri === 3; // drive lane after row 0 and row 2
-              return (
-                <div key={ri}>
-                  <div className="grid gap-1 mb-1.5" style={{ gridTemplateColumns: "repeat(10,1fr)" }}>
-                    {row.map((id) => {
-                      const isTaken = taken.has(id), isSel = sel === id;
-                      const cl = isTaken
-                        ? "bg-slate-300/90 text-slate-500 cursor-not-allowed"
-                        : isSel
-                          ? "bg-navy-900 text-white ring-2 ring-teal-400 shadow-lift"
-                          : "bg-teal-500/95 text-white hover:bg-teal-600 shadow-soft";
-                      return (
-                        <button key={id} disabled={isTaken} onClick={() => setSel(isSel ? null : id)} title={`${id} · ${isTaken ? "Taken" : "€" + PRICE}`} className={`relative aspect-square rounded-md grid place-items-center transition border border-white/70 ${cl} pb-5`}>
-                          <Icon.car size={22} />
-                          <span className="absolute bottom-1 left-0 right-0 text-center text-[13px] font-bold leading-none tnum">{id}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  {lane && (
-                    <div className="my-2 h-6 flex items-center justify-center gap-2 text-[10px] text-yellow-200/95 tracking-widest uppercase font-bold drop-shadow">
-                      <span>←</span><span>drive lane</span><span>→</span>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </ParkingBackdrop>
-        <p className="mt-3 text-[12px] text-navy-900 bg-white/70 backdrop-blur rounded-lg px-3 py-1.5 ring-1 ring-white/60 w-max">€{PRICE}/day per spot. Your plate is linked to the booking for gate recognition.</p>
       </div>
+
       <div className="lg:sticky lg:top-4 h-max">
         <Card className="glass-card-solid p-5">
           <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Your parking</div>
-          <Field label="Vehicle plate"><Input value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" /></Field>
-          <div className="mt-3">
-            {sel ? (
-              <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2">
-                <div className="flex items-center gap-2 text-navy-900"><Icon.car size={15} /><span className="font-semibold text-sm">Spot {sel}</span></div>
-                <div className="flex items-center gap-1"><span className="font-semibold tnum">€{PRICE * dayCount}</span><button aria-label={`Remove spot ${sel}`} onClick={() => setSel(null)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={15} /></button></div>
-              </div>
-            ) : <EmptyState compact icon={Icon.car} title="No spot yet" body="Tap a free (green) spot in the lot to reserve it." />}
+          {/* Assigned-spot hero so the guest sees their spot code at a glance. */}
+          <div className="rounded-2xl bg-gradient-to-br from-navy-800 to-navy-950 text-white p-4 mb-3 relative overflow-hidden">
+            <div aria-hidden className="absolute -top-8 -right-6 w-28 h-28 rounded-full bg-white/5 blur-2xl" />
+            <div className="text-[11px] uppercase tracking-wider text-white/60 font-semibold flex items-center gap-1.5"><Icon.bolt size={12} /> Assigned spot</div>
+            <div className="mt-1 flex items-center gap-2.5">
+              <span className="w-10 h-10 rounded-xl bg-white/10 grid place-items-center shrink-0"><Icon.car size={20} /></span>
+              <span className="font-display font-bold text-3xl tnum">{spot}</span>
+              <span className="ml-auto text-[11px] text-white/70 text-right leading-tight">near the<br />entrance</span>
+            </div>
           </div>
-          <div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-600">{sel ? `1 spot × ${dayCount} day${dayCount > 1 ? "s" : ""}` : "0 spots"}</span><span className="font-bold text-navy-900 tnum text-lg">€{sel ? PRICE * dayCount : 0}</span></div>
-          <Btn variant="teal" full size="lg" className="mt-3" disabled={!sel || !plate.trim()} onClick={reserve}>{!sel ? "Select a spot" : !plate.trim() ? "Enter your plate" : `Add ${dayCount}×€${PRICE} to basket`}</Btn>
-          {sel && !plate.trim() && <div className="mt-1.5 text-[11px] text-amber-600 flex items-center gap-1"><Icon.info size={12} /> A plate is required — the barrier reads it on arrival.</div>}
-          <div className="mt-2 text-center text-[11px] text-slate-500">Show the QR at the barrier · Secured by Stripe</div>
+          <div className="space-y-1.5 text-[13px]">
+            <div className="flex items-center justify-between"><span className="text-slate-600">Plate</span><span className="font-semibold text-navy-900 tnum">{plate || "—"}</span></div>
+            <div className="flex items-center justify-between"><span className="text-slate-600">Days</span><span className="font-semibold text-navy-900 tnum">{dayCount}</span></div>
+          </div>
+          <div className="mt-3 pt-3 border-t border-slate-200/70 flex items-center justify-between text-sm"><span className="text-slate-600">1 spot × {dayCount} day{dayCount > 1 ? "s" : ""}</span><span className="font-bold text-navy-900 tnum text-lg">€{total}</span></div>
+          <Btn variant="teal" full size="lg" className="mt-3" disabled={!plate.trim()} onClick={reserve}>{!plate.trim() ? "Enter your plate" : `Add ${dayCount}×€${PRICE} to basket`}</Btn>
+          {!plate.trim() && <div className="mt-1.5 text-[11px] text-amber-600 flex items-center gap-1"><Icon.info size={12} /> A plate is required — the barrier reads it on arrival.</div>}
+          <div className="mt-2 text-center text-[11px] text-slate-500">Spot &amp; QR saved to My Bookings · Secured by Stripe</div>
         </Card>
       </div>
-      {/* Mobile: CTA + plate reachable without scrolling past the lot. */}
+
+      {/* Mobile: plate + CTA reachable without scrolling. */}
       <StickyActionBar>
         <div className="flex items-center gap-2">
           <Input value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())} placeholder="Plate e.g. ΙΖΡ-1234" className="uppercase tnum flex-1 min-w-0" aria-label="Vehicle plate" />
-          <Btn variant="teal" size="md" disabled={!sel || !plate.trim()} onClick={reserve}>{sel ? `€${PRICE * dayCount}` : "Add"}</Btn>
+          <Btn variant="teal" size="md" disabled={!plate.trim()} onClick={reserve}>{plate.trim() ? `€${total}` : "Add"}</Btn>
         </div>
       </StickyActionBar>
     </div>

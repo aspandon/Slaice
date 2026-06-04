@@ -221,25 +221,25 @@ export function CustomerWizard() {
                 }}
               />
             )}
+            {/* Footer nav — moved inside the step card so each step's Back /
+                Continue sit on the same surface as its content. */}
+            <div className="flex items-center justify-between gap-3 mt-6 pt-4 border-t border-slate-200/70">
+              <Btn variant="ghost" icon={Icon.arrowL} onClick={back} disabled={stepIdx === 0}>Back</Btn>
+              <div className="text-[12px] text-slate-500 hidden sm:block">
+                {step.optional && <button onClick={next} className="font-semibold hover:text-navy-900">Skip this step →</button>}
+              </div>
+              {stepIdx < STEPS.length - 1 ? (
+                <Btn variant="teal" onClick={next} disabled={!canNext}>
+                  Continue <Icon.arrowR size={15} />
+                </Btn>
+              ) : (
+                <Btn variant="dark" icon={Icon.card} onClick={confirm} disabled={grandTotal === 0}>
+                  Confirm & checkout · €{grandTotal}
+                </Btn>
+              )}
+            </div>
           </Card>
         </Reveal>
-
-        {/* Footer nav */}
-        <div className="flex items-center justify-between gap-3">
-          <Btn variant="ghost" icon={Icon.arrowL} onClick={back} disabled={stepIdx === 0}>Back</Btn>
-          <div className="text-[12px] text-slate-500 hidden sm:block">
-            {step.optional && <button onClick={next} className="font-semibold hover:text-navy-900">Skip this step →</button>}
-          </div>
-          {stepIdx < STEPS.length - 1 ? (
-            <Btn variant="teal" onClick={next} disabled={!canNext}>
-              Continue <Icon.arrowR size={15} />
-            </Btn>
-          ) : (
-            <Btn variant="dark" icon={Icon.card} onClick={confirm} disabled={grandTotal === 0}>
-              Confirm & checkout · €{grandTotal}
-            </Btn>
-          )}
-        </div>
       </div>
 
       {/* ============ RIGHT: live basket panel (desktop) ============ */}
@@ -533,13 +533,17 @@ function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, day
             </button>
           )}
         </div>
-        <div className="rounded-lg bg-gradient-to-b from-amber-50 to-amber-100/60 ring-1 ring-amber-200/70 p-2 max-h-[260px] overflow-auto no-scrollbar">
-          <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(14,minmax(0,1fr))" }}>
+        {/* Auto-fill columns keep each umbrella a healthy size and reflow with the
+            container — bigger, densely-packed beds on desktop; ~6 tappable columns
+            on phones — instead of 14 fixed columns that stranded tiny 16px glyphs
+            in huge cells. `fill` scales each glyph to its cell. */}
+        <div className="rounded-lg bg-gradient-to-b from-amber-50 to-amber-100/60 ring-1 ring-amber-200/70 p-2 max-h-[300px] sm:max-h-[360px] overflow-auto no-scrollbar">
+          <div className="grid gap-1 sm:gap-1.5 grid-cols-[repeat(auto-fill,minmax(40px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(50px,1fr))]">
             {grid.map((b) => {
               const isSel = !!bedSel.find((x) => x.id === b.id);
               return (
-                <div key={b.id} className="aspect-square grid place-items-center" style={{ lineHeight: 0 }}>
-                  <Sunbed state={b.s} sel={isSel} label={b.id} price={b.price} onClick={() => toggleBed(b.id, b.price)} size={16} />
+                <div key={b.id} className="aspect-square p-0.5" style={{ lineHeight: 0 }}>
+                  <Sunbed block fill state={b.s} sel={isSel} label={b.id} price={b.price} onClick={() => toggleBed(b.id, b.price)} />
                 </div>
               );
             })}

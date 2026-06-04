@@ -6,7 +6,6 @@ import * as CA from "./screens/cashier.jsx";
 import * as CT from "./screens/controller.jsx";
 import * as AC from "./screens/accountant.jsx";
 import * as P from "./screens/platform.jsx";
-import * as E from "./screens/explorer.jsx";
 
 const MAP = {
   // customer
@@ -51,8 +50,6 @@ const MAP = {
 };
 
 export function routeFor(persona, page) {
-  if (page === "__features") return <E.FeatureInventory />;
-  if (page === "__journeys") return <E.JourneyExplorer />;
   const fn = MAP[`${persona}.${page}`];
   return fn ? fn() : <A.AdminDashboard />;
 }

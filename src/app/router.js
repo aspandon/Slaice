@@ -6,10 +6,6 @@
 
 import { PERSONAS, NAV } from "../data/personas.js";
 
-// The two explorer tools use a "__" prefix internally; expose clean URL slugs.
-const SLUG_TO_PAGE = { features: "__features", journeys: "__journeys" };
-const PAGE_TO_SLUG = { __features: "features", __journeys: "journeys" };
-
 // Customer account/flow destinations that aren't in the primary NAV but are
 // still legitimate (deep-linkable) pages.
 const EXTRA_PAGES = {
@@ -31,12 +27,10 @@ export function parseHash(hash = window.location.hash) {
   const persona = parts[0];
   if (!isPersona(persona)) return {};
   let page = parts[1];
-  if (page && SLUG_TO_PAGE[page]) page = SLUG_TO_PAGE[page];
   if (page && !isPage(persona, page)) page = undefined;
   return { persona, page };
 }
 
 export function buildHash(persona, page) {
-  const slug = PAGE_TO_SLUG[page] || page;
-  return `#/${persona}/${slug}`;
+  return `#/${persona}/${page}`;
 }

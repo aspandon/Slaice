@@ -22,7 +22,7 @@ export function ControllerScan() {
         { id: "#BK-10402", sub: "Central · CE-92", state: "used" },
       ];
       const r = pool[Math.floor(Math.random() * pool.length)];
-      setRecent((x) => [r, ...x].slice(0, 6));
+      setRecent((x) => [r, ...x].slice(0, 12));
       toast(r.state === "valid" ? "✓ Valid — admit the guest." : "⚠ Already used.");
     }, 1100);
   };

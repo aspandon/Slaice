@@ -107,7 +107,7 @@ export function TopBar({ persona, setPersona, page, setPage }) {
   const currentItem = navItems.find((it) => it.k === page);
   const CurrentIcon = currentItem && Icon[currentItem.icon];
   return (
-    <header className="glass text-navy-900 rounded-2xl px-2 py-1.5 mb-4 flex items-center gap-2 relative z-30 shadow-soft sticky top-2">
+    <header className={`${persona === "customer" ? "glass-card" : "glass"} text-navy-900 rounded-2xl px-2 py-1.5 mb-4 flex items-center gap-2 relative z-30 shadow-soft sticky top-2`}>
       {/* Customer keeps its inline nav on desktop only — on phones it would
           crowd the action cluster, so page nav moves to the bottom tab bar and
           a tappable title here opens the full page-nav sheet. */}
@@ -134,7 +134,13 @@ export function TopBar({ persona, setPersona, page, setPage }) {
         className={`${persona === "customer" ? "md:hidden" : "md:pointer-events-none"} flex items-center gap-2 pl-1.5 pr-2 h-11 rounded-xl min-w-0 flex-1 hover:bg-white/60 md:hover:bg-transparent transition`}
         aria-label="Open navigation">
         {CurrentIcon && <CurrentIcon size={17} className="text-slate-500 shrink-0" />}
-        <span className="font-display font-bold truncate text-[15px]">{currentItem ? currentItem.label : ""}</span>
+        {/* Mobile shows the concise label (matches the highlighted bottom tab and
+            avoids truncation behind the action cluster); desktop staff headings
+            keep the full page name. */}
+        <span className="font-display font-bold truncate text-[15px]">
+          <span className="md:hidden">{currentItem ? (currentItem.short || currentItem.label) : ""}</span>
+          <span className="hidden md:inline">{currentItem ? currentItem.label : ""}</span>
+        </span>
         <Icon.chevD size={15} className="text-slate-400 shrink-0 md:hidden" />
       </button>
 
@@ -197,7 +203,7 @@ export function TopBar({ persona, setPersona, page, setPage }) {
             doesn't crowd the basket + persona cluster. */}
         {persona === "customer" ? (
           <button onClick={() => window.dispatchEvent(new Event("slaice:cmdk"))} aria-label="Search (⌘K)" title="Search ⌘K"
-            className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 transition">
+            className="text-slate-500 hover:text-navy-900 w-10 h-10 hidden sm:grid place-items-center rounded-xl hover:bg-slate-100 transition">
             <Icon.search size={18} />
           </button>
         ) : (
@@ -424,12 +430,12 @@ function SettingsModal({ open, onClose }) {
           </div>
           <div className="space-y-2">
             {cards.length === 0 ? (
-              <div className="text-[13px] text-slate-400 rounded-xl bg-slate-50 px-3 py-4 text-center">No saved cards. Add one for faster checkout.</div>
+              <div className="text-[13px] text-slate-500 rounded-xl bg-slate-50 px-3 py-4 text-center">No saved cards. Add one for faster checkout.</div>
             ) : cards.map((c) => (
               <div key={c.last4} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
                 <div className="flex items-center gap-3">
                   <span className="w-9 h-7 rounded-md bg-gradient-to-br from-navy-800 to-navy-950 text-white text-[10px] font-bold grid place-items-center">{c.brand.slice(0, 4).toUpperCase()}</span>
-                  <div><div className="font-semibold text-sm text-navy-900">•••• {c.last4}</div><div className="text-[11px] text-slate-400">Exp {c.exp}</div></div>
+                  <div><div className="font-semibold text-sm text-navy-900">•••• {c.last4}</div><div className="text-[11px] text-slate-500">Exp {c.exp}</div></div>
                 </div>
                 <button aria-label={`Remove card ending ${c.last4}`} onClick={() => removeCard(c)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={15} /></button>
               </div>
@@ -465,7 +471,7 @@ function SettingsModal({ open, onClose }) {
 function PrefRow({ label, sub, on, set }) {
   return (
     <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
-      <div><div className="font-semibold text-sm text-navy-900">{label}</div><div className="text-[11px] text-slate-400">{sub}</div></div>
+      <div><div className="font-semibold text-sm text-navy-900">{label}</div><div className="text-[11px] text-slate-500">{sub}</div></div>
       <Toggle on={on} onChange={set} />
     </div>
   );
@@ -547,10 +553,10 @@ export function BottomTabBar({ persona, page, setPage }) {
     const IconC = typeof icon === "string" ? Icon[icon] : icon;
     return (
       <button onClick={onClick}
-        className={`relative flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 h-14 px-1 transition ${active ? "text-teal-700" : "text-slate-500"}`}>
+        className={`relative flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 h-14 px-1 transition ${active ? "text-teal-700" : "text-slate-600"}`}>
         {active && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-teal-500" />}
         {IconC && <IconC size={21} />}
-        <span className="text-[10.5px] font-semibold leading-none truncate max-w-full">{label}</span>
+        <span className="text-[11px] font-semibold leading-none truncate max-w-full">{label}</span>
         {badge === "Future" && <span className="absolute top-1.5 right-1/2 translate-x-3 w-1.5 h-1.5 rounded-full bg-orange-400" />}
       </button>
     );
@@ -576,7 +582,7 @@ export function BottomTabBar({ persona, page, setPage }) {
    per-persona footer note. */
 export function SiteFooter() {
   return (
-    <footer className="mt-10 pt-6 pb-4 flex justify-center relative z-10">
+    <footer className="mt-6 md:mt-10 pt-4 md:pt-6 pb-4 flex justify-center relative z-10">
       <div className="glass rounded-2xl px-5 py-3 flex flex-col items-center gap-2 text-center">
         <div className="flex items-center gap-2.5">
           <TenantLogo size={30} />

@@ -25,6 +25,8 @@ export const RETENTION = [
   { data: "Invoices (ΑΠΥ/ΤΠΥ) & myDATA records", period: "5 years", basis: "Greek tax law — overrides erasure", legal: true },
   { data: "Marketing consents & history", period: "Until withdrawn", basis: "Consent" },
   { data: "Support conversations", period: "12 months", basis: "Legitimate interest" },
+  { data: "Account & profile", period: "Until deletion + 30 days", basis: "Contract" },
+  { data: "Analytics events (anonymised)", period: "14 months", basis: "Consent" },
   { data: "Payment tokens", period: "Held by Stripe", basis: "Contract" },
   { data: "Gate CCTV (where present)", period: "72 hours", basis: "Legitimate interest" },
 ];
@@ -42,17 +44,25 @@ export const DSAR_QUEUE = [
   { id: "DSAR-204", type: "Access", subject: "Maria Kostis", email: "maria.k@example.com", received: "28 May", dueDays: 24, status: "In progress" },
   { id: "DSAR-203", type: "Erasure", subject: "Nikos Papas", email: "n.papas@example.com", received: "26 May", dueDays: 22, status: "Awaiting ID" },
   { id: "DSAR-202", type: "Portability", subject: "Sofia Lambrou", email: "sofia.l@example.com", received: "21 May", dueDays: 17, status: "In progress" },
-  { id: "DSAR-201", type: "Rectification", subject: "Giorgos Anton", email: "g.anton@example.com", received: "12 May", dueDays: 8, status: "Overdue soon" },
-  { id: "DSAR-198", type: "Erasure", subject: "Elena Dropped", email: "elena.x@example.com", received: "2 May", dueDays: -1, status: "Completed" },
+  { id: "DSAR-201", type: "Rectification", subject: "Giorgos Anton", email: "g.anton@example.com", received: "18 May", dueDays: 13, status: "In progress" },
+  { id: "DSAR-200", type: "Access", subject: "Christina Raptis", email: "c.raptis@example.com", received: "12 May", dueDays: 8, status: "Overdue soon" },
+  { id: "DSAR-199", type: "Erasure", subject: "Vasilis Dimou", email: "v.dimou@example.com", received: "9 May", dueDays: 5, status: "Awaiting ID" },
+  { id: "DSAR-198", type: "Objection", subject: "Marina Geo", email: "marina.geo@example.com", received: "7 May", dueDays: 3, status: "In progress" },
+  { id: "DSAR-197", type: "Access", subject: "Thanos Petrou", email: "t.petrou@example.com", received: "2 May", dueDays: -1, status: "Completed" },
+  { id: "DSAR-196", type: "Erasure", subject: "Elena Dropped", email: "elena.x@example.com", received: "28 Apr", dueDays: -4, status: "Completed" },
+  { id: "DSAR-195", type: "Rectification", subject: "Katerina Manou", email: "k.manou@example.com", received: "24 Apr", dueDays: -8, status: "Completed" },
 ];
 
 // Records of Processing Activities (Art. 30) — controller register.
 export const ROPA = [
   { activity: "Online sunbed booking", purpose: "Fulfil reservations", categories: "Identity, contact, booking", basis: "Contract", retention: "24 mo" },
   { activity: "Payments & invoicing", purpose: "Take payment, issue ΑΠΥ", categories: "Transaction, tax ID", basis: "Legal obligation", retention: "5 yr" },
+  { activity: "Locker & parking sales", purpose: "Allocate & bill facilities", categories: "Booking, vehicle plate", basis: "Contract", retention: "24 mo" },
   { activity: "Marketing", purpose: "Offers & campaigns", categories: "Contact, preferences", basis: "Consent", retention: "Until withdrawn" },
   { activity: "Gate validation", purpose: "Admit ticket holders", categories: "QR token", basis: "Contract", retention: "Session" },
   { activity: "CRM & segmentation", purpose: "Service & loyalty", categories: "Behavioural, tags", basis: "Legitimate interest", retention: "24 mo" },
+  { activity: "Customer support", purpose: "Resolve queries", categories: "Contact, conversation", basis: "Legitimate interest", retention: "12 mo" },
+  { activity: "Gate CCTV (where present)", purpose: "Safety & loss prevention", categories: "Image", basis: "Legitimate interest", retention: "72 hr" },
 ];
 
 // Platform (Slaice) — sub-processor sheet.
@@ -62,6 +72,9 @@ export const SUBPROCESSORS = [
   { name: "myDATA / AADE", purpose: "e-Invoice transmission", region: "EU", dpa: "Statutory" },
   { name: "Postmark", purpose: "Transactional e-mail", region: "EU", dpa: "Signed" },
   { name: "Twilio", purpose: "SMS / push", region: "EU", dpa: "Signed" },
+  { name: "Cloudflare", purpose: "CDN & DDoS protection", region: "EU / adequacy", dpa: "Signed" },
+  { name: "Sentry", purpose: "Error monitoring", region: "EU", dpa: "Signed" },
+  { name: "Vercel", purpose: "Front-end delivery", region: "EU / adequacy", dpa: "Signed" },
 ];
 
 // Platform — breach register with the 72-hour notification clock.
@@ -72,6 +85,11 @@ export const BREACHES = [
 // Platform — per-tenant DPA / compliance posture.
 export const TENANT_DPA = [
   { tenant: "Akti tou Iliou", dpa: "Signed", residency: "EU", dpo: "Yes", lastReview: "Apr 2026" },
-  { tenant: "Sun & Sea Paros", dpa: "Signed", residency: "EU", dpo: "Shared", lastReview: "May 2026" },
-  { tenant: "Blue Lagoon Beach", dpa: "Pending", residency: "EU", dpo: "No", lastReview: "—" },
+  { tenant: "Kavouri Coast", dpa: "Signed", residency: "EU", dpo: "Shared", lastReview: "May 2026" },
+  { tenant: "Sun & Sea Paros", dpa: "Signed", residency: "EU", dpo: "Yes", lastReview: "May 2026" },
+  { tenant: "Blue Lagoon Beach", dpa: "Signed", residency: "EU", dpo: "Shared", lastReview: "Mar 2026" },
+  { tenant: "Naxos Sands", dpa: "Signed", residency: "EU", dpo: "Yes", lastReview: "Jun 2026" },
+  { tenant: "Glyfada Bay", dpa: "Pending", residency: "EU", dpo: "No", lastReview: "—" },
+  { tenant: "Mykonos Shore", dpa: "Pending", residency: "EU", dpo: "No", lastReview: "—" },
+  { tenant: "Demo Beach #2", dpa: "Pending", residency: "EU", dpo: "Shared", lastReview: "—" },
 ];

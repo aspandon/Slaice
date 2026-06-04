@@ -247,13 +247,36 @@ function parseMetric(value) {
   return { n, fmt };
 }
 
-/* ---------- Future banner (Roadmap preview heads-up) ---------- */
+/* ---------- Future banner (Roadmap preview heads-up) ----------
+   Indigo "info" styling (not amber) so it reads as a roadmap note rather than
+   a warning/error — it ties to the Slaice platform brand colour. */
 export function FutureBanner({ children = "Preview · Roadmap 2027–2029 — fully clickable mockup, not part of the MVP." }) {
   return (
-    <div className="mb-4 flex items-center gap-2 rounded-xl bg-orange-50 ring-1 ring-orange-500/20 px-3 py-2 text-[12px] text-orange-700">
-      <Icon.bolt size={14} className="shrink-0 text-orange-500" />
+    <div className="mb-4 flex items-center gap-2 rounded-xl bg-slaice-100 ring-1 ring-slaice-600/20 px-3 py-2 text-[12px] text-slaice-700">
+      <Icon.info size={14} className="shrink-0 text-slaice-600" />
       <span className="leading-snug">{children}</span>
     </div>
+  );
+}
+
+/* ---------- Back to top ----------
+   Floating affordance for long scrollable pages (e.g. the Feature Inventory /
+   User Journeys lists). Appears once the user has scrolled past `threshold`. */
+export function BackToTop({ threshold = 600 }) {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setShow(window.scrollY > threshold);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [threshold]);
+  if (!show) return null;
+  return createPortal(
+    <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} aria-label="Back to top"
+      className="fixed z-40 right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] md:bottom-5 w-11 h-11 rounded-full glass-card-solid shadow-float ring-1 ring-slate-200 grid place-items-center text-navy-900 hover:-translate-y-0.5 transition animate-fade-in">
+      <Icon.chevD size={20} className="rotate-180" />
+    </button>,
+    document.body
   );
 }
 
@@ -545,6 +568,7 @@ export function Tabs({ tabs, value, onChange, className = "", scroll = false }) 
   const trackRef = useRef(null);
   const btnRefs = useRef({});
   const [pill, setPill] = useState(null);
+  const [mask, setMask] = useState("none");
   useEffect(() => {
     const btn = btnRefs.current[value];
     const track = trackRef.current;
@@ -560,8 +584,34 @@ export function Tabs({ tabs, value, onChange, className = "", scroll = false }) 
     window.addEventListener("resize", measure);
     return () => { ro.disconnect(); window.removeEventListener("resize", measure); };
   }, [value, tabs]);
+  // Scrollable tab rows: fade the overflowing edge(s) so it's clear there are
+  // more tabs than fit, and keep the active tab scrolled into view.
+  useEffect(() => {
+    if (!scroll) return;
+    const el = trackRef.current;
+    if (!el) return;
+    const F = 22;
+    const update = () => {
+      const l = el.scrollLeft > 2;
+      const r = Math.ceil(el.scrollLeft + el.clientWidth) < el.scrollWidth - 2;
+      const left = l ? `transparent, black ${F}px` : "black, black";
+      const right = r ? `black calc(100% - ${F}px), transparent` : "black, black";
+      setMask(l || r ? `linear-gradient(to right, ${left}, ${right})` : "none");
+    };
+    update();
+    el.addEventListener("scroll", update, { passive: true });
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    window.addEventListener("resize", update);
+    return () => { el.removeEventListener("scroll", update); ro.disconnect(); window.removeEventListener("resize", update); };
+  }, [scroll, tabs]);
+  useEffect(() => {
+    if (scroll) btnRefs.current[value]?.scrollIntoView({ inline: "nearest", block: "nearest", behavior: "smooth" });
+  }, [value, scroll]);
   return (
-    <div ref={trackRef} className={`relative inline-flex gap-1 p-1 rounded-2xl bg-slate-100/80 ring-1 ring-slate-200/60 ${scroll ? "overflow-x-auto no-scrollbar max-w-full" : "flex-wrap"} ${className}`}>
+    <div ref={trackRef}
+      style={scroll ? { WebkitMaskImage: mask, maskImage: mask } : undefined}
+      className={`relative inline-flex gap-1 p-1 rounded-2xl bg-slate-100/80 ring-1 ring-slate-200/60 ${scroll ? "overflow-x-auto no-scrollbar max-w-full" : "flex-wrap"} ${className}`}>
       {pill && (
         <span aria-hidden className="absolute rounded-xl bg-white shadow-soft transition-all duration-300 ease-spring"
           style={{ left: pill.left, width: pill.width, top: pill.top, height: pill.height }} />
