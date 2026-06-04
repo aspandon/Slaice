@@ -7,7 +7,7 @@ import { PLATFORM_TENANTS } from "../data/mock";
 import { SUBPROCESSORS, BREACHES, TENANT_DPA } from "../data/gdpr";
 import { useApp } from "../app/store";
 
-function ModuleList({ modules }) {
+function ModuleList({ modules }: { modules: string[] }) {
   return (
     <span className="flex flex-wrap gap-1">
       {modules.map((m) => (
@@ -19,7 +19,7 @@ function ModuleList({ modules }) {
 
 /* ============ TENANTS ============ */
 export function PlatformTenants() {
-  const { go, toast } = useApp();
+  const { go } = useApp();
   return (
     <div className="animate-fade-up">
       <PageHead title="Tenants" sub="Slaice platform console — connected beaches & verticals." badge={<Badge tone="mvp">MVP</Badge>}
@@ -131,7 +131,7 @@ export function PlatformOnboarding() {
             </div>
             <div className="mt-4 text-[12px] font-semibold uppercase tracking-wide text-slate-600 mb-2">Enable modules</div>
             <div className="space-y-2">
-              {[["Sunbed Booking", true], ["Entry Ticket", true], ["e-Invoice / MyDATA", true], ["Payments (Stripe)", true], ["Day Locker", false], ["Parking", false], ["Cash Register", false]].map(([m, on]) => (
+              {([["Sunbed Booking", true], ["Entry Ticket", true], ["e-Invoice / MyDATA", true], ["Payments (Stripe)", true], ["Day Locker", false], ["Parking", false], ["Cash Register", false]] as [string, boolean][]).map(([m, on]) => (
                 <ModuleToggle key={m} label={m} def={on} />
               ))}
             </div>
@@ -167,7 +167,7 @@ export function PlatformOnboarding() {
     </div>
   );
 }
-function ModuleToggle({ label, def }) {
+function ModuleToggle({ label, def }: { label: string; def: boolean }) {
   const [on, setOn] = useState(def);
   return (
     <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 px-4 py-2.5">
@@ -176,13 +176,12 @@ function ModuleToggle({ label, def }) {
     </div>
   );
 }
-function Flag({ t, ok }) {
+function Flag({ t, ok }: { t: string; ok?: boolean }) {
   return <div className={`flex items-center gap-1.5 rounded-lg px-2.5 py-2 font-mono ${ok ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/15" : "bg-slate-50 text-slate-600"}`}><Icon.check size={13} /> {t}</div>;
 }
 
 /* ============ SUPER ADMIN ============ */
 export function PlatformSuperAdmin() {
-  const { toast } = useApp();
   const modules = ["Sunbed Booking", "Entry Ticket", "e-Invoice/MyDATA", "Payments", "Reporting", "Day Locker", "Parking", "Cash Register", "Loyalty", "Reviews", "Catalogue", "Geo Map"];
   const tenants = [
     { n: "Akti tou Iliou", flags: [1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0] },
@@ -224,7 +223,7 @@ export function PlatformSuperAdmin() {
     </div>
   );
 }
-function FlagToggle({ def }) {
+function FlagToggle({ def }: { def: boolean }) {
   const [on, setOn] = useState(def);
   return <button onClick={() => setOn((o) => !o)} className={`w-9 h-5 rounded-full transition relative inline-block ${on ? "bg-teal-600" : "bg-slate-300"}`}><span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${on ? "left-[18px]" : "left-0.5"}`} /></button>;
 }

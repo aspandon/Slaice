@@ -1,6 +1,18 @@
+import type { ReactNode } from "react";
+import type { SunbedState } from "../domain/types";
+
 /* ---------- Single sunbed glyph ----------
    state: "a" available · "h" on hold · "u" unavailable · sel = selected (coral, from the video) */
-export function Sunbed({ state = "a", sel = false, onClick, label, price, size = 20, block = false, fill = false }) {
+export function Sunbed({ state = "a", sel = false, onClick, label, price, size = 20, block = false, fill = false }: {
+  state?: SunbedState;
+  sel?: boolean;
+  onClick?: () => void;
+  label?: string;
+  price?: number;
+  size?: number;
+  block?: boolean;
+  fill?: boolean;
+}) {
   const colA = sel ? "#e2552f" : state === "u" ? "#cbd5e1" : state === "h" ? "#f5b54a" : "#5cc0f0";
   const colB = sel ? "#fb8a63" : state === "u" ? "#e2e8f0" : state === "h" ? "#fcd98a" : "#ffffff";
   const dim = state === "u";
@@ -34,7 +46,7 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
 
 /* ---------- Beach backdrop ----------
    BeachScene SVG fills the container; children render above it. */
-export function BeachBackdrop({ children, className = "", pos = "relative" }) {
+export function BeachBackdrop({ children, className = "", pos = "relative" }: { children?: ReactNode; className?: string; pos?: string }) {
   return (
     <div className={`${pos} overflow-hidden rounded-2xl ${className}`}>
       <BeachScene />
@@ -161,7 +173,7 @@ function BeachScene() {
 /* ---------- Aerial parking-lot backdrop ----------
    Asphalt, painted lane arrows, dashed centre line and curb strips —
    so the parking grid sits on something that reads as a real lot. */
-export function ParkingBackdrop({ children, className = "" }) {
+export function ParkingBackdrop({ children, className = "" }: { children?: ReactNode; className?: string }) {
   return (
     <div className={`relative overflow-hidden rounded-2xl ${className}`}>
       <svg aria-hidden="true" className="absolute inset-0 w-full h-full opacity-90" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
@@ -202,7 +214,7 @@ export function ParkingBackdrop({ children, className = "" }) {
 /* ---------- Locker-room backdrop ----------
    Uniform wall-tile pattern (no floor/baseboard band) so the backdrop
    reads cleanly even when the grid is several banks tall. */
-export function LockerBackdrop({ children, className = "" }) {
+export function LockerBackdrop({ children, className = "" }: { children?: ReactNode; className?: string }) {
   return (
     <div className={`relative overflow-hidden rounded-2xl ${className}`}>
       <svg aria-hidden="true" className="absolute inset-0 w-full h-full opacity-75" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
