@@ -1,12 +1,14 @@
 import { forwardRef, useEffect, useId, useMemo, useRef, useState } from "react";
+import type { InputHTMLAttributes, PointerEvent as ReactPointerEvent, ReactNode, RefObject, SelectHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../lib/icons";
-import { useCountUp, prefersReducedMotion } from "../lib/motion";
+import type { IconRenderer } from "../lib/icons";
+import { useCountUp } from "../lib/motion";
 import { chipLabel, dateStrip, fromISO, todayISO, toISO } from "../data/beach";
 
 /* ---------- Badge ---------- */
-export function Badge({ tone = "slate", children, className = "" }) {
-  const tones = {
+export function Badge({ tone = "slate", children, className = "" }: { tone?: string; children?: ReactNode; className?: string }) {
+  const tones: Record<string, string> = {
     mvp: "bg-teal-100 text-teal-600 ring-teal-600/20",
     future: "bg-orange-50 text-orange-600 ring-orange-500/20",
     slate: "bg-slate-100 text-slate-600 ring-slate-400/20",
@@ -27,7 +29,7 @@ export function Badge({ tone = "slate", children, className = "" }) {
 /* ---------- StatusBadge ----------
    Status conveyed by colour AND an icon + text, so meaning never relies on
    colour alone (WCAG 1.4.1 Use of Color). Pass a known status or any label. */
-const STATUS_MAP = {
+const STATUS_MAP: Record<string, { tone: string; icon: IconRenderer }> = {
   confirmed: { tone: "green", icon: Icon.checkCircle },
   paid: { tone: "green", icon: Icon.checkCircle },
   active: { tone: "green", icon: Icon.checkCircle },
@@ -43,7 +45,7 @@ const STATUS_MAP = {
   canceled: { tone: "red", icon: Icon.x },
   failed: { tone: "red", icon: Icon.alert },
 };
-export function StatusBadge({ status, label, className = "" }) {
+export function StatusBadge({ status, label, className = "" }: { status?: string; label?: ReactNode; className?: string }) {
   const text = label ?? status;
   const norm = String(status || "").toLowerCase();
   const key = Object.keys(STATUS_MAP).find((k) => norm.includes(k));
@@ -53,7 +55,7 @@ export function StatusBadge({ status, label, className = "" }) {
 }
 
 /* ---------- Card ---------- */
-export function Card({ className = "", children, onClick, hover, press }) {
+export function Card({ className = "", children, onClick, hover, press }: { className?: string; children?: ReactNode; onClick?: () => void; hover?: boolean; press?: boolean }) {
   return (
     <div onClick={onClick}
       className={`glass-card rounded-3xl ${hover ? "transition duration-300 ease-spring hover:-translate-y-1 hover:shadow-lift" : ""} ${press ? "pressable cursor-pointer" : ""} ${className}`}>
@@ -65,16 +67,27 @@ export function Card({ className = "", children, onClick, hover, press }) {
 /* ---------- Button ----------
    Apple-style hierarchy: filled (primary/teal/dark/indigo/danger), tinted
    (tint — light-accent fill), and quiet (ghost/outline). Springy press. */
-export function Btn({ children, variant = "primary", size = "md", onClick, icon: IconC, full, disabled, loading, className = "", type = "button" }) {
+export function Btn({ children, variant = "primary", size = "md", onClick, icon: IconC, full, disabled, loading, className = "", type = "button" }: {
+  children?: ReactNode;
+  variant?: string;
+  size?: "sm" | "md" | "lg";
+  onClick?: () => void;
+  icon?: IconRenderer;
+  full?: boolean;
+  disabled?: boolean;
+  loading?: boolean;
+  className?: string;
+  type?: "button" | "submit" | "reset";
+}) {
   const base = "relative inline-flex items-center justify-center gap-2 rounded-[14px] font-semibold transition-all duration-150 ease-spring active:scale-[.96] disabled:pointer-events-none select-none";
   // min-heights enforce a comfortable touch target (≈ Apple HIG 44pt for md/lg)
   // without shrinking any existing layout.
-  const sizes = { sm: "px-3 py-1.5 text-[13px] min-h-[36px]", md: "px-4 py-2.5 text-sm min-h-[44px]", lg: "px-5 py-3 text-[15px] min-h-[48px]" };
+  const sizes: Record<string, string> = { sm: "px-3 py-1.5 text-[13px] min-h-[36px]", md: "px-4 py-2.5 text-sm min-h-[44px]", lg: "px-5 py-3 text-[15px] min-h-[48px]" };
   // When disabled, every variant collapses to the same quiet slate ghost so a
   // disabled CTA never looks like a heavy navy slab. Loading keeps the active
   // variant so the spinner appears on the live colour.
   const off = "!bg-slate-100 !text-slate-400 !ring-0 !shadow-none";
-  const variants = {
+  const variants: Record<string, string> = {
     primary: "bg-navy-900 text-white hover:bg-navy-800 shadow-btn-primary hover:shadow-lift",
     teal: "bg-teal-600 text-white hover:bg-teal-500 shadow-btn-teal hover:shadow-lift",
     coral: "bg-coral-600 text-white hover:bg-coral-500 shadow-lift",
@@ -98,7 +111,7 @@ export function Btn({ children, variant = "primary", size = "md", onClick, icon:
 }
 
 /* ---------- Spinner ---------- */
-export function Spinner({ size = 18, className = "" }) {
+export function Spinner({ size = 18, className = "" }: { size?: number; className?: string }) {
   return (
     <span aria-hidden className={`inline-block rounded-full border-2 border-current/25 border-t-current animate-spin ${className}`}
       style={{ width: size, height: size, borderTopColor: "currentColor" }} />
@@ -106,13 +119,13 @@ export function Spinner({ size = 18, className = "" }) {
 }
 
 /* ---------- Skeleton ---------- */
-export function Skeleton({ className = "" }) {
+export function Skeleton({ className = "" }: { className?: string }) {
   return <div className={`skeleton rounded-lg ${className}`} />;
 }
 
 /* Simulate a short data fetch so screens can show loading state (Nielsen:
    visibility of system status). Returns true while "loading". */
-export function useMockLoad(ms = 650) {
+export function useMockLoad(ms = 650): boolean {
   const [loading, setLoading] = useState(true);
   useEffect(() => {
     setLoading(true);
@@ -123,7 +136,7 @@ export function useMockLoad(ms = 650) {
 }
 
 /* Table-shaped skeleton matching the Table component's padding. */
-export function TableSkeleton({ rows = 5, cols = 5 }) {
+export function TableSkeleton({ rows = 5, cols = 5 }: { rows?: number; cols?: number }) {
   return (
     <div aria-busy="true" aria-live="polite" className="px-1">
       <span className="sr-only">Loading…</span>
@@ -142,7 +155,7 @@ export function TableSkeleton({ rows = 5, cols = 5 }) {
 }
 
 /* Grid-of-cards skeleton (e.g. stat cards, tiles). */
-export function CardGridSkeleton({ count = 4, className = "" }) {
+export function CardGridSkeleton({ count = 4, className = "" }: { count?: number; className?: string }) {
   return (
     <div aria-busy="true" className={className}>
       {Array.from({ length: count }).map((_, i) => (
@@ -153,11 +166,8 @@ export function CardGridSkeleton({ count = 4, className = "" }) {
 }
 
 /* ---------- StickyActionBar ----------
-   Mobile-only bar pinned above the bottom tab bar (and the iOS home indicator).
-   Used by the Locker / Parking / Ticket flows so the primary CTA isn't stranded
-   below a tall selection grid on phones. Pair with bottom padding on the page so
-   the last row of content clears it. */
-export function StickyActionBar({ children, show = "lg:hidden" }) {
+   Mobile-only bar pinned above the bottom tab bar (and the iOS home indicator). */
+export function StickyActionBar({ children, show = "lg:hidden" }: { children?: ReactNode; show?: string }) {
   return (
     <div className={`${show} fixed left-3 right-3 z-30 bottom-[calc(4.25rem+env(safe-area-inset-bottom))]`}>
       <div className="glass-card-solid rounded-2xl shadow-float px-3 py-2.5">{children}</div>
@@ -166,7 +176,14 @@ export function StickyActionBar({ children, show = "lg:hidden" }) {
 }
 
 /* ---------- Empty state ---------- */
-export function EmptyState({ icon: IconC = Icon.inbox, title, body, action, compact = false, className = "" }) {
+export function EmptyState({ icon: IconC = Icon.inbox, title, body, action, compact = false, className = "" }: {
+  icon?: IconRenderer;
+  title?: ReactNode;
+  body?: ReactNode;
+  action?: ReactNode;
+  compact?: boolean;
+  className?: string;
+}) {
   return (
     <div className={`flex flex-col items-center justify-center text-center ${compact ? "py-7 px-4" : "py-12 px-6"} ${className}`}>
       <span className={`${compact ? "w-11 h-11" : "w-14 h-14"} rounded-2xl bg-slate-100 text-slate-400 grid place-items-center mb-3`}>
@@ -182,7 +199,13 @@ export function EmptyState({ icon: IconC = Icon.inbox, title, body, action, comp
 /* ---------- ErrorState ----------
    The error half of the async state matrix: explain what failed and offer a
    way forward (retry). Pair with useAsync's `error`/`refetch`. */
-export function ErrorState({ title = "Couldn't load this", body = "Something went wrong fetching the data. Please try again.", onRetry, compact = false, className = "" }) {
+export function ErrorState({ title = "Couldn't load this", body = "Something went wrong fetching the data. Please try again.", onRetry, compact = false, className = "" }: {
+  title?: ReactNode;
+  body?: ReactNode;
+  onRetry?: () => void;
+  compact?: boolean;
+  className?: string;
+}) {
   return (
     <div role="alert" className={`flex flex-col items-center justify-center text-center ${compact ? "py-7 px-4" : "py-12 px-6"} ${className}`}>
       <span className={`${compact ? "w-11 h-11" : "w-14 h-14"} rounded-2xl bg-rose-50 text-rose-500 grid place-items-center mb-3`}>
@@ -200,26 +223,31 @@ export function ErrorState({ title = "Couldn't load this", body = "Something wen
 }
 
 /* ---------- StatCard ----------
-   Tone drives a thin left accent stripe. When `value` is a plain number (or a
-   number with a leading €/% wrapper via numPrefix/numSuffix) the figure counts
-   up on first view for a lively, Apple-like dashboard. `trend` shows a small
-   up/down delta chip. */
-export function StatCard({ label, value, sub, tone = "navy", delta, trend, sparkline, instant = false }) {
-  const stripe = {
+   Tone drives a thin left accent stripe. `instant` skips the count-up. */
+export function StatCard({ label, value, sub, tone = "navy", delta, trend, sparkline, instant = false }: {
+  label?: ReactNode;
+  value: string | number;
+  sub?: ReactNode;
+  tone?: string;
+  delta?: ReactNode;
+  trend?: string;
+  sparkline?: ReactNode;
+  instant?: boolean;
+}) {
+  const stripeMap: Record<string, string> = {
     navy: "bg-navy-900/60",
     teal: "bg-teal-500",
     indigo: "bg-slaice-500",
     amber: "bg-amber-500",
     rose: "bg-rose-500",
-  }[tone] || "bg-slate-300";
+  };
+  const stripe = stripeMap[tone] || "bg-slate-300";
   // Parse "€33.4k", "1,284", "71%" → animate the numeric part, keep affixes.
-  // `instant` skips the count-up (operational dashboards show the real figure
-  // immediately rather than ticking up from zero).
   const parsed = useMemo(() => parseMetric(value), [value]);
   const { ref, display } = useCountUp(parsed ? parsed.n : 0, {
     duration: 1000,
     instant,
-    format: (n) => parsed ? parsed.fmt(n) : "",
+    format: (n) => (parsed ? parsed.fmt(n) : ""),
   });
   const trendUp = trend && !String(trend).trim().startsWith("-") && !String(trend).trim().startsWith("−");
   return (
@@ -233,7 +261,7 @@ export function StatCard({ label, value, sub, tone = "navy", delta, trend, spark
           </span>
         )}
       </div>
-      <div ref={ref} className="mt-1.5 text-[26px] leading-none font-bold text-navy-900 tnum font-display tracking-tight">
+      <div ref={ref as RefObject<HTMLDivElement>} className="mt-1.5 text-[26px] leading-none font-bold text-navy-900 tnum font-display tracking-tight">
         {parsed ? display : value}
       </div>
       {sparkline && <div className="mt-2 -mb-1">{sparkline}</div>}
@@ -243,13 +271,10 @@ export function StatCard({ label, value, sub, tone = "navy", delta, trend, spark
 }
 
 // Split a metric string into { numeric value, formatter that re-applies the
-// affixes }. Returns null for non-numeric values so IDs ("#CS-204"), times
-// ("09:14"), ranges ("40 / 60") and dates ("Sun, 19 Jul") are shown as-is.
-function parseMetric(value) {
+// affixes }. Returns null for non-numeric values so IDs/times/ranges/dates pass through.
+function parseMetric(value: unknown): { n: number; fmt: (v: number) => string } | null {
   if (typeof value !== "string" && typeof value !== "number") return null;
   const s = String(value);
-  // Skip anything that isn't a clean metric: IDs/codes (# /), times (:),
-  // or a prefix that contains letters (e.g. "CS-204").
   if (/[#/:]/.test(s)) return null;
   const m = s.match(/^([^\d-−]*)(-?−?[\d,]*\.?\d+)([a-zA-Z%€£$]*)$/);
   if (!m) return null;
@@ -260,17 +285,15 @@ function parseMetric(value) {
   const decimals = (clean.split(".")[1] || "").length;
   const n = parseFloat(clean) * (neg ? -1 : 1);
   if (!isFinite(n)) return null;
-  const fmt = (v) => {
+  const fmt = (v: number) => {
     const fixed = Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
     return `${pre}${v < 0 ? "−" : ""}${fixed}${suf}`;
   };
   return { n, fmt };
 }
 
-/* ---------- Future banner (Roadmap preview heads-up) ----------
-   Indigo "info" styling (not amber) so it reads as a roadmap note rather than
-   a warning/error — it ties to the Slaice platform brand colour. */
-export function FutureBanner({ children = "Preview · Roadmap 2027–2029 — fully clickable mockup, not part of the MVP." }) {
+/* ---------- Future banner (Roadmap preview heads-up) ---------- */
+export function FutureBanner({ children = "Preview · Roadmap 2027–2029 — fully clickable mockup, not part of the MVP." }: { children?: ReactNode }) {
   return (
     <div className="mb-4 flex items-center gap-2 rounded-xl bg-slaice-100 ring-1 ring-slaice-600/20 px-3 py-2 text-[12px] text-slaice-700">
       <Icon.info size={14} className="shrink-0 text-slaice-600" />
@@ -279,10 +302,8 @@ export function FutureBanner({ children = "Preview · Roadmap 2027–2029 — fu
   );
 }
 
-/* ---------- Back to top ----------
-   Floating affordance for long scrollable pages (e.g. the Feature Inventory /
-   User Journeys lists). Appears once the user has scrolled past `threshold`. */
-export function BackToTop({ threshold = 600 }) {
+/* ---------- Back to top ---------- */
+export function BackToTop({ threshold = 600 }: { threshold?: number }) {
   const [show, setShow] = useState(false);
   useEffect(() => {
     const onScroll = () => setShow(window.scrollY > threshold);
@@ -296,14 +317,16 @@ export function BackToTop({ threshold = 600 }) {
       className="fixed z-40 right-4 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] md:bottom-5 w-11 h-11 rounded-full glass-card-solid shadow-float ring-1 ring-slate-200 grid place-items-center text-navy-900 hover:-translate-y-0.5 transition animate-fade-in">
       <Icon.chevD size={20} className="rotate-180" />
     </button>,
-    document.body
+    document.body,
   );
 }
 
-/* ---------- Context panel (used on sparse forms) ----------
-   Title renders INSIDE the card as a header strip rather than as a label
-   above it, so the panel reads as a single self-contained surface. */
-export function ContextPanel({ title, items = [], footer }) {
+/* ---------- Context panel (used on sparse forms) ---------- */
+export function ContextPanel({ title, items = [], footer }: {
+  title?: ReactNode;
+  items?: { icon?: IconRenderer; title?: ReactNode; body?: ReactNode }[];
+  footer?: ReactNode;
+}) {
   return (
     <aside className="lg:sticky lg:top-24 h-max">
       <div className="rounded-2xl ring-1 ring-slate-200 bg-white/70 backdrop-blur p-4 space-y-3">
@@ -327,7 +350,7 @@ export function ContextPanel({ title, items = [], footer }) {
 
 /* ---------- PageHead ---------- */
 // Title/sub/badge intentionally suppressed app-wide — only actions remain.
-export function PageHead({ actions }) {
+export function PageHead({ actions }: { actions?: ReactNode; title?: ReactNode; sub?: ReactNode; badge?: ReactNode }) {
   if (!actions) return null;
   return (
     <div className="flex flex-wrap items-center justify-end gap-2 mb-5">
@@ -337,17 +360,14 @@ export function PageHead({ actions }) {
 }
 
 /* ---------- Table ----------
-   Airier rows, hairline dividers and a sticky frosted header on `sm`+.
-   Under `sm` the same data reflows into stacked "label: value" cards so wide
-   tables never force a sideways scroll on a phone. Column headers double as
-   the field labels in the card view. */
-export function Table({ cols, rows, right = [] }) {
+   Airier rows, hairline dividers and a sticky frosted header on `sm`+; reflows
+   into stacked label:value cards under `sm`. */
+export function Table({ cols, rows, right = [] }: { cols: ReactNode[]; rows: ReactNode[][]; right?: number[] }) {
   return (
     <>
       {/* Mobile: stacked cards */}
       <div className="sm:hidden space-y-2.5">
         {rows.map((r, ri) => {
-          // First non-empty cell is the card's heading; the rest become rows.
           const headIdx = cols.findIndex((c) => c);
           return (
             <div key={ri} className="rounded-2xl ring-1 ring-slate-200 bg-white/80 p-3.5">
@@ -359,7 +379,7 @@ export function Table({ cols, rows, right = [] }) {
                       {cols[ci] ? <span className="text-slate-500 shrink-0">{cols[ci]}</span> : <span />}
                       <span className={`min-w-0 text-right ${right.includes(ci) ? "tnum" : ""}`}>{cell}</span>
                     </div>
-                  )
+                  ),
                 )}
               </div>
             </div>
@@ -393,7 +413,7 @@ export function Table({ cols, rows, right = [] }) {
 }
 
 /* ---------- Field / inputs ---------- */
-export function Field({ label, children, hint }) {
+export function Field({ label, children, hint }: { label?: ReactNode; children?: ReactNode; hint?: ReactNode }) {
   return (
     <label className="block">
       {label && <div className="text-[12px] font-semibold text-slate-700 mb-1">{label}</div>}
@@ -402,21 +422,25 @@ export function Field({ label, children, hint }) {
     </label>
   );
 }
-// text-base on mobile (16px) prevents iOS Safari's focus-zoom; tightens to
-// text-sm from the `sm` breakpoint up.
-export const Input = forwardRef(function Input({ className = "", ...props }, ref) {
-  return <input ref={ref} {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-base sm:text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none placeholder:text-slate-400 ${className}`} />;
-});
-export const Select = forwardRef(function Select({ options = [], className = "", ...props }, ref) {
-  return (
-    <select ref={ref} {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-base sm:text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none cursor-pointer ${className}`}>
-      {options.map((o) => (typeof o === "string" ? <option key={o} value={o}>{o}</option> : <option key={o.v} value={o.v}>{o.l}</option>))}
-    </select>
-  );
-});
+// text-base on mobile (16px) prevents iOS Safari's focus-zoom.
+export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
+  function Input({ className = "", ...props }, ref) {
+    return <input ref={ref} {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-base sm:text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none placeholder:text-slate-400 ${className}`} />;
+  },
+);
+type SelectOption = string | { v: string; l: string };
+export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement> & { options?: SelectOption[] }>(
+  function Select({ options = [], className = "", ...props }, ref) {
+    return (
+      <select ref={ref} {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-base sm:text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none cursor-pointer ${className}`}>
+        {options.map((o) => (typeof o === "string" ? <option key={o} value={o}>{o}</option> : <option key={o.v} value={o.v}>{o.l}</option>))}
+      </select>
+    );
+  },
+);
 
 /* ---------- Toggle ---------- */
-export function Toggle({ on, onChange, label }) {
+export function Toggle({ on, onChange, label }: { on?: boolean; onChange: (v: boolean) => void; label?: ReactNode }) {
   return (
     <button role="switch" aria-checked={on} onClick={() => onChange(!on)} className="inline-flex items-center gap-2 group">
       <span className={`w-11 h-7 rounded-full transition-colors duration-200 relative ${on ? "bg-teal-600" : "bg-slate-300 group-hover:bg-slate-400"}`}>
@@ -427,10 +451,8 @@ export function Toggle({ on, onChange, label }) {
   );
 }
 
-/* ---------- Stepper (quantity) ----------
-   `label` names what's being counted so screen readers announce e.g. "Decrease
-   Adult tickets" rather than four identical "Decrease" buttons on one page. */
-export function Stepper({ value, onChange, min = 0, label }) {
+/* ---------- Stepper (quantity) ---------- */
+export function Stepper({ value, onChange, min = 0, label }: { value: number; onChange: (v: number) => void; min?: number; label?: string }) {
   const what = label ? ` ${label}` : "";
   return (
     <div className="flex items-center gap-3">
@@ -441,23 +463,20 @@ export function Stepper({ value, onChange, min = 0, label }) {
   );
 }
 
-/* Dialog focus management (WCAG 2.4.3 + ARIA dialog pattern): when a dialog
-   opens, move focus into it and trap Tab inside; on close, restore focus to
-   whatever was focused before (usually the trigger). */
-function useDialogFocus(open, panelRef) {
+/* Dialog focus management (WCAG 2.4.3 + ARIA dialog pattern). */
+function useDialogFocus(open: boolean, panelRef: RefObject<HTMLElement | null>) {
   useEffect(() => {
     if (!open) return;
     const panel = panelRef.current;
     if (!panel) return;
-    const prev = document.activeElement;
+    const prev = document.activeElement as HTMLElement | null;
     const focusables = () =>
-      Array.from(panel.querySelectorAll(
-        'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'
+      Array.from(panel.querySelectorAll<HTMLElement>(
+        'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])',
       )).filter((el) => el.offsetParent !== null || el === document.activeElement);
-    // Initial focus: first interactive element, else the panel itself.
     const first = focusables()[0];
     (first || panel).focus?.();
-    const onKey = (e) => {
+    const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;
       const f = focusables();
       if (f.length === 0) { e.preventDefault(); return; }
@@ -470,27 +489,29 @@ function useDialogFocus(open, panelRef) {
       panel.removeEventListener("keydown", onKey);
       if (prev && typeof prev.focus === "function") prev.focus();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 }
 
 /* ---------- Modal ---------- */
-export function Modal({ open, onClose, title, children, footer, wide }) {
-  const panelRef = useRef(null);
+export function Modal({ open, onClose, title, children, footer, wide }: {
+  open?: boolean;
+  onClose: () => void;
+  title?: ReactNode;
+  children?: ReactNode;
+  footer?: ReactNode;
+  wide?: boolean;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   useEffect(() => {
     if (!open) return;
-    const h = (e) => e.key === "Escape" && onClose();
+    const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [open, onClose]);
-  useDialogFocus(open, panelRef);
+  useDialogFocus(!!open, panelRef);
   if (!open) return null;
-  // Bottom-sheet on phones (items-end + slide-up + rounded top), centered
-  // dialog from `sm` up. dvh keeps it within the *visible* viewport on iOS
-  // Safari where the toolbar makes 100vh too tall.
-  // Portaled to <body> so `position: fixed` is relative to the viewport — many
-  // screens wrap content in `animate-fade-up`, whose lingering `transform`
-  // would otherwise become the containing block and push the panel off-screen.
   return createPortal((
     <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in" onClick={onClose}>
       <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-xl" />
@@ -506,29 +527,34 @@ export function Modal({ open, onClose, title, children, footer, wide }) {
   ), document.body);
 }
 
-/* ---------- Sheet (bottom sheet with drag-to-dismiss) ----------
-   Slides up from the bottom; a grabber lets the user drag it down to close.
-   Centred + width-capped on desktop so it works on every viewport. */
-export function Sheet({ open, onClose, title, children, footer }) {
-  const panelRef = useRef(null);
-  const drag = useRef(null);
+/* ---------- Sheet (bottom sheet with drag-to-dismiss) ---------- */
+export function Sheet({ open, onClose, title, children, footer }: {
+  open?: boolean;
+  onClose: () => void;
+  title?: ReactNode;
+  children?: ReactNode;
+  footer?: ReactNode;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ startY: number; dy: number } | null>(null);
   const titleId = useId();
   useEffect(() => {
     if (!open) return;
-    const h = (e) => e.key === "Escape" && onClose();
+    const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [open, onClose]);
-  useDialogFocus(open, panelRef);
+  useDialogFocus(!!open, panelRef);
   if (!open) return null;
-  const onDown = (e) => {
+  const onDown = (e: ReactPointerEvent<HTMLDivElement>) => {
     const panel = panelRef.current;
+    if (!panel) return;
     drag.current = { startY: e.clientY, dy: 0 };
     panel.classList.add("sheet-dragging");
     e.currentTarget.setPointerCapture(e.pointerId);
   };
-  const onMove = (e) => {
-    if (!drag.current) return;
+  const onMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (!drag.current || !panelRef.current) return;
     const dy = Math.max(0, e.clientY - drag.current.startY);
     drag.current.dy = dy;
     panelRef.current.style.transform = `translateY(${dy}px)`;
@@ -563,9 +589,18 @@ export function Sheet({ open, onClose, title, children, footer }) {
   ), document.body);
 }
 
-/* ---------- Confirm dialog ----------
-   Error-prevention pattern for destructive/irreversible actions. */
-export function ConfirmModal({ open, onClose, onConfirm, title = "Are you sure?", body, confirmLabel = "Confirm", cancelLabel = "Cancel", danger = true, icon: IconC }) {
+/* ---------- Confirm dialog ---------- */
+export function ConfirmModal({ open, onClose, onConfirm, title = "Are you sure?", body, confirmLabel = "Confirm", cancelLabel = "Cancel", danger = true, icon: IconC }: {
+  open?: boolean;
+  onClose: () => void;
+  onConfirm?: () => void;
+  title?: ReactNode;
+  body?: ReactNode;
+  confirmLabel?: ReactNode;
+  cancelLabel?: ReactNode;
+  danger?: boolean;
+  icon?: IconRenderer;
+}) {
   const Glyph = IconC || (danger ? Icon.alert : Icon.info);
   return (
     <Modal open={open} onClose={onClose} title={title}
@@ -582,12 +617,18 @@ export function ConfirmModal({ open, onClose, onConfirm, title = "Are you sure?"
 }
 
 /* ---------- Tabs (iOS segmented control) ----------
-   Tab entries: [key, label] or [key, label, IconComponent]. A white pill
-   slides under the active tab with a spring; the track is a soft inset. */
-export function Tabs({ tabs, value, onChange, className = "", scroll = false }) {
-  const trackRef = useRef(null);
-  const btnRefs = useRef({});
-  const [pill, setPill] = useState(null);
+   Tab entries: [key, label] or [key, label, IconComponent]. */
+type TabEntry = [string, ReactNode] | [string, ReactNode, IconRenderer];
+export function Tabs({ tabs, value, onChange, className = "", scroll = false }: {
+  tabs: TabEntry[];
+  value: string;
+  onChange: (v: string) => void;
+  className?: string;
+  scroll?: boolean;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const btnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [pill, setPill] = useState<{ left: number; width: number; top: number; height: number } | null>(null);
   const [mask, setMask] = useState("none");
   useEffect(() => {
     const btn = btnRefs.current[value];
@@ -604,8 +645,6 @@ export function Tabs({ tabs, value, onChange, className = "", scroll = false }) 
     window.addEventListener("resize", measure);
     return () => { ro.disconnect(); window.removeEventListener("resize", measure); };
   }, [value, tabs]);
-  // Scrollable tab rows: fade the overflowing edge(s) so it's clear there are
-  // more tabs than fit, and keep the active tab scrolled into view.
   useEffect(() => {
     if (!scroll) return;
     const el = trackRef.current;
@@ -639,7 +678,7 @@ export function Tabs({ tabs, value, onChange, className = "", scroll = false }) 
       {tabs.map(([k, t, IconC]) => {
         const active = value === k;
         return (
-          <button key={k} ref={(el) => (btnRefs.current[k] = el)} onClick={() => onChange(k)}
+          <button key={k} ref={(el) => { btnRefs.current[k] = el; }} onClick={() => onChange(k)}
             className={`relative z-10 px-3.5 h-9 rounded-xl text-[13px] font-semibold whitespace-nowrap transition-colors duration-200 inline-flex items-center gap-1.5 ${active ? "text-navy-900" : "text-slate-500 hover:text-navy-900"}`}>
             {IconC && <IconC size={14} className={active ? "text-teal-600" : "text-slate-400"} />}
             {t}
@@ -650,25 +689,27 @@ export function Tabs({ tabs, value, onChange, className = "", scroll = false }) 
   );
 }
 
-/* ---------- Empty / placeholder ---------- */
-export function FeatureChip({ status }) {
+/* ---------- FeatureChip ---------- */
+export function FeatureChip({ status }: { status?: string }) {
   return status === "MVP" ? <Badge tone="mvp">MVP</Badge> : <Badge tone="future">Future</Badge>;
 }
 
 /* ---------- DatePickerRow ----------
-   Multi-select date picker used across Sunbed, Ticket, Locker, Parking flows.
-   `value` is an array of ISO YYYY-MM-DD strings. Shows the next 7 days as quick
-   pills + any extra picks as chips + a "Pick dates" tile that opens a calendar
-   modal for any future date. Always keeps at least one date selected. */
-export function DatePickerRow({ value = [], onChange, quickDays = 7, className = "" }) {
+   Multi-select date picker. `value` is an array of ISO YYYY-MM-DD strings. */
+export function DatePickerRow({ value = [], onChange, quickDays = 7, className = "" }: {
+  value?: string[];
+  onChange: (v: string[]) => void;
+  quickDays?: number;
+  className?: string;
+}) {
   const [picker, setPicker] = useState(false);
-  const scrollRef = useRef(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [canL, setCanL] = useState(false);
   const [canR, setCanR] = useState(false);
   const strip = useMemo(() => dateStrip(quickDays), [quickDays]);
   const stripSet = useMemo(() => new Set(strip.map((d) => d.iso)), [strip]);
   const extras = useMemo(() => value.filter((iso) => !stripSet.has(iso)).sort(), [value, stripSet]);
-  const toggle = (iso) => {
+  const toggle = (iso: string) => {
     const has = value.includes(iso);
     if (has && value.length === 1) return; // keep at least one
     onChange(has ? value.filter((x) => x !== iso) : [...value, iso].sort());
@@ -690,7 +731,7 @@ export function DatePickerRow({ value = [], onChange, quickDays = 7, className =
       window.removeEventListener("resize", updateArrows);
     };
   }, [strip.length, extras.length]);
-  const nudge = (dir) => {
+  const nudge = (dir: number) => {
     const el = scrollRef.current;
     if (!el) return;
     el.scrollBy({ left: dir * Math.max(140, el.clientWidth * 0.7), behavior: "smooth" });
@@ -698,62 +739,41 @@ export function DatePickerRow({ value = [], onChange, quickDays = 7, className =
   return (
     <div className={className}>
       <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          aria-label="Scroll dates left"
-          onClick={() => nudge(-1)}
-          disabled={!canL}
-          className="shrink-0 w-7 h-9 grid place-items-center rounded-lg ring-1 ring-slate-200 bg-white text-slate-600 hover:text-navy-900 hover:ring-teal-400 transition disabled:opacity-30 disabled:cursor-not-allowed"
-        >
+        <button type="button" aria-label="Scroll dates left" onClick={() => nudge(-1)} disabled={!canL}
+          className="shrink-0 w-7 h-9 grid place-items-center rounded-lg ring-1 ring-slate-200 bg-white text-slate-600 hover:text-navy-900 hover:ring-teal-400 transition disabled:opacity-30 disabled:cursor-not-allowed">
           <Icon.arrowL size={14} />
         </button>
         <div ref={scrollRef} className="flex-1 flex gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth">
           {strip.map((d) => {
             const on = value.includes(d.iso);
-            return (
-              <DatePill key={d.iso} on={on} label={d.label} sub={d.sub} onClick={() => toggle(d.iso)} />
-            );
+            return <DatePill key={d.iso} on={on} label={d.label} sub={d.sub} onClick={() => toggle(d.iso)} />;
           })}
           {extras.map((iso) => {
             const lbl = chipLabel(iso);
             return <DatePill key={iso} on label={lbl.label} sub={lbl.sub} onClick={() => toggle(iso)} />;
           })}
-          <button
-            type="button"
-            onClick={() => setPicker(true)}
+          <button type="button" onClick={() => setPicker(true)}
             className="px-3 py-2.5 min-h-[64px] rounded-xl min-w-[78px] ring-1 ring-dashed ring-slate-300 text-slate-600 hover:ring-teal-400 hover:text-teal-700 transition shrink-0 inline-flex items-center justify-center gap-1.5 text-[12px] font-semibold"
-            aria-label="Pick dates from calendar"
-          >
+            aria-label="Pick dates from calendar">
             <Icon.calendar size={14} /> Pick dates
           </button>
         </div>
-        <button
-          type="button"
-          aria-label="Scroll dates right"
-          onClick={() => nudge(1)}
-          disabled={!canR}
-          className="shrink-0 w-7 h-9 grid place-items-center rounded-lg ring-1 ring-slate-200 bg-white text-slate-600 hover:text-navy-900 hover:ring-teal-400 transition disabled:opacity-30 disabled:cursor-not-allowed"
-        >
+        <button type="button" aria-label="Scroll dates right" onClick={() => nudge(1)} disabled={!canR}
+          className="shrink-0 w-7 h-9 grid place-items-center rounded-lg ring-1 ring-slate-200 bg-white text-slate-600 hover:text-navy-900 hover:ring-teal-400 transition disabled:opacity-30 disabled:cursor-not-allowed">
           <Icon.arrowR size={14} />
         </button>
       </div>
-      {picker && (
-        <DateCalendarModal value={value} onChange={onChange} onClose={() => setPicker(false)} />
-      )}
+      {picker && <DateCalendarModal value={value} onChange={onChange} onClose={() => setPicker(false)} />}
     </div>
   );
 }
 
-function DatePill({ on, label, sub, onClick }) {
+function DatePill({ on, label, sub, onClick }: { on?: boolean; label: ReactNode; sub: ReactNode; onClick?: () => void }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={on}
+    <button type="button" onClick={onClick} aria-pressed={on}
       className={`relative px-3.5 py-2.5 min-h-[64px] rounded-xl min-w-[78px] ring-1 transition shrink-0 inline-flex flex-col items-center justify-center gap-1 ${
         on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"
-      }`}
-    >
+      }`}>
       <span className="text-[13px] font-semibold leading-none">{label}</span>
       <span className={`text-[11px] leading-none ${on ? "text-white/80" : "text-slate-600"}`}>{sub}</span>
       {on && (
@@ -765,7 +785,7 @@ function DatePill({ on, label, sub, onClick }) {
   );
 }
 
-function DateCalendarModal({ value, onChange, onClose }) {
+function DateCalendarModal({ value, onChange, onClose }: { value: string[]; onChange: (v: string[]) => void; onClose: () => void }) {
   const [month, setMonth] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -773,7 +793,7 @@ function DateCalendarModal({ value, onChange, onClose }) {
   const todayIso = todayISO();
   const today = fromISO(todayIso);
   useEffect(() => {
-    const onKey = (e) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
@@ -781,7 +801,7 @@ function DateCalendarModal({ value, onChange, onClose }) {
     const first = new Date(month.getFullYear(), month.getMonth(), 1);
     const last = new Date(month.getFullYear(), month.getMonth() + 1, 0);
     const startWeekday = (first.getDay() + 6) % 7; // Mon=0..Sun=6
-    const out = [];
+    const out: ({ iso: string; day: number; past: boolean } | null)[] = [];
     for (let i = 0; i < startWeekday; i++) out.push(null);
     for (let i = 1; i <= last.getDate(); i++) {
       const d = new Date(month.getFullYear(), month.getMonth(), i);
@@ -789,7 +809,7 @@ function DateCalendarModal({ value, onChange, onClose }) {
     }
     return out;
   }, [month, today]);
-  const toggle = (iso) => {
+  const toggle = (iso: string) => {
     const has = value.includes(iso);
     if (has && value.length === 1) return;
     onChange(has ? value.filter((x) => x !== iso) : [...value, iso].sort());

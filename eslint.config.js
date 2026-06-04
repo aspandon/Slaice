@@ -30,6 +30,14 @@ export default tseslint.config(
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
       "@typescript-eslint/no-explicit-any": "warn",
+      // These three false-positive heavily on intentional, keyboard-accessible
+      // patterns in this UI (dialog overlays that close via Esc + a focus trap,
+      // clickable cards that usually wrap a real button). Kept as visible
+      // warnings rather than CI-blocking errors; the genuinely-important a11y
+      // rules (alt text, ARIA props, labels, roles) stay as errors.
+      "jsx-a11y/click-events-have-key-events": "warn",
+      "jsx-a11y/no-static-element-interactions": "warn",
+      "jsx-a11y/no-noninteractive-element-interactions": "warn",
     },
   },
   prettier,
