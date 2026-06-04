@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Icon } from "../lib/icons";
 import { Btn, Input } from "../components/ui";
 import { SlaiceLogo, TenantLogo } from "../components/Brand";
@@ -6,20 +9,36 @@ import { BeachBackdrop } from "../components/Beach";
 import { TENANT } from "../data/beach";
 import { useApp } from "../app/store";
 
+// One Zod schema validates the form and could be reused server-side to validate
+// the same request. This is the pattern every other form in the app follows.
+const signInSchema = z.object({
+  email: z.string().min(1, "Email is required").email("Enter a valid email address"),
+});
+
 export function AuthGate() {
   const { setSignedIn, toast } = useApp();
-  const [email, setEmail] = useState("elena@example.com");
   const [sent, setSent] = useState(false);
-  const [err, setErr] = useState("");
-  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const {
+    register,
+    handleSubmit,
+    watch,
+    formState: { errors },
+  } = useForm({
+    resolver: zodResolver(signInSchema),
+    defaultValues: { email: "elena@example.com" },
+    mode: "onSubmit",
+  });
+  const email = watch("email");
 
-  const submit = (e) => {
-    e.preventDefault();
-    if (!emailOk) { setErr("Enter a valid email address."); return; }
-    setErr(""); setSent(true); toast("Demo — magic link 'sent'. Click continue.");
+  const onValid = () => {
+    setSent(true);
+    toast("Demo — magic link 'sent'. Click continue.");
   };
 
-  const sso = (p) => { toast(`Demo — ${p} SSO. Signing you in…`); setTimeout(() => setSignedIn(true), 500); };
+  const sso = (p) => {
+    toast(`Demo — ${p} SSO. Signing you in…`);
+    setTimeout(() => setSignedIn(true), 500);
+  };
 
   return (
     <div className="min-h-full grid lg:grid-cols-2">
@@ -62,12 +81,23 @@ export function AuthGate() {
           <p className="text-sm text-slate-500 mt-1">Use a magic link or single sign-on. This is a demo — any input signs you in.</p>
 
           {!sent ? (
-            <form className="mt-6 space-y-3" onSubmit={submit} noValidate>
+            <form className="mt-6 space-y-3" onSubmit={handleSubmit(onValid)} noValidate>
               <label className="block">
                 <span className="text-[12px] font-semibold text-slate-500">Email</span>
-                <Input value={email} onChange={(e) => { setEmail(e.target.value); if (err) setErr(""); }} type="email" placeholder="you@example.com" className="mt-1" aria-invalid={!!err} aria-describedby={err ? "email-err" : undefined} />
+                <Input
+                  {...register("email")}
+                  type="email"
+                  placeholder="you@example.com"
+                  className="mt-1"
+                  aria-invalid={!!errors.email}
+                  aria-describedby={errors.email ? "email-err" : undefined}
+                />
               </label>
-              {err && <div id="email-err" role="alert" className="text-[12px] text-rose-600 flex items-center gap-1.5"><Icon.alert size={13} /> {err}</div>}
+              {errors.email && (
+                <div id="email-err" role="alert" className="text-[12px] text-rose-600 flex items-center gap-1.5">
+                  <Icon.alert size={13} /> {errors.email.message}
+                </div>
+              )}
               <Btn type="submit" variant="teal" full size="lg" icon={Icon.mail}>Send magic link</Btn>
             </form>
           ) : (

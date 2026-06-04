@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../lib/icons";
 import { useCountUp, prefersReducedMotion } from "../lib/motion";
@@ -404,16 +404,16 @@ export function Field({ label, children, hint }) {
 }
 // text-base on mobile (16px) prevents iOS Safari's focus-zoom; tightens to
 // text-sm from the `sm` breakpoint up.
-export function Input(props) {
-  return <input {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-base sm:text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none placeholder:text-slate-400 ${props.className || ""}`} />;
-}
-export function Select({ options = [], ...props }) {
+export const Input = forwardRef(function Input({ className = "", ...props }, ref) {
+  return <input ref={ref} {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-base sm:text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none placeholder:text-slate-400 ${className}`} />;
+});
+export const Select = forwardRef(function Select({ options = [], className = "", ...props }, ref) {
   return (
-    <select {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-base sm:text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none cursor-pointer ${props.className || ""}`}>
+    <select ref={ref} {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-base sm:text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none cursor-pointer ${className}`}>
       {options.map((o) => (typeof o === "string" ? <option key={o} value={o}>{o}</option> : <option key={o.v} value={o.v}>{o.l}</option>))}
     </select>
   );
-}
+});
 
 /* ---------- Toggle ---------- */
 export function Toggle({ on, onChange, label }) {
