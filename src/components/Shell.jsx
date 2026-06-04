@@ -582,7 +582,7 @@ export function BottomTabBar({ persona, page, setPage }) {
    per-persona footer note. */
 export function SiteFooter() {
   return (
-    <footer className="mt-10 pt-6 pb-4 flex justify-center relative z-10">
+    <footer className="mt-6 md:mt-10 pt-4 md:pt-6 pb-4 flex justify-center relative z-10">
       <div className="glass rounded-2xl px-5 py-3 flex flex-col items-center gap-2 text-center">
         <div className="flex items-center gap-2.5">
           <TenantLogo size={30} />

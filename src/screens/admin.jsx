@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, useMockLoad, FutureBanner, ContextPanel } from "../components/ui.jsx";
-import { BarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts.jsx";
+import { BarChart, HBarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts.jsx";
 import { ZONES } from "../data/beach.js";
 import { ADMIN_BOOKINGS, ADMIN_REFUNDS, CUSTOMERS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS } from "../data/mock.js";
 import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr.js";
@@ -46,7 +46,7 @@ export function AdminDashboard() {
       <div className="grid lg:grid-cols-2 gap-4 mt-4">
         <Card className="p-5">
           <div className="font-semibold text-navy-900 mb-1">Occupancy by zone (today)</div>
-          <BarChart color="#0ea5e9" data={[{ l: "Akan", v: 67 }, { l: "Cen", v: 83 }, { l: "Mac", v: 91, hi: 1 }, { l: "Best", v: 78 }, { l: "Main", v: 68 }, { l: "Bol", v: 66 }]} />
+          <HBarChart color="#0ea5e9" unit="%" max={100} data={[{ l: "Akanthus", v: 67 }, { l: "Central", v: 83 }, { l: "Macaw", v: 91, hi: 1 }, { l: "Bestbuy", v: 78 }, { l: "Main", v: 68 }, { l: "Bolivar", v: 66 }]} />
         </Card>
         <Card className="p-5">
           <div className="flex items-center justify-between mb-2"><div className="font-semibold text-navy-900">Latest bookings</div><Btn size="sm" variant="ghost" onClick={() => go("admin", "bookings")}>View all</Btn></div>
@@ -139,6 +139,9 @@ export function AdminMapEditor() {
   return (
     <div>
       <PageHead actions={<><Btn variant="outline" icon={Icon.download} onClick={() => toast("Demo — upload aerial background.")}>Background</Btn><Btn variant="primary" icon={Icon.check} onClick={save}>Save layout</Btn></>} />
+      <div className="lg:hidden mb-3 flex items-start gap-2 rounded-xl bg-slaice-100 ring-1 ring-slaice-600/20 px-3 py-2 text-[12px] text-slaice-700">
+        <Icon.info size={14} className="shrink-0 mt-0.5 text-slaice-600" /> The map editor is best on a larger screen — drag-to-position zones is easier with a mouse.
+      </div>
       <div className="grid lg:grid-cols-[1fr_320px] gap-4">
         <Card className="p-5">
           <div
@@ -281,9 +284,9 @@ export function AdminManual() {
             <Field label="Date"><Input type="date" defaultValue={today} /></Field>
             <Field label="Mark as"><Select options={["Unpaid (manual)", "Comp / VIP", "Pay later"]} /></Field>
           </div>
-          <div className="mt-4 flex gap-2">
-            <Btn variant="primary" icon={Icon.lock} onClick={() => { setDone(true); toast("Demo — sunbed blocked & QR e-mailed (booking flagged unpaid/manual)."); }}>Reserve & send QR</Btn>
-            <Btn variant="outline" icon={Icon.umbrella} onClick={() => toast("Demo — opens the live map to pick a bed.")}>Pick on map</Btn>
+          <div className="mt-4 flex flex-col sm:flex-row gap-2">
+            <Btn variant="primary" full className="sm:w-auto" icon={Icon.lock} onClick={() => { setDone(true); toast("Demo — sunbed blocked & QR e-mailed (booking flagged unpaid/manual)."); }}>Reserve & send QR</Btn>
+            <Btn variant="outline" full className="sm:w-auto" icon={Icon.umbrella} onClick={() => toast("Demo — opens the live map to pick a bed.")}>Pick on map</Btn>
           </div>
         </Card>
         {done && (
@@ -404,7 +407,7 @@ export function AdminReporting() {
       {tab === "revenue" && <>
         <div className="grid lg:grid-cols-2 gap-4">
           <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Revenue by capability (€k)</div><BarChart data={[{ l: "Sunbed", v: 436, hi: 1 }, { l: "Ticket", v: 197 }, { l: "Locker", v: 31 }, { l: "Support", v: 40 }]} /></Card>
-          <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Revenue by zone (€k)</div><BarChart color="#0ea5e9" data={ZONES.map((z) => ({ l: z.name.slice(0, 4), v: Math.round(z.total * 1.1) }))} /></Card>
+          <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Revenue by zone (€k)</div><HBarChart color="#0ea5e9" data={ZONES.map((z) => ({ l: z.name, v: Math.round(z.total * 1.1) }))} /></Card>
         </div>
         <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-2">All transactions (filterable)</div>
           <Table cols={["Tx", "Capability", "Channel", "Status", "Amount"]} right={[4]}
@@ -413,7 +416,7 @@ export function AdminReporting() {
 
       {tab === "occupancy" && <>
         <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Occupancy by zone (%)</div>
-          <BarChart color="#0ea5e9" data={[{ l: "Akan", v: 67 }, { l: "Cen", v: 83 }, { l: "Mac", v: 91, hi: 1 }, { l: "Best", v: 78 }, { l: "Main", v: 68 }, { l: "Bol", v: 66 }]} /></Card>
+          <HBarChart color="#0ea5e9" unit="%" max={100} data={[{ l: "Akanthus", v: 67 }, { l: "Central", v: 83 }, { l: "Macaw", v: 91, hi: 1 }, { l: "Bestbuy", v: 78 }, { l: "Main", v: 68 }, { l: "Bolivar", v: 66 }]} /></Card>
         <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-3">Utilisation heatmap (week × zone)</div>
           {/* Sequential 5-step palette common in hospitality / yield reports:
               cool light = capacity to sell, warm = approaching peak. Matches

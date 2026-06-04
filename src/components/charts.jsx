@@ -48,6 +48,26 @@ export function BarChart({ data, color = "#0D9488", height = 220, label }) {
   );
 }
 
+// Horizontal bars — best for category data (e.g. zones) where vertical x-axis
+// labels would otherwise truncate to cryptic abbreviations. Full labels sit on
+// the left; the value sits at the end of each bar.
+export function HBarChart({ data, color = "#0D9488", unit = "", max, label }) {
+  const m = max || Math.max(...data.map((d) => d.v)) * 1.05 || 1;
+  return (
+    <div role="img" aria-label={seriesSummary("Bar chart", data, label)} className="space-y-2 py-1">
+      {data.map((d, i) => (
+        <div key={i} className="flex items-center gap-3">
+          <div className="w-20 sm:w-24 shrink-0 text-right text-[12.5px] text-slate-600 truncate">{d.l}</div>
+          <div className="flex-1 h-5 rounded-md bg-slate-100 overflow-hidden">
+            <div className="h-full rounded-md transition-all duration-500" style={{ width: `${Math.min(100, (d.v / m) * 100)}%`, background: color, opacity: d.hi ? 1 : 0.8 }} />
+          </div>
+          <div className="w-12 shrink-0 text-right text-[12.5px] font-semibold text-navy-900 tnum">{d.v}{unit}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function LineChartMini({ data, color = "#0D9488", height = 220, label }) {
   const max = Math.max(...data.map((d) => d.v)) * 1.1 || 1;
   const min = Math.min(...data.map((d) => d.v)) * 0.9;

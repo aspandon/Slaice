@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, StatCard, Modal, FeatureChip } from "../components/ui.jsx";
+import { Card, Btn, Badge, PageHead, StatCard, Modal, FeatureChip, BackToTop } from "../components/ui.jsx";
 import { FEATURES, CAPABILITIES, featureCounts } from "../data/features.js";
 import { JOURNEYS, journeyCounts } from "../data/journeys.js";
 import { PERSONAS } from "../data/personas.js";
@@ -98,6 +98,7 @@ export function FeatureInventory() {
           </div>
         )}
       </Modal>
+      <BackToTop />
     </div>
   );
 }
@@ -200,6 +201,7 @@ export function JourneyExplorer() {
           </div>
         )}
       </Modal>
+      <BackToTop />
     </div>
   );
 }

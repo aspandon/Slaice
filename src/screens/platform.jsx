@@ -197,6 +197,7 @@ export function PlatformSuperAdmin() {
       <FutureBanner />
       <Card className="p-5 overflow-x-auto">
         <div className="font-semibold text-navy-900 mb-3">Capability flags per tenant</div>
+        <div className="sm:hidden mb-2 text-[11px] text-slate-500 flex items-center gap-1"><Icon.chevR size={12} /> Scroll sideways to see all tenants</div>
         <table className="text-sm">
           <thead><tr className="text-[11px] uppercase text-slate-600"><th className="text-left py-2 pr-4">Module</th>{tenants.map((t) => <th key={t.n} className="px-3 py-2 font-semibold">{t.n}</th>)}</tr></thead>
           <tbody className="divide-y divide-slate-100">
@@ -260,6 +261,7 @@ export function PlatformVerticals() {
       </div>
       <Card className="p-5 overflow-x-auto">
         <div className="font-semibold text-navy-900 mb-2">Cross-business capability reuse</div>
+        <div className="sm:hidden mb-2 text-[11px] text-slate-500 flex items-center gap-1"><Icon.chevR size={12} /> Scroll sideways to see all verticals</div>
         <table className="w-full text-sm">
           <thead><tr className="text-left text-[11px] uppercase tracking-wide text-slate-600 border-b border-slate-200">{cols.map((c, i) => <th key={i} className="py-2.5 px-3 font-semibold">{c}</th>)}</tr></thead>
           <tbody className="divide-y divide-slate-100">

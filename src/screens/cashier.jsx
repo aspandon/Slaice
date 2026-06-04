@@ -99,7 +99,7 @@ export function CashierRegister() {
               <div className="w-14 h-14 rounded-2xl bg-orange-50 text-orange-500 grid place-items-center"><Icon.cash size={24} /></div>
               <div className="mt-3 font-semibold text-navy-900 text-lg">No open session</div>
               <p className="text-sm text-slate-600 mt-1 max-w-sm">Open a session (duration, cashier) to group on-site cash activity into a single auditable ledger.</p>
-              <Btn variant="primary" className="mt-4" icon={Icon.play} onClick={() => { setOpen(true); toast("Demo — session opened."); }}>Open session</Btn>
+              <Btn variant="teal" className="mt-4" icon={Icon.play} onClick={() => { setOpen(true); toast("Demo — session opened."); }}>Open session</Btn>
             </Card>
             <Card className="p-4">
               <div className="flex items-center justify-between mb-2">
