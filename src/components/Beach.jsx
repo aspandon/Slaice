@@ -1,6 +1,6 @@
 /* ---------- Single sunbed glyph ----------
    state: "a" available · "h" on hold · "u" unavailable · sel = selected (coral, from the video) */
-export function Sunbed({ state = "a", sel = false, onClick, label, price, size = 20 }) {
+export function Sunbed({ state = "a", sel = false, onClick, label, price, size = 20, block = false }) {
   const colA = sel ? "#e2552f" : state === "u" ? "#cbd5e1" : state === "h" ? "#f5b54a" : "#5cc0f0";
   const colB = sel ? "#fb8a63" : state === "u" ? "#e2e8f0" : state === "h" ? "#fcd98a" : "#ffffff";
   const dim = state === "u";
@@ -8,8 +8,10 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
     <button
       disabled={dim}
       onClick={onClick}
+      aria-label={`Sunbed ${label || ""}${dim ? " unavailable" : state === "h" ? " on hold" : ` €${price}`}${sel ? ", selected" : ""}`}
+      aria-pressed={sel}
       title={`${label || ""} · ${dim ? "Unavailable" : state === "h" ? "On hold" : "€" + price}`}
-      className={`group relative ${dim ? "cursor-not-allowed" : "cursor-pointer hover:-translate-y-1.5 hover:scale-[1.18] hover:z-20"} transition-transform duration-200 ease-spring`}
+      className={`group relative ${block ? "w-full h-full grid place-items-center" : ""} ${dim ? "cursor-not-allowed" : "cursor-pointer hover:-translate-y-1.5 hover:scale-[1.18] hover:z-20"} transition-transform duration-200 ease-spring`}
       style={{ lineHeight: 0, willChange: "transform" }}
     >
       <svg width={size} height={size} viewBox="0 0 24 24" className="drop-shadow-sm transition-[filter] duration-200 group-hover:drop-shadow-[0_8px_10px_rgba(11,37,69,0.5)]">

@@ -10,6 +10,14 @@ export function AuthGate() {
   const { setSignedIn, toast } = useApp();
   const [email, setEmail] = useState("elena@example.com");
   const [sent, setSent] = useState(false);
+  const [err, setErr] = useState("");
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+
+  const submit = (e) => {
+    e.preventDefault();
+    if (!emailOk) { setErr("Enter a valid email address."); return; }
+    setErr(""); setSent(true); toast("Demo — magic link 'sent'. Click continue.");
+  };
 
   const sso = (p) => { toast(`Demo — ${p} SSO. Signing you in…`); setTimeout(() => setSignedIn(true), 500); };
 
@@ -54,11 +62,12 @@ export function AuthGate() {
           <p className="text-sm text-slate-500 mt-1">Use a magic link or single sign-on. This is a demo — any input signs you in.</p>
 
           {!sent ? (
-            <form className="mt-6 space-y-3" onSubmit={(e) => { e.preventDefault(); setSent(true); toast("Demo — magic link 'sent'. Click continue."); }}>
+            <form className="mt-6 space-y-3" onSubmit={submit} noValidate>
               <label className="block">
                 <span className="text-[12px] font-semibold text-slate-500">Email</span>
-                <Input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="you@example.com" className="mt-1" />
+                <Input value={email} onChange={(e) => { setEmail(e.target.value); if (err) setErr(""); }} type="email" placeholder="you@example.com" className="mt-1" aria-invalid={!!err} aria-describedby={err ? "email-err" : undefined} />
               </label>
+              {err && <div id="email-err" role="alert" className="text-[12px] text-rose-600 flex items-center gap-1.5"><Icon.alert size={13} /> {err}</div>}
               <Btn type="submit" variant="teal" full size="lg" icon={Icon.mail}>Send magic link</Btn>
             </form>
           ) : (

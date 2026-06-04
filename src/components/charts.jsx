@@ -6,14 +6,21 @@ function formatTick(v) {
   return Math.round(v).toString();
 }
 
+// Build a concise text summary so a chart is announced as a single labelled
+// image (WCAG 1.1.1) — e.g. "Bar chart. 9h: 90, 10h: 180, …".
+function seriesSummary(kind, data, label) {
+  const series = data.map((d) => `${d.l}: ${d.v}`).join(", ");
+  return `${label || kind}. ${series}`;
+}
+
 const PAD_LEFT = 44;   // px reserved for Y-axis labels
 const PAD_BOTTOM = 28; // px reserved for X-axis labels
 
-export function BarChart({ data, color = "#0D9488", height = 220 }) {
+export function BarChart({ data, color = "#0D9488", height = 220, label }) {
   const max = Math.max(...data.map((d) => d.v)) * 1.15 || 1;
   const ticks = [1, 0.66, 0.33, 0];
   return (
-    <div className="relative" style={{ height }}>
+    <div className="relative" style={{ height }} role="img" aria-label={seriesSummary("Bar chart", data, label)}>
       {/* Y-axis labels */}
       <div className="absolute left-0 top-0 flex flex-col justify-between text-[12px] font-medium text-slate-500 tnum pr-2 pointer-events-none" style={{ width: PAD_LEFT, bottom: PAD_BOTTOM }}>
         {ticks.map((t, i) => <span key={i} className="text-right leading-none">{formatTick(max * t)}</span>)}
@@ -41,7 +48,7 @@ export function BarChart({ data, color = "#0D9488", height = 220 }) {
   );
 }
 
-export function LineChartMini({ data, color = "#0D9488", height = 220 }) {
+export function LineChartMini({ data, color = "#0D9488", height = 220, label }) {
   const max = Math.max(...data.map((d) => d.v)) * 1.1 || 1;
   const min = Math.min(...data.map((d) => d.v)) * 0.9;
   const span = max - min || 1;
@@ -50,7 +57,7 @@ export function LineChartMini({ data, color = "#0D9488", height = 220 }) {
   const area = `0,60 ${pts} 100,60`;
   const gid = `g${color.replace("#", "")}`;
   return (
-    <div className="relative" style={{ height }}>
+    <div className="relative" style={{ height }} role="img" aria-label={seriesSummary("Line chart", data, label)}>
       <div className="absolute left-0 top-0 flex flex-col justify-between text-[12px] font-medium text-slate-500 tnum pr-2 pointer-events-none" style={{ width: PAD_LEFT, bottom: PAD_BOTTOM }}>
         {ticks.map((t, i) => <span key={i} className="text-right leading-none">{formatTick(min + span * t)}</span>)}
       </div>
@@ -81,12 +88,13 @@ export function LineChartMini({ data, color = "#0D9488", height = 220 }) {
   );
 }
 
-export function Donut({ segments, size = 120 }) {
+export function Donut({ segments, size = 120, label }) {
   const total = segments.reduce((a, s) => a + s.v, 0);
   let acc = 0;
   const r = 42, c = 2 * Math.PI * r;
+  const aria = label || `Donut chart: ${segments.map((s) => `${Math.round((s.v / total) * 100)}%`).join(", ")}`;
   return (
-    <svg viewBox="0 0 100 100" style={{ width: size, height: size }}>
+    <svg viewBox="0 0 100 100" style={{ width: size, height: size }} role="img" aria-label={aria}>
       <circle cx="50" cy="50" r={r} fill="none" stroke="#eef2f6" strokeWidth="12" />
       {segments.map((s, i) => {
         const frac = s.v / total, dash = frac * c, off = acc * c;
@@ -108,7 +116,7 @@ export function Sparkline({ data, color = "#0D9488", width = 96, height = 28 }) 
   const pts = data.map((v, i) => `${(i / (data.length - 1)) * 100},${30 - ((v - min) / span) * 28 - 1}`).join(" ");
   const gid = `sl${color.replace("#", "")}`;
   return (
-    <svg viewBox="0 0 100 30" preserveAspectRatio="none" style={{ width, height }} className="overflow-visible">
+    <svg viewBox="0 0 100 30" preserveAspectRatio="none" style={{ width, height }} className="overflow-visible" aria-hidden="true">
       <defs><linearGradient id={gid} x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity="0.28" /><stop offset="100%" stopColor={color} stopOpacity="0" /></linearGradient></defs>
       <polygon points={`0,30 ${pts} 100,30`} fill={`url(#${gid})`} />
       <polyline points={pts} fill="none" stroke={color} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
@@ -167,7 +175,7 @@ export function QR({ size = 120, seed = "SLAICE" }) {
   const inFinder = (x, y) => (x < 8 && y < 8) || (x > n - 9 && y < 8) || (x < 8 && y > n - 9);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (!inFinder(x, y) && rnd(y * n + x)) cells.push([x, y]);
   return (
-    <svg viewBox={`0 0 ${n} ${n}`} style={{ width: size, height: size }} className="rounded-lg bg-white">
+    <svg viewBox={`0 0 ${n} ${n}`} style={{ width: size, height: size }} className="rounded-lg bg-white" role="img" aria-label={`QR code for ${seed}`}>
       <rect width={n} height={n} fill="#fff" />
       {cells.map(([x, y], i) => <rect key={i} x={x} y={y} width="1" height="1" fill="#0B2545" />)}
     </svg>

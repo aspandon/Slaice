@@ -31,6 +31,25 @@ export function downloadText(filename, text, mime = "text/plain;charset=utf-8") 
   trigger(new Blob([text], { type: mime }), filename);
 }
 
+// Build + download an .ics calendar invite. `start`/`end` are ISO YYYY-MM-DD
+// (all-day event). Lets a guest add their beach day to Apple/Google/Outlook
+// calendars from the confirmation screen.
+export function downloadICS(filename, { uid, title, start, end, location, description }) {
+  const day = (d) => d.replace(/-/g, "");
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+/, "") ;
+  const esc = (s = "") => String(s).replace(/([,;\\])/g, "\\$1").replace(/\n/g, "\\n");
+  const ics = [
+    "BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Slaice//Beach//EN", "CALSCALE:GREGORIAN",
+    "BEGIN:VEVENT", `UID:${uid}`, `DTSTAMP:${stamp}`,
+    `DTSTART;VALUE=DATE:${day(start)}`, `DTEND;VALUE=DATE:${day(end)}`,
+    `SUMMARY:${esc(title)}`,
+    location ? `LOCATION:${esc(location)}` : "",
+    description ? `DESCRIPTION:${esc(description)}` : "",
+    "END:VEVENT", "END:VCALENDAR",
+  ].filter(Boolean).join("\r\n");
+  downloadText(filename, ics, "text/calendar;charset=utf-8");
+}
+
 /* ============================================================
    Zero-dependency PDF 1.4 emitter.
    Renders a receipt-style document with Helvetica + Helvetica-Bold

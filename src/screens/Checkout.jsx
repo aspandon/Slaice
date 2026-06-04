@@ -5,14 +5,25 @@ import { QR } from "../components/charts.jsx";
 import { SlaiceLogo, TenantLogo } from "../components/Brand.jsx";
 import { WalletButtons } from "../components/WalletPass.jsx";
 import { TENANT } from "../data/beach.js";
+import { todayISO, toISO } from "../data/beach.js";
+import { downloadICS } from "../lib/download.js";
 import { useApp } from "../app/store.jsx";
 
 const FEE = 0.05; // Slaice application fee (5%)
 const STRIPE = 0.015; // ~1.5% Stripe processing
 
+// Stable booking-reference sequence — avoids the collisions/irreproducibility of
+// Math.random() and keeps the confirmation QR consistent within a session.
+let BOOKING_SEQ = 10428;
+const nextBookingRef = () => "BK-" + ++BOOKING_SEQ;
+
 export function Checkout() {
   const { cart, removeFromCart, addToCart, go, toast } = useApp();
   const [phase, setPhase] = useState("cart"); // cart | redirect | done
+  // The buyer never needs the marketplace split — it's hidden by default and
+  // revealed only via an explicit demo toggle (real customers see Subtotal →
+  // Total; the commission/payout breakdown lives in the Accountant views).
+  const [showEconomics, setShowEconomics] = useState(false);
   const total = cart.reduce((a, b) => a + b.price, 0);
   const fee = +(total * FEE).toFixed(2);
   const stripeFee = +(total * STRIPE).toFixed(2);
@@ -40,7 +51,7 @@ export function Checkout() {
           <div className="flex items-center justify-center gap-2 text-[#635bff] font-bold text-lg"><Icon.stripe size={22} /> stripe</div>
           <div className="mt-4 text-sm text-slate-500">Redirecting to {TENANT.name}'s secure Stripe Checkout…</div>
           <div className="mt-5 mx-auto w-10 h-10 rounded-full border-2 border-slate-200 border-t-[#635bff] animate-spin" />
-          <div className="mt-5 text-[12px] text-slate-600">Direct charge on the tenant's connected account · application_fee €{fee}</div>
+          <div className="mt-5 text-[12px] text-slate-600 flex items-center justify-center gap-1.5"><Icon.lock size={12} /> Secure payment on {TENANT.name}'s account · powered by Stripe</div>
           <Btn variant="indigo" full size="lg" className="mt-5" onClick={() => setPhase("done")}>Simulate successful payment</Btn>
         </Card>
       </div>
@@ -76,14 +87,41 @@ export function Checkout() {
       <div className="lg:sticky lg:top-4 h-max">
         <Card className="p-5">
           <div className="flex items-center gap-2 mb-3"><TenantLogo size={30} /><div className="text-sm font-semibold text-navy-900">{TENANT.name}</div></div>
+          {/* Customer-facing summary: Subtotal → Total only. */}
           <Row l="Subtotal" v={`€${total.toFixed(2)}`} />
-          <Row l="Stripe processing (~1.5%)" v={`€${stripeFee.toFixed(2)}`} muted />
-          <Row l="Slaice commission (5%)" v={`€${fee.toFixed(2)}`} muted />
           <div className="h-px bg-slate-100 my-2" />
-          <Row l="You pay" v={`€${total.toFixed(2)}`} bold />
-          <div className="text-[11px] text-slate-600 mt-1">Tenant receives €{(total - stripeFee - fee).toFixed(2)} · Slaice receives €{fee.toFixed(2)}</div>
+          <Row l="Total" v={`€${total.toFixed(2)}`} bold />
+          <div className="text-[11px] text-slate-500 mt-1">VAT included where applicable.</div>
+
+          {/* Demo-only: reveal the marketplace split. Never shown to a real buyer. */}
+          {showEconomics && (
+            <div className="mt-3 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-3 animate-fade-in">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1"><Icon.layers size={11} /> Platform economics · demo</div>
+              <Row l="Stripe processing (~1.5%)" v={`€${stripeFee.toFixed(2)}`} muted />
+              <Row l="Slaice commission (5%)" v={`€${fee.toFixed(2)}`} muted />
+              <div className="text-[11px] text-slate-600 mt-1.5 pt-1.5 border-t border-slate-200">Tenant receives €{(total - stripeFee - fee).toFixed(2)} · Slaice receives €{fee.toFixed(2)} (Stripe Connect direct charge + application fee).</div>
+            </div>
+          )}
+
           <Btn variant="indigo" full size="lg" className="mt-4" icon={Icon.stripe} onClick={() => setPhase("redirect")}>Pay with Stripe</Btn>
-          <button onClick={() => go("customer", "book")} className="mt-2 w-full text-center text-[12px] text-slate-600 hover:text-slate-600">← Back to booking</button>
+
+          {/* Trust / reassurance (Baymard): payment security, accepted cards,
+              and an at-a-glance cancellation policy before the buyer commits. */}
+          <div className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-slate-500"><Icon.lock size={12} /> Secured by Stripe · we never store card details</div>
+          <div className="mt-2 flex items-center justify-center gap-1.5 opacity-90">
+            {["VISA", "MC", "AMEX", "APPLE"].map((b) => (
+              <span key={b} className="text-[9px] font-bold tracking-wide text-slate-500 bg-slate-100 rounded px-1.5 py-1 ring-1 ring-slate-200">{b}</span>
+            ))}
+          </div>
+          <div className="mt-3 pt-3 border-t border-slate-100 flex items-start gap-2 text-[11px] text-slate-500 leading-snug">
+            <Icon.shield size={13} className="shrink-0 mt-0.5 text-teal-600" />
+            <span>Free cancellation up to 24h before your visit. <button onClick={() => toast("Demo — cancellation & refund policy.")} className="underline hover:text-navy-900">Refund policy</button> · <button onClick={() => toast("Demo — terms of service.")} className="underline hover:text-navy-900">Terms</button></span>
+          </div>
+
+          <div className="mt-3 flex items-center justify-between">
+            <button onClick={() => go("customer", "book")} className="text-[12px] text-slate-600 hover:text-navy-900">← Back to booking</button>
+            <button onClick={() => setShowEconomics((s) => !s)} className="text-[11px] text-slate-400 hover:text-slate-600 inline-flex items-center gap-1" title="Demo affordance — not shown to real customers"><Icon.layers size={11} /> {showEconomics ? "Hide" : "Show"} platform economics</button>
+          </div>
         </Card>
       </div>
     </div>
@@ -103,7 +141,7 @@ function kindIcon(kind) {
 export function Confirmation({ inline }) {
   const { cart, clearCart, go, toast } = useApp();
   // Stable across re-renders so the QR and wallet pass don't change.
-  const [ref] = useState(() => "BK-" + (10400 + Math.floor(Math.random() * 99)));
+  const [ref] = useState(nextBookingRef);
   // Derive a representative wallet pass from the basket.
   const sunbeds = cart.filter((i) => i.kind === "sunbed");
   const total = cart.reduce((a, b) => a + b.price, 0);
@@ -140,6 +178,16 @@ export function Confirmation({ inline }) {
 
         <div className="mt-6 flex gap-2 justify-center flex-wrap">
           <Btn variant="teal" icon={Icon.grid} onClick={() => { clearCart(); go("customer", "mybookings"); }}>View my bookings</Btn>
+          <Btn variant="outline" icon={Icon.calendar} onClick={() => {
+            const start = todayISO();
+            const end = toISO(new Date(Date.now() + 86400000));
+            downloadICS(`beach-day-${ref}.ics`, {
+              uid: `${ref}@slaice`, title: `Beach day · ${pass.zone}`, start, end,
+              location: `${TENANT.name}, ${TENANT.place}`,
+              description: `Booking ${ref} · ${pass.seat !== "—" ? "Sunbeds " + pass.seat : "Entry"} · ${pass.total}. Show your QR at the gate.`,
+            });
+            toast("Calendar invite downloaded (.ics).", { tone: "success" });
+          }}>Add to calendar</Btn>
           <Btn variant="outline" icon={Icon.receipt} onClick={() => { clearCart(); go("customer", "mydocs"); }}>View receipt</Btn>
         </div>
       </Card>

@@ -366,18 +366,18 @@ export function AdminReporting() {
 
       {tab === "exec" && <>
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <StatCard label="Season revenue" value="€704k" sub="vs last yr" tone="teal" trend="+9%" sparkline={<Sparkline data={[48,121,198,241,96]} />} />
-          <StatCard label="Total bookings" value="26,040" sub="sets sold" trend="+7%" sparkline={<Sparkline data={[120,98,142,165,210,320,298]} color="#0ea5e9" />} />
-          <StatCard label="Avg occupancy" value="68%" sub="across zones" trend="+3pp" />
-          <StatCard label="Online share" value="40%" sub="of sets" trend="+5pp" />
-          <StatCard label="Refund rate" value="1.4%" sub="of revenue" trend="-0.3pp" tone="teal" />
+          <StatCard instant label="Season revenue" value="€704k" sub="vs last yr" tone="teal" trend="+9%" sparkline={<Sparkline data={[48,121,198,241,96]} />} />
+          <StatCard instant label="Total bookings" value="26,040" sub="sets sold" trend="+7%" sparkline={<Sparkline data={[120,98,142,165,210,320,298]} color="#0ea5e9" />} />
+          <StatCard instant label="Avg occupancy" value="68%" sub="across zones" trend="+3pp" />
+          <StatCard instant label="Online share" value="40%" sub="of sets" trend="+5pp" />
+          <StatCard instant label="Refund rate" value="1.4%" sub="of revenue" trend="-0.3pp" tone="teal" />
         </div>
         {/* Leisure-industry KPIs (RevPATB ≈ RevPAR for sunbeds). */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-          <StatCard label="RevPATB" value="€18.4" sub="rev / available sunbed" tone="indigo" trend="+6%" />
-          <StatCard label="ADR" value="€27.1" sub="avg daily rate / set" trend="+4%" />
-          <StatCard label="Ancillary attach" value="0.7" sub="extras per booking" trend="+0.1" />
-          <StatCard label="No-show rate" value="2.8%" sub="of reservations" trend="-0.4pp" tone="teal" />
+          <StatCard instant label="RevPATB" value="€18.4" sub="rev / available sunbed" tone="indigo" trend="+6%" />
+          <StatCard instant label="ADR" value="€27.1" sub="avg daily rate / set" trend="+4%" />
+          <StatCard instant label="Ancillary attach" value="0.7" sub="extras per booking" trend="+0.1" />
+          <StatCard instant label="No-show rate" value="2.8%" sub="of reservations" trend="-0.4pp" tone="teal" />
         </div>
         <div className="grid lg:grid-cols-3 gap-4 mt-4">
           <Card className="p-5 lg:col-span-2"><div className="font-semibold text-navy-900 mb-1">Revenue by month (€k)</div><LineChartMini data={season} /></Card>

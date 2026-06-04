@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad, StatCard, ContextPanel, Tabs, DatePickerRow } from "../components/ui.jsx";
+import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad, StatCard, ContextPanel, Tabs, DatePickerRow, Modal, StickyActionBar } from "../components/ui.jsx";
 import { WalletButtons } from "../components/WalletPass.jsx";
 import { Reveal } from "../lib/motion.jsx";
 import { QR, Sparkline } from "../components/charts.jsx";
@@ -8,7 +8,7 @@ import { Sunbed, BeachBackdrop, ParkingBackdrop, LockerBackdrop } from "../compo
 import { downloadPDF, downloadZIP, buildPDFBytes } from "../lib/download.js";
 import { ZONES, ZONE_BLOCKS, FACILITIES, WEATHER, QUICK_PICKS, makeGrid, chipLabel, todayISO } from "../data/beach.js";
 import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS } from "../data/mock.js";
-import { useApp, useSpotlight } from "../app/store.jsx";
+import { useApp, useSpotlight, useT } from "../app/store.jsx";
 
 /* ============ HOME ============
    Unified glass aesthetic over the beach backdrop: a slim promo pill, a
@@ -16,12 +16,13 @@ import { useApp, useSpotlight } from "../app/store.jsx";
    service grid where Sunbed Booking is the featured tile. */
 export function CustomerHome() {
   const { go } = useApp();
+  const tr = useT();
   const [promoDismissed, setPromoDismissed] = useState(false);
   const services = [
-    { k: "book",    t: "Sunbed Booking", d: "Pick your spot on the live beach map", ic: Icon.umbrella, accent: "teal",   meta: "Live map",    metaTone: "green", featured: true },
-    { k: "ticket",  t: "Entry Ticket",   d: "Buy entry for your group",             ic: Icon.ticket,   accent: "navy" },
-    { k: "locker",  t: "Day Locker",     d: "Keep your valuables safe",             ic: Icon.lock,     accent: "amber",  meta: "80 free",     metaTone: "green" },
-    { k: "parking", t: "Parking Spot",   d: "Reserve a spot",                       ic: Icon.car,      accent: "indigo", meta: "39/50 free",  metaTone: "green" },
+    { k: "book",    t: tr("home.tile.book.t"),    d: tr("home.tile.book.d"),    ic: Icon.umbrella, accent: "teal",   meta: tr("home.tile.book.meta"),    metaTone: "green", featured: true },
+    { k: "ticket",  t: tr("home.tile.ticket.t"),  d: tr("home.tile.ticket.d"),  ic: Icon.ticket,   accent: "navy" },
+    { k: "locker",  t: tr("home.tile.locker.t"),  d: tr("home.tile.locker.d"),  ic: Icon.lock,     accent: "amber",  meta: tr("home.tile.locker.meta"),  metaTone: "green" },
+    { k: "parking", t: tr("home.tile.parking.t"), d: tr("home.tile.parking.d"), ic: Icon.car,      accent: "indigo", meta: tr("home.tile.parking.meta"), metaTone: "green" },
   ];
   const accents = {
     teal:   "from-teal-400 to-teal-600",
@@ -36,13 +37,23 @@ export function CustomerHome() {
         <div className="glass rounded-2xl px-3.5 py-2.5 flex items-center gap-2.5">
           <span className="w-7 h-7 rounded-lg grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm"><Icon.bolt size={14} /></span>
           <span className="flex-1 min-w-0 text-[13px] text-navy-900">
-            <b className="font-semibold">20% off</b> front-row sunbeds this weekend
-            <span className="text-slate-700 hidden sm:inline"> · gates open 09:00–20:00</span>
+            <b className="font-semibold">{tr("home.promo.bold")}</b> {tr("home.promo.text")}
+            <span className="text-slate-700 hidden sm:inline"> · {tr("home.promo.hours")}</span>
           </span>
-          <button onClick={() => go("customer", "book")} className="text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 rounded-md px-2 py-1 whitespace-nowrap">Claim →</button>
+          <button onClick={() => go("customer", "book")} className="text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 rounded-md px-2 py-1 whitespace-nowrap">{tr("home.promo.claim")} →</button>
           <button aria-label="Dismiss offer" onClick={() => setPromoDismissed(true)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-500 hover:text-navy-900 hover:bg-white/60 shrink-0"><Icon.x size={14} /></button>
         </div>
       )}
+
+      {/* Returning-guest shortcut — jump straight back to the favourite zone. */}
+      <button onClick={() => go("customer", "book")} className="glass rounded-2xl px-3.5 py-2.5 w-full flex items-center gap-3 text-left hover:bg-white/70 transition group">
+        <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={17} /></span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-[13px] font-semibold text-navy-900">{tr("home.rebook.title")}</span>
+          <span className="block text-[11.5px] text-slate-600 truncate">{tr("home.rebook.sub")}</span>
+        </span>
+        <Icon.chevR size={16} className="text-slate-400 group-hover:text-teal-600 group-hover:translate-x-0.5 transition shrink-0" />
+      </button>
 
       <Reveal as="button" onClick={() => go("customer", "plan")} className="text-left group block w-full">
         <Card hover press className="glass-card-solid relative overflow-hidden p-6 sm:p-9">
@@ -53,16 +64,16 @@ export function CustomerHome() {
           <div className="relative">
             <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700">
               <span className="w-6 h-6 rounded-full grid place-items-center bg-gradient-to-br from-amber-300 to-amber-500 text-white shadow-sm"><Icon.sun size={11} /></span>
-              Good morning, Elena · Sunny 28°
+              {tr("home.greeting")} · {tr("home.sunny")} 28°
             </div>
             <h1 className="mt-3 font-display font-bold text-[28px] sm:text-[36px] leading-[1.05] tracking-tight text-navy-900 max-w-2xl">
-              Plan your full beach day <span className="text-teal-700">in 60 seconds</span>
+              {tr("home.hero.title")} <span className="text-teal-700">{tr("home.hero.title2")}</span>
             </h1>
             <div className="text-[14px] text-slate-700 mt-3 max-w-xl">
-              Guests, dates, sunbeds, locker, parking — one guided flow with a live total.
+              {tr("home.hero.sub")}
             </div>
             <span className="mt-6 inline-flex items-center gap-2 rounded-[14px] px-5 py-2.5 text-sm font-semibold bg-navy-900 text-white shadow-btn-primary group-hover:translate-x-0.5 transition">
-              <Icon.sparkles size={16} /> Start guided booking <Icon.arrowR size={16} />
+              <Icon.sparkles size={16} /> {tr("home.hero.cta")} <Icon.arrowR size={16} />
             </span>
           </div>
         </Card>
@@ -170,11 +181,37 @@ export function CustomerBooking() {
   const [sel, setSel] = useState([]); // {id, zone, price}
   const [extras, setExtras] = useState({ ticket: false, locker: false });
   const [sheetOpen, setSheetOpen] = useState(false); // mobile basket bottom-sheet
+  const [railOpen, setRailOpen] = useState(false); // mobile: expand Who/When/Where controls
   const [hoveredZone, setHoveredZone] = useState(null); // zone-pill preview
   const [search, setSearch] = useState("");
   const [searchHit, setSearchHit] = useState(null); // {zoneId, bedId} — pulse target
   const zone = ZONES.find((z) => z.id === zoneId) || null;
   const grid = useMemo(() => (zone ? makeGrid(zone) : []), [zoneId]);
+
+  // Hold timer — like ticketing/airline checkout: once beds are selected we
+  // "hold" them for 10 minutes so a contested spot isn't lost mid-flow. The
+  // hold starts on first selection, resets when the selection is cleared, and
+  // releases the beds (with a toast) when it lapses.
+  const HOLD_MS = 10 * 60 * 1000;
+  const [holdUntil, setHoldUntil] = useState(null);
+  const [nowTs, setNowTs] = useState(Date.now());
+  useEffect(() => {
+    if (sel.length === 0) { setHoldUntil(null); return; }
+    setHoldUntil((h) => h ?? Date.now() + HOLD_MS);
+  }, [sel.length]);
+  useEffect(() => {
+    if (!holdUntil) return;
+    const id = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [holdUntil]);
+  const holdLeft = holdUntil ? Math.max(0, holdUntil - nowTs) : 0;
+  useEffect(() => {
+    if (holdUntil && holdLeft === 0) {
+      setSel([]);
+      toast("Your held sunbeds were released — pick again when you're ready.", { tone: "warn" });
+    }
+  }, [holdLeft, holdUntil]);
+  const mmss = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
 
   const addBed = (id, price) => setSel((c) => (c.find((x) => x.id === id) ? c : [...c, { id, zone: zone.name, price }]));
   const rm = (id) => setSel((c) => c.filter((x) => x.id !== id));
@@ -220,9 +257,12 @@ export function CustomerBooking() {
   };
   const clearSel = () => { const prev = sel; setSel([]); toast("Selection cleared.", { action: { label: "Undo", onClick: () => setSel(prev) } }); };
   const removeCartItem = (it) => { removeFromCart(it.kind, it.id); toast(`Removed ${it.label}.`, { action: { label: "Undo", onClick: () => addToCart(it) } }); };
+  // Bundle pricing — adding a ticket/locker alongside a sunbed is cheaper than
+  // buying it standalone (€10→€8, €5→€4), nudging attach rate.
+  const BUNDLE = { ticket: 8, locker: 4 };
   const dayCount = selDates.length;
   const sunTotal = sel.reduce((a, b) => a + b.price, 0) * dayCount;
-  const extrasTotal = ((extras.ticket ? 10 : 0) + (extras.locker ? 5 : 0)) * dayCount;
+  const extrasTotal = ((extras.ticket ? BUNDLE.ticket : 0) + (extras.locker ? BUNDLE.locker : 0)) * dayCount;
   const total = sunTotal + extrasTotal;
   const focused = step === "grid" && zone;
 
@@ -231,8 +271,8 @@ export function CustomerBooking() {
     selDates.forEach((iso) => {
       const lbl = chipLabel(iso).sub;
       sel.forEach((b) => addToCart({ kind: "sunbed", id: `${b.id}@${iso}`, label: `Sunbed ${b.id}`, sub: `${b.zone} · ${lbl}`, price: b.price }));
-      if (extras.ticket) addToCart({ kind: "ticket", id: `ADULT@${iso}`, label: "Entry ticket — Adult", sub: `Cross-sell · ${lbl}`, price: 10 });
-      if (extras.locker) addToCart({ kind: "locker", id: `LK@${iso}`, label: "Day locker", sub: `Cross-sell · ${lbl}`, price: 5 });
+      if (extras.ticket) addToCart({ kind: "ticket", id: `ADULT@${iso}`, label: "Entry ticket — Adult", sub: `Bundle · ${lbl}`, price: BUNDLE.ticket });
+      if (extras.locker) addToCart({ kind: "locker", id: `LK@${iso}`, label: "Day locker", sub: `Bundle · ${lbl}`, price: BUNDLE.locker });
     });
     const n = sel.length;
     toast(`${n} sunbed${n > 1 ? "s" : ""} × ${dayCount} day${dayCount > 1 ? "s" : ""} added (${dateLabels}).`, { tone: "success" });
@@ -284,7 +324,18 @@ export function CustomerBooking() {
                     </div>
                   </>
                 ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-slate-200/70 border-b border-slate-200/60">
+                  <>
+                    {/* Mobile: collapse the Who/When/Where controls so the beach
+                        map gets room; always expanded from lg up. */}
+                    <button onClick={() => setRailOpen((o) => !o)}
+                      className="lg:hidden w-full flex items-center justify-between px-4 py-2.5 border-b border-slate-200/60 text-left">
+                      <span className="flex items-center gap-2 text-[13px] font-semibold text-navy-900">
+                        <Icon.sparkles size={14} className="text-teal-600" /> Plan your spot
+                        <span className="font-normal text-slate-500">· {dayCount} day{dayCount > 1 ? "s" : ""}</span>
+                      </span>
+                      <Icon.chevD size={16} className={`text-slate-400 transition-transform ${railOpen ? "rotate-180" : ""}`} />
+                    </button>
+                  <div className={`${railOpen ? "grid" : "hidden"} lg:grid grid-cols-1 lg:grid-cols-3 divide-y lg:divide-y-0 lg:divide-x divide-slate-200/70 border-b border-slate-200/60`}>
                     {/* GUESTS — quick-pick presets as the primary control. */}
                     <div data-spotlight="quick-picks" className="p-4">
                       <div className="flex items-center gap-1.5 text-[10.5px] font-bold uppercase tracking-wider text-slate-500 mb-1">
@@ -353,6 +404,7 @@ export function CustomerBooking() {
                       </div>
                     </div>
                   </div>
+                  </>
                 )}
 
                 {/* Ambient strip — weather context + a discreet sunbed search.
@@ -417,15 +469,16 @@ export function CustomerBooking() {
                 <div className="absolute inset-0 grid place-items-center px-4 pt-44 pb-4 z-10 pointer-events-none">
                   <div className="pointer-events-auto animate-scale-in">
                     <div className="rounded-3xl bg-white/55 ring-4 ring-white/80 backdrop-blur-[1px] p-3 sm:p-4 shadow-float max-w-[680px] max-h-[62dvh] overflow-auto no-scrollbar">
-                      {/* Fewer columns on phones so each sunbed stays a real
-                          tap target; widens to 14 across on desktop. */}
-                      <div className="grid gap-1.5 grid-cols-8 min-[420px]:grid-cols-10 sm:grid-cols-12 md:grid-cols-[repeat(14,minmax(0,1fr))]">
+                      {/* Fewer columns on phones so each sunbed is a ≥44px tap
+                          target (block button fills the cell); widens to 14
+                          across on desktop. */}
+                      <div className="grid gap-1.5 grid-cols-7 min-[400px]:grid-cols-9 sm:grid-cols-12 md:grid-cols-[repeat(14,minmax(0,1fr))]">
                         {grid.map((b) => {
                           const isSel = !!sel.find((x) => x.id === b.id);
                           const isHit = searchHit && searchHit.zoneId === zone.id && searchHit.bedId === b.id;
                           return (
-                            <div key={b.id} className={`aspect-square grid place-items-center ${isHit ? "animate-pulse rounded-md ring-4 ring-teal-400" : ""}`}>
-                              <Sunbed state={b.s} sel={isSel} label={b.id} price={b.price} onClick={() => (isSel ? rm(b.id) : addBed(b.id, b.price))} />
+                            <div key={b.id} className={`aspect-square min-w-[40px] sm:min-w-0 ${isHit ? "animate-pulse rounded-md ring-4 ring-teal-400" : ""}`}>
+                              <Sunbed block size={22} state={b.s} sel={isSel} label={b.id} price={b.price} onClick={() => (isSel ? rm(b.id) : addBed(b.id, b.price))} />
                             </div>
                           );
                         })}
@@ -471,7 +524,12 @@ export function CustomerBooking() {
             )}
 
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Your selection{sel.length ? ` · ${sel.length}` : ""}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center justify-between">
+                <span>Your selection{sel.length ? ` · ${sel.length}` : ""}</span>
+                {sel.length > 0 && holdUntil && (
+                  <span className="inline-flex items-center gap-1 normal-case tracking-normal text-amber-700 bg-amber-50 ring-1 ring-amber-200 rounded-full px-2 py-0.5"><Icon.clock size={11} /> Held {mmss(holdLeft)}</span>
+                )}
+              </div>
               {sel.length === 0 ? (
                 <div className="text-[12px] text-slate-600 rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-2.5 flex items-center gap-2">
                   <Icon.umbrella size={14} className="text-slate-500 shrink-0" />
@@ -495,8 +553,8 @@ export function CustomerBooking() {
               <div>
                 <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Add to your day</div>
                 <div className="space-y-1.5">
-                  <CrossSell on={extras.ticket} onClick={() => setExtras((e) => ({ ...e, ticket: !e.ticket }))} icon={Icon.ticket} title="Entry ticket — Adult" price={10} />
-                  <CrossSell on={extras.locker} onClick={() => setExtras((e) => ({ ...e, locker: !e.locker }))} icon={Icon.lock} title="Day locker" price={5} />
+                  <CrossSell on={extras.ticket} onClick={() => setExtras((e) => ({ ...e, ticket: !e.ticket }))} icon={Icon.ticket} title="Entry ticket — Adult" price={BUNDLE.ticket} was={10} />
+                  <CrossSell on={extras.locker} onClick={() => setExtras((e) => ({ ...e, locker: !e.locker }))} icon={Icon.lock} title="Day locker" price={BUNDLE.locker} was={5} />
                 </div>
               </div>
             )}
@@ -605,14 +663,16 @@ function cartIcon(kind) {
   return <I size={15} />;
 }
 
-function CrossSell({ on, onClick, icon: IconC, title, price, future }) {
+function CrossSell({ on, onClick, icon: IconC, title, price, was, future }) {
+  const saving = was && was > price ? was - price : 0;
   return (
     <button onClick={onClick} className={`w-full flex items-center justify-between rounded-xl px-3 py-2.5 ring-1 transition ${on ? "ring-teal-500 bg-teal-50" : "ring-slate-200 bg-white/70 hover:ring-teal-400"}`}>
       <span className="flex items-center gap-2.5 min-w-0">
         <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${on ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600"}`}><IconC size={16} /></span>
-        <span className="text-left min-w-0"><span className="block text-[13px] font-semibold text-navy-900 flex items-center gap-1.5 truncate">{title}{future && <Badge tone="future">Future</Badge>}</span><span className="block text-[11px] text-slate-600">{on ? "Added to your day" : "Add to your day"}</span></span>
+        <span className="text-left min-w-0"><span className="block text-[13px] font-semibold text-navy-900 flex items-center gap-1.5 truncate">{title}{future && <Badge tone="future">Future</Badge>}</span><span className="block text-[11px] text-slate-600">{saving ? `Bundle & save €${saving}` : on ? "Added to your day" : "Add to your day"}</span></span>
       </span>
       <span className="flex items-center gap-1.5 shrink-0">
+        {saving > 0 && <span className="text-[11px] text-slate-400 line-through tnum">€{was}</span>}
         <span className={`text-[11px] font-bold tnum rounded-full px-2 py-0.5 ${on ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-700"}`}>+€{price}</span>
         <span className={`w-6 h-6 rounded-full grid place-items-center ${on ? "bg-teal-600 text-white" : "ring-1 ring-slate-300 text-slate-500"}`}>{on ? <Icon.check size={14} /> : <Icon.plus size={14} />}</span>
       </span>
@@ -637,8 +697,11 @@ export function CustomerTicket() {
   const perDay = cats.reduce((a, c) => a + c.p * qty[c.k], 0);
   const total = perDay * dayCount;
   const n = Object.values(qty).reduce((a, b) => a + b, 0);
+  // Greek ΑΦΜ is 9 digits — only enforced when a B2B invoice (ΤΠΥ) is requested.
+  const vatOk = !biz || /^\d{9}$/.test(vat.trim());
 
   const pay = () => {
+    if (biz && !vatOk) { toast("Enter a valid 9-digit ΑΦΜ for the invoice.", { tone: "warn" }); return; }
     selDates.forEach((iso) => {
       const sub = chipLabel(iso).sub;
       cats.forEach((c) => qty[c.k] > 0 && addToCart({ kind: "ticket", id: `${c.k}@${iso}`, label: `${c.t} × ${qty[c.k]}`, sub: `Entry ticket · ${sub}`, price: c.p * qty[c.k] }));
@@ -654,7 +717,7 @@ export function CustomerTicket() {
   ];
 
   return (
-    <div className="animate-fade-up space-y-4 max-w-3xl">
+    <div className="animate-fade-up space-y-4 max-w-3xl pb-24 lg:pb-0">
       <PageHead title="Entry Ticket" sub="Buy entry for yourself or your group — pricing adapts to each person's category." badge={<Badge tone="mvp">MVP</Badge>} />
       <Card className="glass-card-solid p-5">
         <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center justify-between">
@@ -667,7 +730,7 @@ export function CustomerTicket() {
         {cats.map((c) => (
           <div key={c.k} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-4 py-3">
             <div><div className="font-semibold text-navy-900">{c.t}</div><div className="text-[12px] text-slate-600">€{c.p} · {c.d}</div></div>
-            <Stepper value={qty[c.k]} onChange={(v) => setQty((q) => ({ ...q, [c.k]: v }))} />
+            <Stepper label={`${c.t} tickets`} value={qty[c.k]} onChange={(v) => setQty((q) => ({ ...q, [c.k]: v }))} />
           </div>
         ))}
 
@@ -678,7 +741,10 @@ export function CustomerTicket() {
           </div>
           {biz && (
             <div className="grid sm:grid-cols-2 gap-2 mt-3 animate-fade-in">
-              <Field label="VAT number (ΑΦΜ)"><Input value={vat} onChange={(e) => setVat(e.target.value)} placeholder="123456789" /></Field>
+              <Field label="VAT number (ΑΦΜ)" hint={vat && !vatOk ? undefined : "9 digits"}>
+                <Input value={vat} onChange={(e) => setVat(e.target.value.replace(/[^\d]/g, "").slice(0, 9))} inputMode="numeric" placeholder="123456789" aria-invalid={!!(vat && !vatOk)} className={vat && !vatOk ? "ring-2 ring-rose-400" : ""} />
+                {vat && !vatOk && <div className="text-[11px] text-rose-600 flex items-center gap-1 mt-1"><Icon.alert size={11} /> ΑΦΜ must be 9 digits.</div>}
+              </Field>
               <Field label="Company name"><Input placeholder="Acme Ltd." /></Field>
             </div>
           )}
@@ -688,7 +754,7 @@ export function CustomerTicket() {
           <div className="text-slate-600 text-sm">{n} ticket(s) × {dayCount} day{dayCount > 1 ? "s" : ""}{biz ? " · ΤΠΥ" : " · ΑΠΥ"}</div>
           <div className="text-2xl font-bold font-display text-navy-900 tnum">€{total}</div>
         </div>
-        <Btn variant="teal" full size="lg" icon={Icon.card} disabled={!n} onClick={pay}>Add €{total} to basket</Btn>
+        <Btn variant="teal" full size="lg" icon={Icon.card} disabled={!n || !vatOk} onClick={pay}>Add €{total} to basket</Btn>
       </Card>
 
       {/* "About entry tickets" — now stacked below the main box rather than
@@ -710,6 +776,16 @@ export function CustomerTicket() {
         </div>
         <div className="mt-3 pt-3 border-t border-slate-100 text-[11.5px] text-slate-500">QR is scanned at the gate by the Controller.</div>
       </Card>
+      {/* Mobile: keep the CTA in reach below the category list. */}
+      <StickyActionBar>
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-[13px] font-semibold text-navy-900 truncate">{n ? `${n} ticket${n > 1 ? "s" : ""} · €${total}` : "No tickets yet"}</div>
+            <div className="text-[11px] text-slate-500">{biz ? "ΤΠΥ invoice" : "ΑΠΥ receipt"} · {dayCount} day{dayCount > 1 ? "s" : ""}</div>
+          </div>
+          <Btn variant="teal" size="md" icon={Icon.card} disabled={!n || !vatOk} onClick={pay}>Add €{total}</Btn>
+        </div>
+      </StickyActionBar>
     </div>
   );
 }
@@ -741,7 +817,7 @@ export function CustomerLocker() {
   const removeLocker = (id) => { setSel((s) => s.filter((x) => x !== id)); toast(`Locker ${id} removed.`, { action: { label: "Undo", onClick: () => setSel((s) => (s.includes(id) ? s : [...s, id])) } }); };
 
   return (
-    <div className="grid lg:grid-cols-[1fr_320px] gap-5">
+    <div className="grid lg:grid-cols-[1fr_320px] gap-5 pb-28 lg:pb-0">
       <div>
         {/* Dates card. Locker legend (Available/Selected/Taken + free count)
             lives in a divider strip at the bottom of this same card so it
@@ -805,6 +881,16 @@ export function CustomerLocker() {
           <div className="mt-2 text-center text-[11px] text-slate-500">Redeem the QR at the entrance · Secured by Stripe</div>
         </Card>
       </div>
+      {/* Mobile: keep the CTA reachable without scrolling past 5 locker banks. */}
+      <StickyActionBar>
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-[13px] font-semibold text-navy-900 truncate">{sel.length ? `${sel.length} locker${sel.length > 1 ? "s" : ""} · €${total}` : "No lockers yet"}</div>
+            <div className="text-[11px] text-slate-500">Tap available lockers above</div>
+          </div>
+          <Btn variant="teal" size="md" disabled={!sel.length} onClick={reserve}>{sel.length ? `Add ${sel.length}×${dayCount}` : "Add"}</Btn>
+        </div>
+      </StickyActionBar>
     </div>
   );
 }
@@ -830,16 +916,17 @@ export function CustomerParking() {
   const dayCount = selDates.length;
   const free = rows.flat().length - taken.size;
   const reserve = () => {
+    if (!sel || !plate.trim()) { toast("Add a vehicle plate so the barrier can recognise you.", { tone: "warn" }); return; }
     selDates.forEach((iso) => {
       const sub = chipLabel(iso).sub;
-      addToCart({ kind: "parking", id: `${sel}@${iso}`, label: `Parking ${sel}`, sub: `${plate || "—"} · ${sub}`, price: PRICE });
+      addToCart({ kind: "parking", id: `${sel}@${iso}`, label: `Parking ${sel}`, sub: `${plate} · ${sub}`, price: PRICE });
     });
     toast(`Parking spot ${sel} × ${dayCount} day${dayCount > 1 ? "s" : ""} added to your basket.`, { tone: "success" });
     setSel(null);
   };
 
   return (
-    <div className="grid lg:grid-cols-[1fr_320px] gap-5">
+    <div className="grid lg:grid-cols-[1fr_320px] gap-5 pb-28 lg:pb-0">
       <div>
         {/* Dates card. Parking status (X of 50 free) + Free/Selected/Taken
             legend live in a divider strip at the bottom of the same card so
@@ -906,10 +993,18 @@ export function CustomerParking() {
             ) : <EmptyState compact icon={Icon.car} title="No spot yet" body="Tap a free (green) spot in the lot to reserve it." />}
           </div>
           <div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-600">{sel ? `1 spot × ${dayCount} day${dayCount > 1 ? "s" : ""}` : "0 spots"}</span><span className="font-bold text-navy-900 tnum text-lg">€{sel ? PRICE * dayCount : 0}</span></div>
-          <Btn variant="teal" full size="lg" className="mt-3" disabled={!sel} onClick={reserve}>{sel ? `Add ${dayCount}×€${PRICE} to basket` : "Select a spot"}</Btn>
+          <Btn variant="teal" full size="lg" className="mt-3" disabled={!sel || !plate.trim()} onClick={reserve}>{!sel ? "Select a spot" : !plate.trim() ? "Enter your plate" : `Add ${dayCount}×€${PRICE} to basket`}</Btn>
+          {sel && !plate.trim() && <div className="mt-1.5 text-[11px] text-amber-600 flex items-center gap-1"><Icon.info size={12} /> A plate is required — the barrier reads it on arrival.</div>}
           <div className="mt-2 text-center text-[11px] text-slate-500">Show the QR at the barrier · Secured by Stripe</div>
         </Card>
       </div>
+      {/* Mobile: CTA + plate reachable without scrolling past the lot. */}
+      <StickyActionBar>
+        <div className="flex items-center gap-2">
+          <Input value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())} placeholder="Plate e.g. ΙΖΡ-1234" className="uppercase tnum flex-1 min-w-0" aria-label="Vehicle plate" />
+          <Btn variant="teal" size="md" disabled={!sel || !plate.trim()} onClick={reserve}>{sel ? `€${PRICE * dayCount}` : "Add"}</Btn>
+        </div>
+      </StickyActionBar>
     </div>
   );
 }
@@ -961,22 +1056,19 @@ export function CustomerBookings() {
             rows={filtered.map((r) => [r.id, r.item, r.date, <StatusBadge status={r.status} />, `€${r.price}`, <Btn size="sm" variant="ghost" icon={Icon.qr} onClick={() => setQrFor(r)}>QR</Btn>])} />
         )}
       </Card>
-      {qrFor && (
-        <div className="fixed inset-0 z-[60] grid place-items-center p-4" onClick={() => setQrFor(null)}>
-          <div className="absolute inset-0 bg-navy-950/50 backdrop-blur-sm" />
-          <div onClick={(e) => e.stopPropagation()} className="relative bg-white rounded-2xl p-6 shadow-float text-center animate-pop w-full max-w-sm max-h-[90dvh] overflow-y-auto overscroll-contain">
-            <div className="text-[12px] uppercase tracking-wide text-slate-400 font-semibold">Entry QR</div>
-            <div className="font-display font-bold text-navy-900 text-lg mb-3">{qrFor.id}</div>
+      <Modal open={!!qrFor} onClose={() => setQrFor(null)} title={`Entry QR · ${qrFor?.id ?? ""}`}>
+        {qrFor && (
+          <div className="text-center">
             <div className="grid place-items-center"><QR size={200} seed={qrFor.id} /></div>
             <div className="mt-3 text-[12px] text-slate-500">Show at the gate · the controller validates in real time.</div>
             <WalletButtons
               className="mt-4 pt-4 border-t border-slate-100"
               pass={{ ref: qrFor.id, holder: "Elena M.", zone: qrFor.item || "Akti tou Iliou", date: qrFor.date || "", seat: "—", guests: 1, total: `€${qrFor.price ?? ""}` }}
             />
-            <Btn variant="outline" className="mt-4" icon={Icon.mail} onClick={() => { toast("QR re-sent to your e-mail.", { tone: "success" }); }}>Resend by e-mail</Btn>
+            <Btn variant="outline" full className="mt-4" icon={Icon.mail} onClick={() => { toast("QR re-sent to your e-mail.", { tone: "success" }); }}>Resend by e-mail</Btn>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }
@@ -1026,39 +1118,32 @@ export function CustomerDocs() {
               </span>])} />
         )}
       </Card>
-      {view && (
-        <div className="fixed inset-0 z-[60] grid place-items-center p-4 animate-fade-in" onClick={() => setView(null)}>
-          <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-xl" />
-          <div onClick={(e) => e.stopPropagation()} className="glass-card relative rounded-2xl w-full max-w-md animate-pop">
-            <div className="px-5 py-4 border-b border-white/40 flex items-center justify-between">
-              <div className="font-display font-bold text-navy-900 text-lg">{view.id}</div>
-              <button onClick={() => setView(null)} className="text-slate-500 hover:text-slate-800 p-1.5 rounded-lg hover:bg-white/40"><Icon.x size={18} /></button>
+      <Modal open={!!view} onClose={() => setView(null)} title={view?.id ?? "Document"}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setView(null)}>Close</Btn>
+          <Btn variant="primary" icon={Icon.download} onClick={() => { download(view); setView(null); }}>Download</Btn>
+        </>}>
+        {view && (
+          <div className="text-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+              <div><div className="font-display font-bold text-navy-900">Akti tou Iliou AE</div><div className="text-slate-500 text-[12px]">ΑΦΜ 123456789 · GR · {view.date}</div></div>
+              <Badge tone="green">MyDATA ✓</Badge>
             </div>
-            <div className="p-5 text-sm">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
-                <div><div className="font-display font-bold text-navy-900">Akti tou Iliou AE</div><div className="text-slate-400 text-[12px]">ΑΦΜ 123456789 · GR · {view.date}</div></div>
-                <Badge tone="green">MyDATA ✓</Badge>
-              </div>
-              <div className="space-y-1 text-[13px]">
-                {view.lines.map(([l, n, v, t], i) => (
-                  <div key={i} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 text-slate-600">
-                    <span>{l}</span><span className="tnum">{n}</span><span className="tnum text-slate-400">+{v}</span><span className="tnum font-semibold text-navy-900">{t}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between font-semibold text-navy-900"><span>Total gross</span><span className="tnum">{view.amt}</span></div>
-              <div className="mt-3 flex items-center gap-3">
-                <div className="rounded-lg bg-white p-1.5 ring-1 ring-slate-200"><QR size={84} seed={view.id} /></div>
-                <div className="text-[11px] text-slate-500 font-mono leading-snug break-all">MARK<br /><b>{view.mark}</b><br />invoiceType 2.1 · payment 7</div>
-              </div>
+            <div className="space-y-1 text-[13px]">
+              {view.lines.map(([l, n, v, t], i) => (
+                <div key={i} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 text-slate-600">
+                  <span>{l}</span><span className="tnum">{n}</span><span className="tnum text-slate-400">+{v}</span><span className="tnum font-semibold text-navy-900">{t}</span>
+                </div>
+              ))}
             </div>
-            <div className="px-5 py-4 border-t border-white/40 flex justify-end gap-2">
-              <Btn variant="ghost" onClick={() => setView(null)}>Close</Btn>
-              <Btn variant="primary" icon={Icon.download} onClick={() => { download(view); setView(null); }}>Download</Btn>
+            <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between font-semibold text-navy-900"><span>Total gross</span><span className="tnum">{view.amt}</span></div>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="rounded-lg bg-white p-1.5 ring-1 ring-slate-200"><QR size={84} seed={view.id} /></div>
+              <div className="text-[11px] text-slate-500 font-mono leading-snug break-all">MARK<br /><b>{view.mark}</b><br />invoiceType 2.1 · payment 7</div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }
