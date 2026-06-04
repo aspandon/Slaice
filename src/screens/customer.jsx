@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad, StatCard, ContextPanel, Tabs, DatePickerRow, Modal } from "../components/ui.jsx";
+import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad, StatCard, ContextPanel, Tabs, DatePickerRow, Modal, StickyActionBar } from "../components/ui.jsx";
 import { WalletButtons } from "../components/WalletPass.jsx";
 import { Reveal } from "../lib/motion.jsx";
 import { QR, Sparkline } from "../components/charts.jsx";
@@ -175,6 +175,31 @@ export function CustomerBooking() {
   const [searchHit, setSearchHit] = useState(null); // {zoneId, bedId} — pulse target
   const zone = ZONES.find((z) => z.id === zoneId) || null;
   const grid = useMemo(() => (zone ? makeGrid(zone) : []), [zoneId]);
+
+  // Hold timer — like ticketing/airline checkout: once beds are selected we
+  // "hold" them for 10 minutes so a contested spot isn't lost mid-flow. The
+  // hold starts on first selection, resets when the selection is cleared, and
+  // releases the beds (with a toast) when it lapses.
+  const HOLD_MS = 10 * 60 * 1000;
+  const [holdUntil, setHoldUntil] = useState(null);
+  const [nowTs, setNowTs] = useState(Date.now());
+  useEffect(() => {
+    if (sel.length === 0) { setHoldUntil(null); return; }
+    setHoldUntil((h) => h ?? Date.now() + HOLD_MS);
+  }, [sel.length]);
+  useEffect(() => {
+    if (!holdUntil) return;
+    const id = setInterval(() => setNowTs(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [holdUntil]);
+  const holdLeft = holdUntil ? Math.max(0, holdUntil - nowTs) : 0;
+  useEffect(() => {
+    if (holdUntil && holdLeft === 0) {
+      setSel([]);
+      toast("Your held sunbeds were released — pick again when you're ready.", { tone: "warn" });
+    }
+  }, [holdLeft, holdUntil]);
+  const mmss = (ms) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
 
   const addBed = (id, price) => setSel((c) => (c.find((x) => x.id === id) ? c : [...c, { id, zone: zone.name, price }]));
   const rm = (id) => setSel((c) => c.filter((x) => x.id !== id));
@@ -417,15 +442,16 @@ export function CustomerBooking() {
                 <div className="absolute inset-0 grid place-items-center px-4 pt-44 pb-4 z-10 pointer-events-none">
                   <div className="pointer-events-auto animate-scale-in">
                     <div className="rounded-3xl bg-white/55 ring-4 ring-white/80 backdrop-blur-[1px] p-3 sm:p-4 shadow-float max-w-[680px] max-h-[62dvh] overflow-auto no-scrollbar">
-                      {/* Fewer columns on phones so each sunbed stays a real
-                          tap target; widens to 14 across on desktop. */}
-                      <div className="grid gap-1.5 grid-cols-8 min-[420px]:grid-cols-10 sm:grid-cols-12 md:grid-cols-[repeat(14,minmax(0,1fr))]">
+                      {/* Fewer columns on phones so each sunbed is a ≥44px tap
+                          target (block button fills the cell); widens to 14
+                          across on desktop. */}
+                      <div className="grid gap-1.5 grid-cols-7 min-[400px]:grid-cols-9 sm:grid-cols-12 md:grid-cols-[repeat(14,minmax(0,1fr))]">
                         {grid.map((b) => {
                           const isSel = !!sel.find((x) => x.id === b.id);
                           const isHit = searchHit && searchHit.zoneId === zone.id && searchHit.bedId === b.id;
                           return (
-                            <div key={b.id} className={`aspect-square grid place-items-center ${isHit ? "animate-pulse rounded-md ring-4 ring-teal-400" : ""}`}>
-                              <Sunbed state={b.s} sel={isSel} label={b.id} price={b.price} onClick={() => (isSel ? rm(b.id) : addBed(b.id, b.price))} />
+                            <div key={b.id} className={`aspect-square min-w-[40px] sm:min-w-0 ${isHit ? "animate-pulse rounded-md ring-4 ring-teal-400" : ""}`}>
+                              <Sunbed block size={22} state={b.s} sel={isSel} label={b.id} price={b.price} onClick={() => (isSel ? rm(b.id) : addBed(b.id, b.price))} />
                             </div>
                           );
                         })}
@@ -471,7 +497,12 @@ export function CustomerBooking() {
             )}
 
             <div>
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Your selection{sel.length ? ` · ${sel.length}` : ""}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center justify-between">
+                <span>Your selection{sel.length ? ` · ${sel.length}` : ""}</span>
+                {sel.length > 0 && holdUntil && (
+                  <span className="inline-flex items-center gap-1 normal-case tracking-normal text-amber-700 bg-amber-50 ring-1 ring-amber-200 rounded-full px-2 py-0.5"><Icon.clock size={11} /> Held {mmss(holdLeft)}</span>
+                )}
+              </div>
               {sel.length === 0 ? (
                 <div className="text-[12px] text-slate-600 rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-2.5 flex items-center gap-2">
                   <Icon.umbrella size={14} className="text-slate-500 shrink-0" />
@@ -654,7 +685,7 @@ export function CustomerTicket() {
   ];
 
   return (
-    <div className="animate-fade-up space-y-4 max-w-3xl">
+    <div className="animate-fade-up space-y-4 max-w-3xl pb-24 lg:pb-0">
       <PageHead title="Entry Ticket" sub="Buy entry for yourself or your group — pricing adapts to each person's category." badge={<Badge tone="mvp">MVP</Badge>} />
       <Card className="glass-card-solid p-5">
         <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center justify-between">
@@ -710,6 +741,16 @@ export function CustomerTicket() {
         </div>
         <div className="mt-3 pt-3 border-t border-slate-100 text-[11.5px] text-slate-500">QR is scanned at the gate by the Controller.</div>
       </Card>
+      {/* Mobile: keep the CTA in reach below the category list. */}
+      <StickyActionBar>
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-[13px] font-semibold text-navy-900 truncate">{n ? `${n} ticket${n > 1 ? "s" : ""} · €${total}` : "No tickets yet"}</div>
+            <div className="text-[11px] text-slate-500">{biz ? "ΤΠΥ invoice" : "ΑΠΥ receipt"} · {dayCount} day{dayCount > 1 ? "s" : ""}</div>
+          </div>
+          <Btn variant="teal" size="md" icon={Icon.card} disabled={!n} onClick={pay}>Add €{total}</Btn>
+        </div>
+      </StickyActionBar>
     </div>
   );
 }
@@ -741,7 +782,7 @@ export function CustomerLocker() {
   const removeLocker = (id) => { setSel((s) => s.filter((x) => x !== id)); toast(`Locker ${id} removed.`, { action: { label: "Undo", onClick: () => setSel((s) => (s.includes(id) ? s : [...s, id])) } }); };
 
   return (
-    <div className="grid lg:grid-cols-[1fr_320px] gap-5">
+    <div className="grid lg:grid-cols-[1fr_320px] gap-5 pb-28 lg:pb-0">
       <div>
         {/* Dates card. Locker legend (Available/Selected/Taken + free count)
             lives in a divider strip at the bottom of this same card so it
@@ -805,6 +846,16 @@ export function CustomerLocker() {
           <div className="mt-2 text-center text-[11px] text-slate-500">Redeem the QR at the entrance · Secured by Stripe</div>
         </Card>
       </div>
+      {/* Mobile: keep the CTA reachable without scrolling past 5 locker banks. */}
+      <StickyActionBar>
+        <div className="flex items-center gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="text-[13px] font-semibold text-navy-900 truncate">{sel.length ? `${sel.length} locker${sel.length > 1 ? "s" : ""} · €${total}` : "No lockers yet"}</div>
+            <div className="text-[11px] text-slate-500">Tap available lockers above</div>
+          </div>
+          <Btn variant="teal" size="md" disabled={!sel.length} onClick={reserve}>{sel.length ? `Add ${sel.length}×${dayCount}` : "Add"}</Btn>
+        </div>
+      </StickyActionBar>
     </div>
   );
 }
@@ -830,16 +881,17 @@ export function CustomerParking() {
   const dayCount = selDates.length;
   const free = rows.flat().length - taken.size;
   const reserve = () => {
+    if (!sel || !plate.trim()) { toast("Add a vehicle plate so the barrier can recognise you.", { tone: "warn" }); return; }
     selDates.forEach((iso) => {
       const sub = chipLabel(iso).sub;
-      addToCart({ kind: "parking", id: `${sel}@${iso}`, label: `Parking ${sel}`, sub: `${plate || "—"} · ${sub}`, price: PRICE });
+      addToCart({ kind: "parking", id: `${sel}@${iso}`, label: `Parking ${sel}`, sub: `${plate} · ${sub}`, price: PRICE });
     });
     toast(`Parking spot ${sel} × ${dayCount} day${dayCount > 1 ? "s" : ""} added to your basket.`, { tone: "success" });
     setSel(null);
   };
 
   return (
-    <div className="grid lg:grid-cols-[1fr_320px] gap-5">
+    <div className="grid lg:grid-cols-[1fr_320px] gap-5 pb-28 lg:pb-0">
       <div>
         {/* Dates card. Parking status (X of 50 free) + Free/Selected/Taken
             legend live in a divider strip at the bottom of the same card so
@@ -906,10 +958,18 @@ export function CustomerParking() {
             ) : <EmptyState compact icon={Icon.car} title="No spot yet" body="Tap a free (green) spot in the lot to reserve it." />}
           </div>
           <div className="mt-4 flex items-center justify-between text-sm"><span className="text-slate-600">{sel ? `1 spot × ${dayCount} day${dayCount > 1 ? "s" : ""}` : "0 spots"}</span><span className="font-bold text-navy-900 tnum text-lg">€{sel ? PRICE * dayCount : 0}</span></div>
-          <Btn variant="teal" full size="lg" className="mt-3" disabled={!sel} onClick={reserve}>{sel ? `Add ${dayCount}×€${PRICE} to basket` : "Select a spot"}</Btn>
+          <Btn variant="teal" full size="lg" className="mt-3" disabled={!sel || !plate.trim()} onClick={reserve}>{!sel ? "Select a spot" : !plate.trim() ? "Enter your plate" : `Add ${dayCount}×€${PRICE} to basket`}</Btn>
+          {sel && !plate.trim() && <div className="mt-1.5 text-[11px] text-amber-600 flex items-center gap-1"><Icon.info size={12} /> A plate is required — the barrier reads it on arrival.</div>}
           <div className="mt-2 text-center text-[11px] text-slate-500">Show the QR at the barrier · Secured by Stripe</div>
         </Card>
       </div>
+      {/* Mobile: CTA + plate reachable without scrolling past the lot. */}
+      <StickyActionBar>
+        <div className="flex items-center gap-2">
+          <Input value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())} placeholder="Plate e.g. ΙΖΡ-1234" className="uppercase tnum flex-1 min-w-0" aria-label="Vehicle plate" />
+          <Btn variant="teal" size="md" disabled={!sel || !plate.trim()} onClick={reserve}>{sel ? `€${PRICE * dayCount}` : "Add"}</Btn>
+        </div>
+      </StickyActionBar>
     </div>
   );
 }

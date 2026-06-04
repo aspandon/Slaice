@@ -152,6 +152,19 @@ export function CardGridSkeleton({ count = 4, className = "" }) {
   );
 }
 
+/* ---------- StickyActionBar ----------
+   Mobile-only bar pinned above the bottom tab bar (and the iOS home indicator).
+   Used by the Locker / Parking / Ticket flows so the primary CTA isn't stranded
+   below a tall selection grid on phones. Pair with bottom padding on the page so
+   the last row of content clears it. */
+export function StickyActionBar({ children, show = "lg:hidden" }) {
+  return (
+    <div className={`${show} fixed left-3 right-3 z-30 bottom-[calc(4.25rem+env(safe-area-inset-bottom))]`}>
+      <div className="glass-card-solid rounded-2xl shadow-float px-3 py-2.5">{children}</div>
+    </div>
+  );
+}
+
 /* ---------- Empty state ---------- */
 export function EmptyState({ icon: IconC = Icon.inbox, title, body, action, compact = false, className = "" }) {
   return (

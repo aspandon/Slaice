@@ -127,11 +127,14 @@ export default function App() {
           )}
           <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />
           {persona === "customer" ? (
-            <div className={`flex-1 ${page === "book" ? "lg:pr-[352px]" : ""}`}>
+            // Only the immersive book page stretches to fill; other short pages
+            // let the footer hug the content instead of stranding it at the
+            // bottom of the viewport with a dead gap above it.
+            <div className={page === "book" ? "flex-1 lg:pr-[352px]" : ""}>
               <main className="min-w-0">{routeFor(persona, page, { go, setPage })}</main>
             </div>
           ) : (
-            <div className="flex gap-5 flex-1">
+            <div className="flex gap-5">
               <Sidebar persona={persona} page={page} setPage={setPage} />
               <main className="flex-1 min-w-0">{routeFor(persona, page, { go, setPage })}</main>
             </div>
