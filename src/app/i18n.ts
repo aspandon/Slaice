@@ -7,9 +7,11 @@
 //
 // `lang` codes match the switcher (EN / ΕΛ / DE / FR).
 
-export const HTML_LANG = { EN: "en", "ΕΛ": "el", DE: "de", FR: "fr" };
+import type { LangCode } from "../domain/types";
 
-const DICT = {
+export const HTML_LANG: Record<LangCode, string> = { EN: "en", "ΕΛ": "el", DE: "de", FR: "fr" };
+
+const DICT: Record<LangCode, Record<string, string>> = {
   EN: {
     "home.greeting": "Good morning, Elena",
     "home.sunny": "Sunny",
@@ -112,6 +114,6 @@ const DICT = {
   },
 };
 
-export function translate(lang, key, fallback) {
+export function translate(lang: LangCode, key: string, fallback?: string): string {
   return (DICT[lang] && DICT[lang][key]) || DICT.EN[key] || fallback || key;
 }
