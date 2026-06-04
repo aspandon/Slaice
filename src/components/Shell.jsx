@@ -234,7 +234,7 @@ export function TopBar({ persona, setPersona, page, setPage }) {
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center justify-between gap-2">
                           <span className="font-semibold text-[13px] text-navy-900 truncate">{n.t}</span>
-                          <span className="text-[10px] text-slate-400 shrink-0">{n.time}</span>
+                          <span className="text-[10px] text-slate-500 shrink-0">{n.time}</span>
                         </span>
                         <span className="block text-[12px] text-slate-500 leading-snug mt-0.5">{n.b}</span>
                       </span>
@@ -313,7 +313,7 @@ export function TopBar({ persona, setPersona, page, setPage }) {
                   <span className="w-7 h-7 rounded-lg grid place-items-center text-white shrink-0 mt-0.5" style={{ background: p.color }}>{Icon[p.icon]({ size: 14 })}</span>
                   <span className="text-left">
                     <span className="font-semibold flex items-center gap-1.5">{p.label}{persona === p.id && <Icon.check size={14} />}</span>
-                    <span className="block text-[11px] text-slate-400 leading-tight">{p.blurb}</span>
+                    <span className="block text-[11px] text-slate-500 leading-tight">{p.blurb}</span>
                   </span>
                 </button>
               ))}

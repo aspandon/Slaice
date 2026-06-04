@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../lib/icons.jsx";
 import { useCountUp, prefersReducedMotion } from "../lib/motion.jsx";
@@ -371,25 +371,63 @@ export function Toggle({ on, onChange, label }) {
   );
 }
 
-/* ---------- Stepper (quantity) ---------- */
-export function Stepper({ value, onChange, min = 0 }) {
+/* ---------- Stepper (quantity) ----------
+   `label` names what's being counted so screen readers announce e.g. "Decrease
+   Adult tickets" rather than four identical "Decrease" buttons on one page. */
+export function Stepper({ value, onChange, min = 0, label }) {
+  const what = label ? ` ${label}` : "";
   return (
     <div className="flex items-center gap-3">
-      <button aria-label="Decrease" onClick={() => onChange(Math.max(min, value - 1))} className="w-11 h-11 sm:w-10 sm:h-10 rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90 disabled:opacity-40" disabled={value <= min}><Icon.minus size={16} /></button>
-      <span className="w-6 text-center font-semibold tnum tabular-nums">{value}</span>
-      <button aria-label="Increase" onClick={() => onChange(value + 1)} className="w-11 h-11 sm:w-10 sm:h-10 rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90"><Icon.plus size={16} /></button>
+      <button aria-label={`Decrease${what}`} onClick={() => onChange(Math.max(min, value - 1))} className="w-11 h-11 sm:w-10 sm:h-10 rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90 disabled:opacity-40" disabled={value <= min}><Icon.minus size={16} /></button>
+      <span className="w-6 text-center font-semibold tnum tabular-nums" aria-live="polite" aria-label={label ? `${value} ${label}` : undefined}>{value}</span>
+      <button aria-label={`Increase${what}`} onClick={() => onChange(value + 1)} className="w-11 h-11 sm:w-10 sm:h-10 rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90"><Icon.plus size={16} /></button>
     </div>
   );
 }
 
+/* Dialog focus management (WCAG 2.4.3 + ARIA dialog pattern): when a dialog
+   opens, move focus into it and trap Tab inside; on close, restore focus to
+   whatever was focused before (usually the trigger). */
+function useDialogFocus(open, panelRef) {
+  useEffect(() => {
+    if (!open) return;
+    const panel = panelRef.current;
+    if (!panel) return;
+    const prev = document.activeElement;
+    const focusables = () =>
+      Array.from(panel.querySelectorAll(
+        'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])'
+      )).filter((el) => el.offsetParent !== null || el === document.activeElement);
+    // Initial focus: first interactive element, else the panel itself.
+    const first = focusables()[0];
+    (first || panel).focus?.();
+    const onKey = (e) => {
+      if (e.key !== "Tab") return;
+      const f = focusables();
+      if (f.length === 0) { e.preventDefault(); return; }
+      const a = f[0], z = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); }
+      else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
+    };
+    panel.addEventListener("keydown", onKey);
+    return () => {
+      panel.removeEventListener("keydown", onKey);
+      if (prev && typeof prev.focus === "function") prev.focus();
+    };
+  }, [open]);
+}
+
 /* ---------- Modal ---------- */
 export function Modal({ open, onClose, title, children, footer, wide }) {
+  const panelRef = useRef(null);
+  const titleId = useId();
   useEffect(() => {
     if (!open) return;
     const h = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [open, onClose]);
+  useDialogFocus(open, panelRef);
   if (!open) return null;
   // Bottom-sheet on phones (items-end + slide-up + rounded top), centered
   // dialog from `sm` up. dvh keeps it within the *visible* viewport on iOS
@@ -398,11 +436,11 @@ export function Modal({ open, onClose, title, children, footer, wide }) {
   // screens wrap content in `animate-fade-up`, whose lingering `transform`
   // would otherwise become the containing block and push the panel off-screen.
   return createPortal((
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in" onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in" onClick={onClose}>
       <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-xl" />
-      <div onClick={(e) => e.stopPropagation()} className={`glass-card-solid relative w-full ${wide ? "sm:max-w-2xl" : "sm:max-w-md"} rounded-t-3xl sm:rounded-3xl animate-slide-up sm:animate-pop max-h-[92dvh] sm:max-h-[90dvh] flex flex-col pb-safe sm:pb-0`}>
+      <div ref={panelRef} tabIndex={-1} onClick={(e) => e.stopPropagation()} className={`glass-card-solid relative w-full ${wide ? "sm:max-w-2xl" : "sm:max-w-md"} rounded-t-3xl sm:rounded-3xl animate-slide-up sm:animate-pop max-h-[92dvh] sm:max-h-[90dvh] flex flex-col pb-safe sm:pb-0 outline-none`}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200/70">
-          <div className="font-display font-bold text-navy-900 text-lg">{title}</div>
+          <div id={titleId} className="font-display font-bold text-navy-900 text-lg">{title}</div>
           <button aria-label="Close" onClick={onClose} className="w-10 h-10 grid place-items-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition"><Icon.x size={20} /></button>
         </div>
         <div className="p-5 overflow-y-auto overscroll-contain">{children}</div>
@@ -418,12 +456,14 @@ export function Modal({ open, onClose, title, children, footer, wide }) {
 export function Sheet({ open, onClose, title, children, footer }) {
   const panelRef = useRef(null);
   const drag = useRef(null);
+  const titleId = useId();
   useEffect(() => {
     if (!open) return;
     const h = (e) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [open, onClose]);
+  useDialogFocus(open, panelRef);
   if (!open) return null;
   const onDown = (e) => {
     const panel = panelRef.current;
@@ -446,17 +486,17 @@ export function Sheet({ open, onClose, title, children, footer }) {
     drag.current = null;
   };
   return createPortal((
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center animate-fade-in" onClick={onClose}>
+    <div role="dialog" aria-modal="true" aria-labelledby={title ? titleId : undefined} className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center animate-fade-in" onClick={onClose}>
       <div className="absolute inset-0 bg-navy-950/45 backdrop-blur-xl" />
-      <div ref={panelRef} onClick={(e) => e.stopPropagation()}
-        className="glass-card-solid relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl animate-slide-up sm:animate-pop max-h-[92dvh] flex flex-col transition-transform duration-300 ease-spring pb-safe sm:pb-0">
+      <div ref={panelRef} tabIndex={-1} onClick={(e) => e.stopPropagation()}
+        className="glass-card-solid relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl animate-slide-up sm:animate-pop max-h-[92dvh] flex flex-col transition-transform duration-300 ease-spring pb-safe sm:pb-0 outline-none">
         <div onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
           className="pt-2.5 pb-1 grid place-items-center cursor-grab active:cursor-grabbing touch-none">
           <span className="w-10 h-1.5 rounded-full bg-slate-300" />
         </div>
         {title && (
           <div className="flex items-center justify-between px-5 py-2 border-b border-slate-200/70">
-            <div className="font-display font-bold text-navy-900 text-lg">{title}</div>
+            <div id={titleId} className="font-display font-bold text-navy-900 text-lg">{title}</div>
             <button aria-label="Close" onClick={onClose} className="w-10 h-10 grid place-items-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition"><Icon.x size={20} /></button>
           </div>
         )}

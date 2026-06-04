@@ -413,7 +413,7 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, reco
                   <div className="font-semibold text-sm text-navy-900">{t.label}</div>
                   <div className="text-[11px] text-slate-500">€{t.price} entry · {t.sub}</div>
                 </div>
-                <Stepper value={people[k]} onChange={(v) => setPeople((p) => ({ ...p, [k]: v }))} />
+                <Stepper label={t.label} value={people[k]} onChange={(v) => setPeople((p) => ({ ...p, [k]: v }))} />
               </div>
             );
           })}
@@ -507,7 +507,7 @@ function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, day
             <div className="font-semibold text-sm text-navy-900">Umbrella sets in {zone.name}</div>
             <div className="text-[11px] text-slate-500">€{zone.from} per set / day · suggested for your group: <b>{recommendedSets}</b></div>
           </div>
-          <Stepper value={sets} onChange={(v) => setSets(Math.max(1, v))} min={1} />
+          <Stepper label="umbrella sets" value={sets} onChange={(v) => setSets(Math.max(1, v))} min={1} />
         </div>
         <div className="mt-2.5 flex items-center justify-between text-[12px] text-slate-600">
           <span>{sets} set{sets !== 1 ? "s" : ""} × {dayCount} day{dayCount !== 1 ? "s" : ""}</span>
@@ -582,7 +582,7 @@ function LockerStep({ on, setOn, qty, setQty, dayCount }) {
             <div className="font-semibold text-sm text-navy-900">How many lockers?</div>
             <div className="text-[11px] text-slate-500">{qty} × €{LOCKER_PRICE} × {dayCount} day{dayCount !== 1 ? "s" : ""}</div>
           </div>
-          <Stepper value={qty} onChange={(v) => setQty(Math.max(1, v))} min={1} />
+          <Stepper label="lockers" value={qty} onChange={(v) => setQty(Math.max(1, v))} min={1} />
         </div>
       )}
       <div className="text-[12px] text-slate-500 flex items-center gap-1.5">

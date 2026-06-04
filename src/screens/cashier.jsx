@@ -27,7 +27,7 @@ export function CashierIssue() {
           {cats.map((c) => (
             <div key={c.k} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-4 py-3">
               <div><div className="font-semibold text-navy-900">{c.t}</div><div className="text-[12px] text-slate-600">€{c.p} per person</div></div>
-              <Stepper value={qty[c.k]} onChange={(v) => setQty((q) => ({ ...q, [c.k]: v }))} />
+              <Stepper label={`${c.t} tickets`} value={qty[c.k]} onChange={(v) => setQty((q) => ({ ...q, [c.k]: v }))} />
             </div>
           ))}
           <div className="flex items-center justify-between pt-1"><div className="text-slate-600 text-sm">{n} ticket(s) · anonymous</div><div className="text-2xl font-bold font-display text-navy-900 tnum">€{total}</div></div>

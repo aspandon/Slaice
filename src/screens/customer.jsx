@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { Icon } from "../lib/icons.jsx";
-import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad, StatCard, ContextPanel, Tabs, DatePickerRow } from "../components/ui.jsx";
+import { Card, Btn, Badge, PageHead, Table, Stepper, Toggle, Input, Field, EmptyState, StatusBadge, TableSkeleton, useMockLoad, StatCard, ContextPanel, Tabs, DatePickerRow, Modal } from "../components/ui.jsx";
 import { WalletButtons } from "../components/WalletPass.jsx";
 import { Reveal } from "../lib/motion.jsx";
 import { QR, Sparkline } from "../components/charts.jsx";
@@ -667,7 +667,7 @@ export function CustomerTicket() {
         {cats.map((c) => (
           <div key={c.k} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-4 py-3">
             <div><div className="font-semibold text-navy-900">{c.t}</div><div className="text-[12px] text-slate-600">€{c.p} · {c.d}</div></div>
-            <Stepper value={qty[c.k]} onChange={(v) => setQty((q) => ({ ...q, [c.k]: v }))} />
+            <Stepper label={`${c.t} tickets`} value={qty[c.k]} onChange={(v) => setQty((q) => ({ ...q, [c.k]: v }))} />
           </div>
         ))}
 
@@ -961,22 +961,19 @@ export function CustomerBookings() {
             rows={filtered.map((r) => [r.id, r.item, r.date, <StatusBadge status={r.status} />, `€${r.price}`, <Btn size="sm" variant="ghost" icon={Icon.qr} onClick={() => setQrFor(r)}>QR</Btn>])} />
         )}
       </Card>
-      {qrFor && (
-        <div className="fixed inset-0 z-[60] grid place-items-center p-4" onClick={() => setQrFor(null)}>
-          <div className="absolute inset-0 bg-navy-950/50 backdrop-blur-sm" />
-          <div onClick={(e) => e.stopPropagation()} className="relative bg-white rounded-2xl p-6 shadow-float text-center animate-pop w-full max-w-sm max-h-[90dvh] overflow-y-auto overscroll-contain">
-            <div className="text-[12px] uppercase tracking-wide text-slate-400 font-semibold">Entry QR</div>
-            <div className="font-display font-bold text-navy-900 text-lg mb-3">{qrFor.id}</div>
+      <Modal open={!!qrFor} onClose={() => setQrFor(null)} title={`Entry QR · ${qrFor?.id ?? ""}`}>
+        {qrFor && (
+          <div className="text-center">
             <div className="grid place-items-center"><QR size={200} seed={qrFor.id} /></div>
             <div className="mt-3 text-[12px] text-slate-500">Show at the gate · the controller validates in real time.</div>
             <WalletButtons
               className="mt-4 pt-4 border-t border-slate-100"
               pass={{ ref: qrFor.id, holder: "Elena M.", zone: qrFor.item || "Akti tou Iliou", date: qrFor.date || "", seat: "—", guests: 1, total: `€${qrFor.price ?? ""}` }}
             />
-            <Btn variant="outline" className="mt-4" icon={Icon.mail} onClick={() => { toast("QR re-sent to your e-mail.", { tone: "success" }); }}>Resend by e-mail</Btn>
+            <Btn variant="outline" full className="mt-4" icon={Icon.mail} onClick={() => { toast("QR re-sent to your e-mail.", { tone: "success" }); }}>Resend by e-mail</Btn>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }
@@ -1026,39 +1023,32 @@ export function CustomerDocs() {
               </span>])} />
         )}
       </Card>
-      {view && (
-        <div className="fixed inset-0 z-[60] grid place-items-center p-4 animate-fade-in" onClick={() => setView(null)}>
-          <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-xl" />
-          <div onClick={(e) => e.stopPropagation()} className="glass-card relative rounded-2xl w-full max-w-md animate-pop">
-            <div className="px-5 py-4 border-b border-white/40 flex items-center justify-between">
-              <div className="font-display font-bold text-navy-900 text-lg">{view.id}</div>
-              <button onClick={() => setView(null)} className="text-slate-500 hover:text-slate-800 p-1.5 rounded-lg hover:bg-white/40"><Icon.x size={18} /></button>
+      <Modal open={!!view} onClose={() => setView(null)} title={view?.id ?? "Document"}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setView(null)}>Close</Btn>
+          <Btn variant="primary" icon={Icon.download} onClick={() => { download(view); setView(null); }}>Download</Btn>
+        </>}>
+        {view && (
+          <div className="text-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+              <div><div className="font-display font-bold text-navy-900">Akti tou Iliou AE</div><div className="text-slate-500 text-[12px]">ΑΦΜ 123456789 · GR · {view.date}</div></div>
+              <Badge tone="green">MyDATA ✓</Badge>
             </div>
-            <div className="p-5 text-sm">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
-                <div><div className="font-display font-bold text-navy-900">Akti tou Iliou AE</div><div className="text-slate-400 text-[12px]">ΑΦΜ 123456789 · GR · {view.date}</div></div>
-                <Badge tone="green">MyDATA ✓</Badge>
-              </div>
-              <div className="space-y-1 text-[13px]">
-                {view.lines.map(([l, n, v, t], i) => (
-                  <div key={i} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 text-slate-600">
-                    <span>{l}</span><span className="tnum">{n}</span><span className="tnum text-slate-400">+{v}</span><span className="tnum font-semibold text-navy-900">{t}</span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between font-semibold text-navy-900"><span>Total gross</span><span className="tnum">{view.amt}</span></div>
-              <div className="mt-3 flex items-center gap-3">
-                <div className="rounded-lg bg-white p-1.5 ring-1 ring-slate-200"><QR size={84} seed={view.id} /></div>
-                <div className="text-[11px] text-slate-500 font-mono leading-snug break-all">MARK<br /><b>{view.mark}</b><br />invoiceType 2.1 · payment 7</div>
-              </div>
+            <div className="space-y-1 text-[13px]">
+              {view.lines.map(([l, n, v, t], i) => (
+                <div key={i} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 text-slate-600">
+                  <span>{l}</span><span className="tnum">{n}</span><span className="tnum text-slate-400">+{v}</span><span className="tnum font-semibold text-navy-900">{t}</span>
+                </div>
+              ))}
             </div>
-            <div className="px-5 py-4 border-t border-white/40 flex justify-end gap-2">
-              <Btn variant="ghost" onClick={() => setView(null)}>Close</Btn>
-              <Btn variant="primary" icon={Icon.download} onClick={() => { download(view); setView(null); }}>Download</Btn>
+            <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between font-semibold text-navy-900"><span>Total gross</span><span className="tnum">{view.amt}</span></div>
+            <div className="mt-3 flex items-center gap-3">
+              <div className="rounded-lg bg-white p-1.5 ring-1 ring-slate-200"><QR size={84} seed={view.id} /></div>
+              <div className="text-[11px] text-slate-500 font-mono leading-snug break-all">MARK<br /><b>{view.mark}</b><br />invoiceType 2.1 · payment 7</div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 }

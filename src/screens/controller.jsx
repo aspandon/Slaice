@@ -73,7 +73,7 @@ export function ControllerScan() {
       </div>
       <Card className="p-5 mt-4">
         <div className="font-semibold text-navy-900 mb-1">Gate throughput by hour</div>
-        <BarChart color="#f59e0b" data={[
+        <BarChart label="Gate throughput by hour" color="#f59e0b" data={[
           { l: "9h", v: 90 }, { l: "10h", v: 180 }, { l: "11h", v: 280, hi: 1 }, { l: "12h", v: 312, hi: 1 },
           { l: "13h", v: 240 }, { l: "14h", v: 150 }, { l: "15h", v: 120 }, { l: "16h", v: 80 },
         ]} />
