@@ -151,7 +151,7 @@ export default function App() {
               )}
               <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />
               {persona === "customer" ? (
-                <div className={page === "book" ? "flex-1 lg:pr-[352px]" : ""}>
+                <div className={page === "book" ? "flex-1 lg:pr-[360px]" : ""}>
                   <main className="min-w-0">{routeFor(persona, page)}</main>
                 </div>
               ) : (

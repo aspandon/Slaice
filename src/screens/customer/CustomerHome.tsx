@@ -78,21 +78,21 @@ export function CustomerHome() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {services.map((t, i) => (
           <Reveal as="button" key={t.k} delay={i * 60} onClick={() => go("customer", t.k)}
-            className={`text-left group ${t.featured ? "sm:col-span-2 lg:col-span-2" : ""}`}>
-            <Card hover press className="glass-card relative overflow-hidden p-5 h-full">
+            className="text-left group">
+            <Card hover press className="glass-card relative overflow-hidden p-4 h-full">
               {t.featured && (
                 <div aria-hidden className="absolute -top-16 -right-10 w-44 h-44 rounded-full bg-gradient-to-br from-teal-300/35 to-transparent blur-2xl" />
               )}
               <div className="relative flex items-start justify-between gap-2">
-                <div className={`w-11 h-11 rounded-2xl grid place-items-center text-white shadow-sm bg-gradient-to-br ${accents[t.accent]} transition-transform duration-300 ease-spring group-hover:scale-110 group-hover:-rotate-3`}>
-                  <t.ic size={20} />
+                <div className={`w-10 h-10 rounded-xl grid place-items-center text-white shadow-sm bg-gradient-to-br ${accents[t.accent]} transition-transform duration-300 ease-spring group-hover:scale-110 group-hover:-rotate-3`}>
+                  <t.ic size={18} />
                 </div>
                 {t.meta && <Badge tone={t.metaTone || "slate"}>{t.meta}</Badge>}
               </div>
-              <div className="relative mt-3 font-display font-bold text-navy-900 flex items-center gap-1 text-[15.5px]">
-                {t.t}<Icon.chevR size={15} className="transition-transform duration-200 group-hover:translate-x-1 text-teal-600" />
+              <div className="relative mt-2.5 font-display font-bold text-navy-900 flex items-center gap-1 text-[14px]">
+                {t.t}<Icon.chevR size={14} className="transition-transform duration-200 group-hover:translate-x-1 text-teal-600" />
               </div>
-              <div className="relative text-[12.5px] text-slate-700 mt-0.5">{t.d}</div>
+              <div className="relative text-[12px] text-slate-600 mt-0.5 line-clamp-2">{t.d}</div>
             </Card>
           </Reveal>
         ))}

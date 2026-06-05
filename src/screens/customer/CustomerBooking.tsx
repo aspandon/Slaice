@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
@@ -17,6 +17,50 @@ interface SelBed { id: string; zone: string; price: number }
 const HOLD_MS = 10 * 60 * 1000;
 
 /* ============ SUNBED BOOKING helpers ============ */
+
+// Horizontal scroller with the same nudge arrows as the date strip, so the
+// Guests and Zone rows get the same affordance as When.
+function ScrollRow({ children, ariaLabel }: { children: ReactNode; ariaLabel: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [canL, setCanL] = useState(false);
+  const [canR, setCanR] = useState(false);
+  const update = () => {
+    const el = ref.current;
+    if (!el) return;
+    setCanL(el.scrollLeft > 2);
+    setCanR(Math.ceil(el.scrollLeft + el.clientWidth) < el.scrollWidth - 2);
+  };
+  useEffect(() => {
+    update();
+    const el = ref.current;
+    if (!el) return;
+    el.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      el.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+  const nudge = (dir: number) => {
+    const el = ref.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * Math.max(140, el.clientWidth * 0.7), behavior: "smooth" });
+  };
+  const arrow = "shrink-0 w-7 h-9 grid place-items-center rounded-lg ring-1 ring-slate-200 bg-white text-slate-600 hover:text-navy-900 hover:ring-teal-400 transition disabled:opacity-30 disabled:cursor-not-allowed";
+  return (
+    <div className="flex items-center gap-1.5">
+      <button type="button" aria-label={`Scroll ${ariaLabel} left`} onClick={() => nudge(-1)} disabled={!canL} className={arrow}>
+        <Icon.arrowL size={14} />
+      </button>
+      <div ref={ref} className="flex-1 flex gap-2 overflow-x-auto no-scrollbar scroll-smooth px-0.5 pb-1">
+        {children}
+      </div>
+      <button type="button" aria-label={`Scroll ${ariaLabel} right`} onClick={() => nudge(1)} disabled={!canR} className={arrow}>
+        <Icon.arrowR size={14} />
+      </button>
+    </div>
+  );
+}
 
 // Hover tooltip rendered above the zone pill — a 6×4 sample of sunbeds so
 // the user can sneak-peek occupancy before zooming in.
@@ -187,7 +231,7 @@ export function CustomerBooking() {
                  so they read as context rather than competing controls.
                  When a zone is active (focused), the rail collapses into a
                  breadcrumb + the WHEN block + the ambient strip. */}
-            <div className="absolute top-[88px] lg:right-[362px] left-3 right-3 z-30">
+            <div className="absolute top-[88px] left-3 sm:left-5 right-3 sm:right-5 lg:right-[368px] z-30">
               <div className="rounded-2xl bg-white/90 backdrop-blur-xl ring-1 ring-white/70 shadow-lg overflow-hidden">
                 {focused ? (
                   <>
@@ -236,7 +280,7 @@ export function CustomerBooking() {
                       <div className="font-display font-semibold text-[15px] text-navy-900 mb-2.5">Pick a party size</div>
                       {/* Date-box styled cards so Guests reads as the same
                           family of tiles as the When date strip. */}
-                      <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
+                      <ScrollRow ariaLabel="party sizes">
                         {QUICK_PICKS.map((p) => {
                           const I = p.id === "couple" ? Icon.users : p.id === "family" ? Icon.group : p.id === "front" ? Icon.wave : Icon.umbrella;
                           return (
@@ -250,7 +294,7 @@ export function CustomerBooking() {
                             </button>
                           );
                         })}
-                      </div>
+                      </ScrollRow>
                     </div>
 
                     {/* WHEN — date strip lives inline at full width. */}
@@ -280,7 +324,7 @@ export function CustomerBooking() {
                       {/* Date-box styled cards (matching When); a small colour
                           dot keeps each zone's identity, the % + price sits on
                           the sub line like a date's day-of-month. */}
-                      <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
+                      <ScrollRow ariaLabel="zones">
                         {ZONES.map((z) => {
                           const hovered = hoveredZone === z.id;
                           return (
@@ -299,7 +343,7 @@ export function CustomerBooking() {
                             </div>
                           );
                         })}
-                      </div>
+                      </ScrollRow>
                     </div>
                   </div>
                   </>
@@ -335,7 +379,7 @@ export function CustomerBooking() {
                 {/* Keep pins + zone blocks inside the visible beach area on lg
                     so the right-most zone (Bolivar) isn't hidden behind the
                     basket panel. */}
-                <div className="absolute inset-0 lg:right-[352px]">
+                <div className="absolute inset-0 lg:right-[360px]">
                 {FACILITIES.map((f) => <FacilityPin key={f.id} facility={f} />)}
                 {ZONE_BLOCKS.map((b) => {
                   const z = ZONES.find((x) => x.id === b.id);
@@ -365,19 +409,19 @@ export function CustomerBooking() {
 
             {focused && (
               <>
-                <div className="absolute inset-0 grid place-items-center px-4 pt-44 pb-4 z-10 pointer-events-none">
-                  <div className="pointer-events-auto animate-scale-in">
-                    <div className="rounded-3xl bg-white/55 ring-4 ring-white/80 backdrop-blur-[1px] p-3 sm:p-4 shadow-float max-w-[680px] max-h-[62dvh] overflow-auto no-scrollbar">
-                      {/* Fewer columns on phones so each sunbed is a ≥44px tap
-                          target (block button fills the cell); widens to 14
-                          across on desktop. */}
-                      <div className="grid gap-1.5 grid-cols-7 min-[400px]:grid-cols-9 sm:grid-cols-12 md:grid-cols-[repeat(14,minmax(0,1fr))]">
+                <div className="absolute inset-0 grid place-items-center px-4 lg:pr-[360px] pt-44 pb-4 z-10 pointer-events-none">
+                  <div className="pointer-events-auto animate-scale-in w-full flex flex-col items-center">
+                    <div className="rounded-3xl bg-white/55 ring-4 ring-white/80 backdrop-blur-[1px] p-3 sm:p-4 shadow-float w-full max-w-[680px] lg:max-w-[860px] max-h-[62dvh] overflow-auto no-scrollbar">
+                      {/* Fewer columns + fill-mode sunbeds so each set is big and
+                          easy to pick on desktop, while staying a ≥40px tap
+                          target on phones. */}
+                      <div className="grid gap-1.5 sm:gap-2 grid-cols-[repeat(auto-fill,minmax(44px,1fr))] sm:grid-cols-[repeat(auto-fill,minmax(52px,1fr))] lg:grid-cols-[repeat(auto-fill,minmax(60px,1fr))]">
                         {grid.map((b) => {
                           const isSel = !!sel.find((x) => x.id === b.id);
                           const isHit = searchHit && searchHit.zoneId === zone.id && searchHit.bedId === b.id;
                           return (
                             <div key={b.id} className={`aspect-square min-w-[40px] sm:min-w-0 ${isHit ? "animate-pulse rounded-md ring-4 ring-teal-400" : ""}`}>
-                              <Sunbed block size={22} state={b.s} sel={isSel} label={b.id} price={b.price} onClick={() => (isSel ? rm(b.id) : addBed(b.id, b.price))} />
+                              <Sunbed fill state={b.s} sel={isSel} label={b.id} price={b.price} onClick={() => (isSel ? rm(b.id) : addBed(b.id, b.price))} />
                             </div>
                           );
                         })}
@@ -510,7 +554,7 @@ export function CustomerBooking() {
         return (
           <>
             {/* Desktop: floating glass panel on the right edge */}
-            <div className="hidden lg:flex fixed top-[88px] right-3 bottom-3 w-[340px] z-20 glass-card-solid rounded-2xl shadow-float flex-col overflow-hidden">
+            <div className="hidden lg:flex fixed top-[88px] right-5 bottom-3 w-[340px] z-20 glass-card-solid rounded-2xl shadow-float flex-col overflow-hidden">
               {body}
               {footer}
             </div>
@@ -518,7 +562,7 @@ export function CustomerBooking() {
             {/* Mobile: collapsed summary bar (tap to expand a bottom sheet) */}
             <button
               onClick={() => setSheetOpen(true)}
-              className="lg:hidden fixed left-3 right-3 z-30 glass-dark text-white rounded-2xl shadow-float ring-1 ring-white/15 px-4 py-3 flex items-center justify-between gap-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))]"
+              className="lg:hidden fixed left-3 sm:left-5 right-3 sm:right-5 z-30 glass-dark text-white rounded-2xl shadow-float ring-1 ring-white/15 px-4 py-3 flex items-center justify-between gap-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))]"
             >
               <span className="flex items-center gap-2.5 min-w-0">
                 <span className="w-9 h-9 rounded-xl bg-white/10 grid place-items-center shrink-0 relative">
