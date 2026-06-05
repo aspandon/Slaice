@@ -19,6 +19,56 @@ export function SlaiceLogo({ size = 36, withText = false, light = false }: { siz
   );
 }
 
+// Tenant wordmark — "Ακτή του Ηλίου · Άλιμος": brush wordmark over a rising sun
+// with a swimmer and a sea wave. Recreated as an inline SVG so it stays crisp at
+// any size and inherits no external asset. Shown centered above the top bar on
+// the customer surface.
+export function TenantWordmark({ className = "", height = 96 }: { className?: string; height?: number }) {
+  const cx = 120;
+  const cy = 162;
+  // Sun rays fanning across the upper hemisphere (≈12°–168°).
+  const rays = Array.from({ length: 12 }, (_, i) => {
+    const a = ((12 + i * 14.2) * Math.PI) / 180;
+    const r1 = 25;
+    const r2 = i % 2 === 0 ? 53 : 46;
+    return {
+      x1: cx + r1 * Math.cos(a),
+      y1: cy - r1 * Math.sin(a),
+      x2: cx + r2 * Math.cos(a),
+      y2: cy - r2 * Math.sin(a),
+    };
+  });
+  return (
+    <svg viewBox="0 0 240 210" height={height} className={className} role="img" aria-label="Ακτή του Ηλίου — Άλιμος">
+      {/* Brush wordmark */}
+      <text x={120} y={36} textAnchor="middle" fontFamily="Georgia, 'Times New Roman', serif" fontStyle="italic" fontWeight="700" fontSize="34" fill="#2f5aa6" transform="skewX(-6) translate(13 0)">
+        ΑΚΤΗ <tspan fontSize="22">του</tspan> ΗΛΙΟΥ
+      </text>
+      <text x={120} y={58} textAnchor="middle" fontFamily="Georgia, serif" fontWeight="600" fontSize="13" letterSpacing="6" fill="#3a6bc4">ΑΛΙΜΟΣ</text>
+
+      {/* Sun rays */}
+      <g stroke="#f39200" strokeWidth="6" strokeLinecap="round">
+        {rays.map((r, i) => (
+          <line key={i} x1={r.x1} y1={r.y1} x2={r.x2} y2={r.y2} />
+        ))}
+      </g>
+      {/* Sun body — a warm half-disc the swimmer stands on */}
+      <path d={`M ${cx - 32} ${cy} a 32 32 0 0 1 64 0 Z`} fill="#f5a623" />
+
+      {/* Swimmer, arms raised */}
+      <g fill="none" stroke="#1c3d6e" strokeWidth="6.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx={cx} cy={119} r={7.5} fill="#1c3d6e" stroke="none" />
+        <path d={`M ${cx} 130 V 152`} />
+        <path d={`M ${cx} 135 L ${cx - 15} 121 M ${cx} 135 L ${cx + 15} 121`} />
+        <path d={`M ${cx} 152 L ${cx - 13} 170 M ${cx} 152 L ${cx + 13} 170`} />
+      </g>
+
+      {/* Sea wave */}
+      <path d={`M 64 184 q 14 -12 28 0 t 28 0 t 28 0 t 28 0`} fill="none" stroke="#2f7fc4" strokeWidth="6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 // Tenant logo — Akti tou Iliou (sun over sea), as in the video sidebar.
 export function TenantLogo({ size = 34 }: { size?: number }) {
   return (

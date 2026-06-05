@@ -8,6 +8,7 @@ import { AuthGate } from "./screens/auth";
 import { ConsentBanner } from "./components/ConsentBanner";
 import { CommandPalette } from "./components/CommandPalette";
 import { BeachBackdrop } from "./components/Beach";
+import { TenantWordmark } from "./components/Brand";
 import { DiveTransition } from "./components/DiveTransition";
 import { prefersReducedMotion } from "./lib/motion";
 import { routeFor } from "./routes";
@@ -174,6 +175,11 @@ export default function App() {
           {persona === "customer" && (
             <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
               <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax shoreline={0.8} />
+            </div>
+          )}
+          {persona === "customer" && (
+            <div className="flex justify-center pt-1 pb-3">
+              <TenantWordmark height={88} />
             </div>
           )}
           <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />
