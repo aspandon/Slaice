@@ -176,7 +176,7 @@ export default function App() {
             <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
               <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax shoreline={0.8} />
               {/* A life-buoy bobbing in the open-water band on the left. */}
-              <LifeRing className="hidden sm:block absolute left-[8%] top-[58%] w-[96px] h-[96px]" />
+              <LifeRing className="hidden sm:block absolute left-[8%] top-[72%] w-[60px] h-[60px]" />
             </div>
           )}
           {persona === "customer" && (
