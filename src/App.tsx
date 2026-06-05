@@ -162,7 +162,7 @@ export default function App() {
         <div className="w-full px-3 sm:px-5 pt-4 relative min-h-dvh flex flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-4">
           {persona === "customer" && (
             <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
-              <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax />
+              <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax shoreline={0.8} />
             </div>
           )}
           <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />
@@ -179,7 +179,9 @@ export default function App() {
               <main className="flex-1 min-w-0">{routeFor(persona, page)}</main>
             </div>
           )}
-          <SiteFooter />
+          {/* The tenant badge bows out once the guest dives into the booking
+              wizard, so the beach + zones take over the screen. */}
+          {!(persona === "customer" && page === "plan") && <SiteFooter />}
           <BottomTabBar persona={persona} page={page} setPage={setPage} />
         </div>
       )}

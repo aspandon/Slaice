@@ -576,7 +576,7 @@ function ZoneLocatorMap({ selectedId, onSelect }: { selectedId: string; onSelect
         })}
 
         {/* Zone clusters, positioned + angled exactly like the full-beach overview. */}
-        {ZONES.map((z) => {
+        {ZONES.map((z, i) => {
           const blk = ZONE_BLOCKS.find((b) => b.id === z.id);
           if (!blk) return null;
           const active = z.id === selectedId;
@@ -586,8 +586,8 @@ function ZoneLocatorMap({ selectedId, onSelect }: { selectedId: string; onSelect
               onClick={() => onSelect(z.id)}
               aria-pressed={active}
               aria-label={`${z.name} — ${z.avail} ${tr("of")} ${z.total} ${tr("free")}, ${tr("from")} €${z.from}${active ? `, ${tr("selected")}` : ""}`}
-              className="absolute origin-center focus:outline-none focus-visible:z-30 group"
-              style={{ left: blk.left, top: blk.top, width: blk.w, transform: `rotate(${blk.rot}deg)` }}
+              className="absolute origin-center focus:outline-none focus-visible:z-30 group animate-fade-in"
+              style={{ left: blk.left, top: blk.top, width: blk.w, transform: `rotate(${blk.rot}deg)`, animationDelay: `${i * 80}ms` }}
             >
               <span
                 className={`relative block rounded-[7px] px-1 pt-1 pb-0.5 ring-1 transition-all duration-300 ease-spring ${active ? "scale-110 ring-white shadow-[0_8px_24px_-6px_rgba(11,37,69,.55)] z-20" : "ring-white/40 group-hover:scale-105 group-hover:-translate-y-0.5 group-hover:ring-white/80"}`}
