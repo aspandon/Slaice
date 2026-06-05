@@ -126,6 +126,77 @@ function SeaWavelets({ dy = 0 }: { dy?: number }) {
   );
 }
 
+/* Organic blob path via Catmull-Rom → Cubic Bezier closed spline.
+   Generates natural irregular amoeba-like shapes for foam patches. */
+function blobPath(cx: number, cy: number, avgR: number, seed: number): string {
+  const n = 7 + (seed % 3);
+  const pts: [number, number][] = Array.from({ length: n }, (_, i) => {
+    const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+    const r = avgR * (0.72 + 0.56 * ((seed * 97 + i * 43) % 100) / 100);
+    return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  });
+  const g = (i: number) => pts[(i + n) % n];
+  let d = `M ${g(0)[0].toFixed(1)},${g(0)[1].toFixed(1)}`;
+  for (let i = 0; i < n; i++) {
+    const [p0, p1, p2, p3] = [g(i - 1), g(i), g(i + 1), g(i + 2)];
+    const bx1 = p1[0] + (p2[0] - p0[0]) / 6, by1 = p1[1] + (p2[1] - p0[1]) / 6;
+    const bx2 = p2[0] - (p3[0] - p1[0]) / 6, by2 = p2[1] - (p3[1] - p1[1]) / 6;
+    d += ` C ${bx1.toFixed(1)},${by1.toFixed(1)} ${bx2.toFixed(1)},${by2.toFixed(1)} ${p2[0].toFixed(1)},${p2[1].toFixed(1)}`;
+  }
+  return d + ' Z';
+}
+
+/* Water caustic light patches and shoreline foam bubbles seen from above.
+   Two layers:
+   1. SVG fractalNoise → feColorMatrix threshold creates an organic bright-cell
+      texture across the sea surface (light refracting through shallow water).
+   2. Smooth organic bezier blobs — large near the shoreline, smaller and more
+      transparent as they fade into the open water — match the foam clusters in
+      the reference aerial beach illustration. */
+function WaterCaustics({ dy = 0, mkId }: { dy?: number; mkId: (k: string) => string }) {
+  const seaTop = 456 + dy; // sits just above the foamD band (y ≈ 470 + dy)
+  // [cx, cy, avgRadius, seed] — three rows: near-shore, mid-water, deep-water
+  const clusters: [number, number, number, number][] = [
+    [130,  seaTop - 36,  50, 1 ], [295,  seaTop - 28,  62, 2 ], [475,  seaTop - 42,  44, 3 ],
+    [648,  seaTop - 32,  56, 4 ], [822,  seaTop - 44,  48, 5 ], [998,  seaTop - 34,  58, 6 ],
+    [1158, seaTop - 40,  52, 7 ], [1328, seaTop - 30,  60, 8 ], [1492, seaTop - 38,  46, 9 ],
+    [220,  seaTop - 108, 32, 10], [488,  seaTop - 118, 36, 11], [728,  seaTop - 110, 28, 12],
+    [968,  seaTop - 114, 34, 13], [1208, seaTop - 108, 30, 14], [1448, seaTop - 120, 28, 15],
+    [78,   seaTop - 198, 18, 16], [358,  seaTop - 208, 20, 17], [618,  seaTop - 190, 16, 18],
+    [878,  seaTop - 202, 19, 19], [1118, seaTop - 196, 17, 20], [1382, seaTop - 206, 18, 21],
+  ];
+  return (
+    <>
+      <defs>
+        <filter id={mkId("caustic")} x="-5%" y="-5%" width="110%" height="110%"
+          colorInterpolationFilters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.012 0.018"
+            numOctaves="3" seed="17" result="t" />
+          {/* Threshold: white cells where fractalNoise R > ~0.52 */}
+          <feColorMatrix type="matrix"
+            values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  10 0 0 0 -5.2"
+            in="t" />
+        </filter>
+      </defs>
+      {/* Layer 1 — caustic cell texture across the sea */}
+      <rect x="-20" y="-20" width="1640" height={seaTop + 20}
+        filter={`url(#${mkId("caustic")})`} opacity="0.28" />
+      {/* Layer 2 — organic foam bubble clusters */}
+      {clusters.map(([cx, cy, r, seed], i) => {
+        const row = Math.floor(i / 9); // 0=near, 1=mid, 2=deep
+        const baseOp = [0.45, 0.32, 0.22][row] ?? 0.20;
+        const op = baseOp * (0.8 + (seed % 5) * 0.04);
+        return (
+          <path key={i} d={blobPath(cx, cy, r, seed)}
+            fill={`rgba(255,255,255,${(op * 0.42).toFixed(2)})`}
+            stroke={`rgba(255,255,255,${op.toFixed(2)})`}
+            strokeWidth={r > 48 ? "2.2" : "1.6"} />
+        );
+      })}
+    </>
+  );
+}
+
 /* Flat beach scene — drives every gradient and decor layer from `preset`. Used
    by the booking map, the auth panel, the map editor canvas and the picker. */
 function BeachScene({ preset, preview = false, shoreline }: { preset: BeachPreset; preview?: boolean; shoreline?: number }) {
@@ -190,6 +261,8 @@ function BeachScene({ preset, preview = false, shoreline }: { preset: BeachPrese
 
       {/* Static surface texture in the open-water band. */}
       <SeaWavelets dy={dy} />
+      {/* Caustic light patches + organic foam bubble clusters. */}
+      <WaterCaustics dy={dy} mkId={id} />
 
       {/* Curved shoreline foam band */}
       <path d={foamD(dy)} fill={`url(#${id("foam")})`} />
@@ -277,6 +350,8 @@ function BeachSceneLayered({ preset, shoreline }: { preset: BeachPreset; shoreli
             </g>
           )}
           <SeaWavelets dy={dy} />
+          {/* Caustic light patches + organic foam bubble clusters. */}
+          <WaterCaustics dy={dy} mkId={id} />
           <rect width="1600" height="160" fill={`url(#${id("vignette")})`} />
         </svg>
       </div>
