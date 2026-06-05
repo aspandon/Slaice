@@ -100,7 +100,7 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
   const currentItem = navItems.find((it) => it.k === page);
   const CurrentIcon = currentItem && Icon[currentItem.icon];
   return (
-    <header className={`${persona === "customer" ? "glass-card" : "glass"} text-navy-900 rounded-2xl px-2 py-1.5 mb-4 flex items-center gap-2 relative z-30 shadow-soft sticky top-2`}>
+    <header className="glass text-navy-900 rounded-2xl px-2 py-1.5 mb-4 flex items-center gap-2 relative z-30 shadow-soft sticky top-2">
       {/* Customer keeps its inline nav on desktop only — on phones it would
           crowd the action cluster, so page nav moves to the bottom tab bar and
           a tappable title here opens the full page-nav sheet. */}

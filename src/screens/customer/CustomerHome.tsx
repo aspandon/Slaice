@@ -1,39 +1,23 @@
 import { useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Card, Badge } from "../../components/ui";
 import { Reveal } from "../../lib/motion";
 import { useApp, useT } from "../../app/store";
 
 /* ============ HOME ============
-   Unified glass aesthetic over the beach backdrop: a hero card with soft
-   gradient orbs (no heavy colored slab) leading straight into the service
-   grid (Sunbed Booking is the featured tile), with the promo pill and the
-   "rebook your usual" shortcut as secondary nudges below the services. */
+   A single guided-booking hero over the beach backdrop — all booking now runs
+   through the "Plan my visit" wizard — followed by the weekend promo and the
+   returning-guest "rebook" shortcut. The hero and the chrome share the same
+   translucent `glass` material as the shortcuts so the beach reads through. */
 export function CustomerHome() {
   const { go } = useApp();
   const tr = useT();
   const [promoDismissed, setPromoDismissed] = useState(false);
-  // Every service now opens the unified "Plan my visit" wizard, deep-linked to
-  // the matching step (booking no longer has standalone screens).
-  const services = [
-    { k: "book",    step: "sets",    t: tr("home.tile.book.t"),    d: tr("home.tile.book.d"),    ic: Icon.umbrella, accent: "teal",   meta: tr("home.tile.book.meta"),    metaTone: "green", featured: true },
-    { k: "ticket",  step: "people",  t: tr("home.tile.ticket.t"),  d: tr("home.tile.ticket.d"),  ic: Icon.ticket,   accent: "navy" },
-    { k: "locker",  step: "locker",  t: tr("home.tile.locker.t"),  d: tr("home.tile.locker.d"),  ic: Icon.lock,     accent: "amber",  meta: tr("home.tile.locker.meta"),  metaTone: "green" },
-    { k: "parking", step: "parking", t: tr("home.tile.parking.t"), d: tr("home.tile.parking.d"), ic: Icon.car,      accent: "indigo", meta: tr("home.tile.parking.meta"), metaTone: "green" },
-  ];
-  const accents: Record<string, string> = {
-    teal:   "from-teal-400 to-teal-600",
-    navy:   "from-navy-700 to-navy-900",
-    amber:  "from-amber-400 to-gold-600",
-    indigo: "from-slaice-500 to-slaice-700",
-  };
 
   return (
     <div className="animate-fade-up space-y-4">
-      {/* Guided-booking hero — the primary entry point, so it sits first,
-          directly under the nav; the promo bar and shortcuts follow below. */}
+      {/* Guided-booking hero — the single entry point into the wizard. */}
       <Reveal as="button" onClick={() => go("customer", "plan")} className="text-left group block w-full">
-        <Card hover press className="glass-card-solid relative overflow-hidden p-6 sm:p-9">
+        <div className="glass rounded-3xl relative overflow-hidden p-6 sm:p-9 pressable cursor-pointer transition duration-300 ease-spring hover:-translate-y-1 hover:shadow-lift">
           <div aria-hidden className="absolute -top-28 -right-20 w-80 h-80 rounded-full bg-gradient-to-br from-teal-300/45 via-teal-400/20 to-transparent blur-3xl" />
           <div aria-hidden className="absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-gradient-to-tr from-gold-300/35 via-amber-300/15 to-transparent blur-3xl" />
           <div aria-hidden className="absolute top-1/3 right-1/3 w-44 h-44 rounded-full bg-gradient-to-br from-coral-300/25 to-transparent blur-2xl" />
@@ -53,36 +37,10 @@ export function CustomerHome() {
               <Icon.sparkles size={16} /> {tr("home.hero.cta")} <Icon.arrowR size={16} />
             </span>
           </div>
-        </Card>
+        </div>
       </Reveal>
 
-      {/* Primary services — sit directly under the hero so the four core
-          actions are the first thing the eye lands on after the CTA. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {services.map((t, i) => (
-          <Reveal as="button" key={t.k} delay={i * 60} onClick={() => go("customer", "plan", { step: t.step })}
-            className="text-left group">
-            <Card hover press className="glass-card relative overflow-hidden p-4 h-full">
-              {t.featured && (
-                <div aria-hidden className="absolute -top-16 -right-10 w-44 h-44 rounded-full bg-gradient-to-br from-teal-300/35 to-transparent blur-2xl" />
-              )}
-              <div className="relative flex items-start justify-between gap-2">
-                <div className={`w-10 h-10 rounded-xl grid place-items-center text-white shadow-sm bg-gradient-to-br ${accents[t.accent]} transition-transform duration-300 ease-spring group-hover:scale-110 group-hover:-rotate-3`}>
-                  <t.ic size={18} />
-                </div>
-                {t.meta && <Badge tone={t.metaTone || "slate"}>{t.meta}</Badge>}
-              </div>
-              <div className="relative mt-2.5 font-display font-bold text-navy-900 flex items-center gap-1 text-[14px]">
-                {t.t}<Icon.chevR size={14} className="transition-transform duration-200 group-hover:translate-x-1 text-teal-600" />
-              </div>
-              <div className="relative text-[12px] text-slate-600 mt-0.5 line-clamp-2">{t.d}</div>
-            </Card>
-          </Reveal>
-        ))}
-      </div>
-
-      {/* Secondary nudges — the weekend promo and a returning-guest shortcut,
-          kept below the primary services. */}
+      {/* Secondary nudges — the weekend promo and a returning-guest shortcut. */}
       {!promoDismissed && (
         <div className="glass rounded-2xl px-3.5 py-2.5 flex items-center gap-2.5">
           <span className="w-7 h-7 rounded-lg grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm"><Icon.bolt size={14} /></span>
