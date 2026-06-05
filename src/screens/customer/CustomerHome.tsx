@@ -13,11 +13,13 @@ export function CustomerHome() {
   const { go } = useApp();
   const tr = useT();
   const [promoDismissed, setPromoDismissed] = useState(false);
+  // Every service now opens the unified "Plan my visit" wizard, deep-linked to
+  // the matching step (booking no longer has standalone screens).
   const services = [
-    { k: "book",    t: tr("home.tile.book.t"),    d: tr("home.tile.book.d"),    ic: Icon.umbrella, accent: "teal",   meta: tr("home.tile.book.meta"),    metaTone: "green", featured: true },
-    { k: "ticket",  t: tr("home.tile.ticket.t"),  d: tr("home.tile.ticket.d"),  ic: Icon.ticket,   accent: "navy" },
-    { k: "locker",  t: tr("home.tile.locker.t"),  d: tr("home.tile.locker.d"),  ic: Icon.lock,     accent: "amber",  meta: tr("home.tile.locker.meta"),  metaTone: "green" },
-    { k: "parking", t: tr("home.tile.parking.t"), d: tr("home.tile.parking.d"), ic: Icon.car,      accent: "indigo", meta: tr("home.tile.parking.meta"), metaTone: "green" },
+    { k: "book",    step: "sets",    t: tr("home.tile.book.t"),    d: tr("home.tile.book.d"),    ic: Icon.umbrella, accent: "teal",   meta: tr("home.tile.book.meta"),    metaTone: "green", featured: true },
+    { k: "ticket",  step: "people",  t: tr("home.tile.ticket.t"),  d: tr("home.tile.ticket.d"),  ic: Icon.ticket,   accent: "navy" },
+    { k: "locker",  step: "locker",  t: tr("home.tile.locker.t"),  d: tr("home.tile.locker.d"),  ic: Icon.lock,     accent: "amber",  meta: tr("home.tile.locker.meta"),  metaTone: "green" },
+    { k: "parking", step: "parking", t: tr("home.tile.parking.t"), d: tr("home.tile.parking.d"), ic: Icon.car,      accent: "indigo", meta: tr("home.tile.parking.meta"), metaTone: "green" },
   ];
   const accents: Record<string, string> = {
     teal:   "from-teal-400 to-teal-600",
@@ -58,7 +60,7 @@ export function CustomerHome() {
           actions are the first thing the eye lands on after the CTA. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {services.map((t, i) => (
-          <Reveal as="button" key={t.k} delay={i * 60} onClick={() => go("customer", t.k)}
+          <Reveal as="button" key={t.k} delay={i * 60} onClick={() => go("customer", "plan", { step: t.step })}
             className="text-left group">
             <Card hover press className="glass-card relative overflow-hidden p-4 h-full">
               {t.featured && (
@@ -88,13 +90,13 @@ export function CustomerHome() {
             <b className="font-semibold">{tr("home.promo.bold")}</b> {tr("home.promo.text")}
             <span className="text-slate-700 hidden sm:inline"> · {tr("home.promo.hours")}</span>
           </span>
-          <button onClick={() => go("customer", "book")} className="text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 rounded-md px-2 py-1 whitespace-nowrap">{tr("home.promo.claim")} →</button>
+          <button onClick={() => go("customer", "plan", { step: "sets" })} className="text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 rounded-md px-2 py-1 whitespace-nowrap">{tr("home.promo.claim")} →</button>
           <button aria-label="Dismiss offer" onClick={() => setPromoDismissed(true)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-500 hover:text-navy-900 hover:bg-white/60 shrink-0"><Icon.x size={14} /></button>
         </div>
       )}
 
       {/* Returning-guest shortcut — jump straight back to the favourite zone. */}
-      <button onClick={() => go("customer", "book")} className="glass rounded-2xl px-3.5 py-2.5 w-full flex items-center gap-3 text-left hover:bg-white/70 transition group">
+      <button onClick={() => go("customer", "plan", { step: "sets" })} className="glass rounded-2xl px-3.5 py-2.5 w-full flex items-center gap-3 text-left hover:bg-white/70 transition group">
         <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={17} /></span>
         <span className="flex-1 min-w-0">
           <span className="block text-[13px] font-semibold text-navy-900">{tr("home.rebook.title")}</span>

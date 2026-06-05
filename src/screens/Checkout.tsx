@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../lib/icons";
 import type { IconRenderer } from "../lib/icons";
-import { Card, Btn, Badge, PageHead, EmptyState } from "../components/ui";
+import { Card, Btn, Badge, PageHead, EmptyState, SwipeRow } from "../components/ui";
 import { QR } from "../components/charts";
 import { SlaiceLogo, TenantLogo } from "../components/Brand";
 import { WalletButtons } from "../components/WalletPass";
@@ -18,7 +18,7 @@ let BOOKING_SEQ = 10428;
 const nextBookingRef = () => "BK-" + ++BOOKING_SEQ;
 
 export function Checkout() {
-  const { cart, removeFromCart, addToCart, go, toast } = useApp();
+  const { cart, removeFromCart, addToCart, clearCart, go, toast } = useApp();
   const [phase, setPhase] = useState<"cart" | "redirect" | "done">("cart");
   // The buyer never needs the marketplace split — it's hidden by default and
   // revealed only via an explicit demo toggle.
@@ -27,6 +27,11 @@ export function Checkout() {
   const fee = +(total * SLAICE_FEE_RATE).toFixed(2);
   const stripeFee = +(total * STRIPE_FEE_RATE).toFixed(2);
   const removeItem = (it: CartItem) => { removeFromCart(it.kind, it.id); toast(`Removed ${it.label}.`, { action: { label: "Undo", onClick: () => addToCart(it) } }); };
+  const emptyBasket = () => {
+    const snapshot = [...cart];
+    clearCart();
+    toast("Basket emptied.", { action: { label: "Undo", onClick: () => snapshot.forEach(addToCart) } });
+  };
 
   if (cart.length === 0 && phase === "cart") {
     return (
@@ -35,8 +40,8 @@ export function Checkout() {
           <EmptyState
             icon={Icon.card}
             title="Your cart is empty"
-            body="Add sunbeds, tickets or extras to continue to checkout."
-            action={<Btn variant="teal" icon={Icon.umbrella} onClick={() => go("customer", "book")}>Book a sunbed</Btn>}
+            body="Plan a visit to add sunbeds, tickets or extras, then check out here."
+            action={<Btn variant="teal" icon={Icon.sparkles} onClick={() => go("customer", "plan")}>Plan my visit</Btn>}
           />
         </Card>
       </div>
@@ -66,17 +71,20 @@ export function Checkout() {
         <Card className="p-2">
           <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100">
             <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.card size={16} /> Your basket · {cart.length} item{cart.length !== 1 ? "s" : ""}</div>
-            <div className="text-[12px] text-slate-600">Subtotal <b className="text-navy-900 tnum">€{total.toFixed(2)}</b></div>
+            <button onClick={emptyBasket} className="text-[11.5px] font-semibold text-slate-500 hover:text-rose-600 inline-flex items-center gap-1"><Icon.trash size={13} /> Empty basket</button>
           </div>
+          {/* Swipe a row left (or tap the trash) to remove it. */}
           <div className="divide-y divide-slate-100">
             {cart.map((it) => (
-              <div key={it.kind + it.id} className="flex items-center justify-between px-3 py-3">
-                <div className="flex items-center gap-3">
-                  <span className="w-9 h-9 rounded-lg bg-slate-100 grid place-items-center text-slate-500">{kindIcon(it.kind)}</span>
-                  <div><div className="font-semibold text-sm text-navy-900">{it.label}</div><div className="text-[12px] text-slate-600">{it.sub}</div></div>
+              <SwipeRow key={it.kind + it.id} onDelete={() => removeItem(it)} rounded="">
+                <div className="flex items-center justify-between px-3 py-3 bg-white">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="w-9 h-9 rounded-lg bg-slate-100 grid place-items-center text-slate-500 shrink-0">{kindIcon(it.kind)}</span>
+                    <div className="min-w-0"><div className="font-semibold text-sm text-navy-900 truncate">{it.label}</div><div className="text-[12px] text-slate-600 truncate">{it.sub}</div></div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0"><span className="font-semibold tnum">€{it.price}</span><button aria-label={`Remove ${it.label}`} onClick={() => removeItem(it)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={16} /></button></div>
                 </div>
-                <div className="flex items-center gap-2"><span className="font-semibold tnum">€{it.price}</span><button aria-label={`Remove ${it.label}`} onClick={() => removeItem(it)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={16} /></button></div>
-              </div>
+              </SwipeRow>
             ))}
           </div>
         </Card>
@@ -116,7 +124,10 @@ export function Checkout() {
           </div>
 
           <div className="mt-3 flex items-center justify-between">
-            <button onClick={() => go("customer", "book")} className="text-[12px] text-slate-600 hover:text-navy-900">← Back to booking</button>
+            <button onClick={() => go("customer", "plan")} className="text-[12px] text-slate-600 hover:text-navy-900">← Back to planning</button>
+            <button onClick={emptyBasket} className="text-[12px] font-semibold text-slate-500 hover:text-rose-600 inline-flex items-center gap-1"><Icon.trash size={13} /> Empty basket</button>
+          </div>
+          <div className="mt-2 text-center">
             <button onClick={() => setShowEconomics((s) => !s)} className="text-[11px] text-slate-400 hover:text-slate-600 inline-flex items-center gap-1" title="Demo affordance — not shown to real customers"><Icon.layers size={11} /> {showEconomics ? "Hide" : "Show"} platform economics</button>
           </div>
         </Card>

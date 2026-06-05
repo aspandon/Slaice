@@ -59,7 +59,7 @@ const FEEDS: Record<string, FeedItem[]> = {
 
 /* ---------- Top bar ---------- */
 export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setPersona: (p: PersonaId) => void }) {
-  const { lang, setLang, setSignedIn, go, toast, cart, removeFromCart, addToCart } = useApp();
+  const { lang, setLang, setSignedIn, go, toast, cart, removeFromCart, addToCart, clearCart } = useApp();
   const cartCount = (cart || []).length;
   const cartTotal = (cart || []).reduce((a, b) => a + b.price, 0);
   // Basket + notifications are controlled Popovers so their in-panel CTAs can
@@ -80,6 +80,13 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
     if (!removeFromCart) return;
     removeFromCart(it.kind, it.id);
     toast(`Removed ${it.label}.`, { action: { label: "Undo", onClick: () => addToCart && addToCart(it) } });
+  };
+  const emptyBasket = () => {
+    if (!clearCart) return;
+    const snapshot = [...(cart || [])];
+    clearCart();
+    setBasketOpen(false);
+    toast("Basket emptied.", { action: { label: "Undo", onClick: () => snapshot.forEach((it) => addToCart && addToCart(it)) } });
   };
 
   // Inline navigation lives in the header on the customer surface — one bar
@@ -153,8 +160,8 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
               </div>
               {cartCount === 0 ? (
                 <div className="px-2 pb-2">
-                  <EmptyState compact icon={Icon.card} title="Cart is empty" body="Add a sunbed, ticket or locker to get started." className="rounded-xl bg-slate-50" />
-                  <Btn variant="teal" full size="sm" icon={Icon.umbrella} className="mt-2" onClick={() => { setBasketOpen(false); go("customer", "book"); }}>Book a sunbed</Btn>
+                  <EmptyState compact icon={Icon.card} title="Cart is empty" body="Plan a visit to add sunbeds, tickets, a locker or parking." className="rounded-xl bg-slate-50" />
+                  <Btn variant="teal" full size="sm" icon={Icon.sparkles} className="mt-2" onClick={() => { setBasketOpen(false); go("customer", "plan"); }}>Plan my visit</Btn>
                 </div>
               ) : (
                 <>
@@ -177,7 +184,10 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
                       <span className="font-bold text-navy-900 tnum">€{cartTotal}</span>
                     </div>
                     <Btn variant="teal" full size="sm" icon={Icon.card} onClick={() => { setBasketOpen(false); go("customer", "checkout"); }}>Checkout</Btn>
-                    <button onClick={() => { setBasketOpen(false); go("customer", "book"); }} className="w-full text-center text-[11px] text-slate-500 hover:text-navy-900 py-1">Continue shopping</button>
+                    <div className="flex items-center justify-between gap-2">
+                      <button onClick={emptyBasket} className="text-[11px] text-slate-500 hover:text-rose-600 py-1 inline-flex items-center gap-1"><Icon.trash size={12} /> Empty basket</button>
+                      <button onClick={() => { setBasketOpen(false); go("customer", "plan"); }} className="text-[11px] text-slate-500 hover:text-navy-900 py-1">Continue planning</button>
+                    </div>
                   </div>
                 </>
               )}

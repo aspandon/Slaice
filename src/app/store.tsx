@@ -11,6 +11,8 @@ export interface SpotlightHint {
   tip?: string;
   persona?: PersonaId;
   page?: string;
+  /** Optional initial step id for a multi-step flow (e.g. the Plan wizard). */
+  step?: string;
   ts?: number;
 }
 

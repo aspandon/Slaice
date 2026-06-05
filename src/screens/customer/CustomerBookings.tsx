@@ -55,7 +55,7 @@ export function CustomerBookings() {
         ) : bookings.status === "error" ? (
           <ErrorState compact body="We couldn't load your bookings." onRetry={bookings.refetch} />
         ) : filtered.length === 0 ? (
-          <EmptyState icon={Icon.grid} title={filter === "active" ? "No active bookings" : "No past bookings yet"} body={filter === "active" ? "Book a sunbed for this weekend — Central front-row spots are 20% off." : "Once a visit is over, it will move here."} action={<Btn variant="teal" icon={Icon.umbrella} onClick={() => go("customer", "book")}>Book a sunbed</Btn>} />
+          <EmptyState icon={Icon.grid} title={filter === "active" ? "No active bookings" : "No past bookings yet"} body={filter === "active" ? "Plan a visit for this weekend — Central front-row spots are 20% off." : "Once a visit is over, it will move here."} action={<Btn variant="teal" icon={Icon.sparkles} onClick={() => go("customer", "plan")}>Plan my visit</Btn>} />
         ) : (
           <Table cols={["Booking", "Item", "Date", "Status", "Price", "QR"]} right={[4]}
             rows={filtered.map((r) => [r.id, r.item, r.date, <StatusBadge status={r.status} />, `€${r.price}`, <Btn size="sm" variant="ghost" icon={Icon.qr} onClick={() => setQrFor(r)}>QR</Btn>])} />

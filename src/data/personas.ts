@@ -19,10 +19,6 @@ export const NAV: Record<PersonaId, NavItem[]> = {
   customer: [
     { k: "home", label: "Home", short: "Home", icon: "home" },
     { k: "plan", label: "Plan my visit", short: "Plan", icon: "sparkles", badge: "MVP" },
-    { k: "book", label: "Sunbed Booking", short: "Sunbeds", icon: "umbrella", badge: "MVP" },
-    { k: "ticket", label: "Entry Ticket", short: "Tickets", icon: "ticket", badge: "MVP" },
-    { k: "locker", label: "Day Locker", short: "Lockers", icon: "lock", badge: "MVP" },
-    { k: "parking", label: "Parking Spot", short: "Parking", icon: "car", badge: "MVP" },
     { k: "mybookings", label: "My Bookings", short: "Bookings", icon: "grid", area: "account" },
     { k: "mydocs", label: "My Documents", short: "Docs", icon: "receipt", area: "account" },
   ],

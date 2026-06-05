@@ -9,7 +9,7 @@ import { ConsentBanner } from "./components/ConsentBanner";
 import { CommandPalette } from "./components/CommandPalette";
 import { BeachBackdrop } from "./components/Beach";
 import { routeFor } from "./routes";
-import { parseHash, buildHash } from "./app/router";
+import { parseHash, buildHash, isValidPage } from "./app/router";
 import { HTML_LANG } from "./app/i18n";
 import { DEFAULT_BACKGROUND } from "./data/backgrounds";
 import type { BeachBackground, CartItem, Consent, LangCode, PersonaId } from "./domain/types";
@@ -47,7 +47,12 @@ const initialRoute = parseHash();
 export default function App() {
   const [persona, setPersona] = useState<PersonaId>(initialRoute.persona || saved.persona || "customer");
   const [pageByPersona, setPageByPersona] = useState<Record<string, string>>(() => {
-    const base = saved.pageByPersona || DEFAULT_PAGE;
+    const base: Record<string, string> = { ...DEFAULT_PAGE, ...(saved.pageByPersona || {}) };
+    // Drop any stale page (e.g. a since-removed customer flow) so it resolves to
+    // the persona's default instead of a blank/foreign screen.
+    (Object.keys(base) as PersonaId[]).forEach((p) => {
+      if (!isValidPage(p, base[p])) base[p] = DEFAULT_PAGE[p];
+    });
     return initialRoute.persona && initialRoute.page
       ? { ...base, [initialRoute.persona]: initialRoute.page }
       : base;
@@ -141,36 +146,29 @@ export default function App() {
       {!signedIn ? (
         <AuthGate />
       ) : (
-        // Sunbed Booking takes over the whole viewport, so the footer + bottom
-        // tab bar are skipped there; navigation stays reachable from the TopBar.
-        (() => {
-          const immersive = persona === "customer" && page === "book";
-          return (
-            <div className={`w-full px-3 sm:px-5 pt-4 relative min-h-dvh flex flex-col ${immersive ? "pb-4" : "pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-4"}`}>
-              {persona === "customer" && (
-                <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
-                  <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax />
-                </div>
-              )}
-              <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />
-              {persona === "customer" ? (
-                // flex-1 lets the content region grow so the SiteFooter is
-                // pushed to the bottom of the viewport (the beach backdrop's
-                // green band) instead of floating up under short pages.
-                <div className={`flex-1 ${page === "book" ? "lg:pr-[360px]" : ""}`}>
-                  <main className="min-w-0">{routeFor(persona, page)}</main>
-                </div>
-              ) : (
-                <div className="flex gap-5">
-                  <Sidebar persona={persona} page={page} setPage={setPage} />
-                  <main className="flex-1 min-w-0">{routeFor(persona, page)}</main>
-                </div>
-              )}
-              {!immersive && <SiteFooter />}
-              {!immersive && <BottomTabBar persona={persona} page={page} setPage={setPage} />}
+        <div className="w-full px-3 sm:px-5 pt-4 relative min-h-dvh flex flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-4">
+          {persona === "customer" && (
+            <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
+              <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax />
             </div>
-          );
-        })()
+          )}
+          <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />
+          {persona === "customer" ? (
+            // flex-1 lets the content region grow so the SiteFooter is pushed to
+            // the bottom of the viewport (the beach backdrop's green band)
+            // instead of floating up under short pages.
+            <div className="flex-1">
+              <main className="min-w-0">{routeFor(persona, page)}</main>
+            </div>
+          ) : (
+            <div className="flex gap-5">
+              <Sidebar persona={persona} page={page} setPage={setPage} />
+              <main className="flex-1 min-w-0">{routeFor(persona, page)}</main>
+            </div>
+          )}
+          <SiteFooter />
+          <BottomTabBar persona={persona} page={page} setPage={setPage} />
+        </div>
       )}
       <ConsentBanner />
       {signedIn && <CommandPalette />}

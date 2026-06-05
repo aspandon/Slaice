@@ -10,13 +10,9 @@ import * as AC from "./screens/accountant";
 import * as P from "./screens/platform";
 
 const MAP: Record<string, () => ReactElement> = {
-  // customer
+  // customer — all booking now flows through the "Plan my visit" wizard.
   "customer.home": () => <C.CustomerHome />,
   "customer.plan": () => <CW.CustomerWizard />,
-  "customer.book": () => <C.CustomerBooking />,
-  "customer.ticket": () => <C.CustomerTicket />,
-  "customer.locker": () => <C.CustomerLocker />,
-  "customer.parking": () => <C.CustomerParking />,
   "customer.mybookings": () => <C.CustomerBookings />,
   "customer.mydocs": () => <C.CustomerDocs />,
   "customer.checkout": () => <CO.Checkout />,
@@ -51,7 +47,18 @@ const MAP: Record<string, () => ReactElement> = {
   "platform.landing": () => <P.PlatformLanding />,
 };
 
+// Per-persona landing screen, used when a page key is unknown (e.g. a stale
+// localStorage entry pointing at a since-removed page).
+const FALLBACK: Record<PersonaId, () => ReactElement> = {
+  customer: () => <C.CustomerHome />,
+  admin: () => <A.AdminDashboard />,
+  cashier: () => <CA.CashierIssue />,
+  controller: () => <CT.ControllerScan />,
+  accountant: () => <AC.AccountantInvoicing />,
+  platform: () => <P.PlatformTenants />,
+};
+
 export function routeFor(persona: PersonaId, page: string): ReactElement {
   const fn = MAP[`${persona}.${page}`];
-  return fn ? fn() : <A.AdminDashboard />;
+  return fn ? fn() : (FALLBACK[persona] || FALLBACK.admin)();
 }
