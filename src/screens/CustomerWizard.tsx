@@ -1,5 +1,4 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { Icon } from "../lib/icons";
 import { Card, Btn, Badge, Stepper, Input, Field, DatePickerRow, SwipeRow, Toggle } from "../components/ui";
 import { Reveal, prefersReducedMotion } from "../lib/motion";
@@ -95,7 +94,6 @@ export function CustomerWizard() {
   const [lockerQty, setLockerQty] = useState(1);
   const [parkingOn, setParkingOn] = useState(false);
   const [plate, setPlate] = useState("");
-  const [sheetOpen, setSheetOpen] = useState(false);
 
   const totalPeople = people.adult + people.resident + people.child + people.senior;
   const dayCount = selDates.length;
@@ -215,7 +213,7 @@ export function CustomerWizard() {
   };
 
   return (
-    <div className="animate-fade-up grid lg:grid-cols-[1fr_360px] gap-5 pb-24 lg:pb-5">
+    <div className="animate-fade-up grid lg:grid-cols-[1fr_360px] gap-5 pb-2 lg:pb-5">
       {/* ============ LEFT: wizard ============ */}
       <div className="space-y-4 min-w-0">
         {/* Stepper rail */}
@@ -320,64 +318,10 @@ export function CustomerWizard() {
         </div>
       </div>
 
-      {/* ============ Mobile: tap-to-expand basket bar ============
-          Portaled to <body> so it pins to the viewport — the `animate-fade-up`
-          root's transform would otherwise anchor this `fixed` bar to the bottom
-          of the (tall) wizard, pushing it off-screen. Sits above the bottom tab
-          bar via a safe-area-aware offset. */}
-      {createPortal((
-      <button
-        onClick={() => setSheetOpen(true)}
-        className="lg:hidden fixed left-3 right-3 z-30 glass-dark text-white rounded-2xl shadow-float ring-1 ring-white/15 px-4 py-3 flex items-center justify-between gap-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))]"
-      >
-        <span className="flex items-center gap-2.5 min-w-0">
-          <span className="w-9 h-9 rounded-xl bg-white/10 grid place-items-center shrink-0">
-            <Icon.card size={17} />
-          </span>
-          <span className="text-left leading-tight min-w-0">
-            <span className="block text-[13px] font-semibold truncate">
-              <LiveEuro value={grandTotal} /> · {lines.length} {lines.length !== 1 ? tr("items") : tr("item")}
-            </span>
-            <span className="block text-[11px] text-white/60">{tr("Tap to view your booking")}</span>
-          </span>
-        </span>
-        <Icon.chevD size={18} className="rotate-180 shrink-0" />
-      </button>
-      ), document.body)}
-
-      {/* Portaled to <body>: this sheet lives inside the `animate-fade-up`
-          root whose transform would otherwise make `position: fixed` relative
-          to the (tall) wizard div and push the sheet off-screen. */}
-      {sheetOpen && createPortal((
-        <div className="lg:hidden fixed inset-0 z-40" role="dialog" aria-modal="true">
-          <button type="button" aria-label={tr("Close")} tabIndex={-1} className="absolute inset-0 bg-navy-950/40 backdrop-blur-sm animate-fade-in cursor-default" onClick={() => setSheetOpen(false)} />
-          <div className="absolute left-0 right-0 bottom-0 max-h-[88dvh] glass-card-solid rounded-t-2xl ring-1 ring-white/40 shadow-float flex flex-col overflow-hidden animate-slide-up pb-safe">
-            <div className="flex items-center justify-between px-4 pt-3 pb-1 shrink-0">
-              <span className="mx-auto w-10 h-1 rounded-full bg-slate-300 absolute left-1/2 -translate-x-1/2 top-2" />
-              <div className="font-display font-bold text-navy-900">{tr("Your booking")}</div>
-              <button aria-label={tr("Close")} onClick={() => setSheetOpen(false)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-500 hover:bg-white/50"><Icon.x size={18} /></button>
-            </div>
-            <div className="overflow-y-auto p-4">
-              <BasketPanel
-                inline
-                totalPeople={totalPeople}
-                dayCount={dayCount}
-                lines={lines}
-                grandTotal={grandTotal}
-                cartCount={cart.length}
-                onEmpty={emptyBasket}
-                onCta={stepIdx === STEPS.length - 1 ? () => { setSheetOpen(false); confirm(); } : () => { setSheetOpen(false); next(); }}
-                ctaLabel={stepIdx === STEPS.length - 1 ? tr("Confirm & checkout") : tr("Continue")}
-                ctaDisabled={!canNext}
-                confirmReady={stepIdx === STEPS.length - 1}
-                stepIdx={stepIdx}
-                totalSteps={STEPS.length}
-                onJumpToReview={() => { setSheetOpen(false); setStepIdx(STEPS.length - 1); }}
-              />
-            </div>
-          </div>
-        </div>
-      ), document.body)}
+      {/* The live-basket panel is desktop-only (the right rail). On mobile the
+          top-bar cart is the single basket, and each step carries its own
+          running total plus the footer Back / Continue — so no pinned bottom
+          bar is needed. */}
     </div>
   );
 }
