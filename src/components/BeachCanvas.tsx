@@ -6,12 +6,15 @@ import type { SunbedSlot, SunbedState } from "../domain/types";
 /* ---------- Shared Konva beach renderer ----------
    Draws a zone's umbrella-set layout (the SunbedSlot[] the admin authors and the
    customer wizard renders) on a single canvas: a sea band up top, sand below,
-   and one tappable umbrella per set. Selection + availability are colour-coded.
+   one umbrella per set. Two modes, one render path:
+     • book  (customer)  — multi-select to book; unavailable beds aren't tappable.
+     • edit  (admin)     — drag to arrange, single-select; every bed is movable.
    The umbrella silhouette is the same glyph as the SVG <Sunbed>, re-expressed as
    Konva paths so the canvas and the rest of the app stay visually consistent. */
 
 const CANOPY_L = "M12 13 L3 9 A10 10 0 0 1 12 4 Z";
 const CANOPY_R = "M12 13 L21 9 A10 10 0 0 0 12 4 Z";
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 function palette(state: SunbedState, sel: boolean) {
   if (sel) return { a: "#e2552f", b: "#fb8a63", pole: "#e2552f", plot: "rgba(226,85,47,0.20)", ring: "#e2552f", dim: false };
@@ -22,16 +25,25 @@ function palette(state: SunbedState, sel: boolean) {
 
 export interface BeachCanvasProps {
   slots: SunbedSlot[];
-  /** Currently-selected slot ids. */
-  selected: Set<string>;
-  onToggle: (slot: SunbedSlot) => void;
   seaLabel?: string;
   backLabel?: string;
   /** Cap the rendered height (px); width always fills the parent. */
   maxHeight?: number;
+  /* — book mode (customer) — */
+  selected?: Set<string>;
+  onToggle?: (slot: SunbedSlot) => void;
+  /* — edit mode (admin) — */
+  editable?: boolean;
+  selectedId?: string | null;
+  onSelect?: (id: string) => void;
+  /** Called on drag end with the bed's new normalized (0–100) position. */
+  onMove?: (id: string, x: number, y: number) => void;
 }
 
-export function BeachCanvas({ slots, selected, onToggle, seaLabel = "Sea · front row", backLabel = "Promenade", maxHeight = 420 }: BeachCanvasProps) {
+export function BeachCanvas({
+  slots, seaLabel = "Sea · front row", backLabel = "Promenade", maxHeight = 420,
+  selected, onToggle, editable = false, selectedId = null, onSelect, onMove,
+}: BeachCanvasProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(0);
   useEffect(() => {
@@ -78,20 +90,35 @@ export function BeachCanvas({ slots, selected, onToggle, seaLabel = "Sea · fron
           {/* Umbrella sets. */}
           <Layer>
             {slots.map((b) => {
-              const sel = selected.has(b.id);
+              const sel = editable ? selectedId === b.id : !!selected?.has(b.id);
               const c = palette(b.state, sel);
               const cx = (b.x / 100) * w;
               const cy = seaH + (b.y / 100) * (h - seaH);
               const s = size / 24;
               const plot = size * 0.94;
+              const handle = () => {
+                if (editable) onSelect?.(b.id);
+                else if (!c.dim) onToggle?.(b);
+              };
               return (
                 <Group
                   key={b.id}
                   x={cx}
                   y={cy}
-                  onClick={() => !c.dim && onToggle(b)}
-                  onTap={() => !c.dim && onToggle(b)}
-                  onMouseEnter={(e) => setCursor(e, c.dim ? "not-allowed" : "pointer")}
+                  draggable={editable}
+                  dragBoundFunc={(pos) => ({
+                    x: clamp(pos.x, size / 2, w - size / 2),
+                    y: clamp(pos.y, seaH + size / 2, h - size / 2),
+                  })}
+                  onDragStart={() => editable && onSelect?.(b.id)}
+                  onDragEnd={(e) => {
+                    if (!editable) return;
+                    const node = e.target;
+                    onMove?.(b.id, clamp((node.x() / w) * 100, 0, 100), clamp(((node.y() - seaH) / (h - seaH)) * 100, 0, 100));
+                  }}
+                  onClick={handle}
+                  onTap={handle}
+                  onMouseEnter={(e) => setCursor(e, editable ? "grab" : c.dim ? "not-allowed" : "pointer")}
                   onMouseLeave={(e) => setCursor(e, "default")}
                 >
                   {/* Plot = visible tap pad (a real fill, so Konva hit-tests it). */}
@@ -101,6 +128,7 @@ export function BeachCanvas({ slots, selected, onToggle, seaLabel = "Sea · fron
                     fill={c.plot}
                     stroke={c.ring}
                     strokeWidth={sel ? 2 : 1}
+                    dash={editable && sel ? [5, 3] : undefined}
                   />
                   <Group scaleX={s} scaleY={s} offsetX={12} offsetY={12} y={-size * 0.03}>
                     <Path data={CANOPY_L} fill={c.a} />

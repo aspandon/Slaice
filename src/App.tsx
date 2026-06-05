@@ -12,7 +12,7 @@ import { routeFor } from "./routes";
 import { parseHash, buildHash, isValidPage } from "./app/router";
 import { HTML_LANG, normalizeLang } from "./app/i18n";
 import { DEFAULT_BACKGROUND } from "./data/backgrounds";
-import type { BeachBackground, CartItem, Consent, LangCode, PersonaId } from "./domain/types";
+import type { BeachBackground, CartItem, Consent, LangCode, PersonaId, SunbedSlot } from "./domain/types";
 
 interface ToastItem {
   id: number;
@@ -40,6 +40,7 @@ const saved = loadLS() as {
   cart?: CartItem[];
   consent?: Consent;
   background?: BeachBackground;
+  beachLayout?: Record<string, SunbedSlot[]>;
 };
 // A deep link in the URL wins over the last saved location.
 const initialRoute = parseHash();
@@ -63,15 +64,16 @@ export default function App() {
   const [cart, setCart] = useState<CartItem[]>(saved.cart || []);
   const [consent, setConsentState] = useState<Consent>(saved.consent || DEFAULT_CONSENT);
   const [background, setBackground] = useState<BeachBackground>(saved.background || DEFAULT_BACKGROUND);
+  const [beachLayout, setBeachLayoutState] = useState<Record<string, SunbedSlot[]>>(saved.beachLayout || {});
 
   useEffect(() => {
     // Guard the write: Safari Private Mode and a full quota throw on setItem.
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout }));
     } catch {
       /* storage unavailable (private mode / quota) — ignore */
     }
-  }, [persona, pageByPersona, signedIn, lang, cart, consent, background]);
+  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout]);
 
   // Keep <html lang> in sync with the chosen language (a11y / SEO correctness).
   useEffect(() => {
@@ -89,6 +91,10 @@ export default function App() {
     setConsentState((c) => ({ ...c, ...patch, decided: true, ts: new Date().toISOString() }));
   }, []);
   const reopenConsent = useCallback(() => setConsentState((c) => ({ ...c, decided: false })), []);
+  // Publish (or replace) a zone's umbrella layout from the admin Map Editor.
+  const setZoneLayout = useCallback((zoneId: string, slots: SunbedSlot[]) => {
+    setBeachLayoutState((m) => ({ ...m, [zoneId]: slots }));
+  }, []);
 
   const page = pageByPersona[persona];
   const setPage = useCallback((k: string) => setPageByPersona((s) => ({ ...s, [persona]: k })), [persona]);
@@ -144,8 +150,8 @@ export default function App() {
 
   // Memoised so the provider value keeps a stable identity across renders.
   const ctx = useMemo<AppContextValue>(
-    () => ({ toast, go, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground }),
-    [toast, go, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground],
+    () => ({ toast, go, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout }),
+    [toast, go, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout],
   );
 
   return (

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect } from "react";
 import type { ReactNode } from "react";
 import { translate } from "./i18n";
 import { DEFAULT_BACKGROUND } from "../data/backgrounds";
-import type { BeachBackground, CartItem, CartKind, Consent, LangCode, PersonaId } from "../domain/types";
+import type { BeachBackground, CartItem, CartKind, Consent, LangCode, PersonaId, SunbedSlot } from "../domain/types";
 
 // Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
 // highlight the section a journey points at.
@@ -45,6 +45,11 @@ export interface AppContextValue {
   /** Tenant beach scene shown on the customer booking map. */
   background: BeachBackground;
   setBackground: (b: BeachBackground) => void;
+  /** Admin-authored umbrella layouts per zone (zoneId → slots). A zone that is
+   *  absent here falls back to the default grid. Written by the Map Editor's
+   *  Sunbed-layout tab, read by the booking wizard's zoom. */
+  beachLayout: Record<string, SunbedSlot[]>;
+  setZoneLayout: (zoneId: string, slots: SunbedSlot[]) => void;
 }
 
 const DEFAULT_CONSENT: Consent = {
@@ -75,6 +80,8 @@ export const AppCtx = createContext<AppContextValue>({
   reopenConsent: () => {},
   background: DEFAULT_BACKGROUND,
   setBackground: () => {},
+  beachLayout: {},
+  setZoneLayout: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);

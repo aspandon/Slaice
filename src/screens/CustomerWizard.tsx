@@ -636,8 +636,10 @@ function BeachStep({ zone, zoneId, setZoneId, bedSel, setBedSel, selDates, setSe
   dayCount: number;
 }) {
   const tr = useT();
+  const { beachLayout } = useApp();
   const [zoomed, setZoomed] = useState(false);
-  const slots = useMemo(() => zoneLayout(zone), [zone]);
+  // The admin-authored layout for this zone, if any — otherwise the default grid.
+  const slots = useMemo(() => beachLayout[zone.id] ?? zoneLayout(zone), [beachLayout, zone]);
   const selectedIds = useMemo(() => new Set(bedSel.map((b) => b.id)), [bedSel]);
   const toggle = (slot: SunbedSlot) =>
     setBedSel((s) => (s.find((b) => b.id === slot.id) ? s.filter((b) => b.id !== slot.id) : [...s, { id: slot.id, price: slot.price }]));
