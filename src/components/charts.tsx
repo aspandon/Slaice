@@ -123,13 +123,13 @@ export function LineChartMini({ data, color = "#0D9488", height = 220, label }: 
   );
 }
 
-export function Donut({ segments, size = 120, label }: { segments: DonutSegment[]; size?: number; label?: string }) {
+export function Donut({ segments, size = 120, label, className }: { segments: DonutSegment[]; size?: number; label?: string; className?: string }) {
   const total = segments.reduce((a, s) => a + s.v, 0);
   let acc = 0;
   const r = 42, c = 2 * Math.PI * r;
   const aria = label || `Donut chart: ${segments.map((s) => `${Math.round((s.v / total) * 100)}%`).join(", ")}`;
   return (
-    <svg viewBox="0 0 100 100" style={{ width: size, height: size }} role="img" aria-label={aria}>
+    <svg viewBox="0 0 100 100" style={className ? undefined : { width: size, height: size }} className={className} role="img" aria-label={aria}>
       <circle cx="50" cy="50" r={r} fill="none" stroke="#eef2f6" strokeWidth="12" />
       {segments.map((s, i) => {
         const frac = s.v / total, dash = frac * c, off = acc * c;
