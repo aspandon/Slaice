@@ -250,6 +250,23 @@ body::before {
     transform: scale(0.97);
   }
 
+  /* Pointer sheen — a soft, cursor-tracking highlight for "lit glass" cards.
+     Painted just above the card surface but below its content (z-index:-1 in an
+     isolated card), so text stays crisp. usePointerGlow drives --gx/--gy/--ga;
+     --ga rests at 0, so on touch / reduced-motion the sheen is simply invisible. */
+  .sheen {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: var(--ga, 0);
+    transition: opacity 0.35s ease;
+    background:
+      radial-gradient(circle 180px at var(--gx, 50%) var(--gy, 50%), rgba(255, 255, 255, 0.5), transparent 60%),
+      radial-gradient(circle 420px at var(--gx, 50%) var(--gy, 50%), rgba(45, 212, 191, 0.15), transparent 65%);
+  }
+
   /* Sheet drag — momentary disable of transition while a finger is dragging. */
   .sheet-dragging {
     transition: none !important;

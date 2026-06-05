@@ -146,7 +146,7 @@ export default function App() {
             <div className={`w-full px-3 sm:px-5 pt-4 relative min-h-dvh flex flex-col ${immersive ? "pb-4" : "pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-4"}`}>
               {persona === "customer" && (
                 <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
-                  <BeachBackdrop pos="absolute" className="inset-0 rounded-none" />
+                  <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax />
                 </div>
               )}
               <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />

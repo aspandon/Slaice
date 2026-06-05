@@ -106,9 +106,10 @@ export function useCountUp(
 }
 
 /* useParallax — translates an element on scroll for a subtle depth effect.
-   `speed` < 0 moves slower than scroll (background feel). */
-export function useParallax(speed = -0.12) {
-  const ref = useRef<HTMLElement>(null);
+   `speed` < 0 moves it against the scroll (background feel); `max` clamps the
+   travel in px so layered backdrops never expose an edge. */
+export function useParallax<T extends HTMLElement = HTMLElement>(speed = -0.12, max?: number) {
+  const ref = useRef<T>(null);
   useEffect(() => {
     const el = ref.current;
     if (!el || prefersReducedMotion()) return;
@@ -116,7 +117,9 @@ export function useParallax(speed = -0.12) {
     const onScroll = () => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
-        el.style.transform = `translate3d(0, ${window.scrollY * speed}px, 0)`;
+        const y = window.scrollY * speed;
+        const clamped = max != null ? Math.max(-max, Math.min(max, y)) : y;
+        el.style.transform = `translate3d(0, ${clamped}px, 0)`;
       });
     };
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -125,6 +128,43 @@ export function useParallax(speed = -0.12) {
       window.removeEventListener("scroll", onScroll);
       cancelAnimationFrame(raf);
     };
-  }, [speed]);
+  }, [speed, max]);
+  return ref;
+}
+
+/* usePointerGlow — a soft highlight that tracks the cursor across an element
+   (the "lit glass" sheen on premium cards). Writes the pointer position into
+   CSS custom properties (--gx/--gy) plus a 0/1 alpha (--ga) that the `.sheen`
+   overlay reads. Pointer-only: a no-op on touch / coarse pointers and under
+   reduced motion, so phones never get a stuck highlight. */
+export function usePointerGlow<T extends HTMLElement = HTMLDivElement>(enabled = true) {
+  const ref = useRef<T>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !enabled || prefersReducedMotion()) return;
+    // No cursor to follow on touch / coarse pointers — leave the sheen dormant.
+    if (window.matchMedia && !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+    let raf = 0;
+    const onMove = (e: PointerEvent) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const r = el.getBoundingClientRect();
+        el.style.setProperty("--gx", `${e.clientX - r.left}px`);
+        el.style.setProperty("--gy", `${e.clientY - r.top}px`);
+        el.style.setProperty("--ga", "1");
+      });
+    };
+    const onLeave = () => {
+      cancelAnimationFrame(raf);
+      el.style.setProperty("--ga", "0");
+    };
+    el.addEventListener("pointermove", onMove);
+    el.addEventListener("pointerleave", onLeave);
+    return () => {
+      cancelAnimationFrame(raf);
+      el.removeEventListener("pointermove", onMove);
+      el.removeEventListener("pointerleave", onLeave);
+    };
+  }, [enabled]);
   return ref;
 }
