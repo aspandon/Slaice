@@ -55,7 +55,7 @@ export default {
         slideUp: { from: { transform: "translateY(100%)" }, to: { transform: "translateY(0)" } },
         shimmer: { "100%": { transform: "translateX(100%)" } },
         floaty: { "0%,100%": { transform: "translateY(0)" }, "50%": { transform: "translateY(-5px)" } },
-        ripple: { "0%": { transform: "scale(.6)", opacity: "0.5" }, "100%": { transform: "scale(1.5)", opacity: "0" } },
+        ripple: { "0%": { transform: "scale(.55)", opacity: "0.85" }, "100%": { transform: "scale(2.4)", opacity: "0" } },
         seaTilt: { "0%,100%": { transform: "rotate(-7deg)" }, "50%": { transform: "rotate(7deg)" } },
         spinSlow: { to: { transform: "rotate(360deg)" } },
         dive: {
@@ -74,7 +74,7 @@ export default {
         "slide-in-right": "slideInRight .35s cubic-bezier(.22,1,.36,1) both",
         "slide-up": "slideUp .34s cubic-bezier(.34,1.56,.64,1) both",
         floaty: "floaty 5s ease-in-out infinite",
-        ripple: "ripple 3.6s ease-out infinite",
+        ripple: "ripple 4s ease-out infinite",
         "sea-tilt": "seaTilt 4.5s ease-in-out infinite",
         shimmer: "shimmer 1.6s infinite",
         dive: "dive 1s cubic-bezier(.4,0,.2,1) both",

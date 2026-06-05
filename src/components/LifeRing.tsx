@@ -9,9 +9,10 @@ export function LifeRing({ className = "" }: { className?: string }) {
     <div aria-hidden="true" className={`pointer-events-none ${className}`}>
       <div className="relative w-full h-full animate-floaty">
         {/* Ripples expanding outward from the buoy */}
-        <span className="absolute inset-0 rounded-full border-2 border-white/40 animate-ripple" />
-        <span className="absolute inset-0 rounded-full border-2 border-white/30 animate-ripple [animation-delay:1.2s]" />
-        <span className="absolute inset-0 rounded-full border border-white/20 animate-ripple [animation-delay:2.4s]" />
+        <span className="absolute inset-0 rounded-full border-[3px] border-white/70 animate-ripple" />
+        <span className="absolute inset-0 rounded-full border-[3px] border-white/60 animate-ripple [animation-delay:0.9s]" />
+        <span className="absolute inset-0 rounded-full border-[3px] border-white/50 animate-ripple [animation-delay:1.8s]" />
+        <span className="absolute inset-0 rounded-full border-2 border-white/40 animate-ripple [animation-delay:2.7s]" />
 
         {/* The buoy, rocking on the swell */}
         <svg viewBox="0 0 100 100" className="relative w-full h-full origin-center animate-sea-tilt drop-shadow-[0_10px_14px_rgba(11,37,69,0.35)]">
@@ -41,12 +42,6 @@ export function LifeRing({ className = "" }: { className?: string }) {
           </g>
           {/* Top-left specular highlight */}
           <path d="M 26 33 A 32 32 0 0 1 44 18" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="3" strokeLinecap="round" />
-        </svg>
-
-        {/* A couple of wavelets lapping at the base */}
-        <svg viewBox="0 0 100 30" className="absolute -bottom-2 left-0 w-full h-[30%] overflow-visible">
-          <path d="M 4 14 q 10 -9 20 0 t 20 0 t 20 0 t 20 0" fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth="2.4" strokeLinecap="round" className="animate-floaty" />
-          <path d="M -2 22 q 12 -7 24 0 t 24 0 t 24 0" fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="2" strokeLinecap="round" />
         </svg>
       </div>
     </div>
