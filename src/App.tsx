@@ -180,10 +180,12 @@ export default function App() {
             </div>
           )}
           {persona === "customer" && (
-            <div className="flex justify-center pt-3 pb-4">
-              {/* tenant-logo-mark.png is the supplied logo trimmed to the mark
-                  (the original is a wide canvas with the mark on the left). */}
-              <img src={`${import.meta.env.BASE_URL}tenant-logo-mark.png`} alt="Ακτή του Ηλίου — Άλιμος" className="h-[120px] w-auto" />
+            <div className="flex justify-center items-center gap-3 pt-3 pb-4">
+              <img src={`${import.meta.env.BASE_URL}tenant-logo-mark.png`} alt="" className="h-[100px] w-auto" />
+              <div className="flex flex-col leading-tight">
+                <span className="font-display font-bold text-navy-900 text-xl tracking-wide uppercase">Ακτή του Ηλίου</span>
+                <span className="font-display font-semibold text-teal-600 text-sm tracking-[0.18em] uppercase">Άλιμος</span>
+              </div>
             </div>
           )}
           <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />
