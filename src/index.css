@@ -293,6 +293,30 @@ body::before {
   }
 }
 
+/* ===== Customer surface: translucent content cards =====
+   On the customer persona every content card uses the same translucent, blurred
+   material as the menu bar (.glass), so the beach backdrop reads through the
+   whole surface — matching CustomerHome and the TopBar. Scoped via the
+   <html data-persona> attribute (set in App.tsx): staff personas keep opaque
+   content surfaces for dense-data legibility, and the attribute also reaches
+   portaled cards. Only background / backdrop-filter / border-color are
+   overridden, so each card keeps its own elevation and hover-lift shadow.
+   Modals, sheets and the booking sheet stay .glass-card-solid — they sit over a
+   dark scrim and must stay legible. Unlayered so it wins over the base utility. */
+[data-persona="customer"] .glass-card {
+  background: rgba(255, 255, 255, 0.68);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-color: rgba(255, 255, 255, 0.55);
+}
+/* Engines without backdrop-filter can't blur the beach behind the card, so keep
+   it near-opaque there to protect text contrast (mirrors the .glass fallback). */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  [data-persona="customer"] .glass-card {
+    background: rgba(255, 255, 255, 0.94);
+  }
+}
+
 /* Respect users who prefer reduced motion (WCAG 2.3.3). */
 @media (prefers-reduced-motion: reduce) {
   html {

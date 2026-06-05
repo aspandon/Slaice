@@ -246,13 +246,13 @@ export function CustomerWizard() {
       {/* ============ LEFT: wizard ============ */}
       <div className="space-y-4 min-w-0">
         {/* Stepper rail */}
-        <Card className="glass-card-solid p-3 sm:p-4">
+        <Card className="p-3 sm:p-4">
           <ProgressRail stepIdx={stepIdx} onJump={(i) => setStepIdx(i)} />
         </Card>
 
         {/* Step card */}
         <Reveal as="div" key={step.id} className="reveal">
-          <Card className="glass-card-solid p-5 sm:p-6">
+          <Card className="p-5 sm:p-6">
             <div className="flex items-start gap-3 mb-4">
               <span className="w-11 h-11 rounded-2xl grid place-items-center text-white bg-gradient-to-br from-teal-500 to-teal-700 shadow-sm shrink-0">
                 {(() => { const I = Icon[step.icon]; return I ? <I size={20} /> : null; })()}
@@ -868,7 +868,7 @@ function BasketPanel({
 }) {
   const tr = useT();
   const Wrap = inline ? "div" : Card;
-  const wrapClass = inline ? "" : "glass-card-solid p-5 shadow-float";
+  const wrapClass = inline ? "" : "p-5 shadow-float";
   return (
     <Wrap className={wrapClass}>
       <div className="flex items-center justify-between mb-3">

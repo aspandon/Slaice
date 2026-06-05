@@ -78,6 +78,13 @@ export default function App() {
     document.documentElement.lang = HTML_LANG[lang] || "en";
   }, [lang]);
 
+  // Mirror the active persona onto <html data-persona> so persona-scoped theming
+  // can target it in CSS — e.g. the customer surface's translucent glass cards
+  // (see index.css). An attribute on the root also reaches portaled surfaces.
+  useEffect(() => {
+    document.documentElement.dataset.persona = persona;
+  }, [persona]);
+
   const setConsent = useCallback((patch: Partial<Consent>) => {
     setConsentState((c) => ({ ...c, ...patch, decided: true, ts: new Date().toISOString() }));
   }, []);
