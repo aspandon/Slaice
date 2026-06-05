@@ -183,13 +183,9 @@ export default function App() {
             <button
               onClick={() => go("customer", "home")}
               aria-label="Go to home"
-              className="flex justify-center items-center gap-3 pt-3 pb-4 w-full group hover:opacity-90 active:opacity-75 transition-opacity"
+              className="flex justify-center items-center pt-3 pb-2 w-full group hover:opacity-90 active:opacity-75 transition-opacity"
             >
-              <img src={`${import.meta.env.BASE_URL}tenant-logo-mark.png`} alt="" className="h-[100px] w-auto" />
-              <div className="flex flex-col leading-tight">
-                <span className="font-display font-bold text-navy-900 text-xl tracking-wide uppercase">Ακτή του Ηλίου</span>
-                <span className="font-display font-semibold text-teal-600 text-sm tracking-[0.18em] uppercase">Άλιμος</span>
-              </div>
+              <img src={`${import.meta.env.BASE_URL}tenant-logo.png`} alt="Ακτή του Ηλίου" className="h-[70px] w-auto" />
             </button>
           )}
           <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />
