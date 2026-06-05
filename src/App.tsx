@@ -8,7 +8,6 @@ import { AuthGate } from "./screens/auth";
 import { ConsentBanner } from "./components/ConsentBanner";
 import { CommandPalette } from "./components/CommandPalette";
 import { BeachBackdrop } from "./components/Beach";
-import { TenantWordmark } from "./components/Brand";
 import { DiveTransition } from "./components/DiveTransition";
 import { prefersReducedMotion } from "./lib/motion";
 import { routeFor } from "./routes";
@@ -171,7 +170,7 @@ export default function App() {
       {!signedIn ? (
         <AuthGate />
       ) : (
-        <div className="w-full px-3 sm:px-5 pt-4 relative min-h-dvh flex flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-4">
+        <div className="w-full px-3 sm:px-5 pt-4 relative min-h-dvh flex flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-1">
           {persona === "customer" && (
             <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
               <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax shoreline={0.8} />
@@ -179,7 +178,11 @@ export default function App() {
           )}
           {persona === "customer" && (
             <div className="flex justify-center pt-1 pb-3">
-              <TenantWordmark height={88} />
+              {/* The provided PNG is a wide canvas with the mark on the left and
+                  whitespace to the right; crop to the mark so it reads centered. */}
+              <div className="h-[84px] w-[120px] overflow-hidden">
+                <img src="/tenant-logo.png" alt="Ακτή του Ηλίου — Άλιμος" className="h-full max-w-none" />
+              </div>
             </div>
           )}
           <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />
