@@ -304,7 +304,7 @@ export function CustomerWizard() {
           to the (tall) wizard div and push the sheet off-screen. */}
       {sheetOpen && createPortal((
         <div className="lg:hidden fixed inset-0 z-40" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-sm animate-fade-in" onClick={() => setSheetOpen(false)} />
+          <button type="button" aria-label="Close" tabIndex={-1} className="absolute inset-0 bg-navy-950/40 backdrop-blur-sm animate-fade-in cursor-default" onClick={() => setSheetOpen(false)} />
           <div className="absolute left-0 right-0 bottom-0 max-h-[88dvh] glass-card-solid rounded-t-2xl ring-1 ring-white/40 shadow-float flex flex-col overflow-hidden animate-slide-up pb-safe">
             <div className="flex items-center justify-between px-4 pt-3 pb-1 shrink-0">
               <span className="mx-auto w-10 h-1 rounded-full bg-slate-300 absolute left-1/2 -translate-x-1/2 top-2" />
@@ -491,7 +491,7 @@ function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, day
   setBedSel: Dispatch<SetStateAction<BedPick[]>>;
 }) {
   const { go } = useApp();
-  const grid = useMemo(() => makeGrid(zone), [zone.id]);
+  const grid = useMemo(() => makeGrid(zone), [zone]);
   const toggleBed = (id: string, price: number) => {
     setBedSel((s) => s.find((b) => b.id === id) ? s.filter((b) => b.id !== id) : [...s, { id, price }]);
   };

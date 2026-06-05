@@ -12,12 +12,16 @@ type Zone = (typeof ZONES)[number];
 type Facility = (typeof FACILITIES)[number];
 interface SelBed { id: string; zone: string; price: number }
 
+// Beds are "held" for 10 minutes once selected (ticketing/airline-style), so a
+// contested spot isn't lost mid-flow.
+const HOLD_MS = 10 * 60 * 1000;
+
 /* ============ SUNBED BOOKING helpers ============ */
 
 // Hover tooltip rendered above the zone pill — a 6×4 sample of sunbeds so
 // the user can sneak-peek occupancy before zooming in.
 function ZonePreview({ zone }: { zone: Zone }) {
-  const grid = useMemo(() => makeGrid(zone, 6, 4).slice(0, 24), [zone.id]);
+  const grid = useMemo(() => makeGrid(zone, 6, 4).slice(0, 24), [zone]);
   return (
     <div className="pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-2 z-30 w-44 rounded-xl bg-white shadow-float ring-1 ring-slate-200 p-2.5 animate-pop">
       <div className="flex items-center justify-between mb-1.5">
@@ -77,13 +81,10 @@ export function CustomerBooking() {
   const [search, setSearch] = useState("");
   const [searchHit, setSearchHit] = useState<{ zoneId: string; bedId: string } | null>(null);
   const zone = ZONES.find((z) => z.id === zoneId) || null;
-  const grid = useMemo(() => (zone ? makeGrid(zone) : []), [zoneId]);
+  const grid = useMemo(() => (zone ? makeGrid(zone) : []), [zone]);
 
-  // Hold timer — like ticketing/airline checkout: once beds are selected we
-  // "hold" them for 10 minutes so a contested spot isn't lost mid-flow. The
-  // hold starts on first selection, resets when the selection is cleared, and
-  // releases the beds (with a toast) when it lapses.
-  const HOLD_MS = 10 * 60 * 1000;
+  // The hold starts on first selection, resets when the selection is cleared,
+  // and releases the beds (with a toast) when it lapses.
   const [holdUntil, setHoldUntil] = useState<number | null>(null);
   const [nowTs, setNowTs] = useState(Date.now());
   useEffect(() => {
@@ -101,7 +102,7 @@ export function CustomerBooking() {
       setSel([]);
       toast("Your held sunbeds were released — pick again when you're ready.", { tone: "warn" });
     }
-  }, [holdLeft, holdUntil]);
+  }, [holdLeft, holdUntil, toast]);
   const mmss = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
 
   const addBed = (id: string, price: number) => { if (!zone) return; setSel((c) => (c.find((x) => x.id === id) ? c : [...c, { id, zone: zone.name, price }])); };
@@ -283,10 +284,10 @@ export function CustomerBooking() {
                         {ZONES.map((z) => {
                           const hovered = hoveredZone === z.id;
                           return (
-                            <div key={z.id} className="relative shrink-0"
-                              onMouseEnter={() => setHoveredZone(z.id)}
-                              onMouseLeave={() => setHoveredZone((cur) => (cur === z.id ? null : cur))}>
+                            <div key={z.id} className="relative shrink-0">
                               <button onClick={() => { setZoneId(z.id); setStep("grid"); }}
+                                onMouseEnter={() => setHoveredZone(z.id)}
+                                onMouseLeave={() => setHoveredZone((cur) => (cur === z.id ? null : cur))}
                                 className="min-w-[92px] min-h-[64px] px-3 py-2.5 rounded-xl ring-1 bg-white ring-slate-200 hover:ring-teal-400 hover:-translate-y-0.5 transition inline-flex flex-col items-center justify-center gap-1">
                                 <span className="flex items-center gap-1.5 leading-none">
                                   <span className="w-2 h-2 rounded-full shrink-0" style={{ background: z.color }} />
@@ -535,7 +536,7 @@ export function CustomerBooking() {
             {/* Mobile: bottom sheet */}
             {sheetOpen && (
               <div className="lg:hidden fixed inset-0 z-40" role="dialog" aria-modal="true">
-                <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-sm animate-fade-in" onClick={() => setSheetOpen(false)} />
+                <button type="button" aria-label="Close" tabIndex={-1} className="absolute inset-0 bg-navy-950/40 backdrop-blur-sm animate-fade-in cursor-default" onClick={() => setSheetOpen(false)} />
                 <div className="absolute left-0 right-0 bottom-0 max-h-[88dvh] glass rounded-t-2xl ring-1 ring-white/40 shadow-float flex flex-col overflow-hidden animate-slide-up pb-safe">
                   <div className="flex items-center justify-between px-4 pt-3 pb-1 shrink-0">
                     <span className="mx-auto w-10 h-1 rounded-full bg-slate-300 absolute left-1/2 -translate-x-1/2 top-2" />

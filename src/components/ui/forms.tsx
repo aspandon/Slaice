@@ -180,9 +180,9 @@ function DateCalendarModal({ value, onChange, onClose }: { value: string[]; onCh
   const canPrev = monthStart > todayMonth;
   const title = monthStart.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
   return createPortal((
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[70] grid place-items-center p-4 animate-fade-in" onClick={onClose}>
-      <div className="absolute inset-0 bg-navy-950/45 backdrop-blur-xl" />
-      <div onClick={(e) => e.stopPropagation()} className="glass-card-solid relative rounded-2xl w-full max-w-sm animate-pop">
+    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[70] grid place-items-center p-4 animate-fade-in">
+      <button type="button" aria-label="Close" tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-navy-950/45 backdrop-blur-xl cursor-default" />
+      <div className="glass-card-solid relative rounded-2xl w-full max-w-sm animate-pop">
         <div className="px-4 py-3 border-b border-white/40 flex items-center justify-between">
           <div className="font-display font-bold text-navy-900 inline-flex items-center gap-2"><Icon.calendar size={16} /> Pick dates</div>
           <button aria-label="Close" onClick={onClose} className="text-slate-500 hover:text-navy-900 hover:bg-white/40 p-1.5 rounded-lg"><Icon.x size={18} /></button>

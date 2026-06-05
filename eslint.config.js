@@ -30,14 +30,13 @@ export default tseslint.config(
         { argsIgnorePattern: "^_", varsIgnorePattern: "^_" },
       ],
       "@typescript-eslint/no-explicit-any": "warn",
-      // These three false-positive heavily on intentional, keyboard-accessible
-      // patterns in this UI (dialog overlays that close via Esc + a focus trap,
-      // clickable cards that usually wrap a real button). Kept as visible
-      // warnings rather than CI-blocking errors; the genuinely-important a11y
-      // rules (alt text, ARIA props, labels, roles) stay as errors.
-      "jsx-a11y/click-events-have-key-events": "warn",
-      "jsx-a11y/no-static-element-interactions": "warn",
-      "jsx-a11y/no-noninteractive-element-interactions": "warn",
+      // Dismissable overlays use a real <button> backdrop (alongside Esc + a
+      // focus trap) and every clickable surface is a genuine button, so these
+      // rules now pass cleanly and are enforced as errors to keep the
+      // interactive surface keyboard-accessible going forward.
+      "jsx-a11y/click-events-have-key-events": "error",
+      "jsx-a11y/no-static-element-interactions": "error",
+      "jsx-a11y/no-noninteractive-element-interactions": "error",
       // The kit's Input/Select are valid form controls, so wrapping them in a
       // <label>/<Field> is a correct (implicit) association.
       "jsx-a11y/label-has-associated-control": ["error", { controlComponents: ["Input", "Select"] }],
