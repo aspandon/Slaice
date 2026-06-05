@@ -20,7 +20,8 @@ const EXTRA_PAGES: Partial<Record<PersonaId, string[]>> = {
 
 const isPersona = (p: string): p is PersonaId => PERSONAS.some((x) => x.id === p);
 
-function isPage(persona: PersonaId, page: string): boolean {
+// A page is valid if it's in the persona's NAV or its extra (flow) pages.
+export function isValidPage(persona: PersonaId, page: string): boolean {
   if (!page) return false;
   if ((NAV[persona] || []).some((it) => it.k === page)) return true;
   return (EXTRA_PAGES[persona] || []).includes(page);
@@ -33,7 +34,7 @@ export function parseHash(hash: string = window.location.hash): Route {
   const persona = parts[0];
   if (!isPersona(persona)) return {};
   let page: string | undefined = parts[1];
-  if (page && !isPage(persona, page)) page = undefined;
+  if (page && !isValidPage(persona, page)) page = undefined;
   return { persona, page };
 }
 

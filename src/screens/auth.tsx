@@ -7,7 +7,7 @@ import { Btn, Input } from "../components/ui";
 import { SlaiceLogo, TenantLogo } from "../components/Brand";
 import { BeachBackdrop } from "../components/Beach";
 import { TENANT } from "../data/beach";
-import { useApp } from "../app/store";
+import { useApp, useT } from "../app/store";
 
 // One Zod schema validates the form and could be reused server-side to validate
 // the same request. This is the pattern every other form in the app follows.
@@ -17,6 +17,7 @@ const signInSchema = z.object({
 
 export function AuthGate() {
   const { setSignedIn, toast } = useApp();
+  const t = useT();
   const [sent, setSent] = useState(false);
   const {
     register,
@@ -32,11 +33,11 @@ export function AuthGate() {
 
   const onValid = () => {
     setSent(true);
-    toast("Demo — magic link 'sent'. Click continue.");
+    toast(t("Demo — magic link 'sent'. Click continue."));
   };
 
   const sso = (p: string) => {
-    toast(`Demo — ${p} SSO. Signing you in…`);
+    toast(`${t("Demo —")} ${p} ${t("SSO. Signing you in…")}`);
     setTimeout(() => setSignedIn(true), 500);
   };
 
@@ -55,16 +56,16 @@ export function AuthGate() {
               </div>
             </div>
             <div className="animate-fade-up">
-              <h1 className="font-display font-bold text-5xl leading-[1.04] drop-shadow-lg">Relax.<br />Reserve.<br />Repeat.</h1>
-              <p className="mt-4 text-white/80 max-w-sm">Book your sunbed ahead, skip the queues, and enjoy a seamless beach day at {TENANT.place}.</p>
+              <h1 className="font-display font-bold text-5xl leading-[1.04] drop-shadow-lg">{t("Relax.")}<br />{t("Reserve.")}<br />{t("Repeat.")}</h1>
+              <p className="mt-4 text-white/80 max-w-sm">{t("Book your sunbed ahead, skip the queues, and enjoy a seamless beach day at")} {TENANT.place}.</p>
               <ul className="mt-6 space-y-2.5 text-[13px] text-white/85">
                 {["Pick your exact spot on a live beach map", "Instant QR — straight to the gate", "Digital receipts, automatically"].map((f) => (
-                  <li key={f} className="flex items-center gap-2.5"><span className="w-5 h-5 rounded-full bg-teal-500/30 ring-1 ring-teal-300/50 grid place-items-center text-teal-200"><Icon.check size={12} /></span>{f}</li>
+                  <li key={f} className="flex items-center gap-2.5"><span className="w-5 h-5 rounded-full bg-teal-500/30 ring-1 ring-teal-300/50 grid place-items-center text-teal-200"><Icon.check size={12} /></span>{t(f)}</li>
                 ))}
               </ul>
             </div>
             <div className="flex items-center gap-2 text-[12px] text-white/70">
-              powered by <SlaiceLogo size={22} withText light />
+              {t("powered by")} <SlaiceLogo size={22} withText light />
             </div>
           </div>
         </BeachBackdrop>
@@ -77,13 +78,13 @@ export function AuthGate() {
             <TenantLogo size={40} />
             <div className="font-display font-bold text-navy-900 text-lg">{TENANT.name}</div>
           </div>
-          <h2 className="font-display font-bold text-2xl text-navy-900">Sign in</h2>
-          <p className="text-sm text-slate-500 mt-1">Use a magic link or single sign-on. This is a demo — any input signs you in.</p>
+          <h2 className="font-display font-bold text-2xl text-navy-900">{t("Sign in")}</h2>
+          <p className="text-sm text-slate-500 mt-1">{t("Use a magic link or single sign-on. This is a demo — any input signs you in.")}</p>
 
           {!sent ? (
             <form className="mt-6 space-y-3" onSubmit={handleSubmit(onValid)} noValidate>
               <label className="block">
-                <span className="text-[12px] font-semibold text-slate-500">Email</span>
+                <span className="text-[12px] font-semibold text-slate-500">{t("Email")}</span>
                 <Input
                   {...register("email")}
                   type="email"
@@ -98,19 +99,19 @@ export function AuthGate() {
                   <Icon.alert size={13} /> {errors.email.message}
                 </div>
               )}
-              <Btn type="submit" variant="teal" full size="lg" icon={Icon.mail}>Send magic link</Btn>
+              <Btn type="submit" variant="teal" full size="lg" icon={Icon.mail}>{t("Send magic link")}</Btn>
             </form>
           ) : (
             <div className="mt-6 rounded-2xl ring-1 ring-teal-600/20 bg-teal-50 p-5 text-center">
               <div className="w-12 h-12 mx-auto rounded-xl bg-teal-600 text-white grid place-items-center"><Icon.mail size={22} /></div>
-              <div className="mt-2 font-semibold text-navy-900">Check your inbox</div>
-              <div className="text-[13px] text-slate-500">We sent a sign-in link to <b>{email}</b>.</div>
-              <Btn variant="teal" full size="lg" className="mt-4" icon={Icon.arrowR} onClick={() => setSignedIn(true)}>Continue (demo)</Btn>
+              <div className="mt-2 font-semibold text-navy-900">{t("Check your inbox")}</div>
+              <div className="text-[13px] text-slate-500">{t("We sent a sign-in link to")} <b>{email}</b>.</div>
+              <Btn variant="teal" full size="lg" className="mt-4" icon={Icon.arrowR} onClick={() => setSignedIn(true)}>{t("Continue (demo)")}</Btn>
             </div>
           )}
 
           <div className="flex items-center gap-3 my-6 text-[12px] text-slate-600">
-            <div className="h-px bg-slate-200 flex-1" /> or continue with <div className="h-px bg-slate-200 flex-1" />
+            <div className="h-px bg-slate-200 flex-1" /> {t("or continue with")} <div className="h-px bg-slate-200 flex-1" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Btn variant="outline" onClick={() => sso("Google")}>
@@ -134,7 +135,7 @@ export function AuthGate() {
           </div>
 
           <div className="mt-8 flex items-center justify-center gap-2 text-[11px] text-slate-600">
-            <Icon.shield size={13} /> Secured demo · no real credentials processed
+            <Icon.shield size={13} /> {t("Secured demo · no real credentials processed")}
           </div>
         </div>
       </div>

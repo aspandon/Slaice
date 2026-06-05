@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect } from "react";
 import type { ReactNode } from "react";
 import { translate } from "./i18n";
-import type { CartItem, CartKind, Consent, LangCode, PersonaId } from "../domain/types";
+import { DEFAULT_BACKGROUND } from "../data/backgrounds";
+import type { BeachBackground, CartItem, CartKind, Consent, LangCode, PersonaId } from "../domain/types";
 
 // Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
 // highlight the section a journey points at.
@@ -10,6 +11,8 @@ export interface SpotlightHint {
   tip?: string;
   persona?: PersonaId;
   page?: string;
+  /** Optional initial step id for a multi-step flow (e.g. the Plan wizard). */
+  step?: string;
   ts?: number;
 }
 
@@ -39,6 +42,9 @@ export interface AppContextValue {
   consent: Consent;
   setConsent: (patch: Partial<Consent>) => void;
   reopenConsent: () => void;
+  /** Tenant beach scene shown on the customer booking map. */
+  background: BeachBackground;
+  setBackground: (b: BeachBackground) => void;
 }
 
 const DEFAULT_CONSENT: Consent = {
@@ -56,7 +62,7 @@ export const AppCtx = createContext<AppContextValue>({
   persona: "customer",
   signedIn: false,
   setSignedIn: () => {},
-  lang: "EN",
+  lang: "en",
   setLang: () => {},
   cart: [],
   addToCart: () => {},
@@ -67,14 +73,18 @@ export const AppCtx = createContext<AppContextValue>({
   consent: DEFAULT_CONSENT,
   setConsent: () => {},
   reopenConsent: () => {},
+  background: DEFAULT_BACKGROUND,
+  setBackground: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);
 
-// Translation helper bound to the active language: t(key, fallback).
+// Translation helper bound to the active language. Wrap UI strings as t("English")
+// — non-English languages resolve via the generated dictionaries, English passes
+// through unchanged.
 export function useT() {
   const { lang } = useContext(AppCtx);
-  return (key: string, fallback?: string) => translate(lang, key, fallback);
+  return (text: string) => translate(lang, text);
 }
 
 // When the active hint matches the current persona+page, find the element with
@@ -99,9 +109,6 @@ export function useSpotlight(persona: PersonaId, page: string) {
   }, [hint, persona, page]);
 }
 
-export const LANGS: { code: LangCode; label: string }[] = [
-  { code: "EN", label: "English" },
-  { code: "ΕΛ", label: "Ελληνικά" },
-  { code: "DE", label: "Deutsch" },
-  { code: "FR", label: "Français" },
-];
+// The offered languages live in i18n.ts (single source of truth); re-export for
+// the switcher call sites.
+export { LANGUAGES } from "./i18n";

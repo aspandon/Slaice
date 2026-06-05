@@ -17,7 +17,9 @@ export type PersonaId =
   | "accountant"
   | "platform";
 
-export type LangCode = "EN" | "ΕΛ" | "DE" | "FR";
+/** A UI language, identified by its ISO 639-1 code ("en", "el", "de", …).
+ *  English is the source of truth; other languages are machine-generated. */
+export type LangCode = string;
 
 /* ---------- Cart ---------- */
 export type CartKind = "sunbed" | "ticket" | "locker" | "parking";
@@ -128,3 +130,12 @@ export interface Consent {
   decided: boolean;
   ts: string | null;
 }
+
+/* ---------- Tenant beach background ----------
+   The beach scene a tenant shows on the customer booking map: either one of the
+   built-in presets (see `data/backgrounds.ts`) or a manager-uploaded photo
+   (stored as a downscaled data URL). A discriminated union so a preset id and a
+   custom source can never both be set. */
+export type BeachBackground =
+  | { kind: "preset"; id: string }
+  | { kind: "custom"; src: string; name?: string };

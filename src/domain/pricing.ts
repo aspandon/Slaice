@@ -27,7 +27,7 @@ export const TICKET_CROSS_SELL_PRICE = TICKET_PRICES.adult;
 export const LOCKER_CROSS_SELL_PRICE = LOCKER_PRICE;
 
 export const TICKET_META: Record<TicketCategory, { label: string; sub: string }> = {
-  adult: { label: "Adult", sub: "Standard entry" },
+  adult: { label: "Individual (13+)", sub: "Standard entry · Above 13 Years" },
   resident: { label: "Alimos resident", sub: "Proof required at gate" },
   child: { label: "Child (6–12)", sub: "Under 6 free" },
   senior: { label: "Senior 65+", sub: "ID required" },
