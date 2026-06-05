@@ -181,7 +181,7 @@ export default function App() {
               {/* The provided PNG is a wide canvas with the mark on the left and
                   whitespace to the right; crop to the mark so it reads centered. */}
               <div className="h-[84px] w-[120px] overflow-hidden">
-                <img src="/tenant-logo.png" alt="Ακτή του Ηλίου — Άλιμος" className="h-full max-w-none" />
+                <img src={`${import.meta.env.BASE_URL}tenant-logo.png`} alt="Ακτή του Ηλίου — Άλιμος" className="h-full max-w-none" />
               </div>
             </div>
           )}
