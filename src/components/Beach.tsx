@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useParallax } from "../lib/motion";
 import type { SunbedState } from "../domain/types";
 
 /* ---------- Single sunbed glyph ----------
@@ -46,12 +47,112 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
 
 /* ---------- Beach backdrop ----------
    BeachScene SVG fills the container; children render above it. */
-export function BeachBackdrop({ children, className = "", pos = "relative" }: { children?: ReactNode; className?: string; pos?: string }) {
+export function BeachBackdrop({ children, className = "", pos = "relative", parallax = false }: { children?: ReactNode; className?: string; pos?: string; parallax?: boolean }) {
   return (
     <div className={`${pos} overflow-hidden rounded-2xl ${className}`}>
-      <BeachScene />
+      {parallax ? <BeachSceneLayered /> : <BeachScene />}
       <div className="absolute inset-0">{children}</div>
     </div>
+  );
+}
+
+/* Depth-parallax beach — the same scene split into far (sea), mid (sand) and
+   near (vegetation) planes that drift at different rates on scroll, so the
+   horizon reads as real depth. Each plane overscans (-12%) and its travel is
+   clamped, so a translate never exposes an edge; useParallax no-ops under
+   reduced motion, leaving the planes stacked exactly like the flat scene. */
+function BeachSceneLayered() {
+  const far = useParallax<HTMLDivElement>(-0.018, 24);
+  const mid = useParallax<HTMLDivElement>(-0.04, 44);
+  const near = useParallax<HTMLDivElement>(-0.065, 60);
+  const plane = "absolute pointer-events-none";
+  const overscan = { inset: "-12%", willChange: "transform" } as const;
+  return (
+    <>
+      {/* Far plane — sea, sun glint, wave bands and the top vignette. */}
+      <div ref={far} className={plane} style={overscan}>
+        <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <linearGradient id="bg-sea2" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#0c4a6e" />
+              <stop offset="35%" stopColor="#0e7490" />
+              <stop offset="70%" stopColor="#22d3ee" />
+              <stop offset="100%" stopColor="#a5f3fc" />
+            </linearGradient>
+            <radialGradient id="bg-glint2" cx="50%" cy="0%" r="60%">
+              <stop offset="0%" stopColor="rgba(255,255,255,0.55)" />
+              <stop offset="60%" stopColor="rgba(255,255,255,0)" />
+            </radialGradient>
+            <linearGradient id="bg-vignette2" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgba(11, 37, 69, 0.35)" />
+              <stop offset="100%" stopColor="rgba(11, 37, 69, 0)" />
+            </linearGradient>
+          </defs>
+          <rect width="1600" height="900" fill="url(#bg-sea2)" />
+          <rect width="1600" height="900" fill="url(#bg-glint2)" />
+          <g opacity="0.35" stroke="white" fill="none" strokeLinecap="round">
+            <path d="M -50 180 Q 400 165 800 180 T 1650 180" strokeWidth="1.2" />
+            <path d="M -50 240 Q 500 222 900 240 T 1650 240" strokeWidth="1" opacity="0.7" />
+            <path d="M -50 300 Q 350 285 750 300 T 1650 300" strokeWidth="0.8" opacity="0.5" />
+            <path d="M -50 360 Q 600 345 1000 360 T 1650 360" strokeWidth="0.8" opacity="0.5" />
+          </g>
+          <rect width="1600" height="160" fill="url(#bg-vignette2)" />
+        </svg>
+      </div>
+      {/* Mid plane — shoreline foam, sand and its grain + wet-sand shading. */}
+      <div ref={mid} className={plane} style={overscan}>
+        <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <linearGradient id="bg-sand2" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#fde8c8" />
+              <stop offset="55%" stopColor="#f5d3a3" />
+              <stop offset="100%" stopColor="#e9bd86" />
+            </linearGradient>
+            <linearGradient id="bg-foam2" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgba(255,255,255,0.85)" />
+              <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+            </linearGradient>
+            <filter id="bg-grain2" x="0" y="0" width="100%" height="100%">
+              <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" />
+              <feColorMatrix values="0 0 0 0 0.62  0 0 0 0 0.48  0 0 0 0 0.32  0 0 0 0.18 0" />
+              <feComposite in2="SourceGraphic" operator="in" />
+            </filter>
+          </defs>
+          <path d="M -20 470 C 200 430 420 520 720 480 S 1180 420 1620 480 L 1620 540 L -20 540 Z" fill="url(#bg-foam2)" />
+          <path d="M -20 500 C 220 460 440 555 740 510 S 1200 450 1620 510 L 1620 900 L -20 900 Z" fill="url(#bg-sand2)" />
+          <path d="M -20 500 C 220 460 440 555 740 510 S 1200 450 1620 510 L 1620 900 L -20 900 Z" filter="url(#bg-grain2)" opacity="0.5" />
+          <path d="M -20 510 C 220 470 440 565 740 520 S 1200 460 1620 520 L 1620 575 L -20 575 Z" fill="rgba(190, 140, 80, 0.18)" />
+        </svg>
+      </div>
+      {/* Near plane — the vegetation belt and tree dots (moves the most). */}
+      <div ref={near} className={plane} style={overscan}>
+        <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <linearGradient id="bg-veg2" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#86b85a" />
+              <stop offset="100%" stopColor="#4f7a3a" />
+            </linearGradient>
+          </defs>
+          <path d="M -20 770 C 200 740 420 800 720 770 S 1180 730 1620 770 L 1620 900 L -20 900 Z" fill="url(#bg-veg2)" opacity="0.92" />
+          <g fill="#3f6b2c" opacity="0.85">
+            {Array.from({ length: 28 }).map((_, i) => {
+              const x = 30 + i * 57 + (i % 3) * 11;
+              const y = 790 + ((i * 13) % 70);
+              const r = 12 + ((i * 5) % 9);
+              return <circle key={i} cx={x} cy={y} r={r} />;
+            })}
+          </g>
+          <g fill="#65a04a" opacity="0.7">
+            {Array.from({ length: 22 }).map((_, i) => {
+              const x = 60 + i * 71 + (i % 4) * 9;
+              const y = 810 + ((i * 17) % 60);
+              const r = 8 + ((i * 3) % 6);
+              return <circle key={i} cx={x} cy={y} r={r} />;
+            })}
+          </g>
+        </svg>
+      </div>
+    </>
   );
 }
 

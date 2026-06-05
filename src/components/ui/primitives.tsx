@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
+import { usePointerGlow } from "../../lib/motion";
 
 /* ---------- Badge ---------- */
 export function Badge({ tone = "slate", children, className = "" }: { tone?: string; children?: ReactNode; className?: string }) {
@@ -50,11 +51,19 @@ export function StatusBadge({ status, label, className = "" }: { status?: string
   return <Badge tone={meta.tone} className={className}><IconC size={11} /> {text}</Badge>;
 }
 
-/* ---------- Card ---------- */
-export function Card({ className = "", children, hover, press }: { className?: string; children?: ReactNode; hover?: boolean; press?: boolean }) {
+/* ---------- Card ----------
+   `hover` lifts on hover, `press` adds the springy tap scale, and `sheen` adds
+   the cursor-tracking "lit glass" highlight (usePointerGlow). Sheen defaults to
+   `hover`, so interactive cards light up automatically; pass sheen={false} to
+   opt out, or sheen on an otherwise-static card. */
+export function Card({ className = "", children, hover, press, sheen }: { className?: string; children?: ReactNode; hover?: boolean; press?: boolean; sheen?: boolean }) {
+  const showSheen = sheen ?? hover;
+  const ref = usePointerGlow<HTMLDivElement>(!!showSheen);
   return (
     <div
-      className={`glass-card rounded-3xl ${hover ? "transition duration-300 ease-spring hover:-translate-y-1 hover:shadow-lift" : ""} ${press ? "pressable cursor-pointer" : ""} ${className}`}>
+      ref={ref}
+      className={`glass-card rounded-3xl ${hover ? "transition duration-300 ease-spring hover:-translate-y-1 hover:shadow-lift" : ""} ${press ? "pressable cursor-pointer" : ""} ${showSheen ? "relative isolate" : ""} ${className}`}>
+      {showSheen && <span aria-hidden className="sheen" />}
       {children}
     </div>
   );
