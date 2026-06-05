@@ -1,10 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../lib/icons";
 import { Card, Btn, Badge, Stepper, Input, Field, DatePickerRow, SwipeRow, Toggle } from "../components/ui";
 import { Reveal, prefersReducedMotion } from "../lib/motion";
 import { Sunbed, BeachBackdrop } from "../components/Beach";
-import { BeachCanvas } from "../components/BeachCanvas";
+
+// Lazy so the konva canvas bundle only downloads when a guest actually zooms
+// into a zone — keeps it off the initial load.
+const BeachCanvas = lazy(() => import("../components/BeachCanvas").then((m) => ({ default: m.BeachCanvas })));
 import { ZONES, ZONE_BLOCKS, FACILITIES, todayISO, chipLabel, zoneLayout } from "../data/beach";
 import type { SunbedSlot } from "../domain/types";
 import { useApp, useSpotlight, useT } from "../app/store";
@@ -702,7 +705,9 @@ function BeachStep({ zone, zoneId, setZoneId, bedSel, setBedSel, selDates, setSe
             </div>
           </div>
 
-          <BeachCanvas slots={slots} selected={selectedIds} onToggle={toggle} seaLabel={tr("Sea · front row")} backLabel={tr("Promenade")} />
+          <Suspense fallback={<div className="w-full aspect-[5/3] rounded-2xl bg-gradient-to-b from-sky-100 to-amber-100/60 ring-1 ring-white/50 animate-pulse" />}>
+            <BeachCanvas slots={slots} selected={selectedIds} onToggle={toggle} seaLabel={tr("Sea · front row")} backLabel={tr("Promenade")} />
+          </Suspense>
 
           <div className="mt-2 flex items-center justify-between gap-2 flex-wrap text-[11px] text-slate-600">
             <div className="flex items-center gap-3 flex-wrap">

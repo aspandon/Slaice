@@ -28,6 +28,8 @@ export interface AppContextValue {
   toast: (msg: ReactNode, opts?: ToastOptions) => void;
   /** go(persona, page?, hint?) — navigate, optionally with a spotlight. */
   go: (persona: PersonaId, page?: string, hint?: Partial<SpotlightHint> | null) => void;
+  /** Play the cinematic beach "dive" and open the booking wizard. */
+  dive: () => void;
   persona: PersonaId;
   signedIn: boolean;
   setSignedIn: (v: boolean) => void;
@@ -64,6 +66,7 @@ const DEFAULT_CONSENT: Consent = {
 export const AppCtx = createContext<AppContextValue>({
   toast: () => {},
   go: () => {},
+  dive: () => {},
   persona: "customer",
   signedIn: false,
   setSignedIn: () => {},

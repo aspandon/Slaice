@@ -8,6 +8,8 @@ import { AuthGate } from "./screens/auth";
 import { ConsentBanner } from "./components/ConsentBanner";
 import { CommandPalette } from "./components/CommandPalette";
 import { BeachBackdrop } from "./components/Beach";
+import { DiveTransition } from "./components/DiveTransition";
+import { prefersReducedMotion } from "./lib/motion";
 import { routeFor } from "./routes";
 import { parseHash, buildHash, isValidPage } from "./app/router";
 import { HTML_LANG, normalizeLang } from "./app/i18n";
@@ -65,6 +67,7 @@ export default function App() {
   const [consent, setConsentState] = useState<Consent>(saved.consent || DEFAULT_CONSENT);
   const [background, setBackground] = useState<BeachBackground>(saved.background || DEFAULT_BACKGROUND);
   const [beachLayout, setBeachLayoutState] = useState<Record<string, SunbedSlot[]>>(saved.beachLayout || {});
+  const [diving, setDiving] = useState(false);
 
   useEffect(() => {
     // Guard the write: Safari Private Mode and a full quota throw on setItem.
@@ -143,6 +146,14 @@ export default function App() {
     setHint(h ? { ...h, persona: p, page: k, ts: Date.now() } : null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
+  // Cinematic entry: a beach "dive" wipe that covers the home→wizard swap, then
+  // clears to reveal the immersive flow. Skipped under reduced motion.
+  const dive = useCallback(() => {
+    if (prefersReducedMotion()) { go("customer", "plan"); return; }
+    setDiving(true);
+    window.setTimeout(() => go("customer", "plan"), 360);
+    window.setTimeout(() => setDiving(false), 1000);
+  }, [go]);
 
   const addToCart = useCallback((item: CartItem) => setCart((c) => (c.find((x) => x.kind === item.kind && x.id === item.id) ? c : [...c, item])), []);
   const removeFromCart = useCallback((kind: CartItem["kind"], id: string) => setCart((c) => c.filter((x) => !(x.kind === kind && x.id === id))), []);
@@ -150,8 +161,8 @@ export default function App() {
 
   // Memoised so the provider value keeps a stable identity across renders.
   const ctx = useMemo<AppContextValue>(
-    () => ({ toast, go, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout }),
-    [toast, go, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout],
+    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout }),
+    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout],
   );
 
   return (
@@ -188,6 +199,7 @@ export default function App() {
       <ConsentBanner />
       {signedIn && <CommandPalette />}
       <Toasts items={toasts} onDismiss={dismissToast} />
+      <DiveTransition active={diving} />
     </AppCtx.Provider>
   );
 }
