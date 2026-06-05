@@ -51,13 +51,13 @@ export function CustomerHome() {
             <b className="font-semibold">{t("20% off")}</b> {t("front-row sunbeds this weekend")}
             <span className="text-slate-700 hidden sm:inline"> · {t("gates open 09:00–20:00")}</span>
           </span>
-          <button onClick={() => go("customer", "plan", { step: "sets" })} className="text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 rounded-md px-2 py-1 whitespace-nowrap">{t("Claim")} →</button>
+          <button onClick={() => go("customer", "plan", { step: "beach" })} className="text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 rounded-md px-2 py-1 whitespace-nowrap">{t("Claim")} →</button>
           <button aria-label={t("Dismiss offer")} onClick={() => setPromoDismissed(true)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-500 hover:text-navy-900 hover:bg-white/60 shrink-0"><Icon.x size={14} /></button>
         </div>
       )}
 
       {/* Returning-guest shortcut — jump straight back to the favourite zone. */}
-      <button onClick={() => go("customer", "plan", { step: "sets" })} className="glass rounded-2xl px-3.5 py-2.5 w-full flex items-center gap-3 text-left hover:bg-white/70 transition group">
+      <button onClick={() => go("customer", "plan", { step: "beach" })} className="glass rounded-2xl px-3.5 py-2.5 w-full flex items-center gap-3 text-left hover:bg-white/70 transition group">
         <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={17} /></span>
         <span className="flex-1 min-w-0">
           <span className="block text-[13px] font-semibold text-navy-900">{t("Rebook your usual")}</span>
