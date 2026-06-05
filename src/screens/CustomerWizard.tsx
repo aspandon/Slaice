@@ -3,8 +3,8 @@ import { createPortal } from "react-dom";
 import { Icon } from "../lib/icons";
 import { Card, Btn, Badge, Stepper, Input, Field, DatePickerRow, SwipeRow, Toggle } from "../components/ui";
 import { Reveal, prefersReducedMotion } from "../lib/motion";
-import { Sunbed } from "../components/Beach";
-import { ZONES, todayISO, chipLabel, makeGrid } from "../data/beach";
+import { Sunbed, BeachBackdrop } from "../components/Beach";
+import { ZONES, ZONE_BLOCKS, FACILITIES, todayISO, chipLabel, makeGrid } from "../data/beach";
 import { useApp, useSpotlight, useT } from "../app/store";
 import { localeFor } from "../app/i18n";
 import { TICKET_PRICES, TICKET_META, LOCKER_PRICE, PARKING_PRICE } from "../domain/pricing";
@@ -569,6 +569,119 @@ function DatesStep({ selDates, setSelDates, multiDate, setMultiDate }: { selDate
   );
 }
 
+/* Each beach facility → a pin glyph; restrooms have no clean icon so they
+   render as a tiny "WC" text pin. */
+const FACILITY_ICON: Record<string, IconRenderer | undefined> = {
+  bar: Icon.glass,
+  shower: Icon.drop,
+  first: Icon.cross,
+  wc: undefined,
+};
+
+/* Plain-language location of a zone, derived from its position on the beach
+   overview (ZONE_BLOCKS) + the nearest bar landmark (FACILITIES) — e.g.
+   "in the centre of the beach · steps from the Beach bar". */
+function zoneLocationText(zoneId: string, tr: (s: string) => string): string {
+  const blk = ZONE_BLOCKS.find((b) => b.id === zoneId);
+  if (!blk) return "";
+  const cx = parseFloat(blk.left) + parseFloat(blk.w) / 2;
+  const horiz =
+    cx < 24 ? tr("at the western end of the beach")
+      : cx < 42 ? tr("towards the west side")
+        : cx < 58 ? tr("in the centre of the beach")
+          : cx < 78 ? tr("towards the east side")
+            : tr("at the eastern end of the beach");
+  const bars = FACILITIES.filter((f) => f.kind === "bar");
+  if (!bars.length) return horiz;
+  const nearest = bars.reduce((a, b) =>
+    Math.abs(parseFloat(b.left) - cx) < Math.abs(parseFloat(a.left) - cx) ? b : a,
+  );
+  return `${horiz} · ${tr("steps from the")} ${tr(nearest.label)}`;
+}
+
+/* ---------- Aerial zone locator ----------
+   A tap-to-select aerial of the tenant beach: every zone is drawn at its real
+   ZONE_BLOCKS position so the guest sees where each sits relative to the sea
+   (top) and the bars/facilities, then reads a plain-language location for the
+   selected one. Selection is shared with the zone list below. */
+function ZoneLocatorMap({ selectedId, onSelect }: { selectedId: string; onSelect: (id: string) => void }) {
+  const tr = useT();
+  const selected = ZONES.find((z) => z.id === selectedId);
+  return (
+    <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 p-3">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="min-w-0">
+          <div className="font-semibold text-sm text-navy-900">{tr("Find your spot on the beach")}</div>
+          <div className="text-[11px] text-slate-500">{tr("Tap a zone to see where it sits — the sea is at the top.")}</div>
+        </div>
+        <Badge tone="green"><Icon.map size={11} /> {tr("Live map")}</Badge>
+      </div>
+
+      <BeachBackdrop className="aspect-video max-w-[640px] mx-auto ring-1 ring-white/50 shadow-soft">
+        {/* Orientation labels — sea (top) → promenade (bottom). */}
+        <div className="absolute top-1.5 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 text-white/90 text-[10px] font-bold uppercase tracking-[0.22em] drop-shadow">
+          <Icon.wave size={12} /> {tr("Sea")}
+        </div>
+        <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 text-white/75 text-[9px] font-semibold uppercase tracking-[0.18em] drop-shadow">
+          {tr("Promenade")}
+        </div>
+
+        {/* Facility landmarks (decorative — the zone buttons carry the semantics). */}
+        {FACILITIES.map((f) => {
+          const IconC = FACILITY_ICON[f.kind];
+          return (
+            <div key={f.id} aria-hidden className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{ left: f.left, top: f.top }} title={f.label}>
+              <span className="w-5 h-5 rounded-full bg-white/85 ring-1 ring-navy-900/10 grid place-items-center text-navy-700 shadow-sm">
+                {IconC ? <IconC size={11} /> : <span className="text-[7px] font-bold leading-none">WC</span>}
+              </span>
+            </div>
+          );
+        })}
+
+        {/* Zone clusters, positioned + angled exactly like the full-beach overview. */}
+        {ZONES.map((z) => {
+          const blk = ZONE_BLOCKS.find((b) => b.id === z.id);
+          if (!blk) return null;
+          const active = z.id === selectedId;
+          return (
+            <button
+              key={z.id}
+              onClick={() => onSelect(z.id)}
+              aria-pressed={active}
+              aria-label={`${z.name} — ${z.avail} ${tr("of")} ${z.total} ${tr("free")}, ${tr("from")} €${z.from}${active ? `, ${tr("selected")}` : ""}`}
+              className="absolute origin-center focus:outline-none focus-visible:z-30 group"
+              style={{ left: blk.left, top: blk.top, width: blk.w, transform: `rotate(${blk.rot}deg)` }}
+            >
+              <span
+                className={`relative block rounded-[7px] px-1 pt-1 pb-0.5 ring-1 transition-all duration-300 ease-spring ${active ? "scale-110 ring-white shadow-[0_8px_24px_-6px_rgba(11,37,69,.55)] z-20" : "ring-white/40 group-hover:scale-105 group-hover:-translate-y-0.5 group-hover:ring-white/80"}`}
+                style={{ background: active ? z.color : `${z.color}d9` }}
+              >
+                <span className="grid grid-cols-4 gap-[2px] mb-0.5 justify-items-center">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <i key={i} className="w-[3px] h-[3px] rounded-full bg-white/85" />
+                  ))}
+                </span>
+                <span className="block text-center text-[9px] font-bold text-white leading-none tracking-wide drop-shadow-sm">{z.prefix}</span>
+                {active && (
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-white text-teal-600 grid place-items-center shadow ring-1 ring-black/5">
+                    <Icon.check size={9} />
+                  </span>
+                )}
+              </span>
+            </button>
+          );
+        })}
+      </BeachBackdrop>
+
+      {/* Derived, human-readable location of the selected zone. */}
+      <p className="mt-2.5 flex items-start gap-2 text-[12px] text-slate-600 leading-snug">
+        <Icon.map size={14} className="text-teal-600 shrink-0 mt-0.5" />
+        <span><b className="text-navy-900">{selected?.name}</b> {tr("is")} {zoneLocationText(selectedId, tr)}.</span>
+      </p>
+    </div>
+  );
+}
+
 /* ============ Step 3 — Beach bar zone & sets ============ */
 function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, dayCount, bedSel, setBedSel, includeBeach, setIncludeBeach }: {
   zone: WizardZone;
@@ -617,6 +730,10 @@ function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, day
         </div>
       ) : (
         <>
+          {/* See where each zone sits on the beach, then pick one (synced with
+              the list below). */}
+          <ZoneLocatorMap selectedId={zoneId} onSelect={setZoneId} />
+
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{tr("Pick a zone")}</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -677,6 +794,11 @@ function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, day
               )}
             </div>
             <div className="rounded-lg bg-gradient-to-b from-amber-50 to-amber-100/60 ring-1 ring-amber-200/70 p-2">
+              {/* Front row (row 1) is the sea side, matching the map above. */}
+              <div className="flex items-center justify-between text-[9px] font-bold uppercase tracking-wider mb-1.5 px-0.5">
+                <span className="inline-flex items-center gap-1 text-sky-700/80"><Icon.wave size={11} /> {tr("Sea · front row")}</span>
+                <span className="text-amber-700/70">{tr("Promenade")}</span>
+              </div>
               <div className="grid grid-cols-8 sm:grid-cols-12 gap-1 sm:gap-1.5">
                 {grid.map((b) => {
                   const isSel = !!bedSel.find((x) => x.id === b.id);
