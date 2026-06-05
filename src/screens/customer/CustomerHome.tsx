@@ -8,7 +8,7 @@ import { useApp, useT } from "../../app/store";
 // • backdrop-blur-2xl + backdrop-saturate-50 — heavy blur + desaturated backdrop
 //   kills the teal amplification that .glass (saturate 180%) causes
 // • ring-1 ring-white/40 — crisp white edge without coloured border
-const CARD = "bg-white/25 backdrop-blur-2xl backdrop-saturate-50 ring-1 ring-white/40 shadow-soft rounded-3xl overflow-hidden relative";
+const CARD = "glass rounded-3xl overflow-hidden relative";
 
 export function CustomerHome() {
   const { dive } = useApp();
