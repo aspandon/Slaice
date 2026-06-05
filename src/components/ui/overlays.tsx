@@ -55,9 +55,9 @@ export function Modal({ open, onClose, title, children, footer, wide }: {
   useDialogFocus(!!open, panelRef);
   if (!open) return null;
   return createPortal((
-    <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in" onClick={onClose}>
-      <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-xl" />
-      <div ref={panelRef} tabIndex={-1} onClick={(e) => e.stopPropagation()} className={`glass-card-solid relative w-full ${wide ? "sm:max-w-2xl" : "sm:max-w-md"} rounded-t-3xl sm:rounded-3xl animate-slide-up sm:animate-pop max-h-[92dvh] sm:max-h-[90dvh] flex flex-col pb-safe sm:pb-0 outline-none`}>
+    <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
+      <button type="button" aria-label="Close" tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-navy-950/40 backdrop-blur-xl cursor-default" />
+      <div ref={panelRef} tabIndex={-1} className={`glass-card-solid relative w-full ${wide ? "sm:max-w-2xl" : "sm:max-w-md"} rounded-t-3xl sm:rounded-3xl animate-slide-up sm:animate-pop max-h-[92dvh] sm:max-h-[90dvh] flex flex-col pb-safe sm:pb-0 outline-none`}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200/70">
           <div id={titleId} className="font-display font-bold text-navy-900 text-lg">{title}</div>
           <button aria-label="Close" onClick={onClose} className="w-10 h-10 grid place-items-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition"><Icon.x size={20} /></button>
@@ -110,9 +110,9 @@ export function Sheet({ open, onClose, title, children, footer }: {
     drag.current = null;
   };
   return createPortal((
-    <div role="dialog" aria-modal="true" aria-labelledby={title ? titleId : undefined} className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center animate-fade-in" onClick={onClose}>
-      <div className="absolute inset-0 bg-navy-950/45 backdrop-blur-xl" />
-      <div ref={panelRef} tabIndex={-1} onClick={(e) => e.stopPropagation()}
+    <div role="dialog" aria-modal="true" aria-labelledby={title ? titleId : undefined} className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center animate-fade-in">
+      <button type="button" aria-label="Close" tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-navy-950/45 backdrop-blur-xl cursor-default" />
+      <div ref={panelRef} tabIndex={-1}
         className="glass-card-solid relative w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl animate-slide-up sm:animate-pop max-h-[92dvh] flex flex-col transition-transform duration-300 ease-spring pb-safe sm:pb-0 outline-none">
         <div onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
           className="pt-2.5 pb-1 grid place-items-center cursor-grab active:cursor-grabbing touch-none">

@@ -41,65 +41,95 @@ export function CustomerTicket() {
   ];
 
   return (
-    <div className="animate-fade-up space-y-4 max-w-3xl pb-24 lg:pb-0">
-      <PageHead title="Entry Ticket" sub="Buy entry for yourself or your group — pricing adapts to each person's category." badge={<Badge tone="mvp">MVP</Badge>} />
-      <Card className="glass-card-solid p-5">
-        <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center justify-between">
-          <span className="flex items-center gap-1.5"><Icon.calendar size={13} /> Dates · pick one or more</span>
-          <span className="text-slate-600 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
-        </div>
-        <DatePickerRow value={selDates} onChange={setSelDates} />
-      </Card>
-      <Card className="glass-card-solid p-5 space-y-3">
-        {cats.map((c) => (
-          <div key={c.k} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-4 py-3">
-            <div><div className="font-semibold text-navy-900">{c.t}</div><div className="text-[12px] text-slate-600">€{c.p} · {c.d}</div></div>
-            <Stepper label={`${c.t} tickets`} value={qty[c.k]} onChange={(v) => setQty((q) => ({ ...q, [c.k]: v }))} />
+    <div className="grid lg:grid-cols-[1fr_340px] gap-5 pb-28 lg:pb-0">
+      <div className="space-y-4 min-w-0">
+        <PageHead title="Entry Ticket" sub="Buy entry for yourself or your group — pricing adapts to each person's category." badge={<Badge tone="mvp">MVP</Badge>} />
+        <Card className="glass-card-solid p-5">
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center justify-between">
+            <span className="flex items-center gap-1.5"><Icon.calendar size={13} /> Dates · pick one or more</span>
+            <span className="text-slate-600 normal-case tracking-normal">{dayCount} day{dayCount > 1 ? "s" : ""}</span>
           </div>
-        ))}
-
-        <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div><div className="font-semibold text-navy-900 text-sm">Need an invoice (ΤΠΥ)?</div><div className="text-[12px] text-slate-600">B2B — issues a service invoice instead of a receipt (ΑΠΥ).</div></div>
-            <Toggle on={biz} onChange={setBiz} />
-          </div>
-          {biz && (
-            <div className="grid sm:grid-cols-2 gap-2 mt-3 animate-fade-in">
-              <Field label="VAT number (ΑΦΜ)" hint={vat && !vatOk ? undefined : "9 digits"}>
-                <Input value={vat} onChange={(e) => setVat(e.target.value.replace(/[^\d]/g, "").slice(0, 9))} inputMode="numeric" placeholder="123456789" aria-invalid={!!(vat && !vatOk)} className={vat && !vatOk ? "ring-2 ring-rose-400" : ""} />
-                {vat && !vatOk && <div className="text-[11px] text-rose-600 flex items-center gap-1 mt-1"><Icon.alert size={11} /> ΑΦΜ must be 9 digits.</div>}
-              </Field>
-              <Field label="Company name"><Input placeholder="Acme Ltd." /></Field>
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between pt-2">
-          <div className="text-slate-600 text-sm">{n} ticket(s) × {dayCount} day{dayCount > 1 ? "s" : ""}{biz ? " · ΤΠΥ" : " · ΑΠΥ"}</div>
-          <div className="text-2xl font-bold font-display text-navy-900 tnum">€{total}</div>
-        </div>
-        <Btn variant="teal" full size="lg" icon={Icon.card} disabled={!n || !vatOk} onClick={pay}>Add €{total} to basket</Btn>
-      </Card>
-
-      {/* "About entry tickets" — now stacked below the main box rather than
-          floating in a right-hand panel. Same three items, same footer. */}
-      <Card className="glass-card-solid p-5">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
-          <Icon.info size={13} /> About entry tickets
-        </div>
-        <div className="space-y-3">
-          {aboutItems.map((it, i) => (
-            <div key={i} className="flex gap-3">
-              <span className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 grid place-items-center shrink-0"><it.icon size={15} /></span>
-              <div className="min-w-0">
-                <div className="text-[13.5px] font-semibold text-navy-900">{it.title}</div>
-                <div className="text-[12.5px] text-slate-600 leading-snug mt-0.5">{it.body}</div>
-              </div>
+          <DatePickerRow value={selDates} onChange={setSelDates} />
+        </Card>
+        <Card className="glass-card-solid p-5 space-y-3">
+          {cats.map((c) => (
+            <div key={c.k} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-4 py-3">
+              <div><div className="font-semibold text-navy-900">{c.t}</div><div className="text-[12px] text-slate-600">€{c.p} · {c.d}</div></div>
+              <Stepper label={`${c.t} tickets`} value={qty[c.k]} onChange={(v) => setQty((q) => ({ ...q, [c.k]: v }))} />
             </div>
           ))}
-        </div>
-        <div className="mt-3 pt-3 border-t border-slate-100 text-[11.5px] text-slate-500">QR is scanned at the gate by the Controller.</div>
-      </Card>
+
+          <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div><div className="font-semibold text-navy-900 text-sm">Need an invoice (ΤΠΥ)?</div><div className="text-[12px] text-slate-600">B2B — issues a service invoice instead of a receipt (ΑΠΥ).</div></div>
+              <Toggle on={biz} onChange={setBiz} />
+            </div>
+            {biz && (
+              <div className="grid sm:grid-cols-2 gap-2 mt-3 animate-fade-in">
+                <Field label="VAT number (ΑΦΜ)" hint={vat && !vatOk ? undefined : "9 digits"}>
+                  <Input value={vat} onChange={(e) => setVat(e.target.value.replace(/[^\d]/g, "").slice(0, 9))} inputMode="numeric" placeholder="123456789" aria-invalid={!!(vat && !vatOk)} className={vat && !vatOk ? "ring-2 ring-rose-400" : ""} />
+                  {vat && !vatOk && <div className="text-[11px] text-rose-600 flex items-center gap-1 mt-1"><Icon.alert size={11} /> ΑΦΜ must be 9 digits.</div>}
+                </Field>
+                <Field label="Company name"><Input placeholder="Acme Ltd." /></Field>
+              </div>
+            )}
+          </div>
+        </Card>
+
+        {/* "About entry tickets" — stacked below the selector. */}
+        <Card className="glass-card-solid p-5">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-3 flex items-center gap-1.5">
+            <Icon.info size={13} /> About entry tickets
+          </div>
+          <div className="space-y-3">
+            {aboutItems.map((it, i) => (
+              <div key={i} className="flex gap-3">
+                <span className="w-8 h-8 rounded-lg bg-slate-100 text-slate-600 grid place-items-center shrink-0"><it.icon size={15} /></span>
+                <div className="min-w-0">
+                  <div className="text-[13.5px] font-semibold text-navy-900">{it.title}</div>
+                  <div className="text-[12.5px] text-slate-600 leading-snug mt-0.5">{it.body}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 pt-3 border-t border-slate-100 text-[11.5px] text-slate-500">QR is scanned at the gate by the Controller.</div>
+        </Card>
+      </div>
+
+      {/* Right: order summary — the same "payslip" panel the other booking
+          pages carry, so the running total and CTA stay in view. */}
+      <div className="lg:sticky lg:top-4 h-max">
+        <Card className="glass-card-solid p-5">
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Your tickets</div>
+          {n === 0 ? (
+            <div className="text-[13px] text-slate-600 rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-4 text-center flex flex-col items-center gap-2">
+              <Icon.ticket size={20} className="text-slate-400" />
+              Add tickets on the left — your total appears here.
+            </div>
+          ) : (
+            <div className="space-y-1.5 text-[13px]">
+              {cats.filter((c) => qty[c.k] > 0).map((c) => (
+                <div key={c.k} className="flex items-center justify-between">
+                  <span className="text-slate-600">{c.t} × {qty[c.k]}</span>
+                  <span className="font-semibold text-navy-900 tnum">€{c.p * qty[c.k]}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="mt-3 pt-3 border-t border-slate-200/70 space-y-1.5 text-[13px]">
+            <div className="flex items-center justify-between"><span className="text-slate-600">Days</span><span className="font-semibold text-navy-900 tnum">{dayCount}</span></div>
+            <div className="flex items-center justify-between"><span className="text-slate-600">Document</span><span className="font-semibold text-navy-900">{biz ? "ΤΠΥ invoice" : "ΑΠΥ receipt"}</span></div>
+          </div>
+          <div className="mt-3 pt-3 border-t border-slate-200/70 flex items-center justify-between">
+            <span className="text-slate-600 text-sm">{n} ticket{n !== 1 ? "s" : ""} × {dayCount} day{dayCount > 1 ? "s" : ""}</span>
+            <span className="font-bold text-navy-900 tnum text-lg">€{total}</span>
+          </div>
+          <Btn variant="teal" full size="lg" className="mt-3" icon={Icon.card} disabled={!n || !vatOk} onClick={pay}>{n ? `Add €${total} to basket` : "Select tickets"}</Btn>
+          {biz && !vatOk && <div className="mt-1.5 text-[11px] text-amber-600 flex items-center gap-1"><Icon.info size={12} /> Enter a valid 9-digit ΑΦΜ to issue the invoice.</div>}
+          <div className="mt-2 text-center text-[11px] text-slate-500">QR saved to My Bookings · Secured by Stripe</div>
+        </Card>
+      </div>
+
       {/* Mobile: keep the CTA in reach below the category list. */}
       <StickyActionBar>
         <div className="flex items-center gap-3">

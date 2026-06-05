@@ -51,9 +51,9 @@ export function StatusBadge({ status, label, className = "" }: { status?: string
 }
 
 /* ---------- Card ---------- */
-export function Card({ className = "", children, onClick, hover, press }: { className?: string; children?: ReactNode; onClick?: () => void; hover?: boolean; press?: boolean }) {
+export function Card({ className = "", children, hover, press }: { className?: string; children?: ReactNode; hover?: boolean; press?: boolean }) {
   return (
-    <div onClick={onClick}
+    <div
       className={`glass-card rounded-3xl ${hover ? "transition duration-300 ease-spring hover:-translate-y-1 hover:shadow-lift" : ""} ${press ? "pressable cursor-pointer" : ""} ${className}`}>
       {children}
     </div>

@@ -6,6 +6,7 @@ import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
 import { Badge, Btn, Modal, Field, Input, Select, Toggle, EmptyState } from "../ui";
 import { PrivacyCenter } from "../PrivacyCenter";
+import { ChangePasswordModal, Enable2FAModal } from "../Security";
 import { PERSONAS, NAV } from "../../data/personas";
 import { LANGS, useApp } from "../../app/store";
 import type { CartItem, LangCode, PersonaId } from "../../domain/types";
@@ -68,6 +69,7 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
   const [notifOpen, setNotifOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false); // mobile page-nav sheet
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [notifSettingsOpen, setNotifSettingsOpen] = useState(false);
   const cur = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[0];
   const baseFeed = FEEDS[persona] || FEEDS.customer;
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
@@ -239,7 +241,7 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
               </div>
               <div className="px-2 py-1.5 border-t border-slate-200/70 mt-1 text-[11px] text-slate-500 flex items-center justify-between">
                 <span>Showing {feed.length} for {cur.label}</span>
-                <button onClick={() => { setNotifOpen(false); toast("Demo — notification settings."); }} className="hover:text-navy-900 inline-flex items-center gap-1"><Icon.cog size={12} /> Settings</button>
+                <button onClick={() => { setNotifOpen(false); setNotifSettingsOpen(true); }} className="hover:text-navy-900 inline-flex items-center gap-1"><Icon.cog size={12} /> Settings</button>
               </div>
             </Popover.Content>
           </Popover.Portal>
@@ -321,6 +323,7 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
         </DropdownMenu.Root>
       </div>
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <NotificationSettingsModal open={notifSettingsOpen} onClose={() => setNotifSettingsOpen(false)} />
       <NavSheet open={navOpen} onClose={() => setNavOpen(false)} persona={persona} page={page} setPage={setPage} />
     </header>
   );
@@ -337,6 +340,37 @@ function toneBg(tone: string) {
 }
 
 /* ---------- Account Settings (modal) ---------- */
+function NotificationSettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { toast } = useApp();
+  const [chan, setChan] = useState({ push: true, email: true, sms: false });
+  const [cats, setCats] = useState({ bookings: true, weather: true, offers: true, receipts: true });
+  const done = () => { onClose(); toast("Notification preferences saved.", { tone: "success" }); };
+  return (
+    <Modal open={open} onClose={onClose} title="Notification settings"
+      footer={<Btn variant="primary" icon={Icon.check} onClick={done}>Done</Btn>}>
+      <div className="space-y-5">
+        <section>
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Channels</div>
+          <div className="space-y-2">
+            <PrefRow label="Push" sub="In-app and device alerts." on={chan.push} set={(v) => setChan((c) => ({ ...c, push: v }))} />
+            <PrefRow label="E-mail" sub="A copy to elena@example.com." on={chan.email} set={(v) => setChan((c) => ({ ...c, email: v }))} />
+            <PrefRow label="SMS" sub="Critical alerts only." on={chan.sms} set={(v) => setChan((c) => ({ ...c, sms: v }))} />
+          </div>
+        </section>
+        <section>
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">What to notify me about</div>
+          <div className="space-y-2">
+            <PrefRow label="Booking updates" sub="Confirmations, gate scans, refunds." on={cats.bookings} set={(v) => setCats((c) => ({ ...c, bookings: v }))} />
+            <PrefRow label="Weather alerts" sub="Wind or conditions affecting your visit." on={cats.weather} set={(v) => setCats((c) => ({ ...c, weather: v }))} />
+            <PrefRow label="Offers &amp; promotions" sub="Weekend deals and seasonal perks." on={cats.offers} set={(v) => setCats((c) => ({ ...c, offers: v }))} />
+            <PrefRow label="Receipts &amp; documents" sub="myDATA receipts and invoices." on={cats.receipts} set={(v) => setCats((c) => ({ ...c, receipts: v }))} />
+          </div>
+        </section>
+      </div>
+    </Modal>
+  );
+}
+
 function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast, lang, setLang } = useApp();
   const [name, setName] = useState("Elena Manoli");
@@ -348,6 +382,8 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
     { brand: "Mastercard", last4: "5210", exp: "11/26" },
   ]);
   const [privacy, setPrivacy] = useState(false);
+  const [changePw, setChangePw] = useState(false);
+  const [twoFA, setTwoFA] = useState(false);
   const save = () => { onClose(); toast("Account settings saved.", { tone: "success" }); };
   const removeCard = (card: { brand: string; last4: string; exp: string }) => {
     setCards((cs) => cs.filter((c) => c.last4 !== card.last4));
@@ -414,12 +450,14 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
         <section>
           <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Security</div>
           <div className="flex gap-2 flex-wrap">
-            <Btn variant="outline" size="sm" icon={Icon.lock} onClick={() => toast("Password reset e-mail sent.", { tone: "info" })}>Change password</Btn>
-            <Btn variant="outline" size="sm" icon={Icon.phone} onClick={() => toast("2FA setup started.", { tone: "info" })}>Enable 2FA</Btn>
+            <Btn variant="outline" size="sm" icon={Icon.lock} onClick={() => setChangePw(true)}>Change password</Btn>
+            <Btn variant="outline" size="sm" icon={Icon.phone} onClick={() => setTwoFA(true)}>Enable 2FA</Btn>
           </div>
         </section>
       </div>
       <PrivacyCenter open={privacy} onClose={() => setPrivacy(false)} />
+      <ChangePasswordModal open={changePw} onClose={() => setChangePw(false)} />
+      <Enable2FAModal open={twoFA} onClose={() => setTwoFA(false)} />
     </Modal>
   );
 }

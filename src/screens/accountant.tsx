@@ -171,14 +171,16 @@ export function AccountantCommission() {
             [<b>Total</b>, <b className="tnum">€603,800</b>, <b className="tnum">€134,329</b>],
           ]} />
         </Card>
-        <Card className="p-5">
+        <Card className="p-5 flex flex-col">
           <div className="font-semibold text-navy-900 mb-2">myDATA transmission</div>
-          <div className="flex items-center gap-4">
-            <Donut segments={[{ v: 99.6, c: "#0D9488" }, { v: 0.4, c: "#f59e0b" }]} size={104} />
-            <div className="text-sm space-y-1.5">
-              <Leg c="bg-teal-600" t="Accepted 99.6%" />
-              <Leg c="bg-amber-500" t="Retry queue 0.4%" />
-              <div className="text-[12px] text-slate-500 pt-1">3 docs retrying · auto-resubmit</div>
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 py-1">
+            <Donut segments={[{ v: 99.6, c: "#0D9488" }, { v: 0.4, c: "#f59e0b" }]} className="w-40 sm:w-44 lg:w-52 aspect-square max-w-full" />
+            <div className="flex flex-col items-center gap-1.5 text-center">
+              <div className="flex items-center gap-4 text-[13px]">
+                <Leg c="bg-teal-600" t="Accepted 99.6%" />
+                <Leg c="bg-amber-500" t="Retry queue 0.4%" />
+              </div>
+              <div className="text-[12px] text-slate-500">3 docs retrying · auto-resubmit</div>
             </div>
           </div>
         </Card>

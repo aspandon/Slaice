@@ -103,13 +103,13 @@ export function CommandPalette() {
   if (!open) return null;
   return createPortal((
     <div role="dialog" aria-modal="true" aria-label="Command palette"
-      className="fixed inset-0 z-[90] flex items-start justify-center p-4 pt-[12vh] animate-fade-in" onClick={() => setOpen(false)}>
-      <div className="absolute inset-0 bg-navy-950/40 backdrop-blur-md" />
-      <div onClick={(e) => e.stopPropagation()} onKeyDown={onKeyDown}
+      className="fixed inset-0 z-[90] flex items-start justify-center p-4 pt-[12vh] animate-fade-in">
+      <button type="button" aria-label="Close" tabIndex={-1} onClick={() => setOpen(false)} className="absolute inset-0 bg-navy-950/40 backdrop-blur-md cursor-default" />
+      <div
         className="glass-card-solid relative w-full max-w-xl rounded-2xl shadow-float animate-pop overflow-hidden">
         <div className="flex items-center gap-2.5 px-4 py-3 border-b border-slate-200/70">
           <Icon.search size={18} className="text-slate-400 shrink-0" />
-          <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)}
+          <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKeyDown}
             placeholder="Search screens — try “reporting”, “gate”, “refunds”…"
             className="flex-1 bg-transparent outline-none text-base sm:text-sm text-navy-900 placeholder:text-slate-400" />
           <kbd className="hidden sm:inline text-[10px] font-semibold text-slate-400 bg-slate-100 ring-1 ring-slate-200 rounded px-1.5 py-0.5">ESC</kbd>
