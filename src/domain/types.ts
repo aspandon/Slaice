@@ -17,7 +17,9 @@ export type PersonaId =
   | "accountant"
   | "platform";
 
-export type LangCode = "EN" | "ΕΛ" | "DE" | "FR";
+/** A UI language, identified by its ISO 639-1 code ("en", "el", "de", …).
+ *  English is the source of truth; other languages are machine-generated. */
+export type LangCode = string;
 
 /* ---------- Cart ---------- */
 export type CartKind = "sunbed" | "ticket" | "locker" | "parking";

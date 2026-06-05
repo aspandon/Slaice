@@ -8,7 +8,7 @@ import { Badge, Btn, Modal, Field, Input, Select, Toggle, EmptyState } from "../
 import { PrivacyCenter } from "../PrivacyCenter";
 import { ChangePasswordModal, Enable2FAModal } from "../Security";
 import { PERSONAS, NAV } from "../../data/personas";
-import { LANGS, useApp } from "../../app/store";
+import { LANGUAGES, useApp, useT } from "../../app/store";
 import type { CartItem, LangCode, PersonaId } from "../../domain/types";
 import { NavSheet } from "./Nav";
 import type { NavProps } from "./types";
@@ -60,6 +60,7 @@ const FEEDS: Record<string, FeedItem[]> = {
 /* ---------- Top bar ---------- */
 export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setPersona: (p: PersonaId) => void }) {
   const { lang, setLang, setSignedIn, go, toast, cart, removeFromCart, addToCart, clearCart } = useApp();
+  const t = useT();
   const cartCount = (cart || []).length;
   const cartTotal = (cart || []).reduce((a, b) => a + b.price, 0);
   // Basket + notifications are controlled Popovers so their in-panel CTAs can
@@ -79,14 +80,14 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
   const removeBasketItem = (it: CartItem) => {
     if (!removeFromCart) return;
     removeFromCart(it.kind, it.id);
-    toast(`Removed ${it.label}.`, { action: { label: "Undo", onClick: () => addToCart && addToCart(it) } });
+    toast(`${t("Removed")} ${t(it.label)}.`, { action: { label: t("Undo"), onClick: () => addToCart && addToCart(it) } });
   };
   const emptyBasket = () => {
     if (!clearCart) return;
     const snapshot = [...(cart || [])];
     clearCart();
     setBasketOpen(false);
-    toast("Basket emptied.", { action: { label: "Undo", onClick: () => snapshot.forEach((it) => addToCart && addToCart(it)) } });
+    toast(t("Basket emptied."), { action: { label: t("Undo"), onClick: () => snapshot.forEach((it) => addToCart && addToCart(it)) } });
   };
 
   // Inline navigation lives in the header on the customer surface — one bar
@@ -113,7 +114,7 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
               <button key={it.k} onClick={() => setPage(it.k)}
                 className={`group flex items-center gap-1.5 h-9 px-2.5 rounded-xl text-[12.5px] font-semibold whitespace-nowrap transition shrink-0 ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-700 hover:bg-white/70 hover:text-navy-900"}`}>
                 {IconC && <IconC size={14} className={active ? "" : "text-slate-500 group-hover:text-teal-600 transition-colors"} />}
-                <span>{it.label}</span>
+                <span>{t(it.label)}</span>
               </button>
             );
           })}
@@ -125,14 +126,14 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
       <button
         onClick={() => setNavOpen(true)}
         className={`${persona === "customer" ? "md:hidden" : "md:pointer-events-none"} flex items-center gap-2 pl-1.5 pr-2 h-11 rounded-xl min-w-0 flex-1 hover:bg-white/60 md:hover:bg-transparent transition`}
-        aria-label="Open navigation">
+        aria-label={t("Open navigation")}>
         {CurrentIcon && <CurrentIcon size={17} className="text-slate-500 shrink-0" />}
         {/* Mobile shows the concise label (matches the highlighted bottom tab and
             avoids truncation behind the action cluster); desktop staff headings
             keep the full page name. */}
         <span className="font-display font-bold truncate text-[15px]">
-          <span className="md:hidden">{currentItem ? (currentItem.short || currentItem.label) : ""}</span>
-          <span className="hidden md:inline">{currentItem ? currentItem.label : ""}</span>
+          <span className="md:hidden">{currentItem ? t(currentItem.short || currentItem.label) : ""}</span>
+          <span className="hidden md:inline">{currentItem ? t(currentItem.label) : ""}</span>
         </span>
         <Icon.chevD size={15} className="text-slate-400 shrink-0 md:hidden" />
       </button>
@@ -142,7 +143,7 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
         {persona === "customer" && (
         <Popover.Root open={basketOpen} onOpenChange={setBasketOpen}>
           <Popover.Trigger asChild>
-            <button className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 data-[state=open]:bg-slate-100 data-[state=open]:text-navy-900 relative transition" aria-label="Basket" title="Basket">
+            <button className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 data-[state=open]:bg-slate-100 data-[state=open]:text-navy-900 relative transition" aria-label={t("Basket")} title={t("Basket")}>
               <Icon.card size={18} />
               {cartCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 grid place-items-center text-[10px] font-bold bg-teal-500 text-white rounded-full ring-2 ring-white">{cartCount}</span>
@@ -150,18 +151,18 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
             </button>
           </Popover.Trigger>
           <Popover.Portal>
-            <Popover.Content align="end" sideOffset={8} aria-label="Basket" className="glass-card-solid w-[320px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
+            <Popover.Content align="end" sideOffset={8} aria-label={t("Basket")} className="glass-card-solid w-[320px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
               <div className="flex items-center justify-between px-2 py-1.5">
                 <div className="font-semibold text-navy-900 text-sm flex items-center gap-2">
-                  <Icon.card size={14} /> Your basket
-                  {cartCount > 0 && <Badge tone="green">{cartCount} item{cartCount > 1 ? "s" : ""}</Badge>}
+                  <Icon.card size={14} /> {t("Your basket")}
+                  {cartCount > 0 && <Badge tone="green">{cartCount} {cartCount === 1 ? t("item") : t("items")}</Badge>}
                 </div>
                 {cartCount > 0 && <span className="text-[12px] font-bold text-navy-900 tnum">€{cartTotal}</span>}
               </div>
               {cartCount === 0 ? (
                 <div className="px-2 pb-2">
-                  <EmptyState compact icon={Icon.card} title="Cart is empty" body="Plan a visit to add sunbeds, tickets, a locker or parking." className="rounded-xl bg-slate-50" />
-                  <Btn variant="teal" full size="sm" icon={Icon.sparkles} className="mt-2" onClick={() => { setBasketOpen(false); go("customer", "plan"); }}>Plan my visit</Btn>
+                  <EmptyState compact icon={Icon.card} title={t("Cart is empty")} body={t("Plan a visit to add sunbeds, tickets, a locker or parking.")} className="rounded-xl bg-slate-50" />
+                  <Btn variant="teal" full size="sm" icon={Icon.sparkles} className="mt-2" onClick={() => { setBasketOpen(false); go("customer", "plan"); }}>{t("Plan my visit")}</Btn>
                 </div>
               ) : (
                 <>
@@ -170,23 +171,23 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
                       <div key={it.kind + it.id} className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-slate-100 transition">
                         <span className="w-8 h-8 rounded-lg bg-slate-100 grid place-items-center text-slate-600 shrink-0">{cartGlyph(it.kind)}</span>
                         <span className="min-w-0 flex-1">
-                          <span className="block font-semibold text-[13px] text-navy-900 truncate">{it.label}</span>
-                          <span className="block text-[11px] text-slate-500 truncate">{it.sub}</span>
+                          <span className="block font-semibold text-[13px] text-navy-900 truncate">{t(it.label)}</span>
+                          <span className="block text-[11px] text-slate-500 truncate">{t(it.sub)}</span>
                         </span>
                         <span className="text-[12px] font-semibold text-navy-900 tnum shrink-0">€{it.price}</span>
-                        <button aria-label={`Remove ${it.label}`} onClick={() => removeBasketItem(it)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 shrink-0"><Icon.trash size={13} /></button>
+                        <button aria-label={`${t("Remove")} ${t(it.label)}`} onClick={() => removeBasketItem(it)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 shrink-0"><Icon.trash size={13} /></button>
                       </div>
                     ))}
                   </div>
                   <div className="px-2 pt-2 mt-1 border-t border-slate-200/70 space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600">Subtotal</span>
+                      <span className="text-slate-600">{t("Subtotal")}</span>
                       <span className="font-bold text-navy-900 tnum">€{cartTotal}</span>
                     </div>
-                    <Btn variant="teal" full size="sm" icon={Icon.card} onClick={() => { setBasketOpen(false); go("customer", "checkout"); }}>Checkout</Btn>
+                    <Btn variant="teal" full size="sm" icon={Icon.card} onClick={() => { setBasketOpen(false); go("customer", "checkout"); }}>{t("Checkout")}</Btn>
                     <div className="flex items-center justify-between gap-2">
-                      <button onClick={emptyBasket} className="text-[11px] text-slate-500 hover:text-rose-600 py-1 inline-flex items-center gap-1"><Icon.trash size={12} /> Empty basket</button>
-                      <button onClick={() => { setBasketOpen(false); go("customer", "plan"); }} className="text-[11px] text-slate-500 hover:text-navy-900 py-1">Continue planning</button>
+                      <button onClick={emptyBasket} className="text-[11px] text-slate-500 hover:text-rose-600 py-1 inline-flex items-center gap-1"><Icon.trash size={12} /> {t("Empty basket")}</button>
+                      <button onClick={() => { setBasketOpen(false); go("customer", "plan"); }} className="text-[11px] text-slate-500 hover:text-navy-900 py-1">{t("Continue planning")}</button>
                     </div>
                   </div>
                 </>
@@ -200,22 +201,22 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
             labelled field; on the customer surface it's a compact icon so it
             doesn't crowd the basket + persona cluster. */}
         {persona === "customer" ? (
-          <button onClick={() => window.dispatchEvent(new Event("slaice:cmdk"))} aria-label="Search (⌘K)" title="Search ⌘K"
+          <button onClick={() => window.dispatchEvent(new Event("slaice:cmdk"))} aria-label={t("Search (⌘K)")} title={t("Search ⌘K")}
             className="text-slate-500 hover:text-navy-900 w-10 h-10 hidden sm:grid place-items-center rounded-xl hover:bg-slate-100 transition">
             <Icon.search size={18} />
           </button>
         ) : (
-          <button onClick={() => window.dispatchEvent(new Event("slaice:cmdk"))} aria-label="Search (⌘K)"
+          <button onClick={() => window.dispatchEvent(new Event("slaice:cmdk"))} aria-label={t("Search (⌘K)")}
             className="hidden sm:flex items-center gap-2 h-10 pl-2.5 pr-2 rounded-xl bg-slate-100/80 hover:bg-slate-200/80 text-slate-500 hover:text-navy-900 transition">
             <Icon.search size={15} />
-            <span className="text-[12.5px] font-medium">Search…</span>
+            <span className="text-[12.5px] font-medium">{t("Search…")}</span>
             <kbd className="text-[10px] font-semibold text-slate-400 bg-white ring-1 ring-slate-200 rounded px-1 py-0.5">⌘K</kbd>
           </button>
         )}
 
         <Popover.Root open={notifOpen} onOpenChange={setNotifOpen}>
           <Popover.Trigger asChild>
-            <button className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 data-[state=open]:bg-slate-100 data-[state=open]:text-navy-900 relative transition" aria-label="Notifications">
+            <button className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 data-[state=open]:bg-slate-100 data-[state=open]:text-navy-900 relative transition" aria-label={t("Notifications")}>
               <Icon.bell size={18} />
               {unread > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 grid place-items-center text-[10px] font-bold bg-gold-500 text-white rounded-full ring-2 ring-white">{unread}</span>
@@ -223,13 +224,13 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
             </button>
           </Popover.Trigger>
           <Popover.Portal>
-            <Popover.Content align="end" sideOffset={8} aria-label="Notifications" className="glass-card-solid w-[340px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
+            <Popover.Content align="end" sideOffset={8} aria-label={t("Notifications")} className="glass-card-solid w-[340px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
               <div className="flex items-center justify-between px-2 py-1.5">
                 <div className="font-semibold text-navy-900 text-sm flex items-center gap-2">
-                  <Icon.bell size={14} /> Notifications
-                  {unread > 0 && <Badge tone="amber">{unread} new</Badge>}
+                  <Icon.bell size={14} /> {t("Notifications")}
+                  {unread > 0 && <Badge tone="amber">{unread} {t("new")}</Badge>}
                 </div>
-                <button onClick={markAll} className="text-[11px] font-semibold text-teal-700 hover:text-teal-800 disabled:text-slate-300" disabled={unread === 0}>Mark all read</button>
+                <button onClick={markAll} className="text-[11px] font-semibold text-teal-700 hover:text-teal-800 disabled:text-slate-300" disabled={unread === 0}>{t("Mark all read")}</button>
               </div>
               <div className="max-h-[420px] overflow-y-auto space-y-1 pr-0.5">
                 {feed.map((n) => {
@@ -250,8 +251,8 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
                 })}
               </div>
               <div className="px-2 py-1.5 border-t border-slate-200/70 mt-1 text-[11px] text-slate-500 flex items-center justify-between">
-                <span>Showing {feed.length} for {cur.label}</span>
-                <button onClick={() => { setNotifOpen(false); setNotifSettingsOpen(true); }} className="hover:text-navy-900 inline-flex items-center gap-1"><Icon.cog size={12} /> Settings</button>
+                <span>{t("Showing")} {feed.length} {t("for")} {t(cur.label)}</span>
+                <button onClick={() => { setNotifOpen(false); setNotifSettingsOpen(true); }} className="hover:text-navy-900 inline-flex items-center gap-1"><Icon.cog size={12} /> {t("Settings")}</button>
               </div>
             </Popover.Content>
           </Popover.Portal>
@@ -260,7 +261,7 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
         {/* avatar menu */}
         <DropdownMenu.Root modal={false}>
           <DropdownMenu.Trigger asChild>
-            <button aria-label="Account menu" className="flex items-center gap-1.5 bg-slate-100/80 hover:bg-slate-200/80 data-[state=open]:bg-slate-200/80 rounded-xl pl-1 pr-1.5 py-1 transition">
+            <button aria-label={t("Account menu")} className="flex items-center gap-1.5 bg-slate-100/80 hover:bg-slate-200/80 data-[state=open]:bg-slate-200/80 rounded-xl pl-1 pr-1.5 py-1 transition">
               <span className="w-7 h-7 rounded-lg grid place-items-center text-white text-xs font-bold" style={{ background: "linear-gradient(135deg,#f59e0b,#ef4444)" }}>EM</span>
               <Icon.chevD size={14} className="text-slate-500" />
             </button>
@@ -271,21 +272,21 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
                 <div className="font-semibold text-sm text-navy-900">Elena M.</div>
                 <div className="text-[12px] text-slate-500">elena@example.com</div>
               </div>
-              <DropdownMenu.Item onSelect={() => go("customer", "mybookings")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.grid size={15} /> My bookings</DropdownMenu.Item>
-              <DropdownMenu.Item onSelect={() => go("customer", "mydocs")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.receipt size={15} /> My documents</DropdownMenu.Item>
-              <DropdownMenu.Item onSelect={() => setSettingsOpen(true)} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.cog size={15} /> Account settings</DropdownMenu.Item>
-              <DropdownMenu.Label className="px-3 pt-2 pb-1 mt-1 border-t border-slate-100 text-[10px] uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-1.5"><Icon.globe size={11} /> Language</DropdownMenu.Label>
+              <DropdownMenu.Item onSelect={() => go("customer", "mybookings")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.grid size={15} /> {t("My bookings")}</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => go("customer", "mydocs")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.receipt size={15} /> {t("My documents")}</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => setSettingsOpen(true)} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.cog size={15} /> {t("Account settings")}</DropdownMenu.Item>
+              <DropdownMenu.Label className="px-3 pt-2 pb-1 mt-1 border-t border-slate-100 text-[10px] uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-1.5"><Icon.globe size={11} /> {t("Language")}</DropdownMenu.Label>
               <DropdownMenu.RadioGroup value={lang} onValueChange={(v) => setLang(v as LangCode)} className="px-1.5 pb-1 grid grid-cols-2 gap-1">
-                {LANGS.map((l) => (
+                {LANGUAGES.map((l) => (
                   <DropdownMenu.RadioItem key={l.code} value={l.code} onSelect={(e) => e.preventDefault()}
                     className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-[12px] cursor-pointer select-none outline-none ${lang === l.code ? "bg-slate-100 font-semibold text-navy-900" : "text-slate-700 hover:bg-slate-100 data-[highlighted]:bg-slate-100"}`}>
-                    <span><span className="font-semibold mr-1.5">{l.code}</span><span className="text-slate-500">{l.label}</span></span>
+                    <span><span className="font-semibold mr-1.5 uppercase">{l.code}</span><span className="text-slate-500">{l.native}</span></span>
                     {lang === l.code && <Icon.check size={12} className="text-teal-600" />}
                   </DropdownMenu.RadioItem>
                 ))}
               </DropdownMenu.RadioGroup>
               <div className="border-t border-slate-100 mt-1 pt-1">
-                <DropdownMenu.Item onSelect={() => { setSignedIn(false); toast("Signed out (demo)."); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-rose-600 cursor-pointer select-none outline-none hover:bg-rose-50 data-[highlighted]:bg-rose-50"><Icon.arrowL size={15} /> Sign out</DropdownMenu.Item>
+                <DropdownMenu.Item onSelect={() => { setSignedIn(false); toast(t("Signed out (demo).")); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-rose-600 cursor-pointer select-none outline-none hover:bg-rose-50 data-[highlighted]:bg-rose-50"><Icon.arrowL size={15} /> {t("Sign out")}</DropdownMenu.Item>
               </div>
             </DropdownMenu.Content>
           </DropdownMenu.Portal>
@@ -298,33 +299,33 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
           <DropdownMenu.Trigger asChild>
             {persona === "customer" ? (
               <button
-                title="Demo — view as another persona" aria-label="Switch persona (demo)"
+                title={t("Demo — view as another persona")} aria-label={t("Switch persona (demo)")}
                 className="flex items-center gap-1.5 bg-slate-100/80 hover:bg-slate-200/80 data-[state=open]:bg-slate-200/80 rounded-xl px-2.5 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500 hover:text-navy-900 data-[state=open]:text-navy-900 transition">
                 <Icon.layers size={13} />
-                <span className="hidden md:inline">Demo</span>
+                <span className="hidden md:inline">{t("Demo")}</span>
                 <Icon.chevD size={12} />
               </button>
             ) : (
               <button
-                aria-label={`Switch persona — currently ${cur.label}`}
+                aria-label={`${t("Switch persona — currently")} ${t(cur.label)}`}
                 style={{ background: cur.color + "14", borderColor: cur.color + "55" }}
                 className="flex items-center gap-2 ring-1 rounded-xl pl-1.5 pr-3 py-1.5 text-sm font-semibold hover:brightness-[.98] transition">
                 <span className="w-6 h-6 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: cur.color }}>{(() => { const I = Icon[cur.icon]; return I ? <I size={13} /> : null; })()}</span>
-                <span className="hidden md:inline text-navy-900">{cur.label}</span>
+                <span className="hidden md:inline text-navy-900">{t(cur.label)}</span>
                 <Icon.chevD size={14} className="text-slate-400" />
               </button>
             )}
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content align="end" sideOffset={8} className="glass-card-solid w-72 text-ink rounded-xl p-1.5 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
-              <DropdownMenu.Label className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">View as persona</DropdownMenu.Label>
+              <DropdownMenu.Label className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{t("View as persona")}</DropdownMenu.Label>
               {PERSONAS.map((p) => (
                 <DropdownMenu.Item key={p.id} onSelect={() => setPersona(p.id)}
                   className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none ${persona === p.id ? "bg-slate-100" : ""} hover:bg-slate-100 data-[highlighted]:bg-slate-100`}>
                   <span className="w-7 h-7 rounded-lg grid place-items-center text-white shrink-0 mt-0.5" style={{ background: p.color }}>{(() => { const I = Icon[p.icon]; return I ? <I size={14} /> : null; })()}</span>
                   <span className="text-left">
-                    <span className="font-semibold flex items-center gap-1.5">{p.label}{persona === p.id && <Icon.check size={14} />}</span>
-                    <span className="block text-[11px] text-slate-500 leading-tight">{p.blurb}</span>
+                    <span className="font-semibold flex items-center gap-1.5">{t(p.label)}{persona === p.id && <Icon.check size={14} />}</span>
+                    <span className="block text-[11px] text-slate-500 leading-tight">{t(p.blurb)}</span>
                   </span>
                 </DropdownMenu.Item>
               ))}
@@ -352,28 +353,29 @@ function toneBg(tone: string) {
 /* ---------- Account Settings (modal) ---------- */
 function NotificationSettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast } = useApp();
+  const t = useT();
   const [chan, setChan] = useState({ push: true, email: true, sms: false });
   const [cats, setCats] = useState({ bookings: true, weather: true, offers: true, receipts: true });
-  const done = () => { onClose(); toast("Notification preferences saved.", { tone: "success" }); };
+  const done = () => { onClose(); toast(t("Notification preferences saved."), { tone: "success" }); };
   return (
-    <Modal open={open} onClose={onClose} title="Notification settings"
-      footer={<Btn variant="primary" icon={Icon.check} onClick={done}>Done</Btn>}>
+    <Modal open={open} onClose={onClose} title={t("Notification settings")}
+      footer={<Btn variant="primary" icon={Icon.check} onClick={done}>{t("Done")}</Btn>}>
       <div className="space-y-5">
         <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Channels</div>
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">{t("Channels")}</div>
           <div className="space-y-2">
-            <PrefRow label="Push" sub="In-app and device alerts." on={chan.push} set={(v) => setChan((c) => ({ ...c, push: v }))} />
-            <PrefRow label="E-mail" sub="A copy to elena@example.com." on={chan.email} set={(v) => setChan((c) => ({ ...c, email: v }))} />
-            <PrefRow label="SMS" sub="Critical alerts only." on={chan.sms} set={(v) => setChan((c) => ({ ...c, sms: v }))} />
+            <PrefRow label={t("Push")} sub={t("In-app and device alerts.")} on={chan.push} set={(v) => setChan((c) => ({ ...c, push: v }))} />
+            <PrefRow label={t("E-mail")} sub={t("A copy to elena@example.com.")} on={chan.email} set={(v) => setChan((c) => ({ ...c, email: v }))} />
+            <PrefRow label={t("SMS")} sub={t("Critical alerts only.")} on={chan.sms} set={(v) => setChan((c) => ({ ...c, sms: v }))} />
           </div>
         </section>
         <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">What to notify me about</div>
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">{t("What to notify me about")}</div>
           <div className="space-y-2">
-            <PrefRow label="Booking updates" sub="Confirmations, gate scans, refunds." on={cats.bookings} set={(v) => setCats((c) => ({ ...c, bookings: v }))} />
-            <PrefRow label="Weather alerts" sub="Wind or conditions affecting your visit." on={cats.weather} set={(v) => setCats((c) => ({ ...c, weather: v }))} />
-            <PrefRow label="Offers &amp; promotions" sub="Weekend deals and seasonal perks." on={cats.offers} set={(v) => setCats((c) => ({ ...c, offers: v }))} />
-            <PrefRow label="Receipts &amp; documents" sub="myDATA receipts and invoices." on={cats.receipts} set={(v) => setCats((c) => ({ ...c, receipts: v }))} />
+            <PrefRow label={t("Booking updates")} sub={t("Confirmations, gate scans, refunds.")} on={cats.bookings} set={(v) => setCats((c) => ({ ...c, bookings: v }))} />
+            <PrefRow label={t("Weather alerts")} sub={t("Wind or conditions affecting your visit.")} on={cats.weather} set={(v) => setCats((c) => ({ ...c, weather: v }))} />
+            <PrefRow label={t("Offers & promotions")} sub={t("Weekend deals and seasonal perks.")} on={cats.offers} set={(v) => setCats((c) => ({ ...c, offers: v }))} />
+            <PrefRow label={t("Receipts & documents")} sub={t("myDATA receipts and invoices.")} on={cats.receipts} set={(v) => setCats((c) => ({ ...c, receipts: v }))} />
           </div>
         </section>
       </div>
@@ -383,6 +385,7 @@ function NotificationSettingsModal({ open, onClose }: { open: boolean; onClose: 
 
 function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast, lang, setLang } = useApp();
+  const t = useT();
   const [name, setName] = useState("Elena Manoli");
   const [email, setEmail] = useState("elena@example.com");
   const [phone, setPhone] = useState("+30 694 000 0000");
@@ -394,74 +397,74 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
   const [privacy, setPrivacy] = useState(false);
   const [changePw, setChangePw] = useState(false);
   const [twoFA, setTwoFA] = useState(false);
-  const save = () => { onClose(); toast("Account settings saved.", { tone: "success" }); };
+  const save = () => { onClose(); toast(t("Account settings saved."), { tone: "success" }); };
   const removeCard = (card: { brand: string; last4: string; exp: string }) => {
     setCards((cs) => cs.filter((c) => c.last4 !== card.last4));
-    toast(`Removed card ending ${card.last4}.`, { action: { label: "Undo", onClick: () => setCards((cs) => (cs.find((c) => c.last4 === card.last4) ? cs : [...cs, card])) } });
+    toast(`${t("Removed card ending")} ${card.last4}.`, { action: { label: t("Undo"), onClick: () => setCards((cs) => (cs.find((c) => c.last4 === card.last4) ? cs : [...cs, card])) } });
   };
   return (
-    <Modal open={open} onClose={onClose} title="Account settings" wide
-      footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn><Btn variant="primary" icon={Icon.check} onClick={save}>Save changes</Btn></>}>
+    <Modal open={open} onClose={onClose} title={t("Account settings")} wide
+      footer={<><Btn variant="ghost" onClick={onClose}>{t("Cancel")}</Btn><Btn variant="primary" icon={Icon.check} onClick={save}>{t("Save changes")}</Btn></>}>
       <div className="space-y-5">
         <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Profile</div>
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">{t("Profile")}</div>
           <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="Full name"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
-            <Field label="E-mail"><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
-            <Field label="Phone"><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
-            <Field label="Language">
-              <Select value={lang} onChange={(e) => setLang(e.target.value as LangCode)} options={LANGS.map((l) => ({ v: l.code, l: `${l.code} — ${l.label}` }))} />
+            <Field label={t("Full name")}><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
+            <Field label={t("E-mail")}><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
+            <Field label={t("Phone")}><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
+            <Field label={t("Language")}>
+              <Select value={lang} onChange={(e) => setLang(e.target.value as LangCode)} options={LANGUAGES.map((l) => ({ v: l.code, l: `${l.code.toUpperCase()} — ${l.native}` }))} />
             </Field>
           </div>
         </section>
 
         <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Notifications</div>
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">{t("Notifications")}</div>
           <div className="space-y-2">
-            <PrefRow label="Push notifications" sub="Booking updates, gate scans, refunds." on={prefs.push} set={(v) => setPrefs((p) => ({ ...p, push: v }))} />
-            <PrefRow label="E-mail" sub="Receipts, invoices, weekly summaries." on={prefs.email} set={(v) => setPrefs((p) => ({ ...p, email: v }))} />
-            <PrefRow label="SMS" sub="Critical alerts only." on={prefs.sms} set={(v) => setPrefs((p) => ({ ...p, sms: v }))} />
-            <PrefRow label="Marketing offers" sub="Weekend deals & seasonal promotions." on={prefs.offers} set={(v) => setPrefs((p) => ({ ...p, offers: v }))} />
+            <PrefRow label={t("Push notifications")} sub={t("Booking updates, gate scans, refunds.")} on={prefs.push} set={(v) => setPrefs((p) => ({ ...p, push: v }))} />
+            <PrefRow label={t("E-mail")} sub={t("Receipts, invoices, weekly summaries.")} on={prefs.email} set={(v) => setPrefs((p) => ({ ...p, email: v }))} />
+            <PrefRow label={t("SMS")} sub={t("Critical alerts only.")} on={prefs.sms} set={(v) => setPrefs((p) => ({ ...p, sms: v }))} />
+            <PrefRow label={t("Marketing offers")} sub={t("Weekend deals & seasonal promotions.")} on={prefs.offers} set={(v) => setPrefs((p) => ({ ...p, offers: v }))} />
           </div>
         </section>
 
         <section>
           <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center justify-between">
-            <span>Saved payment methods</span>
-            <button onClick={() => toast("Demo — Stripe SetupIntent flow.")} className="text-teal-700 text-[12px] font-semibold normal-case tracking-normal inline-flex items-center gap-1"><Icon.plus size={12} /> Add card</button>
+            <span>{t("Saved payment methods")}</span>
+            <button onClick={() => toast(t("Demo — Stripe SetupIntent flow."))} className="text-teal-700 text-[12px] font-semibold normal-case tracking-normal inline-flex items-center gap-1"><Icon.plus size={12} /> {t("Add card")}</button>
           </div>
           <div className="space-y-2">
             {cards.length === 0 ? (
-              <div className="text-[13px] text-slate-500 rounded-xl bg-slate-50 px-3 py-4 text-center">No saved cards. Add one for faster checkout.</div>
+              <div className="text-[13px] text-slate-500 rounded-xl bg-slate-50 px-3 py-4 text-center">{t("No saved cards. Add one for faster checkout.")}</div>
             ) : cards.map((c) => (
               <div key={c.last4} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
                 <div className="flex items-center gap-3">
                   <span className="w-9 h-7 rounded-md bg-gradient-to-br from-navy-800 to-navy-950 text-white text-[10px] font-bold grid place-items-center">{c.brand.slice(0, 4).toUpperCase()}</span>
-                  <div><div className="font-semibold text-sm text-navy-900">•••• {c.last4}</div><div className="text-[11px] text-slate-500">Exp {c.exp}</div></div>
+                  <div><div className="font-semibold text-sm text-navy-900">•••• {c.last4}</div><div className="text-[11px] text-slate-500">{t("Exp")} {c.exp}</div></div>
                 </div>
-                <button aria-label={`Remove card ending ${c.last4}`} onClick={() => removeCard(c)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={15} /></button>
+                <button aria-label={`${t("Remove card ending")} ${c.last4}`} onClick={() => removeCard(c)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={15} /></button>
               </div>
             ))}
           </div>
         </section>
 
         <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Privacy &amp; data</div>
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">{t("Privacy & data")}</div>
           <button onClick={() => setPrivacy(true)} className="w-full text-left flex items-center gap-3 rounded-2xl ring-1 ring-slate-200 bg-white/70 px-3.5 py-3 hover:ring-teal-400 hover:bg-slate-50 transition group">
             <span className="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 grid place-items-center shrink-0"><Icon.shieldCheck size={20} /></span>
             <div className="flex-1 min-w-0">
-              <div className="font-semibold text-sm text-navy-900">Privacy Centre</div>
-              <div className="text-[12px] text-slate-600 leading-snug">Export your data, manage consents, see who processes it, or delete your account.</div>
+              <div className="font-semibold text-sm text-navy-900">{t("Privacy Centre")}</div>
+              <div className="text-[12px] text-slate-600 leading-snug">{t("Export your data, manage consents, see who processes it, or delete your account.")}</div>
             </div>
             <Icon.chevR size={18} className="text-slate-300 group-hover:text-teal-600 group-hover:translate-x-0.5 transition" />
           </button>
         </section>
 
         <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">Security</div>
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">{t("Security")}</div>
           <div className="flex gap-2 flex-wrap">
-            <Btn variant="outline" size="sm" icon={Icon.lock} onClick={() => setChangePw(true)}>Change password</Btn>
-            <Btn variant="outline" size="sm" icon={Icon.phone} onClick={() => setTwoFA(true)}>Enable 2FA</Btn>
+            <Btn variant="outline" size="sm" icon={Icon.lock} onClick={() => setChangePw(true)}>{t("Change password")}</Btn>
+            <Btn variant="outline" size="sm" icon={Icon.phone} onClick={() => setTwoFA(true)}>{t("Enable 2FA")}</Btn>
           </div>
         </section>
       </div>

@@ -5,7 +5,7 @@ import { Card, Btn, Badge, Stepper, Input, Field, DatePickerRow, SwipeRow } from
 import { Reveal, prefersReducedMotion } from "../lib/motion";
 import { Sunbed } from "../components/Beach";
 import { ZONES, todayISO, chipLabel, makeGrid } from "../data/beach";
-import { useApp, useSpotlight } from "../app/store";
+import { useApp, useSpotlight, useT } from "../app/store";
 import { TICKET_PRICES, TICKET_META, LOCKER_PRICE, PARKING_PRICE } from "../domain/pricing";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import type { IconRenderer } from "../lib/icons";
@@ -61,6 +61,7 @@ function useAnimatedNumber(value: number, duration = 480) {
 }
 
 export function CustomerWizard() {
+  const tr = useT();
   const { go, toast, addToCart, cart, clearCart, hint } = useApp();
   useSpotlight("customer", "plan");
 
@@ -132,23 +133,23 @@ export function CustomerWizard() {
   const removeBeach = () => {
     const snap = { bedSel, sets, setsTouched };
     setIncludeBeach(false);
-    toast("Removed sunbeds.", { action: { label: "Undo", onClick: () => { setIncludeBeach(true); setBedSel(snap.bedSel); setSets(snap.sets); setSetsTouched(snap.setsTouched); } } });
+    toast(tr("Removed sunbeds."), { action: { label: tr("Undo"), onClick: () => { setIncludeBeach(true); setBedSel(snap.bedSel); setSets(snap.sets); setSetsTouched(snap.setsTouched); } } });
   };
   const removeTicketCat = (k: string) => {
     const prev = people[k];
     setSetsTouched(true); // removing tickets shouldn't shrink the sunbed count
     setPeople((p) => ({ ...p, [k]: 0 }));
-    toast(`Removed ${TICKET[k].label} tickets.`, { action: { label: "Undo", onClick: () => setPeople((p) => ({ ...p, [k]: prev })) } });
+    toast(`${tr("Removed")} ${tr(TICKET[k].label)} ${tr("tickets")}.`, { action: { label: tr("Undo"), onClick: () => setPeople((p) => ({ ...p, [k]: prev })) } });
   };
   const removeLocker = () => {
     const snap = lockerQty;
     setLockerOn(false);
-    toast("Removed day locker.", { action: { label: "Undo", onClick: () => { setLockerOn(true); setLockerQty(snap); } } });
+    toast(tr("Removed day locker."), { action: { label: tr("Undo"), onClick: () => { setLockerOn(true); setLockerQty(snap); } } });
   };
   const removeParking = () => {
     const snap = plate;
     setParkingOn(false);
-    toast("Removed parking.", { action: { label: "Undo", onClick: () => { setParkingOn(true); setPlate(snap); } } });
+    toast(tr("Removed parking."), { action: { label: tr("Undo"), onClick: () => { setParkingOn(true); setPlate(snap); } } });
   };
   const emptyBasket = () => {
     const snap = { people, includeBeach, includeTickets, bedSel, sets, setsTouched, lockerOn, lockerQty, parkingOn, plate, cart: [...cart] };
@@ -160,7 +161,7 @@ export function CustomerWizard() {
     setSetsTouched(true);
     setPeople({ adult: 0, resident: 0, child: 0, senior: 0 });
     clearCart();
-    toast("Basket emptied.", { action: { label: "Undo", onClick: () => {
+    toast(tr("Basket emptied."), { action: { label: tr("Undo"), onClick: () => {
       setPeople(snap.people); setIncludeBeach(snap.includeBeach); setIncludeTickets(snap.includeTickets);
       setBedSel(snap.bedSel); setSets(snap.sets); setSetsTouched(snap.setsTouched);
       setLockerOn(snap.lockerOn); setLockerQty(snap.lockerQty); setParkingOn(snap.parkingOn); setPlate(snap.plate);
@@ -174,9 +175,9 @@ export function CustomerWizard() {
     lines.push({
       key: "beach",
       icon: Icon.umbrella,
-      label: `${zone.name} · ${effectiveSets} ${bedSel.length > 0 ? "bed" : "set"}${effectiveSets !== 1 ? "s" : ""}`,
+      label: `${zone.name} · ${effectiveSets} ${bedSel.length > 0 ? tr("bed") : tr("set")}${effectiveSets !== 1 ? "s" : ""}`,
       sub: bedSel.length > 0
-        ? `Picked: ${bedSel.map((b) => b.id).join(", ")} × ${dayCount}d`
+        ? `${tr("Picked")}: ${bedSel.map((b) => b.id).join(", ")} × ${dayCount}d`
         : `€${zone.from} × ${sets} × ${dayCount}d`,
       amount: setSubtotal,
       onRemove: removeBeach,
@@ -186,14 +187,14 @@ export function CustomerWizard() {
     ticketBreak.filter((t) => t.n > 0).forEach((t) => lines.push({
       key: `ticket-${t.k}`,
       icon: Icon.ticket,
-      label: `${t.t.label} × ${t.n}`,
+      label: `${tr(t.t.label)} × ${t.n}`,
       sub: `€${t.t.price} × ${t.n} × ${dayCount}d`,
       amount: t.total,
       onRemove: () => removeTicketCat(t.k),
     }));
   }
-  if (lockerOn) lines.push({ key: "locker", icon: Icon.lock, label: `Day locker × ${lockerQty}`, sub: `€${LOCKER_PRICE} × ${lockerQty} × ${dayCount}d`, amount: lockerSubtotal, onRemove: removeLocker });
-  if (parkingOn) lines.push({ key: "parking", icon: Icon.car, label: "Parking spot", sub: `€${PARKING_PRICE} × ${dayCount}d`, amount: parkingSubtotal, onRemove: removeParking });
+  if (lockerOn) lines.push({ key: "locker", icon: Icon.lock, label: `${tr("Day locker")} × ${lockerQty}`, sub: `€${LOCKER_PRICE} × ${lockerQty} × ${dayCount}d`, amount: lockerSubtotal, onRemove: removeLocker });
+  if (parkingOn) lines.push({ key: "parking", icon: Icon.car, label: tr("Parking spot"), sub: `€${PARKING_PRICE} × ${dayCount}d`, amount: parkingSubtotal, onRemove: removeParking });
 
   const confirm = () => {
     let added = 0;
@@ -204,13 +205,13 @@ export function CustomerWizard() {
       if (includeBeach) {
         if (bedSel.length > 0) {
           bedSel.forEach((b) => {
-            addToCart({ kind: "sunbed", id: `${b.id}@${iso}`, label: `Sunbed ${b.id}`, sub: `${zone.name} · ${sub}`, price: b.price });
+            addToCart({ kind: "sunbed", id: `${b.id}@${iso}`, label: `${tr("Sunbed")} ${b.id}`, sub: `${zone.name} · ${sub}`, price: b.price });
             added++;
           });
         } else {
           for (let i = 0; i < sets; i++) {
             const id = `${zone.prefix}-${String((i + 1) * 7).padStart(2, "0")}@${iso}`;
-            addToCart({ kind: "sunbed", id, label: `Sunbed set ${i + 1}`, sub: `${zone.name} · ${sub}`, price: zone.from });
+            addToCart({ kind: "sunbed", id, label: `${tr("Sunbed set")} ${i + 1}`, sub: `${zone.name} · ${sub}`, price: zone.from });
             added++;
           }
         }
@@ -218,23 +219,23 @@ export function CustomerWizard() {
       if (includeTickets) {
         ticketBreak.forEach(({ k, n, t }) => {
           if (n > 0) {
-            addToCart({ kind: "ticket", id: `${k}@${iso}`, label: `${t.label} × ${n}`, sub: `Entry ticket · ${sub}`, price: n * t.price });
+            addToCart({ kind: "ticket", id: `${k}@${iso}`, label: `${tr(t.label)} × ${n}`, sub: `${tr("Entry ticket")} · ${sub}`, price: n * t.price });
             added++;
           }
         });
       }
       if (lockerOn) {
         for (let i = 0; i < lockerQty; i++) {
-          addToCart({ kind: "locker", id: `LK${i + 1}@${iso}`, label: `Day locker ${i + 1}`, sub, price: LOCKER_PRICE });
+          addToCart({ kind: "locker", id: `LK${i + 1}@${iso}`, label: `${tr("Day locker")} ${i + 1}`, sub, price: LOCKER_PRICE });
           added++;
         }
       }
       if (parkingOn) {
-        addToCart({ kind: "parking", id: `P@${iso}`, label: "Parking spot", sub: `${plate || "—"} · ${sub}`, price: PARKING_PRICE });
+        addToCart({ kind: "parking", id: `P@${iso}`, label: tr("Parking spot"), sub: `${plate || "—"} · ${sub}`, price: PARKING_PRICE });
         added++;
       }
     });
-    toast(`Booking ready — ${added} item${added !== 1 ? "s" : ""} added to your basket.`, { tone: "success" });
+    toast(`${tr("Booking ready")} — ${added} ${added !== 1 ? tr("items") : tr("item")} ${tr("added to your basket.")}`, { tone: "success" });
     go("customer", "checkout");
   };
 
@@ -256,10 +257,10 @@ export function CustomerWizard() {
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <div className="font-display font-bold text-navy-900 text-xl sm:text-2xl">{step.label}</div>
-                  {step.optional && <Badge tone="slate">Optional</Badge>}
+                  <div className="font-display font-bold text-navy-900 text-xl sm:text-2xl">{tr(step.label)}</div>
+                  {step.optional && <Badge tone="slate">{tr("Optional")}</Badge>}
                 </div>
-                <div className="text-[13px] text-slate-600 mt-0.5">{step.sub}</div>
+                <div className="text-[13px] text-slate-600 mt-0.5">{tr(step.sub)}</div>
               </div>
               <div className="text-[12px] font-semibold text-slate-500 tnum shrink-0">{stepIdx + 1}/{STEPS.length}</div>
             </div>
@@ -311,17 +312,17 @@ export function CustomerWizard() {
             {/* Footer nav — moved inside the step card so each step's Back /
                 Continue sit on the same surface as its content. */}
             <div className="flex items-center justify-between gap-3 mt-6 pt-4 border-t border-slate-200/70">
-              <Btn variant="ghost" icon={Icon.arrowL} onClick={back} disabled={stepIdx === 0}>Back</Btn>
+              <Btn variant="ghost" icon={Icon.arrowL} onClick={back} disabled={stepIdx === 0}>{tr("Back")}</Btn>
               <div className="text-[12px] text-slate-500 hidden sm:block">
-                {stepIdx < STEPS.length - 1 && <button onClick={next} className="font-semibold hover:text-navy-900">Skip this step →</button>}
+                {stepIdx < STEPS.length - 1 && <button onClick={next} className="font-semibold hover:text-navy-900">{tr("Skip this step")} →</button>}
               </div>
               {stepIdx < STEPS.length - 1 ? (
                 <Btn variant="teal" onClick={next} disabled={!canNext}>
-                  Continue <Icon.arrowR size={15} />
+                  {tr("Continue")} <Icon.arrowR size={15} />
                 </Btn>
               ) : (
                 <Btn variant="dark" icon={Icon.card} onClick={confirm} disabled={grandTotal === 0}>
-                  Confirm & checkout · €{grandTotal}
+                  {tr("Confirm & checkout")} · €{grandTotal}
                 </Btn>
               )}
             </div>
@@ -340,7 +341,7 @@ export function CustomerWizard() {
             cartCount={cart.length}
             onEmpty={emptyBasket}
             onCta={stepIdx === STEPS.length - 1 ? confirm : next}
-            ctaLabel={stepIdx === STEPS.length - 1 ? "Confirm & checkout" : "Continue"}
+            ctaLabel={stepIdx === STEPS.length - 1 ? tr("Confirm & checkout") : tr("Continue")}
             ctaDisabled={!canNext}
             confirmReady={stepIdx === STEPS.length - 1}
             stepIdx={stepIdx}
@@ -366,9 +367,9 @@ export function CustomerWizard() {
           </span>
           <span className="text-left leading-tight min-w-0">
             <span className="block text-[13px] font-semibold truncate">
-              <LiveEuro value={grandTotal} /> · {lines.length} item{lines.length !== 1 ? "s" : ""}
+              <LiveEuro value={grandTotal} /> · {lines.length} {lines.length !== 1 ? tr("items") : tr("item")}
             </span>
-            <span className="block text-[11px] text-white/60">Tap to view your booking</span>
+            <span className="block text-[11px] text-white/60">{tr("Tap to view your booking")}</span>
           </span>
         </span>
         <Icon.chevD size={18} className="rotate-180 shrink-0" />
@@ -380,12 +381,12 @@ export function CustomerWizard() {
           to the (tall) wizard div and push the sheet off-screen. */}
       {sheetOpen && createPortal((
         <div className="lg:hidden fixed inset-0 z-40" role="dialog" aria-modal="true">
-          <button type="button" aria-label="Close" tabIndex={-1} className="absolute inset-0 bg-navy-950/40 backdrop-blur-sm animate-fade-in cursor-default" onClick={() => setSheetOpen(false)} />
+          <button type="button" aria-label={tr("Close")} tabIndex={-1} className="absolute inset-0 bg-navy-950/40 backdrop-blur-sm animate-fade-in cursor-default" onClick={() => setSheetOpen(false)} />
           <div className="absolute left-0 right-0 bottom-0 max-h-[88dvh] glass-card-solid rounded-t-2xl ring-1 ring-white/40 shadow-float flex flex-col overflow-hidden animate-slide-up pb-safe">
             <div className="flex items-center justify-between px-4 pt-3 pb-1 shrink-0">
               <span className="mx-auto w-10 h-1 rounded-full bg-slate-300 absolute left-1/2 -translate-x-1/2 top-2" />
-              <div className="font-display font-bold text-navy-900">Your booking</div>
-              <button aria-label="Close" onClick={() => setSheetOpen(false)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-500 hover:bg-white/50"><Icon.x size={18} /></button>
+              <div className="font-display font-bold text-navy-900">{tr("Your booking")}</div>
+              <button aria-label={tr("Close")} onClick={() => setSheetOpen(false)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-500 hover:bg-white/50"><Icon.x size={18} /></button>
             </div>
             <div className="overflow-y-auto p-4">
               <BasketPanel
@@ -397,7 +398,7 @@ export function CustomerWizard() {
                 cartCount={cart.length}
                 onEmpty={emptyBasket}
                 onCta={stepIdx === STEPS.length - 1 ? () => { setSheetOpen(false); confirm(); } : () => { setSheetOpen(false); next(); }}
-                ctaLabel={stepIdx === STEPS.length - 1 ? "Confirm & checkout" : "Continue"}
+                ctaLabel={stepIdx === STEPS.length - 1 ? tr("Confirm & checkout") : tr("Continue")}
                 ctaDisabled={!canNext}
                 confirmReady={stepIdx === STEPS.length - 1}
                 stepIdx={stepIdx}
@@ -414,6 +415,7 @@ export function CustomerWizard() {
 
 /* ============ Progress rail ============ */
 function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number) => void }) {
+  const tr = useT();
   return (
     <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
       {STEPS.map((s, i) => {
@@ -439,8 +441,8 @@ function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number
               }`}>
                 {done ? <Icon.check size={13} /> : I ? <I size={12} /> : i + 1}
               </span>
-              <span className="text-[12px] font-semibold whitespace-nowrap">{s.label}</span>
-              {s.optional && !active && <Badge tone="slate" className="hidden sm:inline-flex">Optional</Badge>}
+              <span className="text-[12px] font-semibold whitespace-nowrap">{tr(s.label)}</span>
+              {s.optional && !active && <Badge tone="slate" className="hidden sm:inline-flex">{tr("Optional")}</Badge>}
             </button>
             {i < STEPS.length - 1 && <Icon.chevR size={12} className="text-slate-300 shrink-0" />}
           </div>
@@ -459,18 +461,19 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, reco
   recommendedSets: number;
   onPreset: (v: People) => void;
 }) {
+  const tr = useT();
   const totalPeople = Object.values(people).reduce((a, b) => a + b, 0);
   const presets = [
-    { id: "solo",   label: "Solo",       sub: "1 person",     v: { adult: 1, resident: 0, child: 0, senior: 0 } },
-    { id: "couple", label: "Couple",     sub: "2 people",     v: { adult: 2, resident: 0, child: 0, senior: 0 } },
-    { id: "family", label: "Family · 4", sub: "2 adults + 2 kids", v: { adult: 2, resident: 0, child: 2, senior: 0 } },
-    { id: "group",  label: "Group · 6",  sub: "Friends day",  v: { adult: 6, resident: 0, child: 0, senior: 0 } },
+    { id: "solo",   label: tr("Solo"),       sub: tr("1 person"),     v: { adult: 1, resident: 0, child: 0, senior: 0 } },
+    { id: "couple", label: tr("Couple"),     sub: tr("2 people"),     v: { adult: 2, resident: 0, child: 0, senior: 0 } },
+    { id: "family", label: tr("Family · 4"), sub: tr("2 adults + 2 kids"), v: { adult: 2, resident: 0, child: 2, senior: 0 } },
+    { id: "group",  label: tr("Group · 6"),  sub: tr("Friends day"),  v: { adult: 6, resident: 0, child: 0, senior: 0 } },
   ];
   return (
     <div className="space-y-4">
       {/* Presets */}
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Quick picks</div>
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{tr("Quick picks")}</div>
         <div className="flex flex-wrap gap-1.5">
           {presets.map((p) => {
             const match = JSON.stringify(p.v) === JSON.stringify(people);
@@ -487,17 +490,17 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, reco
 
       {/* Category steppers */}
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Headcount by category</div>
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{tr("Headcount by category")}</div>
         <div className="space-y-1.5">
           {Object.keys(TICKET).map((k) => {
             const t = TICKET[k];
             return (
               <div key={k} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
                 <div className="min-w-0">
-                  <div className="font-semibold text-sm text-navy-900">{t.label}</div>
-                  <div className="text-[11px] text-slate-500">€{t.price} entry · {t.sub}</div>
+                  <div className="font-semibold text-sm text-navy-900">{tr(t.label)}</div>
+                  <div className="text-[11px] text-slate-500">€{t.price} {tr("entry")} · {tr(t.sub)}</div>
                 </div>
-                <Stepper label={t.label} value={people[k]} onChange={(v) => setPeople((p) => ({ ...p, [k]: v }))} />
+                <Stepper label={tr(t.label)} value={people[k]} onChange={(v) => setPeople((p) => ({ ...p, [k]: v }))} />
               </div>
             );
           })}
@@ -508,8 +511,8 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, reco
       <div className="rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2.5 flex items-start gap-2.5">
         <span className="w-8 h-8 rounded-lg bg-teal-600 text-white grid place-items-center shrink-0"><Icon.bolt size={15} /></span>
         <div className="text-[13px] text-teal-900 leading-snug">
-          For <b>{totalPeople} guest{totalPeople !== 1 ? "s" : ""}</b> we'll suggest <b>{recommendedSets} umbrella set{recommendedSets !== 1 ? "s" : ""}</b> on the next step.
-          Each set seats 2 (umbrella + 2 sunbeds).
+          {tr("For")} <b>{totalPeople} {totalPeople !== 1 ? tr("guests") : tr("guest")}</b> {tr("we'll suggest")} <b>{recommendedSets} {recommendedSets !== 1 ? tr("umbrella sets") : tr("umbrella set")}</b> {tr("on the next step.")}
+          {tr("Each set seats 2 (umbrella + 2 sunbeds).")}
         </div>
       </div>
 
@@ -521,8 +524,8 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, reco
         <span className="flex items-center gap-2.5 min-w-0 text-left">
           <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${includeTickets ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600"}`}><Icon.ticket size={17} /></span>
           <span className="min-w-0">
-            <span className="block text-[13px] font-semibold text-navy-900">Include entry tickets in this booking</span>
-            <span className="block text-[11px] text-slate-600">{includeTickets ? "We'll bundle one ticket per guest per day." : "Just sunbeds — guests will buy tickets separately."}</span>
+            <span className="block text-[13px] font-semibold text-navy-900">{tr("Include entry tickets in this booking")}</span>
+            <span className="block text-[11px] text-slate-600">{includeTickets ? tr("We'll bundle one ticket per guest per day.") : tr("Just sunbeds — guests will buy tickets separately.")}</span>
           </span>
         </span>
         <span className={`w-6 h-6 rounded-full grid place-items-center ${includeTickets ? "bg-teal-600 text-white" : "ring-1 ring-slate-300 text-slate-500"}`}>
@@ -535,14 +538,15 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, reco
 
 /* ============ Step 2 — Dates ============ */
 function DatesStep({ selDates, setSelDates }: { selDates: string[]; setSelDates: Dispatch<SetStateAction<string[]>> }) {
+  const tr = useT();
   return (
     <div className="space-y-3">
       <DatePickerRow value={selDates} onChange={setSelDates} />
       <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 flex items-center gap-2.5 text-[13px] text-slate-700">
         <Icon.calendar size={14} className="text-slate-500 shrink-0" />
         <span>
-          <b className="text-navy-900">{selDates.length} day{selDates.length !== 1 ? "s" : ""}</b> selected.
-          Same selection applies to sunbeds, tickets, locker and parking.
+          <b className="text-navy-900">{selDates.length} {selDates.length !== 1 ? tr("days") : tr("day")}</b> {tr("selected.")}
+          {tr("Same selection applies to sunbeds, tickets, locker and parking.")}
         </span>
       </div>
     </div>
@@ -566,6 +570,7 @@ function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, day
   // A compact, representative grid that fits in one view on a phone — no inner
   // scroll, fixed columns (8 on mobile / 12 on desktop), so nothing hides and
   // there's never any horizontal scrolling.
+  const tr = useT();
   const grid = useMemo(() => makeGrid(zone, 8, 6), [zone]);
   const toggleBed = (id: string, price: number) => {
     setBedSel((s) => s.find((b) => b.id === id) ? s.filter((b) => b.id !== id) : [...s, { id, price }]);
@@ -581,8 +586,8 @@ function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, day
         <span className="flex items-center gap-2.5 min-w-0 text-left">
           <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${includeBeach ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600"}`}><Icon.umbrella size={17} /></span>
           <span className="min-w-0">
-            <span className="block text-[13px] font-semibold text-navy-900">Add sunbeds to this booking</span>
-            <span className="block text-[11px] text-slate-600">{includeBeach ? "Choose a zone and your umbrella sets below." : "Skipped — continue to add only a locker or parking."}</span>
+            <span className="block text-[13px] font-semibold text-navy-900">{tr("Add sunbeds to this booking")}</span>
+            <span className="block text-[11px] text-slate-600">{includeBeach ? tr("Choose a zone and your umbrella sets below.") : tr("Skipped — continue to add only a locker or parking.")}</span>
           </span>
         </span>
         <span className={`w-6 h-6 rounded-full grid place-items-center ${includeBeach ? "bg-teal-600 text-white" : "ring-1 ring-slate-300 text-slate-500"}`}>
@@ -592,12 +597,12 @@ function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, day
 
       {!includeBeach ? (
         <div className="rounded-xl ring-1 ring-dashed ring-slate-300 bg-slate-50 px-3 py-5 text-center text-[13px] text-slate-500">
-          Sunbeds skipped. Toggle on to choose a zone, or continue to the next step.
+          {tr("Sunbeds skipped. Toggle on to choose a zone, or continue to the next step.")}
         </div>
       ) : (
         <>
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Pick a zone</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{tr("Pick a zone")}</div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {ZONES.map((z) => {
                 const active = z.id === zoneId;
@@ -611,10 +616,10 @@ function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, day
                     <span className="flex-1 min-w-0">
                       <span className="block text-[14px] font-semibold leading-tight">{z.name}</span>
                       <span className={`block text-[11px] tnum ${active ? "text-white/70" : "text-slate-500"}`}>
-                        {z.avail}/{z.total} free · {pct}% available
+                        {z.avail}/{z.total} {tr("free")} · {pct}% {tr("available")}
                       </span>
                     </span>
-                    <span className={`text-[12px] font-bold tnum shrink-0 ${active ? "text-white" : "text-navy-900"}`}>from €{z.from}</span>
+                    <span className={`text-[12px] font-bold tnum shrink-0 ${active ? "text-white" : "text-navy-900"}`}>{tr("from")} €{z.from}</span>
                     {active && <Icon.check size={14} className="shrink-0" />}
                   </button>
                 );
@@ -625,13 +630,13 @@ function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, day
           <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-3">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="min-w-0">
-                <div className="font-semibold text-sm text-navy-900">Umbrella sets in {zone.name}</div>
-                <div className="text-[11px] text-slate-500">€{zone.from} per set / day · suggested for your group: <b>{recommendedSets}</b></div>
+                <div className="font-semibold text-sm text-navy-900">{tr("Umbrella sets in")} {zone.name}</div>
+                <div className="text-[11px] text-slate-500">€{zone.from} {tr("per set / day · suggested for your group:")} <b>{recommendedSets}</b></div>
               </div>
-              <Stepper label="umbrella sets" value={sets} onChange={(v) => setSets(Math.max(1, v))} min={1} />
+              <Stepper label={tr("umbrella sets")} value={sets} onChange={(v) => setSets(Math.max(1, v))} min={1} />
             </div>
             <div className="mt-2.5 flex items-center justify-between text-[12px] text-slate-600">
-              <span>{sets} set{sets !== 1 ? "s" : ""} × {dayCount} day{dayCount !== 1 ? "s" : ""}</span>
+              <span>{sets} {sets !== 1 ? tr("sets") : tr("set")} × {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}</span>
               <span className="font-semibold text-navy-900 tnum">€{sets * zone.from * dayCount}</span>
             </div>
           </div>
@@ -642,16 +647,16 @@ function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, day
           <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-3">
             <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
               <div className="min-w-0">
-                <div className="font-semibold text-sm text-navy-900">Pick exact umbrellas in {zone.name}</div>
+                <div className="font-semibold text-sm text-navy-900">{tr("Pick exact umbrellas in")} {zone.name}</div>
                 <div className="text-[11px] text-slate-500">
                   {bedSel.length > 0
-                    ? <>Using your <b>{bedSel.length}</b> picked bed{bedSel.length !== 1 ? "s" : ""} — the stepper above is ignored.</>
-                    : <>Optional · tap available (blue) beds to add them, or use the stepper above to auto-assign.</>}
+                    ? <>{tr("Using your")} <b>{bedSel.length}</b> {bedSel.length !== 1 ? tr("picked beds") : tr("picked bed")} — {tr("the stepper above is ignored.")}</>
+                    : <>{tr("Optional · tap available (blue) beds to add them, or use the stepper above to auto-assign.")}</>}
                 </div>
               </div>
               {bedSel.length > 0 && (
                 <button onClick={() => setBedSel([])} className="text-[11px] font-semibold text-slate-500 hover:text-rose-600">
-                  Clear picks
+                  {tr("Clear picks")}
                 </button>
               )}
             </div>
@@ -669,13 +674,13 @@ function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, day
             </div>
             <div className="mt-2 flex items-center justify-between gap-2 flex-wrap text-[11px] text-slate-600">
               <div className="flex items-center gap-3 flex-wrap">
-                <span className="flex items-center gap-1"><Sunbed state="a" size={14} />Available</span>
-                <span className="flex items-center gap-1"><Sunbed state="h" size={14} />On hold</span>
-                <span className="flex items-center gap-1"><Sunbed state="u" size={14} />Unavailable</span>
-                <span className="flex items-center gap-1"><Sunbed state="a" sel size={14} />Selected</span>
+                <span className="flex items-center gap-1"><Sunbed state="a" size={14} />{tr("Available")}</span>
+                <span className="flex items-center gap-1"><Sunbed state="h" size={14} />{tr("On hold")}</span>
+                <span className="flex items-center gap-1"><Sunbed state="u" size={14} />{tr("Unavailable")}</span>
+                <span className="flex items-center gap-1"><Sunbed state="a" sel size={14} />{tr("Selected")}</span>
               </div>
               {bedSel.length > 0 && (
-                <span className="font-semibold text-navy-900 tnum">€{pickedSubtotal} × {dayCount} day{dayCount !== 1 ? "s" : ""} = €{pickedSubtotal * dayCount}</span>
+                <span className="font-semibold text-navy-900 tnum">€{pickedSubtotal} × {dayCount} {dayCount !== 1 ? tr("days") : tr("day")} = €{pickedSubtotal * dayCount}</span>
               )}
             </div>
           </div>
@@ -687,23 +692,24 @@ function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, day
 
 /* ============ Step 4 — Locker ============ */
 function LockerStep({ on, setOn, qty, setQty, dayCount }: { on: boolean; setOn: Dispatch<SetStateAction<boolean>>; qty: number; setQty: Dispatch<SetStateAction<number>>; dayCount: number }) {
+  const tr = useT();
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
-        <YesNo on={on} value="yes" onClick={() => setOn(true)} title="Yes, add lockers" sub={`€${LOCKER_PRICE}/locker/day`} icon={Icon.lock} />
-        <YesNo on={!on} value="no" onClick={() => setOn(false)} title="No, skip lockers" sub="Continue without" icon={Icon.x} />
+        <YesNo on={on} value="yes" onClick={() => setOn(true)} title={tr("Yes, add lockers")} sub={`€${LOCKER_PRICE}/locker/day`} icon={Icon.lock} />
+        <YesNo on={!on} value="no" onClick={() => setOn(false)} title={tr("No, skip lockers")} sub={tr("Continue without")} icon={Icon.x} />
       </div>
       {on && (
         <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 flex items-center justify-between animate-pop">
           <div>
-            <div className="font-semibold text-sm text-navy-900">How many lockers?</div>
-            <div className="text-[11px] text-slate-500">{qty} × €{LOCKER_PRICE} × {dayCount} day{dayCount !== 1 ? "s" : ""}</div>
+            <div className="font-semibold text-sm text-navy-900">{tr("How many lockers?")}</div>
+            <div className="text-[11px] text-slate-500">{qty} × €{LOCKER_PRICE} × {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}</div>
           </div>
-          <Stepper label="lockers" value={qty} onChange={(v) => setQty(Math.max(1, v))} min={1} />
+          <Stepper label={tr("lockers")} value={qty} onChange={(v) => setQty(Math.max(1, v))} min={1} />
         </div>
       )}
       <div className="text-[12px] text-slate-500 flex items-center gap-1.5">
-        <Icon.info size={13} /> Pick exact lockers later from the My Bookings QR.
+        <Icon.info size={13} /> {tr("Pick exact lockers later from the My Bookings")} QR.
       </div>
     </div>
   );
@@ -711,19 +717,20 @@ function LockerStep({ on, setOn, qty, setQty, dayCount }: { on: boolean; setOn: 
 
 /* ============ Step 5 — Parking ============ */
 function ParkingStep({ on, setOn, plate, setPlate, dayCount }: { on: boolean; setOn: Dispatch<SetStateAction<boolean>>; plate: string; setPlate: Dispatch<SetStateAction<string>>; dayCount: number }) {
+  const tr = useT();
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
-        <YesNo on={on} value="yes" onClick={() => setOn(true)} title="Yes, reserve parking" sub={`€${PARKING_PRICE}/spot/day`} icon={Icon.car} />
-        <YesNo on={!on} value="no" onClick={() => setOn(false)} title="No, skip parking" sub="Walking or public transport" icon={Icon.x} />
+        <YesNo on={on} value="yes" onClick={() => setOn(true)} title={tr("Yes, reserve parking")} sub={`€${PARKING_PRICE}/spot/day`} icon={Icon.car} />
+        <YesNo on={!on} value="no" onClick={() => setOn(false)} title={tr("No, skip parking")} sub={tr("Walking or public transport")} icon={Icon.x} />
       </div>
       {on && (
         <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-3 animate-pop">
-          <Field label="Vehicle plate" hint="Used by the gate camera to let you in automatically.">
+          <Field label={tr("Vehicle plate")} hint={tr("Used by the gate camera to let you in automatically.")}>
             <Input value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" />
           </Field>
           <div className="mt-2 flex items-center justify-between text-[12px] text-slate-600">
-            <span>1 spot × {dayCount} day{dayCount !== 1 ? "s" : ""}</span>
+            <span>{tr("1 spot")} × {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}</span>
             <span className="font-semibold text-navy-900 tnum">€{PARKING_PRICE * dayCount}</span>
           </div>
         </div>
@@ -765,32 +772,34 @@ function ReviewStep({ people, totalPeople, selDates, zone, sets, bedSel = [], in
   plate: string;
   onJump: (id: string) => void;
 }) {
+  const tr = useT();
   const dateLabel = selDates.length === 1
     ? chipLabel(selDates[0]).label + ", " + chipLabel(selDates[0]).sub
-    : `${selDates.length} days (${selDates.map((d) => chipLabel(d).sub).join(", ")})`;
+    : `${selDates.length} ${tr("days")} (${selDates.map((d) => chipLabel(d).sub).join(", ")})`;
   const beachBody = !includeBeach
-    ? "Not included"
+    ? tr("Not included")
     : bedSel.length > 0
-      ? `${zone.name} · ${bedSel.length} picked · ${bedSel.map((b) => b.id).join(", ")}`
-      : `${zone.name} · ${sets} umbrella set${sets !== 1 ? "s" : ""} · €${zone.from} each`;
+      ? `${zone.name} · ${bedSel.length} ${tr("picked")} · ${bedSel.map((b) => b.id).join(", ")}`
+      : `${zone.name} · ${sets} ${sets !== 1 ? tr("umbrella sets") : tr("umbrella set")} · €${zone.from} ${tr("each")}`;
   return (
     <div className="space-y-2">
-      <ReviewRow icon={Icon.group} title="Guests" body={totalPeople > 0 ? `${totalPeople} total · ${humanPeople(people)}` : "None added"} onEdit={() => onJump("people")} />
-      <ReviewRow icon={Icon.calendar} title="Dates" body={dateLabel} onEdit={() => onJump("dates")} />
-      <ReviewRow icon={Icon.umbrella} title="Beach bar" body={beachBody} onEdit={() => onJump("sets")} />
+      <ReviewRow icon={Icon.group} title={tr("Guests")} body={totalPeople > 0 ? `${totalPeople} ${tr("total")} · ${humanPeople(people)}` : tr("None added")} onEdit={() => onJump("people")} />
+      <ReviewRow icon={Icon.calendar} title={tr("Dates")} body={dateLabel} onEdit={() => onJump("dates")} />
+      <ReviewRow icon={Icon.umbrella} title={tr("Beach bar")} body={beachBody} onEdit={() => onJump("sets")} />
       <ReviewRow
         icon={Icon.ticket}
-        title="Entry tickets"
-        body={includeTickets ? ticketBreak.filter((t) => t.n > 0).map((t) => `${t.n} × ${t.t.label}`).join(" · ") || "—" : "Not included"}
+        title={tr("Entry tickets")}
+        body={includeTickets ? ticketBreak.filter((t) => t.n > 0).map((t) => `${t.n} × ${tr(t.t.label)}`).join(" · ") || "—" : tr("Not included")}
         onEdit={() => onJump("people")}
       />
-      <ReviewRow icon={Icon.lock} title="Day locker" body={lockerOn ? `${lockerQty} locker${lockerQty !== 1 ? "s" : ""}` : "Not added"} onEdit={() => onJump("locker")} />
-      <ReviewRow icon={Icon.car} title="Parking Spot" body={parkingOn ? `1 spot · ${plate || "plate pending"}` : "Not added"} onEdit={() => onJump("parking")} />
+      <ReviewRow icon={Icon.lock} title={tr("Day locker")} body={lockerOn ? `${lockerQty} ${lockerQty !== 1 ? tr("lockers") : tr("locker")}` : tr("Not added")} onEdit={() => onJump("locker")} />
+      <ReviewRow icon={Icon.car} title={tr("Parking Spot")} body={parkingOn ? `${tr("1 spot")} · ${plate || tr("plate pending")}` : tr("Not added")} onEdit={() => onJump("parking")} />
     </div>
   );
 }
 
 function ReviewRow({ icon: IconC, title, body, onEdit }: { icon: IconRenderer; title: ReactNode; body: ReactNode; onEdit: () => void }) {
+  const tr = useT();
   return (
     <div className="flex items-center gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
       <span className="w-9 h-9 rounded-lg bg-slate-100 text-slate-600 grid place-items-center shrink-0"><IconC size={16} /></span>
@@ -798,7 +807,7 @@ function ReviewRow({ icon: IconC, title, body, onEdit }: { icon: IconRenderer; t
         <div className="text-[13px] font-semibold text-navy-900 leading-tight">{title}</div>
         <div className="text-[12px] text-slate-600 leading-snug truncate">{body}</div>
       </div>
-      <button onClick={onEdit} className="text-[12px] font-semibold text-teal-700 hover:text-teal-800 px-2 py-1 rounded-lg hover:bg-teal-50">Edit</button>
+      <button onClick={onEdit} className="text-[12px] font-semibold text-teal-700 hover:text-teal-800 px-2 py-1 rounded-lg hover:bg-teal-50">{tr("Edit")}</button>
     </div>
   );
 }
@@ -838,6 +847,7 @@ function BasketPanel({
   totalSteps: number;
   onJumpToReview: () => void;
 }) {
+  const tr = useT();
   const Wrap = inline ? "div" : Card;
   const wrapClass = inline ? "" : "glass-card-solid p-5 shadow-float";
   return (
@@ -846,24 +856,24 @@ function BasketPanel({
         <div className="flex items-center gap-2">
           <span className="w-8 h-8 rounded-xl bg-navy-900 text-white grid place-items-center"><Icon.card size={16} /></span>
           <div>
-            <div className="font-display font-bold text-navy-900 text-base leading-tight">Your booking</div>
-            <div className="text-[11px] text-slate-500 leading-tight">Step {stepIdx + 1} of {totalSteps} · live total</div>
+            <div className="font-display font-bold text-navy-900 text-base leading-tight">{tr("Your booking")}</div>
+            <div className="text-[11px] text-slate-500 leading-tight">{tr("Step")} {stepIdx + 1} {tr("of")} {totalSteps} {tr("· live total")}</div>
           </div>
         </div>
         {cartCount > 0 && (
-          <Badge tone="blue">+{cartCount} in basket</Badge>
+          <Badge tone="blue">+{cartCount} {tr("in basket")}</Badge>
         )}
       </div>
 
       <div className="space-y-2">
         {totalPeople > 0 && (
-          <BasketChip icon={Icon.group} label="Guests" value={`${totalPeople} · ${dayCount} day${dayCount !== 1 ? "s" : ""}`} />
+          <BasketChip icon={Icon.group} label={tr("Guests")} value={`${totalPeople} · ${dayCount} ${dayCount !== 1 ? tr("days") : tr("day")}`} />
         )}
         {lines.length === 0 ? (
           <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-6 text-center">
             <span className="mx-auto mb-2 w-9 h-9 rounded-xl bg-white ring-1 ring-slate-200 grid place-items-center text-slate-400"><Icon.card size={17} /></span>
-            <div className="text-[13px] font-semibold text-navy-900">Your basket is empty</div>
-            <div className="text-[11px] text-slate-500 mt-0.5">Add sunbeds, tickets, a locker or parking from the steps.</div>
+            <div className="text-[13px] font-semibold text-navy-900">{tr("Your basket is empty")}</div>
+            <div className="text-[11px] text-slate-500 mt-0.5">{tr("Add sunbeds, tickets, a locker or parking from the steps.")}</div>
           </div>
         ) : (
           <>
@@ -875,7 +885,7 @@ function BasketPanel({
             ))}
             <div className="flex justify-end pt-0.5">
               <button onClick={onEmpty} className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 hover:text-rose-600">
-                <Icon.trash size={12} /> Empty basket
+                <Icon.trash size={12} /> {tr("Empty basket")}
               </button>
             </div>
           </>
@@ -886,10 +896,10 @@ function BasketPanel({
 
       <div className="flex items-end justify-between mb-3">
         <div className="text-[12px] text-slate-500 leading-tight">
-          {dayCount} day{dayCount !== 1 ? "s" : ""}{totalPeople > 0 ? ` · ${totalPeople} guest${totalPeople !== 1 ? "s" : ""}` : ""}
+          {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}{totalPeople > 0 ? ` · ${totalPeople} ${totalPeople !== 1 ? tr("guests") : tr("guest")}` : ""}
         </div>
         <div className="text-right">
-          <div className="text-[11px] uppercase font-bold tracking-wider text-slate-500">Total</div>
+          <div className="text-[11px] uppercase font-bold tracking-wider text-slate-500">{tr("Total")}</div>
           <div className="font-display text-3xl font-bold text-navy-900 tnum tabular-nums leading-none">
             €<LiveEuro value={grandTotal} />
           </div>
@@ -901,11 +911,11 @@ function BasketPanel({
       </Btn>
       {!confirmReady && stepIdx < totalSteps - 1 && (
         <button onClick={onJumpToReview} className="mt-2 w-full text-center text-[11px] text-slate-500 hover:text-navy-900 font-semibold">
-          Skip remaining steps · review now →
+          {tr("Skip remaining steps · review now")} →
         </button>
       )}
       {confirmReady && (
-        <div className="mt-2 text-center text-[11px] text-slate-500">Secured by Stripe · ΑΠΥ auto-issued to MyDATA</div>
+        <div className="mt-2 text-center text-[11px] text-slate-500">{tr("Secured by")} Stripe · ΑΠΥ {tr("auto-issued to")} MyDATA</div>
       )}
     </Wrap>
   );
@@ -930,6 +940,7 @@ function BasketChip({ icon: IconC, label, value }: { icon: IconRenderer; label: 
 }
 
 function BasketLine({ icon: IconC, label, sub, amount, onRemove }: { icon: IconRenderer; label: ReactNode; sub: ReactNode; amount: number; onRemove?: () => void }) {
+  const tr = useT();
   return (
     <div className="flex items-center gap-2.5 rounded-xl px-3 py-2 bg-white ring-1 ring-slate-200">
       <span className="w-7 h-7 rounded-lg grid place-items-center shrink-0 bg-teal-50 text-teal-700"><IconC size={14} /></span>
@@ -941,7 +952,7 @@ function BasketLine({ icon: IconC, label, sub, amount, onRemove }: { icon: IconR
         €<LiveEuro value={amount} />
       </div>
       {onRemove && (
-        <button aria-label="Remove item" onClick={onRemove} className="w-7 h-7 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 shrink-0">
+        <button aria-label={tr("Remove item")} onClick={onRemove} className="w-7 h-7 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 shrink-0">
           <Icon.trash size={14} />
         </button>
       )}

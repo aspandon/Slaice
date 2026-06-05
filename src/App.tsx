@@ -10,7 +10,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { BeachBackdrop } from "./components/Beach";
 import { routeFor } from "./routes";
 import { parseHash, buildHash, isValidPage } from "./app/router";
-import { HTML_LANG } from "./app/i18n";
+import { HTML_LANG, normalizeLang } from "./app/i18n";
 import { DEFAULT_BACKGROUND } from "./data/backgrounds";
 import type { BeachBackground, CartItem, Consent, LangCode, PersonaId } from "./domain/types";
 
@@ -59,7 +59,7 @@ export default function App() {
   });
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [signedIn, setSignedIn] = useState(!!saved.signedIn);
-  const [lang, setLang] = useState<LangCode>(saved.lang || "EN");
+  const [lang, setLang] = useState<LangCode>(normalizeLang(saved.lang));
   const [cart, setCart] = useState<CartItem[]>(saved.cart || []);
   const [consent, setConsentState] = useState<Consent>(saved.consent || DEFAULT_CONSENT);
   const [background, setBackground] = useState<BeachBackground>(saved.background || DEFAULT_BACKGROUND);

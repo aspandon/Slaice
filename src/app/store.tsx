@@ -62,7 +62,7 @@ export const AppCtx = createContext<AppContextValue>({
   persona: "customer",
   signedIn: false,
   setSignedIn: () => {},
-  lang: "EN",
+  lang: "en",
   setLang: () => {},
   cart: [],
   addToCart: () => {},
@@ -79,10 +79,12 @@ export const AppCtx = createContext<AppContextValue>({
 
 export const useApp = (): AppContextValue => useContext(AppCtx);
 
-// Translation helper bound to the active language: t(key, fallback).
+// Translation helper bound to the active language. Wrap UI strings as t("English")
+// — non-English languages resolve via the generated dictionaries, English passes
+// through unchanged.
 export function useT() {
   const { lang } = useContext(AppCtx);
-  return (key: string, fallback?: string) => translate(lang, key, fallback);
+  return (text: string) => translate(lang, text);
 }
 
 // When the active hint matches the current persona+page, find the element with
@@ -107,9 +109,6 @@ export function useSpotlight(persona: PersonaId, page: string) {
   }, [hint, persona, page]);
 }
 
-export const LANGS: { code: LangCode; label: string }[] = [
-  { code: "EN", label: "English" },
-  { code: "ΕΛ", label: "Ελληνικά" },
-  { code: "DE", label: "Deutsch" },
-  { code: "FR", label: "Français" },
-];
+// The offered languages live in i18n.ts (single source of truth); re-export for
+// the switcher call sites.
+export { LANGUAGES } from "./i18n";

@@ -7,10 +7,13 @@ import { useApp, useT } from "../../app/store";
    A single guided-booking hero over the beach backdrop — all booking now runs
    through the "Plan my visit" wizard — followed by the weekend promo and the
    returning-guest "rebook" shortcut. The hero and the chrome share the same
-   translucent `glass` material as the shortcuts so the beach reads through. */
+   translucent `glass` material as the shortcuts so the beach reads through.
+
+   Strings are wrapped in t("…") (English is the source of truth; other languages
+   resolve via the generated dictionaries). */
 export function CustomerHome() {
   const { go } = useApp();
-  const tr = useT();
+  const t = useT();
   const [promoDismissed, setPromoDismissed] = useState(false);
 
   return (
@@ -25,16 +28,16 @@ export function CustomerHome() {
           <div className="relative">
             <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700">
               <span className="w-6 h-6 rounded-full grid place-items-center bg-gradient-to-br from-amber-300 to-amber-500 text-white shadow-sm"><Icon.sun size={11} /></span>
-              {tr("home.greeting")} · {tr("home.sunny")} 28°
+              {t("Good morning, Elena")} · {t("Sunny")} 28°
             </div>
             <h1 className="mt-3 font-display font-bold text-[28px] sm:text-[36px] leading-[1.05] tracking-tight text-navy-900 max-w-2xl">
-              {tr("home.hero.title")} <span className="text-teal-700">{tr("home.hero.title2")}</span>
+              {t("Plan your full beach day")} <span className="text-teal-700">{t("in 60 seconds")}</span>
             </h1>
             <div className="text-[14px] text-slate-700 mt-3 max-w-xl">
-              {tr("home.hero.sub")}
+              {t("Guests, dates, sunbeds, locker, parking — one guided flow with a live total.")}
             </div>
             <span className="mt-6 inline-flex items-center gap-2 rounded-[14px] px-5 py-2.5 text-sm font-semibold bg-navy-900 text-white shadow-btn-primary group-hover:translate-x-0.5 transition">
-              <Icon.sparkles size={16} /> {tr("home.hero.cta")} <Icon.arrowR size={16} />
+              <Icon.sparkles size={16} /> {t("Start guided booking")} <Icon.arrowR size={16} />
             </span>
           </div>
         </div>
@@ -45,11 +48,11 @@ export function CustomerHome() {
         <div className="glass rounded-2xl px-3.5 py-2.5 flex items-center gap-2.5">
           <span className="w-7 h-7 rounded-lg grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm"><Icon.bolt size={14} /></span>
           <span className="flex-1 min-w-0 text-[13px] text-navy-900">
-            <b className="font-semibold">{tr("home.promo.bold")}</b> {tr("home.promo.text")}
-            <span className="text-slate-700 hidden sm:inline"> · {tr("home.promo.hours")}</span>
+            <b className="font-semibold">{t("20% off")}</b> {t("front-row sunbeds this weekend")}
+            <span className="text-slate-700 hidden sm:inline"> · {t("gates open 09:00–20:00")}</span>
           </span>
-          <button onClick={() => go("customer", "plan", { step: "sets" })} className="text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 rounded-md px-2 py-1 whitespace-nowrap">{tr("home.promo.claim")} →</button>
-          <button aria-label="Dismiss offer" onClick={() => setPromoDismissed(true)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-500 hover:text-navy-900 hover:bg-white/60 shrink-0"><Icon.x size={14} /></button>
+          <button onClick={() => go("customer", "plan", { step: "sets" })} className="text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 rounded-md px-2 py-1 whitespace-nowrap">{t("Claim")} →</button>
+          <button aria-label={t("Dismiss offer")} onClick={() => setPromoDismissed(true)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-500 hover:text-navy-900 hover:bg-white/60 shrink-0"><Icon.x size={14} /></button>
         </div>
       )}
 
@@ -57,8 +60,8 @@ export function CustomerHome() {
       <button onClick={() => go("customer", "plan", { step: "sets" })} className="glass rounded-2xl px-3.5 py-2.5 w-full flex items-center gap-3 text-left hover:bg-white/70 transition group">
         <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={17} /></span>
         <span className="flex-1 min-w-0">
-          <span className="block text-[13px] font-semibold text-navy-900">{tr("home.rebook.title")}</span>
-          <span className="block text-[12px] text-slate-600 truncate">{tr("home.rebook.sub")}</span>
+          <span className="block text-[13px] font-semibold text-navy-900">{t("Rebook your usual")}</span>
+          <span className="block text-[12px] text-slate-600 truncate">Central · {t("front row — your favourite zone last season")}</span>
         </span>
         <Icon.chevR size={16} className="text-slate-400 group-hover:text-teal-600 group-hover:translate-x-0.5 transition shrink-0" />
       </button>

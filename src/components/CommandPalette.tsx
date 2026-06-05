@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { Icon } from "../lib/icons";
 import { PERSONAS, NAV } from "../data/personas";
 import type { PersonaId } from "../domain/types";
-import { useApp } from "../app/store";
+import { useApp, useT } from "../app/store";
 
 /* ⌘K / Ctrl-K command palette — fast navigation across every persona's screens.
    Opens on the keyboard shortcut or a `slaice:cmdk` window event (dispatched by
@@ -43,6 +43,7 @@ function buildIndex(): CmdItem[] {
 
 export function CommandPalette() {
   const { go, persona } = useApp();
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [active, setActive] = useState(0);
@@ -110,13 +111,13 @@ export function CommandPalette() {
         <div className="flex items-center gap-2.5 px-4 py-3 border-b border-slate-200/70">
           <Icon.search size={18} className="text-slate-400 shrink-0" />
           <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKeyDown}
-            placeholder="Search screens — try “reporting”, “gate”, “refunds”…"
+            placeholder={t("Search screens — try “reporting”, “gate”, “refunds”…")}
             className="flex-1 bg-transparent outline-none text-base sm:text-sm text-navy-900 placeholder:text-slate-400" />
           <kbd className="hidden sm:inline text-[10px] font-semibold text-slate-400 bg-slate-100 ring-1 ring-slate-200 rounded px-1.5 py-0.5">ESC</kbd>
         </div>
         <div ref={listRef} className="max-h-[52vh] overflow-y-auto p-1.5">
           {results.length === 0 ? (
-            <div className="px-3 py-8 text-center text-sm text-slate-500">No screens match “{q}”.</div>
+            <div className="px-3 py-8 text-center text-sm text-slate-500">{t("No screens match")} “{q}”.</div>
           ) : results.map((d, i) => {
             const IconC = Icon[d.icon] || Icon.grid;
             return (
@@ -125,8 +126,8 @@ export function CommandPalette() {
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition ${i === active ? "bg-navy-900 text-white" : "hover:bg-slate-100 text-navy-900"}`}>
                 <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${i === active ? "bg-white/15 text-white" : "bg-slate-100 text-slate-600"}`}><IconC size={16} /></span>
                 <span className="min-w-0 flex-1">
-                  <span className="block font-semibold text-sm truncate">{d.label}</span>
-                  <span className={`block text-[11px] truncate ${i === active ? "text-white/65" : "text-slate-500"}`}>{d.personaLabel}{d.account ? " · Account" : ""}{d.future ? " · Future" : ""}</span>
+                  <span className="block font-semibold text-sm truncate">{t(d.label)}</span>
+                  <span className={`block text-[11px] truncate ${i === active ? "text-white/65" : "text-slate-500"}`}>{t(d.personaLabel)}{d.account ? ` · ${t("Account")}` : ""}{d.future ? ` · ${t("Future")}` : ""}</span>
                 </span>
                 <Icon.arrowR size={15} className={i === active ? "text-white/70" : "text-slate-300"} />
               </button>
@@ -134,9 +135,9 @@ export function CommandPalette() {
           })}
         </div>
         <div className="px-4 py-2 border-t border-slate-200/70 flex items-center gap-3 text-[11px] text-slate-500">
-          <span className="inline-flex items-center gap-1"><kbd className="bg-slate-100 ring-1 ring-slate-200 rounded px-1">↑↓</kbd> navigate</span>
-          <span className="inline-flex items-center gap-1"><kbd className="bg-slate-100 ring-1 ring-slate-200 rounded px-1">↵</kbd> open</span>
-          <span className="ml-auto inline-flex items-center gap-1"><kbd className="bg-slate-100 ring-1 ring-slate-200 rounded px-1">⌘K</kbd> anytime</span>
+          <span className="inline-flex items-center gap-1"><kbd className="bg-slate-100 ring-1 ring-slate-200 rounded px-1">↑↓</kbd> {t("navigate")}</span>
+          <span className="inline-flex items-center gap-1"><kbd className="bg-slate-100 ring-1 ring-slate-200 rounded px-1">↵</kbd> {t("open")}</span>
+          <span className="ml-auto inline-flex items-center gap-1"><kbd className="bg-slate-100 ring-1 ring-slate-200 rounded px-1">⌘K</kbd> {t("anytime")}</span>
         </div>
       </div>
     </div>
