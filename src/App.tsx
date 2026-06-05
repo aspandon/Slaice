@@ -8,6 +8,7 @@ import { AuthGate } from "./screens/auth";
 import { ConsentBanner } from "./components/ConsentBanner";
 import { CommandPalette } from "./components/CommandPalette";
 import { BeachBackdrop } from "./components/Beach";
+import { LifeRing } from "./components/LifeRing";
 import { DiveTransition } from "./components/DiveTransition";
 import { prefersReducedMotion } from "./lib/motion";
 import { routeFor } from "./routes";
@@ -170,10 +171,21 @@ export default function App() {
       {!signedIn ? (
         <AuthGate />
       ) : (
-        <div className="w-full px-3 sm:px-5 pt-4 relative min-h-dvh flex flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-4">
+        <div className="w-full px-3 sm:px-5 pt-4 relative min-h-dvh flex flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-1">
           {persona === "customer" && (
             <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
               <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax shoreline={0.8} />
+              {/* A life-buoy bobbing in the open-water band on the left. */}
+              <LifeRing className="hidden sm:block absolute left-[8%] top-[72%] w-[60px] h-[60px]" />
+            </div>
+          )}
+          {persona === "customer" && (
+            <div className="flex justify-center items-center gap-3 pt-3 pb-4">
+              <img src={`${import.meta.env.BASE_URL}tenant-logo-mark.png`} alt="" className="h-[100px] w-auto" />
+              <div className="flex flex-col leading-tight">
+                <span className="font-display font-bold text-navy-900 text-xl tracking-wide uppercase">Ακτή του Ηλίου</span>
+                <span className="font-display font-semibold text-teal-600 text-sm tracking-[0.18em] uppercase">Άλιμος</span>
+              </div>
             </div>
           )}
           <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />

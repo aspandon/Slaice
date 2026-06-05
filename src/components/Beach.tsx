@@ -105,6 +105,27 @@ const WAVES: { d: string; sw: number; o: number }[] = [
   { d: "M -50 360 Q 600 345 1000 360 T 1650 360", sw: 0.8, o: 0.5 },
 ];
 
+/* Small static wavelets ("~" dashes) scattered across the open-water band, for a
+   little surface texture without any motion. A fixed pseudo-random layout keyed
+   off the index so it's stable across renders. `dy` shifts them with the
+   shoreline so they always sit in the sea, just above the foam line. */
+function SeaWavelets({ dy = 0 }: { dy?: number }) {
+  const marks = Array.from({ length: 26 }).map((_, i) => {
+    const x = 40 + ((i * 311) % 1540);
+    const y = 150 + ((i * 173) % 280) + dy;
+    const w = 16 + ((i * 7) % 14);
+    const o = 0.18 + ((i * 13) % 22) / 100;
+    return { x, y, w, o, key: i };
+  });
+  return (
+    <g stroke="white" fill="none" strokeLinecap="round">
+      {marks.map(({ x, y, w, o, key }) => (
+        <path key={key} d={`M ${x} ${y} q ${w / 2} -${w / 3} ${w} 0 q ${w / 2} ${w / 3} ${w} 0`} strokeWidth="1.1" opacity={o} />
+      ))}
+    </g>
+  );
+}
+
 /* Flat beach scene — drives every gradient and decor layer from `preset`. Used
    by the booking map, the auth panel, the map editor canvas and the picker. */
 function BeachScene({ preset, preview = false, shoreline }: { preset: BeachPreset; preview?: boolean; shoreline?: number }) {
@@ -166,6 +187,9 @@ function BeachScene({ preset, preview = false, shoreline }: { preset: BeachPrese
           ))}
         </g>
       )}
+
+      {/* Static surface texture in the open-water band. */}
+      <SeaWavelets dy={dy} />
 
       {/* Curved shoreline foam band */}
       <path d={foamD(dy)} fill={`url(#${id("foam")})`} />
@@ -252,6 +276,7 @@ function BeachSceneLayered({ preset, shoreline }: { preset: BeachPreset; shoreli
               ))}
             </g>
           )}
+          <SeaWavelets dy={dy} />
           <rect width="1600" height="160" fill={`url(#${id("vignette")})`} />
         </svg>
       </div>
