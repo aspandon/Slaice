@@ -90,55 +90,31 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
     toast(t("Basket emptied."), { action: { label: t("Undo"), onClick: () => snapshot.forEach((it) => addToCart && addToCart(it)) } });
   };
 
-  // Inline navigation lives in the header on the customer surface — one bar
-  // instead of two. On staff personas the same slot shows the current page
-  // title (sidebar remains the primary nav). Tenant identity + Slaice credit
-  // now live in the SiteFooter below the page content.
+  // On staff personas the page title slot shows the current page name (sidebar
+  // is the primary nav). On the customer surface, the logo acts as the home
+  // link and the bar is a compact action cluster — no inline nav here.
   const navItems = NAV[persona] || [];
-  // Account destinations (My Bookings / Documents) live in the avatar menu +
-  // mobile nav sheet — keep them out of the desktop inline primary nav.
-  const primaryNav = navItems.filter((it) => it.area !== "account");
   const currentItem = navItems.find((it) => it.k === page);
   const CurrentIcon = currentItem && Icon[currentItem.icon];
   return (
-    <header className="glass text-navy-900 rounded-2xl px-2 py-1.5 mb-4 flex items-center gap-2 relative z-30 shadow-soft sticky top-2">
-      {/* Customer keeps its inline nav on desktop only — on phones it would
-          crowd the action cluster, so page nav moves to the bottom tab bar and
-          a tappable title here opens the full page-nav sheet. */}
-      {persona === "customer" && (
-        <nav className="hidden md:flex items-center gap-1 overflow-x-auto no-scrollbar min-w-0 flex-1">
-          {primaryNav.map((it) => {
-            const IconC = Icon[it.icon];
-            const active = page === it.k;
-            return (
-              <button key={it.k} onClick={() => setPage(it.k)}
-                className={`group flex items-center gap-1.5 h-9 px-2.5 rounded-xl text-[12.5px] font-semibold whitespace-nowrap transition shrink-0 ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-700 hover:bg-white/70 hover:text-navy-900"}`}>
-                {IconC && <IconC size={14} className={active ? "" : "text-slate-500 group-hover:text-teal-600 transition-colors"} />}
-                <span>{t(it.label)}</span>
-              </button>
-            );
-          })}
-        </nav>
+    <header className={`glass text-navy-900 rounded-2xl mb-4 flex items-center relative z-30 shadow-soft sticky top-2 ${persona === "customer" ? "px-1.5 py-1 gap-1 w-fit ml-auto" : "px-2 py-1.5 gap-2"}`}>
+      {/* Staff personas: current page title — tapping opens the full nav sheet
+          on mobile; non-interactive on desktop where the sidebar is primary. */}
+      {persona !== "customer" && (
+        <button
+          onClick={() => setNavOpen(true)}
+          className="md:pointer-events-none flex items-center gap-2 pl-1.5 pr-2 h-11 rounded-xl min-w-0 flex-1 hover:bg-white/60 md:hover:bg-transparent transition"
+          aria-label={t("Open navigation")}>
+          {CurrentIcon && <CurrentIcon size={17} className="text-slate-500 shrink-0" />}
+          <span className="font-display font-bold truncate text-[15px]">
+            <span className="md:hidden">{currentItem ? t(currentItem.short || currentItem.label) : ""}</span>
+            <span className="hidden md:inline">{currentItem ? t(currentItem.label) : ""}</span>
+          </span>
+          <Icon.chevD size={15} className="text-slate-400 shrink-0 md:hidden" />
+        </button>
       )}
-      {/* Mobile (all personas): current page title — tap to open the nav sheet.
-          On staff personas this also shows on desktop (sidebar is the real nav,
-          this is just a heading), so it's non-interactive from md up there. */}
-      <button
-        onClick={() => setNavOpen(true)}
-        className={`${persona === "customer" ? "md:hidden" : "md:pointer-events-none"} flex items-center gap-2 pl-1.5 pr-2 h-11 rounded-xl min-w-0 flex-1 hover:bg-white/60 md:hover:bg-transparent transition`}
-        aria-label={t("Open navigation")}>
-        {CurrentIcon && <CurrentIcon size={17} className="text-slate-500 shrink-0" />}
-        {/* Mobile shows the concise label (matches the highlighted bottom tab and
-            avoids truncation behind the action cluster); desktop staff headings
-            keep the full page name. */}
-        <span className="font-display font-bold truncate text-[15px]">
-          <span className="md:hidden">{currentItem ? t(currentItem.short || currentItem.label) : ""}</span>
-          <span className="hidden md:inline">{currentItem ? t(currentItem.label) : ""}</span>
-        </span>
-        <Icon.chevD size={15} className="text-slate-400 shrink-0 md:hidden" />
-      </button>
 
-      <div className="flex items-center gap-2 shrink-0">
+      <div className={`flex items-center shrink-0 ${persona === "customer" ? "gap-0.5" : "gap-2"}`}>
         {/* basket popup — only on the customer persona */}
         {persona === "customer" && (
         <Popover.Root open={basketOpen} onOpenChange={setBasketOpen}>
