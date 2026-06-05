@@ -173,15 +173,8 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
         </Popover.Root>
         )}
 
-        {/* Global search / command palette (⌘K). On staff personas it's a
-            labelled field; on the customer surface it's a compact icon so it
-            doesn't crowd the basket + persona cluster. */}
-        {persona === "customer" ? (
-          <button onClick={() => window.dispatchEvent(new Event("slaice:cmdk"))} aria-label={t("Search (⌘K)")} title={t("Search ⌘K")}
-            className="text-slate-500 hover:text-navy-900 w-10 h-10 hidden sm:grid place-items-center rounded-xl hover:bg-slate-100 transition">
-            <Icon.search size={18} />
-          </button>
-        ) : (
+        {/* Global search / command palette (⌘K) — staff personas only. */}
+        {persona !== "customer" && (
           <button onClick={() => window.dispatchEvent(new Event("slaice:cmdk"))} aria-label={t("Search (⌘K)")}
             className="hidden sm:flex items-center gap-2 h-10 pl-2.5 pr-2 rounded-xl bg-slate-100/80 hover:bg-slate-200/80 text-slate-500 hover:text-navy-900 transition">
             <Icon.search size={15} />
@@ -238,7 +231,7 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
         <DropdownMenu.Root modal={false}>
           <DropdownMenu.Trigger asChild>
             <button aria-label={t("Account menu")} className="flex items-center gap-1.5 bg-slate-100/80 hover:bg-slate-200/80 data-[state=open]:bg-slate-200/80 rounded-xl pl-1 pr-1.5 py-1 transition">
-              <span className="w-7 h-7 rounded-lg grid place-items-center text-white text-xs font-bold" style={{ background: "linear-gradient(135deg,#f59e0b,#ef4444)" }}>EM</span>
+              <span className="w-7 h-7 rounded-lg grid place-items-center text-white text-xs font-bold" style={{ background: "linear-gradient(135deg,#f7b535,#e8920e)" }}>EM</span>
               <Icon.chevD size={14} className="text-slate-500" />
             </button>
           </DropdownMenu.Trigger>
