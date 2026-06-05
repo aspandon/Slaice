@@ -185,7 +185,7 @@ export default function App() {
               aria-label="Go to home"
               className="flex justify-center items-center pt-3 pb-2 w-full group hover:opacity-90 active:opacity-75 transition-opacity"
             >
-              <img src={`${import.meta.env.BASE_URL}tenant-logo.png`} alt="Ακτή του Ηλίου" className="h-[70px] w-auto" />
+              <img src={`${import.meta.env.BASE_URL}tenant-logo.png`} alt="Ακτή του Ηλίου" className="h-[100px] w-auto" />
             </button>
           )}
           <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />

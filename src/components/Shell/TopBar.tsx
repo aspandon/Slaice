@@ -97,7 +97,7 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
   const currentItem = navItems.find((it) => it.k === page);
   const CurrentIcon = currentItem && Icon[currentItem.icon];
   return (
-    <header className={`glass text-navy-900 rounded-2xl mb-4 flex items-center relative z-30 shadow-soft sticky top-2 ${persona === "customer" ? "px-1.5 py-1 gap-1 w-fit mx-auto" : "px-2 py-1.5 gap-2"}`}>
+    <header className={`glass text-navy-900 rounded-2xl mb-4 flex items-center relative z-30 shadow-soft sticky top-2 ${persona === "customer" ? "px-1.5 py-1 gap-1 w-fit mx-auto mt-4" : "px-2 py-1.5 gap-2"}`}>
       {/* Staff personas: current page title — tapping opens the full nav sheet
           on mobile; non-interactive on desktop where the sidebar is primary. */}
       {persona !== "customer" && (
