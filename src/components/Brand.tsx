@@ -24,47 +24,44 @@ export function SlaiceLogo({ size = 36, withText = false, light = false }: { siz
 // any size and inherits no external asset. Shown centered above the top bar on
 // the customer surface.
 export function TenantWordmark({ className = "", height = 96 }: { className?: string; height?: number }) {
-  const cx = 120;
-  const cy = 162;
-  // Sun rays fanning across the upper hemisphere (≈12°–168°).
-  const rays = Array.from({ length: 12 }, (_, i) => {
-    const a = ((12 + i * 14.2) * Math.PI) / 180;
-    const r1 = 25;
-    const r2 = i % 2 === 0 ? 53 : 46;
-    return {
-      x1: cx + r1 * Math.cos(a),
-      y1: cy - r1 * Math.sin(a),
-      x2: cx + r2 * Math.cos(a),
-      y2: cy - r2 * Math.sin(a),
-    };
+  const cx = 96;
+  const cy = 96; // sun base / horizon line
+  const sunR = 34;
+  // Tapered sun rays fanning across the upper hemisphere (≈12°–168°).
+  const rays = Array.from({ length: 11 }, (_, i) => {
+    const a = ((12 + i * 15.6) * Math.PI) / 180;
+    const rb = sunR + 4;
+    const rt = rb + (i % 2 === 0 ? 24 : 19);
+    const w = 3.2; // half base-width → triangular taper
+    const px = -Math.sin(a);
+    const py = -Math.cos(a);
+    const bx = cx + rb * Math.cos(a);
+    const by = cy - rb * Math.sin(a);
+    const tx = cx + rt * Math.cos(a);
+    const ty = cy - rt * Math.sin(a);
+    return `${bx + w * px},${by + w * py} ${bx - w * px},${by - w * py} ${tx},${ty}`;
   });
   return (
-    <svg viewBox="0 0 240 210" height={height} className={className} role="img" aria-label="Ακτή του Ηλίου — Άλιμος">
-      {/* Brush wordmark */}
-      <text x={120} y={36} textAnchor="middle" fontFamily="Georgia, 'Times New Roman', serif" fontStyle="italic" fontWeight="700" fontSize="34" fill="#2f5aa6" transform="skewX(-6) translate(13 0)">
-        ΑΚΤΗ <tspan fontSize="22">του</tspan> ΗΛΙΟΥ
-      </text>
-      <text x={120} y={58} textAnchor="middle" fontFamily="Georgia, serif" fontWeight="600" fontSize="13" letterSpacing="6" fill="#3a6bc4">ΑΛΙΜΟΣ</text>
-
+    <svg viewBox="0 0 192 140" height={height} className={className} role="img" aria-label="Ακτή του Ηλίου — Άλιμος">
       {/* Sun rays */}
-      <g stroke="#f39200" strokeWidth="6" strokeLinecap="round">
-        {rays.map((r, i) => (
-          <line key={i} x1={r.x1} y1={r.y1} x2={r.x2} y2={r.y2} />
+      <g fill="#e0992f">
+        {rays.map((pts, i) => (
+          <polygon key={i} points={pts} />
         ))}
       </g>
-      {/* Sun body — a warm half-disc the swimmer stands on */}
-      <path d={`M ${cx - 32} ${cy} a 32 32 0 0 1 64 0 Z`} fill="#f5a623" />
+      {/* Sun body — a warm half-disc rising over the sea */}
+      <path d={`M ${cx - sunR} ${cy} a ${sunR} ${sunR} 0 0 1 ${sunR * 2} 0 Z`} fill="#e8a33d" />
 
-      {/* Swimmer, arms raised */}
-      <g fill="none" stroke="#1c3d6e" strokeWidth="6.5" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx={cx} cy={119} r={7.5} fill="#1c3d6e" stroke="none" />
-        <path d={`M ${cx} 130 V 152`} />
-        <path d={`M ${cx} 135 L ${cx - 15} 121 M ${cx} 135 L ${cx + 15} 121`} />
-        <path d={`M ${cx} 152 L ${cx - 13} 170 M ${cx} 152 L ${cx + 13} 170`} />
+      {/* Sea wave — a pale ribbon under the sun */}
+      <path d={`M 14 ${cy + 9} q 20 -13 42 -3 t 44 1 q 22 5 40 -6`} fill="none" stroke="#a7c8ec" strokeWidth="9" strokeLinecap="round" />
+
+      {/* Swimmer, arms raised, standing in the sea */}
+      <g fill="none" stroke="#20406e" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx={cx} cy={cy - 40} r={7} fill="#20406e" stroke="none" />
+        <path d={`M ${cx} ${cy - 33} V ${cy - 13}`} />
+        <path d={`M ${cx} ${cy - 29} L ${cx - 15} ${cy - 43} M ${cx} ${cy - 29} L ${cx + 15} ${cy - 43}`} />
+        <path d={`M ${cx} ${cy - 13} L ${cx - 12} ${cy + 4} M ${cx} ${cy - 13} L ${cx + 12} ${cy + 4}`} />
       </g>
-
-      {/* Sea wave */}
-      <path d={`M 64 184 q 14 -12 28 0 t 28 0 t 28 0 t 28 0`} fill="none" stroke="#2f7fc4" strokeWidth="6" strokeLinecap="round" />
     </svg>
   );
 }
