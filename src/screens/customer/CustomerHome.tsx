@@ -5,9 +5,10 @@ import { Reveal } from "../../lib/motion";
 import { useApp, useT } from "../../app/store";
 
 /* ============ HOME ============
-   Unified glass aesthetic over the beach backdrop: a slim promo pill, a
-   hero card with soft gradient orbs (no heavy colored slab), and a single
-   service grid where Sunbed Booking is the featured tile. */
+   Unified glass aesthetic over the beach backdrop: a hero card with soft
+   gradient orbs (no heavy colored slab) leading straight into the service
+   grid (Sunbed Booking is the featured tile), with the promo pill and the
+   "rebook your usual" shortcut as secondary nudges below the services. */
 export function CustomerHome() {
   const { go } = useApp();
   const tr = useT();
@@ -53,28 +54,8 @@ export function CustomerHome() {
         </Card>
       </Reveal>
 
-      {!promoDismissed && (
-        <div className="glass rounded-2xl px-3.5 py-2.5 flex items-center gap-2.5">
-          <span className="w-7 h-7 rounded-lg grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm"><Icon.bolt size={14} /></span>
-          <span className="flex-1 min-w-0 text-[13px] text-navy-900">
-            <b className="font-semibold">{tr("home.promo.bold")}</b> {tr("home.promo.text")}
-            <span className="text-slate-700 hidden sm:inline"> · {tr("home.promo.hours")}</span>
-          </span>
-          <button onClick={() => go("customer", "book")} className="text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 rounded-md px-2 py-1 whitespace-nowrap">{tr("home.promo.claim")} →</button>
-          <button aria-label="Dismiss offer" onClick={() => setPromoDismissed(true)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-500 hover:text-navy-900 hover:bg-white/60 shrink-0"><Icon.x size={14} /></button>
-        </div>
-      )}
-
-      {/* Returning-guest shortcut — jump straight back to the favourite zone. */}
-      <button onClick={() => go("customer", "book")} className="glass rounded-2xl px-3.5 py-2.5 w-full flex items-center gap-3 text-left hover:bg-white/70 transition group">
-        <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={17} /></span>
-        <span className="flex-1 min-w-0">
-          <span className="block text-[13px] font-semibold text-navy-900">{tr("home.rebook.title")}</span>
-          <span className="block text-[12px] text-slate-600 truncate">{tr("home.rebook.sub")}</span>
-        </span>
-        <Icon.chevR size={16} className="text-slate-400 group-hover:text-teal-600 group-hover:translate-x-0.5 transition shrink-0" />
-      </button>
-
+      {/* Primary services — sit directly under the hero so the four core
+          actions are the first thing the eye lands on after the CTA. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {services.map((t, i) => (
           <Reveal as="button" key={t.k} delay={i * 60} onClick={() => go("customer", t.k)}
@@ -97,6 +78,30 @@ export function CustomerHome() {
           </Reveal>
         ))}
       </div>
+
+      {/* Secondary nudges — the weekend promo and a returning-guest shortcut,
+          kept below the primary services. */}
+      {!promoDismissed && (
+        <div className="glass rounded-2xl px-3.5 py-2.5 flex items-center gap-2.5">
+          <span className="w-7 h-7 rounded-lg grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm"><Icon.bolt size={14} /></span>
+          <span className="flex-1 min-w-0 text-[13px] text-navy-900">
+            <b className="font-semibold">{tr("home.promo.bold")}</b> {tr("home.promo.text")}
+            <span className="text-slate-700 hidden sm:inline"> · {tr("home.promo.hours")}</span>
+          </span>
+          <button onClick={() => go("customer", "book")} className="text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 rounded-md px-2 py-1 whitespace-nowrap">{tr("home.promo.claim")} →</button>
+          <button aria-label="Dismiss offer" onClick={() => setPromoDismissed(true)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-500 hover:text-navy-900 hover:bg-white/60 shrink-0"><Icon.x size={14} /></button>
+        </div>
+      )}
+
+      {/* Returning-guest shortcut — jump straight back to the favourite zone. */}
+      <button onClick={() => go("customer", "book")} className="glass rounded-2xl px-3.5 py-2.5 w-full flex items-center gap-3 text-left hover:bg-white/70 transition group">
+        <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={17} /></span>
+        <span className="flex-1 min-w-0">
+          <span className="block text-[13px] font-semibold text-navy-900">{tr("home.rebook.title")}</span>
+          <span className="block text-[12px] text-slate-600 truncate">{tr("home.rebook.sub")}</span>
+        </span>
+        <Icon.chevR size={16} className="text-slate-400 group-hover:text-teal-600 group-hover:translate-x-0.5 transition shrink-0" />
+      </button>
     </div>
   );
 }

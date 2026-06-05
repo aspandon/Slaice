@@ -151,7 +151,10 @@ export default function App() {
               )}
               <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />
               {persona === "customer" ? (
-                <div className={page === "book" ? "flex-1 lg:pr-[360px]" : ""}>
+                // flex-1 lets the content region grow so the SiteFooter is
+                // pushed to the bottom of the viewport (the beach backdrop's
+                // green band) instead of floating up under short pages.
+                <div className={`flex-1 ${page === "book" ? "lg:pr-[360px]" : ""}`}>
                   <main className="min-w-0">{routeFor(persona, page)}</main>
                 </div>
               ) : (
