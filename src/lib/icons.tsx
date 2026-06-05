@@ -12,7 +12,7 @@ import {
   Pencil, Play, List, Layers, Martini, MessageCircle, Gift, Shield, Eye, Sun,
   Info, TriangleAlert, Clock, Inbox, Droplet, Waves, Wind, Plus as CrossPlus,
   UsersRound, ShieldCheck, ShieldAlert, FileDown, Database, SlidersHorizontal,
-  Sparkles, CircleHelp, Wallet, LogOut, Moon, Armchair,
+  Sparkles, CircleHelp, Wallet, LogOut, Moon, Armchair, Image as ImageIcon, Upload,
 } from "lucide-react";
 import type { LucideIcon, LucideProps } from "lucide-react";
 import type { ReactElement } from "react";
@@ -107,4 +107,6 @@ export const Icon: Record<string, IconRenderer> = {
   wallet: w(Wallet),
   logout: w(LogOut),
   moon: w(Moon),
+  image: w(ImageIcon),
+  upload: w(Upload),
 };

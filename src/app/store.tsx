@@ -1,7 +1,8 @@
 import { createContext, useContext, useEffect } from "react";
 import type { ReactNode } from "react";
 import { translate } from "./i18n";
-import type { CartItem, CartKind, Consent, LangCode, PersonaId } from "../domain/types";
+import { DEFAULT_BACKGROUND } from "../data/backgrounds";
+import type { BeachBackground, CartItem, CartKind, Consent, LangCode, PersonaId } from "../domain/types";
 
 // Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
 // highlight the section a journey points at.
@@ -39,6 +40,9 @@ export interface AppContextValue {
   consent: Consent;
   setConsent: (patch: Partial<Consent>) => void;
   reopenConsent: () => void;
+  /** Tenant beach scene shown on the customer booking map. */
+  background: BeachBackground;
+  setBackground: (b: BeachBackground) => void;
 }
 
 const DEFAULT_CONSENT: Consent = {
@@ -67,6 +71,8 @@ export const AppCtx = createContext<AppContextValue>({
   consent: DEFAULT_CONSENT,
   setConsent: () => {},
   reopenConsent: () => {},
+  background: DEFAULT_BACKGROUND,
+  setBackground: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);

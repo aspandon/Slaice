@@ -4,6 +4,8 @@ import { Icon } from "../lib/icons";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, ErrorState, useMockLoad, FutureBanner, ContextPanel } from "../components/ui";
 import type { TabEntry } from "../components/ui";
 import { BarChart, HBarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts";
+import { BeachBackdrop } from "../components/Beach";
+import { BackgroundPicker } from "../components/BackgroundPicker";
 import { ZONES } from "../data/beach";
 import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS } from "../data/mock";
 import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr";
@@ -103,6 +105,7 @@ export function AdminAvailability() {
 interface EditorZone { id: string; name: string; prefix: string; color: string; total: number; rows: number; cols: number; x: number; y: number; }
 export function AdminMapEditor() {
   const { toast } = useApp();
+  const [pickerOpen, setPickerOpen] = useState(false);
   // Each zone has a name, prefix, colour, rows, cols, and a position in % of the canvas.
   const [zones, setZones] = useState<EditorZone[]>(() => ZONES.map((z, i) => ({
     id: z.id, name: z.name, prefix: z.prefix, color: z.color, total: z.total,
@@ -146,7 +149,7 @@ export function AdminMapEditor() {
 
   return (
     <div>
-      <PageHead actions={<><Btn variant="outline" icon={Icon.download} onClick={() => toast("Demo — upload aerial background.")}>Background</Btn><Btn variant="primary" icon={Icon.check} onClick={save}>Save layout</Btn></>} />
+      <PageHead actions={<><Btn variant="outline" icon={Icon.image} onClick={() => setPickerOpen(true)}>Background</Btn><Btn variant="primary" icon={Icon.check} onClick={save}>Save layout</Btn></>} />
       <div className="lg:hidden mb-3 flex items-start gap-2 rounded-xl bg-slaice-100 ring-1 ring-slaice-600/20 px-3 py-2 text-[12px] text-slaice-700">
         <Icon.info size={14} className="shrink-0 mt-0.5 text-slaice-600" /> The map editor is best on a larger screen — drag-to-position zones is easier with a mouse.
       </div>
@@ -155,10 +158,11 @@ export function AdminMapEditor() {
           <div
             ref={canvasRef}
             className="relative rounded-2xl ring-1 ring-slate-100 overflow-hidden select-none"
-            style={{ background: "linear-gradient(180deg,#88c8e8 0%,#a9dceb 35%,#f2dbb0 60%,#e5c688 100%)", height: 560 }}
+            style={{ height: 560 }}
           >
-            {/* shoreline accent */}
-            <div className="absolute left-0 right-0" style={{ top: "52%", height: 4, background: "rgba(255,255,255,0.75)" }} />
+            {/* Live preview of the tenant's chosen beach background (what
+                customers see on the booking map). Edit it via "Background". */}
+            <BeachBackdrop pos="absolute" className="inset-0 rounded-none" />
             {zones.map((z) => {
               const active = z.id === selectedId;
               return (
@@ -233,6 +237,7 @@ export function AdminMapEditor() {
           </div>
         </Card>
       </div>
+      <BackgroundPicker open={pickerOpen} onClose={() => setPickerOpen(false)} />
     </div>
   );
 }
