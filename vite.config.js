@@ -10,6 +10,11 @@ export default defineConfig({
   // `browserslist` in package.json): Chrome/Edge 88, Firefox ESR, Safari 14.
   // This guarantees the bundle parses on every browser in our support matrix.
   build: {
+    // Emit into /docs so GitHub Pages "Deploy from a branch" can serve the
+    // *built* site (Source: this branch, Folder: /docs). The repo root keeps the
+    // Vite dev index.html (which points at /src/main.tsx) for local development.
+    outDir: "docs",
+    emptyOutDir: true,
     target: ["chrome88", "edge88", "firefox78", "safari14"],
     rollupOptions: {
       output: {
