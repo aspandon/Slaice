@@ -8,11 +8,13 @@ import { AuthGate } from "./screens/auth";
 import { ConsentBanner } from "./components/ConsentBanner";
 import { CommandPalette } from "./components/CommandPalette";
 import { BeachBackdrop } from "./components/Beach";
+import { DiveTransition } from "./components/DiveTransition";
+import { prefersReducedMotion } from "./lib/motion";
 import { routeFor } from "./routes";
 import { parseHash, buildHash, isValidPage } from "./app/router";
 import { HTML_LANG, normalizeLang } from "./app/i18n";
 import { DEFAULT_BACKGROUND } from "./data/backgrounds";
-import type { BeachBackground, CartItem, Consent, LangCode, PersonaId } from "./domain/types";
+import type { BeachBackground, CartItem, Consent, LangCode, PersonaId, SunbedSlot } from "./domain/types";
 
 interface ToastItem {
   id: number;
@@ -40,6 +42,7 @@ const saved = loadLS() as {
   cart?: CartItem[];
   consent?: Consent;
   background?: BeachBackground;
+  beachLayout?: Record<string, SunbedSlot[]>;
 };
 // A deep link in the URL wins over the last saved location.
 const initialRoute = parseHash();
@@ -63,25 +66,38 @@ export default function App() {
   const [cart, setCart] = useState<CartItem[]>(saved.cart || []);
   const [consent, setConsentState] = useState<Consent>(saved.consent || DEFAULT_CONSENT);
   const [background, setBackground] = useState<BeachBackground>(saved.background || DEFAULT_BACKGROUND);
+  const [beachLayout, setBeachLayoutState] = useState<Record<string, SunbedSlot[]>>(saved.beachLayout || {});
+  const [diving, setDiving] = useState(false);
 
   useEffect(() => {
     // Guard the write: Safari Private Mode and a full quota throw on setItem.
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout }));
     } catch {
       /* storage unavailable (private mode / quota) — ignore */
     }
-  }, [persona, pageByPersona, signedIn, lang, cart, consent, background]);
+  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout]);
 
   // Keep <html lang> in sync with the chosen language (a11y / SEO correctness).
   useEffect(() => {
     document.documentElement.lang = HTML_LANG[lang] || "en";
   }, [lang]);
 
+  // Mirror the active persona onto <html data-persona> so persona-scoped theming
+  // can target it in CSS — e.g. the customer surface's translucent glass cards
+  // (see index.css). An attribute on the root also reaches portaled surfaces.
+  useEffect(() => {
+    document.documentElement.dataset.persona = persona;
+  }, [persona]);
+
   const setConsent = useCallback((patch: Partial<Consent>) => {
     setConsentState((c) => ({ ...c, ...patch, decided: true, ts: new Date().toISOString() }));
   }, []);
   const reopenConsent = useCallback(() => setConsentState((c) => ({ ...c, decided: false })), []);
+  // Publish (or replace) a zone's umbrella layout from the admin Map Editor.
+  const setZoneLayout = useCallback((zoneId: string, slots: SunbedSlot[]) => {
+    setBeachLayoutState((m) => ({ ...m, [zoneId]: slots }));
+  }, []);
 
   const page = pageByPersona[persona];
   const setPage = useCallback((k: string) => setPageByPersona((s) => ({ ...s, [persona]: k })), [persona]);
@@ -130,6 +146,14 @@ export default function App() {
     setHint(h ? { ...h, persona: p, page: k, ts: Date.now() } : null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
+  // Cinematic entry: a beach "dive" wipe that covers the home→wizard swap, then
+  // clears to reveal the immersive flow. Skipped under reduced motion.
+  const dive = useCallback(() => {
+    if (prefersReducedMotion()) { go("customer", "plan"); return; }
+    setDiving(true);
+    window.setTimeout(() => go("customer", "plan"), 360);
+    window.setTimeout(() => setDiving(false), 1000);
+  }, [go]);
 
   const addToCart = useCallback((item: CartItem) => setCart((c) => (c.find((x) => x.kind === item.kind && x.id === item.id) ? c : [...c, item])), []);
   const removeFromCart = useCallback((kind: CartItem["kind"], id: string) => setCart((c) => c.filter((x) => !(x.kind === kind && x.id === id))), []);
@@ -137,8 +161,8 @@ export default function App() {
 
   // Memoised so the provider value keeps a stable identity across renders.
   const ctx = useMemo<AppContextValue>(
-    () => ({ toast, go, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground }),
-    [toast, go, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground],
+    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout }),
+    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout],
   );
 
   return (
@@ -149,7 +173,7 @@ export default function App() {
         <div className="w-full px-3 sm:px-5 pt-4 relative min-h-dvh flex flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-4">
           {persona === "customer" && (
             <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
-              <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax />
+              <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax shoreline={0.8} />
             </div>
           )}
           <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />
@@ -166,13 +190,16 @@ export default function App() {
               <main className="flex-1 min-w-0">{routeFor(persona, page)}</main>
             </div>
           )}
-          <SiteFooter />
+          {/* The tenant badge bows out once the guest dives into the booking
+              wizard, so the beach + zones take over the screen. */}
+          {!(persona === "customer" && page === "plan") && <SiteFooter />}
           <BottomTabBar persona={persona} page={page} setPage={setPage} />
         </div>
       )}
       <ConsentBanner />
       {signedIn && <CommandPalette />}
       <Toasts items={toasts} onDismiss={dismissToast} />
+      <DiveTransition active={diving} />
     </AppCtx.Provider>
   );
 }

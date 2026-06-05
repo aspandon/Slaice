@@ -54,7 +54,7 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
    renders it behind `children`. Pass an explicit `background` to preview a
    specific scene (the picker does this); otherwise it reads the store, so the
    choice flows to the booking map and the customer surface automatically. */
-export function BeachBackdrop({ children, className = "", pos = "relative", parallax = false, background, preview = false }: {
+export function BeachBackdrop({ children, className = "", pos = "relative", parallax = false, background, preview = false, shoreline }: {
   children?: ReactNode;
   className?: string;
   pos?: string;
@@ -62,6 +62,9 @@ export function BeachBackdrop({ children, className = "", pos = "relative", para
   background?: BeachBackground;
   /** Skip the grain filter — used for the many small picker thumbnails. */
   preview?: boolean;
+  /** Sand-top fraction (0–1): higher pushes the shoreline down for an ocean-vista
+   *  look (thin sand strip). Omit for the default balanced beach. */
+  shoreline?: number;
 }) {
   const ctx = useApp();
   const bg = background ?? ctx.background;
@@ -69,9 +72,9 @@ export function BeachBackdrop({ children, className = "", pos = "relative", para
     bg.kind === "custom" ? (
       <CustomBeach src={bg.src} parallax={parallax} />
     ) : parallax ? (
-      <BeachSceneLayered preset={presetById(bg.id)} />
+      <BeachSceneLayered preset={presetById(bg.id)} shoreline={shoreline} />
     ) : (
-      <BeachScene preset={presetById(bg.id)} preview={preview} />
+      <BeachScene preset={presetById(bg.id)} preview={preview} shoreline={shoreline} />
     );
   return (
     <div className={`${pos} overflow-hidden rounded-2xl ${className}`}>
@@ -81,8 +84,20 @@ export function BeachBackdrop({ children, className = "", pos = "relative", para
   );
 }
 
-/* ---- Shared scene geometry (identical across presets) ---- */
-const SAND_D = "M -20 500 C 220 460 440 555 740 510 S 1200 450 1620 510 L 1620 900 L -20 900 Z";
+/* ---- Shared scene geometry (identical across presets) ----
+   The shoreline bands are functions of `dy`, a vertical shift (in the 900-tall
+   viewBox) of where the sand begins. `shorelineShift(shoreline)` maps a sand-top
+   fraction (0–1) to that dy; callers that omit `shoreline` get dy=0 and the
+   original geometry exactly, so existing scenes don't move. A larger fraction
+   reads as an ocean vista with a thin sand strip (used by the home/customer
+   backdrop). At a low shoreline the vegetation belt slides off-canvas, leaving
+   clean sand. */
+const SAND_TOP = 500;
+const shorelineShift = (shoreline?: number) => (shoreline == null ? 0 : Math.round(shoreline * 900 - SAND_TOP));
+const sandD = (dy = 0) => `M -20 ${500 + dy} C 220 ${460 + dy} 440 ${555 + dy} 740 ${510 + dy} S 1200 ${450 + dy} 1620 ${510 + dy} L 1620 900 L -20 900 Z`;
+const foamD = (dy = 0) => `M -20 ${470 + dy} C 200 ${430 + dy} 420 ${520 + dy} 720 ${480 + dy} S 1180 ${420 + dy} 1620 ${480 + dy} L 1620 ${540 + dy} L -20 ${540 + dy} Z`;
+const wetD = (dy = 0) => `M -20 ${510 + dy} C 220 ${470 + dy} 440 ${565 + dy} 740 ${520 + dy} S 1200 ${460 + dy} 1620 ${520 + dy} L 1620 ${575 + dy} L -20 ${575 + dy} Z`;
+const vegD = (dy = 0) => `M -20 ${770 + dy} C 200 ${740 + dy} 420 ${800 + dy} 720 ${770 + dy} S 1180 ${730 + dy} 1620 ${770 + dy} L 1620 900 L -20 900 Z`;
 const WAVES: { d: string; sw: number; o: number }[] = [
   { d: "M -50 180 Q 400 165 800 180 T 1650 180", sw: 1.2, o: 1 },
   { d: "M -50 240 Q 500 222 900 240 T 1650 240", sw: 1, o: 0.7 },
@@ -92,10 +107,11 @@ const WAVES: { d: string; sw: number; o: number }[] = [
 
 /* Flat beach scene — drives every gradient and decor layer from `preset`. Used
    by the booking map, the auth panel, the map editor canvas and the picker. */
-function BeachScene({ preset, preview = false }: { preset: BeachPreset; preview?: boolean }) {
+function BeachScene({ preset, preview = false, shoreline }: { preset: BeachPreset; preview?: boolean; shoreline?: number }) {
   const rid = useId().replace(/:/g, "");
   const id = (k: string) => `${k}-${rid}`;
   const grain = preset.grain && !preview;
+  const dy = shorelineShift(shoreline);
   return (
     <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
       <defs>
@@ -152,23 +168,23 @@ function BeachScene({ preset, preview = false }: { preset: BeachPreset; preview?
       )}
 
       {/* Curved shoreline foam band */}
-      <path d="M -20 470 C 200 430 420 520 720 480 S 1180 420 1620 480 L 1620 540 L -20 540 Z" fill={`url(#${id("foam")})`} />
+      <path d={foamD(dy)} fill={`url(#${id("foam")})`} />
       {/* Sand + texture overlay */}
-      <path d={SAND_D} fill={`url(#${id("sand")})`} />
-      {grain && <path d={SAND_D} filter={`url(#${id("grain")})`} opacity="0.5" />}
+      <path d={sandD(dy)} fill={`url(#${id("sand")})`} />
+      {grain && <path d={sandD(dy)} filter={`url(#${id("grain")})`} opacity="0.5" />}
       {/* Wet-sand shading just below the foam */}
-      <path d="M -20 510 C 220 470 440 565 740 520 S 1200 460 1620 520 L 1620 575 L -20 575 Z" fill="rgba(190, 140, 80, 0.18)" />
+      <path d={wetD(dy)} fill="rgba(190, 140, 80, 0.18)" />
 
       {/* Optional decor (sun, palms, sailboat…) above the sand, behind the greenery. */}
       <SceneDecor preset={preset} id={id} />
 
       {preset.veg && (
         <>
-          <path d="M -20 770 C 200 740 420 800 720 770 S 1180 730 1620 770 L 1620 900 L -20 900 Z" fill={`url(#${id("veg")})`} opacity="0.92" />
+          <path d={vegD(dy)} fill={`url(#${id("veg")})`} opacity="0.92" />
           <g fill="#3f6b2c" opacity="0.85">
             {Array.from({ length: 28 }).map((_, i) => {
               const x = 30 + i * 57 + (i % 3) * 11;
-              const y = 790 + ((i * 13) % 70);
+              const y = 790 + dy + ((i * 13) % 70);
               const r = 12 + ((i * 5) % 9);
               return <circle key={i} cx={x} cy={y} r={r} />;
             })}
@@ -176,7 +192,7 @@ function BeachScene({ preset, preview = false }: { preset: BeachPreset; preview?
           <g fill="#65a04a" opacity="0.7">
             {Array.from({ length: 22 }).map((_, i) => {
               const x = 60 + i * 71 + (i % 4) * 9;
-              const y = 810 + ((i * 17) % 60);
+              const y = 810 + dy + ((i * 17) % 60);
               const r = 8 + ((i * 3) % 6);
               return <circle key={i} cx={x} cy={y} r={r} />;
             })}
@@ -195,9 +211,10 @@ function BeachScene({ preset, preview = false }: { preset: BeachPreset; preview?
    the horizon reads as real depth. Each plane overscans (-12%) and its travel is
    clamped, so a translate never exposes an edge; useParallax no-ops under reduced
    motion, leaving the planes stacked exactly like the flat scene. */
-function BeachSceneLayered({ preset }: { preset: BeachPreset }) {
+function BeachSceneLayered({ preset, shoreline }: { preset: BeachPreset; shoreline?: number }) {
   const rid = useId().replace(/:/g, "");
   const id = (k: string) => `${k}-${rid}`;
+  const dy = shorelineShift(shoreline);
   const far = useParallax<HTMLDivElement>(-0.018, 24);
   const mid = useParallax<HTMLDivElement>(-0.04, 44);
   const near = useParallax<HTMLDivElement>(-0.065, 60);
@@ -259,10 +276,10 @@ function BeachSceneLayered({ preset }: { preset: BeachPreset }) {
               </filter>
             )}
           </defs>
-          <path d="M -20 470 C 200 430 420 520 720 480 S 1180 420 1620 480 L 1620 540 L -20 540 Z" fill={`url(#${id("foam")})`} />
-          <path d={SAND_D} fill={`url(#${id("sand")})`} />
-          {preset.grain && <path d={SAND_D} filter={`url(#${id("grain")})`} opacity="0.5" />}
-          <path d="M -20 510 C 220 470 440 565 740 520 S 1200 460 1620 520 L 1620 575 L -20 575 Z" fill="rgba(190, 140, 80, 0.18)" />
+          <path d={foamD(dy)} fill={`url(#${id("foam")})`} />
+          <path d={sandD(dy)} fill={`url(#${id("sand")})`} />
+          {preset.grain && <path d={sandD(dy)} filter={`url(#${id("grain")})`} opacity="0.5" />}
+          <path d={wetD(dy)} fill="rgba(190, 140, 80, 0.18)" />
           <SceneDecor preset={preset} id={id} />
         </svg>
       </div>
@@ -276,11 +293,11 @@ function BeachSceneLayered({ preset }: { preset: BeachPreset }) {
                 <stop offset="100%" stopColor={preset.veg[1]} />
               </linearGradient>
             </defs>
-            <path d="M -20 770 C 200 740 420 800 720 770 S 1180 730 1620 770 L 1620 900 L -20 900 Z" fill={`url(#${id("veg")})`} opacity="0.92" />
+            <path d={vegD(dy)} fill={`url(#${id("veg")})`} opacity="0.92" />
             <g fill="#3f6b2c" opacity="0.85">
               {Array.from({ length: 28 }).map((_, i) => {
                 const x = 30 + i * 57 + (i % 3) * 11;
-                const y = 790 + ((i * 13) % 70);
+                const y = 790 + dy + ((i * 13) % 70);
                 const r = 12 + ((i * 5) % 9);
                 return <circle key={i} cx={x} cy={y} r={r} />;
               })}
@@ -288,7 +305,7 @@ function BeachSceneLayered({ preset }: { preset: BeachPreset }) {
             <g fill="#65a04a" opacity="0.7">
               {Array.from({ length: 22 }).map((_, i) => {
                 const x = 60 + i * 71 + (i % 4) * 9;
-                const y = 810 + ((i * 17) % 60);
+                const y = 810 + dy + ((i * 17) % 60);
                 const r = 8 + ((i * 3) % 6);
                 return <circle key={i} cx={x} cy={y} r={r} />;
               })}

@@ -1,12 +1,16 @@
-import { useRef, useState } from "react";
+import { lazy, Suspense, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { Icon } from "../lib/icons";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, ErrorState, useMockLoad, FutureBanner, ContextPanel } from "../components/ui";
 import type { TabEntry } from "../components/ui";
 import { BarChart, HBarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts";
 import { BeachBackdrop } from "../components/Beach";
+
+// Lazy so konva only loads when the Sunbed-layout tab is opened.
+const BeachCanvas = lazy(() => import("../components/BeachCanvas").then((m) => ({ default: m.BeachCanvas })));
 import { BackgroundPicker } from "../components/BackgroundPicker";
-import { ZONES } from "../data/beach";
+import { ZONES, zoneLayout } from "../data/beach";
+import type { SunbedSlot, SunbedState, SunbedKind } from "../domain/types";
 import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS } from "../data/mock";
 import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr";
 import { useApp } from "../app/store";
@@ -103,7 +107,7 @@ export function AdminAvailability() {
 
 /* ============ MAP LAYOUT EDITOR ============ */
 interface EditorZone { id: string; name: string; prefix: string; color: string; total: number; rows: number; cols: number; x: number; y: number; }
-export function AdminMapEditor() {
+function ZoneArrangeEditor() {
   const { toast } = useApp();
   const [pickerOpen, setPickerOpen] = useState(false);
   // Each zone has a name, prefix, colour, rows, cols, and a position in % of the canvas.
@@ -149,7 +153,10 @@ export function AdminMapEditor() {
 
   return (
     <div>
-      <PageHead actions={<><Btn variant="outline" icon={Icon.image} onClick={() => setPickerOpen(true)}>Background</Btn><Btn variant="primary" icon={Icon.check} onClick={save}>Save layout</Btn></>} />
+      <div className="flex items-center justify-end gap-2 mb-3">
+        <Btn variant="outline" icon={Icon.image} onClick={() => setPickerOpen(true)}>Background</Btn>
+        <Btn variant="primary" icon={Icon.check} onClick={save}>Save layout</Btn>
+      </div>
       <div className="lg:hidden mb-3 flex items-start gap-2 rounded-xl bg-slaice-100 ring-1 ring-slaice-600/20 px-3 py-2 text-[12px] text-slaice-700">
         <Icon.info size={14} className="shrink-0 mt-0.5 text-slaice-600" /> The map editor is best on a larger screen — drag-to-position zones is easier with a mouse.
       </div>
@@ -238,6 +245,157 @@ export function AdminMapEditor() {
         </Card>
       </div>
       <BackgroundPicker open={pickerOpen} onClose={() => setPickerOpen(false)} />
+    </div>
+  );
+}
+
+/* ---- Sunbed-level layout editor ----
+   Drag/place individual umbrellas for a zone on the shared Konva canvas, set
+   each one's availability/price, then publish. The saved SunbedSlot[] lands in
+   the app store and the booking wizard renders that exact arrangement. */
+function SunbedLayoutEditor() {
+  const { toast, beachLayout, setZoneLayout } = useApp();
+  const [zoneId, setZoneId] = useState(ZONES[0].id);
+  const zone = ZONES.find((z) => z.id === zoneId) ?? ZONES[0];
+  // Working copy: the published layout if any, otherwise the default grid.
+  const [slots, setSlots] = useState<SunbedSlot[]>(() => beachLayout[zoneId] ?? zoneLayout(zone));
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [snapOn, setSnapOn] = useState(true);
+
+  const selList = slots.filter((s) => sel.has(s.id));
+  const one = selList.length === 1 ? selList[0] : null;
+  const first = selList[0];
+  const curState = first && selList.every((s) => s.state === first.state) ? first.state : undefined;
+  const curKind = first && selList.every((s) => (s.kind ?? "standard") === (first.kind ?? "standard")) ? (first.kind ?? "standard") : undefined;
+
+  const switchZone = (id: string) => {
+    const z = ZONES.find((x) => x.id === id) ?? ZONES[0];
+    setZoneId(id);
+    setSlots(beachLayout[id] ?? zoneLayout(z));
+    setSel(new Set());
+  };
+  const select = (id: string, additive: boolean) =>
+    setSel((s) => {
+      if (!additive) return new Set([id]);
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  const move = (id: string, x: number, y: number) => setSlots((ss) => ss.map((s) => (s.id === id ? { ...s, x, y } : s)));
+  const patchSel = (p: Partial<SunbedSlot>) => setSlots((ss) => ss.map((s) => (sel.has(s.id) ? { ...s, ...p } : s)));
+  const nextNum = (list: SunbedSlot[]) => {
+    const nums = list.map((s) => parseInt(s.id.split("-")[1] || "0", 10)).filter((n) => !Number.isNaN(n));
+    return (nums.length ? Math.max(...nums) : 0) + 1;
+  };
+  const addBed = () => {
+    const id = `${zone.prefix}-${String(nextNum(slots)).padStart(2, "0")}`;
+    setSlots((ss) => [...ss, { id, x: 50, y: 50, state: "a", price: zone.from }]);
+    setSel(new Set([id]));
+  };
+  const duplicate = () => {
+    if (!selList.length) return;
+    let n = nextNum(slots);
+    const clones: SunbedSlot[] = selList.map((s) => ({ ...s, id: `${zone.prefix}-${String(n++).padStart(2, "0")}`, x: Math.min(96, s.x + 6), y: Math.min(96, s.y + 6) }));
+    setSlots((ss) => [...ss, ...clones]);
+    setSel(new Set(clones.map((c) => c.id)));
+  };
+  const removeSel = () => { if (!sel.size) return; setSlots((ss) => ss.filter((s) => !sel.has(s.id))); setSel(new Set()); };
+  const reset = () => { setSlots(zoneLayout(zone)); setSel(new Set()); toast(`Reset ${zone.name} to the default grid.`); };
+  const save = () => { setZoneLayout(zoneId, slots); toast(`Published ${zone.name} — ${slots.length} sets now live in the booking wizard.`, { tone: "success" }); };
+
+  const states: { v: SunbedState; label: string }[] = [{ v: "a", label: "Available" }, { v: "h", label: "On hold" }, { v: "u", label: "Blocked" }];
+  const kinds: { v: SunbedKind; label: string }[] = [{ v: "standard", label: "Standard" }, { v: "front", label: "Front row" }, { v: "cabana", label: "Cabana" }];
+
+  return (
+    <div className="grid lg:grid-cols-[1fr_320px] gap-4">
+      <Card className="p-5">
+        <div className="lg:hidden mb-3 flex items-start gap-2 rounded-xl bg-slaice-100 ring-1 ring-slaice-600/20 px-3 py-2 text-[12px] text-slaice-700">
+          <Icon.info size={14} className="shrink-0 mt-0.5 text-slaice-600" /> Best on a larger screen — arranging sunbeds wants a mouse; ⇧/⌘-click selects several.
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5 mb-3">
+          {ZONES.map((z) => (
+            <button key={z.id} onClick={() => switchZone(z.id)}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold ring-1 transition ${zoneId === z.id ? "bg-navy-900 text-white ring-navy-900" : "ring-slate-200 text-slate-700 hover:ring-teal-400"}`}>
+              <span className="w-2.5 h-2.5 rounded-full" style={{ background: z.color }} /> {z.name}
+              {beachLayout[z.id] && <Icon.check size={12} className={zoneId === z.id ? "text-teal-300" : "text-teal-600"} />}
+            </button>
+          ))}
+          <div className="ml-auto inline-flex items-center">
+            <Toggle on={snapOn} onChange={setSnapOn} label="Snap to grid" />
+          </div>
+        </div>
+        <Suspense fallback={<div className="w-full rounded-2xl bg-gradient-to-b from-sky-100 to-amber-100/60 ring-1 ring-white/50 animate-pulse" style={{ height: 360 }} />}>
+          <BeachCanvas slots={slots} editable selectedIds={sel} onSelect={select} onMove={move} snap={snapOn ? 5 : 0} maxHeight={520} />
+        </Suspense>
+        <div className="mt-3 flex items-center justify-between text-[12px] text-slate-500">
+          <span className="tnum">{slots.length} sets · {slots.filter((s) => s.state === "a").length} available{sel.size > 0 ? ` · ${sel.size} selected` : ""}</span>
+          <span className="hidden sm:inline">Drag to arrange · click to select · ⇧/⌘-click for many</span>
+        </div>
+      </Card>
+
+      <Card className="p-5 h-max">
+        <div className="font-semibold text-navy-900 mb-3 flex items-center gap-2"><span className="w-3 h-3 rounded-full" style={{ background: zone.color }} /> {zone.name} · sunbeds</div>
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          <Btn variant="tint" size="sm" icon={Icon.plus} onClick={addBed}>Add</Btn>
+          <Btn variant="ghost" size="sm" icon={Icon.grid} onClick={duplicate} disabled={!sel.size}>Copy</Btn>
+          <Btn variant="ghost" size="sm" icon={Icon.refund} onClick={reset}>Reset</Btn>
+        </div>
+        {selList.length > 0 ? (
+          <div className="space-y-3">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              {one ? <>Selected · <span className="tnum text-navy-900">{one.id}</span></> : <><span className="text-navy-900">{selList.length}</span> selected</>}
+            </div>
+            <div>
+              <div className="text-[11px] text-slate-500 mb-1">Availability</div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {states.map((b) => (
+                  <button key={b.v} onClick={() => patchSel({ state: b.v })}
+                    className={`rounded-lg px-2 py-1.5 text-[12px] font-semibold ring-1 transition ${curState === b.v ? "bg-navy-900 text-white ring-navy-900" : "ring-slate-200 text-slate-600 hover:ring-teal-400"}`}>{b.label}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div className="text-[11px] text-slate-500 mb-1">Type</div>
+              <div className="grid grid-cols-3 gap-1.5">
+                {kinds.map((k) => (
+                  <button key={k.v} onClick={() => patchSel({ kind: k.v })}
+                    className={`rounded-lg px-2 py-1.5 text-[12px] font-semibold ring-1 transition ${curKind === k.v ? "bg-navy-900 text-white ring-navy-900" : "ring-slate-200 text-slate-600 hover:ring-teal-400"}`}>{k.label}</button>
+                ))}
+              </div>
+            </div>
+            {one && (
+              <>
+                <Field label="Price (€ / day)">
+                  <Input type="number" min={0} value={one.price} onChange={(e) => patchSel({ price: Math.max(0, +e.target.value || 0) })} />
+                </Field>
+                <div className="text-[11px] text-slate-500 tnum">Position: {one.x.toFixed(0)}%, {one.y.toFixed(0)}%</div>
+              </>
+            )}
+            <Btn variant="ghost" full size="sm" icon={Icon.trash} onClick={removeSel} className="text-rose-600 hover:bg-rose-50">Remove {selList.length > 1 ? `${selList.length} sets` : "sunbed"}</Btn>
+          </div>
+        ) : (
+          <div className="rounded-xl ring-1 ring-dashed ring-slate-300 bg-slate-50 px-3 py-6 text-center text-[12.5px] text-slate-500">
+            Click an umbrella to edit its availability, type, price or position. ⇧/⌘-click to select several at once.
+          </div>
+        )}
+        <div className="mt-4 pt-3 border-t border-slate-100">
+          <Btn variant="primary" full icon={Icon.check} onClick={save}>Publish to wizard</Btn>
+          <div className="mt-2 text-[11px] text-slate-500 leading-snug">Customers see this exact arrangement when they open <b>{zone.name}</b> in “Plan my visit”.</div>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+export function AdminMapEditor() {
+  const [tab, setTab] = useState("sunbeds");
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+        <Tabs tabs={[["zones", "Zone map"], ["sunbeds", "Sunbed layout"]]} value={tab} onChange={setTab} />
+        <div className="text-[12px] text-slate-500 hidden sm:block">Arrange zones, then place each zone&apos;s sunbeds in detail.</div>
+      </div>
+      {tab === "zones" ? <ZoneArrangeEditor /> : <SunbedLayoutEditor />}
     </div>
   );
 }

@@ -56,6 +56,12 @@ export default {
         shimmer: { "100%": { transform: "translateX(100%)" } },
         floaty: { "0%,100%": { transform: "translateY(0)" }, "50%": { transform: "translateY(-5px)" } },
         spinSlow: { to: { transform: "rotate(360deg)" } },
+        dive: {
+          "0%": { opacity: 0, transform: "scale(1.05)" },
+          "28%": { opacity: 1 },
+          "68%": { opacity: 1, transform: "scale(1.18)" },
+          "100%": { opacity: 0, transform: "scale(1.3)" },
+        },
       },
       animation: {
         "fade-up": "fadeUp .5s cubic-bezier(.22,1,.36,1) both",
@@ -67,6 +73,7 @@ export default {
         "slide-up": "slideUp .34s cubic-bezier(.34,1.56,.64,1) both",
         floaty: "floaty 5s ease-in-out infinite",
         shimmer: "shimmer 1.6s infinite",
+        dive: "dive 1s cubic-bezier(.4,0,.2,1) both",
       },
     },
   },

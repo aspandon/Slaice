@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../lib/icons";
 import { Card, Btn, Badge, Stepper, Input, Field, DatePickerRow, SwipeRow, Toggle } from "../components/ui";
 import { Reveal, prefersReducedMotion } from "../lib/motion";
-import { Sunbed } from "../components/Beach";
-import { ZONES, todayISO, chipLabel, makeGrid } from "../data/beach";
+import { Sunbed, BeachBackdrop } from "../components/Beach";
+
+// Lazy so the konva canvas bundle only downloads when a guest actually zooms
+// into a zone — keeps it off the initial load.
+const BeachCanvas = lazy(() => import("../components/BeachCanvas").then((m) => ({ default: m.BeachCanvas })));
+import { ZONES, ZONE_BLOCKS, FACILITIES, todayISO, chipLabel, zoneLayout } from "../data/beach";
+import type { SunbedSlot } from "../domain/types";
 import { useApp, useSpotlight, useT } from "../app/store";
 import { localeFor } from "../app/i18n";
 import { TICKET_PRICES, TICKET_META, LOCKER_PRICE, PARKING_PRICE } from "../domain/pricing";
@@ -28,9 +32,8 @@ const TICKET: Record<string, { price: number; label: string; sub: string }> = {
 };
 
 const STEPS = [
+  { id: "beach",   label: "Beach",    icon: "umbrella", sub: "Pick your zone, sunbeds & days" },
   { id: "people",  label: "Guests",   icon: "group",    sub: "Tell us who's coming" },
-  { id: "dates",   label: "Dates",    icon: "calendar", sub: "Pick one or more days" },
-  { id: "sets",    label: "Beach bar",icon: "umbrella", sub: "Choose your zone & sets", optional: true },
   { id: "locker",  label: "Locker",   icon: "lock",     sub: "Add a day locker (optional)", optional: true },
   { id: "parking", label: "Parking Spot", icon: "car", sub: "Reserve a spot (optional)",    optional: true },
   { id: "review",  label: "Review",   icon: "checkCircle", sub: "Confirm & checkout" },
@@ -77,47 +80,31 @@ export function CustomerWizard() {
   }, []);
 
   const [stepIdx, setStepIdx] = useState(initialStep);
-  const [people, setPeople] = useState<People>({ adult: 2, resident: 0, child: 0, senior: 0 });
+  // Beach comes before Guests now, so the basket starts empty and fills as the
+  // guest picks sunbeds, then sets a headcount on the Guests step.
+  const [people, setPeople] = useState<People>({ adult: 0, resident: 0, child: 0, senior: 0 });
   const [includeTickets, setIncludeTickets] = useState(true);
-  const [includeBeach, setIncludeBeach] = useState(true);
   const [selDates, setSelDates] = useState([todayISO()]);
   const [multiDate, setMultiDate] = useState(false); // single day by default; opt-in to several
   const [zoneId, setZoneId] = useState("central");
-  const [sets, setSets] = useState(1);
-  const [setsTouched, setSetsTouched] = useState(false);
-  // Explicit umbrella picks from the inline beach grid. When non-empty, these
-  // override the abstract `sets` count: the user has chosen specific beds.
+  // Explicit umbrella-set picks from the beach zoom — the single source of truth
+  // for sunbeds in this booking (zone-scoped; cleared when the zone changes).
   const [bedSel, setBedSel] = useState<BedPick[]>([]);
   const [lockerOn, setLockerOn] = useState(false);
   const [lockerQty, setLockerQty] = useState(1);
   const [parkingOn, setParkingOn] = useState(false);
   const [plate, setPlate] = useState("");
-  const [sheetOpen, setSheetOpen] = useState(false);
 
   const totalPeople = people.adult + people.resident + people.child + people.senior;
-  const recommendedSets = Math.max(1, Math.ceil(Math.max(totalPeople, 1) / 2));
   const dayCount = selDates.length;
   const zone = ZONES.find((z) => z.id === zoneId) || ZONES[0];
-
-  // Follow the recommendation as guests change (only while sunbeds are included),
-  // so switching presets re-balances the basket. Once the user has explicitly
-  // picked a set count, hold it and only auto-bump upward to never under-cover.
-  useEffect(() => {
-    if (!includeBeach) return;
-    if (!setsTouched) setSets(recommendedSets);
-    else setSets((s) => Math.max(s, recommendedSets));
-  }, [recommendedSets, setsTouched, includeBeach]);
 
   // Bed IDs are zone-scoped — switching zone clears any picked beds.
   useEffect(() => { setBedSel([]); }, [zoneId]);
 
-  // Sunbeds count only when included; picked beds override the abstract count.
-  const effectiveSets = includeBeach ? (bedSel.length > 0 ? bedSel.length : sets) : 0;
-  const setSubtotal = !includeBeach
-    ? 0
-    : bedSel.length > 0
-      ? bedSel.reduce((a, b) => a + b.price, 0) * dayCount
-      : sets * zone.from * dayCount;
+  // Sunbeds come only from the umbrellas the guest picked, across every day.
+  const effectiveSets = bedSel.length;
+  const setSubtotal = bedSel.reduce((a, b) => a + b.price, 0) * dayCount;
   const ticketBreak = Object.entries(people).map(([k, n]) => ({ k, n, t: TICKET[k], total: n * TICKET[k].price * dayCount }));
   const ticketSubtotal = includeTickets ? ticketBreak.reduce((a, b) => a + b.total, 0) : 0;
   const lockerSubtotal = lockerOn ? lockerQty * LOCKER_PRICE * dayCount : 0;
@@ -133,13 +120,12 @@ export function CustomerWizard() {
 
   /* ---- Remove individual lines from the live basket (delete or swipe). ---- */
   const removeBeach = () => {
-    const snap = { bedSel, sets, setsTouched };
-    setIncludeBeach(false);
-    toast(tr("Removed sunbeds."), { action: { label: tr("Undo"), onClick: () => { setIncludeBeach(true); setBedSel(snap.bedSel); setSets(snap.sets); setSetsTouched(snap.setsTouched); } } });
+    const snap = bedSel;
+    setBedSel([]);
+    toast(tr("Removed sunbeds."), { action: { label: tr("Undo"), onClick: () => setBedSel(snap) } });
   };
   const removeTicketCat = (k: string) => {
     const prev = people[k];
-    setSetsTouched(true); // removing tickets shouldn't shrink the sunbed count
     setPeople((p) => ({ ...p, [k]: 0 }));
     toast(`${tr("Removed")} ${tr(TICKET[k].label)} ${tr("tickets")}.`, { action: { label: tr("Undo"), onClick: () => setPeople((p) => ({ ...p, [k]: prev })) } });
   };
@@ -154,18 +140,16 @@ export function CustomerWizard() {
     toast(tr("Removed parking."), { action: { label: tr("Undo"), onClick: () => { setParkingOn(true); setPlate(snap); } } });
   };
   const emptyBasket = () => {
-    const snap = { people, includeBeach, includeTickets, bedSel, sets, setsTouched, lockerOn, lockerQty, parkingOn, plate, cart: [...cart] };
-    setIncludeBeach(false);
+    const snap = { people, includeTickets, bedSel, lockerOn, lockerQty, parkingOn, plate, cart: [...cart] };
     setIncludeTickets(false);
     setBedSel([]);
     setLockerOn(false);
     setParkingOn(false);
-    setSetsTouched(true);
     setPeople({ adult: 0, resident: 0, child: 0, senior: 0 });
     clearCart();
     toast(tr("Basket emptied."), { action: { label: tr("Undo"), onClick: () => {
-      setPeople(snap.people); setIncludeBeach(snap.includeBeach); setIncludeTickets(snap.includeTickets);
-      setBedSel(snap.bedSel); setSets(snap.sets); setSetsTouched(snap.setsTouched);
+      setPeople(snap.people); setIncludeTickets(snap.includeTickets);
+      setBedSel(snap.bedSel);
       setLockerOn(snap.lockerOn); setLockerQty(snap.lockerQty); setParkingOn(snap.parkingOn); setPlate(snap.plate);
       snap.cart.forEach(addToCart);
     } } });
@@ -173,14 +157,12 @@ export function CustomerWizard() {
 
   // The removable lines the basket panel renders, derived from live state.
   const lines: PanelLine[] = [];
-  if (includeBeach && effectiveSets > 0) {
+  if (effectiveSets > 0) {
     lines.push({
       key: "beach",
       icon: Icon.umbrella,
-      label: `${zone.name} · ${effectiveSets} ${bedSel.length > 0 ? tr("bed") : tr("set")}${effectiveSets !== 1 ? "s" : ""}`,
-      sub: bedSel.length > 0
-        ? `${tr("Picked")}: ${bedSel.map((b) => b.id).join(", ")} × ${dayCount}d`
-        : `€${zone.from} × ${sets} × ${dayCount}d`,
+      label: `${zone.name} · ${effectiveSets} ${effectiveSets !== 1 ? tr("sets") : tr("set")}`,
+      sub: `${tr("Picked")}: ${bedSel.map((b) => b.id).join(", ")} × ${dayCount}d`,
       amount: setSubtotal,
       onRemove: removeBeach,
     });
@@ -202,22 +184,11 @@ export function CustomerWizard() {
     let added = 0;
     selDates.forEach((iso) => {
       const sub = chipLabel(iso, localeFor(lang)).sub;
-      // sunbeds — use the user's picked bed IDs if any, otherwise synthesise IDs
-      // in the chosen zone (auto-assign for the abstract `sets` count).
-      if (includeBeach) {
-        if (bedSel.length > 0) {
-          bedSel.forEach((b) => {
-            addToCart({ kind: "sunbed", id: `${b.id}@${iso}`, label: `${tr("Sunbed")} ${b.id}`, sub: `${zone.name} · ${sub}`, price: b.price });
-            added++;
-          });
-        } else {
-          for (let i = 0; i < sets; i++) {
-            const id = `${zone.prefix}-${String((i + 1) * 7).padStart(2, "0")}@${iso}`;
-            addToCart({ kind: "sunbed", id, label: `${tr("Sunbed set")} ${i + 1}`, sub: `${zone.name} · ${sub}`, price: zone.from });
-            added++;
-          }
-        }
-      }
+      // sunbeds — the umbrella sets the guest picked, replicated per chosen day.
+      bedSel.forEach((b) => {
+        addToCart({ kind: "sunbed", id: `${b.id}@${iso}`, label: `${tr("Sunbed")} ${b.id}`, sub: `${zone.name} · ${sub}`, price: b.price });
+        added++;
+      });
       if (includeTickets) {
         ticketBreak.forEach(({ k, n, t }) => {
           if (n > 0) {
@@ -242,17 +213,17 @@ export function CustomerWizard() {
   };
 
   return (
-    <div className="animate-fade-up grid lg:grid-cols-[1fr_360px] gap-5 pb-24 lg:pb-5">
+    <div className="animate-fade-up grid lg:grid-cols-[1fr_360px] gap-5 pb-2 lg:pb-5">
       {/* ============ LEFT: wizard ============ */}
       <div className="space-y-4 min-w-0">
         {/* Stepper rail */}
-        <Card className="glass-card-solid p-3 sm:p-4">
+        <Card className="p-3 sm:p-4">
           <ProgressRail stepIdx={stepIdx} onJump={(i) => setStepIdx(i)} />
         </Card>
 
         {/* Step card */}
         <Reveal as="div" key={step.id} className="reveal">
-          <Card className="glass-card-solid p-5 sm:p-6">
+          <Card className="p-5 sm:p-6">
             <div className="flex items-start gap-3 mb-4">
               <span className="w-11 h-11 rounded-2xl grid place-items-center text-white bg-gradient-to-br from-teal-500 to-teal-700 shadow-sm shrink-0">
                 {(() => { const I = Icon[step.icon]; return I ? <I size={20} /> : null; })()}
@@ -267,26 +238,21 @@ export function CustomerWizard() {
               <div className="text-[12px] font-semibold text-slate-500 tnum shrink-0">{stepIdx + 1}/{STEPS.length}</div>
             </div>
 
+            {step.id === "beach" && (
+              <BeachStep
+                zone={zone} zoneId={zoneId} setZoneId={setZoneId}
+                bedSel={bedSel} setBedSel={setBedSel}
+                selDates={selDates} setSelDates={setSelDates}
+                multiDate={multiDate} setMultiDate={setMultiDate}
+                dayCount={dayCount}
+              />
+            )}
             {step.id === "people" && (
               <PeopleStep
                 people={people} setPeople={setPeople}
                 includeTickets={includeTickets} setIncludeTickets={setIncludeTickets}
-                recommendedSets={recommendedSets}
-                onPreset={(v) => { setPeople(v); setSetsTouched(false); }}
-              />
-            )}
-            {step.id === "dates" && (
-              <DatesStep selDates={selDates} setSelDates={setSelDates} multiDate={multiDate} setMultiDate={setMultiDate} />
-            )}
-            {step.id === "sets" && (
-              <SetsStep
-                zone={zone} zoneId={zoneId} setZoneId={setZoneId}
-                sets={sets}
-                setSets={(v) => { setSets(v); setSetsTouched(true); }}
-                recommendedSets={recommendedSets}
-                dayCount={dayCount}
-                bedSel={bedSel} setBedSel={setBedSel}
-                includeBeach={includeBeach} setIncludeBeach={setIncludeBeach}
+                pickedSets={bedSel.length}
+                onPreset={(v) => setPeople(v)}
               />
             )}
             {step.id === "locker" && (
@@ -299,8 +265,7 @@ export function CustomerWizard() {
               <ReviewStep
                 people={people} totalPeople={totalPeople}
                 selDates={selDates} dayCount={dayCount}
-                zone={zone} sets={effectiveSets} bedSel={bedSel}
-                includeBeach={includeBeach}
+                zone={zone} bedSel={bedSel}
                 includeTickets={includeTickets}
                 ticketBreak={ticketBreak}
                 lockerOn={lockerOn} lockerQty={lockerQty}
@@ -353,64 +318,10 @@ export function CustomerWizard() {
         </div>
       </div>
 
-      {/* ============ Mobile: tap-to-expand basket bar ============
-          Portaled to <body> so it pins to the viewport — the `animate-fade-up`
-          root's transform would otherwise anchor this `fixed` bar to the bottom
-          of the (tall) wizard, pushing it off-screen. Sits above the bottom tab
-          bar via a safe-area-aware offset. */}
-      {createPortal((
-      <button
-        onClick={() => setSheetOpen(true)}
-        className="lg:hidden fixed left-3 right-3 z-30 glass-dark text-white rounded-2xl shadow-float ring-1 ring-white/15 px-4 py-3 flex items-center justify-between gap-3 bottom-[calc(4.25rem+env(safe-area-inset-bottom))]"
-      >
-        <span className="flex items-center gap-2.5 min-w-0">
-          <span className="w-9 h-9 rounded-xl bg-white/10 grid place-items-center shrink-0">
-            <Icon.card size={17} />
-          </span>
-          <span className="text-left leading-tight min-w-0">
-            <span className="block text-[13px] font-semibold truncate">
-              <LiveEuro value={grandTotal} /> · {lines.length} {lines.length !== 1 ? tr("items") : tr("item")}
-            </span>
-            <span className="block text-[11px] text-white/60">{tr("Tap to view your booking")}</span>
-          </span>
-        </span>
-        <Icon.chevD size={18} className="rotate-180 shrink-0" />
-      </button>
-      ), document.body)}
-
-      {/* Portaled to <body>: this sheet lives inside the `animate-fade-up`
-          root whose transform would otherwise make `position: fixed` relative
-          to the (tall) wizard div and push the sheet off-screen. */}
-      {sheetOpen && createPortal((
-        <div className="lg:hidden fixed inset-0 z-40" role="dialog" aria-modal="true">
-          <button type="button" aria-label={tr("Close")} tabIndex={-1} className="absolute inset-0 bg-navy-950/40 backdrop-blur-sm animate-fade-in cursor-default" onClick={() => setSheetOpen(false)} />
-          <div className="absolute left-0 right-0 bottom-0 max-h-[88dvh] glass-card-solid rounded-t-2xl ring-1 ring-white/40 shadow-float flex flex-col overflow-hidden animate-slide-up pb-safe">
-            <div className="flex items-center justify-between px-4 pt-3 pb-1 shrink-0">
-              <span className="mx-auto w-10 h-1 rounded-full bg-slate-300 absolute left-1/2 -translate-x-1/2 top-2" />
-              <div className="font-display font-bold text-navy-900">{tr("Your booking")}</div>
-              <button aria-label={tr("Close")} onClick={() => setSheetOpen(false)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-500 hover:bg-white/50"><Icon.x size={18} /></button>
-            </div>
-            <div className="overflow-y-auto p-4">
-              <BasketPanel
-                inline
-                totalPeople={totalPeople}
-                dayCount={dayCount}
-                lines={lines}
-                grandTotal={grandTotal}
-                cartCount={cart.length}
-                onEmpty={emptyBasket}
-                onCta={stepIdx === STEPS.length - 1 ? () => { setSheetOpen(false); confirm(); } : () => { setSheetOpen(false); next(); }}
-                ctaLabel={stepIdx === STEPS.length - 1 ? tr("Confirm & checkout") : tr("Continue")}
-                ctaDisabled={!canNext}
-                confirmReady={stepIdx === STEPS.length - 1}
-                stepIdx={stepIdx}
-                totalSteps={STEPS.length}
-                onJumpToReview={() => { setSheetOpen(false); setStepIdx(STEPS.length - 1); }}
-              />
-            </div>
-          </div>
-        </div>
-      ), document.body)}
+      {/* The live-basket panel is desktop-only (the right rail). On mobile the
+          top-bar cart is the single basket, and each step carries its own
+          running total plus the footer Back / Continue — so no pinned bottom
+          bar is needed. */}
     </div>
   );
 }
@@ -455,12 +366,12 @@ function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number
 }
 
 /* ============ Step 1 — People ============ */
-function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, recommendedSets, onPreset }: {
+function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, pickedSets, onPreset }: {
   people: People;
   setPeople: Dispatch<SetStateAction<People>>;
   includeTickets: boolean;
   setIncludeTickets: Dispatch<SetStateAction<boolean>>;
-  recommendedSets: number;
+  pickedSets: number;
   onPreset: (v: People) => void;
 }) {
   const tr = useT();
@@ -509,14 +420,18 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, reco
         </div>
       </div>
 
-      {/* Auto-recommendation */}
-      <div className="rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2.5 flex items-start gap-2.5">
-        <span className="w-8 h-8 rounded-lg bg-teal-600 text-white grid place-items-center shrink-0"><Icon.bolt size={15} /></span>
-        <div className="text-[13px] text-teal-900 leading-snug">
-          {tr("For")} <b>{totalPeople} {totalPeople !== 1 ? tr("guests") : tr("guest")}</b> {tr("we'll suggest")} <b>{recommendedSets} {recommendedSets !== 1 ? tr("umbrella sets") : tr("umbrella set")}</b> {tr("on the next step.")}
-          {tr("Each set seats 2 (umbrella + 2 sunbeds).")}
+      {/* Cross-check against the umbrella sets picked on the Beach step. */}
+      {pickedSets > 0 && (
+        <div className={`rounded-xl ring-1 px-3 py-2.5 flex items-start gap-2.5 ${totalPeople > pickedSets * 2 ? "ring-amber-300 bg-amber-50/80" : "ring-teal-200 bg-teal-50/70"}`}>
+          <span className={`w-8 h-8 rounded-lg text-white grid place-items-center shrink-0 ${totalPeople > pickedSets * 2 ? "bg-amber-500" : "bg-teal-600"}`}><Icon.umbrella size={15} /></span>
+          <div className="text-[13px] leading-snug text-navy-900">
+            {tr("You picked")} <b>{pickedSets} {pickedSets !== 1 ? tr("umbrella sets") : tr("umbrella set")}</b> — {tr("seats up to")} <b>{pickedSets * 2}</b>.{" "}
+            {totalPeople > pickedSets * 2
+              ? tr("That's fewer seats than guests — add a set on the Beach step if you need more.")
+              : tr("Each set seats 2 (umbrella + 2 sunbeds).")}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Tickets toggle */}
       <button
@@ -538,169 +453,232 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, reco
   );
 }
 
-/* ============ Step 2 — Dates ============ */
-function DatesStep({ selDates, setSelDates, multiDate, setMultiDate }: { selDates: string[]; setSelDates: Dispatch<SetStateAction<string[]>>; multiDate: boolean; setMultiDate: (v: boolean) => void }) {
+/* Each beach facility → a pin glyph; restrooms have no clean icon so they
+   render as a tiny "WC" text pin. */
+const FACILITY_ICON: Record<string, IconRenderer | undefined> = {
+  bar: Icon.glass,
+  shower: Icon.drop,
+  first: Icon.cross,
+  wc: undefined,
+};
+
+/* Plain-language location of a zone, derived from its position on the beach
+   overview (ZONE_BLOCKS) + the nearest bar landmark (FACILITIES) — e.g.
+   "in the centre of the beach · steps from the Beach bar". */
+function zoneLocationText(zoneId: string, tr: (s: string) => string): string {
+  const blk = ZONE_BLOCKS.find((b) => b.id === zoneId);
+  if (!blk) return "";
+  const cx = parseFloat(blk.left) + parseFloat(blk.w) / 2;
+  const horiz =
+    cx < 24 ? tr("at the western end of the beach")
+      : cx < 42 ? tr("towards the west side")
+        : cx < 58 ? tr("in the centre of the beach")
+          : cx < 78 ? tr("towards the east side")
+            : tr("at the eastern end of the beach");
+  const bars = FACILITIES.filter((f) => f.kind === "bar");
+  if (!bars.length) return horiz;
+  const nearest = bars.reduce((a, b) =>
+    Math.abs(parseFloat(b.left) - cx) < Math.abs(parseFloat(a.left) - cx) ? b : a,
+  );
+  return `${horiz} · ${tr("steps from the")} ${tr(nearest.label)}`;
+}
+
+/* ---------- Aerial zone locator ----------
+   A tap-to-select aerial of the tenant beach: every zone is drawn at its real
+   ZONE_BLOCKS position so the guest sees where each sits relative to the sea
+   (top) and the bars/facilities, then reads a plain-language location for the
+   selected one. Selection is shared with the zone list below. */
+function ZoneLocatorMap({ selectedId, onSelect }: { selectedId: string; onSelect: (id: string) => void }) {
   const tr = useT();
+  const selected = ZONES.find((z) => z.id === selectedId);
   return (
-    <div className="space-y-3">
-      <DatePickerRow value={selDates} onChange={setSelDates} multiple={multiDate} />
-      {/* Single day by default; opt in to book several at once. Switching off
-          collapses the selection back to the first chosen day. */}
-      <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 flex items-center justify-between gap-3">
-        <div className="flex items-start gap-2.5 text-[13px]">
-          <Icon.calendar size={14} className="text-slate-500 shrink-0 mt-0.5" />
-          <div>
-            <div className="font-semibold text-navy-900">{tr("Book multiple days")}</div>
-            <div className="text-[12px] text-slate-600">{tr("Reserve several days in one booking.")}</div>
-          </div>
+    <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 p-3">
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <div className="min-w-0">
+          <div className="font-semibold text-sm text-navy-900">{tr("Find your spot on the beach")}</div>
+          <div className="text-[11px] text-slate-500">{tr("Tap a zone to see where it sits — the sea is at the top.")}</div>
         </div>
-        <Toggle on={multiDate} onChange={(v) => { setMultiDate(v); if (!v && selDates.length > 1) setSelDates([selDates[0]]); }} />
+        <Badge tone="green"><Icon.map size={11} /> {tr("Live map")}</Badge>
       </div>
-      {multiDate && (
-        <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 flex items-center gap-2.5 text-[13px] text-slate-700">
-          <Icon.calendar size={14} className="text-slate-500 shrink-0" />
-          <span>
-            <b className="text-navy-900">{selDates.length} {selDates.length !== 1 ? tr("days") : tr("day")}</b> {tr("selected.")}{" "}
-            {tr("Same selection applies to sunbeds, tickets, locker and parking.")}
-          </span>
+
+      <BeachBackdrop className="aspect-video max-w-[640px] mx-auto ring-1 ring-white/50 shadow-soft">
+        {/* Orientation labels — sea (top) → promenade (bottom). */}
+        <div className="absolute top-1.5 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 text-white/90 text-[10px] font-bold uppercase tracking-[0.22em] drop-shadow">
+          <Icon.wave size={12} /> {tr("Sea")}
         </div>
-      )}
+        <div className="absolute bottom-1.5 left-1/2 -translate-x-1/2 text-white/75 text-[9px] font-semibold uppercase tracking-[0.18em] drop-shadow">
+          {tr("Promenade")}
+        </div>
+
+        {/* Facility landmarks (decorative — the zone buttons carry the semantics). */}
+        {FACILITIES.map((f) => {
+          const IconC = FACILITY_ICON[f.kind];
+          return (
+            <div key={f.id} aria-hidden className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-none" style={{ left: f.left, top: f.top }} title={f.label}>
+              <span className="w-5 h-5 rounded-full bg-white/85 ring-1 ring-navy-900/10 grid place-items-center text-navy-700 shadow-sm">
+                {IconC ? <IconC size={11} /> : <span className="text-[7px] font-bold leading-none">WC</span>}
+              </span>
+            </div>
+          );
+        })}
+
+        {/* Zone clusters, positioned + angled exactly like the full-beach overview. */}
+        {ZONES.map((z, i) => {
+          const blk = ZONE_BLOCKS.find((b) => b.id === z.id);
+          if (!blk) return null;
+          const active = z.id === selectedId;
+          return (
+            <button
+              key={z.id}
+              onClick={() => onSelect(z.id)}
+              aria-pressed={active}
+              aria-label={`${z.name} — ${z.avail} ${tr("of")} ${z.total} ${tr("free")}, ${tr("from")} €${z.from}${active ? `, ${tr("selected")}` : ""}`}
+              className="absolute origin-center focus:outline-none focus-visible:z-30 group animate-fade-in"
+              style={{ left: blk.left, top: blk.top, width: blk.w, transform: `rotate(${blk.rot}deg)`, animationDelay: `${i * 80}ms` }}
+            >
+              <span
+                className={`relative block rounded-[7px] px-1 pt-1 pb-0.5 ring-1 transition-all duration-300 ease-spring ${active ? "scale-110 ring-white shadow-[0_8px_24px_-6px_rgba(11,37,69,.55)] z-20" : "ring-white/40 group-hover:scale-105 group-hover:-translate-y-0.5 group-hover:ring-white/80"}`}
+                style={{ background: active ? z.color : `${z.color}d9` }}
+              >
+                <span className="grid grid-cols-4 gap-[2px] mb-0.5 justify-items-center">
+                  {Array.from({ length: 8 }).map((_, i) => (
+                    <i key={i} className="w-[3px] h-[3px] rounded-full bg-white/85" />
+                  ))}
+                </span>
+                <span className="block text-center text-[9px] font-bold text-white leading-none tracking-wide drop-shadow-sm">{z.prefix}</span>
+                {active && (
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-white text-teal-600 grid place-items-center shadow ring-1 ring-black/5">
+                    <Icon.check size={9} />
+                  </span>
+                )}
+              </span>
+            </button>
+          );
+        })}
+      </BeachBackdrop>
+
+      {/* Derived, human-readable location of the selected zone. */}
+      <p className="mt-2.5 flex items-start gap-2 text-[12px] text-slate-600 leading-snug">
+        <Icon.map size={14} className="text-teal-600 shrink-0 mt-0.5" />
+        <span><b className="text-navy-900">{selected?.name}</b> {tr("is")} {zoneLocationText(selectedId, tr)}.</span>
+      </p>
     </div>
   );
 }
 
-/* ============ Step 3 — Beach bar zone & sets ============ */
-function SetsStep({ zone, zoneId, setZoneId, sets, setSets, recommendedSets, dayCount, bedSel, setBedSel, includeBeach, setIncludeBeach }: {
+/* ============ Step 1 — Beach: zone overview → zoom to sunbeds (+ dates) ============
+   The immersive entry point. Choose a day (or several), see every zone on the
+   beach, tap one to zoom into its umbrella layout on a Konva canvas, then tap the
+   umbrellas you want. The picks are the single source of truth for sunbeds. */
+function BeachStep({ zone, zoneId, setZoneId, bedSel, setBedSel, selDates, setSelDates, multiDate, setMultiDate, dayCount }: {
   zone: WizardZone;
   zoneId: string;
   setZoneId: Dispatch<SetStateAction<string>>;
-  sets: number;
-  setSets: (v: number) => void;
-  recommendedSets: number;
-  dayCount: number;
   bedSel: BedPick[];
   setBedSel: Dispatch<SetStateAction<BedPick[]>>;
-  includeBeach: boolean;
-  setIncludeBeach: Dispatch<SetStateAction<boolean>>;
+  selDates: string[];
+  setSelDates: Dispatch<SetStateAction<string[]>>;
+  multiDate: boolean;
+  setMultiDate: (v: boolean) => void;
+  dayCount: number;
 }) {
-  // A compact, representative grid that fits in one view on a phone — no inner
-  // scroll, fixed columns (8 on mobile / 12 on desktop), so nothing hides and
-  // there's never any horizontal scrolling.
   const tr = useT();
-  const grid = useMemo(() => makeGrid(zone, 8, 6), [zone]);
-  const toggleBed = (id: string, price: number) => {
-    setBedSel((s) => s.find((b) => b.id === id) ? s.filter((b) => b.id !== id) : [...s, { id, price }]);
-  };
+  const { beachLayout } = useApp();
+  const [zoomed, setZoomed] = useState(false);
+  // The admin-authored layout for this zone, if any — otherwise the default grid.
+  const slots = useMemo(() => beachLayout[zone.id] ?? zoneLayout(zone), [beachLayout, zone]);
+  const selectedIds = useMemo(() => new Set(bedSel.map((b) => b.id)), [bedSel]);
+  const toggle = (slot: SunbedSlot) =>
+    setBedSel((s) => (s.find((b) => b.id === slot.id) ? s.filter((b) => b.id !== slot.id) : [...s, { id: slot.id, price: slot.price }]));
+  // Opening a zone commits it (which clears prior picks via the wizard effect)
+  // and zooms in to its umbrella layout.
+  const openZone = (id: string) => { setZoneId(id); setZoomed(true); };
   const pickedSubtotal = bedSel.reduce((a, b) => a + b.price, 0);
+  const avail = slots.filter((s) => s.state === "a").length;
+
   return (
     <div className="space-y-4">
-      {/* Include / skip sunbeds — lets a guest book only a locker or parking. */}
-      <button
-        onClick={() => setIncludeBeach((v) => !v)}
-        className={`w-full flex items-center justify-between rounded-xl px-3 py-3 ring-1 transition ${includeBeach ? "ring-teal-500 bg-teal-50" : "ring-slate-200 bg-white/70 hover:ring-teal-400"}`}
-      >
-        <span className="flex items-center gap-2.5 min-w-0 text-left">
-          <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${includeBeach ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600"}`}><Icon.umbrella size={17} /></span>
-          <span className="min-w-0">
-            <span className="block text-[13px] font-semibold text-navy-900">{tr("Add sunbeds to this booking")}</span>
-            <span className="block text-[11px] text-slate-600">{includeBeach ? tr("Choose a zone and your umbrella sets below.") : tr("Skipped — continue to add only a locker or parking.")}</span>
-          </span>
-        </span>
-        <span className={`w-6 h-6 rounded-full grid place-items-center ${includeBeach ? "bg-teal-600 text-white" : "ring-1 ring-slate-300 text-slate-500"}`}>
-          {includeBeach ? <Icon.check size={14} /> : <Icon.plus size={14} />}
-        </span>
-      </button>
+      {/* Dates — apply to the whole booking; visible while you pick. */}
+      <div>
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.calendar size={12} /> {tr("When are you coming?")}</div>
+        <DatePickerRow value={selDates} onChange={setSelDates} multiple={multiDate} />
+        <div className="mt-2 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
+          <div className="flex items-start gap-2 text-[12.5px]">
+            <Icon.calendar size={13} className="text-slate-500 shrink-0 mt-0.5" />
+            <span className="text-slate-700">{multiDate
+              ? <><b className="text-navy-900">{selDates.length} {selDates.length !== 1 ? tr("days") : tr("day")}</b> {tr("selected")}</>
+              : tr("Book several days at once")}</span>
+          </div>
+          <Toggle on={multiDate} onChange={(v) => { setMultiDate(v); if (!v && selDates.length > 1) setSelDates([selDates[0]]); }} />
+        </div>
+      </div>
 
-      {!includeBeach ? (
-        <div className="rounded-xl ring-1 ring-dashed ring-slate-300 bg-slate-50 px-3 py-5 text-center text-[13px] text-slate-500">
-          {tr("Sunbeds skipped. Toggle on to choose a zone, or continue to the next step.")}
+      {!zoomed ? (
+        /* ---- Overview: all the zones on the beach ---- */
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.umbrella size={12} /> {tr("Tap a zone to choose your spot")}</div>
+          <ZoneLocatorMap selectedId={zoneId} onSelect={openZone} />
+          <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {ZONES.map((z) => {
+              const active = z.id === zoneId;
+              return (
+                <button key={z.id} onClick={() => openZone(z.id)}
+                  className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 ring-1 transition text-left ${active ? "ring-navy-900 bg-navy-900 text-white" : "ring-slate-200 bg-white/70 hover:ring-teal-400"}`}>
+                  <span className="w-8 h-8 rounded-full grid place-items-center shrink-0" style={{ background: z.color, color: "white" }}><Icon.umbrella size={15} /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13px] font-semibold leading-tight truncate">{z.name}</span>
+                    <span className={`block text-[10.5px] tnum ${active ? "text-white/70" : "text-slate-500"}`}>{tr("from")} €{z.from} · {z.avail} {tr("free")}</span>
+                  </span>
+                  <Icon.chevR size={14} className={active ? "text-white/80 shrink-0" : "text-slate-300 shrink-0"} />
+                </button>
+              );
+            })}
+          </div>
         </div>
       ) : (
-        <>
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{tr("Pick a zone")}</div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {ZONES.map((z) => {
-                const active = z.id === zoneId;
-                const pct = Math.round((z.avail / z.total) * 100);
-                return (
-                  <button key={z.id} onClick={() => setZoneId(z.id)}
-                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ring-1 transition text-left ${active ? "ring-navy-900 bg-navy-900 text-white" : "ring-slate-200 bg-white/70 hover:ring-teal-400"}`}>
-                    <span className="w-9 h-9 rounded-full grid place-items-center shrink-0" style={{ background: z.color, color: "white" }}>
-                      <Icon.umbrella size={16} />
-                    </span>
-                    <span className="flex-1 min-w-0">
-                      <span className="block text-[14px] font-semibold leading-tight">{z.name}</span>
-                      <span className={`block text-[11px] tnum ${active ? "text-white/70" : "text-slate-500"}`}>
-                        {z.avail}/{z.total} {tr("free")} · {pct}% {tr("available")}
-                      </span>
-                    </span>
-                    <span className={`text-[12px] font-bold tnum shrink-0 ${active ? "text-white" : "text-navy-900"}`}>{tr("from")} €{z.from}</span>
-                    {active && <Icon.check size={14} className="shrink-0" />}
-                  </button>
-                );
-              })}
+        /* ---- Zoom: the selected zone's umbrella layout (Konva canvas) ---- */
+        <div className="animate-scale-in">
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <button onClick={() => setZoomed(false)} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-600 hover:text-navy-900 rounded-lg px-2 py-1 hover:bg-slate-100">
+              <Icon.arrowL size={14} /> {tr("All zones")}
+            </button>
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="w-6 h-6 rounded-lg grid place-items-center shrink-0" style={{ background: zone.color, color: "white" }}><Icon.umbrella size={13} /></span>
+              <div className="font-display font-bold text-navy-900 text-sm truncate">{zone.name}</div>
+              <Badge tone="green">{avail} {tr("free")}</Badge>
             </div>
           </div>
 
-          <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-3">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
-              <div className="min-w-0">
-                <div className="font-semibold text-sm text-navy-900">{tr("Umbrella sets in")} {zone.name}</div>
-                <div className="text-[11px] text-slate-500">€{zone.from} {tr("per set / day · suggested for your group:")} <b>{recommendedSets}</b></div>
-              </div>
-              <Stepper label={tr("umbrella sets")} value={sets} onChange={(v) => setSets(Math.max(1, v))} min={1} />
+          <Suspense fallback={<div className="w-full aspect-[5/3] rounded-2xl bg-gradient-to-b from-sky-100 to-amber-100/60 ring-1 ring-white/50 animate-pulse" />}>
+            <BeachCanvas slots={slots} selected={selectedIds} onToggle={toggle} seaLabel={tr("Sea · front row")} backLabel={tr("Promenade")} />
+          </Suspense>
+
+          <div className="mt-2 flex items-center justify-between gap-2 flex-wrap text-[11px] text-slate-600">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="flex items-center gap-1"><Sunbed state="a" size={14} />{tr("Available")}</span>
+              <span className="flex items-center gap-1"><Sunbed state="h" size={14} />{tr("On hold")}</span>
+              <span className="flex items-center gap-1"><Sunbed state="u" size={14} />{tr("Taken")}</span>
+              <span className="flex items-center gap-1"><Sunbed state="a" sel size={14} />{tr("Yours")}</span>
             </div>
-            <div className="mt-2.5 flex items-center justify-between text-[12px] text-slate-600">
-              <span>{sets} {sets !== 1 ? tr("sets") : tr("set")} × {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}</span>
-              <span className="font-semibold text-navy-900 tnum">€{sets * zone.from * dayCount}</span>
-            </div>
+            {bedSel.length > 0 && (
+              <button onClick={() => setBedSel([])} className="text-[11px] font-semibold text-slate-500 hover:text-rose-600">{tr("Clear")}</button>
+            )}
           </div>
 
-          {/* Inline beach map — pick specific umbrellas. When any are picked, they
-              override the abstract stepper count above. Fixed-size, fixed-column
-              grid keeps the whole zone visible on a phone in one tap-friendly view. */}
-          <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-3">
-            <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
-              <div className="min-w-0">
-                <div className="font-semibold text-sm text-navy-900">{tr("Pick exact umbrellas in")} {zone.name}</div>
-                <div className="text-[11px] text-slate-500">
-                  {bedSel.length > 0
-                    ? <>{tr("Using your")} <b>{bedSel.length}</b> {bedSel.length !== 1 ? tr("picked beds") : tr("picked bed")} — {tr("the stepper above is ignored.")}</>
-                    : <>{tr("Optional · tap available (blue) beds to add them, or use the stepper above to auto-assign.")}</>}
+          <div className={`mt-2 rounded-xl px-3 py-2.5 ring-1 flex items-center justify-between gap-3 ${bedSel.length > 0 ? "ring-teal-300 bg-teal-50/80" : "ring-slate-200 bg-white/70"}`}>
+            {bedSel.length > 0 ? (
+              <>
+                <div className="min-w-0 text-[12.5px]">
+                  <div className="font-semibold text-navy-900 truncate">{bedSel.length} {bedSel.length !== 1 ? tr("umbrella sets") : tr("umbrella set")} · {bedSel.map((b) => b.id).join(", ")}</div>
+                  <div className="text-[11px] text-slate-600">€{pickedSubtotal} × {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}</div>
                 </div>
-              </div>
-              {bedSel.length > 0 && (
-                <button onClick={() => setBedSel([])} className="text-[11px] font-semibold text-slate-500 hover:text-rose-600">
-                  {tr("Clear picks")}
-                </button>
-              )}
-            </div>
-            <div className="rounded-lg bg-gradient-to-b from-amber-50 to-amber-100/60 ring-1 ring-amber-200/70 p-2">
-              <div className="grid grid-cols-8 sm:grid-cols-12 gap-1 sm:gap-1.5">
-                {grid.map((b) => {
-                  const isSel = !!bedSel.find((x) => x.id === b.id);
-                  return (
-                    <div key={b.id} className="h-9 sm:h-10" style={{ lineHeight: 0 }}>
-                      <Sunbed block fill state={b.s} sel={isSel} label={b.id} price={b.price} onClick={() => toggleBed(b.id, b.price)} />
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="mt-2 flex items-center justify-between gap-2 flex-wrap text-[11px] text-slate-600">
-              <div className="flex items-center gap-3 flex-wrap">
-                <span className="flex items-center gap-1"><Sunbed state="a" size={14} />{tr("Available")}</span>
-                <span className="flex items-center gap-1"><Sunbed state="h" size={14} />{tr("On hold")}</span>
-                <span className="flex items-center gap-1"><Sunbed state="u" size={14} />{tr("Unavailable")}</span>
-                <span className="flex items-center gap-1"><Sunbed state="a" sel size={14} />{tr("Selected")}</span>
-              </div>
-              {bedSel.length > 0 && (
-                <span className="font-semibold text-navy-900 tnum">€{pickedSubtotal} × {dayCount} {dayCount !== 1 ? tr("days") : tr("day")} = €{pickedSubtotal * dayCount}</span>
-              )}
-            </div>
+                <div className="font-display font-bold text-navy-900 tnum shrink-0">€{pickedSubtotal * dayCount}</div>
+              </>
+            ) : (
+              <div className="text-[12.5px] text-slate-600">{tr("Tap the blue umbrellas to pick your sets — or continue with just a locker or parking.")}</div>
+            )}
           </div>
-        </>
+        </div>
       )}
     </div>
   );
@@ -771,15 +749,13 @@ function YesNo({ on, title, sub, icon: IconC, onClick }: { on: boolean; value?: 
 }
 
 /* ============ Step 6 — Review ============ */
-function ReviewStep({ people, totalPeople, selDates, zone, sets, bedSel = [], includeBeach, includeTickets, ticketBreak, lockerOn, lockerQty, parkingOn, plate, onJump }: {
+function ReviewStep({ people, totalPeople, selDates, zone, bedSel = [], includeTickets, ticketBreak, lockerOn, lockerQty, parkingOn, plate, onJump }: {
   people: People;
   totalPeople: number;
   selDates: string[];
   dayCount: number;
   zone: WizardZone;
-  sets: number;
   bedSel?: BedPick[];
-  includeBeach: boolean;
   includeTickets: boolean;
   ticketBreak: TicketBreakItem[];
   lockerOn: boolean;
@@ -795,16 +771,14 @@ function ReviewStep({ people, totalPeople, selDates, zone, sets, bedSel = [], in
   const dateLabel = selDates.length === 1
     ? first.label + ", " + first.sub
     : `${selDates.length} ${tr("days")} (${selDates.map((d) => chipLabel(d, loc).sub).join(", ")})`;
-  const beachBody = !includeBeach
-    ? tr("Not included")
-    : bedSel.length > 0
-      ? `${zone.name} · ${bedSel.length} ${tr("picked")} · ${bedSel.map((b) => b.id).join(", ")}`
-      : `${zone.name} · ${sets} ${sets !== 1 ? tr("umbrella sets") : tr("umbrella set")} · €${zone.from} ${tr("each")}`;
+  const beachBody = bedSel.length > 0
+    ? `${zone.name} · ${bedSel.length} ${bedSel.length !== 1 ? tr("sets") : tr("set")} · ${bedSel.map((b) => b.id).join(", ")}`
+    : tr("Not included");
   return (
     <div className="space-y-2">
+      <ReviewRow icon={Icon.umbrella} title={tr("Beach")} body={beachBody} onEdit={() => onJump("beach")} />
+      <ReviewRow icon={Icon.calendar} title={tr("Dates")} body={dateLabel} onEdit={() => onJump("beach")} />
       <ReviewRow icon={Icon.group} title={tr("Guests")} body={totalPeople > 0 ? `${totalPeople} ${tr("total")} · ${humanPeople(people)}` : tr("None added")} onEdit={() => onJump("people")} />
-      <ReviewRow icon={Icon.calendar} title={tr("Dates")} body={dateLabel} onEdit={() => onJump("dates")} />
-      <ReviewRow icon={Icon.umbrella} title={tr("Beach bar")} body={beachBody} onEdit={() => onJump("sets")} />
       <ReviewRow
         icon={Icon.ticket}
         title={tr("Entry tickets")}
@@ -868,7 +842,7 @@ function BasketPanel({
 }) {
   const tr = useT();
   const Wrap = inline ? "div" : Card;
-  const wrapClass = inline ? "" : "glass-card-solid p-5 shadow-float";
+  const wrapClass = inline ? "" : "p-5 shadow-float";
   return (
     <Wrap className={wrapClass}>
       <div className="flex items-center justify-between mb-3">

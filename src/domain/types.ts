@@ -56,6 +56,22 @@ export interface Sunbed {
   r: number;
 }
 
+/* ---------- Sunbed layout (admin-authored, customer-rendered) ----------
+   One umbrella set's position within a zone, in a normalized 0–100 box:
+   x runs left→right along the shore, y runs from the sea / front row (0) to the
+   promenade / back (100). This is the shared contract the admin Map Editor
+   writes and the customer wizard's zoom view renders — one source, no drift. */
+export type SunbedKind = "standard" | "front" | "cabana";
+
+export interface SunbedSlot {
+  id: string;
+  x: number;
+  y: number;
+  state: SunbedState;
+  price: number;
+  kind?: SunbedKind;
+}
+
 /* ---------- Bookings & documents ---------- */
 export type BookingState = "active" | "past";
 export type BookingStatus =

@@ -1,5 +1,5 @@
 // Beach zones — values match the video (Akanthus, Central, Macaw, Bestbuy, Main, Bolivar).
-import type { Sunbed, SunbedState, Zone } from "../domain/types";
+import type { Sunbed, SunbedSlot, SunbedState, Zone } from "../domain/types";
 
 export const ZONES: Zone[] = [
   { id: "akanthus", name: "Akanthus", avail: 67, total: 100, from: 30, color: "#6366f1", prefix: "AK" },
@@ -43,6 +43,25 @@ export function makeGrid(zone: Zone, cols = 14, rows = 8): Sunbed[] {
     });
   }
   return arr;
+}
+
+// Derive a zone's umbrella-set layout — positions in a normalized 0–100 box —
+// from the deterministic grid. This seeds the shared layout the admin Map Editor
+// will let tenants customise; the customer wizard renders whatever layout it is
+// given, so editor and wizard stay in lock-step. Front row (r=0) sits near the
+// sea (small y); the back row sits toward the promenade (large y).
+export function zoneLayout(zone: Zone, cols = 8, rows = 6): SunbedSlot[] {
+  const padX = 9;
+  const padY = 12;
+  const spanX = 100 - padX * 2;
+  const spanY = 100 - padY * 2;
+  return makeGrid(zone, cols, rows).map((b) => ({
+    id: b.id,
+    x: padX + (cols <= 1 ? spanX / 2 : (b.c / (cols - 1)) * spanX),
+    y: padY + (rows <= 1 ? spanY / 2 : (b.r / (rows - 1)) * spanY),
+    state: b.s,
+    price: b.price,
+  }));
 }
 
 // --- Date helpers (ISO YYYY-MM-DD is the canonical key) ---

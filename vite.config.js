@@ -22,6 +22,9 @@ export default defineConfig({
         // caching and to keep any single chunk comfortably under budget.
         manualChunks(id) {
           if (!id.includes("node_modules")) return undefined;
+          // konva + react-konva ride along with the lazy BeachCanvas chunk, so
+          // the ~290 kB canvas stack stays out of the eager vendor bundle.
+          if (id.includes("konva")) return undefined;
           if (id.includes("lucide-react")) return "icons";
           // Radix + its Floating UI positioning stack must be grouped *before*
           // the react rule below: `@floating-ui/react-dom` matches the
