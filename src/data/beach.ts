@@ -66,26 +66,29 @@ export interface DateChip {
   label: string;
   sub: string;
 }
-// { label, sub } for a date — "Today"/"Tomorrow"/weekday + dd MMM
-export function chipLabel(iso: string): DateChip {
+// { label, sub } for a date — "Today"/"Tomorrow"/weekday + dd MMM.
+// `locale` localizes the weekday/month (e.g. "el" → "Κυρ", "6 Ιουν"); `t`
+// translates the "Today"/"Tomorrow" tokens. Both default to English/identity so
+// non-localized callers keep working.
+export function chipLabel(iso: string, locale = "en-GB", t: (s: string) => string = (s) => s): DateChip {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const d = fromISO(iso);
   const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
-  const sub = d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
-  if (diff === 0) return { label: "Today", sub };
-  if (diff === 1) return { label: "Tomorrow", sub };
-  return { label: d.toLocaleDateString("en-GB", { weekday: "short" }), sub };
+  const sub = d.toLocaleDateString(locale, { day: "numeric", month: "short" });
+  if (diff === 0) return { label: t("Today"), sub };
+  if (diff === 1) return { label: t("Tomorrow"), sub };
+  return { label: d.toLocaleDateString(locale, { weekday: "short" }), sub };
 }
 // Quick strip: today + next n-1 days, each with iso + label + sub.
-export const dateStrip = (n = 7): Array<DateChip & { iso: string }> => {
+export const dateStrip = (n = 7, locale = "en-GB", t: (s: string) => string = (s) => s): Array<DateChip & { iso: string }> => {
   const base = new Date();
   base.setHours(0, 0, 0, 0);
   return Array.from({ length: n }).map((_, i) => {
     const dt = new Date(base);
     dt.setDate(base.getDate() + i);
     const iso = toISO(dt);
-    return { iso, ...chipLabel(iso) };
+    return { iso, ...chipLabel(iso, locale, t) };
   });
 };
 

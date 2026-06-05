@@ -151,7 +151,7 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
             </button>
           </Popover.Trigger>
           <Popover.Portal>
-            <Popover.Content align="end" sideOffset={8} aria-label={t("Basket")} className="glass-card-solid w-[320px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
+            <Popover.Content align="end" sideOffset={8} aria-label={t("Basket")} className="glass w-[320px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
               <div className="flex items-center justify-between px-2 py-1.5">
                 <div className="font-semibold text-navy-900 text-sm flex items-center gap-2">
                   <Icon.card size={14} /> {t("Your basket")}
@@ -224,7 +224,7 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
             </button>
           </Popover.Trigger>
           <Popover.Portal>
-            <Popover.Content align="end" sideOffset={8} aria-label={t("Notifications")} className="glass-card-solid w-[340px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
+            <Popover.Content align="end" sideOffset={8} aria-label={t("Notifications")} className="glass w-[340px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
               <div className="flex items-center justify-between px-2 py-1.5">
                 <div className="font-semibold text-navy-900 text-sm flex items-center gap-2">
                   <Icon.bell size={14} /> {t("Notifications")}
@@ -267,7 +267,7 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
             </button>
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
-            <DropdownMenu.Content align="end" sideOffset={8} className="glass-card-solid w-60 text-ink rounded-xl p-1.5 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
+            <DropdownMenu.Content align="end" sideOffset={8} className="glass w-60 text-ink rounded-xl p-1.5 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
               <div className="px-3 py-2 border-b border-slate-100 mb-1">
                 <div className="font-semibold text-sm text-navy-900">Elena M.</div>
                 <div className="text-[12px] text-slate-500">elena@example.com</div>
@@ -317,7 +317,7 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
             )}
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
-            <DropdownMenu.Content align="end" sideOffset={8} className="glass-card-solid w-72 text-ink rounded-xl p-1.5 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
+            <DropdownMenu.Content align="end" sideOffset={8} className="glass w-72 text-ink rounded-xl p-1.5 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
               <DropdownMenu.Label className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{t("View as persona")}</DropdownMenu.Label>
               {PERSONAS.map((p) => (
                 <DropdownMenu.Item key={p.id} onSelect={() => setPersona(p.id)}

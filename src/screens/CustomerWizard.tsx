@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../lib/icons";
-import { Card, Btn, Badge, Stepper, Input, Field, DatePickerRow, SwipeRow } from "../components/ui";
+import { Card, Btn, Badge, Stepper, Input, Field, DatePickerRow, SwipeRow, Toggle } from "../components/ui";
 import { Reveal, prefersReducedMotion } from "../lib/motion";
 import { Sunbed } from "../components/Beach";
 import { ZONES, todayISO, chipLabel, makeGrid } from "../data/beach";
 import { useApp, useSpotlight, useT } from "../app/store";
+import { localeFor } from "../app/i18n";
 import { TICKET_PRICES, TICKET_META, LOCKER_PRICE, PARKING_PRICE } from "../domain/pricing";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import type { IconRenderer } from "../lib/icons";
@@ -62,7 +63,7 @@ function useAnimatedNumber(value: number, duration = 480) {
 
 export function CustomerWizard() {
   const tr = useT();
-  const { go, toast, addToCart, cart, clearCart, hint } = useApp();
+  const { go, toast, addToCart, cart, clearCart, hint, lang } = useApp();
   useSpotlight("customer", "plan");
 
   // Deep-link: a Home tile can open the wizard straight at a given step.
@@ -80,6 +81,7 @@ export function CustomerWizard() {
   const [includeTickets, setIncludeTickets] = useState(true);
   const [includeBeach, setIncludeBeach] = useState(true);
   const [selDates, setSelDates] = useState([todayISO()]);
+  const [multiDate, setMultiDate] = useState(false); // single day by default; opt-in to several
   const [zoneId, setZoneId] = useState("central");
   const [sets, setSets] = useState(1);
   const [setsTouched, setSetsTouched] = useState(false);
@@ -199,7 +201,7 @@ export function CustomerWizard() {
   const confirm = () => {
     let added = 0;
     selDates.forEach((iso) => {
-      const sub = chipLabel(iso).sub;
+      const sub = chipLabel(iso, localeFor(lang)).sub;
       // sunbeds — use the user's picked bed IDs if any, otherwise synthesise IDs
       // in the chosen zone (auto-assign for the abstract `sets` count).
       if (includeBeach) {
@@ -274,7 +276,7 @@ export function CustomerWizard() {
               />
             )}
             {step.id === "dates" && (
-              <DatesStep selDates={selDates} setSelDates={setSelDates} />
+              <DatesStep selDates={selDates} setSelDates={setSelDates} multiDate={multiDate} setMultiDate={setMultiDate} />
             )}
             {step.id === "sets" && (
               <SetsStep
@@ -537,18 +539,32 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, reco
 }
 
 /* ============ Step 2 — Dates ============ */
-function DatesStep({ selDates, setSelDates }: { selDates: string[]; setSelDates: Dispatch<SetStateAction<string[]>> }) {
+function DatesStep({ selDates, setSelDates, multiDate, setMultiDate }: { selDates: string[]; setSelDates: Dispatch<SetStateAction<string[]>>; multiDate: boolean; setMultiDate: (v: boolean) => void }) {
   const tr = useT();
   return (
     <div className="space-y-3">
-      <DatePickerRow value={selDates} onChange={setSelDates} />
-      <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 flex items-center gap-2.5 text-[13px] text-slate-700">
-        <Icon.calendar size={14} className="text-slate-500 shrink-0" />
-        <span>
-          <b className="text-navy-900">{selDates.length} {selDates.length !== 1 ? tr("days") : tr("day")}</b> {tr("selected.")}
-          {tr("Same selection applies to sunbeds, tickets, locker and parking.")}
-        </span>
+      <DatePickerRow value={selDates} onChange={setSelDates} multiple={multiDate} />
+      {/* Single day by default; opt in to book several at once. Switching off
+          collapses the selection back to the first chosen day. */}
+      <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 flex items-center justify-between gap-3">
+        <div className="flex items-start gap-2.5 text-[13px]">
+          <Icon.calendar size={14} className="text-slate-500 shrink-0 mt-0.5" />
+          <div>
+            <div className="font-semibold text-navy-900">{tr("Book multiple days")}</div>
+            <div className="text-[12px] text-slate-600">{tr("Reserve several days in one booking.")}</div>
+          </div>
+        </div>
+        <Toggle on={multiDate} onChange={(v) => { setMultiDate(v); if (!v && selDates.length > 1) setSelDates([selDates[0]]); }} />
       </div>
+      {multiDate && (
+        <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 flex items-center gap-2.5 text-[13px] text-slate-700">
+          <Icon.calendar size={14} className="text-slate-500 shrink-0" />
+          <span>
+            <b className="text-navy-900">{selDates.length} {selDates.length !== 1 ? tr("days") : tr("day")}</b> {tr("selected.")}{" "}
+            {tr("Same selection applies to sunbeds, tickets, locker and parking.")}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -773,9 +789,12 @@ function ReviewStep({ people, totalPeople, selDates, zone, sets, bedSel = [], in
   onJump: (id: string) => void;
 }) {
   const tr = useT();
+  const { lang } = useApp();
+  const loc = localeFor(lang);
+  const first = chipLabel(selDates[0], loc, tr);
   const dateLabel = selDates.length === 1
-    ? chipLabel(selDates[0]).label + ", " + chipLabel(selDates[0]).sub
-    : `${selDates.length} ${tr("days")} (${selDates.map((d) => chipLabel(d).sub).join(", ")})`;
+    ? first.label + ", " + first.sub
+    : `${selDates.length} ${tr("days")} (${selDates.map((d) => chipLabel(d, loc).sub).join(", ")})`;
   const beachBody = !includeBeach
     ? tr("Not included")
     : bedSel.length > 0

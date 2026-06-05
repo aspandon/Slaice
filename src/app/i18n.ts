@@ -59,3 +59,10 @@ export function translate(lang: LangCode, text: string): string {
   const dict = DICTS[lang];
   return (dict && dict[text]) || text;
 }
+
+// BCP-47 locale for Intl date/number formatting. Our codes are valid locales
+// except English, where "en-GB" gives day-first dates ("6 Jun") over US order.
+const INTL_LOCALES: Record<string, string> = { en: "en-GB" };
+export function localeFor(lang: LangCode): string {
+  return INTL_LOCALES[lang] || lang;
+}

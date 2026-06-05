@@ -3,6 +3,8 @@ import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react
 import { createPortal } from "react-dom";
 import { Icon } from "../../lib/icons";
 import { chipLabel, dateStrip, fromISO, todayISO, toISO } from "../../data/beach";
+import { useApp, useT } from "../../app/store";
+import { localeFor } from "../../app/i18n";
 
 /* ---------- Field / inputs ---------- */
 export function Field({ label, children, hint }: { label?: ReactNode; children?: ReactNode; hint?: ReactNode }) {
@@ -56,21 +58,31 @@ export function Stepper({ value, onChange, min = 0, label }: { value: number; on
 }
 
 /* ---------- DatePickerRow ----------
-   Multi-select date picker. `value` is an array of ISO YYYY-MM-DD strings. */
-export function DatePickerRow({ value = [], onChange, quickDays = 7, className = "" }: {
+   Date picker. `value` is an array of ISO YYYY-MM-DD strings. With `multiple`
+   off (the default for single-day bookings) selecting a date replaces the
+   selection; with it on, dates toggle and accumulate. */
+export function DatePickerRow({ value = [], onChange, quickDays = 7, multiple = true, className = "" }: {
   value?: string[];
   onChange: (v: string[]) => void;
   quickDays?: number;
+  multiple?: boolean;
   className?: string;
 }) {
   const [picker, setPicker] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canL, setCanL] = useState(false);
   const [canR, setCanR] = useState(false);
-  const strip = useMemo(() => dateStrip(quickDays), [quickDays]);
+  const { lang } = useApp();
+  const t = useT();
+  const loc = localeFor(lang);
+  // Dates re-localize when the language changes (loc derives from lang); t is
+  // stable in behaviour for a given language.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const strip = useMemo(() => dateStrip(quickDays, loc, t), [quickDays, loc]);
   const stripSet = useMemo(() => new Set(strip.map((d) => d.iso)), [strip]);
   const extras = useMemo(() => value.filter((iso) => !stripSet.has(iso)).sort(), [value, stripSet]);
   const toggle = (iso: string) => {
+    if (!multiple) { onChange([iso]); return; } // single-day: replace selection
     const has = value.includes(iso);
     if (has && value.length === 1) return; // keep at least one
     onChange(has ? value.filter((x) => x !== iso) : [...value, iso].sort());
@@ -100,7 +112,7 @@ export function DatePickerRow({ value = [], onChange, quickDays = 7, className =
   return (
     <div className={className}>
       <div className="flex items-center gap-1.5">
-        <button type="button" aria-label="Scroll dates left" onClick={() => nudge(-1)} disabled={!canL}
+        <button type="button" aria-label={t("Scroll dates left")} onClick={() => nudge(-1)} disabled={!canL}
           className="shrink-0 w-7 h-9 grid place-items-center rounded-lg ring-1 ring-slate-200 bg-white text-slate-600 hover:text-navy-900 hover:ring-teal-400 transition disabled:opacity-30 disabled:cursor-not-allowed">
           <Icon.arrowL size={14} />
         </button>
@@ -110,21 +122,21 @@ export function DatePickerRow({ value = [], onChange, quickDays = 7, className =
             return <DatePill key={d.iso} on={on} label={d.label} sub={d.sub} onClick={() => toggle(d.iso)} />;
           })}
           {extras.map((iso) => {
-            const lbl = chipLabel(iso);
+            const lbl = chipLabel(iso, loc, t);
             return <DatePill key={iso} on label={lbl.label} sub={lbl.sub} onClick={() => toggle(iso)} />;
           })}
           <button type="button" onClick={() => setPicker(true)}
             className="px-3 py-2.5 min-h-[64px] rounded-xl min-w-[78px] ring-1 ring-dashed ring-slate-300 text-slate-600 hover:ring-teal-400 hover:text-teal-700 transition shrink-0 inline-flex items-center justify-center gap-1.5 text-[12px] font-semibold"
-            aria-label="Pick dates from calendar">
-            <Icon.calendar size={14} /> Pick dates
+            aria-label={t("Pick dates from calendar")}>
+            <Icon.calendar size={14} /> {multiple ? t("Pick dates") : t("Pick a date")}
           </button>
         </div>
-        <button type="button" aria-label="Scroll dates right" onClick={() => nudge(1)} disabled={!canR}
+        <button type="button" aria-label={t("Scroll dates right")} onClick={() => nudge(1)} disabled={!canR}
           className="shrink-0 w-7 h-9 grid place-items-center rounded-lg ring-1 ring-slate-200 bg-white text-slate-600 hover:text-navy-900 hover:ring-teal-400 transition disabled:opacity-30 disabled:cursor-not-allowed">
           <Icon.arrowR size={14} />
         </button>
       </div>
-      {picker && <DateCalendarModal value={value} onChange={onChange} onClose={() => setPicker(false)} />}
+      {picker && <DateCalendarModal value={value} onChange={onChange} onClose={() => setPicker(false)} locale={loc} t={t} multiple={multiple} />}
     </div>
   );
 }
@@ -146,7 +158,7 @@ function DatePill({ on, label, sub, onClick }: { on?: boolean; label: ReactNode;
   );
 }
 
-function DateCalendarModal({ value, onChange, onClose }: { value: string[]; onChange: (v: string[]) => void; onClose: () => void }) {
+function DateCalendarModal({ value, onChange, onClose, locale = "en-GB", t = (s) => s, multiple = true }: { value: string[]; onChange: (v: string[]) => void; onClose: () => void; locale?: string; t?: (s: string) => string; multiple?: boolean }) {
   const [month, setMonth] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -171,34 +183,40 @@ function DateCalendarModal({ value, onChange, onClose }: { value: string[]; onCh
     return out;
   }, [month, today]);
   const toggle = (iso: string) => {
+    if (!multiple) { onChange([iso]); onClose(); return; } // single-day: pick & close
     const has = value.includes(iso);
     if (has && value.length === 1) return;
     onChange(has ? value.filter((x) => x !== iso) : [...value, iso].sort());
   };
+  // Localized weekday headers (2024-01-01 is a Monday).
+  const weekdays = useMemo(
+    () => Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 1 + i).toLocaleDateString(locale, { weekday: "short" })),
+    [locale],
+  );
   const monthStart = new Date(month.getFullYear(), month.getMonth(), 1);
   const todayMonth = new Date(today.getFullYear(), today.getMonth(), 1);
   const canPrev = monthStart > todayMonth;
-  const title = monthStart.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+  const title = monthStart.toLocaleDateString(locale, { month: "long", year: "numeric" });
   return createPortal((
     <div role="dialog" aria-modal="true" className="fixed inset-0 z-[70] grid place-items-center p-4 animate-fade-in">
-      <button type="button" aria-label="Close" tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-navy-950/45 backdrop-blur-xl cursor-default" />
+      <button type="button" aria-label={t("Close")} tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-navy-950/45 backdrop-blur-xl cursor-default" />
       <div className="glass-card-solid relative rounded-2xl w-full max-w-sm animate-pop">
         <div className="px-4 py-3 border-b border-white/40 flex items-center justify-between">
-          <div className="font-display font-bold text-navy-900 inline-flex items-center gap-2"><Icon.calendar size={16} /> Pick dates</div>
-          <button aria-label="Close" onClick={onClose} className="text-slate-500 hover:text-navy-900 hover:bg-white/40 p-1.5 rounded-lg"><Icon.x size={18} /></button>
+          <div className="font-display font-bold text-navy-900 inline-flex items-center gap-2"><Icon.calendar size={16} /> {multiple ? t("Pick dates") : t("Pick a date")}</div>
+          <button aria-label={t("Close")} onClick={onClose} className="text-slate-500 hover:text-navy-900 hover:bg-white/40 p-1.5 rounded-lg"><Icon.x size={18} /></button>
         </div>
         <div className="p-4">
           <div className="flex items-center justify-between mb-3">
             <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))} disabled={!canPrev}
               className="w-9 h-9 grid place-items-center rounded-lg ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
-              aria-label="Previous month"><Icon.arrowL size={15} /></button>
+              aria-label={t("Previous month")}><Icon.arrowL size={15} /></button>
             <div className="font-semibold text-navy-900">{title}</div>
             <button onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}
               className="w-9 h-9 grid place-items-center rounded-lg ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50"
-              aria-label="Next month"><Icon.arrowR size={15} /></button>
+              aria-label={t("Next month")}><Icon.arrowR size={15} /></button>
           </div>
           <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
-            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => <div key={d}>{d}</div>)}
+            {weekdays.map((d, i) => <div key={i}>{d}</div>)}
           </div>
           <div className="grid grid-cols-7 gap-1">
             {cells.map((c, i) => {
@@ -223,8 +241,8 @@ function DateCalendarModal({ value, onChange, onClose }: { value: string[]; onCh
             })}
           </div>
           <div className="mt-3 flex items-center justify-between text-[12px] text-slate-600">
-            <span><b className="text-navy-900 tnum">{value.length}</b> date{value.length !== 1 ? "s" : ""} selected</span>
-            <button onClick={onClose} className="font-semibold text-teal-700 hover:text-teal-800">Done</button>
+            <span><b className="text-navy-900 tnum">{value.length}</b> {value.length !== 1 ? t("dates selected") : t("date selected")}</span>
+            <button onClick={onClose} className="font-semibold text-teal-700 hover:text-teal-800">{t("Done")}</button>
           </div>
         </div>
       </div>
