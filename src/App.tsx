@@ -8,6 +8,7 @@ import { AuthGate } from "./screens/auth";
 import { ConsentBanner } from "./components/ConsentBanner";
 import { CommandPalette } from "./components/CommandPalette";
 import { BeachBackdrop } from "./components/Beach";
+import { LifeRing } from "./components/LifeRing";
 import { DiveTransition } from "./components/DiveTransition";
 import { prefersReducedMotion } from "./lib/motion";
 import { routeFor } from "./routes";
@@ -174,6 +175,8 @@ export default function App() {
           {persona === "customer" && (
             <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
               <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax shoreline={0.8} />
+              {/* A life-buoy bobbing in the open-water band on the left. */}
+              <LifeRing className="hidden sm:block absolute left-[8%] top-[58%] w-[96px] h-[96px]" />
             </div>
           )}
           {persona === "customer" && (
