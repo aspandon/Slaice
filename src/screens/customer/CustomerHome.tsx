@@ -3,11 +3,7 @@ import { Icon } from "../../lib/icons";
 import { Reveal } from "../../lib/motion";
 import { useApp, useT } from "../../app/store";
 
-// `transform-gpu` promotes each card to its own compositing layer so the
-// backdrop-blur snapshots the parallax beach (Beach.tsx, multiple GPU layers)
-// into one texture before blurring — without it, raster-tile seams from the
-// layered planes leak through as faint vertical lines that shift on scroll.
-const CARD = "glass rounded-3xl overflow-hidden relative transform-gpu";
+const CARD = "glass rounded-3xl overflow-hidden relative";
 
 export function CustomerHome() {
   const { dive } = useApp();
