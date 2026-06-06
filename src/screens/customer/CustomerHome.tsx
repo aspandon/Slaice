@@ -3,31 +3,29 @@ import { Icon } from "../../lib/icons";
 import { Reveal } from "../../lib/motion";
 import { useApp, useT } from "../../app/store";
 
-/* ============ HOME ============
-   A single guided-booking hero over the beach backdrop — all booking now runs
-   through the "Plan my visit" wizard — followed by the weekend promo and the
-   returning-guest "rebook" shortcut. The hero and the chrome share the same
-   translucent `glass` material as the shortcuts so the beach reads through.
+// Shared surface for all three home cards:
+// • bg-white/25  — genuinely transparent, beach reads through cleanly
+// • backdrop-blur-2xl + backdrop-saturate-50 — heavy blur + desaturated backdrop
+//   kills the teal amplification that .glass (saturate 180%) causes
+// • ring-1 ring-white/40 — crisp white edge without coloured border
+const CARD = "glass rounded-3xl overflow-hidden relative";
 
-   Strings are wrapped in t("…") (English is the source of truth; other languages
-   resolve via the generated dictionaries). */
 export function CustomerHome() {
   const { dive } = useApp();
   const t = useT();
   const [promoDismissed, setPromoDismissed] = useState(false);
 
   return (
-    <div className="animate-fade-up space-y-4">
-      {/* Guided-booking hero — the single entry point into the wizard. */}
-      <Reveal as="button" onClick={() => dive()} className="text-left group block w-full">
-        <div className="glass rounded-3xl relative overflow-hidden p-6 sm:p-9 pressable cursor-pointer transition duration-300 ease-spring hover:-translate-y-1 hover:shadow-lift">
-          <div aria-hidden className="absolute -top-28 -right-20 w-80 h-80 rounded-full bg-gradient-to-br from-teal-300/45 via-teal-400/20 to-transparent blur-3xl" />
-          <div aria-hidden className="absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-gradient-to-tr from-gold-300/35 via-amber-300/15 to-transparent blur-3xl" />
-          <div aria-hidden className="absolute top-1/3 right-1/3 w-44 h-44 rounded-full bg-gradient-to-br from-coral-300/25 to-transparent blur-2xl" />
+    <div className="animate-fade-up flex flex-col sm:grid sm:grid-cols-[3fr_2fr] gap-4 sm:items-stretch">
 
+      {/* ── Hero ──────────────────────────────────────────────────── */}
+      <Reveal as="button" onClick={() => dive()} className="text-left group block w-full sm:h-full">
+        <div className={`${CARD} p-6 sm:p-9 pressable cursor-pointer transition duration-300 ease-spring hover:-translate-y-1 hover:bg-white/35 h-full`}>
           <div className="relative">
             <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700">
-              <span className="w-6 h-6 rounded-full grid place-items-center bg-gradient-to-br from-amber-300 to-amber-500 text-white shadow-sm"><Icon.sun size={11} /></span>
+              <span className="w-6 h-6 rounded-full grid place-items-center bg-gradient-to-br from-amber-300 to-amber-500 text-white shadow-sm">
+                <Icon.sun size={11} />
+              </span>
               {t("Good morning, Elena")} · {t("Sunny")} 28°
             </div>
             <h1 className="mt-3 font-display font-bold text-[28px] sm:text-[36px] leading-[1.05] tracking-tight text-navy-900 max-w-2xl">
@@ -43,28 +41,58 @@ export function CustomerHome() {
         </div>
       </Reveal>
 
-      {/* Secondary nudges — the weekend promo and a returning-guest shortcut. */}
-      {!promoDismissed && (
-        <div className="glass rounded-2xl px-3.5 py-2.5 flex items-center gap-2.5">
-          <span className="w-7 h-7 rounded-lg grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm"><Icon.bolt size={14} /></span>
-          <span className="flex-1 min-w-0 text-[13px] text-navy-900">
-            <b className="font-semibold">{t("20% off")}</b> {t("front-row sunbeds this weekend")}
-            <span className="text-slate-700 hidden sm:inline"> · {t("gates open 09:00–20:00")}</span>
-          </span>
-          <button onClick={() => dive()} className="text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 rounded-md px-2 py-1 whitespace-nowrap">{t("Claim")} →</button>
-          <button aria-label={t("Dismiss offer")} onClick={() => setPromoDismissed(true)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-500 hover:text-navy-900 hover:bg-white/60 shrink-0"><Icon.x size={14} /></button>
-        </div>
-      )}
+      {/* ── Right column: promo + rebook ──────────────────────────── */}
+      <div className="flex flex-col gap-4 sm:h-full">
 
-      {/* Returning-guest shortcut — jump straight back to the favourite zone. */}
-      <button onClick={() => dive()} className="glass rounded-2xl px-3.5 py-2.5 w-full flex items-center gap-3 text-left hover:bg-white/70 transition group">
-        <span className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={17} /></span>
-        <span className="flex-1 min-w-0">
-          <span className="block text-[13px] font-semibold text-navy-900">{t("Rebook your usual")}</span>
-          <span className="block text-[12px] text-slate-600 truncate">Central · {t("front row — your favourite zone last season")}</span>
-        </span>
-        <Icon.chevR size={16} className="text-slate-400 group-hover:text-teal-600 group-hover:translate-x-0.5 transition shrink-0" />
-      </button>
+        {/* Weekend promo */}
+        {!promoDismissed && (
+          <div className={`${CARD} p-5 sm:p-6 flex flex-col gap-3 flex-1`}>
+            <div className="flex items-start justify-between gap-2">
+              <span className="w-10 h-10 rounded-xl grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm">
+                <Icon.bolt size={18} />
+              </span>
+              <button
+                aria-label={t("Dismiss offer")}
+                onClick={() => setPromoDismissed(true)}
+                className="w-7 h-7 grid place-items-center rounded-lg text-slate-400 hover:text-navy-900 hover:bg-white/50 shrink-0 -mt-0.5 -mr-0.5">
+                <Icon.x size={14} />
+              </button>
+            </div>
+            <div className="flex-1">
+              <div className="font-semibold text-navy-900 text-[15px]">
+                <b>{t("20% off")}</b> {t("front-row sunbeds")}
+              </div>
+              <div className="text-[12.5px] text-slate-600 mt-1 leading-snug">
+                {t("This weekend only · gates open 09:00–20:00")}
+              </div>
+            </div>
+            <button
+              onClick={() => dive()}
+              className="mt-auto self-start text-[13px] font-semibold text-teal-700 hover:text-teal-800 rounded-lg px-3 py-1.5 hover:bg-white/50 transition -ml-3">
+              {t("Claim")} →
+            </button>
+          </div>
+        )}
+
+        {/* Returning-guest shortcut */}
+        <button
+          onClick={() => dive()}
+          className={`${CARD} p-5 sm:p-6 flex flex-col gap-3 text-left hover:bg-white/35 transition group ${!promoDismissed ? "flex-1" : ""}`}>
+          <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0">
+            <Icon.umbrella size={18} />
+          </span>
+          <div className="flex-1">
+            <div className="font-semibold text-navy-900 text-[15px]">{t("Rebook your usual")}</div>
+            <div className="text-[12.5px] text-slate-600 mt-1 leading-snug">
+              Central · {t("front row — your favourite zone last season")}
+            </div>
+          </div>
+          <div className="mt-auto flex items-center gap-1 text-teal-600 text-[13px] font-semibold">
+            {t("Book again")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" />
+          </div>
+        </button>
+
+      </div>
     </div>
   );
 }
