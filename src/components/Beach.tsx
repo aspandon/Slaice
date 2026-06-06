@@ -230,107 +230,115 @@ function BeachScene({ preset, preview = false, shoreline }: { preset: BeachPrese
   );
 }
 
-/* Depth-parallax beach — all scene layers share ONE wrapper div so the entire
-   backdrop is one GPU compositing layer. Previously each layer had its own
-   will-change:transform div, which created separate GPU compositing layers;
-   backdrop-filter on glass cards above then sampled across layer boundaries
-   and the raster-tile seams leaked through as vertical lines. A single div =
-   one layer = clean sampling. The scene still scrolls with parallax; the
-   subtle inter-plane depth offset is removed as the trade-off. */
+/* Depth-parallax beach — the same palette split into far (sea), mid (sand +
+   decor) and near (vegetation) planes that drift at different rates on scroll, so
+   the horizon reads as real depth. Each plane overscans (-12%) and its travel is
+   clamped, so a translate never exposes an edge; useParallax no-ops under reduced
+   motion, leaving the planes stacked exactly like the flat scene. */
 function BeachSceneLayered({ preset, shoreline }: { preset: BeachPreset; shoreline?: number }) {
   const rid = useId().replace(/:/g, "");
   const id = (k: string) => `${k}-${rid}`;
   const dy = shorelineShift(shoreline);
-  const ref = useParallax<HTMLDivElement>(-0.04, 44);
+  const far = useParallax<HTMLDivElement>(-0.018, 24);
+  const mid = useParallax<HTMLDivElement>(-0.04, 44);
+  const near = useParallax<HTMLDivElement>(-0.065, 60);
+  const plane = "absolute pointer-events-none";
+  const overscan = { inset: "-12%", willChange: "transform" } as const;
   return (
-    <div ref={ref} className="absolute pointer-events-none" style={{ inset: "-12%", willChange: "transform" }}>
-      {/* Far: sea fill, optional glint + wave bands, top vignette. */}
-      <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-        <defs>
-          <linearGradient id={id("sea")} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={preset.sea[0]} />
-            <stop offset="35%" stopColor={preset.sea[1]} />
-            <stop offset="70%" stopColor={preset.sea[2]} />
-            <stop offset="100%" stopColor={preset.sea[3]} />
-          </linearGradient>
-          {preset.glint && (
-            <radialGradient id={id("glint")} cx="50%" cy="0%" r="60%">
-              <stop offset="0%" stopColor="rgba(255,255,255,0.55)" />
-              <stop offset="60%" stopColor="rgba(255,255,255,0)" />
-            </radialGradient>
-          )}
-          <linearGradient id={id("vignette")} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="rgba(11, 37, 69, 0.35)" />
-            <stop offset="100%" stopColor="rgba(11, 37, 69, 0)" />
-          </linearGradient>
-        </defs>
-        <rect width="1600" height="900" fill={`url(#${id("sea")})`} />
-        {preset.glint && <rect width="1600" height="900" fill={`url(#${id("glint")})`} />}
-        {preset.waves > 0 && (
-          <g opacity="0.35" stroke="white" fill="none" strokeLinecap="round">
-            {WAVES.slice(0, preset.waves).map((wv, i) => (
-              <path key={i} d={wv.d} strokeWidth={wv.sw} opacity={wv.o} />
-            ))}
-          </g>
-        )}
-        <SeaWavelets dy={dy} />
-        <rect width="1600" height="160" fill={`url(#${id("vignette")})`} />
-      </svg>
-      {/* Mid: shoreline foam, sand + grain + wet-sand shading, decor. */}
-      <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-        <defs>
-          <linearGradient id={id("sand")} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={preset.sand[0]} />
-            <stop offset="55%" stopColor={preset.sand[1]} />
-            <stop offset="100%" stopColor={preset.sand[2]} />
-          </linearGradient>
-          <linearGradient id={id("foam")} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={preset.foam} />
-            <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-          </linearGradient>
-          {preset.grain && (
-            <filter id={id("grain")} x="0" y="0" width="100%" height="100%">
-              <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" />
-              <feColorMatrix values="0 0 0 0 0.62  0 0 0 0 0.48  0 0 0 0 0.32  0 0 0 0.18 0" />
-              <feComposite in2="SourceGraphic" operator="in" />
-            </filter>
-          )}
-        </defs>
-        <path d={foamD(dy)} fill={`url(#${id("foam")})`} />
-        <path d={sandD(dy)} fill={`url(#${id("sand")})`} />
-        {preset.grain && <path d={sandD(dy)} filter={`url(#${id("grain")})`} opacity="0.5" />}
-        <path d={wetD(dy)} fill="rgba(190, 140, 80, 0.18)" />
-        <SceneDecor preset={preset} id={id} />
-      </svg>
-      {/* Near: vegetation belt and tree dots. */}
-      {preset.veg && (
+    <>
+      {/* Far plane — sea, glint, wave bands and the top vignette. */}
+      <div ref={far} className={plane} style={overscan}>
         <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
           <defs>
-            <linearGradient id={id("veg")} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={preset.veg[0]} />
-              <stop offset="100%" stopColor={preset.veg[1]} />
+            <linearGradient id={id("sea")} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={preset.sea[0]} />
+              <stop offset="35%" stopColor={preset.sea[1]} />
+              <stop offset="70%" stopColor={preset.sea[2]} />
+              <stop offset="100%" stopColor={preset.sea[3]} />
+            </linearGradient>
+            {preset.glint && (
+              <radialGradient id={id("glint")} cx="50%" cy="0%" r="60%">
+                <stop offset="0%" stopColor="rgba(255,255,255,0.55)" />
+                <stop offset="60%" stopColor="rgba(255,255,255,0)" />
+              </radialGradient>
+            )}
+            <linearGradient id={id("vignette")} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="rgba(11, 37, 69, 0.35)" />
+              <stop offset="100%" stopColor="rgba(11, 37, 69, 0)" />
             </linearGradient>
           </defs>
-          <path d={vegD(dy)} fill={`url(#${id("veg")})`} opacity="0.92" />
-          <g fill="#3f6b2c" opacity="0.85">
-            {Array.from({ length: 28 }).map((_, i) => {
-              const x = 30 + i * 57 + (i % 3) * 11;
-              const y = 790 + dy + ((i * 13) % 70);
-              const r = 12 + ((i * 5) % 9);
-              return <circle key={i} cx={x} cy={y} r={r} />;
-            })}
-          </g>
-          <g fill="#65a04a" opacity="0.7">
-            {Array.from({ length: 22 }).map((_, i) => {
-              const x = 60 + i * 71 + (i % 4) * 9;
-              const y = 810 + dy + ((i * 17) % 60);
-              const r = 8 + ((i * 3) % 6);
-              return <circle key={i} cx={x} cy={y} r={r} />;
-            })}
-          </g>
+          <rect width="1600" height="900" fill={`url(#${id("sea")})`} />
+          {preset.glint && <rect width="1600" height="900" fill={`url(#${id("glint")})`} />}
+          {preset.waves > 0 && (
+            <g opacity="0.35" stroke="white" fill="none" strokeLinecap="round">
+              {WAVES.slice(0, preset.waves).map((wv, i) => (
+                <path key={i} d={wv.d} strokeWidth={wv.sw} opacity={wv.o} />
+              ))}
+            </g>
+          )}
+          <SeaWavelets dy={dy} />
+          <rect width="1600" height="160" fill={`url(#${id("vignette")})`} />
         </svg>
+      </div>
+      {/* Mid plane — shoreline foam, sand, its grain + wet-sand shading, and decor. */}
+      <div ref={mid} className={plane} style={overscan}>
+        <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <linearGradient id={id("sand")} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={preset.sand[0]} />
+              <stop offset="55%" stopColor={preset.sand[1]} />
+              <stop offset="100%" stopColor={preset.sand[2]} />
+            </linearGradient>
+            <linearGradient id={id("foam")} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={preset.foam} />
+              <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+            </linearGradient>
+            {preset.grain && (
+              <filter id={id("grain")} x="0" y="0" width="100%" height="100%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" />
+                <feColorMatrix values="0 0 0 0 0.62  0 0 0 0 0.48  0 0 0 0 0.32  0 0 0 0.18 0" />
+                <feComposite in2="SourceGraphic" operator="in" />
+              </filter>
+            )}
+          </defs>
+          <path d={foamD(dy)} fill={`url(#${id("foam")})`} />
+          <path d={sandD(dy)} fill={`url(#${id("sand")})`} />
+          {preset.grain && <path d={sandD(dy)} filter={`url(#${id("grain")})`} opacity="0.5" />}
+          <path d={wetD(dy)} fill="rgba(190, 140, 80, 0.18)" />
+          <SceneDecor preset={preset} id={id} />
+        </svg>
+      </div>
+      {/* Near plane — the vegetation belt and tree dots (moves the most). */}
+      {preset.veg && (
+        <div ref={near} className={plane} style={overscan}>
+          <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+            <defs>
+              <linearGradient id={id("veg")} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={preset.veg[0]} />
+                <stop offset="100%" stopColor={preset.veg[1]} />
+              </linearGradient>
+            </defs>
+            <path d={vegD(dy)} fill={`url(#${id("veg")})`} opacity="0.92" />
+            <g fill="#3f6b2c" opacity="0.85">
+              {Array.from({ length: 28 }).map((_, i) => {
+                const x = 30 + i * 57 + (i % 3) * 11;
+                const y = 790 + dy + ((i * 13) % 70);
+                const r = 12 + ((i * 5) % 9);
+                return <circle key={i} cx={x} cy={y} r={r} />;
+              })}
+            </g>
+            <g fill="#65a04a" opacity="0.7">
+              {Array.from({ length: 22 }).map((_, i) => {
+                const x = 60 + i * 71 + (i % 4) * 9;
+                const y = 810 + dy + ((i * 17) % 60);
+                const r = 8 + ((i * 3) % 6);
+                return <circle key={i} cx={x} cy={y} r={r} />;
+              })}
+            </g>
+          </svg>
+        </div>
       )}
-    </div>
+    </>
   );
 }
 
