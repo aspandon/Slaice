@@ -103,6 +103,8 @@ export function CustomerWizard() {
   const [parkingDays, setParkingDays] = useState<string[]>([]);
   // Vehicle plate per ISO date (multi-day trips can use a different plate each day).
   const [plates, setPlates] = useState<Record<string, string>>({});
+  // Most guests park the same car all week — default to one shared plate.
+  const [parkingSamePlate, setParkingSamePlate] = useState(true);
   // Within the Beach step: choosing a zone vs. tapping its sets.
   const [phase, setPhase] = useState<BeachPhase>("zones");
 
@@ -202,7 +204,7 @@ export function CustomerWizard() {
            shoreline so the sets always start on the sand (never the sea). The
            store overview gives the menu band less reserved height so the
            clusters get more room to spread. */}
-      <div className={`shrink-0 flex items-start justify-center px-3 pt-2 sm:pt-3 ${showSets ? "min-h-[50vh]" : "min-h-[38vh]"}`}>
+      <div className={`shrink-0 flex items-start justify-center px-3 pt-2 sm:pt-3 ${showSets ? "min-h-[50vh]" : "min-h-[44vh]"}`}>
         <div className="pointer-events-auto w-full max-w-2xl glass-card rounded-3xl shadow-float flex flex-col max-h-[64vh] overflow-hidden animate-fade-down">
           {/* Pinned header — leave, progress, (step title only on the form steps). */}
           <div className="p-4 sm:p-5 pb-3 shrink-0">
@@ -251,6 +253,7 @@ export function CustomerWizard() {
                 scope={parkingScope} setScope={setParkingScope}
                 days={parkingDays} setDays={setParkingDays}
                 plates={plates} setPlates={setPlates}
+                samePlate={parkingSamePlate} setSamePlate={setParkingSamePlate}
                 selDates={selDates} multiDate={multiDate}
               />
             )}
@@ -303,8 +306,7 @@ export function CustomerWizard() {
         {(showZones || showSets) && (
           <div className="max-w-3xl mx-auto pointer-events-auto">
             {showZones && (
-              <div className="rounded-2xl glass px-4 py-2.5 flex items-center justify-center gap-2.5 text-center">
-                <span className="w-7 h-7 rounded-lg bg-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={14} /></span>
+              <div className="rounded-2xl glass px-4 py-1.5 text-center">
                 <span className="text-[12.5px] text-navy-900"><b>{tr("Tap a zone on the beach")}</b> {tr("to choose where you'll sit — the sea is at the top.")}</span>
               </div>
             )}
@@ -681,25 +683,17 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, pick
               </button>
             );
           })}
+          {/* Entry-tickets toggle sits inline, right after the quick picks. */}
+          <button onClick={() => setIncludeTickets((v) => !v)} aria-pressed={includeTickets}
+            className={`relative text-left rounded-xl pl-3 pr-9 py-2 ring-1 transition ${includeTickets ? "bg-teal-50 ring-teal-500" : "bg-white/70 ring-slate-200 hover:ring-teal-400"}`}>
+            <div className="text-[13px] font-semibold leading-tight text-navy-900 flex items-center gap-1.5"><Icon.ticket size={13} className={includeTickets ? "text-teal-600" : "text-slate-500"} /> {tr("Add Entry tickets")}</div>
+            <div className="text-[11px] leading-tight text-slate-500">{tr("One ticket per guest")}</div>
+            <span className={`absolute top-1/2 -translate-y-1/2 right-2 w-5 h-5 rounded-full grid place-items-center ${includeTickets ? "bg-teal-600 text-white" : "ring-1 ring-slate-300 text-slate-400"}`}>
+              {includeTickets ? <Icon.check size={12} /> : <Icon.plus size={12} />}
+            </span>
+          </button>
         </div>
       </div>
-
-      {/* Entry-tickets toggle sits right under the quick picks. */}
-      <button
-        onClick={() => setIncludeTickets((v) => !v)}
-        className={`w-full flex items-center justify-between rounded-xl px-3 py-3 ring-1 transition ${includeTickets ? "ring-teal-500 bg-teal-50" : "ring-slate-200 bg-white/70 hover:ring-teal-400"}`}
-      >
-        <span className="flex items-center gap-2.5 min-w-0 text-left">
-          <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${includeTickets ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600"}`}><Icon.ticket size={17} /></span>
-          <span className="min-w-0">
-            <span className="block text-[13px] font-semibold text-navy-900">{tr("Include entry tickets in this booking")}</span>
-            <span className="block text-[11px] text-slate-600">{includeTickets ? tr("We'll bundle one ticket per guest per day.") : tr("Just sunbeds — guests will buy tickets separately.")}</span>
-          </span>
-        </span>
-        <span className={`w-6 h-6 rounded-full grid place-items-center ${includeTickets ? "bg-teal-600 text-white" : "ring-1 ring-slate-300 text-slate-500"}`}>
-          {includeTickets ? <Icon.check size={14} /> : <Icon.plus size={14} />}
-        </span>
-      </button>
 
       <div>
         <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{tr("Headcount by category")}</div>
@@ -816,7 +810,7 @@ function DayChips({ days, value, onChange }: { days: string[]; value: string[]; 
 }
 
 /* ============ Parking ============ */
-function ParkingStep({ on, setOn, scope, setScope, days, setDays, plates, setPlates, selDates, multiDate }: {
+function ParkingStep({ on, setOn, scope, setScope, days, setDays, plates, setPlates, samePlate, setSamePlate, selDates, multiDate }: {
   on: boolean;
   setOn: Dispatch<SetStateAction<boolean>>;
   scope: DayScope;
@@ -825,6 +819,8 @@ function ParkingStep({ on, setOn, scope, setScope, days, setDays, plates, setPla
   setDays: Dispatch<SetStateAction<string[]>>;
   plates: Record<string, string>;
   setPlates: Dispatch<SetStateAction<Record<string, string>>>;
+  samePlate: boolean;
+  setSamePlate: Dispatch<SetStateAction<boolean>>;
   selDates: string[];
   multiDate: boolean;
 }) {
@@ -839,6 +835,8 @@ function ParkingStep({ on, setOn, scope, setScope, days, setDays, plates, setPla
     if (mode === "some" && days.length === 0) setDays([...selDates]);
   };
   const setPlate = (iso: string, v: string) => setPlates((p) => ({ ...p, [iso]: v.toUpperCase() }));
+  // One plate for the whole trip — write it to every chosen day so any parked day is covered.
+  const writeShared = (v: string) => setPlates((p) => { const u = v.toUpperCase(); const next = { ...p }; selDates.forEach((d) => { next[d] = u; }); return next; });
   return (
     <div className="space-y-3">
       {multiDate ? (
@@ -860,10 +858,18 @@ function ParkingStep({ on, setOn, scope, setScope, days, setDays, plates, setPla
         </div>
       )}
       {on && (multiDate ? (
-        <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-3 animate-pop space-y-2">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.car size={12} /> {tr("Vehicle plate per day")}</div>
+        <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-3 animate-pop space-y-2.5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.car size={12} /> {samePlate ? tr("Vehicle plate") : tr("Vehicle plate per day")}</div>
+            <label className="flex items-center gap-2 text-[12px] font-semibold text-navy-900 cursor-pointer shrink-0">
+              {tr("Same car plate")}
+              <Toggle on={samePlate} onChange={(v) => { setSamePlate(v); if (v) writeShared(plates[activeDays[0]] ?? plates[selDates[0]] ?? ""); }} />
+            </label>
+          </div>
           {activeDays.length === 0 ? (
             <div className="text-[12px] text-slate-500">{tr("Pick at least one day above.")}</div>
+          ) : samePlate ? (
+            <Input value={plates[selDates[0]] || ""} onChange={(e) => writeShared(e.target.value)} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" />
           ) : activeDays.map((iso) => {
             const c = chipLabel(iso, loc, tr);
             return (

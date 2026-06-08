@@ -6,7 +6,7 @@ import { prefersReducedMotion } from "../lib/motion";
 /* Sand-top fraction (0–1). Higher = thinner sand strip / ocean vista; lower lifts
    the shoreline so the sand fills the view. */
 const REST = 0.8; // home + browsing
-const IMMERSIVE = 0.46; // inside the booking wizard — the beach you tap on
+const IMMERSIVE = 0.4; // inside the booking wizard — a sand-heavy beach you tap on
 
 /* ---------- Customer page backdrop ----------
    The beach scene behind the whole customer surface. Entering the guided-booking
