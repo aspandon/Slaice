@@ -264,6 +264,9 @@ function SunbedLayoutEditor() {
   const [slots, setSlots] = useState<SunbedSlot[]>(() => beachLayout[zoneId] ?? zoneLayout(zone));
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [snapOn, setSnapOn] = useState(true);
+  // Grid generator — total sets + columns per row (rows derive from the two).
+  const [gridCount, setGridCount] = useState(() => (beachLayout[ZONES[0].id] ?? zoneLayout(ZONES[0])).length);
+  const [gridCols, setGridCols] = useState(8);
   const [logoBusy, setLogoBusy] = useState(false);
   const logo = zoneLogos[zoneId];
   const onLogo = async (file?: File) => {
@@ -290,9 +293,20 @@ function SunbedLayoutEditor() {
 
   const switchZone = (id: string) => {
     const z = ZONES.find((x) => x.id === id) ?? ZONES[0];
+    const next = beachLayout[id] ?? zoneLayout(z);
     setZoneId(id);
-    setSlots(beachLayout[id] ?? zoneLayout(z));
+    setSlots(next);
+    setGridCount(next.length);
     setSel(new Set());
+  };
+  // Lay out `count` sets in a grid `cols` wide (last row fills left-to-right).
+  const generateGrid = () => {
+    const cols = Math.max(1, Math.min(16, gridCols));
+    const count = Math.max(1, Math.min(120, gridCount));
+    const next = zoneLayout(zone, cols, Math.ceil(count / cols)).slice(0, count);
+    setSlots(next);
+    setSel(new Set());
+    toast(`Generated ${count} sets · ${cols} per row for ${zone.name}.`, { tone: "success" });
   };
   const select = (id: string, additive: boolean) =>
     setSel((s) => {
@@ -372,6 +386,24 @@ function SunbedLayoutEditor() {
               {logoBusy ? <Spinner size={12} /> : <Icon.upload size={12} />} {logo ? "Replace" : "Upload"}
             </label>
             {logo && <button onClick={() => setZoneLogo(zoneId, null)} className="text-[11px] text-slate-500 hover:text-rose-600">Remove</button>}
+          </div>
+        </div>
+
+        {/* Grid generator — set the number of sets + columns per row, then lay
+            out a fresh grid (rows are derived). Fine-tune individual sets below. */}
+        <div className="mb-3 rounded-xl ring-1 ring-slate-200 bg-slate-50 p-2.5">
+          <div className="text-[12.5px] font-semibold text-navy-900 mb-2 flex items-center gap-1.5"><Icon.grid size={13} /> Grid generator</div>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Umbrella sets">
+              <Input type="number" min={1} max={120} value={gridCount} onChange={(e) => setGridCount(Math.max(1, Math.min(120, Math.round(+e.target.value) || 1)))} />
+            </Field>
+            <Field label="Columns / row">
+              <Input type="number" min={1} max={16} value={gridCols} onChange={(e) => setGridCols(Math.max(1, Math.min(16, Math.round(+e.target.value) || 1)))} />
+            </Field>
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="text-[11px] text-slate-500 tnum">{gridCols} × {Math.ceil(gridCount / gridCols)} rows</span>
+            <Btn variant="tint" size="sm" icon={Icon.grid} onClick={generateGrid}>Generate</Btn>
           </div>
         </div>
 
