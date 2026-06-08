@@ -1,13 +1,15 @@
-import { lazy, Suspense, useRef, useState } from "react";
+import { Suspense, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import { lazyWithReload } from "../lib/staleChunk";
 import { Icon } from "../lib/icons";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, ErrorState, useMockLoad, FutureBanner, ContextPanel, Spinner } from "../components/ui";
 import type { TabEntry } from "../components/ui";
 import { BarChart, HBarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts";
 import { BeachBackdrop } from "../components/Beach";
 
-// Lazy so konva only loads when the Sunbed-layout tab is opened.
-const BeachCanvas = lazy(() => import("../components/BeachCanvas").then((m) => ({ default: m.BeachCanvas })));
+// Lazy so konva only loads when the Sunbed-layout tab is opened. lazyWithReload
+// recovers if a redeploy has renamed this chunk under an already-open tab.
+const BeachCanvas = lazyWithReload(() => import("../components/BeachCanvas").then((m) => ({ default: m.BeachCanvas })));
 import { BackgroundPicker } from "../components/BackgroundPicker";
 import { fileToBackgroundSrc } from "../lib/image";
 import { ZONES, zoneLayout } from "../data/beach";
