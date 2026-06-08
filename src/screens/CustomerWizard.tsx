@@ -175,43 +175,37 @@ export function CustomerWizard() {
   const revealDelay = prefersReducedMotion() ? "0ms" : "420ms";
 
   return (
-    <div className="fixed inset-0 z-20 pointer-events-none select-none">
-      {/* ============ The beach itself — tapped directly on the sand ============ */}
-      <div className="absolute inset-x-0 top-[46%] bottom-4 sm:bottom-6 flex justify-center px-3">
-        <div className="relative w-full max-w-5xl animate-fade-in" style={{ animationDelay: revealDelay, animationFillMode: "both" }}>
-          {showZones && <SandZones selectedId={zoneId} onPick={pickZone} />}
-          {showSets && <SandSunbeds slots={slots} selected={selectedIds} onToggle={toggleBed} />}
-          {showLockedSets && <SandSunbeds slots={slots} selected={selectedIds} readOnly />}
-        </div>
-      </div>
-
-      {/* ============ Floating menu, over the sea ============ */}
-      <div className="absolute inset-x-0 top-2 sm:top-3 flex justify-center px-3">
-        <div className="pointer-events-auto w-full max-w-2xl glass-card rounded-3xl shadow-float flex flex-col max-h-[84vh] overflow-hidden animate-fade-down">
-          {/* Pinned header — leave, progress, step title. */}
+    <div className="fixed inset-0 z-20 flex flex-col pointer-events-none select-none">
+      {/* ============ Menu over the sea (top) ============ */}
+      <div className="shrink-0 flex justify-center px-3 pt-2 sm:pt-3">
+        <div className="pointer-events-auto w-full max-w-2xl glass-card rounded-3xl shadow-float flex flex-col max-h-[64vh] overflow-hidden animate-fade-down">
+          {/* Pinned header — leave, progress, (step title only on the form steps). */}
           <div className="p-4 sm:p-5 pb-3 shrink-0">
-          <div className="flex items-center justify-between mb-3">
-            <button onClick={() => go("customer", "home")} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-600 hover:text-navy-900 rounded-lg px-2 py-1 hover:bg-white/60 transition">
-              <Icon.arrowL size={14} /> {tr("Leave")}
-            </button>
-            <div className="text-[12px] font-semibold text-slate-500 tnum">{stepIdx + 1} / {STEPS.length}</div>
-          </div>
-
-          <ProgressRail stepIdx={stepIdx} onJump={(i) => setStepIdx(i)} />
-
-          {/* step header */}
-          <div className="flex items-start gap-3 mt-4 mb-4">
-            <span className="w-10 h-10 rounded-2xl grid place-items-center text-white bg-gradient-to-br from-teal-500 to-teal-700 shadow-sm shrink-0">
-              {(() => { const I = Icon[step.icon]; return I ? <I size={18} /> : null; })()}
-            </span>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className="font-display font-bold text-navy-900 text-lg sm:text-xl">{tr(step.label)}</div>
-                {step.optional && <Badge tone="slate">{tr("Optional")}</Badge>}
-              </div>
-              <div className="text-[12.5px] text-slate-600 mt-0.5">{tr(step.sub)}</div>
+            <div className="flex items-center justify-between mb-3">
+              <button onClick={() => go("customer", "home")} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-600 hover:text-navy-900 rounded-lg px-2 py-1 hover:bg-white/60 transition">
+                <Icon.arrowL size={14} /> {tr("Leave")}
+              </button>
+              <div className="text-[12px] font-semibold text-slate-500 tnum">{stepIdx + 1} / {STEPS.length}</div>
             </div>
-          </div>
+
+            <ProgressRail stepIdx={stepIdx} onJump={(i) => setStepIdx(i)} />
+
+            {/* The Beach view stays uncluttered (the beach itself is the focus);
+                the form steps keep their title for context. */}
+            {step.id !== "beach" && (
+              <div className="flex items-start gap-3 mt-4">
+                <span className="w-10 h-10 rounded-2xl grid place-items-center text-white bg-gradient-to-br from-teal-500 to-teal-700 shadow-sm shrink-0">
+                  {(() => { const I = Icon[step.icon]; return I ? <I size={18} /> : null; })()}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="font-display font-bold text-navy-900 text-lg sm:text-xl">{tr(step.label)}</div>
+                    {step.optional && <Badge tone="slate">{tr("Optional")}</Badge>}
+                  </div>
+                  <div className="text-[12.5px] text-slate-600 mt-0.5">{tr(step.sub)}</div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Scrolling step body. */}
@@ -265,6 +259,44 @@ export function CustomerWizard() {
               )}
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ============ The beach itself — fills the space below the menu so every
+           set is visible (never hidden behind it) and is tapped directly. ====== */}
+      <div className="flex-1 min-h-0 px-3 sm:px-5 flex justify-center animate-fade-in" style={{ animationDelay: revealDelay, animationFillMode: "both" }}>
+        <div className="relative w-full max-w-5xl">
+          {showZones && <SandZones selectedId={zoneId} onPick={pickZone} />}
+          {showSets && <SandSunbeds slots={slots} selected={selectedIds} onToggle={toggleBed} />}
+          {showLockedSets && <SandSunbeds slots={slots} selected={selectedIds} readOnly />}
+        </div>
+      </div>
+
+      {/* ============ Bottom bar — guidance + always-on Slaice credit ============ */}
+      <div className="shrink-0 px-3 pb-1.5 pt-1 pointer-events-none">
+        {(showZones || showSets) && (
+          <div className="max-w-3xl mx-auto pointer-events-auto">
+            {showZones && (
+              <div className="rounded-2xl glass px-4 py-2.5 flex items-center justify-center gap-2.5 text-center">
+                <span className="w-7 h-7 rounded-lg bg-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={14} /></span>
+                <span className="text-[12.5px] text-navy-900"><b>{tr("Tap a zone on the beach")}</b> {tr("to choose where you'll sit — the sea is at the top.")}</span>
+              </div>
+            )}
+            {showSets && (
+              <div className="rounded-2xl glass px-4 py-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-slate-700">
+                <span className="flex items-center gap-1"><Sunbed state="a" size={14} readOnly />{tr("Available")}</span>
+                <span className="flex items-center gap-1"><Sunbed state="h" size={14} readOnly />{tr("On hold")}</span>
+                <span className="flex items-center gap-1"><Sunbed state="u" size={14} readOnly />{tr("Taken")}</span>
+                <span className="flex items-center gap-1"><Sunbed state="a" sel size={14} readOnly />{tr("Yours")}</span>
+                <span className="text-slate-500">·</span>
+                <span className="text-slate-600">{tr("Tap the umbrellas on the sand to pick your sets.")}</span>
+              </div>
+            )}
+          </div>
+        )}
+        <div className="mt-1.5 flex items-center justify-center gap-1.5 text-[11.5px] text-slate-700">
+          <span>{tr("powered by")}</span>
+          <span className="font-bold text-navy-900">SLA<span className="text-gold-600">i</span>CE</span>
         </div>
       </div>
     </div>
@@ -338,14 +370,10 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
         </div>
       </div>
 
-      {phase === "zones" ? (
-        <div className="rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2.5 flex items-start gap-2.5">
-          <span className="w-8 h-8 rounded-lg bg-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={15} /></span>
-          <div className="text-[13px] leading-snug text-navy-900">
-            <b>{tr("Tap a zone on the beach below")}</b> {tr("to choose where you'll sit — the sea is at the top.")}
-          </div>
-        </div>
-      ) : (
+      {/* The map and the sunbed glyphs live on the sand; here the menu keeps only
+          the chosen-zone summary and your picks. The legend + tap prompts sit in
+          the bottom bar so they never crowd this panel. */}
+      {phase === "sets" && (
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <button onClick={() => setPhase("zones")} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-600 hover:text-navy-900 rounded-lg px-2 py-1 hover:bg-white/60">
@@ -358,67 +386,66 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
             </div>
           </div>
 
-          {/* Legend mirrors the glyphs on the sand. */}
-          <div className="flex items-center gap-3 flex-wrap text-[11px] text-slate-600">
-            <span className="flex items-center gap-1"><Sunbed state="a" size={14} />{tr("Available")}</span>
-            <span className="flex items-center gap-1"><Sunbed state="h" size={14} />{tr("On hold")}</span>
-            <span className="flex items-center gap-1"><Sunbed state="u" size={14} />{tr("Taken")}</span>
-            <span className="flex items-center gap-1"><Sunbed state="a" sel size={14} />{tr("Yours")}</span>
-          </div>
-
-          <div className={`rounded-xl px-3 py-2.5 ring-1 flex items-center justify-between gap-3 ${bedSel.length > 0 ? "ring-teal-300 bg-teal-50/80" : "ring-slate-200 bg-white/70"}`}>
-            {bedSel.length > 0 ? (
-              <>
-                <div className="min-w-0 text-[12.5px]">
-                  <div className="font-semibold text-navy-900 truncate">{bedSel.length} {bedSel.length !== 1 ? tr("umbrella sets") : tr("umbrella set")} · {bedSel.map((b) => b.id).join(", ")}</div>
-                  <div className="text-[11px] text-slate-600">€{pickedSubtotal} × {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}</div>
-                </div>
-                <button onClick={() => setBedSel([])} className="text-[11px] font-semibold text-slate-500 hover:text-rose-600 shrink-0">{tr("Clear")}</button>
-              </>
-            ) : (
-              <div className="text-[12.5px] text-slate-600">{tr("Tap the umbrellas on the sand to pick your sets.")}</div>
-            )}
-          </div>
+          {bedSel.length > 0 && (
+            <div className="rounded-xl px-3 py-2.5 ring-1 ring-teal-300 bg-teal-50/80 flex items-center justify-between gap-3">
+              <div className="min-w-0 text-[12.5px]">
+                <div className="font-semibold text-navy-900 truncate">{bedSel.length} {bedSel.length !== 1 ? tr("umbrella sets") : tr("umbrella set")} · {bedSel.map((b) => b.id).join(", ")}</div>
+                <div className="text-[11px] text-slate-600">€{pickedSubtotal} × {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}</div>
+              </div>
+              <button onClick={() => setBedSel([])} className="text-[11px] font-semibold text-slate-500 hover:text-rose-600 shrink-0">{tr("Clear")}</button>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-/* ============ Sand layer — zone clusters ============
-   The beach "stores": each zone, positioned across the sand by its real place on
-   the beach (west → east), tapped to zoom into its sunbed sets. */
+/* Tiny dot tint for a set's state, used in the zone-card mini-map. */
+function dotTint(state: string) {
+  return state === "u" ? "rgba(255,255,255,0.30)" : state === "h" ? "#fcd34d" : "rgba(255,255,255,0.92)";
+}
+
+/* ============ Sand layer — zone "stores" ============
+   Each zone, placed across the sand by its real position on the beach (west →
+   east + depth, exactly as the admin arranged it), shown as a card that previews
+   that zone's actual sunbed layout and its exact set count. Tap to open it. */
 function SandZones({ selectedId, onPick }: { selectedId: string; onPick: (id: string) => void }) {
   const tr = useT();
+  const { beachLayout } = useApp();
   return (
     <div className="absolute inset-0">
       {ZONES.map((z, i) => {
         const blk = ZONE_BLOCKS.find((b) => b.id === z.id);
         if (!blk) return null;
         const active = z.id === selectedId;
-        // Horizontal from the zone's real position; a gentle vertical spread keyed
-        // off the overview's depth so the cluster reads like the aerial map.
-        const topPct = 20 + (parseFloat(blk.top) - 71) * 5;
+        const slots = beachLayout[z.id] ?? zoneLayout(z);
+        const free = slots.filter((s) => s.state === "a").length;
+        // Place each card at the zone's real spot — horizontal position + an
+        // amplified depth so the close middle zones separate without losing the
+        // admin's arrangement.
+        const topPct = 8 + (parseFloat(blk.top) - 71) * 9.5;
         return (
           <button
             key={z.id}
             onClick={() => onPick(z.id)}
             aria-pressed={active}
-            aria-label={`${z.name} — ${z.avail} ${tr("free")}, ${tr("from")} €${z.from}${active ? `, ${tr("selected")}` : ""}`}
-            className="pointer-events-auto absolute origin-center group focus:outline-none focus-visible:z-30 animate-fade-up"
-            style={{ left: blk.left, top: `${topPct}%`, width: `clamp(80px, ${parseFloat(blk.w) * 1.05}%, 152px)`, transform: `rotate(${blk.rot}deg)`, animationDelay: `${i * 70}ms` }}
+            aria-label={`${z.name} — ${slots.length} ${tr("sets")}, ${free} ${tr("free")}, ${tr("from")} €${z.from}${active ? `, ${tr("selected")}` : ""}`}
+            className="pointer-events-auto absolute origin-top-left group focus:outline-none focus-visible:z-30 animate-fade-up"
+            style={{ left: blk.left, top: `${topPct}%`, width: `clamp(124px, ${parseFloat(blk.w) * 1.6}%, 190px)`, transform: `rotate(${blk.rot}deg)`, animationDelay: `${i * 70}ms` }}
           >
             <span
-              className={`relative block rounded-2xl px-2.5 pt-2 pb-2.5 ring-1 transition-all duration-300 ease-spring ${active ? "scale-110 ring-white shadow-[0_14px_34px_-8px_rgba(11,37,69,.6)] z-20" : "ring-white/45 group-hover:scale-105 group-hover:-translate-y-1 group-hover:ring-white/80 shadow-lift"}`}
-              style={{ background: active ? z.color : `${z.color}e0` }}
+              className={`relative block rounded-2xl p-2 ring-1 transition-all duration-300 ease-spring ${active ? "scale-[1.06] ring-white shadow-[0_16px_38px_-8px_rgba(11,37,69,.6)] z-20" : "ring-white/45 group-hover:scale-[1.03] group-hover:-translate-y-1 group-hover:ring-white/80 shadow-lift"}`}
+              style={{ background: active ? z.color : `${z.color}e6` }}
             >
-              <span className="grid grid-cols-4 gap-0.5 mb-1.5 justify-items-center">
-                {Array.from({ length: 8 }).map((_, k) => (
-                  <i key={k} className="w-1 h-1 rounded-full bg-white/85" />
+              {/* Mini-map: the zone's actual umbrella layout. */}
+              <span className="relative block w-full rounded-lg ring-1 ring-white/25 overflow-hidden" style={{ aspectRatio: "5 / 3", background: "rgba(8,24,45,0.18)" }}>
+                {slots.map((s) => (
+                  <i key={s.id} className="absolute rounded-full -translate-x-1/2 -translate-y-1/2" style={{ left: `${s.x}%`, top: `${s.y}%`, width: 3, height: 3, background: dotTint(s.state) }} />
                 ))}
               </span>
-              <span className="block text-center text-white font-bold text-[13px] leading-none tracking-wide drop-shadow-sm">{z.name}</span>
-              <span className="block text-center text-white/85 text-[10px] tnum mt-1">{tr("from")} €{z.from} · {z.avail} {tr("free")}</span>
+              <span className="block text-center text-white font-bold text-[13px] leading-none tracking-wide drop-shadow-sm mt-1.5">{z.name}</span>
+              <span className="block text-center text-white/85 text-[10px] tnum mt-1">{tr("from")} €{z.from} · {slots.length} {tr("sets")} · {free} {tr("free")}</span>
               {active && (
                 <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white text-teal-600 grid place-items-center shadow ring-1 ring-black/5">
                   <Icon.check size={12} />
