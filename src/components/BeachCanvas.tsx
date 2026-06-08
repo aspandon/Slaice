@@ -2,30 +2,31 @@ import { useEffect, useRef, useState } from "react";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { Stage, Layer, Group, Rect, Path, Text, Line, Circle } from "react-konva";
 import type { SunbedSlot, SunbedState } from "../domain/types";
+import { BEDS, CANOPY, CANOPY_PATH, FIN, GLYPH_CONTENT, LITE_PATH, sunbedPalette } from "./sunbedGlyph";
 
 /* ---------- Shared Konva beach renderer ----------
    Draws a zone's umbrella-set layout (the SunbedSlot[] the admin authors and the
    customer wizard renders) on a single canvas: a sea band up top, sand below,
-   one umbrella per set. Two modes, one render path:
+   one umbrella-set per slot. Two modes, one render path:
      • book  (customer)  — multi-select to book; unavailable beds aren't tappable.
      • edit  (admin)     — drag to arrange, single/▶multi-select, optional grid
                            snap; every bed is movable.
-   The umbrella silhouette is the same glyph as the SVG <Sunbed>, re-expressed as
-   Konva paths so the canvas and the rest of the app stay visually consistent. */
+   The set glyph is the same one the SVG <Sunbed> draws (sunbedGlyph.ts),
+   re-expressed as Konva nodes so the canvas and the rest of the app match. */
 
-const CANOPY_L = "M12 13 L3 9 A10 10 0 0 1 12 4 Z";
-const CANOPY_R = "M12 13 L21 9 A10 10 0 0 0 12 4 Z";
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const isAdditive = (e: KonvaEventObject<MouseEvent | TouchEvent>) => {
   const ev = e.evt as MouseEvent;
   return !!(ev && (ev.shiftKey || ev.metaKey || ev.ctrlKey));
 };
 
+// Glyph colours come from the shared palette; the tap-pad tint + ring are a
+// canvas-only affordance, tuned to the same per-state hues.
 function palette(state: SunbedState, sel: boolean) {
-  if (sel) return { a: "#e2552f", b: "#fb8a63", pole: "#e2552f", plot: "rgba(226,85,47,0.20)", ring: "#e2552f", dim: false };
-  if (state === "u") return { a: "#cbd5e1", b: "#e2e8f0", pole: "#cbd5e1", plot: "rgba(148,163,184,0.14)", ring: "rgba(148,163,184,0.3)", dim: true };
-  if (state === "h") return { a: "#f5b54a", b: "#fcd98a", pole: "#c79248", plot: "rgba(245,181,74,0.18)", ring: "rgba(245,181,74,0.4)", dim: false };
-  return { a: "#5cc0f0", b: "#ffffff", pole: "#7c8a99", plot: "rgba(255,255,255,0.32)", ring: "rgba(255,255,255,0.45)", dim: false };
+  const g = sunbedPalette(state, sel);
+  const plot = sel ? "rgba(239,106,79,0.20)" : state === "u" ? "rgba(154,166,178,0.14)" : state === "h" ? "rgba(232,162,58,0.16)" : "rgba(255,255,255,0.30)";
+  const ring = sel ? g.c : state === "u" ? "rgba(154,166,178,0.45)" : state === "h" ? "rgba(232,162,58,0.5)" : "rgba(255,255,255,0.55)";
+  return { ...g, plot, ring };
 }
 
 export interface BeachCanvasProps {
@@ -114,7 +115,8 @@ export function BeachCanvas({
               const c = palette(b.state, sel);
               const cx = (b.x / 100) * w;
               const cy = seaH + (b.y / 100) * (h - seaH);
-              const s = size / 24;
+              // Fit the 72-unit glyph so its content height fills ~90% of the pad.
+              const gs = (size * 0.9) / GLYPH_CONTENT.h;
               const plot = size * 0.94;
               const front = b.kind === "front";
               const handle = (e: KonvaEventObject<MouseEvent | TouchEvent>) => {
@@ -163,11 +165,20 @@ export function BeachCanvas({
                     strokeWidth={sel ? 2 : front ? 1.6 : 1}
                     dash={editable && sel ? [5, 3] : undefined}
                   />
-                  <Group scaleX={s} scaleY={s} offsetX={12} offsetY={12} y={-size * 0.03}>
-                    <Path data={CANOPY_L} fill={c.a} />
-                    <Path data={CANOPY_R} fill={c.b} stroke={sel ? c.a : "#e7eef5"} strokeWidth={0.6} />
-                    <Rect x={11.4} y={12} width={1.2} height={7} cornerRadius={0.5} fill={c.pole} />
-                    <Rect x={8} y={18} width={8} height={2.4} cornerRadius={1.2} fill={c.pole} />
+                  <Group scaleX={gs} scaleY={gs} offsetX={GLYPH_CONTENT.cx} offsetY={GLYPH_CONTENT.cy}>
+                    {/* Twin loungers behind the parasol. */}
+                    {BEDS.map((bed, i) => (
+                      <Group key={i}>
+                        <Rect x={bed.frame.x} y={bed.frame.y} width={bed.frame.w} height={bed.frame.h} cornerRadius={bed.frame.r} fill={c.bed} />
+                        <Rect x={bed.cushion.x} y={bed.cushion.y} width={bed.cushion.w} height={bed.cushion.h} cornerRadius={bed.cushion.r} fill={c.cushion} />
+                        <Path data={bed.slats} stroke={c.slat} strokeWidth={1.3} lineCap="round" />
+                      </Group>
+                    ))}
+                    {/* Pinwheel parasol — gores merged by colour into one path each. */}
+                    <Path data={CANOPY_PATH} fill={c.c} />
+                    <Path data={LITE_PATH} fill={c.lite} />
+                    <Circle x={CANOPY.cx} y={CANOPY.cy} radius={CANOPY.r} stroke={c.edge} strokeWidth={1.2} />
+                    <Circle x={FIN.cx} y={FIN.cy} radius={FIN.r} fill={c.fin} />
                   </Group>
                   {/* Front-row marker. */}
                   {front && <Circle x={plot * 0.34} y={-plot * 0.34} radius={Math.max(2.5, size * 0.08)} fill="#f2b705" stroke="#fff" strokeWidth={1} />}
