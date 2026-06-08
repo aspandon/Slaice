@@ -15,6 +15,8 @@ type People = Record<string, number>;
 interface BedPick { id: string; price: number }
 type WizardZone = (typeof ZONES)[number];
 type BeachPhase = "zones" | "sets";
+/** Locker / parking can apply to every chosen day or a hand-picked subset. */
+type DayScope = "all" | "some";
 interface TicketBreakItem { k: string; n: number; t: { price: number; label: string; sub: string }; total: number }
 
 /* Pricing comes from the shared domain module (single source of truth), so the
@@ -94,8 +96,13 @@ export function CustomerWizard() {
   const [bedSel, setBedSel] = useState<BedPick[]>([]);
   const [lockerOn, setLockerOn] = useState(false);
   const [lockerQty, setLockerQty] = useState(1);
+  const [lockerScope, setLockerScope] = useState<DayScope>("all");
+  const [lockerDays, setLockerDays] = useState<string[]>([]);
   const [parkingOn, setParkingOn] = useState(false);
-  const [plate, setPlate] = useState("");
+  const [parkingScope, setParkingScope] = useState<DayScope>("all");
+  const [parkingDays, setParkingDays] = useState<string[]>([]);
+  // Vehicle plate per ISO date (multi-day trips can use a different plate each day).
+  const [plates, setPlates] = useState<Record<string, string>>({});
   // Within the Beach step: choosing a zone vs. tapping its sets.
   const [phase, setPhase] = useState<BeachPhase>("zones");
 
@@ -106,6 +113,16 @@ export function CustomerWizard() {
   // Bed IDs are zone-scoped — switching zone clears any picked beds.
   useEffect(() => { setBedSel([]); }, [zoneId]);
 
+  // Keep the per-service day picks within the chosen trip dates.
+  useEffect(() => {
+    const set = new Set(selDates);
+    setLockerDays((d) => d.filter((x) => set.has(x)));
+    setParkingDays((d) => d.filter((x) => set.has(x)));
+  }, [selDates]);
+  // The days each service actually covers: all chosen days, or a subset (multi-day).
+  const lockerDates = lockerOn ? (multiDate && lockerScope === "some" ? lockerDays : selDates) : [];
+  const parkingDates = parkingOn ? (multiDate && parkingScope === "some" ? parkingDays : selDates) : [];
+
   // The admin-authored layout for this zone, if any — otherwise the default grid.
   const slots = useMemo(() => beachLayout[zone.id] ?? zoneLayout(zone), [beachLayout, zone]);
   const selectedIds = useMemo(() => new Set(bedSel.map((b) => b.id)), [bedSel]);
@@ -114,8 +131,8 @@ export function CustomerWizard() {
   const setSubtotal = bedSel.reduce((a, b) => a + b.price, 0) * dayCount;
   const ticketBreak = Object.entries(people).map(([k, n]) => ({ k, n, t: TICKET[k], total: n * TICKET[k].price * dayCount }));
   const ticketSubtotal = includeTickets ? ticketBreak.reduce((a, b) => a + b.total, 0) : 0;
-  const lockerSubtotal = lockerOn ? lockerQty * LOCKER_PRICE * dayCount : 0;
-  const parkingSubtotal = parkingOn ? PARKING_PRICE * dayCount : 0;
+  const lockerSubtotal = lockerQty * LOCKER_PRICE * lockerDates.length;
+  const parkingSubtotal = PARKING_PRICE * parkingDates.length;
   const grandTotal = setSubtotal + ticketSubtotal + lockerSubtotal + parkingSubtotal;
 
   const step = STEPS[stepIdx];
@@ -138,8 +155,10 @@ export function CustomerWizard() {
 
   const confirm = () => {
     let added = 0;
+    const subOf = (iso: string) => chipLabel(iso, localeFor(lang)).sub;
+    // Sunbeds + tickets cover every chosen day.
     selDates.forEach((iso) => {
-      const sub = chipLabel(iso, localeFor(lang)).sub;
+      const sub = subOf(iso);
       bedSel.forEach((b) => {
         addToCart({ kind: "sunbed", id: `${b.id}@${iso}`, label: `${tr("Sunbed")} ${b.id}`, sub: `${zone.name} · ${sub}`, price: b.price });
         added++;
@@ -152,16 +171,18 @@ export function CustomerWizard() {
           }
         });
       }
-      if (lockerOn) {
-        for (let i = 0; i < lockerQty; i++) {
-          addToCart({ kind: "locker", id: `LK${i + 1}@${iso}`, label: `${tr("Day locker")} ${i + 1}`, sub, price: LOCKER_PRICE });
-          added++;
-        }
-      }
-      if (parkingOn) {
-        addToCart({ kind: "parking", id: `P@${iso}`, label: tr("Parking spot"), sub: `${plate || "—"} · ${sub}`, price: PARKING_PRICE });
+    });
+    // Lockers + parking cover only the days the guest chose for them.
+    lockerDates.forEach((iso) => {
+      const sub = subOf(iso);
+      for (let i = 0; i < lockerQty; i++) {
+        addToCart({ kind: "locker", id: `LK${i + 1}@${iso}`, label: `${tr("Day locker")} ${i + 1}`, sub, price: LOCKER_PRICE });
         added++;
       }
+    });
+    parkingDates.forEach((iso) => {
+      addToCart({ kind: "parking", id: `P@${iso}`, label: tr("Parking spot"), sub: `${plates[iso] || "—"} · ${subOf(iso)}`, price: PARKING_PRICE });
+      added++;
     });
     toast(`${tr("Booking ready")} — ${added} ${added !== 1 ? tr("items") : tr("item")} ${tr("added to your basket.")}`, { tone: "success" });
     go("customer", "checkout");
@@ -215,16 +236,32 @@ export function CustomerWizard() {
                 onPreset={(v) => setPeople(v)}
               />
             )}
-            {step.id === "locker" && <LockerStep on={lockerOn} setOn={setLockerOn} qty={lockerQty} setQty={setLockerQty} dayCount={dayCount} />}
-            {step.id === "parking" && <ParkingStep on={parkingOn} setOn={setParkingOn} plate={plate} setPlate={setPlate} dayCount={dayCount} />}
+            {step.id === "locker" && (
+              <LockerStep
+                on={lockerOn} setOn={setLockerOn}
+                scope={lockerScope} setScope={setLockerScope}
+                days={lockerDays} setDays={setLockerDays}
+                qty={lockerQty} setQty={setLockerQty}
+                selDates={selDates} multiDate={multiDate}
+              />
+            )}
+            {step.id === "parking" && (
+              <ParkingStep
+                on={parkingOn} setOn={setParkingOn}
+                scope={parkingScope} setScope={setParkingScope}
+                days={parkingDays} setDays={setParkingDays}
+                plates={plates} setPlates={setPlates}
+                selDates={selDates} multiDate={multiDate}
+              />
+            )}
             {step.id === "review" && (
               <ReviewStep
                 people={people} totalPeople={totalPeople}
                 selDates={selDates} dayCount={dayCount}
                 zone={zone} bedSel={bedSel}
                 includeTickets={includeTickets} ticketBreak={ticketBreak}
-                lockerOn={lockerOn} lockerQty={lockerQty}
-                parkingOn={parkingOn} plate={plate}
+                lockerOn={lockerOn} lockerQty={lockerQty} lockerDates={lockerDates}
+                parkingOn={parkingOn} parkingDates={parkingDates} plates={plates}
                 onJump={(id) => { const i = STEPS.findIndex((s) => s.id === id); if (i >= 0) setStepIdx(i); }}
               />
             )}
@@ -345,12 +382,12 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
       {/* Dates — apply to the whole booking. */}
       <div>
         <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.calendar size={12} /> {tr("When are you coming?")}</div>
-        <DatePickerRow value={selDates} onChange={setSelDates} multiple={multiDate} />
+        <DatePickerRow value={selDates} onChange={setSelDates} multiple={multiDate} maxDays={7} />
         <div className="mt-2 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
           <div className="flex items-start gap-2 text-[12.5px]">
             <Icon.calendar size={13} className="text-slate-500 shrink-0 mt-0.5" />
             <span className="text-slate-700">{multiDate
-              ? <><b className="text-navy-900">{selDates.length} {selDates.length !== 1 ? tr("days") : tr("day")}</b> {tr("selected")}</>
+              ? <><b className="text-navy-900">{selDates.length} {selDates.length !== 1 ? tr("days") : tr("day")}</b> {tr("selected")} · {tr("up to 7")}</>
               : tr("Book several days at once")}</span>
           </div>
           <Toggle on={multiDate} onChange={(v) => { setMultiDate(v); if (!v && selDates.length > 1) setSelDates([selDates[0]]); }} />
@@ -691,19 +728,52 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, pick
 }
 
 /* ============ Locker ============ */
-function LockerStep({ on, setOn, qty, setQty, dayCount }: { on: boolean; setOn: Dispatch<SetStateAction<boolean>>; qty: number; setQty: Dispatch<SetStateAction<number>>; dayCount: number }) {
+function LockerStep({ on, setOn, scope, setScope, days, setDays, qty, setQty, selDates, multiDate }: {
+  on: boolean;
+  setOn: Dispatch<SetStateAction<boolean>>;
+  scope: DayScope;
+  setScope: Dispatch<SetStateAction<DayScope>>;
+  days: string[];
+  setDays: Dispatch<SetStateAction<string[]>>;
+  qty: number;
+  setQty: Dispatch<SetStateAction<number>>;
+  selDates: string[];
+  multiDate: boolean;
+}) {
   const tr = useT();
+  const activeDays = multiDate && scope === "some" ? days : selDates;
+  const n = activeDays.length;
+  const choose = (mode: "all" | "some" | "off") => {
+    if (mode === "off") { setOn(false); return; }
+    setOn(true);
+    setScope(mode);
+    if (mode === "some" && days.length === 0) setDays([...selDates]); // start from all chosen days
+  };
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2">
-        <YesNo on={on} onClick={() => setOn(true)} title={tr("Yes, add lockers")} sub={`€${LOCKER_PRICE}/locker/day`} icon={Icon.lock} />
-        <YesNo on={!on} onClick={() => setOn(false)} title={tr("No, skip lockers")} sub={tr("Continue without")} icon={Icon.x} />
-      </div>
+      {multiDate ? (
+        <div className="grid sm:grid-cols-3 gap-2">
+          <YesNo on={on && scope === "all"} onClick={() => choose("all")} title={tr("Yes — all days")} sub={`${selDates.length} ${selDates.length !== 1 ? tr("days") : tr("day")} · €${LOCKER_PRICE}/day`} icon={Icon.lock} />
+          <YesNo on={on && scope === "some"} onClick={() => choose("some")} title={tr("Yes — specific days")} sub={tr("Pick which days")} icon={Icon.calendar} />
+          <YesNo on={!on} onClick={() => choose("off")} title={tr("No, skip lockers")} sub={tr("Continue without")} icon={Icon.x} />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <YesNo on={on} onClick={() => choose("all")} title={tr("Yes, add lockers")} sub={`€${LOCKER_PRICE}/locker/day`} icon={Icon.lock} />
+          <YesNo on={!on} onClick={() => choose("off")} title={tr("No, skip lockers")} sub={tr("Continue without")} icon={Icon.x} />
+        </div>
+      )}
+      {on && multiDate && scope === "some" && (
+        <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 animate-pop">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.calendar size={12} /> {tr("Which days?")}</div>
+          <DayChips days={selDates} value={days} onChange={setDays} />
+        </div>
+      )}
       {on && (
         <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 flex items-center justify-between animate-pop">
           <div>
             <div className="font-semibold text-sm text-navy-900">{tr("How many lockers?")}</div>
-            <div className="text-[11px] text-slate-500">{qty} × €{LOCKER_PRICE} × {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}</div>
+            <div className="text-[11px] text-slate-500">{qty} × €{LOCKER_PRICE} × {n} {n !== 1 ? tr("days") : tr("day")}</div>
           </div>
           <Stepper label={tr("lockers")} value={qty} onChange={(v) => setQty(Math.max(1, v))} min={1} />
         </div>
@@ -715,26 +785,103 @@ function LockerStep({ on, setOn, qty, setQty, dayCount }: { on: boolean; setOn: 
   );
 }
 
-/* ============ Parking ============ */
-function ParkingStep({ on, setOn, plate, setPlate, dayCount }: { on: boolean; setOn: Dispatch<SetStateAction<boolean>>; plate: string; setPlate: Dispatch<SetStateAction<string>>; dayCount: number }) {
+/* Toggleable day chips — choose which of the chosen trip days a service covers. */
+function DayChips({ days, value, onChange }: { days: string[]; value: string[]; onChange: (v: string[]) => void }) {
   const tr = useT();
+  const { lang } = useApp();
+  const loc = localeFor(lang);
+  const toggle = (iso: string) => onChange(value.includes(iso) ? value.filter((x) => x !== iso) : [...value, iso].sort());
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {days.map((iso) => {
+        const c = chipLabel(iso, loc, tr);
+        const on = value.includes(iso);
+        return (
+          <button key={iso} type="button" onClick={() => toggle(iso)} aria-pressed={on}
+            className={`rounded-xl px-3 py-1.5 ring-1 text-center transition ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"}`}>
+            <span className="block text-[12px] font-semibold leading-tight">{c.label}</span>
+            <span className={`block text-[10px] leading-tight ${on ? "text-white/70" : "text-slate-500"}`}>{c.sub}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ============ Parking ============ */
+function ParkingStep({ on, setOn, scope, setScope, days, setDays, plates, setPlates, selDates, multiDate }: {
+  on: boolean;
+  setOn: Dispatch<SetStateAction<boolean>>;
+  scope: DayScope;
+  setScope: Dispatch<SetStateAction<DayScope>>;
+  days: string[];
+  setDays: Dispatch<SetStateAction<string[]>>;
+  plates: Record<string, string>;
+  setPlates: Dispatch<SetStateAction<Record<string, string>>>;
+  selDates: string[];
+  multiDate: boolean;
+}) {
+  const tr = useT();
+  const { lang } = useApp();
+  const loc = localeFor(lang);
+  const activeDays = multiDate && scope === "some" ? days : selDates;
+  const choose = (mode: "all" | "some" | "off") => {
+    if (mode === "off") { setOn(false); return; }
+    setOn(true);
+    setScope(mode);
+    if (mode === "some" && days.length === 0) setDays([...selDates]);
+  };
+  const setPlate = (iso: string, v: string) => setPlates((p) => ({ ...p, [iso]: v.toUpperCase() }));
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-2 gap-2">
-        <YesNo on={on} onClick={() => setOn(true)} title={tr("Yes, reserve parking")} sub={`€${PARKING_PRICE}/spot/day`} icon={Icon.car} />
-        <YesNo on={!on} onClick={() => setOn(false)} title={tr("No, skip parking")} sub={tr("Walking or public transport")} icon={Icon.x} />
-      </div>
-      {on && (
-        <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-3 animate-pop">
-          <Field label={tr("Vehicle plate")} hint={tr("Used by the gate camera to let you in automatically.")}>
-            <Input value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" />
-          </Field>
-          <div className="mt-2 flex items-center justify-between text-[12px] text-slate-600">
-            <span>{tr("1 spot")} × {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}</span>
-            <span className="font-semibold text-navy-900 tnum">€{PARKING_PRICE * dayCount}</span>
-          </div>
+      {multiDate ? (
+        <div className="grid sm:grid-cols-3 gap-2">
+          <YesNo on={on && scope === "all"} onClick={() => choose("all")} title={tr("Yes — all days")} sub={`${selDates.length} ${selDates.length !== 1 ? tr("days") : tr("day")} · €${PARKING_PRICE}/day`} icon={Icon.car} />
+          <YesNo on={on && scope === "some"} onClick={() => choose("some")} title={tr("Yes — specific days")} sub={tr("Pick which days")} icon={Icon.calendar} />
+          <YesNo on={!on} onClick={() => choose("off")} title={tr("No, skip parking")} sub={tr("Walking or public transport")} icon={Icon.x} />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <YesNo on={on} onClick={() => choose("all")} title={tr("Yes, reserve parking")} sub={`€${PARKING_PRICE}/spot/day`} icon={Icon.car} />
+          <YesNo on={!on} onClick={() => choose("off")} title={tr("No, skip parking")} sub={tr("Walking or public transport")} icon={Icon.x} />
         </div>
       )}
+      {on && multiDate && scope === "some" && (
+        <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 animate-pop">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.calendar size={12} /> {tr("Which days?")}</div>
+          <DayChips days={selDates} value={days} onChange={setDays} />
+        </div>
+      )}
+      {on && (multiDate ? (
+        <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-3 animate-pop space-y-2">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.car size={12} /> {tr("Vehicle plate per day")}</div>
+          {activeDays.length === 0 ? (
+            <div className="text-[12px] text-slate-500">{tr("Pick at least one day above.")}</div>
+          ) : activeDays.map((iso) => {
+            const c = chipLabel(iso, loc, tr);
+            return (
+              <div key={iso} className="flex items-center gap-2">
+                <span className="text-[12px] font-semibold text-navy-900 w-24 shrink-0 leading-tight">{c.label}<span className="block text-[10px] text-slate-500 font-normal">{c.sub}</span></span>
+                <Input value={plates[iso] || ""} onChange={(e) => setPlate(iso, e.target.value)} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" />
+              </div>
+            );
+          })}
+          <div className="flex items-center justify-between text-[12px] text-slate-600 pt-1.5 border-t border-slate-100">
+            <span>{activeDays.length} {activeDays.length !== 1 ? tr("days") : tr("day")} × €{PARKING_PRICE}</span>
+            <span className="font-semibold text-navy-900 tnum">€{PARKING_PRICE * activeDays.length}</span>
+          </div>
+        </div>
+      ) : (
+        <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-3 animate-pop">
+          <Field label={tr("Vehicle plate")} hint={tr("Used by the gate camera to let you in automatically.")}>
+            <Input value={plates[selDates[0]] || ""} onChange={(e) => setPlate(selDates[0], e.target.value)} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" />
+          </Field>
+          <div className="mt-2 flex items-center justify-between text-[12px] text-slate-600">
+            <span>{tr("1 spot")} × {selDates.length} {selDates.length !== 1 ? tr("days") : tr("day")}</span>
+            <span className="font-semibold text-navy-900 tnum">€{PARKING_PRICE * selDates.length}</span>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
@@ -755,7 +902,7 @@ function YesNo({ on, title, sub, icon: IconC, onClick }: { on: boolean; title: R
 }
 
 /* ============ Review ============ */
-function ReviewStep({ people, totalPeople, selDates, zone, bedSel = [], includeTickets, ticketBreak, lockerOn, lockerQty, parkingOn, plate, onJump }: {
+function ReviewStep({ people, totalPeople, selDates, zone, bedSel = [], includeTickets, ticketBreak, lockerOn, lockerQty, lockerDates, parkingOn, parkingDates, plates, onJump }: {
   people: People;
   totalPeople: number;
   selDates: string[];
@@ -766,13 +913,17 @@ function ReviewStep({ people, totalPeople, selDates, zone, bedSel = [], includeT
   ticketBreak: TicketBreakItem[];
   lockerOn: boolean;
   lockerQty: number;
+  lockerDates: string[];
   parkingOn: boolean;
-  plate: string;
+  parkingDates: string[];
+  plates: Record<string, string>;
   onJump: (id: string) => void;
 }) {
   const tr = useT();
   const { lang } = useApp();
   const loc = localeFor(lang);
+  const platesUsed = [...new Set(parkingDates.map((d) => plates[d]).filter(Boolean))];
+  const plateSummary = platesUsed.length === 0 ? tr("plate pending") : platesUsed.join(", ");
   const first = chipLabel(selDates[0], loc, tr);
   const dateLabel = selDates.length === 1
     ? first.label + ", " + first.sub
@@ -791,8 +942,8 @@ function ReviewStep({ people, totalPeople, selDates, zone, bedSel = [], includeT
         body={includeTickets ? ticketBreak.filter((t) => t.n > 0).map((t) => `${t.n} × ${tr(t.t.label)}`).join(" · ") || "—" : tr("Not included")}
         onEdit={() => onJump("people")}
       />
-      <ReviewRow icon={Icon.lock} title={tr("Day locker")} body={lockerOn ? `${lockerQty} ${lockerQty !== 1 ? tr("lockers") : tr("locker")}` : tr("Not added")} onEdit={() => onJump("locker")} />
-      <ReviewRow icon={Icon.car} title={tr("Parking Spot")} body={parkingOn ? `${tr("1 spot")} · ${plate || tr("plate pending")}` : tr("Not added")} onEdit={() => onJump("parking")} />
+      <ReviewRow icon={Icon.lock} title={tr("Day locker")} body={lockerOn && lockerDates.length > 0 ? `${lockerQty} ${lockerQty !== 1 ? tr("lockers") : tr("locker")} · ${lockerDates.length} ${lockerDates.length !== 1 ? tr("days") : tr("day")}` : tr("Not added")} onEdit={() => onJump("locker")} />
+      <ReviewRow icon={Icon.car} title={tr("Parking Spot")} body={parkingOn && parkingDates.length > 0 ? `${parkingDates.length} ${parkingDates.length !== 1 ? tr("days") : tr("day")} · ${plateSummary}` : tr("Not added")} onEdit={() => onJump("parking")} />
     </div>
   );
 }
