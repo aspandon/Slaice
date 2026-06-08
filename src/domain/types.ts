@@ -106,7 +106,10 @@ export interface CustomerDocument {
 /* ---------- CRM ---------- */
 export interface Customer {
   id: number;
+  /** Short display form, e.g. "Maria K." */
   name: string;
+  first: string;
+  last: string;
   email: string;
   phone: string;
   bookings: number;

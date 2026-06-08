@@ -1,11 +1,11 @@
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { lazyWithReload } from "../lib/staleChunk";
-import { Icon } from "../lib/icons";
+import { Icon, type IconRenderer } from "../lib/icons";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, ErrorState, useMockLoad, FutureBanner, ContextPanel, Spinner } from "../components/ui";
 import type { TabEntry } from "../components/ui";
 import { BarChart, HBarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts";
-import { BeachBackdrop } from "../components/Beach";
+import { BeachBackdrop, SunbedMark } from "../components/Beach";
 
 // Lazy so konva only loads when the Sunbed-layout tab is opened. lazyWithReload
 // recovers if a redeploy has renamed this chunk under an already-open tab.
@@ -14,7 +14,7 @@ import { BackgroundPicker } from "../components/BackgroundPicker";
 import { fileToBackgroundSrc } from "../lib/image";
 import { ZONES, zoneLayout } from "../data/beach";
 import type { SunbedSlot, SunbedState, SunbedKind } from "../domain/types";
-import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS } from "../data/mock";
+import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS, personByFirst } from "../data/mock";
 import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr";
 import { useApp } from "../app/store";
 import { downloadCSV } from "../lib/download";
@@ -473,15 +473,36 @@ export function AdminMapEditor() {
 }
 
 /* ============ BOOKINGS LIST ============ */
+/* Items of one booking, stacked — a customer who reserved several sunbeds plus
+   parking / a locker / tickets sees them all together under their booking id. */
+function BookingItems({ items }: { items: string[] }) {
+  if (items.length <= 1) return <span className="whitespace-nowrap">{items[0] ?? "—"}</span>;
+  return (
+    <div className="space-y-0.5 min-w-[170px]">
+      {items.map((it, i) => (
+        <div key={i} className="flex items-center gap-1.5 whitespace-nowrap">
+          <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
+          <span>{it}</span>
+        </div>
+      ))}
+      <div className="text-[11px] text-slate-400 pt-0.5">{items.length} items · one booking</div>
+    </div>
+  );
+}
+
 export function AdminBookings() {
   const { toast } = useApp();
   const [q, setQ] = useState("");
-  const all = ADMIN_BOOKINGS;
   const loading = useMockLoad();
-  const rows = all.filter((r) => (r[0] + r[1] + r[2]).toLowerCase().includes(q.toLowerCase()));
   const chan = (c: string) => ({ Online: "blue", "Walk-in": "amber", Phone: "indigo", Cashier: "green" }[c] || "slate");
+  const enriched = ADMIN_BOOKINGS.map((b) => {
+    const p = personByFirst(b.who);
+    return { ...b, surname: p?.last ?? "", phone: p?.phone ?? "" };
+  });
+  const rows = enriched.filter((b) => (b.id + b.who + b.surname + b.phone + b.items.join(" ")).toLowerCase().includes(q.toLowerCase()));
   const exportCSV = () => {
-    downloadCSV("bookings.csv", ["Booking", "Customer", "Sunbed", "Date", "Channel", "Status", "Amount (€)"], rows);
+    downloadCSV("bookings.csv", ["Booking", "Name", "Surname", "Phone", "Items", "Date", "Channel", "Status", "Amount (€)"],
+      rows.map((b) => [b.id, b.who, b.surname || "—", b.phone || "—", b.items.join(" + "), b.date, b.channel, b.status, b.amount]));
     toast(`Exported ${rows.length} bookings to CSV.`, { tone: "success" });
   };
   return (
@@ -496,24 +517,109 @@ export function AdminBookings() {
           <Btn variant="outline" icon={Icon.download} onClick={exportCSV} className="ml-auto">Export</Btn>
         </div>
         {loading ? (
-          <TableSkeleton rows={5} cols={8} />
+          <TableSkeleton rows={5} cols={9} />
         ) : rows.length === 0 ? (
           <EmptyState icon={Icon.search} title="No matching bookings" body={`Nothing matches “${q}”. Try a different name, sunbed code or booking ID.`} />
         ) : (
-          <Table cols={["Booking", "Customer", "Sunbed", "Date", "Channel", "Status", "Amount", ""]} right={[6]}
-            rows={rows.map((r) => [r[0], r[1], r[2], r[3], <Badge tone={chan(r[4])}>{r[4]}</Badge>, <StatusBadge status={r[5]} />, `€${r[6]}`,
-              <Btn size="sm" variant="ghost" icon={Icon.mail} onClick={() => toast(`QR re-sent for ${r[0]}.`, { tone: "success" })}>Resend QR</Btn>])} />
+          <Table cols={["Booking", "Name", "Surname", "Phone", "Items", "Date", "Channel", "Status", "Amount", ""]} right={[8]}
+            rows={rows.map((b) => [
+              b.id,
+              b.who,
+              b.surname || <span className="text-slate-400">—</span>,
+              b.phone ? <span className="tnum whitespace-nowrap">{b.phone}</span> : <span className="text-slate-400">—</span>,
+              <BookingItems items={b.items} />,
+              b.date,
+              <Badge tone={chan(b.channel)}>{b.channel}</Badge>,
+              <StatusBadge status={b.status} />,
+              `€${b.amount}`,
+              <Btn size="sm" variant="ghost" icon={Icon.mail} onClick={() => toast(`QR re-sent for ${b.id}.`, { tone: "success" })}>Resend QR</Btn>,
+            ])} />
         )}
       </Card>
     </div>
   );
 }
 
+/* Compact live beach coverage for the manual booking — the same umbrella sets the
+   customer sees, scaled into the form. Available sets are tappable (fill the
+   code); taken sets are dimmed. */
+function ManualCoverage({ zone, slots, selectedCode, onPick }: {
+  zone: { name: string };
+  slots: SunbedSlot[];
+  selectedCode: string;
+  onPick: (id: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => { const r = el.getBoundingClientRect(); setBox({ w: r.width, h: r.height }); };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const size = useMemo(() => {
+    const base = Math.min(40, box.w * 0.07);
+    if (slots.length < 2 || box.w === 0) return Math.max(16, base);
+    let min = Infinity;
+    for (let i = 0; i < slots.length; i++) {
+      for (let j = i + 1; j < slots.length; j++) {
+        const dx = ((slots[i].x - slots[j].x) / 100) * box.w;
+        const dy = ((slots[i].y - slots[j].y) / 100) * box.h;
+        min = Math.min(min, Math.hypot(dx, dy));
+      }
+    }
+    return Math.max(14, Math.min(base, min * 0.82));
+  }, [slots, box]);
+  const free = slots.filter((s) => s.state === "a").length;
+  const want = selectedCode.trim().toUpperCase();
+  return (
+    <div className="mt-4">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.umbrella size={12} /> Live beach coverage · {zone.name}</div>
+        <div className="text-[11px] text-slate-500 tnum">{free} free · {slots.length} sets</div>
+      </div>
+      <div ref={ref} className="relative w-full rounded-xl ring-1 ring-slate-200 overflow-hidden" style={{ aspectRatio: "16 / 6", background: "linear-gradient(to bottom, #bfe6f5 0%, #cdebf6 16%, #f1ddb4 30%, #ecd3a1 100%)" }}>
+        {slots.map((s) => {
+          const sel = !!want && s.id.toUpperCase() === want;
+          const taken = s.state !== "a";
+          return (
+            <button
+              key={s.id}
+              type="button"
+              disabled={taken}
+              onClick={() => onPick(s.id)}
+              title={`${s.id} · ${taken ? "taken" : "available"}`}
+              className={`absolute -translate-x-1/2 -translate-y-1/2 transition-transform ${taken ? "opacity-35 cursor-not-allowed" : "hover:scale-110 hover:z-10 cursor-pointer"}`}
+              style={{ left: `${s.x}%`, top: `${s.y}%`, width: size, height: size }}
+            >
+              <SunbedMark state={s.state} sel={sel} fill />
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-1 text-[11px] text-slate-400">Tap an available set to fill the code · taken sets are dimmed.</div>
+    </div>
+  );
+}
+
 /* ============ MANUAL / PHONE BOOKING ============ */
 export function AdminManual() {
-  const { toast } = useApp();
+  const { toast, beachLayout } = useApp();
   const [done, setDone] = useState(false);
+  const [zoneName, setZoneName] = useState(ZONES[0].name);
+  const [code, setCode] = useState("");
+  const [email, setEmail] = useState("maria@example.com");
   const today = new Date().toISOString().slice(0, 10);
+  const zone = ZONES.find((z) => z.name === zoneName) ?? ZONES[0];
+  const slots = beachLayout[zone.id] ?? zoneLayout(zone);
+  const reserve = () => {
+    if (!code.trim()) { toast("Pick a set on the map (or type a code) first.", { tone: "error" }); return; }
+    setDone(true);
+    toast(`Demo — ${zone.name} · ${code.toUpperCase()} blocked & QR e-mailed (unpaid/manual).`);
+  };
   return (
     <div className="animate-fade-up grid lg:grid-cols-[1fr_320px] gap-5">
       <div>
@@ -521,23 +627,23 @@ export function AdminManual() {
         <Card className="p-5">
           <div className="grid sm:grid-cols-2 gap-3">
             <Field label="Customer name"><Input placeholder="e.g. Maria K." defaultValue="Maria K." /></Field>
-            <Field label="Customer e-mail"><Input placeholder="maria@example.com" defaultValue="maria@example.com" /></Field>
-            <Field label="Zone"><Select options={ZONES.map((z) => z.name)} /></Field>
-            <Field label="Sunbed code"><Input placeholder="CE-92" defaultValue="CE-92" /></Field>
+            <Field label="Customer e-mail"><Input placeholder="maria@example.com" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
+            <Field label="Zone"><Select value={zoneName} onChange={(e) => { setZoneName(e.target.value); setCode(""); }} options={ZONES.map((z) => z.name)} /></Field>
+            <Field label="Sunbed code"><Input placeholder="CE-92" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} /></Field>
             <Field label="Date"><Input type="date" defaultValue={today} /></Field>
             <Field label="Mark as"><Select options={["Unpaid (manual)", "Comp / VIP", "Pay later"]} /></Field>
           </div>
-          <div className="mt-4 flex flex-col sm:flex-row gap-2">
-            <Btn variant="primary" full className="sm:w-auto" icon={Icon.lock} onClick={() => { setDone(true); toast("Demo — sunbed blocked & QR e-mailed (booking flagged unpaid/manual)."); }}>Reserve & send QR</Btn>
-            <Btn variant="outline" full className="sm:w-auto" icon={Icon.umbrella} onClick={() => toast("Demo — opens the live map to pick a bed.")}>Pick on map</Btn>
+          <ManualCoverage zone={zone} slots={slots} selectedCode={code} onPick={(id) => setCode(id)} />
+          <div className="mt-4">
+            <Btn variant="primary" full className="sm:w-auto" icon={Icon.lock} onClick={reserve}>Reserve &amp; send QR</Btn>
           </div>
         </Card>
         {done && (
           <Card className="p-5 mt-4 flex items-center gap-4 animate-fade-up">
-            <QR size={96} seed="MANUAL-CE92" />
+            <QR size={96} seed={`MANUAL-${code}`} />
             <div>
               <div className="font-semibold text-navy-900 flex items-center gap-2">Reserved <Badge tone="amber">Unpaid</Badge></div>
-              <div className="text-sm text-slate-600">Central · CE-92 — QR sent to maria@example.com. The customer can pay later or present the QR at the gate.</div>
+              <div className="text-sm text-slate-600">{zone.name} · {code} — QR sent to {email}. The customer can pay later or present the QR at the gate.</div>
             </div>
           </Card>
         )}
@@ -557,10 +663,10 @@ export function AdminUsers() {
   const [q, setQ] = useState("");
   const [tagFilter, setTagFilter] = useState("All");
   const customersQ = useAsync(listCustomers);
-  const users = (customersQ.status === "success" ? customersQ.data : []).map((c) => ({ n: c.name, e: c.email, b: c.bookings, tags: c.tags }));
+  const users = (customersQ.status === "success" ? customersQ.data : []).map((c) => ({ first: c.first, last: c.last, phone: c.phone, e: c.email, b: c.bookings, tags: c.tags }));
   const allTags = ["All", "VIP", "Season pass", "Regular", "New"];
   const tagTone = (t: string) => ({ VIP: "amber", "Season pass": "blue", Regular: "slate", New: "green" }[t] || "slate");
-  const rows = users.filter((u) => (tagFilter === "All" || u.tags.includes(tagFilter)) && (u.n + u.e).toLowerCase().includes(q.toLowerCase()));
+  const rows = users.filter((u) => (tagFilter === "All" || u.tags.includes(tagFilter)) && (u.first + u.last + u.e + u.phone).toLowerCase().includes(q.toLowerCase()));
   return (
     <div className="animate-fade-up">
       <Card className="p-4">
@@ -582,10 +688,10 @@ export function AdminUsers() {
         ) : rows.length === 0 ? (
           <EmptyState compact icon={Icon.users} title="No users match" body="Try a different search or tag filter." />
         ) : (
-          <Table cols={["Name", "Email", "Bookings", "Tags", ""]} right={[2]}
-            rows={rows.map((u) => [u.n, u.e, u.b,
+          <Table cols={["Name", "Surname", "Phone", "Email", "Bookings", "Tags", ""]} right={[4]}
+            rows={rows.map((u) => [u.first, u.last, <span className="tnum whitespace-nowrap">{u.phone}</span>, u.e, u.b,
               <span className="flex gap-1 flex-wrap">{u.tags.map((t) => <Badge key={t} tone={tagTone(t)}>{t}</Badge>)}</span>,
-              <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => toast(`Demo — ${u.n}'s activity (interaction filter).`)}>Activity</Btn>])} />
+              <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => toast(`Demo — ${u.first} ${u.last}'s activity (interaction filter).`)}>Activity</Btn>])} />
         )}
       </Card>
     </div>
@@ -755,14 +861,79 @@ export function AdminReporting() {
 }
 
 /* ============ REFUNDS ============ */
+// Stripe refund demo steps — shown one-by-one after "Refund via Stripe".
+const STRIPE_STEPS: { label: string; icon: IconRenderer }[] = [
+  { label: "Authorizing with Stripe", icon: Icon.lock },
+  { label: "Reversing the charge & application fee", icon: Icon.refund },
+  { label: "Issuing MyDATA credit note (5.1)", icon: Icon.shield },
+  { label: "E-mailing the customer", icon: Icon.mail },
+];
+
+function StripeProgress({ step }: { step: number }) {
+  return (
+    <div className="py-1 space-y-2.5">
+      <div className="flex items-center gap-2 text-[13px] font-semibold text-navy-900"><Spinner size={14} /> Processing refund via Stripe…</div>
+      <div className="space-y-1.5">
+        {STRIPE_STEPS.map((s, i) => {
+          const state = i < step ? "done" : i === step ? "active" : "todo";
+          const StepIcon = s.icon;
+          return (
+            <div key={i} className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 ring-1 transition ${state === "done" ? "ring-teal-200 bg-teal-50/60" : state === "active" ? "ring-slate-200 bg-white shadow-soft" : "ring-slate-100 bg-slate-50/50 opacity-55"}`}>
+              <span className={`w-6 h-6 rounded-full grid place-items-center shrink-0 ${state === "done" ? "bg-teal-600 text-white" : state === "active" ? "bg-navy-900 text-white" : "bg-slate-200 text-slate-400"}`}>
+                {state === "done" ? <Icon.check size={13} /> : state === "active" ? <Spinner size={12} /> : <StepIcon size={12} />}
+              </span>
+              <span className={`text-[13px] ${state === "todo" ? "text-slate-400" : "text-navy-900"}`}>{s.label}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function RefundDone({ amount, type, reason, tx }: { amount: number; type: string; reason: string; tx: string }) {
+  return (
+    <div className="py-2 text-center space-y-2 animate-pop">
+      <span className="mx-auto w-12 h-12 rounded-full bg-teal-600 text-white grid place-items-center shadow"><Icon.check size={22} /></span>
+      <div className="font-semibold text-navy-900">Refunded €{amount}</div>
+      <div className="text-[13px] text-slate-600 max-w-xs mx-auto">{type} · {reason}. Stripe charge reversed, credit note (5.1) filed with MyDATA, and a confirmation e-mailed to the customer.</div>
+      <div className="text-[11px] text-slate-400 tnum">{tx} · re_3PqA2k…f4d</div>
+    </div>
+  );
+}
+
 export function AdminRefunds() {
   const { toast } = useApp();
   const [modal, setModal] = useState<number | null>(null);
   const [period, setPeriod] = useState("month");
   const [rows, setRows] = useState(ADMIN_REFUNDS);
+  const [stage, setStage] = useState<"form" | "processing" | "done">("form");
+  const [step, setStep] = useState(0);
+  const [reason, setReason] = useState("Weather");
+  const [rtype, setRtype] = useState("Full refund");
   const refunded = rows.filter((r) => r.status === "Refunded").reduce((a, b) => a + b.amount, 0);
   const refundedCount = rows.filter((r) => r.status === "Refunded").length;
   const pending = rows.filter((r) => !r.status).length;
+  const active = modal !== null ? rows[modal] : null;
+  const activeLast = active ? personByFirst(active.who)?.last ?? "" : "";
+
+  const openRefund = (i: number) => { setStage("form"); setStep(0); setReason("Weather"); setRtype("Full refund"); setModal(i); };
+
+  // Walk through the Stripe steps once processing starts, then mark refunded.
+  useEffect(() => {
+    if (stage !== "processing") return;
+    if (step < STRIPE_STEPS.length) {
+      const t = setTimeout(() => setStep((s) => s + 1), 850);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(() => {
+      setRows((r) => r.map((x, i) => (i === modal ? { ...x, status: "Refunded", reason: x.reason || reason } : x)));
+      setStage("done");
+      toast("Stripe refund issued · credit note (5.1) sent to MyDATA · customer e-mailed.", { tone: "success" });
+    }, 600);
+    return () => clearTimeout(t);
+  }, [stage, step, modal, reason, toast]);
+
   return (
     <div className="animate-fade-up">
       <PageHead title="Refunds" sub="Partial or full refunds via Stripe, with reason logging and auto credit-note (MyDATA)." badge={<Badge tone="mvp">MVP</Badge>}
@@ -777,20 +948,33 @@ export function AdminRefunds() {
         <StatCard label="Top reason" value="Double booking" sub="33% of refunds" tone="indigo" />
       </div>
       <Card className="p-2">
-        <Table cols={["Transaction", "Date", "Customer", "Amount", "Reason", "Status", ""]} right={[3]}
-          rows={rows.map((r, i) => [r.tx, r.date || "—", r.cust, `€${r.amount}`, r.reason || "—",
-            r.status ? <Badge tone="green">{r.status}</Badge> : <Badge tone="amber">Pending</Badge>,
-            r.status ? <span className="text-slate-500 text-sm">done</span> : <Btn size="sm" variant="outline" icon={Icon.refund} onClick={() => setModal(i)}>Refund</Btn>])} />
+        <Table cols={["Transaction", "Date", "Name", "Surname", "Phone", "Amount", "Reason", "Status", ""]} right={[5]}
+          rows={rows.map((r, i) => {
+            const p = personByFirst(r.who);
+            return [r.tx, r.date || "—", r.who, p?.last || "—", p?.phone ? <span className="tnum whitespace-nowrap">{p.phone}</span> : "—", `€${r.amount}`, r.reason || "—",
+              r.status ? <Badge tone="green">{r.status}</Badge> : <Badge tone="amber">Pending</Badge>,
+              r.status ? <span className="text-slate-500 text-sm">done</span> : <Btn size="sm" variant="outline" icon={Icon.refund} onClick={() => openRefund(i)}>Refund</Btn>];
+          })} />
       </Card>
-      <Modal open={modal !== null} onClose={() => setModal(null)} title="Issue refund"
-        footer={<><Btn variant="ghost" onClick={() => setModal(null)}>Cancel</Btn>
-          <Btn variant="danger" icon={Icon.refund} onClick={() => { setRows((r) => r.map((x, i) => (i === modal ? { ...x, status: "Refunded" } : x))); setModal(null); toast("Demo — Stripe refund issued, credit note (5.1) sent to MyDATA, customer e-mailed."); }}>Refund via Stripe</Btn></>}>
-        {modal !== null && (
+      <Modal open={modal !== null} onClose={() => setModal(null)} title={stage === "done" ? "Refund complete" : "Issue refund"}
+        footer={
+          stage === "form" ? (<><Btn variant="ghost" onClick={() => setModal(null)}>Cancel</Btn>
+            <Btn variant="danger" icon={Icon.refund} onClick={() => { setStep(0); setStage("processing"); }}>Refund via Stripe</Btn></>)
+          : stage === "done" ? (<Btn variant="primary" icon={Icon.check} onClick={() => setModal(null)}>Done</Btn>)
+          : undefined
+        }>
+        {active && (
           <div className="space-y-3">
-            <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm flex justify-between"><span className="text-slate-500">{rows[modal].tx} · {rows[modal].cust}</span><b className="tnum">€{rows[modal].amount}</b></div>
-            <Field label="Refund type"><Select options={["Full refund", "Partial refund"]} /></Field>
-            <Field label="Reason"><Select options={["Weather", "Double booking", "Customer request", "Service issue"]} /></Field>
-            <div className="text-[12px] text-slate-600 flex items-center gap-1.5"><Icon.shield size={13} /> Reverses the application fee and auto-issues a credit note to MyDATA.</div>
+            <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm flex justify-between"><span className="text-slate-500">{active.tx} · {active.who} {activeLast}</span><b className="tnum">€{active.amount}</b></div>
+            {stage === "form" && (
+              <>
+                <Field label="Refund type"><Select value={rtype} onChange={(e) => setRtype(e.target.value)} options={["Full refund", "Partial refund"]} /></Field>
+                <Field label="Reason"><Select value={reason} onChange={(e) => setReason(e.target.value)} options={["Weather", "Double booking", "Customer request", "Service issue"]} /></Field>
+                <div className="text-[12px] text-slate-600 flex items-center gap-1.5"><Icon.shield size={13} /> Reverses the application fee and auto-issues a credit note to MyDATA.</div>
+              </>
+            )}
+            {stage === "processing" && <StripeProgress step={step} />}
+            {stage === "done" && <RefundDone amount={active.amount} type={rtype} reason={reason} tx={active.tx} />}
           </div>
         )}
       </Modal>
