@@ -290,7 +290,9 @@ export function CustomerWizard() {
       {/* ============ The beach itself — fills the space below the menu so every
            set is visible (never hidden behind it) and is tapped directly. ====== */}
       <div className="flex-1 min-h-0 px-3 sm:px-5 flex justify-center animate-fade-in" style={{ animationDelay: revealDelay, animationFillMode: "both" }}>
-        <div className="relative w-full max-w-5xl">
+        {/* The store overview spreads the full beach width (panoramic); a single
+            zone's sunbed grid stays at a comfortable reading width. */}
+        <div className={`relative w-full ${showSets ? "max-w-5xl" : "max-w-[1700px]"}`}>
           {showZones && <StoreOverview selectedId={zoneId} onPick={pickZone} />}
           {showSets && <SandSunbeds slots={slots} selected={selectedIds} onToggle={toggleBed} />}
         </div>
@@ -473,12 +475,12 @@ function declutter(init: { x: number; y: number }[], W: number, H: number, cw: n
 }
 
 /* ============ Store overview ============
-   Desktop (with room): each store rendered as its real umbrella layout, placed on
-   the beach map at the admin's position and auto-spaced so clusters never
-   overlap, with the store name + optional logo beneath. Tap to open it. Phones /
-   tight screens fall back to compact cards with less detail. */
+   Tablet / desktop: a panoramic beach — each store's real umbrella rows laid out
+   on the open sand (no card chrome) at the admin's position, auto-spaced so they
+   never overlap, with the store name + optional logo set on the sand beneath. Tap
+   to open it. Phones / tight screens fall back to compact cards. */
 function StoreOverview({ selectedId, onPick }: { selectedId: string; onPick: (id: string) => void }) {
-  const rich = useMediaQuery("(min-width: 1024px) and (min-height: 640px)");
+  const rich = useMediaQuery("(min-width: 768px) and (min-height: 560px)");
   return rich ? <StoreClusters selectedId={selectedId} onPick={onPick} /> : <StoreCards selectedId={selectedId} onPick={onPick} />;
 }
 
@@ -497,10 +499,11 @@ function StoreClusters({ selectedId, onPick }: { selectedId: string; onPick: (id
     return () => ro.disconnect();
   }, []);
 
-  const cw = clampN(box.w * 0.18, 150, 220);
-  const plotH = cw * 0.66;
-  const ch = plotH + 48; // + the name/logo band
-  const glyph = plotH * 0.14;
+  // Big enough to fill the open beach, small enough that six sit side by side.
+  const cw = clampN(box.w * 0.155, 120, 290);
+  const plotH = cw * 0.86;
+  const ch = plotH + 46; // + the name/logo band on the sand
+  const glyph = clampN(cw * 0.12, 16, 40);
 
   const positions = useMemo(() => {
     if (!box.w || !box.h) return [];
@@ -508,9 +511,9 @@ function StoreClusters({ selectedId, onPick }: { selectedId: string; onPick: (id
       const blk = ZONE_BLOCKS.find((b) => b.id === z.id);
       const left = blk ? parseFloat(blk.left) + parseFloat(blk.w) / 2 : 50;
       const depth = blk ? clampN((parseFloat(blk.top) - 71) / 6, 0, 1) : 0.5;
-      return { x: (left / 100) * box.w, y: ch / 2 + 6 + depth * Math.max(0, box.h - ch - 12) };
+      return { x: (left / 100) * box.w, y: ch / 2 + 4 + depth * Math.max(0, box.h - ch - 10) };
     });
-    return declutter(init, box.w, box.h, cw, ch, 16);
+    return declutter(init, box.w, box.h, cw, ch, 12);
   }, [box, cw, ch]);
 
   return (
@@ -528,30 +531,34 @@ function StoreClusters({ selectedId, onPick }: { selectedId: string; onPick: (id
             onClick={() => onPick(z.id)}
             aria-pressed={active}
             aria-label={`${z.name} — ${slots.length} ${tr("sets")}, ${free} ${tr("free")}, ${tr("from")} €${z.from}${active ? `, ${tr("selected")}` : ""}`}
-            className="absolute group focus:outline-none focus-visible:z-30 animate-fade-up pointer-events-auto text-left"
+            className="absolute group focus:outline-none animate-fade-up pointer-events-auto"
             style={{ left: pos.x - cw / 2, top: pos.y - ch / 2, width: cw, animationDelay: `${i * 60}ms` }}
           >
-            <span className={`block rounded-2xl ring-1 transition-all duration-300 ease-spring ${active ? "ring-white scale-[1.03] shadow-[0_16px_40px_-8px_rgba(11,37,69,.55)] z-10" : "ring-white/40 group-hover:-translate-y-1 group-hover:ring-white/80 shadow-lift"}`} style={{ background: active ? `${z.color}f2` : `${z.color}d9` }}>
-              {/* The store's real umbrella layout. */}
-              <span className="relative block w-full rounded-t-2xl overflow-hidden" style={{ height: plotH, background: "rgba(8,24,45,0.14)" }}>
-                {slots.map((s) => (
-                  <span key={s.id} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${s.x}%`, top: `${s.y}%`, width: glyph, height: glyph }}>
-                    <SunbedMark state={s.state} fill />
-                  </span>
-                ))}
-              </span>
-              {/* Logo + name + counts. */}
-              <span className="block px-2 py-1.5 text-center">
-                {logo && <img src={logo} alt="" className="mx-auto mb-1 h-6 w-auto max-w-[72%] object-contain drop-shadow" />}
-                <span className="block text-white font-bold text-[13px] leading-tight drop-shadow-sm">{z.name}</span>
-                <span className="block text-white/85 text-[10px] tnum mt-0.5">{tr("from")} €{z.from} · {slots.length} {tr("sets")} · {free} {tr("free")}</span>
-              </span>
-              {active && (
-                <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white text-teal-600 grid place-items-center shadow ring-1 ring-black/5">
-                  <Icon.check size={12} />
+            {/* Soft tint on the sand under the selected / hovered store, so it
+                reads as one beach section without a hard card edge. */}
+            <span aria-hidden className={`absolute left-1/2 -translate-x-1/2 top-0 rounded-[45%] blur-2xl transition-opacity duration-300 ${active ? "opacity-45" : "opacity-0 group-hover:opacity-25"}`} style={{ width: "94%", height: plotH, background: z.color }} />
+
+            {/* The store's real umbrella rows, straight on the sand (no card). */}
+            <span className={`relative block transition-transform duration-300 ease-spring group-hover:-translate-y-1.5 ${active ? "-translate-y-0.5" : ""}`} style={{ height: plotH }}>
+              {slots.map((s) => (
+                <span key={s.id} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${s.x}%`, top: `${s.y}%`, width: glyph, height: glyph }}>
+                  <SunbedMark state={s.state} fill />
                 </span>
-              )}
+              ))}
             </span>
+
+            {/* Store label set on the sand — logo + name + a line of detail. */}
+            <span className="relative block text-center mt-0.5">
+              {logo && <img src={logo} alt="" className="mx-auto mb-1 h-8 w-auto max-w-[82%] object-contain drop-shadow-[0_1px_2px_rgba(255,255,255,0.55)]" />}
+              <span className={`block font-display font-bold text-[15px] tracking-wide transition-colors drop-shadow-[0_1px_1px_rgba(255,255,255,0.75)] ${active ? "" : "text-navy-900 group-hover:text-teal-800"}`} style={active ? { color: z.color } : undefined}>{z.name}</span>
+              <span className="block text-[10.5px] font-semibold tnum text-navy-800/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.6)]">{tr("from")} €{z.from} · {free} {tr("free")}</span>
+            </span>
+
+            {active && (
+              <span className="absolute -top-1 right-2 w-5 h-5 rounded-full text-white grid place-items-center shadow ring-2 ring-white" style={{ background: z.color }}>
+                <Icon.check size={12} />
+              </span>
+            )}
           </button>
         );
       })}
