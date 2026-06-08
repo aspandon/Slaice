@@ -3,12 +3,11 @@ import { Icon } from "../../lib/icons";
 import { Reveal } from "../../lib/motion";
 import { useApp, useT } from "../../app/store";
 
-// Shared surface for all three home cards:
-// • bg-white/25  — genuinely transparent, beach reads through cleanly
-// • backdrop-blur-2xl + backdrop-saturate-50 — heavy blur + desaturated backdrop
-//   kills the teal amplification that .glass (saturate 180%) causes
-// • ring-1 ring-white/40 — crisp white edge without coloured border
-const CARD = "glass rounded-3xl overflow-hidden relative";
+// `.glass-flat`, not `.glass`: a frosted look with NO backdrop-filter, so these
+// cards can't show the GPU backdrop-filter tile seams (shifting vertical lines)
+// that appear over the fixed parallax beach. Over the smooth sky it reads the
+// same; see index.css.
+const CARD = "glass-flat rounded-3xl overflow-hidden relative";
 
 export function CustomerHome() {
   const { dive } = useApp();
@@ -20,7 +19,7 @@ export function CustomerHome() {
 
       {/* ── Hero ──────────────────────────────────────────────────── */}
       <Reveal as="button" onClick={() => dive()} className="text-left group block w-full sm:h-full">
-        <div className={`${CARD} p-6 sm:p-9 pressable cursor-pointer transition duration-300 ease-spring hover:-translate-y-1 hover:bg-white/35 h-full`}>
+        <div className={`${CARD} p-6 sm:p-9 pressable cursor-pointer transition duration-300 ease-spring hover:-translate-y-1 hover:bg-white/80 h-full`}>
           <div className="relative">
             <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700">
               <span className="w-6 h-6 rounded-full grid place-items-center bg-gradient-to-br from-amber-300 to-amber-500 text-white shadow-sm">
@@ -77,7 +76,7 @@ export function CustomerHome() {
         {/* Returning-guest shortcut */}
         <button
           onClick={() => dive()}
-          className={`${CARD} p-5 sm:p-6 flex flex-col gap-3 text-left hover:bg-white/35 transition group ${!promoDismissed ? "flex-1" : ""}`}>
+          className={`${CARD} p-5 sm:p-6 flex flex-col gap-3 text-left hover:bg-white/80 transition group ${!promoDismissed ? "flex-1" : ""}`}>
           <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0">
             <Icon.umbrella size={18} />
           </span>
