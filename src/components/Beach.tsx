@@ -70,7 +70,6 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
       onClick={onClick}
       aria-label={`Sunbed ${label || ""}${dim ? " unavailable" : state === "h" ? " on hold" : ` €${price}`}${sel ? ", selected" : ""}`}
       aria-pressed={sel}
-      title={`${label || ""} · ${dim ? "Unavailable" : state === "h" ? "On hold" : "€" + price}`}
       // `fill` lets the glyph scale to its cell (used by the wizard's pick grid so
       // each umbrella grows on desktop yet stays tappable on phones); `block`
       // alone keeps a fixed `size` but a full-cell hit area.
@@ -79,8 +78,16 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
     >
       <SunbedMark state={state} sel={sel} size={size} fill={fill} className="drop-shadow-sm transition-[filter] duration-200 group-hover:drop-shadow-[0_8px_10px_rgba(11,37,69,0.5)]" />
       {!dim && label && (
-        <span className="opacity-0 group-hover:opacity-100 pointer-events-none absolute left-1/2 -translate-x-1/2 -top-9 z-30 px-2 py-1 rounded-lg bg-navy-950 text-white text-[10px] whitespace-nowrap shadow-lg">
-          <b>{label}</b> · <span className="text-teal-300">●</span> {state === "h" ? "On hold" : "Available"} · €{price}
+        <span className="opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-30 px-3 py-2 rounded-xl bg-navy-900/95 text-white whitespace-nowrap shadow-float ring-1 ring-white/10 transition-opacity duration-150">
+          <span className="block font-bold text-[12.5px] leading-none tnum">{label}</span>
+          <span className="mt-1.5 flex items-center gap-1.5 text-[11.5px] leading-none">
+            <span className={`w-1.5 h-1.5 rounded-full ${state === "h" ? "bg-amber-400" : "bg-teal-400"}`} />
+            <span className="text-white/80">{state === "h" ? "On hold" : "Available"}</span>
+            <span className="text-white/30">·</span>
+            <span className="font-semibold">€{price}</span>
+          </span>
+          {/* caret */}
+          <span className="absolute left-1/2 -translate-x-1/2 top-full -mt-1.5 w-2.5 h-2.5 rotate-45 bg-navy-900/95" />
         </span>
       )}
     </button>

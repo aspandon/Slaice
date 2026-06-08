@@ -195,8 +195,9 @@ export function CustomerWizard() {
             <ProgressRail stepIdx={stepIdx} onJump={(i) => setStepIdx(i)} />
           </div>
 
-          {/* Scrolling step body. */}
-          <div key={`${step.id}-${phase}`} className="px-4 sm:px-5 pb-1 overflow-y-auto no-scrollbar animate-fade-up">
+          {/* Scrolling step body — a real scrollbar appears when a step (e.g.
+              Review with many lines) overflows the panel. */}
+          <div key={`${step.id}-${phase}`} className="px-4 sm:px-5 pb-1 overflow-y-auto animate-fade-up">
             {step.id === "beach" && (
               <BeachMenu
                 selDates={selDates} setSelDates={setSelDates}
@@ -639,6 +640,23 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, pick
         </div>
       </div>
 
+      {/* Entry-tickets toggle sits right under the quick picks. */}
+      <button
+        onClick={() => setIncludeTickets((v) => !v)}
+        className={`w-full flex items-center justify-between rounded-xl px-3 py-3 ring-1 transition ${includeTickets ? "ring-teal-500 bg-teal-50" : "ring-slate-200 bg-white/70 hover:ring-teal-400"}`}
+      >
+        <span className="flex items-center gap-2.5 min-w-0 text-left">
+          <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${includeTickets ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600"}`}><Icon.ticket size={17} /></span>
+          <span className="min-w-0">
+            <span className="block text-[13px] font-semibold text-navy-900">{tr("Include entry tickets in this booking")}</span>
+            <span className="block text-[11px] text-slate-600">{includeTickets ? tr("We'll bundle one ticket per guest per day.") : tr("Just sunbeds — guests will buy tickets separately.")}</span>
+          </span>
+        </span>
+        <span className={`w-6 h-6 rounded-full grid place-items-center ${includeTickets ? "bg-teal-600 text-white" : "ring-1 ring-slate-300 text-slate-500"}`}>
+          {includeTickets ? <Icon.check size={14} /> : <Icon.plus size={14} />}
+        </span>
+      </button>
+
       <div>
         <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{tr("Headcount by category")}</div>
         <div className="space-y-1.5">
@@ -668,22 +686,6 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, pick
           </div>
         </div>
       )}
-
-      <button
-        onClick={() => setIncludeTickets((v) => !v)}
-        className={`w-full flex items-center justify-between rounded-xl px-3 py-3 ring-1 transition ${includeTickets ? "ring-teal-500 bg-teal-50" : "ring-slate-200 bg-white/70 hover:ring-teal-400"}`}
-      >
-        <span className="flex items-center gap-2.5 min-w-0 text-left">
-          <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${includeTickets ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600"}`}><Icon.ticket size={17} /></span>
-          <span className="min-w-0">
-            <span className="block text-[13px] font-semibold text-navy-900">{tr("Include entry tickets in this booking")}</span>
-            <span className="block text-[11px] text-slate-600">{includeTickets ? tr("We'll bundle one ticket per guest per day.") : tr("Just sunbeds — guests will buy tickets separately.")}</span>
-          </span>
-        </span>
-        <span className={`w-6 h-6 rounded-full grid place-items-center ${includeTickets ? "bg-teal-600 text-white" : "ring-1 ring-slate-300 text-slate-500"}`}>
-          {includeTickets ? <Icon.check size={14} /> : <Icon.plus size={14} />}
-        </span>
-      </button>
     </div>
   );
 }

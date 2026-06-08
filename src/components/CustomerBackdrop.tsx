@@ -45,9 +45,10 @@ export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
   return (
     <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
       <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax shoreline={shoreline} />
-      {/* The life-buoy belongs to the calm browsing scene; it bows out for the
-          focused booking flow so it never sits under the tappable sand. */}
-      {!immersive && <LifeRing className="hidden sm:block absolute left-[8%] top-[72%] w-[60px] h-[60px]" />}
+      {/* The life-buoy bobs in the open water. As the booking flow lifts the
+          shoreline, it rides up with the sea to a spot in the top-left, clear of
+          the menu and the tappable sand. */}
+      <LifeRing className={`hidden sm:block absolute left-[8%] w-[60px] h-[60px] transition-[top] duration-700 ease-out ${immersive ? "top-[20%]" : "top-[72%]"}`} />
     </div>
   );
 }
