@@ -167,17 +167,20 @@ export function CustomerWizard() {
     go("customer", "checkout");
   };
 
-  // Zones during the Beach step's "zones" phase; the chosen sets everywhere
-  // after (read-only once we leave the Beach step).
+  // The sand carries the zone choices, then the sunbed sets — but only on the
+  // Beach step itself. Once the guest moves on, the beach clears (no sets shown
+  // on Guests / Locker / Parking / Review).
   const showZones = step.id === "beach" && phase === "zones";
   const showSets = step.id === "beach" && phase === "sets";
-  const showLockedSets = step.id !== "beach" && bedSel.length > 0;
   const revealDelay = prefersReducedMotion() ? "0ms" : "420ms";
 
   return (
     <div className="fixed inset-0 z-20 flex flex-col pointer-events-none select-none">
-      {/* ============ Menu over the sea (top) ============ */}
-      <div className="shrink-0 flex justify-center px-3 pt-2 sm:pt-3">
+      {/* ============ Menu over the sea (top) ============
+           min-height holds the menu band down to roughly the shoreline so the
+           sand region below always starts on the sand — the umbrellas never
+           ride up into the sea, however short the menu gets. */}
+      <div className="shrink-0 flex items-start justify-center px-3 pt-2 sm:pt-3 min-h-[50vh]">
         <div className="pointer-events-auto w-full max-w-2xl glass-card rounded-3xl shadow-float flex flex-col max-h-[64vh] overflow-hidden animate-fade-down">
           {/* Pinned header — leave, progress, (step title only on the form steps). */}
           <div className="p-4 sm:p-5 pb-3 shrink-0">
@@ -251,7 +254,6 @@ export function CustomerWizard() {
         <div className="relative w-full max-w-5xl">
           {showZones && <SandZones selectedId={zoneId} onPick={pickZone} />}
           {showSets && <SandSunbeds slots={slots} selected={selectedIds} onToggle={toggleBed} />}
-          {showLockedSets && <SandSunbeds slots={slots} selected={selectedIds} readOnly />}
         </div>
       </div>
 
