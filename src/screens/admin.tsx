@@ -14,7 +14,7 @@ import { BackgroundPicker } from "../components/BackgroundPicker";
 import { fileToBackgroundSrc } from "../lib/image";
 import { ZONES, zoneLayout } from "../data/beach";
 import type { SunbedSlot, SunbedState, SunbedKind } from "../domain/types";
-import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS, personByFirst } from "../data/mock";
+import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS, personByFirst, CUSTOMERS } from "../data/mock";
 import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr";
 import { useApp } from "../app/store";
 import { downloadCSV } from "../lib/download";
@@ -1040,6 +1040,96 @@ export function AdminCommunicate() {
   );
 }
 
+/* ============ LOYALTY (Future) ============
+   Propose a handful of proven loyalty patterns (stamp cards, happy hours, tiers,
+   bundles, referrals, birthday treats), plus two working demo builders: a timed
+   public offer and a visit-milestone email campaign whose audience comes from the
+   real customer roster. Ideas-first — the operator picks what to wire for real. */
+export function AdminLoyalty() {
+  const { toast } = useApp();
+  const [reward, setReward] = useState("20% off sunbeds");
+  const [store, setStore] = useState("All stores");
+  const [schedule, setSchedule] = useState("Weekday mornings");
+  const tier = (min: number) => CUSTOMERS.filter((c) => c.bookings >= min).length;
+
+  const schemes = [
+    { icon: Icon.star, title: "Visit milestones", blurb: "A stamp card — every Nth visit is on the house, tracked automatically by the gate QR.", eg: "10th sunbed free" },
+    { icon: Icon.clock, title: "Happy hours & early-bird", blurb: "Discount the quiet slots so they fill up instead of sitting empty.", eg: "Weekdays 9–11 → 20% off front row" },
+    { icon: Icon.sparkles, title: "Tiered membership", blurb: "Silver / Gold / VIP — perks unlock the more a guest returns each season.", eg: "Gold: free parking + late checkout" },
+    { icon: Icon.gift, title: "Bundle perks", blurb: "Pair a set with a freebie to lift the average spend and the experience.", eg: "Sunbed before noon → free coffee" },
+    { icon: Icon.users, title: "Bring a friend", blurb: "Referrals — both the inviter and the new guest get a small reward.", eg: "Refer a friend → €5 off each" },
+    { icon: Icon.calendar, title: "Birthday week", blurb: "A small, automatic treat during a guest's birthday week. Cheap goodwill.", eg: "Free entry + a drink, on us" },
+  ];
+
+  return (
+    <div className="animate-fade-up">
+      <PageHead title="Loyalty" sub="Reward repeat guests and fill the quiet hours — schemes, timed offers and visit-based campaigns." badge={<Badge tone="future">Future</Badge>} />
+      <FutureBanner />
+
+      <div className="mb-5">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-2 px-1">Pick a scheme to start with</div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {schemes.map((s) => {
+            const SIcon = s.icon;
+            return (
+              <Card key={s.title} className="p-4 flex flex-col gap-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-9 h-9 rounded-xl bg-slaice-100 text-slaice-700 grid place-items-center shrink-0"><SIcon size={18} /></span>
+                  <div className="font-semibold text-navy-900">{s.title}</div>
+                </div>
+                <div className="text-[13px] text-slate-600 leading-snug">{s.blurb}</div>
+                <div className="text-[12px] text-slate-500 rounded-lg bg-slate-50 ring-1 ring-slate-100 px-2.5 py-1.5">e.g. {s.eg}</div>
+                <Btn variant="tint" size="sm" full icon={Icon.plus} className="mt-auto" onClick={() => toast(`Demo — set up “${s.title}”.`)}>Set up</Btn>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-5">
+        {/* Timed public offer builder */}
+        <Card className="p-5 space-y-3">
+          <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.clock size={16} /> Timed public offer</div>
+          <div className="text-[12.5px] text-slate-600 -mt-1">Run a deal for everyone, on the dates and hours you choose.</div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Field label="Reward"><Select value={reward} onChange={(e) => setReward(e.target.value)} options={["10% off sunbeds", "20% off sunbeds", "Free coffee with a set", "Free drink with a set", "Free entry ticket", "Buy 1 set, 2nd half price"]} /></Field>
+            <Field label="Applies to"><Select value={store} onChange={(e) => setStore(e.target.value)} options={["All stores", ...ZONES.map((z) => z.name)]} /></Field>
+            <Field label="When"><Select value={schedule} onChange={(e) => setSchedule(e.target.value)} options={["Weekday mornings", "Weekends", "Specific date range", "All month", "Happy hour 17:00–19:00"]} /></Field>
+            <Field label="Time window"><div className="flex items-center gap-2"><Input type="time" defaultValue="09:00" /><span className="text-slate-400">–</span><Input type="time" defaultValue="11:00" /></div></Field>
+          </div>
+          <div className="rounded-xl bg-teal-50/70 ring-1 ring-teal-200 px-3 py-2 text-[12.5px] text-navy-900"><b>Preview:</b> {reward} · {store} · {schedule}.</div>
+          <div className="flex justify-end">
+            <Btn variant="primary" icon={Icon.check} onClick={() => toast(`Demo — published offer: ${reward} (${store} · ${schedule}).`, { tone: "success" })}>Publish offer</Btn>
+          </div>
+        </Card>
+
+        {/* Visit-milestone email campaign — audience from the real roster */}
+        <Card className="p-5 space-y-3">
+          <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.mail size={16} /> Reward your regulars</div>
+          <div className="text-[12.5px] text-slate-600 -mt-1">Auto-email guests who keep coming back this season — the audience comes from Users &amp; Segments.</div>
+          <div className="space-y-2">
+            {[
+              { min: 5, off: "10% off", tone: "slate" },
+              { min: 10, off: "15% off + free coffee", tone: "blue" },
+              { min: 20, off: "VIP: front row + free parking", tone: "amber" },
+            ].map((t) => (
+              <div key={t.min} className="flex items-center gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
+                <span className="w-10 h-10 rounded-lg bg-slaice-100 text-slaice-700 grid place-items-center font-bold tnum text-[13px] shrink-0">{t.min}+</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-semibold text-navy-900 flex items-center gap-1.5 flex-wrap">Visited {t.min}+ times → <Badge tone={t.tone}>{t.off}</Badge></div>
+                  <div className="text-[11px] text-slate-500"><b className="tnum">{tier(t.min)}</b> guests qualify this season</div>
+                </div>
+                <Btn size="sm" variant="outline" icon={Icon.mail} onClick={() => toast(`Demo — emailed ${tier(t.min)} guests: “${t.off}”.`, { tone: "success" })}>Send</Btn>
+              </div>
+            ))}
+          </div>
+          <div className="text-[11px] text-slate-500 flex items-center gap-1.5"><Icon.info size={13} /> Thresholds and rewards here are examples — tell me which you like and I’ll wire them up.</div>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
 /* ============ PRIVACY & GDPR (Admin / controller side) ============ */
 export function AdminPrivacy() {
   const { toast } = useApp();
@@ -1054,7 +1144,7 @@ export function AdminPrivacy() {
   const open = DSAR_QUEUE.filter((r) => r.status !== "Completed");
   return (
     <div className="animate-fade-up">
-      <PageHead actions={<><Btn variant="outline" icon={Icon.download} onClick={() => { downloadCSV("dsar-requests.csv", ["ID", "Type", "Subject", "Email", "Received", "Due (days)", "Status"], DSAR_QUEUE.map((r) => [r.id, r.type, r.subject, r.email, r.received, r.dueDays, r.status])); toast("Exported DSAR log (CSV)."); }}>Export log</Btn><Btn variant="primary" icon={Icon.shieldCheck} onClick={() => toast("Demo — privacy settings saved.")}>Save policy</Btn></>} />
+      <PageHead actions={<><Btn variant="outline" icon={Icon.download} onClick={() => { downloadCSV("dsar-requests.csv", ["ID", "Type", "Name", "Surname", "Email", "Phone", "Received", "Due (days)", "Status"], DSAR_QUEUE.map((r) => [r.id, r.type, r.first, r.last, r.email, r.phone, r.received, r.dueDays, r.status])); toast("Exported DSAR log (CSV)."); }}>Export log</Btn><Btn variant="primary" icon={Icon.shieldCheck} onClick={() => toast("Demo — privacy settings saved.")}>Save policy</Btn></>} />
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <StatCard label="Open requests" value={String(open.length)} sub="awaiting action" tone="indigo" />
         <StatCard label="Due ≤ 10 days" value={String(DSAR_QUEUE.filter((r) => r.dueDays >= 0 && r.dueDays <= 10).length)} sub="30-day statutory SLA" tone="rose" />
@@ -1066,11 +1156,14 @@ export function AdminPrivacy() {
       {tab === "requests" && (
         <Card className="p-2">
           <div className="px-3 pt-2 pb-1 text-[12px] text-slate-500">Data Subject Access Requests — GDPR Art. 15–20, 30-day clock.</div>
-          <Table cols={["Request", "Type", "Subject", "Received", "Due", "Status", ""]} right={[6]}
+          <Table cols={["Request", "Type", "Name", "Surname", "Email", "Phone", "Received", "Due", "Status", ""]} right={[9]}
             rows={DSAR_QUEUE.map((r) => [
               <span className="font-mono text-[12px] text-navy-900">{r.id}</span>,
               <Badge tone={r.type === "Erasure" ? "red" : r.type === "Access" ? "blue" : "slate"}>{r.type}</Badge>,
-              <div><div className="font-semibold text-[13px] text-navy-900">{r.subject}</div><div className="text-[11px] text-slate-500">{r.email}</div></div>,
+              <span className="font-semibold text-[13px] text-navy-900">{r.first}</span>,
+              <span className="font-semibold text-[13px] text-navy-900">{r.last}</span>,
+              <span className="text-[12px] text-slate-600">{r.email}</span>,
+              <span className="text-[12px] text-slate-600 tnum whitespace-nowrap">{r.phone}</span>,
               r.received,
               r.status === "Completed" ? <Badge tone="green"><Icon.check size={11} /> Done</Badge> : <Badge tone={slaTone(r.dueDays)}>{r.dueDays}d left</Badge>,
               <Badge tone={r.status === "Completed" ? "green" : r.status === "Awaiting ID" ? "amber" : "slate"}>{r.status}</Badge>,

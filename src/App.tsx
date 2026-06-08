@@ -6,7 +6,6 @@ import { DEFAULT_PAGE } from "./data/personas";
 import { TopBar, Sidebar, BottomTabBar, SiteFooter, Toasts, PersonaSwitcher } from "./components/Shell";
 import { AuthGate } from "./screens/auth";
 import { ConsentBanner } from "./components/ConsentBanner";
-import { CommandPalette } from "./components/CommandPalette";
 import { CustomerBackdrop } from "./components/CustomerBackdrop";
 import { routeFor } from "./routes";
 import { parseHash, buildHash, isValidPage } from "./app/router";
@@ -202,7 +201,7 @@ export default function App() {
               <main className="min-w-0">{routeFor(persona, page)}</main>
             </div>
           ) : (
-            <div className="flex gap-5">
+            <div className="flex-1 flex gap-5 min-h-0">
               <Sidebar persona={persona} page={page} setPage={setPage} />
               <main className="flex-1 min-w-0">{routeFor(persona, page)}</main>
             </div>
@@ -222,7 +221,6 @@ export default function App() {
         </div>
       )}
       <ConsentBanner />
-      {signedIn && <CommandPalette />}
       <Toasts items={toasts} onDismiss={dismissToast} />
     </AppCtx.Provider>
   );

@@ -183,16 +183,6 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
         </Popover.Root>
         )}
 
-        {/* Global search / command palette (⌘K) — staff personas only. */}
-        {persona !== "customer" && (
-          <button onClick={() => window.dispatchEvent(new Event("slaice:cmdk"))} aria-label={t("Search (⌘K)")}
-            className="hidden sm:flex items-center gap-2 h-10 pl-2.5 pr-2 rounded-xl bg-slate-100/80 hover:bg-slate-200/80 text-slate-500 hover:text-navy-900 transition">
-            <Icon.search size={15} />
-            <span className="text-[12.5px] font-medium">{t("Search…")}</span>
-            <kbd className="text-[10px] font-semibold text-slate-400 bg-white ring-1 ring-slate-200 rounded px-1 py-0.5">⌘K</kbd>
-          </button>
-        )}
-
         <Popover.Root open={notifOpen} onOpenChange={setNotifOpen}>
           <Popover.Trigger asChild>
             <button className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 data-[state=open]:bg-slate-100 data-[state=open]:text-navy-900 relative transition" aria-label={t("Notifications")}>
