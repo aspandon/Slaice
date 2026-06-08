@@ -568,32 +568,40 @@ function StoreClusters({ selectedId, onPick }: { selectedId: string; onPick: (id
   );
 }
 
-/* Compact store cards — phones / tight screens. Less detail (logo, name, from
-   price) in a tidy two-column grid so nothing overlaps. */
+/* Compact store cards — phones / tight screens. The same translucent glass
+   material as the menu above, with the store's logo/name, from-price and live
+   availability, in a tidy two-column grid. A small zone-colour umbrella chip
+   keeps the stores distinguishable. */
 function StoreCards({ selectedId, onPick }: { selectedId: string; onPick: (id: string) => void }) {
   const tr = useT();
-  const { zoneLogos } = useApp();
+  const { beachLayout, zoneLogos } = useApp();
   return (
     <div className="absolute inset-0 overflow-y-auto no-scrollbar">
       <div className="grid grid-cols-2 gap-2.5 p-0.5">
         {ZONES.map((z) => {
           const active = z.id === selectedId;
           const logo = zoneLogos[z.id];
+          const slots = beachLayout[z.id] ?? zoneLayout(z);
+          const free = slots.filter((s) => s.state === "a").length;
           return (
             <button
               key={z.id}
               onClick={() => onPick(z.id)}
               aria-pressed={active}
-              className={`rounded-2xl p-3 text-center ring-1 transition animate-fade-up ${active ? "ring-white scale-[1.02] shadow-lift" : "ring-white/40 active:scale-[.98] shadow-soft"}`}
-              style={{ background: active ? `${z.color}f2` : `${z.color}d9` }}
+              className={`glass-card relative rounded-2xl p-3 text-center transition animate-fade-up ${active ? "ring-2 ring-teal-500 scale-[1.02] shadow-lift" : "ring-1 ring-white/50 active:scale-[.98]"}`}
             >
               {logo ? (
-                <img src={logo} alt="" className="mx-auto mb-1.5 h-9 w-auto max-w-[72%] object-contain drop-shadow" />
+                <img src={logo} alt="" className="mx-auto mb-1.5 h-9 w-auto max-w-[72%] object-contain" />
               ) : (
-                <span className="mx-auto mb-1.5 w-9 h-9 rounded-lg bg-white/20 grid place-items-center text-white"><Icon.umbrella size={18} /></span>
+                <span className="mx-auto mb-1.5 w-9 h-9 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: z.color }}><Icon.umbrella size={18} /></span>
               )}
-              <span className="block text-white font-bold text-[14px] drop-shadow-sm">{z.name}</span>
-              <span className="block text-white/85 text-[11px] tnum mt-0.5">{tr("from")} €{z.from}</span>
+              <span className="block text-navy-900 font-bold text-[14px] leading-tight">{z.name}</span>
+              <span className="block text-slate-600 text-[11px] tnum mt-0.5">{tr("from")} €{z.from} · {free} {tr("free")}</span>
+              {active && (
+                <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-teal-500 text-white grid place-items-center shadow ring-2 ring-white">
+                  <Icon.check size={12} />
+                </span>
+              )}
             </button>
           );
         })}
