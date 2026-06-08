@@ -41,6 +41,7 @@ const saved = loadLS() as {
   consent?: Consent;
   background?: BeachBackground;
   beachLayout?: Record<string, SunbedSlot[]>;
+  zoneLogos?: Record<string, string>;
 };
 // A deep link in the URL wins over the last saved location.
 const initialRoute = parseHash();
@@ -65,15 +66,16 @@ export default function App() {
   const [consent, setConsentState] = useState<Consent>(saved.consent || DEFAULT_CONSENT);
   const [background, setBackground] = useState<BeachBackground>(saved.background || DEFAULT_BACKGROUND);
   const [beachLayout, setBeachLayoutState] = useState<Record<string, SunbedSlot[]>>(saved.beachLayout || {});
+  const [zoneLogos, setZoneLogosState] = useState<Record<string, string>>(saved.zoneLogos || {});
 
   useEffect(() => {
     // Guard the write: Safari Private Mode and a full quota throw on setItem.
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos }));
     } catch {
       /* storage unavailable (private mode / quota) — ignore */
     }
-  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout]);
+  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos]);
 
   // Keep <html lang> in sync with the chosen language (a11y / SEO correctness).
   useEffect(() => {
@@ -94,6 +96,17 @@ export default function App() {
   // Publish (or replace) a zone's umbrella layout from the admin Map Editor.
   const setZoneLayout = useCallback((zoneId: string, slots: SunbedSlot[]) => {
     setBeachLayoutState((m) => ({ ...m, [zoneId]: slots }));
+  }, []);
+  // Set (or clear, with null) a store's logo from the admin Map Editor.
+  const setZoneLogo = useCallback((zoneId: string, src: string | null) => {
+    setZoneLogosState((m) => {
+      if (!src) {
+        const next = { ...m };
+        delete next[zoneId];
+        return next;
+      }
+      return { ...m, [zoneId]: src };
+    });
   }, []);
 
   const page = pageByPersona[persona];
@@ -155,8 +168,8 @@ export default function App() {
 
   // Memoised so the provider value keeps a stable identity across renders.
   const ctx = useMemo<AppContextValue>(
-    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout }),
-    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout],
+    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo }),
+    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo],
   );
 
   // The booking wizard takes over the whole viewport: the beach becomes the

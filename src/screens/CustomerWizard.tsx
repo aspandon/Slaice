@@ -4,7 +4,7 @@ import { Icon } from "../lib/icons";
 import type { IconRenderer } from "../lib/icons";
 import { Btn, Badge, Stepper, Input, Field, DatePickerRow, Toggle } from "../components/ui";
 import { prefersReducedMotion } from "../lib/motion";
-import { Sunbed } from "../components/Beach";
+import { Sunbed, SunbedMark } from "../components/Beach";
 import { ZONES, ZONE_BLOCKS, todayISO, chipLabel, zoneLayout } from "../data/beach";
 import type { SunbedSlot } from "../domain/types";
 import { useApp, useSpotlight, useT } from "../app/store";
@@ -177,10 +177,11 @@ export function CustomerWizard() {
   return (
     <div className="fixed inset-0 z-20 flex flex-col pointer-events-none select-none">
       {/* ============ Menu over the sea (top) ============
-           min-height holds the menu band down to roughly the shoreline so the
-           sand region below always starts on the sand — the umbrellas never
-           ride up into the sea, however short the menu gets. */}
-      <div className="shrink-0 flex items-start justify-center px-3 pt-2 sm:pt-3 min-h-[50vh]">
+           When picking sunbeds, the min-height holds the menu band down to ~the
+           shoreline so the sets always start on the sand (never the sea). The
+           store overview gives the menu band less reserved height so the
+           clusters get more room to spread. */}
+      <div className={`shrink-0 flex items-start justify-center px-3 pt-2 sm:pt-3 ${showSets ? "min-h-[50vh]" : "min-h-[38vh]"}`}>
         <div className="pointer-events-auto w-full max-w-2xl glass-card rounded-3xl shadow-float flex flex-col max-h-[64vh] overflow-hidden animate-fade-down">
           {/* Pinned header — leave, progress, (step title only on the form steps). */}
           <div className="p-4 sm:p-5 pb-3 shrink-0">
@@ -252,7 +253,7 @@ export function CustomerWizard() {
            set is visible (never hidden behind it) and is tapped directly. ====== */}
       <div className="flex-1 min-h-0 px-3 sm:px-5 flex justify-center animate-fade-in" style={{ animationDelay: revealDelay, animationFillMode: "both" }}>
         <div className="relative w-full max-w-5xl">
-          {showZones && <SandZones selectedId={zoneId} onPick={pickZone} />}
+          {showZones && <StoreOverview selectedId={zoneId} onPick={pickZone} />}
           {showSets && <SandSunbeds slots={slots} selected={selectedIds} onToggle={toggleBed} />}
         </div>
       </div>
@@ -386,51 +387,127 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
   );
 }
 
-/* Tiny dot tint for a set's state, used in the zone-card mini-map. */
-function dotTint(state: string) {
-  return state === "u" ? "rgba(255,255,255,0.30)" : state === "h" ? "#fcd34d" : "rgba(255,255,255,0.92)";
+/* Track a CSS media query — used to pick the rich (desktop) vs compact (phone)
+   store overview. */
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(() => typeof window !== "undefined" && window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setMatches(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, [query]);
+  return matches;
 }
 
-/* ============ Sand layer — zone "stores" ============
-   Each zone, placed across the sand by its real position on the beach (west →
-   east + depth, exactly as the admin arranged it), shown as a card that previews
-   that zone's actual sunbed layout and its exact set count. Tap to open it. */
-function SandZones({ selectedId, onPick }: { selectedId: string; onPick: (id: string) => void }) {
+const clampN = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+/* Push equal-size boxes apart until none overlap, starting from their given
+   centres and keeping them inside [0,W]×[0,H]. A handful of relaxation passes —
+   enough for six store clusters to settle near the admin's arrangement without
+   colliding. */
+function declutter(init: { x: number; y: number }[], W: number, H: number, cw: number, ch: number, gap: number) {
+  const pos = init.map((p) => ({ ...p }));
+  const minX = cw / 2, maxX = Math.max(cw / 2, W - cw / 2);
+  const minY = ch / 2, maxY = Math.max(ch / 2, H - ch / 2);
+  for (let it = 0; it < 90; it++) {
+    for (let i = 0; i < pos.length; i++) {
+      for (let j = i + 1; j < pos.length; j++) {
+        const dx = pos[j].x - pos[i].x;
+        const dy = pos[j].y - pos[i].y;
+        const ox = cw + gap - Math.abs(dx);
+        const oy = ch + gap - Math.abs(dy);
+        if (ox > 0 && oy > 0) {
+          if (ox < oy) {
+            const push = (ox / 2) * (dx < 0 ? -1 : 1);
+            pos[i].x -= push; pos[j].x += push;
+          } else {
+            const push = (oy / 2) * (dy < 0 ? -1 : 1);
+            pos[i].y -= push; pos[j].y += push;
+          }
+        }
+      }
+    }
+    for (const p of pos) { p.x = clampN(p.x, minX, maxX); p.y = clampN(p.y, minY, maxY); }
+  }
+  return pos;
+}
+
+/* ============ Store overview ============
+   Desktop (with room): each store rendered as its real umbrella layout, placed on
+   the beach map at the admin's position and auto-spaced so clusters never
+   overlap, with the store name + optional logo beneath. Tap to open it. Phones /
+   tight screens fall back to compact cards with less detail. */
+function StoreOverview({ selectedId, onPick }: { selectedId: string; onPick: (id: string) => void }) {
+  const rich = useMediaQuery("(min-width: 1024px) and (min-height: 640px)");
+  return rich ? <StoreClusters selectedId={selectedId} onPick={onPick} /> : <StoreCards selectedId={selectedId} onPick={onPick} />;
+}
+
+function StoreClusters({ selectedId, onPick }: { selectedId: string; onPick: (id: string) => void }) {
   const tr = useT();
-  const { beachLayout } = useApp();
+  const { beachLayout, zoneLogos } = useApp();
+  const ref = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => { const r = el.getBoundingClientRect(); setBox({ w: Math.round(r.width), h: Math.round(r.height) }); };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const cw = clampN(box.w * 0.18, 150, 220);
+  const plotH = cw * 0.66;
+  const ch = plotH + 48; // + the name/logo band
+  const glyph = plotH * 0.14;
+
+  const positions = useMemo(() => {
+    if (!box.w || !box.h) return [];
+    const init = ZONES.map((z) => {
+      const blk = ZONE_BLOCKS.find((b) => b.id === z.id);
+      const left = blk ? parseFloat(blk.left) + parseFloat(blk.w) / 2 : 50;
+      const depth = blk ? clampN((parseFloat(blk.top) - 71) / 6, 0, 1) : 0.5;
+      return { x: (left / 100) * box.w, y: ch / 2 + 6 + depth * Math.max(0, box.h - ch - 12) };
+    });
+    return declutter(init, box.w, box.h, cw, ch, 16);
+  }, [box, cw, ch]);
+
   return (
-    <div className="absolute inset-0">
+    <div ref={ref} className="absolute inset-0">
       {ZONES.map((z, i) => {
-        const blk = ZONE_BLOCKS.find((b) => b.id === z.id);
-        if (!blk) return null;
-        const active = z.id === selectedId;
+        const pos = positions[i];
+        if (!pos) return null;
         const slots = beachLayout[z.id] ?? zoneLayout(z);
         const free = slots.filter((s) => s.state === "a").length;
-        // Place each card at the zone's real spot — horizontal position + an
-        // amplified depth so the close middle zones separate without losing the
-        // admin's arrangement.
-        const topPct = 8 + (parseFloat(blk.top) - 71) * 9.5;
+        const logo = zoneLogos[z.id];
+        const active = z.id === selectedId;
         return (
           <button
             key={z.id}
             onClick={() => onPick(z.id)}
             aria-pressed={active}
             aria-label={`${z.name} — ${slots.length} ${tr("sets")}, ${free} ${tr("free")}, ${tr("from")} €${z.from}${active ? `, ${tr("selected")}` : ""}`}
-            className="pointer-events-auto absolute origin-top-left group focus:outline-none focus-visible:z-30 animate-fade-up"
-            style={{ left: blk.left, top: `${topPct}%`, width: `clamp(124px, ${parseFloat(blk.w) * 1.6}%, 190px)`, transform: `rotate(${blk.rot}deg)`, animationDelay: `${i * 70}ms` }}
+            className="absolute group focus:outline-none focus-visible:z-30 animate-fade-up pointer-events-auto text-left"
+            style={{ left: pos.x - cw / 2, top: pos.y - ch / 2, width: cw, animationDelay: `${i * 60}ms` }}
           >
-            <span
-              className={`relative block rounded-2xl p-2 ring-1 transition-all duration-300 ease-spring ${active ? "scale-[1.06] ring-white shadow-[0_16px_38px_-8px_rgba(11,37,69,.6)] z-20" : "ring-white/45 group-hover:scale-[1.03] group-hover:-translate-y-1 group-hover:ring-white/80 shadow-lift"}`}
-              style={{ background: active ? z.color : `${z.color}e6` }}
-            >
-              {/* Mini-map: the zone's actual umbrella layout. */}
-              <span className="relative block w-full rounded-lg ring-1 ring-white/25 overflow-hidden" style={{ aspectRatio: "5 / 3", background: "rgba(8,24,45,0.18)" }}>
+            <span className={`block rounded-2xl ring-1 transition-all duration-300 ease-spring ${active ? "ring-white scale-[1.03] shadow-[0_16px_40px_-8px_rgba(11,37,69,.55)] z-10" : "ring-white/40 group-hover:-translate-y-1 group-hover:ring-white/80 shadow-lift"}`} style={{ background: active ? `${z.color}f2` : `${z.color}d9` }}>
+              {/* The store's real umbrella layout. */}
+              <span className="relative block w-full rounded-t-2xl overflow-hidden" style={{ height: plotH, background: "rgba(8,24,45,0.14)" }}>
                 {slots.map((s) => (
-                  <i key={s.id} className="absolute rounded-full -translate-x-1/2 -translate-y-1/2" style={{ left: `${s.x}%`, top: `${s.y}%`, width: 3, height: 3, background: dotTint(s.state) }} />
+                  <span key={s.id} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${s.x}%`, top: `${s.y}%`, width: glyph, height: glyph }}>
+                    <SunbedMark state={s.state} fill />
+                  </span>
                 ))}
               </span>
-              <span className="block text-center text-white font-bold text-[13px] leading-none tracking-wide drop-shadow-sm mt-1.5">{z.name}</span>
-              <span className="block text-center text-white/85 text-[10px] tnum mt-1">{tr("from")} €{z.from} · {slots.length} {tr("sets")} · {free} {tr("free")}</span>
+              {/* Logo + name + counts. */}
+              <span className="block px-2 py-1.5 text-center">
+                {logo && <img src={logo} alt="" className="mx-auto mb-1 h-6 w-auto max-w-[72%] object-contain drop-shadow" />}
+                <span className="block text-white font-bold text-[13px] leading-tight drop-shadow-sm">{z.name}</span>
+                <span className="block text-white/85 text-[10px] tnum mt-0.5">{tr("from")} €{z.from} · {slots.length} {tr("sets")} · {free} {tr("free")}</span>
+              </span>
               {active && (
                 <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white text-teal-600 grid place-items-center shadow ring-1 ring-black/5">
                   <Icon.check size={12} />
@@ -440,6 +517,40 @@ function SandZones({ selectedId, onPick }: { selectedId: string; onPick: (id: st
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/* Compact store cards — phones / tight screens. Less detail (logo, name, from
+   price) in a tidy two-column grid so nothing overlaps. */
+function StoreCards({ selectedId, onPick }: { selectedId: string; onPick: (id: string) => void }) {
+  const tr = useT();
+  const { zoneLogos } = useApp();
+  return (
+    <div className="absolute inset-0 overflow-y-auto no-scrollbar">
+      <div className="grid grid-cols-2 gap-2.5 p-0.5">
+        {ZONES.map((z) => {
+          const active = z.id === selectedId;
+          const logo = zoneLogos[z.id];
+          return (
+            <button
+              key={z.id}
+              onClick={() => onPick(z.id)}
+              aria-pressed={active}
+              className={`rounded-2xl p-3 text-center ring-1 transition animate-fade-up ${active ? "ring-white scale-[1.02] shadow-lift" : "ring-white/40 active:scale-[.98] shadow-soft"}`}
+              style={{ background: active ? `${z.color}f2` : `${z.color}d9` }}
+            >
+              {logo ? (
+                <img src={logo} alt="" className="mx-auto mb-1.5 h-9 w-auto max-w-[72%] object-contain drop-shadow" />
+              ) : (
+                <span className="mx-auto mb-1.5 w-9 h-9 rounded-lg bg-white/20 grid place-items-center text-white"><Icon.umbrella size={18} /></span>
+              )}
+              <span className="block text-white font-bold text-[14px] drop-shadow-sm">{z.name}</span>
+              <span className="block text-white/85 text-[11px] tnum mt-0.5">{tr("from")} €{z.from}</span>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

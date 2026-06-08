@@ -1,7 +1,7 @@
 import { lazy, Suspense, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { Icon } from "../lib/icons";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, ErrorState, useMockLoad, FutureBanner, ContextPanel } from "../components/ui";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, ErrorState, useMockLoad, FutureBanner, ContextPanel, Spinner } from "../components/ui";
 import type { TabEntry } from "../components/ui";
 import { BarChart, HBarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts";
 import { BeachBackdrop } from "../components/Beach";
@@ -9,6 +9,7 @@ import { BeachBackdrop } from "../components/Beach";
 // Lazy so konva only loads when the Sunbed-layout tab is opened.
 const BeachCanvas = lazy(() => import("../components/BeachCanvas").then((m) => ({ default: m.BeachCanvas })));
 import { BackgroundPicker } from "../components/BackgroundPicker";
+import { fileToBackgroundSrc } from "../lib/image";
 import { ZONES, zoneLayout } from "../data/beach";
 import type { SunbedSlot, SunbedState, SunbedKind } from "../domain/types";
 import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS } from "../data/mock";
@@ -254,13 +255,30 @@ function ZoneArrangeEditor() {
    each one's availability/price, then publish. The saved SunbedSlot[] lands in
    the app store and the booking wizard renders that exact arrangement. */
 function SunbedLayoutEditor() {
-  const { toast, beachLayout, setZoneLayout } = useApp();
+  const { toast, beachLayout, setZoneLayout, zoneLogos, setZoneLogo } = useApp();
   const [zoneId, setZoneId] = useState(ZONES[0].id);
   const zone = ZONES.find((z) => z.id === zoneId) ?? ZONES[0];
   // Working copy: the published layout if any, otherwise the default grid.
   const [slots, setSlots] = useState<SunbedSlot[]>(() => beachLayout[zoneId] ?? zoneLayout(zone));
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [snapOn, setSnapOn] = useState(true);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const logo = zoneLogos[zoneId];
+  const onLogo = async (file?: File) => {
+    if (!file) return;
+    setLogoBusy(true);
+    try {
+      // Small max dims — a logo only needs to read at ~thumbnail size and is
+      // persisted to localStorage alongside the rest of the saved state.
+      const src = await fileToBackgroundSrc(file, { maxW: 256, maxH: 256, quality: 0.9 });
+      setZoneLogo(zoneId, src);
+      toast(`Logo set for ${zone.name}.`, { tone: "success" });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "That image could not be used.", { tone: "error" });
+    } finally {
+      setLogoBusy(false);
+    }
+  };
 
   const selList = slots.filter((s) => sel.has(s.id));
   const one = selList.length === 1 ? selList[0] : null;
@@ -335,6 +353,26 @@ function SunbedLayoutEditor() {
 
       <Card className="p-5 h-max">
         <div className="font-semibold text-navy-900 mb-3 flex items-center gap-2"><span className="w-3 h-3 rounded-full" style={{ background: zone.color }} /> {zone.name} · sunbeds</div>
+
+        {/* Optional store logo — shown under the store name on the customer beach. */}
+        <div className="mb-3 rounded-xl ring-1 ring-slate-200 bg-slate-50 p-2.5 flex items-center gap-2.5">
+          <span className="w-12 h-12 rounded-lg bg-white ring-1 ring-slate-200 grid place-items-center overflow-hidden shrink-0">
+            {logo ? <img src={logo} alt={`${zone.name} logo`} className="w-full h-full object-contain" /> : <Icon.image size={18} className="text-slate-300" />}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[12.5px] font-semibold text-navy-900">Store logo</div>
+            <div className="text-[11px] text-slate-500 leading-tight">Optional · shown under the store name on the beach.</div>
+          </div>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <label className={`cursor-pointer inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold ring-1 bg-white transition ${logoBusy ? "ring-teal-300 text-teal-700" : "ring-slate-200 text-slate-700 hover:ring-teal-400"}`}>
+              <input type="file" accept="image/*" aria-label={`Upload a logo for ${zone.name}`} className="sr-only" disabled={logoBusy}
+                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; void onLogo(f); }} />
+              {logoBusy ? <Spinner size={12} /> : <Icon.upload size={12} />} {logo ? "Replace" : "Upload"}
+            </label>
+            {logo && <button onClick={() => setZoneLogo(zoneId, null)} className="text-[11px] text-slate-500 hover:text-rose-600">Remove</button>}
+          </div>
+        </div>
+
         <div className="grid grid-cols-3 gap-2 mb-3">
           <Btn variant="tint" size="sm" icon={Icon.plus} onClick={addBed}>Add</Btn>
           <Btn variant="ghost" size="sm" icon={Icon.grid} onClick={duplicate} disabled={!sel.size}>Copy</Btn>
