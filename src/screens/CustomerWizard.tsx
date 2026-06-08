@@ -189,23 +189,6 @@ export function CustomerWizard() {
             </div>
 
             <ProgressRail stepIdx={stepIdx} onJump={(i) => setStepIdx(i)} />
-
-            {/* The Beach view stays uncluttered (the beach itself is the focus);
-                the form steps keep their title for context. */}
-            {step.id !== "beach" && (
-              <div className="flex items-start gap-3 mt-4">
-                <span className="w-10 h-10 rounded-2xl grid place-items-center text-white bg-gradient-to-br from-teal-500 to-teal-700 shadow-sm shrink-0">
-                  {(() => { const I = Icon[step.icon]; return I ? <I size={18} /> : null; })()}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <div className="font-display font-bold text-navy-900 text-lg sm:text-xl">{tr(step.label)}</div>
-                    {step.optional && <Badge tone="slate">{tr("Optional")}</Badge>}
-                  </div>
-                  <div className="text-[12.5px] text-slate-600 mt-0.5">{tr(step.sub)}</div>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Scrolling step body. */}
