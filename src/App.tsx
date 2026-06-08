@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { AppCtx } from "./app/store";
 import type { AppContextValue, SpotlightHint, ToastOptions } from "./app/store";
 import { DEFAULT_PAGE } from "./data/personas";
-import { TopBar, Sidebar, BottomTabBar, SiteFooter, Toasts } from "./components/Shell";
+import { TopBar, Sidebar, BottomTabBar, SiteFooter, Toasts, PersonaSwitcher } from "./components/Shell";
 import { AuthGate } from "./screens/auth";
 import { ConsentBanner } from "./components/ConsentBanner";
 import { CommandPalette } from "./components/CommandPalette";
@@ -206,6 +206,14 @@ export default function App() {
               wizard, so the beach + zones take over the screen. */}
           {!(persona === "customer" && page === "plan") && <SiteFooter />}
           <BottomTabBar persona={persona} page={page} setPage={setPage} />
+          {/* The "view as another persona" control lives in the bottom-right
+              corner on the customer surface — a quiet demo affordance, opening
+              upward, lifted clear of the mobile bottom tab bar. */}
+          {persona === "customer" && (
+            <div className="fixed right-3 sm:right-5 z-40 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] md:bottom-4">
+              <PersonaSwitcher persona={persona} setPersona={setPersona} variant="demo" side="top" />
+            </div>
+          )}
         </div>
       )}
       <ConsentBanner />
