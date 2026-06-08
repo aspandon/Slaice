@@ -165,8 +165,10 @@ export function BeachCanvas({
                     strokeWidth={sel ? 2 : front ? 1.6 : 1}
                     dash={editable && sel ? [5, 3] : undefined}
                   />
-                  <Group scaleX={gs} scaleY={gs} offsetX={GLYPH_CONTENT.cx} offsetY={GLYPH_CONTENT.cy}>
-                    {/* Twin loungers behind the parasol. */}
+                  {/* scaleY is negated to present the set loungers-up — a vertical
+                      mirror about the content centre (offsetY). */}
+                  <Group scaleX={gs} scaleY={-gs} offsetX={GLYPH_CONTENT.cx} offsetY={GLYPH_CONTENT.cy}>
+                    {/* Twin loungers. */}
                     {BEDS.map((bed, i) => (
                       <Group key={i}>
                         <Rect x={bed.frame.x} y={bed.frame.y} width={bed.frame.w} height={bed.frame.h} cornerRadius={bed.frame.r} fill={c.bed} />

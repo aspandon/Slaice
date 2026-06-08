@@ -17,7 +17,9 @@ import type { SunbedState } from "../domain/types";
 
 export const GLYPH_BOX = 72;
 /** Content bounding box (parasol top → lounger foot) — used to centre and fit
- *  the glyph inside its host (the SVG viewBox, the Konva tap-pad). */
+ *  the glyph inside its host (the SVG viewBox, the Konva tap-pad).
+ *  Canonical geometry is parasol-up; both renderers mirror it vertically about
+ *  `cy` to present the set loungers-up. */
 export const GLYPH_CONTENT = { cx: 36, cy: 37.5, w: 34.24, h: 49 } as const;
 
 /* ----- Parasol: ten gores, clockwise from 12 o'clock, alternating the state

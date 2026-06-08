@@ -5,7 +5,7 @@ import { useApp } from "../app/store";
 import { presetById } from "../data/backgrounds";
 import type { BeachPreset } from "../data/backgrounds";
 import type { BeachBackground, SunbedState } from "../domain/types";
-import { BEDS, CANOPY, CANOPY_WEDGES, FIN, GLYPH_BOX, sunbedPalette } from "./sunbedGlyph";
+import { BEDS, CANOPY, CANOPY_WEDGES, FIN, GLYPH_BOX, GLYPH_CONTENT, sunbedPalette } from "./sunbedGlyph";
 
 /* ---------- Single sunbed-set glyph ----------
    A parasol over twin loungers. state: "a" available · "h" on hold · "u"
@@ -37,20 +37,24 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
       style={{ lineHeight: 0, willChange: "transform" }}
     >
       <svg width={fill ? "100%" : size} height={fill ? "100%" : size} viewBox={`0 0 ${GLYPH_BOX} ${GLYPH_BOX}`} className={`${fill ? "w-full h-full " : ""}drop-shadow-sm transition-[filter] duration-200 group-hover:drop-shadow-[0_8px_10px_rgba(11,37,69,0.5)]`}>
-        {/* Twin loungers behind the parasol. */}
-        {BEDS.map((bed, i) => (
-          <g key={i}>
-            <rect x={bed.frame.x} y={bed.frame.y} width={bed.frame.w} height={bed.frame.h} rx={bed.frame.r} fill={p.bed} />
-            <rect x={bed.cushion.x} y={bed.cushion.y} width={bed.cushion.w} height={bed.cushion.h} rx={bed.cushion.r} fill={p.cushion} />
-            <path d={bed.slats} fill="none" stroke={p.slat} strokeWidth={1} strokeLinecap="round" />
-          </g>
-        ))}
-        {/* Pinwheel parasol — state-hue gores alternating with white. */}
-        {CANOPY_WEDGES.map((wdg, i) => (
-          <path key={`w${i}`} d={wdg.d} fill={wdg.lite ? p.lite : p.c} />
-        ))}
-        <circle cx={CANOPY.cx} cy={CANOPY.cy} r={CANOPY.r} fill="none" stroke={p.edge} strokeWidth={1} />
-        <circle cx={FIN.cx} cy={FIN.cy} r={FIN.r} fill={p.fin} />
+        {/* Present the set loungers-up: mirror vertically about the content centre
+            (cy 37.5 → translate 2·cy). Canonical geometry is parasol-up. */}
+        <g transform={`translate(0 ${2 * GLYPH_CONTENT.cy}) scale(1 -1)`}>
+          {/* Twin loungers. */}
+          {BEDS.map((bed, i) => (
+            <g key={i}>
+              <rect x={bed.frame.x} y={bed.frame.y} width={bed.frame.w} height={bed.frame.h} rx={bed.frame.r} fill={p.bed} />
+              <rect x={bed.cushion.x} y={bed.cushion.y} width={bed.cushion.w} height={bed.cushion.h} rx={bed.cushion.r} fill={p.cushion} />
+              <path d={bed.slats} fill="none" stroke={p.slat} strokeWidth={1} strokeLinecap="round" />
+            </g>
+          ))}
+          {/* Pinwheel parasol — state-hue gores alternating with white. */}
+          {CANOPY_WEDGES.map((wdg, i) => (
+            <path key={`w${i}`} d={wdg.d} fill={wdg.lite ? p.lite : p.c} />
+          ))}
+          <circle cx={CANOPY.cx} cy={CANOPY.cy} r={CANOPY.r} fill="none" stroke={p.edge} strokeWidth={1} />
+          <circle cx={FIN.cx} cy={FIN.cy} r={FIN.r} fill={p.fin} />
+        </g>
       </svg>
       {!dim && label && (
         <span className="opacity-0 group-hover:opacity-100 pointer-events-none absolute left-1/2 -translate-x-1/2 -top-9 z-30 px-2 py-1 rounded-lg bg-navy-950 text-white text-[10px] whitespace-nowrap shadow-lg">
