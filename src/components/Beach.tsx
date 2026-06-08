@@ -11,7 +11,7 @@ import { BEDS, CANOPY, CANOPY_WEDGES, FIN, GLYPH_BOX, GLYPH_CONTENT, sunbedPalet
    A parasol over twin loungers. state: "a" available · "h" on hold · "u"
    unavailable · sel = selected. Geometry + colour come from sunbedGlyph.ts, the
    shared source the Konva grid renders from too, so legend and map always match. */
-export function Sunbed({ state = "a", sel = false, onClick, label, price, size = 20, block = false, fill = false }: {
+export function Sunbed({ state = "a", sel = false, onClick, label, price, size = 20, block = false, fill = false, readOnly = false }: {
   state?: SunbedState;
   sel?: boolean;
   onClick?: () => void;
@@ -20,12 +20,16 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
   size?: number;
   block?: boolean;
   fill?: boolean;
+  /** Lock the glyph for display only — no hover lift, no click (used by the
+   *  later booking steps, where the chosen beach is shown but not editable). */
+  readOnly?: boolean;
 }) {
   const p = sunbedPalette(state, sel);
   const dim = p.dim;
+  const interactive = !dim && !readOnly;
   return (
     <button
-      disabled={dim}
+      disabled={dim || readOnly}
       onClick={onClick}
       aria-label={`Sunbed ${label || ""}${dim ? " unavailable" : state === "h" ? " on hold" : ` €${price}`}${sel ? ", selected" : ""}`}
       aria-pressed={sel}
@@ -33,7 +37,7 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
       // `fill` lets the glyph scale to its cell (used by the wizard's pick grid so
       // each umbrella grows on desktop yet stays tappable on phones); `block`
       // alone keeps a fixed `size` but a full-cell hit area.
-      className={`group relative ${block || fill ? "w-full h-full grid place-items-center" : ""} ${dim ? "cursor-not-allowed" : "cursor-pointer hover:-translate-y-1.5 hover:scale-[1.18] hover:z-20"} transition-transform duration-200 ease-spring`}
+      className={`group relative ${block || fill ? "w-full h-full grid place-items-center" : ""} ${interactive ? "cursor-pointer hover:-translate-y-1.5 hover:scale-[1.18] hover:z-20" : dim ? "cursor-not-allowed" : "cursor-default"} transition-transform duration-200 ease-spring`}
       style={{ lineHeight: 0, willChange: "transform" }}
     >
       <svg width={fill ? "100%" : size} height={fill ? "100%" : size} viewBox={`0 0 ${GLYPH_BOX} ${GLYPH_BOX}`} className={`${fill ? "w-full h-full " : ""}drop-shadow-sm transition-[filter] duration-200 group-hover:drop-shadow-[0_8px_10px_rgba(11,37,69,0.5)]`}>
