@@ -12,6 +12,8 @@ import { parseHash, buildHash, isValidPage } from "./app/router";
 import { HTML_LANG, normalizeLang } from "./app/i18n";
 import { DEFAULT_BACKGROUND } from "./data/backgrounds";
 import { DEFAULT_PASSES, DEFAULT_PASS_PRICING, SEASON_END_LABEL, seasonValidUntil, round2 } from "./data/passes";
+import { DEFAULT_LOYALTY } from "./data/loyalty";
+import type { LoyaltyState } from "./data/loyalty";
 import type { BeachBackground, CartItem, Consent, CustomerPasses, LangCode, PassPricing, PersonaId, SeasonPlan, SunbedSlot } from "./domain/types";
 
 interface ToastItem {
@@ -44,6 +46,7 @@ const saved = loadLS() as {
   zoneLogos?: Record<string, string>;
   passes?: CustomerPasses;
   passPricing?: PassPricing;
+  loyalty?: LoyaltyState;
 };
 // A deep link in the URL wins over the last saved location.
 const initialRoute = parseHash();
@@ -71,15 +74,16 @@ export default function App() {
   const [zoneLogos, setZoneLogosState] = useState<Record<string, string>>(saved.zoneLogos || {});
   const [passes, setPasses] = useState<CustomerPasses>(saved.passes || DEFAULT_PASSES);
   const [passPricing, setPassPricing] = useState<PassPricing>(saved.passPricing || DEFAULT_PASS_PRICING);
+  const [loyalty, setLoyaltyState] = useState<LoyaltyState>(saved.loyalty || DEFAULT_LOYALTY);
 
   useEffect(() => {
     // Guard the write: Safari Private Mode and a full quota throw on setItem.
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty }));
     } catch {
       /* storage unavailable (private mode / quota) — ignore */
     }
-  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing]);
+  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty]);
 
   // Keep <html lang> in sync with the chosen language (a11y / SEO correctness).
   useEffect(() => {
@@ -190,11 +194,12 @@ export default function App() {
   const clearPass = useCallback((kind: "vip" | "season") => {
     setPasses((p) => ({ ...p, [kind]: null }));
   }, []);
+  const setLoyalty = useCallback((updater: (s: LoyaltyState) => LoyaltyState) => setLoyaltyState(updater), []);
 
   // Memoised so the provider value keeps a stable identity across renders.
   const ctx = useMemo<AppContextValue>(
-    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing }),
-    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing],
+    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty }),
+    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty],
   );
 
   // The booking wizard takes over the whole viewport: the beach becomes the

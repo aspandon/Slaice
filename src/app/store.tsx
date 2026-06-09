@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { translate } from "./i18n";
 import { DEFAULT_BACKGROUND } from "../data/backgrounds";
 import { DEFAULT_PASSES, DEFAULT_PASS_PRICING } from "../data/passes";
+import { DEFAULT_LOYALTY } from "../data/loyalty";
+import type { LoyaltyState } from "../data/loyalty";
 import type { BeachBackground, CartItem, CartKind, Consent, CustomerPasses, LangCode, PassPricing, PersonaId, SeasonPlan, SunbedSlot } from "../domain/types";
 
 // Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
@@ -70,6 +72,9 @@ export interface AppContextValue {
   /** Admin-editable VIP/Season pricing, read by the customer purchase flow. */
   passPricing: PassPricing;
   setPassPricing: (p: PassPricing) => void;
+  /** Loyalty scheme config (enabled + values + custom IDs) — admin-written, home-read. */
+  loyalty: LoyaltyState;
+  setLoyalty: (updater: (s: LoyaltyState) => LoyaltyState) => void;
 }
 
 const DEFAULT_CONSENT: Consent = {
@@ -112,6 +117,8 @@ export const AppCtx = createContext<AppContextValue>({
   clearPass: () => {},
   passPricing: DEFAULT_PASS_PRICING,
   setPassPricing: () => {},
+  loyalty: DEFAULT_LOYALTY,
+  setLoyalty: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);

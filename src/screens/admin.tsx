@@ -14,6 +14,8 @@ const BeachCanvas = lazyWithReload(() => import("../components/BeachCanvas").the
 import { BackgroundPicker } from "../components/BackgroundPicker";
 import { fileToBackgroundSrc } from "../lib/image";
 import { ZONES, zoneLayout } from "../data/beach";
+import { LOYALTY_REWARDS, BUILTIN_SCHEMES, makeCustomScheme, schemeDefaults } from "../data/loyalty";
+import type { LoyaltyScheme, SchemeValues, SchemeField } from "../data/loyalty";
 import type { SunbedSlot, SunbedState, SunbedKind, Customer } from "../domain/types";
 import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS, personByFirst, CUSTOMERS, type AdminBooking } from "../data/mock";
 import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr";
@@ -1508,113 +1510,8 @@ export function AdminCommunicate() {
    roster. Schemes are data-driven (fields + a summary builder), so the config
    modal and the card both render from one source — no per-scheme forms. */
 
-// Reward options reused by the timed-offer builder and custom schemes.
-const LOYALTY_REWARDS = ["10% off sunbeds", "20% off sunbeds", "Free coffee with a set", "Free drink with a set", "Free entry ticket", "Buy 1 set, 2nd half price"];
-
-type SchemeFieldType = "select" | "number" | "time" | "text";
-interface SchemeField {
-  key: string;
-  label: string;
-  type: SchemeFieldType;
-  def: string | number;
-  options?: string[];
-  suffix?: string;
-  min?: number;
-  max?: number;
-  /** Span both columns of the config grid (free-text perks / names). */
-  full?: boolean;
-}
-type SchemeValues = Record<string, string | number>;
-interface LoyaltyScheme {
-  id: string;
-  icon: IconRenderer;
-  title: string;
-  blurb: string;
-  eg: string;
-  fields: SchemeField[];
-  summarize: (v: SchemeValues) => string;
-  /** User-added scheme: title comes from a field and it can be removed. */
-  custom?: boolean;
-}
-
-const BUILTIN_SCHEMES: LoyaltyScheme[] = [
-  {
-    id: "milestones", icon: Icon.star, title: "Visit milestones",
-    blurb: "A stamp card — every Nth visit is on the house, tracked automatically by the gate QR.", eg: "10th sunbed free",
-    fields: [
-      { key: "everyN", label: "Free every", type: "number", def: 10, suffix: "visits", min: 2, max: 50 },
-      { key: "reward", label: "Reward", type: "select", def: "Free sunbed", options: ["Free sunbed", "Free entry", "Free coffee", "20% off next visit"] },
-    ],
-    summarize: (v) => `Every ${v.everyN} visits → ${v.reward}`,
-  },
-  {
-    id: "happy", icon: Icon.clock, title: "Happy hours & early-bird",
-    blurb: "Discount the quiet slots so they fill up instead of sitting empty.", eg: "Weekdays 9–11 → 20% off front row",
-    fields: [
-      { key: "discount", label: "Discount", type: "select", def: "20% off", options: ["10% off", "15% off", "20% off", "30% off"] },
-      { key: "days", label: "Days", type: "select", def: "Weekdays", options: ["Weekdays", "Weekends", "Every day"] },
-      { key: "from", label: "From", type: "time", def: "09:00" },
-      { key: "to", label: "To", type: "time", def: "11:00" },
-    ],
-    summarize: (v) => `${v.discount} · ${v.days} ${v.from}–${v.to}`,
-  },
-  {
-    id: "tiers", icon: Icon.sparkles, title: "Tiered membership",
-    blurb: "Silver / Gold / VIP — perks unlock the more a guest returns each season.", eg: "Gold: free parking + late checkout",
-    fields: [
-      { key: "silverAt", label: "Silver from", type: "number", def: 3, suffix: "visits", min: 1 },
-      { key: "silverPerk", label: "Silver perk", type: "text", def: "10% off sunbeds" },
-      { key: "goldAt", label: "Gold from", type: "number", def: 6, suffix: "visits", min: 1 },
-      { key: "goldPerk", label: "Gold perk", type: "text", def: "Free parking + late checkout" },
-      { key: "vipAt", label: "VIP from", type: "number", def: 12, suffix: "visits", min: 1 },
-      { key: "vipPerk", label: "VIP perk", type: "text", def: "Front row + free coffee" },
-    ],
-    summarize: (v) => `Silver ${v.silverAt}+ · Gold ${v.goldAt}+ · VIP ${v.vipAt}+`,
-  },
-  {
-    id: "bundle", icon: Icon.gift, title: "Bundle perks",
-    blurb: "Pair a set with a freebie to lift the average spend and the experience.", eg: "Sunbed before noon → free coffee",
-    fields: [
-      { key: "buy", label: "When they book", type: "select", def: "A sunbed set", options: ["A sunbed set", "A front-row set", "Any 2 sets", "An entry ticket"] },
-      { key: "get", label: "They get", type: "select", def: "A free coffee", options: ["A free coffee", "A free drink", "A free locker", "2nd set half price"] },
-      { key: "when", label: "When", type: "select", def: "Before noon", options: ["Any time", "Before noon", "Weekdays only"] },
-    ],
-    summarize: (v) => `${v.buy} → ${v.get} · ${v.when}`,
-  },
-  {
-    id: "referral", icon: Icon.users, title: "Bring a friend",
-    blurb: "Referrals — both the inviter and the new guest get a small reward.", eg: "Refer a friend → €5 off each",
-    fields: [
-      { key: "inviter", label: "Inviter gets", type: "select", def: "€5 off", options: ["€5 off", "€10 off", "10% off", "A free coffee"] },
-      { key: "friend", label: "New guest gets", type: "select", def: "€5 off", options: ["€5 off", "€10 off", "10% off", "Free entry"] },
-    ],
-    summarize: (v) => `Inviter ${v.inviter} · Friend ${v.friend}`,
-  },
-  {
-    id: "birthday", icon: Icon.calendar, title: "Birthday week",
-    blurb: "A small, automatic treat during a guest's birthday week. Cheap goodwill.", eg: "Free entry + a drink, on us",
-    fields: [
-      { key: "treat", label: "Treat", type: "select", def: "Free entry + a drink", options: ["Free entry + a drink", "Free sunbed for a day", "20% off everything", "A free dessert"] },
-      { key: "window", label: "Valid", type: "select", def: "Birthday week", options: ["On the day", "Birthday week", "Birthday month"] },
-    ],
-    summarize: (v) => `${v.treat} · ${v.window}`,
-  },
-];
-
-// A blank user-defined scheme: name it, pick a reward, scope and timing.
-const makeCustomScheme = (id: string): LoyaltyScheme => ({
-  id, icon: Icon.gift, title: "Custom scheme", custom: true,
-  blurb: "Your own reward rule — name it and choose what guests get.", eg: "",
-  fields: [
-    { key: "title", label: "Scheme name", type: "text", def: "Custom scheme", full: true },
-    { key: "reward", label: "Reward", type: "select", def: LOYALTY_REWARDS[0], options: LOYALTY_REWARDS },
-    { key: "appliesTo", label: "Applies to", type: "select", def: "All stores", options: ["All stores", ...ZONES.map((z) => z.name)] },
-    { key: "when", label: "When", type: "select", def: "Weekday mornings", options: ["Weekday mornings", "Weekends", "All season", "Happy hour 17:00–19:00"] },
-  ],
-  summarize: (v) => `${v.reward} · ${v.appliesTo} · ${v.when}`,
-});
-
-const schemeDefaults = (s: LoyaltyScheme): SchemeValues => Object.fromEntries(s.fields.map((f) => [f.key, f.def]));
+/* Scheme model + built-in schemes live in data/loyalty.ts (shared with the
+   customer Home). The config modal + admin UI stay here. */
 
 /* One control per field type — keeps the config modal declarative. */
 function SchemeFieldControl({ field, value, onChange }: { field: SchemeField; value: string | number; onChange: (v: string | number) => void }) {
@@ -1662,7 +1559,7 @@ function SchemeConfigModal({ scheme, initial, configured, onSave, onClose }: {
 }
 
 export function AdminLoyalty() {
-  const { toast } = useApp();
+  const { toast, loyalty, setLoyalty } = useApp();
   const [reward, setReward] = useState("20% off sunbeds");
   const [store, setStore] = useState("All stores");
   const [schedule, setSchedule] = useState("Weekday mornings");
@@ -1674,15 +1571,15 @@ export function AdminLoyalty() {
   // Scheme lifecycle: a scheme is "configured" once it has saved values; the
   // `enabled` flag then turns it live/paused without losing the config. Custom
   // schemes are added at runtime and removable.
-  const [customs, setCustoms] = useState<LoyaltyScheme[]>([]);
-  const [config, setConfig] = useState<Record<string, { enabled: boolean; values: SchemeValues }>>({});
+  const config = loyalty.config;
+  const customs = useMemo(() => loyalty.customIds.map(makeCustomScheme), [loyalty.customIds]);
   const [editing, setEditing] = useState<string | null>(null);
   const allSchemes = useMemo(() => [...BUILTIN_SCHEMES, ...customs], [customs]);
   const activeCount = Object.values(config).filter((c) => c.enabled).length;
   const editScheme = editing ? allSchemes.find((s) => s.id === editing) ?? null : null;
 
   const saveConfig = (id: string, values: SchemeValues) => {
-    setConfig((c) => ({ ...c, [id]: { enabled: true, values } }));
+    setLoyalty((s) => ({ ...s, config: { ...s.config, [id]: { enabled: true, values } } }));
     const sch = allSchemes.find((s) => s.id === id);
     const name = sch?.custom ? String(values.title || "Custom scheme") : sch?.title;
     toast(`Enabled “${name}” — now live for guests.`, { tone: "success" });
@@ -1690,24 +1587,23 @@ export function AdminLoyalty() {
   };
   const closeConfig = () => {
     // Drop a brand-new custom card if its first set-up was cancelled.
-    if (editing && !config[editing]) setCustoms((cs) => cs.filter((c) => c.id !== editing));
+    if (editing && !config[editing]) setLoyalty((s) => ({ ...s, customIds: s.customIds.filter((c) => c !== editing) }));
     setEditing(null);
   };
   const toggleEnabled = (id: string) => {
     const willEnable = !config[id]?.enabled;
-    setConfig((c) => (c[id] ? { ...c, [id]: { ...c[id], enabled: willEnable } } : c));
+    setLoyalty((s) => (s.config[id] ? { ...s, config: { ...s.config, [id]: { ...s.config[id], enabled: willEnable } } } : s));
     const sch = allSchemes.find((s) => s.id === id);
     const name = sch?.custom ? String(config[id]?.values.title || "Custom scheme") : sch?.title;
     toast(willEnable ? `Resumed “${name}”.` : `Paused “${name}”.`, willEnable ? { tone: "success" } : {});
   };
   const addCustom = () => {
     const id = `custom-${Date.now().toString(36)}`;
-    setCustoms((cs) => [...cs, makeCustomScheme(id)]);
+    setLoyalty((s) => ({ ...s, customIds: [...s.customIds, id] }));
     setEditing(id);
   };
   const removeCustom = (id: string) => {
-    setCustoms((cs) => cs.filter((c) => c.id !== id));
-    setConfig((c) => { const n = { ...c }; delete n[id]; return n; });
+    setLoyalty((s) => { const cfg = { ...s.config }; delete cfg[id]; return { ...s, customIds: s.customIds.filter((c) => c !== id), config: cfg }; });
     toast("Removed scheme.");
   };
 
