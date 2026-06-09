@@ -26,7 +26,7 @@ import { SlaiceLogo } from "../components/Brand";
 // SHA-256 (hex) of the accepted email (lower-cased) and password. To change the
 // credentials, regenerate with:  printf '%s' '<value>' | sha256sum
 const EMAIL_HASH = "3fe4db2ea1d30276acee67f335574297c608cc4b415d372c1e4d359646873ccb";
-const PW_HASH = "f8e597fe5248b97dce5ac3c383b11d5862bd516139dcad97d857016c95cc0267";
+const PW_HASH = "0362b44a44d4a875bce9bb5d27f41264f95cea6fe5dbf40260f0a090ff8b0a0c";
 
 async function sha256Hex(s: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
