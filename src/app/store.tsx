@@ -16,6 +16,8 @@ export interface SpotlightHint {
   page?: string;
   /** Optional initial step id for a multi-step flow (e.g. the Plan wizard). */
   step?: string;
+  /** Loyalty scheme id to pre-load when deep-linking into Communicate. */
+  promote?: string;
   ts?: number;
 }
 

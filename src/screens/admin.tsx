@@ -1347,15 +1347,16 @@ const CAMPAIGN_CHANNELS: { key: string; label: string; icon: IconRenderer; color
   { key: "SMS", label: "SMS", icon: Icon.phone, color: "#16a34a" },
 ];
 
-/* A channel-true preview of the message, so the operator sees what lands. */
-function CampaignPreview({ channel, msg }: { channel: string; msg: string }) {
+/* A channel-true preview of the message, so the operator sees what lands. When a
+   loyalty offer is promoted, the CTA is live — clicking it opens the guest view. */
+function CampaignPreview({ channel, msg, cta }: { channel: string; msg: string; cta?: { label: string; onClick: () => void } }) {
   if (channel === "E-mail")
     return (
       <div className="rounded-2xl ring-1 ring-slate-200 bg-white p-4 shadow-lift">
         <div className="flex items-center gap-2 text-[11px] text-slate-500 mb-2"><Icon.mail size={12} /> Akti tou Iliou &lt;hello@aktitouiliou.gr&gt;</div>
         <div className="font-semibold text-navy-900 text-sm">Weekend at the beach</div>
         <div className="text-[12px] text-slate-600 leading-snug mt-1 line-clamp-4">{msg}</div>
-        <span className="inline-flex items-center mt-3 bg-navy-900 text-white text-[11px] font-semibold rounded-lg px-2.5 py-1">Book now</span>
+        <button type="button" onClick={cta?.onClick} className="inline-flex items-center gap-1 mt-3 bg-navy-900 text-white text-[11px] font-semibold rounded-lg px-2.5 py-1 hover:bg-navy-800 transition">{cta?.label ?? "Book now"} →</button>
       </div>
     );
   if (channel === "Viber")
@@ -1363,13 +1364,17 @@ function CampaignPreview({ channel, msg }: { channel: string; msg: string }) {
       <div className="rounded-2xl bg-[#f4f2fb] ring-1 ring-[#7360f2]/25 p-3">
         <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#7360f2] mb-1.5"><Icon.chat size={12} /> Viber · Akti tou Iliou</div>
         <div className="bg-white rounded-2xl rounded-tl-sm shadow-sm px-3 py-2 text-[12.5px] text-navy-900 leading-snug">{msg}</div>
+        {cta && <button type="button" onClick={cta.onClick} className="mt-2 inline-flex items-center gap-1 bg-[#7360f2] text-white text-[11px] font-semibold rounded-lg px-2.5 py-1 hover:opacity-90 transition">{cta.label} →</button>}
       </div>
     );
   if (channel === "SMS")
     return (
       <div className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-3">
         <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 mb-1.5"><Icon.phone size={12} /> SMS · Akti tou Iliou</div>
-        <div className="bg-emerald-500 text-white rounded-2xl rounded-tr-sm shadow-sm px-3 py-2 text-[12.5px] leading-snug ml-auto max-w-[92%]">{msg}</div>
+        <div className="bg-emerald-500 text-white rounded-2xl rounded-tr-sm shadow-sm px-3 py-2 text-[12.5px] leading-snug ml-auto max-w-[92%]">
+          {msg}
+          {cta && <button type="button" onClick={cta.onClick} className="block underline mt-1 text-white/95 text-[12px] font-semibold text-left">akti.gr/reward →</button>}
+        </div>
       </div>
     );
   return (
@@ -1377,14 +1382,15 @@ function CampaignPreview({ channel, msg }: { channel: string; msg: string }) {
       <div className="flex items-center gap-2 text-[11px] text-white/70 mb-2"><Icon.bell size={12} /> Akti tou Iliou · now</div>
       <div className="font-semibold text-sm">Weekend at the beach</div>
       <div className="text-[12px] text-white/80 leading-snug mt-0.5 line-clamp-3">{msg}</div>
+      {cta && <button type="button" onClick={cta.onClick} className="mt-2.5 inline-flex items-center gap-1 bg-white/15 hover:bg-white/25 text-white text-[11px] font-semibold rounded-lg px-2.5 py-1 ring-1 ring-white/20 transition">{cta.label} →</button>}
     </div>
   );
 }
 
 /* Review → send → sent confirmation, so "Send campaign" is a deliberate journey
    (who · which channel · what), not a one-click fire. */
-function CampaignReviewModal({ open, onClose, channel, seg, reach, msg, onSend }: {
-  open: boolean; onClose: () => void; channel: string; seg: string; reach: string; msg: string; onSend: () => void;
+function CampaignReviewModal({ open, onClose, channel, seg, reach, msg, offer, onSend }: {
+  open: boolean; onClose: () => void; channel: string; seg: string; reach: string; msg: string; offer?: string; onSend: () => void;
 }) {
   const [stage, setStage] = useState<"review" | "sent">("review");
   useEffect(() => { if (open) setStage("review"); }, [open]);
@@ -1408,6 +1414,12 @@ function CampaignReviewModal({ open, onClose, channel, seg, reach, msg, onSend }
             </div>
             <div className="text-right shrink-0"><div className="text-[11px] text-slate-500">Est. reach</div><div className="text-[13px] font-semibold text-navy-900 tnum">{reach}</div></div>
           </div>
+          {offer && (
+            <div className="flex items-center gap-3 rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2.5">
+              <span className="w-9 h-9 rounded-xl grid place-items-center bg-teal-600 text-white shrink-0"><Icon.gift size={16} /></span>
+              <div className="min-w-0"><div className="text-[11px] text-slate-500">Loyalty offer</div><div className="text-[13px] font-semibold text-navy-900 truncate">{offer}</div></div>
+            </div>
+          )}
           <div>
             <div className="text-[12px] font-semibold text-slate-700 mb-1">Message</div>
             <div className="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-3 py-2.5 text-[13px] text-navy-900 leading-snug whitespace-pre-wrap">{msg || <span className="text-slate-400">No message.</span>}</div>
@@ -1417,20 +1429,48 @@ function CampaignReviewModal({ open, onClose, channel, seg, reach, msg, onSend }
         <div className="py-2 text-center space-y-2 animate-pop">
           <span className="mx-auto w-12 h-12 rounded-full bg-teal-600 text-white grid place-items-center shadow"><Icon.check size={22} /></span>
           <div className="font-semibold text-navy-900">Sent to {reach} {seg} guests</div>
-          <div className="text-[13px] text-slate-600 max-w-xs mx-auto">Delivered via <b>{ch.key}</b>. Opens and clicks will appear in Reporting → Channels.</div>
+          <div className="text-[13px] text-slate-600 max-w-xs mx-auto">Delivered via <b>{ch.key}</b>{offer ? <> · linked to <b>{offer}</b></> : null}. Opens and clicks will appear in Reporting → Channels.</div>
         </div>
       )}
     </Modal>
   );
 }
 
+const DEFAULT_CAMPAIGN_MSG = "☀️ Weekend offer: 20% off front-row sunbeds at Akti tou Iliou. Book now!";
+
 export function AdminCommunicate() {
-  const { toast } = useApp();
+  const { toast, loyalty, go, hint, clearHint } = useApp();
   const [seg, setSeg] = useState("VIP");
-  const [msg, setMsg] = useState("☀️ Weekend offer: 20% off front-row sunbeds at Akti tou Iliou. Book now!");
+  const [msg, setMsg] = useState(DEFAULT_CAMPAIGN_MSG);
   const [channel, setChannel] = useState("Push notification");
   const [review, setReview] = useState(false);
+  const [promotedId, setPromotedId] = useState("");
   const reach = seg === "All users" ? "8,420" : seg === "VIP" ? "318" : "1,204";
+
+  // Promotable loyalty offers come from the active schemes (admin Loyalty / store).
+  const offers = useMemo(() => [...BUILTIN_SCHEMES, ...loyalty.customIds.map(makeCustomScheme)]
+    .filter((s) => loyalty.config[s.id]?.enabled)
+    .map((s) => {
+      const values = loyalty.config[s.id]?.values ?? {};
+      return { id: s.id, title: s.custom ? String(values.title || s.title) : s.title, summary: s.summarize(values) };
+    }), [loyalty]);
+  const promoted = offers.find((o) => o.id === promotedId) || null;
+  const promoMsg = (o: { title: string; summary: string }) => `🎁 ${o.title} — ${o.summary}. Tap to claim your reward at Akti tou Iliou!`;
+  const pickOffer = (id: string) => { setPromotedId(id); const o = offers.find((x) => x.id === id); if (o) setMsg(promoMsg(o)); };
+
+  // Deep-link from the Loyalty screen's "Promote" pre-loads an offer + message.
+  useEffect(() => {
+    if (hint?.persona === "admin" && hint?.page === "communicate" && hint?.promote) {
+      const o = offers.find((x) => x.id === hint.promote);
+      if (o) { setPromotedId(o.id); setMsg(promoMsg(o)); }
+      clearHint();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hint]);
+
+  // The campaign CTA is functional — it opens the guest's home where the reward lives.
+  const cta = promoted ? { label: "Claim reward", onClick: () => { go("customer", "home"); toast("Opening the customer view — the reward is waiting on their home.", { tone: "success" }); } } : undefined;
+
   return (
     <div className="animate-fade-up">
       <PageHead title="Communicate" sub="Message users or segments with notifications and offers — builds on tags/segmentation." badge={<Badge tone="future">Future</Badge>} />
@@ -1438,6 +1478,18 @@ export function AdminCommunicate() {
       <div className="grid lg:grid-cols-[1fr_320px] gap-5">
         <Card className="p-5 space-y-3">
           <Field label="Audience segment"><Select value={seg} onChange={(e) => setSeg(e.target.value)} options={["VIP", "Season pass", "Regulars", "New", "All users"]} /></Field>
+          <Field label="Promote a loyalty offer">
+            <Select value={promotedId} onChange={(e) => pickOffer(e.target.value)}
+              options={[{ v: "", l: offers.length ? "None — write a custom message" : "No active schemes yet" }, ...offers.map((o) => ({ v: o.id, l: o.title }))]} />
+          </Field>
+          {promoted ? (
+            <div className="flex items-center justify-between gap-2 rounded-xl bg-teal-50/70 ring-1 ring-teal-200 px-3 py-2 text-[12px]">
+              <span className="text-navy-900 inline-flex items-center gap-1.5 min-w-0"><Icon.gift size={13} className="text-teal-600 shrink-0" /> <b className="truncate">{promoted.title}</b><span className="text-slate-500 truncate"> · {promoted.summary}</span></span>
+              <button onClick={() => setPromotedId("")} className="text-slate-500 hover:text-rose-600 shrink-0 font-semibold">Clear</button>
+            </div>
+          ) : offers.length === 0 ? (
+            <button onClick={() => go("admin", "loyalty")} className="text-[12px] font-semibold text-slaice-600 hover:text-slaice-700 inline-flex items-center gap-1"><Icon.gift size={12} /> Set up loyalty schemes →</button>
+          ) : null}
           <Field label="Channel">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {CAMPAIGN_CHANNELS.map((c) => {
@@ -1455,13 +1507,14 @@ export function AdminCommunicate() {
           </Field>
           <Field label="Message"><textarea rows={4} value={msg} onChange={(e) => setMsg(e.target.value)} className="glass-input w-full rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500/70 outline-none" /></Field>
           <div className="flex items-center justify-between">
-            <div className="text-[12px] text-slate-600">Est. reach: <b className="text-navy-900">{reach}</b> users · via {channel}</div>
+            <div className="text-[12px] text-slate-600">Est. reach: <b className="text-navy-900">{reach}</b> users · via {channel}{promoted ? " · 🎁 offer linked" : ""}</div>
             <Btn variant="primary" icon={Icon.bell} disabled={!msg.trim()} onClick={() => setReview(true)}>Send campaign</Btn>
           </div>
         </Card>
         <aside className="space-y-3 lg:sticky lg:top-24 h-max">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 px-1">Preview</div>
-          <CampaignPreview channel={channel} msg={msg} />
+          <CampaignPreview channel={channel} msg={msg} cta={cta} />
+          {promoted && <div className="text-[11px] text-slate-500 px-1 flex items-start gap-1.5"><Icon.info size={12} className="shrink-0 mt-0.5" /> The button deep-links guests to their reward — click it to preview the journey.</div>}
           <div className="rounded-2xl ring-1 ring-slate-200 bg-white/70 backdrop-blur p-4 space-y-3 text-[12px] text-slate-600">
             <div className="flex items-center justify-between">
               <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.users size={14} /> Audience</div>
@@ -1496,7 +1549,8 @@ export function AdminCommunicate() {
         seg={seg}
         reach={reach}
         msg={msg}
-        onSend={() => toast(`Demo — campaign sent to ${reach} ${seg} guests via ${channel}.`, { tone: "success" })}
+        offer={promoted?.title}
+        onSend={() => toast(`Demo — campaign sent to ${reach} ${seg} guests via ${channel}${promoted ? ` · ${promoted.title}` : ""}.`, { tone: "success" })}
       />
     </div>
   );
@@ -1559,7 +1613,7 @@ function SchemeConfigModal({ scheme, initial, configured, onSave, onClose }: {
 }
 
 export function AdminLoyalty() {
-  const { toast, loyalty, setLoyalty } = useApp();
+  const { toast, loyalty, setLoyalty, go } = useApp();
   const [reward, setReward] = useState("20% off sunbeds");
   const [store, setStore] = useState("All stores");
   const [schedule, setSchedule] = useState("Weekday mornings");
@@ -1649,7 +1703,8 @@ export function AdminLoyalty() {
                 <div className="mt-auto flex gap-2 pt-0.5">
                   {configured ? (
                     <>
-                      <Btn variant="outline" size="sm" full icon={Icon.edit} onClick={() => setEditing(s.id)}>Edit configuration</Btn>
+                      <Btn variant="outline" size="sm" className="flex-1" icon={Icon.edit} onClick={() => setEditing(s.id)}>Edit</Btn>
+                      <Btn variant="ghost" size="sm" className="flex-1" icon={Icon.bell} onClick={() => go("admin", "communicate", { promote: s.id })}>Promote</Btn>
                       {s.custom && (
                         <button type="button" onClick={() => removeCustom(s.id)} aria-label={`Remove ${title}`}
                           className="shrink-0 w-9 h-9 rounded-[14px] grid place-items-center ring-1 ring-slate-200 text-rose-600 hover:bg-rose-50 hover:ring-rose-300 transition"><Icon.trash size={15} /></button>
