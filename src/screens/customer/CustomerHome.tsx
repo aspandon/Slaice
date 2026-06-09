@@ -16,8 +16,7 @@ export function CustomerHome() {
   const [promoDismissed, setPromoDismissed] = useState(false);
 
   return (
-    <div className="animate-fade-up flex flex-col gap-4">
-      <div className="flex flex-col sm:grid sm:grid-cols-[3fr_2fr] gap-4 sm:items-stretch">
+    <div className="animate-fade-up flex flex-col sm:grid sm:grid-cols-[3fr_2fr] gap-4 sm:items-stretch">
 
       {/* ── Hero ──────────────────────────────────────────────────── */}
       <Reveal as="button" onClick={() => dive()} className="text-left group block w-full sm:h-full">
@@ -42,12 +41,12 @@ export function CustomerHome() {
         </div>
       </Reveal>
 
-      {/* ── Right column: promo + rebook ──────────────────────────── */}
-      <div className="flex flex-col gap-4 sm:h-full">
+      {/* ── Right: promo · rebook · VIP · Season, as a 2×2 ────────── */}
+      <div className="grid sm:grid-cols-2 gap-4 sm:h-full sm:auto-rows-fr">
 
         {/* Weekend promo */}
         {!promoDismissed && (
-          <div className={`${CARD} p-5 sm:p-6 flex flex-col gap-3 flex-1`}>
+          <div className={`${CARD} p-5 sm:p-6 flex flex-col gap-3 h-full`}>
             <div className="flex items-start justify-between gap-2">
               <span className="w-10 h-10 rounded-xl grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm">
                 <Icon.bolt size={18} />
@@ -78,7 +77,7 @@ export function CustomerHome() {
         {/* Returning-guest shortcut */}
         <button
           onClick={() => dive()}
-          className={`${CARD} p-5 sm:p-6 flex flex-col gap-3 text-left hover:bg-white/80 transition group ${!promoDismissed ? "flex-1" : ""}`}>
+          className={`${CARD} p-5 sm:p-6 flex flex-col gap-3 text-left hover:bg-white/80 transition group h-full`}>
           <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0">
             <Icon.umbrella size={18} />
           </span>
@@ -93,13 +92,10 @@ export function CustomerHome() {
           </div>
         </button>
 
-      </div>
-      </div>
-
-      {/* ── Passes: VIP credit + Season ───────────────────────────── */}
-      <div className="grid sm:grid-cols-2 gap-4">
+        {/* Passes — grouped beside the promo + rebook tiles */}
         <VipTile />
         <SeasonTile />
+
       </div>
     </div>
   );
@@ -113,7 +109,7 @@ function VipTile() {
   const from = Math.min(...passPricing.vipTiers);
   const disc = Math.round(passPricing.vipDiscount * 100);
   return (
-    <div className={`${CARD} p-5 sm:p-6 flex flex-col gap-3`}>
+    <div className={`${CARD} p-5 sm:p-6 flex flex-col gap-3 h-full`}>
       <div className="flex items-start justify-between gap-2">
         <span className="w-10 h-10 rounded-xl grid place-items-center bg-gradient-to-br from-slaice-500 to-slaice-700 text-white shrink-0 shadow-sm">
           <Icon.sparkles size={18} />
@@ -145,7 +141,7 @@ function SeasonTile() {
   const season = passes.season;
   const from = Math.min(passPricing.seasonMonthly, passPricing.seasonSummer);
   return (
-    <div className={`${CARD} p-5 sm:p-6 flex flex-col gap-3`}>
+    <div className={`${CARD} p-5 sm:p-6 flex flex-col gap-3 h-full`}>
       <div className="flex items-start justify-between gap-2">
         <span className="w-10 h-10 rounded-xl grid place-items-center bg-gradient-to-br from-teal-400 to-teal-600 text-white shrink-0 shadow-sm">
           <Icon.ticket size={18} />
