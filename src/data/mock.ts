@@ -148,6 +148,8 @@ export interface AdminRefund {
   reason: string;
   status: string | null;
   date: string;
+  /** Amount actually refunded — set on a partial refund (< amount). */
+  refundAmount?: number;
 }
 export const ADMIN_REFUNDS: AdminRefund[] = [
   { tx: "#TX-88210", who: "Maria", amount: 30, reason: "", status: null, date: "19 Jul" },

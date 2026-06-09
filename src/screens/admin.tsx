@@ -14,7 +14,11 @@ const BeachCanvas = lazyWithReload(() => import("../components/BeachCanvas").the
 import { BackgroundPicker } from "../components/BackgroundPicker";
 import { fileToBackgroundSrc } from "../lib/image";
 import { ZONES, zoneLayout } from "../data/beach";
-import type { SunbedSlot, SunbedState, SunbedKind } from "../domain/types";
+import { LOYALTY_REWARDS, BUILTIN_SCHEMES, makeCustomScheme, schemeDefaults } from "../data/loyalty";
+import type { LoyaltyScheme, SchemeValues, SchemeField } from "../data/loyalty";
+import { BADGE_COLORS, BADGE_COLOR_KEYS, BADGE_ICONS, GAME_METRICS } from "../data/gamification";
+import type { Achievement, GameMetric } from "../data/gamification";
+import type { SunbedSlot, SunbedState, SunbedKind, Customer } from "../domain/types";
 import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS, personByFirst, CUSTOMERS, type AdminBooking } from "../data/mock";
 import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr";
 import { useApp } from "../app/store";
@@ -763,21 +767,67 @@ export function AdminManual() {
   );
 }
 
-/* ============ USERS & SEGMENTS ============ */
+/* ============ USERS & SEGMENTS ============
+   Segments are partly automatic: every guest is "New" by default and is promoted
+   to "Regular" once they pass the visit threshold. VIP and Season pass stay
+   manually assigned, so we keep only those on the record and derive New/Regular
+   from the visit count — one rule, no drift. */
+const REGULAR_AFTER = 15; // strictly more than this many visits → Regular
+const MANUAL_TAGS = ["VIP", "Season pass"];
+// "Elena V." stands in for the signed-in customer, so a pass she buys shows here.
+const DEMO_CUSTOMER_ID = 3;
+const autoSegment = (visits: number): "New" | "Regular" => (visits > REGULAR_AFTER ? "Regular" : "New");
+const manualOf = (tags: string[]) => tags.filter((t) => MANUAL_TAGS.includes(t));
+// Display tags = the auto segment first, then any manual badges.
+const displayTags = (u: Customer) => [autoSegment(u.bookings), ...manualOf(u.tags)];
+const tagTone = (t: string) => ({ VIP: "amber", "Season pass": "blue", Regular: "slate", New: "green" }[t] || "slate");
+
 export function AdminUsers() {
-  const { toast } = useApp();
+  const { toast, passes } = useApp();
   const [q, setQ] = useState("");
   const [tagFilter, setTagFilter] = useState("All");
   const customersQ = useAsync(listCustomers);
-  const users = (customersQ.status === "success" ? customersQ.data : []).map((c) => ({ first: c.first, last: c.last, phone: c.phone, e: c.email, b: c.bookings, tags: c.tags }));
+  // Editable copy of the roster (mockup: edits live in component state). Seed once
+  // loaded, keeping only manual tags — New/Regular come from autoSegment.
+  const [users, setUsers] = useState<Customer[] | null>(null);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [activityId, setActivityId] = useState<number | null>(null);
+  useEffect(() => {
+    if (customersQ.status === "success" && users === null) {
+      setUsers(customersQ.data.map((c) => ({ ...c, tags: manualOf(c.tags) })));
+    }
+  }, [customersQ.status, customersQ.data, users]);
+
   const allTags = ["All", "VIP", "Season pass", "Regular", "New"];
-  const tagTone = (t: string) => ({ VIP: "amber", "Season pass": "blue", Regular: "slate", New: "green" }[t] || "slate");
-  const rows = users.filter((u) => (tagFilter === "All" || u.tags.includes(tagFilter)) && (u.first + u.last + u.e + u.phone).toLowerCase().includes(q.toLowerCase()));
+  const list = users ?? [];
+  // The signed-in customer reflects any pass she holds as an automatic tag
+  // (marked with a wallet glyph so it reads as pass-derived, not hand-assigned).
+  const passTags = [passes.vip ? "VIP" : null, passes.season ? "Season pass" : null].filter(Boolean) as string[];
+  const tagsFor = (u: Customer): { t: string; pass: boolean }[] => {
+    const base = displayTags(u).map((t) => ({ t, pass: false }));
+    if (u.id !== DEMO_CUSTOMER_ID || passTags.length === 0) return base;
+    passTags.forEach((pt) => {
+      const hit = base.find((b) => b.t === pt);
+      if (hit) hit.pass = true;
+      else base.push({ t: pt, pass: true });
+    });
+    return base;
+  };
+  const rows = list.filter((u) => (tagFilter === "All" || tagsFor(u).some((x) => x.t === tagFilter)) && (u.first + u.last + u.email + u.phone).toLowerCase().includes(q.toLowerCase()));
+  const editUser = editId !== null ? list.find((u) => u.id === editId) ?? null : null;
+  const activityUser = activityId !== null ? list.find((u) => u.id === activityId) ?? null : null;
+  const loading = customersQ.status === "loading" || (customersQ.status !== "error" && users === null);
+
+  const saveUser = (patch: Customer) => {
+    setUsers((us) => (us ? us.map((u) => (u.id === patch.id ? patch : u)) : us));
+    setEditId(null);
+    toast(`Saved ${patch.first} ${patch.last}.`, { tone: "success" });
+  };
+
   return (
     <div className="animate-fade-up">
       <Card className="p-4">
-        {/* Search · tag filters · New tag — all in one row inside the card.
-            "New tag" is pushed to the far right with ml-auto. */}
+        {/* Search · tag filters · New tag — all in one row inside the card. */}
         <div className="flex items-center gap-3 mb-3 flex-wrap">
           <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-xs flex-1 min-w-[180px] text-slate-600">
             <Icon.search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search users…" className="text-sm outline-none w-full bg-transparent text-ink" />
@@ -787,20 +837,195 @@ export function AdminUsers() {
           </div>
           <Btn variant="outline" icon={Icon.tag} onClick={() => toast("Demo — create a tag / segment.")} className="ml-auto">New tag</Btn>
         </div>
-        {customersQ.status === "loading" ? (
-          <TableSkeleton rows={6} cols={5} />
+        {/* The auto-segmentation rule, stated for the demo. */}
+        <div className="mb-3 flex items-start gap-2 rounded-xl bg-slaice-100 ring-1 ring-slaice-600/20 px-3 py-2 text-[12px] text-slaice-700">
+          <Icon.info size={14} className="shrink-0 mt-0.5 text-slaice-600" />
+          <span>Segments update automatically: every guest starts <b>New</b> and becomes <b>Regular</b> after {REGULAR_AFTER} visits. <b>VIP</b> and <b>Season pass</b> are assigned by hand on a user.</span>
+        </div>
+        {loading ? (
+          <TableSkeleton rows={6} cols={6} />
         ) : customersQ.status === "error" ? (
           <ErrorState compact body="We couldn't load the customer list." onRetry={customersQ.refetch} />
         ) : rows.length === 0 ? (
           <EmptyState compact icon={Icon.users} title="No users match" body="Try a different search or tag filter." />
         ) : (
-          <Table cols={["Name", "Surname", "Phone", "Email", "Bookings", "Tags", ""]} right={[4]}
-            rows={rows.map((u) => [u.first, u.last, <span className="tnum whitespace-nowrap">{u.phone}</span>, u.e, u.b,
-              <span className="flex gap-1 flex-wrap">{u.tags.map((t) => <Badge key={t} tone={tagTone(t)}>{t}</Badge>)}</span>,
-              <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => toast(`Demo — ${u.first} ${u.last}'s activity (interaction filter).`)}>Activity</Btn>])} />
+          <Table cols={["Name", "Surname", "Phone", "Email", "Visits", "Tags", ""]} right={[4]}
+            rows={rows.map((u) => [u.first, u.last, <span className="tnum whitespace-nowrap">{u.phone}</span>, u.email, u.bookings,
+              <span className="flex gap-1 flex-wrap">{tagsFor(u).map(({ t, pass }) => <Badge key={t} tone={tagTone(t)}>{pass && <Icon.wallet size={9} />}{t}</Badge>)}</span>,
+              <div className="flex items-center justify-end gap-1">
+                <Btn size="sm" variant="ghost" icon={Icon.edit} onClick={() => setEditId(u.id)}>Edit</Btn>
+                <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => setActivityId(u.id)}>Activity</Btn>
+              </div>])} />
         )}
       </Card>
+      {editUser && <UserEditModal user={editUser} onClose={() => setEditId(null)} onSave={saveUser} />}
+      {activityUser && <UserActivityModal user={activityUser} onClose={() => setActivityId(null)} onEdit={(id) => { setActivityId(null); setEditId(id); }} />}
     </div>
+  );
+}
+
+/* ---- Edit a user: contact details, visit count and the manual segment badges.
+   Editing visits re-derives New/Regular live, demonstrating the auto-rule. ---- */
+function UserEditModal({ user, onClose, onSave }: { user: Customer; onClose: () => void; onSave: (u: Customer) => void }) {
+  const [first, setFirst] = useState(user.first);
+  const [last, setLast] = useState(user.last);
+  const [phone, setPhone] = useState(user.phone);
+  const [email, setEmail] = useState(user.email);
+  const [visits, setVisits] = useState(user.bookings);
+  const [vip, setVip] = useState(user.tags.includes("VIP"));
+  const [seasonPass, setSeasonPass] = useState(user.tags.includes("Season pass"));
+
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const nameOk = first.trim().length > 0 && last.trim().length > 0;
+  const valid = emailOk && nameOk;
+  const seg = autoSegment(visits);
+
+  const save = () => {
+    const f = first.trim(), l = last.trim();
+    const tags = [...(vip ? ["VIP"] : []), ...(seasonPass ? ["Season pass"] : [])];
+    onSave({ ...user, first: f, last: l, phone: phone.trim(), email: email.trim(), bookings: visits, tags, name: `${f} ${l.charAt(0)}.` });
+  };
+
+  return (
+    <Modal open onClose={onClose} wide title="Edit user"
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn><Btn variant="primary" icon={Icon.check} disabled={!valid} onClick={save}>Save changes</Btn></>}>
+      <div className="space-y-3">
+        <div className="grid sm:grid-cols-2 gap-3">
+          <Field label="Name"><Input value={first} onChange={(e) => setFirst(e.target.value)} placeholder="First name" /></Field>
+          <Field label="Surname"><Input value={last} onChange={(e) => setLast(e.target.value)} placeholder="Surname" /></Field>
+          <Field label="Phone"><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+30 694 …" className="tnum" /></Field>
+          <Field label="Email">
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" className={email && !emailOk ? "ring-2 ring-rose-400 focus:ring-rose-400" : ""} />
+            {email && !emailOk && <div className="text-[11px] text-rose-600 mt-1">Enter a valid email address.</div>}
+          </Field>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-3 items-start">
+          <Field label="Visits this season">
+            <div className="flex items-center gap-2">
+              <Input type="number" min={0} value={visits} onChange={(e) => setVisits(Math.max(0, Math.round(+e.target.value) || 0))} />
+              <span className="text-[12px] text-slate-500 shrink-0">visits</span>
+            </div>
+          </Field>
+          <div>
+            <div className="text-[12px] font-semibold text-slate-700 mb-1">Segment (automatic)</div>
+            <div className="rounded-xl ring-1 ring-slate-200 bg-slate-50 px-3 py-2.5 flex items-center gap-2">
+              <Badge tone={tagTone(seg)}>{seg}</Badge>
+              <span className="text-[11px] text-slate-500">{seg === "New" ? `${REGULAR_AFTER + 1 - visits} more visit${REGULAR_AFTER + 1 - visits !== 1 ? "s" : ""} → Regular` : `Over ${REGULAR_AFTER} visits`}</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className="text-[12px] font-semibold text-slate-700 mb-1.5">Manual segments</div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
+              <span className="flex items-center gap-2"><Badge tone="amber">VIP</Badge><span className="text-[12px] text-slate-500">High-value guest perks</span></span>
+              <Toggle on={vip} onChange={setVip} />
+            </div>
+            <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
+              <span className="flex items-center gap-2"><Badge tone="blue">Season pass</Badge><span className="text-[12px] text-slate-500">Unlimited entry this season</span></span>
+              <Toggle on={seasonPass} onChange={setSeasonPass} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ---- Activity: a CRM-style customer-360 — segment progress, key stats and a
+   synthesized recent-activity timeline. A demo of what "Activity" opens. ---- */
+const ACT_BG: Record<string, string> = { teal: "bg-teal-600", slate: "bg-slate-400", indigo: "bg-slaice-600", amber: "bg-amber-500" };
+function userActivity(u: Customer): { icon: IconRenderer; tone: string; title: string; detail: string; when: string }[] {
+  const each = Math.max(10, Math.round(u.spend / Math.max(1, u.bookings)));
+  const ev = [
+    { icon: Icon.scan, tone: "teal", title: "Checked in at the gate", detail: "QR validated · Central", when: u.lastVisit },
+    { icon: Icon.umbrella, tone: "teal", title: "Sunbed booking", detail: `Central · 2 sets · €${each}`, when: u.lastVisit },
+    { icon: Icon.card, tone: "slate", title: "Payment received", detail: `€${each} · Visa ···· 4242`, when: u.lastVisit },
+    { icon: Icon.ticket, tone: "slate", title: "Entry tickets", detail: "Adult ×2", when: u.lastVisit },
+    { icon: Icon.mail, tone: "indigo", title: "Opened a campaign", detail: "“Weekend offer” · E-mail", when: "2 weeks ago" },
+  ];
+  if (u.bookings >= 10) ev.push({ icon: Icon.gift, tone: "amber", title: "Loyalty stamp earned", detail: `${Math.min(10, u.bookings)}/10 toward a free sunbed`, when: "3 weeks ago" });
+  ev.push({ icon: Icon.users, tone: "slate", title: "Account created", detail: "Tagged New by default", when: `Joined ${["Apr", "May", "Jun"][u.id % 3]} 2026` });
+  return ev;
+}
+
+function UserActivityModal({ user, onClose, onEdit }: { user: Customer; onClose: () => void; onEdit: (id: number) => void }) {
+  const { toast } = useApp();
+  const seg = autoSegment(user.bookings);
+  const avg = Math.round(user.spend / Math.max(1, user.bookings));
+  const toRegular = Math.max(0, REGULAR_AFTER + 1 - user.bookings);
+  const pct = Math.min(100, Math.round((user.bookings / (REGULAR_AFTER + 1)) * 100));
+  const events = userActivity(user);
+  const stats = [
+    { label: "Visits", value: String(user.bookings) },
+    { label: "Total spend", value: `€${user.spend.toLocaleString()}` },
+    { label: "Avg / visit", value: `€${avg}` },
+    { label: "Last visit", value: user.lastVisit },
+  ];
+  return (
+    <Modal open onClose={onClose} wide title="Customer activity"
+      footer={<><Btn variant="ghost" onClick={onClose}>Close</Btn>
+        <Btn variant="outline" icon={Icon.mail} onClick={() => toast(`Demo — message ${user.first} ${user.last} (opens Communicate).`)}>Message</Btn>
+        <Btn variant="primary" icon={Icon.edit} onClick={() => onEdit(user.id)}>Edit profile</Btn></>}>
+      <div className="space-y-4">
+        {/* Identity */}
+        <div className="flex items-center gap-3">
+          <span className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slaice-600 to-teal-600 text-white grid place-items-center font-display font-bold text-lg shrink-0">{user.first.charAt(0)}{user.last.charAt(0)}</span>
+          <div className="min-w-0 flex-1">
+            <div className="font-display font-bold text-navy-900 text-[15px] truncate">{user.first} {user.last}</div>
+            <div className="text-[12px] text-slate-500 truncate">{user.email} · <span className="tnum">{user.phone}</span></div>
+          </div>
+          <div className="flex gap-1 flex-wrap justify-end shrink-0">{displayTags(user).map((t) => <Badge key={t} tone={tagTone(t)}>{t}</Badge>)}</div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {stats.map((s) => (
+            <div key={s.label} className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
+              <div className="text-[11px] text-slate-500">{s.label}</div>
+              <div className="font-display text-lg font-bold text-navy-900 tnum leading-tight">{s.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Segment progress — ties back to the auto-rule */}
+        <div className="rounded-xl ring-1 ring-slate-200 bg-slate-50/70 px-3 py-2.5">
+          {seg === "Regular" ? (
+            <div className="flex items-center gap-2 text-[13px] text-navy-900"><Icon.checkCircle size={15} className="text-teal-600" /> <b>Regular</b> — past {REGULAR_AFTER} visits this season.</div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between text-[12px] mb-1.5">
+                <span className="text-slate-600"><b className="text-navy-900">{toRegular}</b> more visit{toRegular !== 1 ? "s" : ""} to <b className="text-navy-900">Regular</b></span>
+                <span className="text-slate-500 tnum">{user.bookings}/{REGULAR_AFTER + 1}</span>
+              </div>
+              <div className="h-2 rounded-full bg-slate-200 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-slaice-500 to-teal-500" style={{ width: `${pct}%` }} /></div>
+            </>
+          )}
+        </div>
+
+        {/* Timeline */}
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Recent activity</div>
+          <ol className="space-y-1">
+            {events.map((e, i) => {
+              const EIcon = e.icon;
+              return (
+                <li key={i} className="flex items-start gap-3 rounded-xl px-2.5 py-2 hover:bg-slate-50 transition">
+                  <span className={`w-8 h-8 rounded-lg grid place-items-center text-white shrink-0 ${ACT_BG[e.tone] || ACT_BG.slate}`}><EIcon size={15} /></span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-semibold text-navy-900 leading-tight">{e.title}</div>
+                    <div className="text-[11.5px] text-slate-500 leading-snug">{e.detail}</div>
+                  </div>
+                  <span className="text-[11px] text-slate-400 shrink-0 whitespace-nowrap pt-0.5">{e.when}</span>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      </div>
+    </Modal>
   );
 }
 
@@ -1017,13 +1242,21 @@ export function AdminRefunds() {
   const [step, setStep] = useState(0);
   const [reason, setReason] = useState("Weather");
   const [rtype, setRtype] = useState("Full refund");
-  const refunded = rows.filter((r) => r.status === "Refunded").reduce((a, b) => a + b.amount, 0);
+  // Partial-refund amount the operator types; `committed` freezes it at submit
+  // so the processing/done stages and the row update agree on one figure.
+  const [amount, setAmount] = useState(0);
+  const [committed, setCommitted] = useState(0);
+  const refunded = rows.filter((r) => r.status === "Refunded").reduce((a, b) => a + (b.refundAmount ?? b.amount), 0);
   const refundedCount = rows.filter((r) => r.status === "Refunded").length;
   const pending = rows.filter((r) => !r.status).length;
   const active = modal !== null ? rows[modal] : null;
   const activeLast = active ? personByFirst(active.who)?.last ?? "" : "";
+  const total = active?.amount ?? 0;
+  const partial = rtype === "Partial refund";
+  // A partial refund must be a positive amount no larger than the charge.
+  const validAmount = !partial || (amount > 0 && amount <= total);
 
-  const openRefund = (i: number) => { setStage("form"); setStep(0); setReason("Weather"); setRtype("Full refund"); setModal(i); };
+  const openRefund = (i: number) => { setStage("form"); setStep(0); setReason("Weather"); setRtype("Full refund"); setAmount(rows[i].amount); setModal(i); };
 
   // Walk through the Stripe steps once processing starts, then mark refunded.
   useEffect(() => {
@@ -1033,12 +1266,12 @@ export function AdminRefunds() {
       return () => clearTimeout(t);
     }
     const t = setTimeout(() => {
-      setRows((r) => r.map((x, i) => (i === modal ? { ...x, status: "Refunded", reason: x.reason || reason } : x)));
+      setRows((r) => r.map((x, i) => (i === modal ? { ...x, status: "Refunded", reason: x.reason || reason, refundAmount: committed } : x)));
       setStage("done");
-      toast("Stripe refund issued · credit note (5.1) sent to MyDATA · customer e-mailed.", { tone: "success" });
+      toast(`Stripe refund of €${committed} issued · credit note (5.1) sent to MyDATA · customer e-mailed.`, { tone: "success" });
     }, 600);
     return () => clearTimeout(t);
-  }, [stage, step, modal, reason, toast]);
+  }, [stage, step, modal, reason, committed, toast]);
 
   return (
     <div className="animate-fade-up">
@@ -1057,7 +1290,11 @@ export function AdminRefunds() {
         <Table cols={["Transaction", "Date", "Name", "Surname", "Phone", "Amount", "Reason", "Status", ""]} right={[5]}
           rows={rows.map((r, i) => {
             const p = personByFirst(r.who);
-            return [r.tx, r.date || "—", r.who, p?.last || "—", p?.phone ? <span className="tnum whitespace-nowrap">{p.phone}</span> : "—", `€${r.amount}`, r.reason || "—",
+            return [r.tx, r.date || "—", r.who, p?.last || "—", p?.phone ? <span className="tnum whitespace-nowrap">{p.phone}</span> : "—",
+              r.refundAmount != null && r.refundAmount < r.amount
+                ? <div className="leading-tight"><span className="tnum">€{r.amount}</span><div className="text-[11px] text-rose-600 tnum">−€{r.refundAmount} refunded</div></div>
+                : `€${r.amount}`,
+              r.reason || "—",
               r.status ? <Badge tone="green">{r.status}</Badge> : <Badge tone="amber">Pending</Badge>,
               r.status ? <span className="text-slate-500 text-sm">done</span> : <Btn size="sm" variant="outline" icon={Icon.refund} onClick={() => openRefund(i)}>Refund</Btn>];
           })} />
@@ -1065,7 +1302,7 @@ export function AdminRefunds() {
       <Modal open={modal !== null} onClose={() => setModal(null)} title={stage === "done" ? "Refund complete" : "Issue refund"}
         footer={
           stage === "form" ? (<><Btn variant="ghost" onClick={() => setModal(null)}>Cancel</Btn>
-            <Btn variant="danger" icon={Icon.refund} onClick={() => { setStep(0); setStage("processing"); }}>Refund via Stripe</Btn></>)
+            <Btn variant="danger" icon={Icon.refund} disabled={!validAmount} onClick={() => { setCommitted(partial ? amount : total); setStep(0); setStage("processing"); }}>Refund €{partial ? (validAmount ? amount : 0) : total} via Stripe</Btn></>)
           : stage === "done" ? (<Btn variant="primary" icon={Icon.check} onClick={() => setModal(null)}>Done</Btn>)
           : undefined
         }>
@@ -1075,12 +1312,26 @@ export function AdminRefunds() {
             {stage === "form" && (
               <>
                 <Field label="Refund type"><Select value={rtype} onChange={(e) => setRtype(e.target.value)} options={["Full refund", "Partial refund"]} /></Field>
+                {partial && (
+                  <Field label="Refund amount (€)">
+                    <Input type="number" min={1} max={total} step={1} value={amount}
+                      onChange={(e) => setAmount(Math.max(0, Math.min(total, Math.round(+e.target.value) || 0)))}
+                      className={!validAmount ? "ring-2 ring-rose-400 focus:ring-rose-400" : ""} />
+                    {!validAmount ? (
+                      <div className="text-[11px] text-rose-600 mt-1">Enter an amount between €1 and €{total}.</div>
+                    ) : amount < total ? (
+                      <div className="text-[11px] text-slate-500 mt-1 tnum">Up to €{total} · €{amount} returned, €{total - amount} stays charged.</div>
+                    ) : (
+                      <div className="text-[11px] text-slate-500 mt-1 tnum">Refunding the full €{total} — switch to “Full refund” if intended.</div>
+                    )}
+                  </Field>
+                )}
                 <Field label="Reason"><Select value={reason} onChange={(e) => setReason(e.target.value)} options={["Weather", "Double booking", "Customer request", "Service issue"]} /></Field>
                 <div className="text-[12px] text-slate-600 flex items-center gap-1.5"><Icon.shield size={13} /> Reverses the application fee and auto-issues a credit note to MyDATA.</div>
               </>
             )}
             {stage === "processing" && <StripeProgress step={step} />}
-            {stage === "done" && <RefundDone amount={active.amount} type={rtype} reason={reason} tx={active.tx} />}
+            {stage === "done" && <RefundDone amount={committed} type={rtype} reason={reason} tx={active.tx} />}
           </div>
         )}
       </Modal>
@@ -1089,11 +1340,139 @@ export function AdminRefunds() {
 }
 
 /* ============ COMMUNICATE (Future) ============ */
+/* Campaign channels — same Email/Viber/SMS family as the QR send-picker, plus
+   Push (the in-app notification the preview mocks up). */
+const CAMPAIGN_CHANNELS: { key: string; label: string; icon: IconRenderer; color: string }[] = [
+  { key: "Push notification", label: "Push", icon: Icon.bell, color: "#3a47cc" },
+  { key: "E-mail", label: "E-mail", icon: Icon.mail, color: "#0d9488" },
+  { key: "Viber", label: "Viber", icon: Icon.chat, color: "#7360f2" },
+  { key: "SMS", label: "SMS", icon: Icon.phone, color: "#16a34a" },
+];
+
+/* A channel-true preview of the message, so the operator sees what lands. When a
+   loyalty offer is promoted, the CTA is live — clicking it opens the guest view. */
+function CampaignPreview({ channel, msg, cta }: { channel: string; msg: string; cta?: { label: string; onClick: () => void } }) {
+  if (channel === "E-mail")
+    return (
+      <div className="rounded-2xl ring-1 ring-slate-200 bg-white p-4 shadow-lift">
+        <div className="flex items-center gap-2 text-[11px] text-slate-500 mb-2"><Icon.mail size={12} /> Akti tou Iliou &lt;hello@aktitouiliou.gr&gt;</div>
+        <div className="font-semibold text-navy-900 text-sm">Weekend at the beach</div>
+        <div className="text-[12px] text-slate-600 leading-snug mt-1 line-clamp-4">{msg}</div>
+        <button type="button" onClick={cta?.onClick} className="inline-flex items-center gap-1 mt-3 bg-navy-900 text-white text-[11px] font-semibold rounded-lg px-2.5 py-1 hover:bg-navy-800 transition">{cta?.label ?? "Book now"} →</button>
+      </div>
+    );
+  if (channel === "Viber")
+    return (
+      <div className="rounded-2xl bg-[#f4f2fb] ring-1 ring-[#7360f2]/25 p-3">
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#7360f2] mb-1.5"><Icon.chat size={12} /> Viber · Akti tou Iliou</div>
+        <div className="bg-white rounded-2xl rounded-tl-sm shadow-sm px-3 py-2 text-[12.5px] text-navy-900 leading-snug">{msg}</div>
+        {cta && <button type="button" onClick={cta.onClick} className="mt-2 inline-flex items-center gap-1 bg-[#7360f2] text-white text-[11px] font-semibold rounded-lg px-2.5 py-1 hover:opacity-90 transition">{cta.label} →</button>}
+      </div>
+    );
+  if (channel === "SMS")
+    return (
+      <div className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-3">
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 mb-1.5"><Icon.phone size={12} /> SMS · Akti tou Iliou</div>
+        <div className="bg-emerald-500 text-white rounded-2xl rounded-tr-sm shadow-sm px-3 py-2 text-[12.5px] leading-snug ml-auto max-w-[92%]">
+          {msg}
+          {cta && <button type="button" onClick={cta.onClick} className="block underline mt-1 text-white/95 text-[12px] font-semibold text-left">akti.gr/reward →</button>}
+        </div>
+      </div>
+    );
+  return (
+    <div className="rounded-2xl bg-navy-950 text-white p-4 shadow-lift">
+      <div className="flex items-center gap-2 text-[11px] text-white/70 mb-2"><Icon.bell size={12} /> Akti tou Iliou · now</div>
+      <div className="font-semibold text-sm">Weekend at the beach</div>
+      <div className="text-[12px] text-white/80 leading-snug mt-0.5 line-clamp-3">{msg}</div>
+      {cta && <button type="button" onClick={cta.onClick} className="mt-2.5 inline-flex items-center gap-1 bg-white/15 hover:bg-white/25 text-white text-[11px] font-semibold rounded-lg px-2.5 py-1 ring-1 ring-white/20 transition">{cta.label} →</button>}
+    </div>
+  );
+}
+
+/* Review → send → sent confirmation, so "Send campaign" is a deliberate journey
+   (who · which channel · what), not a one-click fire. */
+function CampaignReviewModal({ open, onClose, channel, seg, reach, msg, offer, onSend }: {
+  open: boolean; onClose: () => void; channel: string; seg: string; reach: string; msg: string; offer?: string; onSend: () => void;
+}) {
+  const [stage, setStage] = useState<"review" | "sent">("review");
+  useEffect(() => { if (open) setStage("review"); }, [open]);
+  const ch = CAMPAIGN_CHANNELS.find((c) => c.key === channel) ?? CAMPAIGN_CHANNELS[0];
+  const CIcon = ch.icon;
+  return (
+    <Modal open={open} onClose={onClose} title={stage === "sent" ? "Campaign sent" : "Review campaign"}
+      footer={stage === "review"
+        ? <><Btn variant="ghost" onClick={onClose}>Back</Btn><Btn variant="primary" icon={CIcon} onClick={() => { onSend(); setStage("sent"); }}>Send to {reach} users</Btn></>
+        : <Btn variant="primary" icon={Icon.check} onClick={onClose}>Done</Btn>}>
+      {stage === "review" ? (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
+            <span className="w-9 h-9 rounded-xl grid place-items-center text-white shadow-sm shrink-0" style={{ background: ch.color }}><CIcon size={16} /></span>
+            <div className="min-w-0"><div className="text-[11px] text-slate-500">Channel</div><div className="text-[13px] font-semibold text-navy-900">{ch.key}</div></div>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="w-9 h-9 rounded-xl grid place-items-center bg-slaice-100 text-slaice-700 shrink-0"><Icon.users size={16} /></span>
+              <div className="min-w-0"><div className="text-[11px] text-slate-500">Audience</div><div className="text-[13px] font-semibold text-navy-900 truncate">{seg}</div></div>
+            </div>
+            <div className="text-right shrink-0"><div className="text-[11px] text-slate-500">Est. reach</div><div className="text-[13px] font-semibold text-navy-900 tnum">{reach}</div></div>
+          </div>
+          {offer && (
+            <div className="flex items-center gap-3 rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2.5">
+              <span className="w-9 h-9 rounded-xl grid place-items-center bg-teal-600 text-white shrink-0"><Icon.gift size={16} /></span>
+              <div className="min-w-0"><div className="text-[11px] text-slate-500">Loyalty offer</div><div className="text-[13px] font-semibold text-navy-900 truncate">{offer}</div></div>
+            </div>
+          )}
+          <div>
+            <div className="text-[12px] font-semibold text-slate-700 mb-1">Message</div>
+            <div className="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-3 py-2.5 text-[13px] text-navy-900 leading-snug whitespace-pre-wrap">{msg || <span className="text-slate-400">No message.</span>}</div>
+          </div>
+        </div>
+      ) : (
+        <div className="py-2 text-center space-y-2 animate-pop">
+          <span className="mx-auto w-12 h-12 rounded-full bg-teal-600 text-white grid place-items-center shadow"><Icon.check size={22} /></span>
+          <div className="font-semibold text-navy-900">Sent to {reach} {seg} guests</div>
+          <div className="text-[13px] text-slate-600 max-w-xs mx-auto">Delivered via <b>{ch.key}</b>{offer ? <> · linked to <b>{offer}</b></> : null}. Opens and clicks will appear in Reporting → Channels.</div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
+const DEFAULT_CAMPAIGN_MSG = "☀️ Weekend offer: 20% off front-row sunbeds at Akti tou Iliou. Book now!";
+
 export function AdminCommunicate() {
-  const { toast } = useApp();
+  const { toast, loyalty, go, hint, clearHint } = useApp();
   const [seg, setSeg] = useState("VIP");
-  const [msg, setMsg] = useState("☀️ Weekend offer: 20% off front-row sunbeds at Akti tou Iliou. Book now!");
+  const [msg, setMsg] = useState(DEFAULT_CAMPAIGN_MSG);
+  const [channel, setChannel] = useState("Push notification");
+  const [review, setReview] = useState(false);
+  const [promotedId, setPromotedId] = useState("");
   const reach = seg === "All users" ? "8,420" : seg === "VIP" ? "318" : "1,204";
+
+  // Promotable loyalty offers come from the active schemes (admin Loyalty / store).
+  const offers = useMemo(() => [...BUILTIN_SCHEMES, ...loyalty.customIds.map(makeCustomScheme)]
+    .filter((s) => loyalty.config[s.id]?.enabled)
+    .map((s) => {
+      const values = loyalty.config[s.id]?.values ?? {};
+      return { id: s.id, title: s.custom ? String(values.title || s.title) : s.title, summary: s.summarize(values) };
+    }), [loyalty]);
+  const promoted = offers.find((o) => o.id === promotedId) || null;
+  const promoMsg = (o: { title: string; summary: string }) => `🎁 ${o.title} — ${o.summary}. Tap to claim your reward at Akti tou Iliou!`;
+  const pickOffer = (id: string) => { setPromotedId(id); const o = offers.find((x) => x.id === id); if (o) setMsg(promoMsg(o)); };
+
+  // Deep-link from the Loyalty screen's "Promote" pre-loads an offer + message.
+  useEffect(() => {
+    if (hint?.persona === "admin" && hint?.page === "communicate" && hint?.promote) {
+      const o = offers.find((x) => x.id === hint.promote);
+      if (o) { setPromotedId(o.id); setMsg(promoMsg(o)); }
+      clearHint();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hint]);
+
+  // The campaign CTA is functional — it opens the guest's home where the reward lives.
+  const cta = promoted ? { label: "Claim reward", onClick: () => { go("customer", "home"); toast("Opening the customer view — the reward is waiting on their home.", { tone: "success" }); } } : undefined;
+
   return (
     <div className="animate-fade-up">
       <PageHead title="Communicate" sub="Message users or segments with notifications and offers — builds on tags/segmentation." badge={<Badge tone="future">Future</Badge>} />
@@ -1101,20 +1480,43 @@ export function AdminCommunicate() {
       <div className="grid lg:grid-cols-[1fr_320px] gap-5">
         <Card className="p-5 space-y-3">
           <Field label="Audience segment"><Select value={seg} onChange={(e) => setSeg(e.target.value)} options={["VIP", "Season pass", "Regulars", "New", "All users"]} /></Field>
-          <Field label="Channel"><Select options={["Push notification", "E-mail", "SMS", "WhatsApp"]} /></Field>
+          <Field label="Promote a loyalty offer">
+            <Select value={promotedId} onChange={(e) => pickOffer(e.target.value)}
+              options={[{ v: "", l: offers.length ? "None — write a custom message" : "No active schemes yet" }, ...offers.map((o) => ({ v: o.id, l: o.title }))]} />
+          </Field>
+          {promoted ? (
+            <div className="flex items-center justify-between gap-2 rounded-xl bg-teal-50/70 ring-1 ring-teal-200 px-3 py-2 text-[12px]">
+              <span className="text-navy-900 inline-flex items-center gap-1.5 min-w-0"><Icon.gift size={13} className="text-teal-600 shrink-0" /> <b className="truncate">{promoted.title}</b><span className="text-slate-500 truncate"> · {promoted.summary}</span></span>
+              <button onClick={() => setPromotedId("")} className="text-slate-500 hover:text-rose-600 shrink-0 font-semibold">Clear</button>
+            </div>
+          ) : offers.length === 0 ? (
+            <button onClick={() => go("admin", "loyalty")} className="text-[12px] font-semibold text-slaice-600 hover:text-slaice-700 inline-flex items-center gap-1"><Icon.gift size={12} /> Set up loyalty schemes →</button>
+          ) : null}
+          <Field label="Channel">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {CAMPAIGN_CHANNELS.map((c) => {
+                const on = channel === c.key;
+                const CIcon = c.icon;
+                return (
+                  <button key={c.key} type="button" onClick={() => setChannel(c.key)} aria-pressed={on}
+                    className={`rounded-xl p-2.5 text-center ring-1 transition ${on ? "ring-2 ring-teal-500 bg-teal-50/50" : "ring-slate-200 bg-white hover:ring-teal-400"}`}>
+                    <span className="mx-auto mb-1.5 w-9 h-9 rounded-xl grid place-items-center text-white shadow-sm" style={{ background: c.color }}><CIcon size={16} /></span>
+                    <div className="text-[12.5px] font-semibold text-navy-900">{c.label}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
           <Field label="Message"><textarea rows={4} value={msg} onChange={(e) => setMsg(e.target.value)} className="glass-input w-full rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500/70 outline-none" /></Field>
           <div className="flex items-center justify-between">
-            <div className="text-[12px] text-slate-600">Est. reach: <b className="text-navy-900">{reach}</b> users</div>
-            <Btn variant="primary" icon={Icon.bell} onClick={() => toast("Demo — campaign queued (roadmap feature).")}>Send campaign</Btn>
+            <div className="text-[12px] text-slate-600">Est. reach: <b className="text-navy-900">{reach}</b> users · via {channel}{promoted ? " · 🎁 offer linked" : ""}</div>
+            <Btn variant="primary" icon={Icon.bell} disabled={!msg.trim()} onClick={() => setReview(true)}>Send campaign</Btn>
           </div>
         </Card>
         <aside className="space-y-3 lg:sticky lg:top-24 h-max">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 px-1">Preview</div>
-          <div className="rounded-2xl bg-navy-950 text-white p-4 shadow-lift">
-            <div className="flex items-center gap-2 text-[11px] text-white/70 mb-2"><Icon.bell size={12} /> Akti tou Iliou · now</div>
-            <div className="font-semibold text-sm">Weekend at the beach</div>
-            <div className="text-[12px] text-white/80 leading-snug mt-0.5 line-clamp-3">{msg}</div>
-          </div>
+          <CampaignPreview channel={channel} msg={msg} cta={cta} />
+          {promoted && <div className="text-[11px] text-slate-500 px-1 flex items-start gap-1.5"><Icon.info size={12} className="shrink-0 mt-0.5" /> The button deep-links guests to their reward — click it to preview the journey.</div>}
           <div className="rounded-2xl ring-1 ring-slate-200 bg-white/70 backdrop-blur p-4 space-y-3 text-[12px] text-slate-600">
             <div className="flex items-center justify-between">
               <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.users size={14} /> Audience</div>
@@ -1142,44 +1544,129 @@ export function AdminCommunicate() {
           </div>
         </aside>
       </div>
+      <CampaignReviewModal
+        open={review}
+        onClose={() => setReview(false)}
+        channel={channel}
+        seg={seg}
+        reach={reach}
+        msg={msg}
+        offer={promoted?.title}
+        onSend={() => toast(`Demo — campaign sent to ${reach} ${seg} guests via ${channel}${promoted ? ` · ${promoted.title}` : ""}.`, { tone: "success" })}
+      />
     </div>
   );
 }
 
 /* ============ LOYALTY (Future) ============
-   Propose a handful of proven loyalty patterns (stamp cards, happy hours, tiers,
-   bundles, referrals, birthday treats), plus two working demo builders: a timed
-   public offer and a visit-milestone email campaign whose audience comes from the
-   real customer roster. Ideas-first — the operator picks what to wire for real. */
+   A handful of proven loyalty patterns (stamp cards, happy hours, tiers, bundles,
+   referrals, birthday treats) — each one configurable via a typed field schema,
+   plus a way to add your own. Below sit two working demo builders: a timed public
+   offer and a visit-milestone email campaign whose audience comes from the real
+   roster. Schemes are data-driven (fields + a summary builder), so the config
+   modal and the card both render from one source — no per-scheme forms. */
+
+/* Scheme model + built-in schemes live in data/loyalty.ts (shared with the
+   customer Home). The config modal + admin UI stay here. */
+
+/* One control per field type — keeps the config modal declarative. */
+function SchemeFieldControl({ field, value, onChange }: { field: SchemeField; value: string | number; onChange: (v: string | number) => void }) {
+  if (field.type === "select") return <Select value={String(value)} onChange={(e) => onChange(e.target.value)} options={field.options} />;
+  if (field.type === "time") return <Input type="time" value={String(value)} onChange={(e) => onChange(e.target.value)} />;
+  if (field.type === "number")
+    return (
+      <div className="flex items-center gap-2">
+        <Input type="number" min={field.min} max={field.max} value={Number(value)}
+          onChange={(e) => onChange(Math.max(field.min ?? 0, Math.min(field.max ?? 9999, Math.round(+e.target.value) || field.min || 0)))} />
+        {field.suffix && <span className="text-[12px] text-slate-500 shrink-0">{field.suffix}</span>}
+      </div>
+    );
+  return <Input type="text" value={String(value)} onChange={(e) => onChange(e.target.value)} />;
+}
+
+/* Configure a scheme's parameters. Mounted only while open, so it always seeds
+   fresh from the saved values (or the scheme defaults for a first set-up). */
+function SchemeConfigModal({ scheme, initial, configured, onSave, onClose }: {
+  scheme: LoyaltyScheme; initial: SchemeValues; configured: boolean; onSave: (v: SchemeValues) => void; onClose: () => void;
+}) {
+  const [values, setValues] = useState<SchemeValues>(initial);
+  const SIcon = scheme.icon;
+  const heading = scheme.custom ? String(values.title || "Custom scheme") : scheme.title;
+  return (
+    <Modal open onClose={onClose} wide
+      title={<span className="inline-flex items-center gap-2"><SIcon size={18} className="text-slaice-600" /> Configure · {heading}</span>}
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+        <Btn variant="primary" icon={Icon.check} onClick={() => onSave(values)}>{configured ? "Save changes" : "Save & activate"}</Btn></>}>
+      <div className="space-y-3">
+        <p className="text-[13px] text-slate-600 -mt-1">{scheme.blurb}</p>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {scheme.fields.map((f) => (
+            <div key={f.key} className={f.full ? "sm:col-span-2" : ""}>
+              <Field label={f.label}>
+                <SchemeFieldControl field={f} value={values[f.key]} onChange={(v) => setValues((s) => ({ ...s, [f.key]: v }))} />
+              </Field>
+            </div>
+          ))}
+        </div>
+        <div className="rounded-xl bg-teal-50/70 ring-1 ring-teal-200 px-3 py-2 text-[12.5px] text-navy-900"><b>Preview:</b> {scheme.summarize(values)}</div>
+      </div>
+    </Modal>
+  );
+}
+
 export function AdminLoyalty() {
-  const { toast } = useApp();
+  const { toast, loyalty, setLoyalty, go } = useApp();
   const [reward, setReward] = useState("20% off sunbeds");
   const [store, setStore] = useState("All stores");
   const [schedule, setSchedule] = useState("Weekday mornings");
-  const [active, setActive] = useState<Set<string>>(new Set());
   const [offers, setOffers] = useState<{ id: number; reward: string; store: string; schedule: string }[]>([]);
   const [send, setSend] = useState<{ off: string; count: number } | null>(null);
   const idRef = useRef(0);
   const tier = (min: number) => CUSTOMERS.filter((c) => c.bookings >= min).length;
 
-  const toggleScheme = (title: string) => {
-    const on = active.has(title);
-    setActive((s) => { const n = new Set(s); if (on) n.delete(title); else n.add(title); return n; });
-    toast(on ? `Disabled “${title}”.` : `Enabled “${title}” — now live for guests.`, on ? {} : { tone: "success" });
+  // Scheme lifecycle: a scheme is "configured" once it has saved values; the
+  // `enabled` flag then turns it live/paused without losing the config. Custom
+  // schemes are added at runtime and removable.
+  const config = loyalty.config;
+  const customs = useMemo(() => loyalty.customIds.map(makeCustomScheme), [loyalty.customIds]);
+  const [editing, setEditing] = useState<string | null>(null);
+  const allSchemes = useMemo(() => [...BUILTIN_SCHEMES, ...customs], [customs]);
+  const activeCount = Object.values(config).filter((c) => c.enabled).length;
+  const editScheme = editing ? allSchemes.find((s) => s.id === editing) ?? null : null;
+
+  const saveConfig = (id: string, values: SchemeValues) => {
+    setLoyalty((s) => ({ ...s, config: { ...s.config, [id]: { enabled: true, values } } }));
+    const sch = allSchemes.find((s) => s.id === id);
+    const name = sch?.custom ? String(values.title || "Custom scheme") : sch?.title;
+    toast(`Enabled “${name}” — now live for guests.`, { tone: "success" });
+    setEditing(null);
   };
+  const closeConfig = () => {
+    // Drop a brand-new custom card if its first set-up was cancelled.
+    if (editing && !config[editing]) setLoyalty((s) => ({ ...s, customIds: s.customIds.filter((c) => c !== editing) }));
+    setEditing(null);
+  };
+  const toggleEnabled = (id: string) => {
+    const willEnable = !config[id]?.enabled;
+    setLoyalty((s) => (s.config[id] ? { ...s, config: { ...s.config, [id]: { ...s.config[id], enabled: willEnable } } } : s));
+    const sch = allSchemes.find((s) => s.id === id);
+    const name = sch?.custom ? String(config[id]?.values.title || "Custom scheme") : sch?.title;
+    toast(willEnable ? `Resumed “${name}”.` : `Paused “${name}”.`, willEnable ? { tone: "success" } : {});
+  };
+  const addCustom = () => {
+    const id = `custom-${Date.now().toString(36)}`;
+    setLoyalty((s) => ({ ...s, customIds: [...s.customIds, id] }));
+    setEditing(id);
+  };
+  const removeCustom = (id: string) => {
+    setLoyalty((s) => { const cfg = { ...s.config }; delete cfg[id]; return { ...s, customIds: s.customIds.filter((c) => c !== id), config: cfg }; });
+    toast("Removed scheme.");
+  };
+
   const publish = () => {
     setOffers((o) => [{ id: ++idRef.current, reward, store, schedule }, ...o]);
     toast(`Published offer: ${reward} (${store} · ${schedule}).`, { tone: "success" });
   };
-
-  const schemes = [
-    { icon: Icon.star, title: "Visit milestones", blurb: "A stamp card — every Nth visit is on the house, tracked automatically by the gate QR.", eg: "10th sunbed free" },
-    { icon: Icon.clock, title: "Happy hours & early-bird", blurb: "Discount the quiet slots so they fill up instead of sitting empty.", eg: "Weekdays 9–11 → 20% off front row" },
-    { icon: Icon.sparkles, title: "Tiered membership", blurb: "Silver / Gold / VIP — perks unlock the more a guest returns each season.", eg: "Gold: free parking + late checkout" },
-    { icon: Icon.gift, title: "Bundle perks", blurb: "Pair a set with a freebie to lift the average spend and the experience.", eg: "Sunbed before noon → free coffee" },
-    { icon: Icon.users, title: "Bring a friend", blurb: "Referrals — both the inviter and the new guest get a small reward.", eg: "Refer a friend → €5 off each" },
-    { icon: Icon.calendar, title: "Birthday week", blurb: "A small, automatic treat during a guest's birthday week. Cheap goodwill.", eg: "Free entry + a drink, on us" },
-  ];
   const tiers = [
     { min: 5, off: "10% off", tone: "slate" },
     { min: 10, off: "15% off + free coffee", tone: "blue" },
@@ -1192,24 +1679,54 @@ export function AdminLoyalty() {
       <FutureBanner />
 
       <div className="mb-5">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-2 px-1">Pick a scheme to start with{active.size > 0 && <span className="text-teal-600"> · {active.size} active</span>}</div>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-2 px-1">Pick a scheme to set up{activeCount > 0 && <span className="text-teal-600"> · {activeCount} active</span>}</div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {schemes.map((s) => {
+          {allSchemes.map((s) => {
             const SIcon = s.icon;
-            const on = active.has(s.title);
+            const st = config[s.id];
+            const configured = !!st;
+            const on = !!st?.enabled;
+            const title = s.custom ? String(st?.values.title ?? s.title) : s.title;
             return (
-              <Card key={s.title} className={`p-4 flex flex-col gap-2 transition ${on ? "ring-2 ring-teal-500" : ""}`}>
+              <Card key={s.id} className={`p-4 flex flex-col gap-2 transition ${on ? "ring-2 ring-teal-500" : ""}`}>
                 <div className="flex items-center gap-2.5">
                   <span className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${on ? "bg-teal-600 text-white" : "bg-slaice-100 text-slaice-700"}`}><SIcon size={18} /></span>
-                  <div className="font-semibold text-navy-900 flex-1 min-w-0">{s.title}</div>
-                  {on && <Badge tone="green">Active</Badge>}
+                  <div className="font-semibold text-navy-900 flex-1 min-w-0 truncate">{title}</div>
+                  {configured && <Toggle on={on} onChange={() => toggleEnabled(s.id)} />}
                 </div>
                 <div className="text-[13px] text-slate-600 leading-snug">{s.blurb}</div>
-                <div className="text-[12px] text-slate-500 rounded-lg bg-slate-50 ring-1 ring-slate-100 px-2.5 py-1.5">e.g. {s.eg}</div>
-                <Btn variant={on ? "outline" : "tint"} size="sm" full icon={on ? Icon.check : Icon.plus} className="mt-auto" onClick={() => toggleScheme(s.title)}>{on ? "Active · tap to disable" : "Set up"}</Btn>
+                {configured ? (
+                  <div className="text-[12.5px] text-navy-900 rounded-lg bg-teal-50/70 ring-1 ring-teal-200 px-2.5 py-1.5 flex items-start gap-1.5">
+                    <Icon.check size={13} className="text-teal-600 shrink-0 mt-0.5" /><span>{s.summarize(st.values)}</span>
+                  </div>
+                ) : (
+                  <div className="text-[12px] text-slate-500 rounded-lg bg-slate-50 ring-1 ring-slate-100 px-2.5 py-1.5">e.g. {s.eg}</div>
+                )}
+                <div className="mt-auto flex gap-2 pt-0.5">
+                  {configured ? (
+                    <>
+                      <Btn variant="outline" size="sm" className="flex-1" icon={Icon.edit} onClick={() => setEditing(s.id)}>Edit</Btn>
+                      <Btn variant="ghost" size="sm" className="flex-1" icon={Icon.bell} onClick={() => go("admin", "communicate", { promote: s.id })}>Promote</Btn>
+                      {s.custom && (
+                        <button type="button" onClick={() => removeCustom(s.id)} aria-label={`Remove ${title}`}
+                          className="shrink-0 w-9 h-9 rounded-[14px] grid place-items-center ring-1 ring-slate-200 text-rose-600 hover:bg-rose-50 hover:ring-rose-300 transition"><Icon.trash size={15} /></button>
+                      )}
+                    </>
+                  ) : (
+                    <Btn variant="tint" size="sm" full icon={Icon.plus} onClick={() => setEditing(s.id)}>Set up</Btn>
+                  )}
+                </div>
               </Card>
             );
           })}
+          <button type="button" onClick={addCustom}
+            className="rounded-3xl border-2 border-dashed border-slate-300 hover:border-teal-400 hover:bg-teal-50/40 transition grid place-items-center p-6 text-center min-h-[176px] group">
+            <span className="flex flex-col items-center gap-2 text-slate-500 group-hover:text-teal-700">
+              <span className="w-11 h-11 rounded-2xl bg-white ring-1 ring-slate-200 group-hover:ring-teal-300 grid place-items-center shadow-sm transition"><Icon.plus size={20} /></span>
+              <span className="text-[13px] font-semibold">Add a custom scheme</span>
+              <span className="text-[11.5px] text-slate-400 group-hover:text-teal-600">Name it, pick a reward, choose when.</span>
+            </span>
+          </button>
         </div>
       </div>
 
@@ -1219,7 +1736,7 @@ export function AdminLoyalty() {
           <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.clock size={16} /> Timed public offer</div>
           <div className="text-[12.5px] text-slate-600 -mt-1">Run a deal for everyone, on the dates and hours you choose.</div>
           <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="Reward"><Select value={reward} onChange={(e) => setReward(e.target.value)} options={["10% off sunbeds", "20% off sunbeds", "Free coffee with a set", "Free drink with a set", "Free entry ticket", "Buy 1 set, 2nd half price"]} /></Field>
+            <Field label="Reward"><Select value={reward} onChange={(e) => setReward(e.target.value)} options={LOYALTY_REWARDS} /></Field>
             <Field label="Applies to"><Select value={store} onChange={(e) => setStore(e.target.value)} options={["All stores", ...ZONES.map((z) => z.name)]} /></Field>
             <Field label="When"><Select value={schedule} onChange={(e) => setSchedule(e.target.value)} options={["Weekday mornings", "Weekends", "Specific date range", "All month", "Happy hour 17:00–19:00"]} /></Field>
             <Field label="Time window"><div className="flex items-center gap-2"><Input type="time" defaultValue="09:00" /><span className="text-slate-400">–</span><Input type="time" defaultValue="11:00" /></div></Field>
@@ -1262,6 +1779,16 @@ export function AdminLoyalty() {
         </Card>
       </div>
 
+      {editScheme && (
+        <SchemeConfigModal
+          scheme={editScheme}
+          configured={!!config[editScheme.id]}
+          initial={config[editScheme.id]?.values ?? schemeDefaults(editScheme)}
+          onSave={(v) => saveConfig(editScheme.id, v)}
+          onClose={closeConfig}
+        />
+      )}
+
       <SendModal
         open={send !== null}
         onClose={() => setSend(null)}
@@ -1272,6 +1799,144 @@ export function AdminLoyalty() {
         sendLabel="Send"
         onSend={(ch) => toast(`Sent “${send?.off}” to ${send?.count} guests via ${ch}.`, { tone: "success" })}
       />
+    </div>
+  );
+}
+
+/* ============ PASSES (Future) ============
+   VIP credit packs and Season-pass pricing — the prices guests see when buying a
+   pass on the customer app. Editable here, read live by the purchase flow. */
+export function AdminPasses() {
+  const { toast, passPricing, setPassPricing } = useApp();
+  const [tiers, setTiers] = useState<number[]>(passPricing.vipTiers);
+  const [disc, setDisc] = useState(Math.round(passPricing.vipDiscount * 100));
+  const [monthly, setMonthly] = useState(passPricing.seasonMonthly);
+  const [summer, setSummer] = useState(passPricing.seasonSummer);
+  const setTier = (i: number, v: number) => setTiers((ts) => ts.map((x, j) => (j === i ? v : x)));
+  const addTier = () => setTiers((ts) => [...ts, 250]);
+  const removeTier = (i: number) => setTiers((ts) => (ts.length > 1 ? ts.filter((_, j) => j !== i) : ts));
+  const spendsLike = (amt: number) => Math.round(amt / (1 - Math.min(95, Math.max(0, disc)) / 100));
+  const save = () => {
+    setPassPricing({
+      vipTiers: tiers.map((n) => Math.max(0, Math.round(n))).filter((n) => n > 0),
+      vipDiscount: Math.min(95, Math.max(0, disc)) / 100,
+      seasonMonthly: Math.max(0, Math.round(monthly)),
+      seasonSummer: Math.max(0, Math.round(summer)),
+    });
+    toast("Saved — pass pricing is live on the customer app.", { tone: "success" });
+  };
+  return (
+    <div className="animate-fade-up">
+      <PageHead title="Passes" sub="VIP credit packs and Season-pass pricing — what guests see when buying a pass." badge={<Badge tone="future">Future</Badge>}
+        actions={<Btn variant="primary" icon={Icon.check} onClick={save}>Save pricing</Btn>} />
+      <FutureBanner />
+      <div className="grid lg:grid-cols-2 gap-5">
+        {/* VIP credit */}
+        <Card className="p-5 space-y-3">
+          <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.sparkles size={16} className="text-slaice-600" /> VIP credit</div>
+          <div className="text-[12.5px] text-slate-600 -mt-1">Prepaid credit guests spend at checkout — the discount applies to whatever the credit pays for.</div>
+          <Field label="Spend discount">
+            <div className="flex items-center gap-2 max-w-[10rem]">
+              <Input type="number" min={0} max={95} value={disc} onChange={(e) => setDisc(Math.max(0, Math.min(95, Math.round(+e.target.value) || 0)))} />
+              <span className="text-[12px] text-slate-500">% off</span>
+            </div>
+          </Field>
+          <div>
+            <div className="text-[12px] font-semibold text-slate-700 mb-1.5">Credit packs</div>
+            <div className="space-y-2">
+              {tiers.map((amt, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-slate-400 text-sm">€</span>
+                  <div className="w-28"><Input type="number" min={0} value={amt} onChange={(e) => setTier(i, Math.max(0, Math.round(+e.target.value) || 0))} /></div>
+                  <span className="text-[12px] text-slate-500 flex-1">credit · spends like <b className="text-navy-900 tnum">€{spendsLike(amt).toLocaleString()}</b></span>
+                  <button type="button" onClick={() => removeTier(i)} aria-label="Remove pack" disabled={tiers.length <= 1}
+                    className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40 transition"><Icon.trash size={15} /></button>
+                </div>
+              ))}
+            </div>
+            <Btn variant="ghost" size="sm" icon={Icon.plus} className="mt-2" onClick={addTier}>Add pack</Btn>
+          </div>
+          <div className="rounded-xl bg-slaice-50 ring-1 ring-slaice-600/15 px-3 py-2 text-[12px] text-slaice-700">Valid to the end of the season · spent on any service · the {disc}% applies to the card-paid share.</div>
+        </Card>
+
+        {/* Season pass */}
+        <Card className="p-5 space-y-3">
+          <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.ticket size={16} className="text-teal-600" /> Season pass</div>
+          <div className="text-[12.5px] text-slate-600 -mt-1">Covers one entry ticket per visit while valid. Two plans for guests to choose:</div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Field label="Monthly (€)"><Input type="number" min={0} value={monthly} onChange={(e) => setMonthly(Math.max(0, Math.round(+e.target.value) || 0))} /></Field>
+            <Field label="Whole summer (€)"><Input type="number" min={0} value={summer} onChange={(e) => setSummer(Math.max(0, Math.round(+e.target.value) || 0))} /></Field>
+          </div>
+          <div className="rounded-xl bg-teal-50 ring-1 ring-teal-600/15 px-3 py-2 text-[12px] text-teal-700">At checkout, one entry per visit is auto-covered for pass holders.</div>
+        </Card>
+      </div>
+      <div className="mt-4 text-[12px] text-slate-500 flex items-center gap-1.5"><Icon.info size={13} /> Changes apply instantly to the customer’s VIP / Season-pass purchase screens.</div>
+    </div>
+  );
+}
+
+/* ============ GAMIFICATION (Future) ============
+   Achievements that earn a guest a summer badge once a metric (visits / bookings
+   / spend) passes a threshold. Editable here, read by the customer home. */
+export function AdminGamification() {
+  const { toast, achievements, setAchievements } = useApp();
+  const [list, setList] = useState<Achievement[]>(achievements);
+  const update = (id: string, patch: Partial<Achievement>) => setList((l) => l.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+  const remove = (id: string) => setList((l) => l.filter((a) => a.id !== id));
+  const add = () => setList((l) => [...l, { id: `ach-${Date.now().toString(36)}`, name: "New badge", icon: "star", color: "sun", metric: "visits", threshold: 5 }]);
+  const save = () => {
+    setAchievements(list.map((a) => ({ ...a, name: a.name.trim() || "Badge", threshold: Math.max(0, Math.round(a.threshold)) })));
+    toast("Saved — badges are live on the customer app.", { tone: "success" });
+  };
+  const earners = (a: Achievement) => CUSTOMERS.filter((c) => (a.metric === "spend" ? c.spend : c.bookings) >= a.threshold).length;
+  return (
+    <div className="animate-fade-up">
+      <PageHead title="Gamification" sub="Achievements that earn guests a summer badge when they hit a milestone." badge={<Badge tone="future">Future</Badge>}
+        actions={<Btn variant="primary" icon={Icon.check} onClick={save}>Save badges</Btn>} />
+      <FutureBanner />
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {list.map((a) => {
+          const Glyph = Icon[a.icon] || Icon.star;
+          return (
+            <Card key={a.id} className="p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <span className={`w-12 h-12 rounded-2xl grid place-items-center text-white shrink-0 shadow-sm ring-2 ring-white bg-gradient-to-br ${BADGE_COLORS[a.color] || BADGE_COLORS.sun}`}><Glyph size={22} /></span>
+                <div className="min-w-0 flex-1"><Input value={a.name} onChange={(e) => update(a.id, { name: e.target.value })} className="font-semibold" /></div>
+                <button onClick={() => remove(a.id)} aria-label={`Remove ${a.name}`} className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 shrink-0 transition"><Icon.trash size={15} /></button>
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold text-slate-500 mb-1.5">Icon</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {BADGE_ICONS.map((ik) => { const I = Icon[ik] || Icon.star; const on = a.icon === ik; return (
+                    <button key={ik} onClick={() => update(a.id, { icon: ik })} aria-label={ik} className={`w-8 h-8 rounded-lg grid place-items-center ring-1 transition ${on ? "ring-2 ring-navy-900 bg-navy-900 text-white" : "ring-slate-200 text-slate-600 hover:ring-teal-400"}`}><I size={15} /></button>
+                  ); })}
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold text-slate-500 mb-1.5">Colour</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {BADGE_COLOR_KEYS.map((ck) => { const on = a.color === ck; return (
+                    <button key={ck} onClick={() => update(a.id, { color: ck })} aria-label={ck} className={`w-8 h-8 rounded-lg shadow-sm bg-gradient-to-br ${BADGE_COLORS[ck]} ring-2 transition ${on ? "ring-navy-900 scale-105" : "ring-white hover:scale-105"}`} />
+                  ); })}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="When"><Select value={a.metric} onChange={(e) => update(a.id, { metric: e.target.value as GameMetric })} options={GAME_METRICS.map((m) => ({ v: m.v, l: m.l }))} /></Field>
+                <Field label="Reaches"><Input type="number" min={0} value={a.threshold} onChange={(e) => update(a.id, { threshold: Math.max(0, Math.round(+e.target.value) || 0) })} /></Field>
+              </div>
+              <div className="text-[11px] text-slate-500"><b className="text-navy-900 tnum">{earners(a)}</b> of {CUSTOMERS.length} guests would earn this</div>
+            </Card>
+          );
+        })}
+        <button onClick={add} className="rounded-3xl border-2 border-dashed border-slate-300 hover:border-teal-400 hover:bg-teal-50/40 transition grid place-items-center p-6 text-center min-h-[220px] group">
+          <span className="flex flex-col items-center gap-2 text-slate-500 group-hover:text-teal-700">
+            <span className="w-11 h-11 rounded-2xl bg-white ring-1 ring-slate-200 group-hover:ring-teal-300 grid place-items-center shadow-sm transition"><Icon.plus size={20} /></span>
+            <span className="text-[13px] font-semibold">Add an achievement</span>
+            <span className="text-[11.5px] text-slate-400 group-hover:text-teal-600">Name it, pick an icon + rule.</span>
+          </span>
+        </button>
+      </div>
+      <div className="mt-4 text-[12px] text-slate-500 flex items-center gap-1.5"><Icon.info size={13} /> Badges appear on the guest's home — earned ones light up, locked ones show progress.</div>
     </div>
   );
 }

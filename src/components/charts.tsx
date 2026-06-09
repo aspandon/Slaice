@@ -190,8 +190,13 @@ export function Funnel({ steps, color = "#3a47cc" }: { steps: FunnelStep[]; colo
 }
 
 // Deterministic faux-QR for mockups.
-export function QR({ size = 120, seed = "SLAICE" }: { size?: number; seed?: string }) {
-  const n = 21;
+/** Grid size of the (mock) QR matrix. */
+export const QR_N = 21;
+
+/** Deterministic on-cells for a seed — reusable so a QR can be drawn inline in
+ *  another SVG (e.g. the membership card) rather than only as the QR component. */
+export function qrCells(seed: string): [number, number][] {
+  const n = QR_N;
   let h = 0;
   for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) >>> 0;
   const rnd = (i: number) => {
@@ -209,9 +214,14 @@ export function QR({ size = 120, seed = "SLAICE" }: { size?: number; seed?: stri
   finder(0, 0); finder(n - 7, 0); finder(0, n - 7);
   const inFinder = (x: number, y: number) => (x < 8 && y < 8) || (x > n - 9 && y < 8) || (x < 8 && y > n - 9);
   for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) if (!inFinder(x, y) && rnd(y * n + x)) cells.push([x, y]);
+  return cells;
+}
+
+export function QR({ size = 120, seed = "SLAICE" }: { size?: number; seed?: string }) {
+  const cells = qrCells(seed);
   return (
-    <svg viewBox={`0 0 ${n} ${n}`} style={{ width: size, height: size }} className="rounded-lg bg-white" role="img" aria-label={`QR code for ${seed}`}>
-      <rect width={n} height={n} fill="#fff" />
+    <svg viewBox={`0 0 ${QR_N} ${QR_N}`} style={{ width: size, height: size }} className="rounded-lg bg-white" role="img" aria-label={`QR code for ${seed}`}>
+      <rect width={QR_N} height={QR_N} fill="#fff" />
       {cells.map(([x, y], i) => <rect key={i} x={x} y={y} width="1" height="1" fill="#0B2545" />)}
     </svg>
   );

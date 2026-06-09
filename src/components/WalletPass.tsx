@@ -4,6 +4,7 @@ import { Icon } from "../lib/icons";
 import { Sheet } from "./ui";
 import { QR } from "./charts";
 import { TenantLogo } from "./Brand";
+import { PassCard } from "./PassCard";
 import { TENANT } from "../data/beach";
 import { useApp } from "../app/store";
 import { detectWalletPlatform, downloadPkpass, copyGoogleSaveLink } from "../lib/wallet";
@@ -16,6 +17,14 @@ export interface WalletPassData {
   seat?: string;
   guests?: number | string;
   total?: string;
+  /** "booking" (default) renders the beach booking; "vip"/"season" render a pass. */
+  variant?: "booking" | "vip" | "season";
+  /** Pass title shown on the card header (e.g. "VIP credit pass"). */
+  title?: string;
+  /** Valid-until date shown on the membership card (vip/season variants). */
+  validUntil?: string;
+  /** Pass detail fields, rendered in the card body for vip/season variants. */
+  fields?: { label: string; value: string }[];
 }
 
 /* ---------- Official-style badges ---------- */
@@ -72,6 +81,27 @@ export function WalletButtons({ pass, className = "" }: { pass: WalletPassData; 
 
 /* ---------- The pass preview (looks like a real wallet pass) ---------- */
 function PassPreview({ pass }: { pass: WalletPassData }) {
+  // VIP / Season passes render the tenant membership card art + a scan strip.
+  if (pass.variant === "vip" || pass.variant === "season") {
+    const no = "NO. " + (pass.ref.match(/\d+/)?.[0] ?? "0042");
+    return (
+      <div className="rounded-3xl overflow-hidden shadow-float ring-1 ring-black/5 max-w-[85.6mm] mx-auto bg-white">
+        <PassCard kind={pass.variant} holder={(pass.holder ?? "Elena M.").toUpperCase()} number={no} validUntil={pass.validUntil} />
+        <div className="px-5 py-4 flex items-center gap-4">
+          <div className="rounded-lg ring-1 ring-slate-200 p-1.5 shrink-0"><QR size={84} seed={pass.ref} /></div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">{pass.title || "Pass"}</div>
+            <div className="font-mono font-semibold text-navy-900 text-sm">#{pass.ref}</div>
+            <div className="mt-1.5 space-y-0.5">
+              {(pass.fields || []).map((f, i) => (
+                <div key={i} className="text-[11px] flex justify-between gap-3"><span className="text-slate-500">{f.label}</span><b className="text-navy-900">{f.value}</b></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="rounded-3xl overflow-hidden shadow-float ring-1 ring-black/5 max-w-[340px] mx-auto">
       <div className="grad-sea text-white p-5">
