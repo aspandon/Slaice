@@ -11,6 +11,7 @@ import { PERSONAS, NAV } from "../../data/personas";
 import { LANGUAGES, useApp, useT } from "../../app/store";
 import type { CartItem, LangCode, PersonaId } from "../../domain/types";
 import { NavSheet } from "./Nav";
+import { PersonaSwitcher } from "./PersonaSwitcher";
 import type { NavProps } from "./types";
 
 interface FeedItem { ic: string; tone: string; t: string; b: string; time: string }
@@ -97,7 +98,16 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
   const currentItem = navItems.find((it) => it.k === page);
   const CurrentIcon = currentItem && Icon[currentItem.icon];
   return (
-    <header className={`glass text-navy-900 rounded-2xl mb-4 flex items-center relative z-30 shadow-soft sticky top-2 ${persona === "customer" ? "px-1.5 py-1 gap-1 w-fit mx-auto mt-4" : "px-2 py-1.5 gap-2"}`}>
+    <header
+      className={
+        persona === "customer"
+          ? // Customer: a compact action cluster pinned to the top-right corner,
+            // floating over the beach surface (the centered tenant logo sits
+            // separately in App). fixed so it stays reachable while scrolling.
+            "glass text-navy-900 rounded-2xl flex items-center z-40 shadow-soft fixed top-3 right-3 sm:right-5 px-1.5 py-1 gap-0.5"
+          : "glass text-navy-900 rounded-2xl mb-4 flex items-center relative z-30 shadow-soft sticky top-2 px-2 py-1.5 gap-2"
+      }
+    >
       {/* Staff personas: current page title — tapping opens the full nav sheet
           on mobile; non-interactive on desktop where the sidebar is primary. */}
       {persona !== "customer" && (
@@ -171,16 +181,6 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
             </Popover.Content>
           </Popover.Portal>
         </Popover.Root>
-        )}
-
-        {/* Global search / command palette (⌘K) — staff personas only. */}
-        {persona !== "customer" && (
-          <button onClick={() => window.dispatchEvent(new Event("slaice:cmdk"))} aria-label={t("Search (⌘K)")}
-            className="hidden sm:flex items-center gap-2 h-10 pl-2.5 pr-2 rounded-xl bg-slate-100/80 hover:bg-slate-200/80 text-slate-500 hover:text-navy-900 transition">
-            <Icon.search size={15} />
-            <span className="text-[12.5px] font-medium">{t("Search…")}</span>
-            <kbd className="text-[10px] font-semibold text-slate-400 bg-white ring-1 ring-slate-200 rounded px-1 py-0.5">⌘K</kbd>
-          </button>
         )}
 
         <Popover.Root open={notifOpen} onOpenChange={setNotifOpen}>
@@ -261,46 +261,13 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
           </DropdownMenu.Portal>
         </DropdownMenu.Root>
 
-        {/* Persona switcher. On the customer surface it's a quiet "Demo" chip
-            so it doesn't read as a real account control; on staff personas it
-            keeps the accent-tinted treatment that signals "you are in role X". */}
-        <DropdownMenu.Root modal={false}>
-          <DropdownMenu.Trigger asChild>
-            {persona === "customer" ? (
-              <button
-                title={t("Demo — view as another persona")} aria-label={t("Switch persona (demo)")}
-                className="flex items-center gap-1.5 bg-slate-100/80 hover:bg-slate-200/80 data-[state=open]:bg-slate-200/80 rounded-xl px-2.5 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500 hover:text-navy-900 data-[state=open]:text-navy-900 transition">
-                <Icon.layers size={13} />
-                <span className="hidden md:inline">{t("Demo")}</span>
-                <Icon.chevD size={12} />
-              </button>
-            ) : (
-              <button
-                aria-label={`${t("Switch persona — currently")} ${t(cur.label)}`}
-                style={{ background: cur.color + "14", borderColor: cur.color + "55" }}
-                className="flex items-center gap-2 ring-1 rounded-xl pl-1.5 pr-3 py-1.5 text-sm font-semibold hover:brightness-[.98] transition">
-                <span className="w-6 h-6 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: cur.color }}>{(() => { const I = Icon[cur.icon]; return I ? <I size={13} /> : null; })()}</span>
-                <span className="hidden md:inline text-navy-900">{t(cur.label)}</span>
-                <Icon.chevD size={14} className="text-slate-400" />
-              </button>
-            )}
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Portal>
-            <DropdownMenu.Content align="end" sideOffset={8} className="glass w-72 text-ink rounded-xl p-1.5 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
-              <DropdownMenu.Label className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{t("View as persona")}</DropdownMenu.Label>
-              {PERSONAS.map((p) => (
-                <DropdownMenu.Item key={p.id} onSelect={() => setPersona(p.id)}
-                  className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none ${persona === p.id ? "bg-slate-100" : ""} hover:bg-slate-100 data-[highlighted]:bg-slate-100`}>
-                  <span className="w-7 h-7 rounded-lg grid place-items-center text-white shrink-0 mt-0.5" style={{ background: p.color }}>{(() => { const I = Icon[p.icon]; return I ? <I size={14} /> : null; })()}</span>
-                  <span className="text-left">
-                    <span className="font-semibold flex items-center gap-1.5">{t(p.label)}{persona === p.id && <Icon.check size={14} />}</span>
-                    <span className="block text-[11px] text-slate-500 leading-tight">{t(p.blurb)}</span>
-                  </span>
-                </DropdownMenu.Item>
-              ))}
-            </DropdownMenu.Content>
-          </DropdownMenu.Portal>
-        </DropdownMenu.Root>
+        {/* Persona switcher — staff only here, as the accent-tinted role chip
+            ("you are in role X"). On the customer surface the quiet "Demo"
+            variant lives in the bottom-right corner instead (see App.tsx), so
+            it doesn't crowd this compact action cluster. */}
+        {persona !== "customer" && (
+          <PersonaSwitcher persona={persona} setPersona={setPersona} variant="role" />
+        )}
       </div>
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <NotificationSettingsModal open={notifSettingsOpen} onClose={() => setNotifSettingsOpen(false)} />

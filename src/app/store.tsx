@@ -52,6 +52,10 @@ export interface AppContextValue {
    *  Sunbed-layout tab, read by the booking wizard's zoom. */
   beachLayout: Record<string, SunbedSlot[]>;
   setZoneLayout: (zoneId: string, slots: SunbedSlot[]) => void;
+  /** Optional per-store (zone) logo as a data URL — set in the admin Map Editor,
+   *  shown under the store name on the booking beach. */
+  zoneLogos: Record<string, string>;
+  setZoneLogo: (zoneId: string, src: string | null) => void;
 }
 
 const DEFAULT_CONSENT: Consent = {
@@ -85,6 +89,8 @@ export const AppCtx = createContext<AppContextValue>({
   setBackground: () => {},
   beachLayout: {},
   setZoneLayout: () => {},
+  zoneLogos: {},
+  setZoneLogo: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);

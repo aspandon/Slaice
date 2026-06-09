@@ -2,31 +2,37 @@
 import type { Customer, CustomerBooking, CustomerDocument } from "../domain/types";
 
 export const CUSTOMERS: Customer[] = [
-  { id: 1, name: "Maria K.", email: "maria.kontou@example.com", phone: "+30 694 100 0001", bookings: 12, spend: 384, tags: ["VIP", "Season pass"], lastVisit: "Sun, 19 Jul" },
-  { id: 2, name: "Nikos P.", email: "nikos.papas@example.com", phone: "+30 694 100 0002", bookings: 5, spend: 142, tags: ["Regular"], lastVisit: "Sat, 12 Jul" },
-  { id: 3, name: "Elena V.", email: "elena.vlachos@example.com", phone: "+30 694 100 0003", bookings: 28, spend: 1240, tags: ["VIP"], lastVisit: "Sun, 19 Jul" },
-  { id: 4, name: "Giorgos T.", email: "g.tsouris@example.com", phone: "+30 694 100 0004", bookings: 2, spend: 58, tags: ["New"], lastVisit: "Fri, 18 Jul" },
-  { id: 5, name: "Dimitris A.", email: "d.aravidis@example.com", phone: "+30 694 100 0005", bookings: 14, spend: 560, tags: ["Regular"], lastVisit: "Sun, 12 Jul" },
-  { id: 6, name: "Ioanna S.", email: "ioanna.sava@example.com", phone: "+30 694 100 0006", bookings: 9, spend: 286, tags: ["Regular"], lastVisit: "Wed, 16 Jul" },
-  { id: 7, name: "Andreas M.", email: "a.markou@example.com", phone: "+30 694 100 0007", bookings: 18, spend: 720, tags: ["Season pass"], lastVisit: "Sat, 19 Jul" },
-  { id: 8, name: "Eleni K.", email: "eleni.k@example.com", phone: "+30 694 100 0008", bookings: 3, spend: 84, tags: ["New"], lastVisit: "Thu, 17 Jul" },
-  { id: 9, name: "Kostas L.", email: "kostas.leontis@example.com", phone: "+30 694 100 0009", bookings: 21, spend: 890, tags: ["VIP", "Regular"], lastVisit: "Sun, 19 Jul" },
-  { id: 10, name: "Sofia P.", email: "sofia.papaki@example.com", phone: "+30 694 100 0010", bookings: 7, spend: 198, tags: ["Regular"], lastVisit: "Tue, 15 Jul" },
-  { id: 11, name: "Petros N.", email: "p.nikolaou@example.com", phone: "+30 694 100 0011", bookings: 11, spend: 412, tags: ["Season pass"], lastVisit: "Sat, 19 Jul" },
-  { id: 12, name: "Anna M.", email: "anna.m@example.com", phone: "+30 694 100 0012", bookings: 1, spend: 30, tags: ["New"], lastVisit: "Sun, 19 Jul" },
-  { id: 13, name: "Christina R.", email: "c.raptis@example.com", phone: "+30 694 100 0013", bookings: 16, spend: 612, tags: ["Season pass"], lastVisit: "Sun, 19 Jul" },
-  { id: 14, name: "Vasilis D.", email: "v.dimou@example.com", phone: "+30 694 100 0014", bookings: 4, spend: 110, tags: ["Regular"], lastVisit: "Fri, 18 Jul" },
-  { id: 15, name: "Despina K.", email: "despina.k@example.com", phone: "+30 694 100 0015", bookings: 33, spend: 1480, tags: ["VIP"], lastVisit: "Sun, 19 Jul" },
-  { id: 16, name: "Thanos P.", email: "t.petrou@example.com", phone: "+30 694 100 0016", bookings: 1, spend: 30, tags: ["New"], lastVisit: "Sat, 19 Jul" },
-  { id: 17, name: "Marina G.", email: "marina.geo@example.com", phone: "+30 694 100 0017", bookings: 8, spend: 248, tags: ["Regular"], lastVisit: "Thu, 17 Jul" },
-  { id: 18, name: "Stelios V.", email: "s.vergos@example.com", phone: "+30 694 100 0018", bookings: 19, spend: 760, tags: ["Season pass", "Regular"], lastVisit: "Sun, 19 Jul" },
-  { id: 19, name: "Katerina M.", email: "k.manou@example.com", phone: "+30 694 100 0019", bookings: 6, spend: 174, tags: ["Regular"], lastVisit: "Tue, 15 Jul" },
-  { id: 20, name: "Yiannis A.", email: "y.alexiou@example.com", phone: "+30 694 100 0020", bookings: 25, spend: 1010, tags: ["VIP"], lastVisit: "Sun, 19 Jul" },
-  { id: 21, name: "Foteini L.", email: "f.lekka@example.com", phone: "+30 694 100 0021", bookings: 2, spend: 52, tags: ["New"], lastVisit: "Wed, 16 Jul" },
-  { id: 22, name: "Alexis T.", email: "a.tziolas@example.com", phone: "+30 694 100 0022", bookings: 13, spend: 470, tags: ["Season pass"], lastVisit: "Sat, 19 Jul" },
-  { id: 23, name: "Roula S.", email: "roula.s@example.com", phone: "+30 694 100 0023", bookings: 10, spend: 322, tags: ["Regular"], lastVisit: "Sun, 12 Jul" },
-  { id: 24, name: "Manos K.", email: "m.kallis@example.com", phone: "+30 694 100 0024", bookings: 3, spend: 96, tags: ["New"], lastVisit: "Mon, 14 Jul" },
+  { id: 1, name: "Maria K.", first: "Maria", last: "Kontou", email: "maria.kontou@example.com", phone: "+30 694 100 0001", bookings: 12, spend: 384, tags: ["VIP", "Season pass"], lastVisit: "Sun, 19 Jul" },
+  { id: 2, name: "Nikos P.", first: "Nikos", last: "Papas", email: "nikos.papas@example.com", phone: "+30 694 100 0002", bookings: 5, spend: 142, tags: ["Regular"], lastVisit: "Sat, 12 Jul" },
+  { id: 3, name: "Elena V.", first: "Elena", last: "Vlachos", email: "elena.vlachos@example.com", phone: "+30 694 100 0003", bookings: 28, spend: 1240, tags: ["VIP"], lastVisit: "Sun, 19 Jul" },
+  { id: 4, name: "Giorgos T.", first: "Giorgos", last: "Tsouris", email: "g.tsouris@example.com", phone: "+30 694 100 0004", bookings: 2, spend: 58, tags: ["New"], lastVisit: "Fri, 18 Jul" },
+  { id: 5, name: "Dimitris A.", first: "Dimitris", last: "Aravidis", email: "d.aravidis@example.com", phone: "+30 694 100 0005", bookings: 14, spend: 560, tags: ["Regular"], lastVisit: "Sun, 12 Jul" },
+  { id: 6, name: "Ioanna S.", first: "Ioanna", last: "Sava", email: "ioanna.sava@example.com", phone: "+30 694 100 0006", bookings: 9, spend: 286, tags: ["Regular"], lastVisit: "Wed, 16 Jul" },
+  { id: 7, name: "Andreas M.", first: "Andreas", last: "Markou", email: "a.markou@example.com", phone: "+30 694 100 0007", bookings: 18, spend: 720, tags: ["Season pass"], lastVisit: "Sat, 19 Jul" },
+  { id: 8, name: "Eleni K.", first: "Eleni", last: "Komi", email: "eleni.komi@example.com", phone: "+30 694 100 0008", bookings: 3, spend: 84, tags: ["New"], lastVisit: "Thu, 17 Jul" },
+  { id: 9, name: "Kostas L.", first: "Kostas", last: "Leontis", email: "kostas.leontis@example.com", phone: "+30 694 100 0009", bookings: 21, spend: 890, tags: ["VIP", "Regular"], lastVisit: "Sun, 19 Jul" },
+  { id: 10, name: "Sofia P.", first: "Sofia", last: "Papaki", email: "sofia.papaki@example.com", phone: "+30 694 100 0010", bookings: 7, spend: 198, tags: ["Regular"], lastVisit: "Tue, 15 Jul" },
+  { id: 11, name: "Petros N.", first: "Petros", last: "Nikolaou", email: "p.nikolaou@example.com", phone: "+30 694 100 0011", bookings: 11, spend: 412, tags: ["Season pass"], lastVisit: "Sat, 19 Jul" },
+  { id: 12, name: "Anna M.", first: "Anna", last: "Mavridi", email: "anna.mavridi@example.com", phone: "+30 694 100 0012", bookings: 1, spend: 30, tags: ["New"], lastVisit: "Sun, 19 Jul" },
+  { id: 13, name: "Christina R.", first: "Christina", last: "Rapti", email: "c.raptis@example.com", phone: "+30 694 100 0013", bookings: 16, spend: 612, tags: ["Season pass"], lastVisit: "Sun, 19 Jul" },
+  { id: 14, name: "Vasilis D.", first: "Vasilis", last: "Dimou", email: "v.dimou@example.com", phone: "+30 694 100 0014", bookings: 4, spend: 110, tags: ["Regular"], lastVisit: "Fri, 18 Jul" },
+  { id: 15, name: "Despina K.", first: "Despina", last: "Katsi", email: "despina.katsi@example.com", phone: "+30 694 100 0015", bookings: 33, spend: 1480, tags: ["VIP"], lastVisit: "Sun, 19 Jul" },
+  { id: 16, name: "Thanos P.", first: "Thanos", last: "Petrou", email: "t.petrou@example.com", phone: "+30 694 100 0016", bookings: 1, spend: 30, tags: ["New"], lastVisit: "Sat, 19 Jul" },
+  { id: 17, name: "Marina G.", first: "Marina", last: "Georgiou", email: "marina.geo@example.com", phone: "+30 694 100 0017", bookings: 8, spend: 248, tags: ["Regular"], lastVisit: "Thu, 17 Jul" },
+  { id: 18, name: "Stelios V.", first: "Stelios", last: "Vergos", email: "s.vergos@example.com", phone: "+30 694 100 0018", bookings: 19, spend: 760, tags: ["Season pass", "Regular"], lastVisit: "Sun, 19 Jul" },
+  { id: 19, name: "Katerina M.", first: "Katerina", last: "Manou", email: "k.manou@example.com", phone: "+30 694 100 0019", bookings: 6, spend: 174, tags: ["Regular"], lastVisit: "Tue, 15 Jul" },
+  { id: 20, name: "Yiannis A.", first: "Yiannis", last: "Alexiou", email: "y.alexiou@example.com", phone: "+30 694 100 0020", bookings: 25, spend: 1010, tags: ["VIP"], lastVisit: "Sun, 19 Jul" },
+  { id: 21, name: "Foteini L.", first: "Foteini", last: "Lekka", email: "f.lekka@example.com", phone: "+30 694 100 0021", bookings: 2, spend: 52, tags: ["New"], lastVisit: "Wed, 16 Jul" },
+  { id: 22, name: "Alexis T.", first: "Alexis", last: "Tziolas", email: "a.tziolas@example.com", phone: "+30 694 100 0022", bookings: 13, spend: 470, tags: ["Season pass"], lastVisit: "Sat, 19 Jul" },
+  { id: 23, name: "Roula S.", first: "Roula", last: "Saliari", email: "roula.saliari@example.com", phone: "+30 694 100 0023", bookings: 10, spend: 322, tags: ["Regular"], lastVisit: "Sun, 12 Jul" },
+  { id: 24, name: "Manos K.", first: "Manos", last: "Kallis", email: "m.kallis@example.com", phone: "+30 694 100 0024", bookings: 3, spend: 96, tags: ["New"], lastVisit: "Mon, 14 Jul" },
 ];
+
+/** Resolve a booking/refund's first-name reference to the full roster entry
+ *  (for surname + phone). Walk-ins and unknown names return undefined. */
+export function personByFirst(first: string): Customer | undefined {
+  return CUSTOMERS.find((c) => c.first === first);
+}
 
 // Customer-side bookings (Elena's view of "My Bookings")
 export const CUSTOMER_BOOKINGS: CustomerBooking[] = [
@@ -65,56 +71,97 @@ export const CUSTOMER_DOCS: CustomerDocument[] = [
   { id: "ΠΙΣ-2026-000012", for: "Refund · Double booking", date: "21 Jun 2026", amt: "−€22", mark: "400001020304000012", lines: [["Sunbed BE-14 refund", "−€17.74", "−€4.26", "−€22.00"]] },
 ];
 
-// Admin all bookings (tenant-wide) — channel: Online | Walk-in | Phone | Cashier
-export const ADMIN_BOOKINGS: [string, string, string, string, string, string, number][] = [
-  ["#BK-10428", "Elena V.", "Central · CE-89", "19 Jul", "Online", "Confirmed", 30],
-  ["#BK-10427", "Walk-in", "Macaw · MC-04", "19 Jul", "Walk-in", "Confirmed", 35],
-  ["#BK-10426", "Nikos P.", "Bestbuy · BE-12", "19 Jul", "Online", "Confirmed", 44],
-  ["#BK-10425", "Maria K.", "Akanthus · AK-08", "19 Jul", "Online", "Confirmed", 30],
-  ["#BK-10424", "Andreas M.", "Bolivar · BO-19", "19 Jul", "Online", "Confirmed", 18],
-  ["#BK-10423", "Walk-in", "Central · CE-44", "19 Jul", "Walk-in", "Confirmed", 25],
-  ["#BK-10422", "Sofia P.", "Main · MA-22", "19 Jul", "Phone", "Unpaid", 28],
-  ["#BK-10421", "Petros N.", "Central · CE-101", "19 Jul", "Online", "Confirmed", 25],
-  ["#BK-10420", "Walk-in", "Bestbuy · BE-34", "19 Jul", "Cashier", "Confirmed", 22],
-  ["#BK-10419", "Anna M.", "Akanthus · AK-15", "19 Jul", "Online", "Confirmed", 30],
-  ["#BK-10418", "Kostas L.", "Macaw · MC-12", "19 Jul", "Online", "Confirmed", 35],
-  ["#BK-10417", "Roula S.", "Central · CE-55", "19 Jul", "Online", "Confirmed", 25],
-  ["#BK-10416", "Walk-in", "Akanthus · AK-22", "19 Jul", "Walk-in", "Confirmed", 30],
-  ["#BK-10415", "Stelios V.", "Bestbuy · BE-41", "19 Jul", "Online", "Confirmed", 22],
-  ["#BK-10414", "Yiannis A.", "Macaw · MC-18", "19 Jul", "Online", "Confirmed", 35],
-  ["#BK-10413", "Marina G.", "Main · MA-31", "19 Jul", "Phone", "Unpaid", 28],
-  ["#BK-10412", "Walk-in", "Bolivar · BO-07", "19 Jul", "Cashier", "Confirmed", 18],
-  ["#BK-10410", "Maria K.", "Central · CE-92", "18 Jul", "Phone", "Unpaid", 30],
-  ["#BK-10408", "Despina K.", "Central · CE-03", "18 Jul", "Online", "Confirmed", 25],
-  ["#BK-10405", "Vasilis D.", "Akanthus · AK-44", "18 Jul", "Online", "Refunded", 30],
-  ["#BK-10402", "Dimitris A.", "Bestbuy · BE-09", "18 Jul", "Online", "Confirmed", 22],
-  ["#BK-10377", "Christina R.", "Bestbuy · BE-08", "17 Jul", "Online", "Used", 22],
-  ["#BK-10355", "Walk-in", "Macaw · MC-21", "16 Jul", "Walk-in", "Used", 35],
-  ["#BK-10310", "Giorgos T.", "Bestbuy · BE-14", "12 Jul", "Online", "Used", 22],
-  ["#BK-10298", "Katerina M.", "Main · MA-05", "12 Jul", "Phone", "Used", 28],
-  ["#BK-10288", "Elena V.", "Akanthus · AK-31", "06 Jul", "Online", "Used", 30],
-  ["#BK-10240", "Alexis T.", "Central · CE-30", "06 Jul", "Online", "Used", 25],
-  ["#BK-10155", "Walk-in", "Bolivar · BO-14", "29 Jun", "Cashier", "Used", 18],
-  ["#BK-10142", "Walk-in", "Main · MA-12", "29 Jun", "Walk-in", "Used", 28],
-  ["#BK-09980", "Ioanna S.", "Bolivar · BO-22", "22 Jun", "Online", "Used", 18],
-  ["#BK-09905", "Manos K.", "Akanthus · AK-02", "22 Jun", "Online", "Cancelled", 30],
-  ["#BK-09812", "Eleni K.", "Central · CE-67", "15 Jun", "Online", "Cancelled", 25],
+// Admin all bookings (tenant-wide) — channel: Online | Walk-in | Phone | Cashier.
+// `who` is the booker's first name (resolve surname/phone via personByFirst), or
+// "Walk-in"; `items` lists every line that shares the one booking (sunbeds +
+// parking + lockers + tickets), and `amount` is their total.
+export interface AdminBooking {
+  id: string;
+  who: string;
+  items: string[];
+  date: string;
+  channel: string;
+  status: string;
+  amount: number;
+}
+const BASE_ADMIN_BOOKINGS: AdminBooking[] = [
+  { id: "#BK-10428", who: "Elena", items: ["Sunbed · Central · CE-89", "Sunbed · Central · CE-90", "Parking · P12", "Day locker · A07"], date: "19 Jul", channel: "Online", status: "Confirmed", amount: 80 },
+  { id: "#BK-10427", who: "Walk-in", items: ["Sunbed · Macaw · MC-04"], date: "19 Jul", channel: "Walk-in", status: "Confirmed", amount: 35 },
+  { id: "#BK-10426", who: "Nikos", items: ["Sunbed · Bestbuy · BE-12", "Sunbed · Bestbuy · BE-13"], date: "19 Jul", channel: "Online", status: "Confirmed", amount: 44 },
+  { id: "#BK-10425", who: "Maria", items: ["Sunbed · Akanthus · AK-08", "Parking · P03", "Day locker · B12"], date: "19 Jul", channel: "Online", status: "Confirmed", amount: 50 },
+  { id: "#BK-10424", who: "Andreas", items: ["Sunbed · Bolivar · BO-19"], date: "19 Jul", channel: "Online", status: "Confirmed", amount: 18 },
+  { id: "#BK-10423", who: "Walk-in", items: ["Sunbed · Central · CE-44"], date: "19 Jul", channel: "Walk-in", status: "Confirmed", amount: 25 },
+  { id: "#BK-10422", who: "Sofia", items: ["Sunbed · Main · MA-22"], date: "19 Jul", channel: "Phone", status: "Unpaid", amount: 28 },
+  { id: "#BK-10421", who: "Petros", items: ["Sunbed · Central · CE-101"], date: "19 Jul", channel: "Online", status: "Confirmed", amount: 25 },
+  { id: "#BK-10420", who: "Walk-in", items: ["Sunbed · Bestbuy · BE-34"], date: "19 Jul", channel: "Cashier", status: "Confirmed", amount: 22 },
+  { id: "#BK-10419", who: "Anna", items: ["Sunbed · Akanthus · AK-15"], date: "19 Jul", channel: "Online", status: "Confirmed", amount: 30 },
+  { id: "#BK-10418", who: "Kostas", items: ["Sunbed · Macaw · MC-12", "Sunbed · Macaw · MC-13", "Entry · Adult ×2", "Parking · P05"], date: "19 Jul", channel: "Online", status: "Confirmed", amount: 105 },
+  { id: "#BK-10417", who: "Roula", items: ["Sunbed · Central · CE-55"], date: "19 Jul", channel: "Online", status: "Confirmed", amount: 25 },
+  { id: "#BK-10416", who: "Walk-in", items: ["Sunbed · Akanthus · AK-22"], date: "19 Jul", channel: "Walk-in", status: "Confirmed", amount: 30 },
+  { id: "#BK-10415", who: "Stelios", items: ["Sunbed · Bestbuy · BE-41"], date: "19 Jul", channel: "Online", status: "Confirmed", amount: 22 },
+  { id: "#BK-10414", who: "Yiannis", items: ["Sunbed · Macaw · MC-18"], date: "19 Jul", channel: "Online", status: "Confirmed", amount: 35 },
+  { id: "#BK-10413", who: "Marina", items: ["Sunbed · Main · MA-31"], date: "19 Jul", channel: "Phone", status: "Unpaid", amount: 28 },
+  { id: "#BK-10412", who: "Walk-in", items: ["Sunbed · Bolivar · BO-07"], date: "19 Jul", channel: "Cashier", status: "Confirmed", amount: 18 },
+  { id: "#BK-10410", who: "Maria", items: ["Sunbed · Central · CE-92"], date: "18 Jul", channel: "Phone", status: "Unpaid", amount: 30 },
+  { id: "#BK-10408", who: "Despina", items: ["Sunbed · Central · CE-03", "Sunbed · Central · CE-04", "Parking · P01", "Day locker · A01"], date: "18 Jul", channel: "Online", status: "Confirmed", amount: 70 },
+  { id: "#BK-10405", who: "Vasilis", items: ["Sunbed · Akanthus · AK-44"], date: "18 Jul", channel: "Online", status: "Refunded", amount: 30 },
+  { id: "#BK-10402", who: "Dimitris", items: ["Sunbed · Bestbuy · BE-09"], date: "18 Jul", channel: "Online", status: "Confirmed", amount: 22 },
+  { id: "#BK-10377", who: "Christina", items: ["Sunbed · Bestbuy · BE-08"], date: "17 Jul", channel: "Online", status: "Used", amount: 22 },
+  { id: "#BK-10355", who: "Walk-in", items: ["Sunbed · Macaw · MC-21"], date: "16 Jul", channel: "Walk-in", status: "Used", amount: 35 },
+  { id: "#BK-10310", who: "Giorgos", items: ["Sunbed · Bestbuy · BE-14"], date: "12 Jul", channel: "Online", status: "Used", amount: 22 },
+  { id: "#BK-10298", who: "Katerina", items: ["Sunbed · Main · MA-05"], date: "12 Jul", channel: "Phone", status: "Used", amount: 28 },
+  { id: "#BK-10288", who: "Elena", items: ["Sunbed · Akanthus · AK-31"], date: "06 Jul", channel: "Online", status: "Used", amount: 30 },
+  { id: "#BK-10240", who: "Alexis", items: ["Sunbed · Central · CE-30"], date: "06 Jul", channel: "Online", status: "Used", amount: 25 },
+  { id: "#BK-10155", who: "Walk-in", items: ["Sunbed · Bolivar · BO-14"], date: "29 Jun", channel: "Cashier", status: "Used", amount: 18 },
+  { id: "#BK-10142", who: "Walk-in", items: ["Sunbed · Main · MA-12"], date: "29 Jun", channel: "Walk-in", status: "Used", amount: 28 },
+  { id: "#BK-09980", who: "Ioanna", items: ["Sunbed · Bolivar · BO-22"], date: "22 Jun", channel: "Online", status: "Used", amount: 18 },
+  { id: "#BK-09905", who: "Manos", items: ["Sunbed · Akanthus · AK-02"], date: "22 Jun", channel: "Online", status: "Cancelled", amount: 30 },
+  { id: "#BK-09812", who: "Eleni", items: ["Sunbed · Central · CE-67"], date: "15 Jun", channel: "Online", status: "Cancelled", amount: 25 },
 ];
 
-// Admin refunds
-export const ADMIN_REFUNDS = [
-  { tx: "#TX-88210", cust: "Maria K.", amount: 30, reason: "", status: null, date: "19 Jul" },
-  { tx: "#TX-88154", cust: "Nikos P.", amount: 22, reason: "Double booking", status: "Refunded", date: "12 Jul" },
-  { tx: "#TX-88102", cust: "Sofia P.", amount: 28, reason: "Weather (rain)", status: "Refunded", date: "10 Jul" },
-  { tx: "#TX-88051", cust: "Andreas M.", amount: 35, reason: "Customer request", status: "Refunded", date: "08 Jul" },
-  { tx: "#TX-87922", cust: "Walk-in", amount: 18, reason: "Service issue", status: "Refunded", date: "30 Jun" },
-  { tx: "#TX-87810", cust: "Eleni K.", amount: 25, reason: "", status: null, date: "29 Jun" },
-  { tx: "#TX-87744", cust: "Christina R.", amount: 30, reason: "Weather (wind)", status: "Refunded", date: "27 Jun" },
-  { tx: "#TX-87690", cust: "Walk-in", amount: 22, reason: "Double booking", status: "Refunded", date: "25 Jun" },
-  { tx: "#TX-87655", cust: "Stelios V.", amount: 35, reason: "Customer request", status: "Refunded", date: "22 Jun" },
-  { tx: "#TX-87601", cust: "Marina G.", amount: 15, reason: "", status: null, date: "20 Jun" },
-  { tx: "#TX-87588", cust: "Yiannis A.", amount: 28, reason: "Service issue", status: "Refunded", date: "18 Jun" },
-  { tx: "#TX-87540", cust: "Alexis T.", amount: 18, reason: "Weather (rain)", status: "Refunded", date: "15 Jun" },
+// Older history, generated so the Bookings list has enough rows to paginate.
+const ZN: [string, string][] = [["Central", "CE"], ["Akanthus", "AK"], ["Macaw", "MC"], ["Bestbuy", "BE"], ["Main", "MA"], ["Bolivar", "BO"]];
+const WHO: string[] = ["Maria", "Nikos", "Elena", "Andreas", "Sofia", "Petros", "Anna", "Kostas", "Roula", "Stelios", "Yiannis", "Marina", "Dimitris", "Christina", "Giorgos", "Katerina", "Alexis", "Ioanna", "Manos", "Despina", "Walk-in", "Vasilis", "Foteini", "Thanos"];
+const MON: string[] = ["Jun", "May", "Apr"];
+const MORE_ADMIN_BOOKINGS: AdminBooking[] = Array.from({ length: 36 }, (_, i) => {
+  const [zname, zp] = ZN[i % ZN.length];
+  const code = `${zp}-${String((i * 7) % 90 + 4).padStart(2, "0")}`;
+  const day = String((i * 5) % 27 + 1).padStart(2, "0");
+  return {
+    id: `#BK-${9778 - i * 4}`,
+    who: WHO[(i * 5) % WHO.length],
+    items: [`Sunbed · ${zname} · ${code}`],
+    date: `${day} ${MON[Math.floor(i / 13) % MON.length]}`,
+    channel: ["Online", "Walk-in", "Phone", "Cashier"][i % 4],
+    status: i % 11 === 0 ? "Cancelled" : "Used",
+    amount: [18, 22, 25, 28, 30, 35][i % 6],
+  };
+});
+
+export const ADMIN_BOOKINGS: AdminBooking[] = [...BASE_ADMIN_BOOKINGS, ...MORE_ADMIN_BOOKINGS];
+
+// Admin refunds — `who` is the customer's first name (surname/phone via personByFirst).
+export interface AdminRefund {
+  tx: string;
+  who: string;
+  amount: number;
+  reason: string;
+  status: string | null;
+  date: string;
+}
+export const ADMIN_REFUNDS: AdminRefund[] = [
+  { tx: "#TX-88210", who: "Maria", amount: 30, reason: "", status: null, date: "19 Jul" },
+  { tx: "#TX-88154", who: "Nikos", amount: 22, reason: "Double booking", status: "Refunded", date: "12 Jul" },
+  { tx: "#TX-88102", who: "Sofia", amount: 28, reason: "Weather (rain)", status: "Refunded", date: "10 Jul" },
+  { tx: "#TX-88051", who: "Andreas", amount: 35, reason: "Customer request", status: "Refunded", date: "08 Jul" },
+  { tx: "#TX-87922", who: "Walk-in", amount: 18, reason: "Service issue", status: "Refunded", date: "30 Jun" },
+  { tx: "#TX-87810", who: "Eleni", amount: 25, reason: "", status: null, date: "29 Jun" },
+  { tx: "#TX-87744", who: "Christina", amount: 30, reason: "Weather (wind)", status: "Refunded", date: "27 Jun" },
+  { tx: "#TX-87690", who: "Walk-in", amount: 22, reason: "Double booking", status: "Refunded", date: "25 Jun" },
+  { tx: "#TX-87655", who: "Stelios", amount: 35, reason: "Customer request", status: "Refunded", date: "22 Jun" },
+  { tx: "#TX-87601", who: "Marina", amount: 15, reason: "", status: null, date: "20 Jun" },
+  { tx: "#TX-87588", who: "Yiannis", amount: 28, reason: "Service issue", status: "Refunded", date: "18 Jun" },
+  { tx: "#TX-87540", who: "Alexis", amount: 18, reason: "Weather (rain)", status: "Refunded", date: "15 Jun" },
 ];
 
 // Cashier register session transactions

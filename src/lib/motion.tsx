@@ -7,6 +7,15 @@ export const prefersReducedMotion = (): boolean =>
   !!window.matchMedia &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
+/* Keep the full-screen beach backdrop still on phones / low-res / reduced-motion.
+   Scroll-driven parallax and the shoreline tween are the main source of jank on
+   mobile Safari, and pointless when the user asked to reduce motion. */
+export const staticBackdrop = (): boolean => {
+  if (prefersReducedMotion()) return true;
+  if (typeof window === "undefined" || !window.matchMedia) return false;
+  return window.matchMedia("(pointer: coarse)").matches || window.matchMedia("(max-width: 820px)").matches;
+};
+
 /* useReveal — scroll-driven entrance.
    Attach the returned ref to an element that has the `.reveal` class; when it
    scrolls into view we add `.is-in` (once). Optional stagger delay in ms. */

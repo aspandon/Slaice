@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { Icon } from "../lib/icons";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Field, Input, Select, Toggle, FutureBanner } from "../components/ui";
+import { useEffect, useState } from "react";
+import { Icon, type IconRenderer } from "../lib/icons";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Field, Input, Select, Toggle, Modal, FutureBanner } from "../components/ui";
 import { Sparkline, Funnel, LineChartMini } from "../components/charts";
 import { SlaiceLogo } from "../components/Brand";
 import { PLATFORM_TENANTS } from "../data/mock";
@@ -17,16 +17,127 @@ function ModuleList({ modules }: { modules: string[] }) {
   );
 }
 
+/* ---- Tenant editing ---- */
+type Tenant = (typeof PLATFORM_TENANTS)[number];
+const STATUS_OPTS: { label: string; tone: string }[] = [{ label: "Live", tone: "green" }, { label: "Setup", tone: "amber" }, { label: "Lead", tone: "slate" }];
+const STRIPE_OPTS: { label: string; tone: string }[] = [{ label: "charges ✓", tone: "green" }, { label: "KYC review", tone: "amber" }, { label: "onboarding", tone: "amber" }, { label: "pending", tone: "slate" }];
+const ALL_MODULES = ["Booking", "Ticket", "Invoice", "Pay"];
+
+function TenantEditModal({ tenant, onClose, onSave }: { tenant: Tenant | null; onClose: () => void; onSave: (t: Tenant) => void }) {
+  const [name, setName] = useState("");
+  const [subdomain, setSubdomain] = useState("");
+  const [mrr, setMrr] = useState("");
+  const [stripe, setStripe] = useState("pending");
+  const [status, setStatus] = useState("Lead");
+  const [modules, setModules] = useState<string[]>([]);
+  useEffect(() => {
+    if (!tenant) return;
+    setName(tenant.name); setSubdomain(tenant.subdomain); setMrr(tenant.mrr);
+    setStripe(tenant.stripe.label); setStatus(tenant.status.label); setModules(tenant.modules);
+  }, [tenant]);
+  const save = () => onSave({
+    name, subdomain, mrr,
+    stripe: { tone: STRIPE_OPTS.find((o) => o.label === stripe)?.tone ?? "slate", label: stripe },
+    status: { tone: STATUS_OPTS.find((o) => o.label === status)?.tone ?? "slate", label: status },
+    modules,
+  });
+  const toggleMod = (m: string) => setModules((ms) => (ms.includes(m) ? ms.filter((x) => x !== m) : [...ms, m]));
+  return (
+    <Modal open={tenant !== null} onClose={onClose} title="Edit tenant"
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn><Btn variant="primary" icon={Icon.check} onClick={save}>Save changes</Btn></>}>
+      <div className="space-y-3">
+        <div className="grid sm:grid-cols-2 gap-3">
+          <Field label="Tenant name"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
+          <Field label="Subdomain" hint="{tenant}.slaice.app"><Input value={subdomain} onChange={(e) => setSubdomain(e.target.value)} /></Field>
+          <Field label="Stripe"><Select value={stripe} onChange={(e) => setStripe(e.target.value)} options={STRIPE_OPTS.map((o) => o.label)} /></Field>
+          <Field label="Status"><Select value={status} onChange={(e) => setStatus(e.target.value)} options={STATUS_OPTS.map((o) => o.label)} /></Field>
+          <Field label="MRR"><Input value={mrr} onChange={(e) => setMrr(e.target.value)} placeholder="€0.0k / —" /></Field>
+        </div>
+        <div>
+          <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Modules</div>
+          <div className="flex flex-wrap gap-1.5">
+            {ALL_MODULES.map((m) => {
+              const on = modules.includes(m);
+              return (
+                <button key={m} type="button" onClick={() => toggleMod(m)} aria-pressed={on}
+                  className={`px-3 py-1.5 rounded-lg text-[12.5px] font-semibold ring-1 transition ${on ? "bg-teal-600 text-white ring-teal-600" : "bg-white text-slate-600 ring-slate-200 hover:ring-teal-400"}`}>{m}</button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ---- 72-hour breach-notification workflow ---- */
+const BREACH_STEPS: { label: string; detail: string; icon: IconRenderer; action: string }[] = [
+  { label: "Assess severity & scope", detail: "Identify the data, systems and number of subjects affected.", icon: Icon.search, action: "Scope assessed" },
+  { label: "Contain & remediate", detail: "Stop the exposure, rotate credentials, patch the vector.", icon: Icon.shield, action: "Contained" },
+  { label: "Assess notifiability (Art. 33/34)", detail: "Decide whether the breach is likely to risk subjects' rights.", icon: Icon.sliders, action: "Risk assessed" },
+  { label: "Notify the supervisory authority", detail: "File with the DPA within 72 hours of becoming aware.", icon: Icon.shieldAlert, action: "DPA notified" },
+  { label: "Notify affected tenants & subjects", detail: "Inform the controllers (tenants) and, if high-risk, the data subjects.", icon: Icon.mail, action: "Tenants notified" },
+  { label: "Log to the breach register", detail: "Record the facts, effects and remedial action for the audit trail.", icon: Icon.database, action: "Logged" },
+];
+
+function BreachWorkflowModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { toast } = useApp();
+  const [stage, setStage] = useState<"work" | "done">("work");
+  const [step, setStep] = useState(0);
+  useEffect(() => { if (open) { setStage("work"); setStep(0); } }, [open]);
+  const allDone = step >= BREACH_STEPS.length;
+  return (
+    <Modal open={open} onClose={onClose} title={stage === "done" ? "Workflow complete" : "Breach notification · 72h workflow"}
+      footer={stage === "done"
+        ? <Btn variant="primary" icon={Icon.check} onClick={onClose}>Close</Btn>
+        : <><Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+            <Btn variant="primary" icon={Icon.shieldCheck} disabled={!allDone} onClick={() => { setStage("done"); toast("Breach workflow logged · DPA + tenants notified within SLA.", { tone: "success" }); }}>File &amp; close</Btn></>}>
+      {stage === "done" ? (
+        <div className="py-2 text-center space-y-2 animate-pop">
+          <span className="mx-auto w-12 h-12 rounded-full bg-teal-600 text-white grid place-items-center shadow"><Icon.check size={22} /></span>
+          <div className="font-semibold text-navy-900">Notification filed</div>
+          <div className="text-[13px] text-slate-600 max-w-sm mx-auto">The supervisory authority and affected tenants were notified within the 72-hour SLA, and the incident is recorded in the breach register.</div>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="text-[12px] text-slate-500">Work each step — GDPR Art. 33 requires notifying the authority within 72 hours of awareness.</div>
+          <ol className="space-y-1.5">
+            {BREACH_STEPS.map((s, i) => {
+              const st = i < step ? "done" : i === step ? "active" : "todo";
+              const SIcon = s.icon;
+              return (
+                <li key={i} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ring-1 transition ${st === "done" ? "ring-teal-200 bg-teal-50/60" : st === "active" ? "ring-slaice-300 bg-white shadow-soft" : "ring-slate-100 bg-slate-50/50 opacity-60"}`}>
+                  <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${st === "done" ? "bg-teal-600 text-white" : st === "active" ? "bg-navy-900 text-white" : "bg-slate-200 text-slate-400"}`}>
+                    {st === "done" ? <Icon.check size={14} /> : <SIcon size={14} />}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-semibold text-navy-900">{s.label}</div>
+                    <div className="text-[11px] text-slate-500 leading-snug">{s.detail}</div>
+                  </div>
+                  {st === "active" && <Btn size="sm" variant="tint" onClick={() => setStep((x) => x + 1)}>{s.action}</Btn>}
+                  {st === "done" && <span className="text-[11px] font-semibold text-teal-700 shrink-0 inline-flex items-center gap-1"><Icon.check size={11} /> {s.action}</span>}
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 /* ============ TENANTS ============ */
 export function PlatformTenants() {
-  const { go } = useApp();
+  const { go, toast } = useApp();
+  const [tenants, setTenants] = useState<Tenant[]>(PLATFORM_TENANTS);
+  const [editIdx, setEditIdx] = useState<number | null>(null);
   return (
     <div className="animate-fade-up">
       <PageHead title="Tenants" sub="Slaice platform console — connected beaches & verticals." badge={<Badge tone="mvp">MVP</Badge>}
         actions={<Btn variant="indigo" icon={Icon.bolt} onClick={() => go("platform", "onboarding")}>Onboard tenant</Btn>} />
       <div className="grid sm:grid-cols-4 gap-4 mb-4">
-        <StatCard label="Active tenants" value={PLATFORM_TENANTS.filter((t) => t.status.label === "Live").length} sub="charging on Stripe" tone="indigo" />
-        <StatCard label="Pipeline" value={PLATFORM_TENANTS.filter((t) => t.status.label !== "Live").length} sub="setup + leads" />
+        <StatCard label="Active tenants" value={tenants.filter((t) => t.status.label === "Live").length} sub="charging on Stripe" tone="indigo" />
+        <StatCard label="Pipeline" value={tenants.filter((t) => t.status.label !== "Live").length} sub="setup + leads" />
         <StatCard label="Platform GMV" value="€704k" sub="season to date" />
         <StatCard label="Slaice fees" value="€35.2k" sub="5% application fee" tone="indigo" />
       </div>
@@ -49,16 +160,22 @@ export function PlatformTenants() {
         </Card>
       </div>
       <Card className="p-2">
-        <Table cols={["Tenant", "Subdomain", "Stripe", "Modules", "MRR", "Status"]} right={[4]}
-          rows={PLATFORM_TENANTS.map((t) => [
+        <Table cols={["Tenant", "Subdomain", "Stripe", "Modules", "MRR", "Status", ""]} right={[4]}
+          rows={tenants.map((t, i) => [
             t.name,
             t.subdomain,
             <Badge tone={t.stripe.tone}>{t.stripe.label}</Badge>,
             t.modules.length > 0 ? <ModuleList modules={t.modules} /> : <span className="text-slate-500">—</span>,
             t.mrr,
             <Badge tone={t.status.tone}>{t.status.label}</Badge>,
+            <Btn size="sm" variant="ghost" icon={Icon.edit} onClick={() => setEditIdx(i)}>Edit</Btn>,
           ])} />
       </Card>
+      <TenantEditModal
+        tenant={editIdx !== null ? tenants[editIdx] : null}
+        onClose={() => setEditIdx(null)}
+        onSave={(t) => { setTenants((arr) => arr.map((x, i) => (i === editIdx ? t : x))); setEditIdx(null); toast(`Saved changes to ${t.name}.`, { tone: "success" }); }}
+      />
       <Card className="p-5 mt-4">
         <div className="font-semibold text-navy-900 mb-3">Capability flags · Akti tou Iliou</div>
         <div className="mb-3">
@@ -87,6 +204,7 @@ export function PlatformTenants() {
 export function PlatformOnboarding() {
   const { toast, go } = useApp();
   const [step, setStep] = useState(0);
+  const [brand, setBrand] = useState("#0D9488");
   const steps = ["Tenant details", "Branding & modules", "Stripe Connect", "Map & go-live"];
   const next = () => setStep((s) => Math.min(steps.length - 1, s + 1));
   const prev = () => setStep((s) => Math.max(0, s - 1));
@@ -126,7 +244,10 @@ export function PlatformOnboarding() {
         {step === 1 && (
           <div className="animate-fade-in">
             <div className="grid sm:grid-cols-2 gap-3">
-              <Field label="Brand colour"><div className="flex gap-1.5">{["#0D9488", "#0ea5e9", "#f59e0b", "#a855f7", "#ef4444"].map((c) => <span key={c} className="w-7 h-7 rounded-lg ring-2 ring-white shadow cursor-pointer" style={{ background: c }} />)}</div></Field>
+              <Field label="Brand colour"><div className="flex gap-1.5">{["#0D9488", "#0ea5e9", "#f59e0b", "#a855f7", "#ef4444"].map((c) => (
+                <button key={c} type="button" onClick={() => setBrand(c)} aria-label={`Brand colour ${c}`} aria-pressed={brand === c}
+                  className={`w-7 h-7 rounded-lg shadow transition ${brand === c ? "ring-2 ring-offset-2 ring-navy-900" : "ring-2 ring-white hover:scale-110"}`} style={{ background: c }} />
+              ))}</div></Field>
               <Field label="Logo"><Btn variant="outline" size="sm" icon={Icon.download} onClick={() => toast("Demo — upload logo.")}>Upload</Btn></Field>
             </div>
             <div className="mt-4 text-[12px] font-semibold uppercase tracking-wide text-slate-600 mb-2">Enable modules</div>
@@ -315,6 +436,7 @@ export function PlatformLanding() {
 /* ============ COMPLIANCE & DPA (Platform / Slaice) ============ */
 export function PlatformCompliance() {
   const { toast } = useApp();
+  const [workflow, setWorkflow] = useState(false);
   return (
     <div className="animate-fade-up">
       <PageHead actions={<><Btn variant="outline" icon={Icon.download} onClick={() => toast("Demo — downloaded the GDPR/DPA pack (PDF).")}>DPA pack</Btn><Btn variant="primary" icon={Icon.shieldCheck} onClick={() => toast("Demo — compliance posture saved.")}>Save</Btn></>} />
@@ -339,7 +461,7 @@ export function PlatformCompliance() {
       <Card className="p-5 mt-4">
         <div className="flex items-center justify-between mb-3">
           <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.shieldAlert size={16} className="text-teal-600" /> Breach notification register</div>
-          <Btn size="sm" variant="outline" icon={Icon.bolt} onClick={() => toast("Demo — opened the 72-hour breach workflow.")}>Start workflow</Btn>
+          <Btn size="sm" variant="outline" icon={Icon.bolt} onClick={() => setWorkflow(true)}>Start workflow</Btn>
         </div>
         <div className="rounded-2xl bg-teal-50/70 ring-1 ring-teal-600/15 p-4 flex items-center gap-3">
           <span className="w-10 h-10 rounded-xl bg-white text-teal-700 grid place-items-center shrink-0 shadow-sm"><Icon.shieldCheck size={20} /></span>
@@ -349,6 +471,7 @@ export function PlatformCompliance() {
           </div>
         </div>
       </Card>
+      <BreachWorkflowModal open={workflow} onClose={() => setWorkflow(false)} />
     </div>
   );
 }

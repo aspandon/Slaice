@@ -41,16 +41,16 @@ export const DATA_RIGHTS = [
 
 // Admin DSAR (Data Subject Access Request) queue — 30-day statutory clock.
 export const DSAR_QUEUE = [
-  { id: "DSAR-204", type: "Access", subject: "Maria Kostis", email: "maria.k@example.com", received: "28 May", dueDays: 24, status: "In progress" },
-  { id: "DSAR-203", type: "Erasure", subject: "Nikos Papas", email: "n.papas@example.com", received: "26 May", dueDays: 22, status: "Awaiting ID" },
-  { id: "DSAR-202", type: "Portability", subject: "Sofia Lambrou", email: "sofia.l@example.com", received: "21 May", dueDays: 17, status: "In progress" },
-  { id: "DSAR-201", type: "Rectification", subject: "Giorgos Anton", email: "g.anton@example.com", received: "18 May", dueDays: 13, status: "In progress" },
-  { id: "DSAR-200", type: "Access", subject: "Christina Raptis", email: "c.raptis@example.com", received: "12 May", dueDays: 8, status: "Overdue soon" },
-  { id: "DSAR-199", type: "Erasure", subject: "Vasilis Dimou", email: "v.dimou@example.com", received: "9 May", dueDays: 5, status: "Awaiting ID" },
-  { id: "DSAR-198", type: "Objection", subject: "Marina Geo", email: "marina.geo@example.com", received: "7 May", dueDays: 3, status: "In progress" },
-  { id: "DSAR-197", type: "Access", subject: "Thanos Petrou", email: "t.petrou@example.com", received: "2 May", dueDays: -1, status: "Completed" },
-  { id: "DSAR-196", type: "Erasure", subject: "Elena Dropped", email: "elena.x@example.com", received: "28 Apr", dueDays: -4, status: "Completed" },
-  { id: "DSAR-195", type: "Rectification", subject: "Katerina Manou", email: "k.manou@example.com", received: "24 Apr", dueDays: -8, status: "Completed" },
+  { id: "DSAR-204", type: "Access", first: "Maria", last: "Kostis", email: "maria.kostis@example.com", phone: "+30 697 200 0014", received: "28 May", dueDays: 24, status: "In progress" },
+  { id: "DSAR-203", type: "Erasure", first: "Nikos", last: "Papas", email: "n.papas@example.com", phone: "+30 694 100 0002", received: "26 May", dueDays: 22, status: "Awaiting ID" },
+  { id: "DSAR-202", type: "Portability", first: "Sofia", last: "Lambrou", email: "sofia.lambrou@example.com", phone: "+30 697 200 0022", received: "21 May", dueDays: 17, status: "In progress" },
+  { id: "DSAR-201", type: "Rectification", first: "Giorgos", last: "Antoniou", email: "g.antoniou@example.com", phone: "+30 697 200 0031", received: "18 May", dueDays: 13, status: "In progress" },
+  { id: "DSAR-200", type: "Access", first: "Christina", last: "Raptis", email: "c.raptis@example.com", phone: "+30 694 100 0013", received: "12 May", dueDays: 8, status: "Overdue soon" },
+  { id: "DSAR-199", type: "Erasure", first: "Vasilis", last: "Dimou", email: "v.dimou@example.com", phone: "+30 694 100 0014", received: "9 May", dueDays: 5, status: "Awaiting ID" },
+  { id: "DSAR-198", type: "Objection", first: "Marina", last: "Georgiou", email: "marina.geo@example.com", phone: "+30 694 100 0017", received: "7 May", dueDays: 3, status: "In progress" },
+  { id: "DSAR-197", type: "Access", first: "Thanos", last: "Petrou", email: "t.petrou@example.com", phone: "+30 694 100 0016", received: "2 May", dueDays: -1, status: "Completed" },
+  { id: "DSAR-196", type: "Erasure", first: "Elena", last: "Drosou", email: "elena.drosou@example.com", phone: "+30 697 200 0048", received: "28 Apr", dueDays: -4, status: "Completed" },
+  { id: "DSAR-195", type: "Rectification", first: "Katerina", last: "Manou", email: "k.manou@example.com", phone: "+30 694 100 0019", received: "24 Apr", dueDays: -8, status: "Completed" },
 ];
 
 // Records of Processing Activities (Art. 30) — controller register.

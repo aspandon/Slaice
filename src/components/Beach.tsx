@@ -7,11 +7,48 @@ import type { BeachPreset } from "../data/backgrounds";
 import type { BeachBackground, SunbedState } from "../domain/types";
 import { BEDS, CANOPY, CANOPY_WEDGES, FIN, GLYPH_BOX, GLYPH_CONTENT, sunbedPalette } from "./sunbedGlyph";
 
+/* ---------- Sunbed-set mark (presentational) ----------
+   Just the SVG glyph — a parasol over twin loungers — with no button wrapper, so
+   it can render inside other clickable surfaces (the store-cluster previews on the
+   booking beach) without nesting buttons. Geometry + colour come from
+   sunbedGlyph.ts, the shared source the Konva grid renders from too. */
+export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, className = "" }: {
+  state?: SunbedState;
+  sel?: boolean;
+  size?: number;
+  fill?: boolean;
+  className?: string;
+}) {
+  const p = sunbedPalette(state, sel);
+  return (
+    <svg aria-hidden="true" width={fill ? "100%" : size} height={fill ? "100%" : size} viewBox={`0 0 ${GLYPH_BOX} ${GLYPH_BOX}`} className={`${fill ? "w-full h-full " : ""}${className}`}>
+      {/* Present the set loungers-up: mirror vertically about the content centre
+          (cy 37.5 → translate 2·cy). Canonical geometry is parasol-up. */}
+      <g transform={`translate(0 ${2 * GLYPH_CONTENT.cy}) scale(1 -1)`}>
+        {/* Twin loungers. */}
+        {BEDS.map((bed, i) => (
+          <g key={i}>
+            <rect x={bed.frame.x} y={bed.frame.y} width={bed.frame.w} height={bed.frame.h} rx={bed.frame.r} fill={p.bed} />
+            <rect x={bed.cushion.x} y={bed.cushion.y} width={bed.cushion.w} height={bed.cushion.h} rx={bed.cushion.r} fill={p.cushion} />
+            <path d={bed.slats} fill="none" stroke={p.slat} strokeWidth={1} strokeLinecap="round" />
+          </g>
+        ))}
+        {/* Pinwheel parasol — state-hue gores alternating with white. */}
+        {CANOPY_WEDGES.map((wdg, i) => (
+          <path key={`w${i}`} d={wdg.d} fill={wdg.lite ? p.lite : p.c} />
+        ))}
+        <circle cx={CANOPY.cx} cy={CANOPY.cy} r={CANOPY.r} fill="none" stroke={p.edge} strokeWidth={1} />
+        <circle cx={FIN.cx} cy={FIN.cy} r={FIN.r} fill={p.fin} />
+      </g>
+    </svg>
+  );
+}
+
 /* ---------- Single sunbed-set glyph ----------
    A parasol over twin loungers. state: "a" available · "h" on hold · "u"
-   unavailable · sel = selected. Geometry + colour come from sunbedGlyph.ts, the
-   shared source the Konva grid renders from too, so legend and map always match. */
-export function Sunbed({ state = "a", sel = false, onClick, label, price, size = 20, block = false, fill = false }: {
+   unavailable · sel = selected. The interactive button wrapper around SunbedMark
+   used by the legend + the booking grid. */
+export function Sunbed({ state = "a", sel = false, onClick, label, price, size = 20, block = false, fill = false, readOnly = false }: {
   state?: SunbedState;
   sel?: boolean;
   onClick?: () => void;
@@ -20,45 +57,37 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
   size?: number;
   block?: boolean;
   fill?: boolean;
+  /** Lock the glyph for display only — no hover lift, no click (used by the
+   *  later booking steps, where the chosen beach is shown but not editable). */
+  readOnly?: boolean;
 }) {
   const p = sunbedPalette(state, sel);
   const dim = p.dim;
+  const interactive = !dim && !readOnly;
   return (
     <button
-      disabled={dim}
+      disabled={dim || readOnly}
       onClick={onClick}
       aria-label={`Sunbed ${label || ""}${dim ? " unavailable" : state === "h" ? " on hold" : ` €${price}`}${sel ? ", selected" : ""}`}
       aria-pressed={sel}
-      title={`${label || ""} · ${dim ? "Unavailable" : state === "h" ? "On hold" : "€" + price}`}
       // `fill` lets the glyph scale to its cell (used by the wizard's pick grid so
       // each umbrella grows on desktop yet stays tappable on phones); `block`
       // alone keeps a fixed `size` but a full-cell hit area.
-      className={`group relative ${block || fill ? "w-full h-full grid place-items-center" : ""} ${dim ? "cursor-not-allowed" : "cursor-pointer hover:-translate-y-1.5 hover:scale-[1.18] hover:z-20"} transition-transform duration-200 ease-spring`}
+      className={`group relative ${block || fill ? "w-full h-full grid place-items-center" : ""} ${interactive ? "cursor-pointer hover:-translate-y-1.5 hover:scale-[1.18] hover:z-20" : dim ? "cursor-not-allowed" : "cursor-default"} transition-transform duration-200 ease-spring`}
       style={{ lineHeight: 0, willChange: "transform" }}
     >
-      <svg width={fill ? "100%" : size} height={fill ? "100%" : size} viewBox={`0 0 ${GLYPH_BOX} ${GLYPH_BOX}`} className={`${fill ? "w-full h-full " : ""}drop-shadow-sm transition-[filter] duration-200 group-hover:drop-shadow-[0_8px_10px_rgba(11,37,69,0.5)]`}>
-        {/* Present the set loungers-up: mirror vertically about the content centre
-            (cy 37.5 → translate 2·cy). Canonical geometry is parasol-up. */}
-        <g transform={`translate(0 ${2 * GLYPH_CONTENT.cy}) scale(1 -1)`}>
-          {/* Twin loungers. */}
-          {BEDS.map((bed, i) => (
-            <g key={i}>
-              <rect x={bed.frame.x} y={bed.frame.y} width={bed.frame.w} height={bed.frame.h} rx={bed.frame.r} fill={p.bed} />
-              <rect x={bed.cushion.x} y={bed.cushion.y} width={bed.cushion.w} height={bed.cushion.h} rx={bed.cushion.r} fill={p.cushion} />
-              <path d={bed.slats} fill="none" stroke={p.slat} strokeWidth={1} strokeLinecap="round" />
-            </g>
-          ))}
-          {/* Pinwheel parasol — state-hue gores alternating with white. */}
-          {CANOPY_WEDGES.map((wdg, i) => (
-            <path key={`w${i}`} d={wdg.d} fill={wdg.lite ? p.lite : p.c} />
-          ))}
-          <circle cx={CANOPY.cx} cy={CANOPY.cy} r={CANOPY.r} fill="none" stroke={p.edge} strokeWidth={1} />
-          <circle cx={FIN.cx} cy={FIN.cy} r={FIN.r} fill={p.fin} />
-        </g>
-      </svg>
+      <SunbedMark state={state} sel={sel} size={size} fill={fill} className="drop-shadow-sm transition-[filter] duration-200 group-hover:drop-shadow-[0_8px_10px_rgba(11,37,69,0.5)]" />
       {!dim && label && (
-        <span className="opacity-0 group-hover:opacity-100 pointer-events-none absolute left-1/2 -translate-x-1/2 -top-9 z-30 px-2 py-1 rounded-lg bg-navy-950 text-white text-[10px] whitespace-nowrap shadow-lg">
-          <b>{label}</b> · <span className="text-teal-300">●</span> {state === "h" ? "On hold" : "Available"} · €{price}
+        <span className="opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-30 px-3 py-2 rounded-xl bg-navy-900/95 text-white whitespace-nowrap shadow-float ring-1 ring-white/10 transition-opacity duration-150">
+          <span className="block font-bold text-[12.5px] leading-none tnum">{label}</span>
+          <span className="mt-1.5 flex items-center gap-1.5 text-[11.5px] leading-none">
+            <span className={`w-1.5 h-1.5 rounded-full ${state === "h" ? "bg-amber-400" : "bg-teal-400"}`} />
+            <span className="text-white/80">{state === "h" ? "On hold" : "Available"}</span>
+            <span className="text-white/30">·</span>
+            <span className="font-semibold">€{price}</span>
+          </span>
+          {/* caret */}
+          <span className="absolute left-1/2 -translate-x-1/2 top-full -mt-1.5 w-2.5 h-2.5 rotate-45 bg-navy-900/95" />
         </span>
       )}
     </button>
@@ -70,7 +99,7 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
    renders it behind `children`. Pass an explicit `background` to preview a
    specific scene (the picker does this); otherwise it reads the store, so the
    choice flows to the booking map and the customer surface automatically. */
-export function BeachBackdrop({ children, className = "", pos = "relative", parallax = false, background, preview = false, shoreline }: {
+export function BeachBackdrop({ children, className = "", pos = "relative", parallax = false, background, preview = false, shoreline, noVeg = false }: {
   children?: ReactNode;
   className?: string;
   pos?: string;
@@ -81,6 +110,9 @@ export function BeachBackdrop({ children, className = "", pos = "relative", para
   /** Sand-top fraction (0–1): higher pushes the shoreline down for an ocean-vista
    *  look (thin sand strip). Omit for the default balanced beach. */
   shoreline?: number;
+  /** Drop the green vegetation belt so the lower scene reads as pure sand —
+   *  used inside the booking wizard where guests tap sunbeds on the sand. */
+  noVeg?: boolean;
 }) {
   const ctx = useApp();
   const bg = background ?? ctx.background;
@@ -88,9 +120,9 @@ export function BeachBackdrop({ children, className = "", pos = "relative", para
     bg.kind === "custom" ? (
       <CustomBeach src={bg.src} parallax={parallax} />
     ) : parallax ? (
-      <BeachSceneLayered preset={presetById(bg.id)} shoreline={shoreline} />
+      <BeachSceneLayered preset={presetById(bg.id)} shoreline={shoreline} noVeg={noVeg} />
     ) : (
-      <BeachScene preset={presetById(bg.id)} preview={preview} shoreline={shoreline} />
+      <BeachScene preset={presetById(bg.id)} preview={preview} shoreline={shoreline} noVeg={noVeg} />
     );
   return (
     <div className={`${pos} overflow-hidden rounded-2xl ${className}`}>
@@ -144,7 +176,7 @@ function SeaWavelets({ dy = 0 }: { dy?: number }) {
 
 /* Flat beach scene — drives every gradient and decor layer from `preset`. Used
    by the booking map, the auth panel, the map editor canvas and the picker. */
-function BeachScene({ preset, preview = false, shoreline }: { preset: BeachPreset; preview?: boolean; shoreline?: number }) {
+function BeachScene({ preset, preview = false, shoreline, noVeg = false }: { preset: BeachPreset; preview?: boolean; shoreline?: number; noVeg?: boolean }) {
   const rid = useId().replace(/:/g, "");
   const id = (k: string) => `${k}-${rid}`;
   const grain = preset.grain && !preview;
@@ -218,7 +250,7 @@ function BeachScene({ preset, preview = false, shoreline }: { preset: BeachPrese
       {/* Optional decor (sun, palms, sailboat…) above the sand, behind the greenery. */}
       <SceneDecor preset={preset} id={id} />
 
-      {preset.veg && (
+      {preset.veg && !noVeg && (
         <>
           <path d={vegD(dy)} fill={`url(#${id("veg")})`} opacity="0.92" />
           <g fill="#3f6b2c" opacity="0.85">
@@ -251,7 +283,7 @@ function BeachScene({ preset, preview = false, shoreline }: { preset: BeachPrese
    the horizon reads as real depth. Each plane overscans (-12%) and its travel is
    clamped, so a translate never exposes an edge; useParallax no-ops under reduced
    motion, leaving the planes stacked exactly like the flat scene. */
-function BeachSceneLayered({ preset, shoreline }: { preset: BeachPreset; shoreline?: number }) {
+function BeachSceneLayered({ preset, shoreline, noVeg = false }: { preset: BeachPreset; shoreline?: number; noVeg?: boolean }) {
   const rid = useId().replace(/:/g, "");
   const id = (k: string) => `${k}-${rid}`;
   const dy = shorelineShift(shoreline);
@@ -325,7 +357,7 @@ function BeachSceneLayered({ preset, shoreline }: { preset: BeachPreset; shoreli
         </svg>
       </div>
       {/* Near plane — the vegetation belt and tree dots (moves the most). */}
-      {preset.veg && (
+      {preset.veg && !noVeg && (
         <div ref={near} className={plane} style={overscan}>
           <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
             <defs>

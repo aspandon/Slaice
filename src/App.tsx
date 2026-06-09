@@ -3,14 +3,10 @@ import type { ReactNode } from "react";
 import { AppCtx } from "./app/store";
 import type { AppContextValue, SpotlightHint, ToastOptions } from "./app/store";
 import { DEFAULT_PAGE } from "./data/personas";
-import { TopBar, Sidebar, BottomTabBar, SiteFooter, Toasts } from "./components/Shell";
+import { TopBar, Sidebar, BottomTabBar, SiteFooter, Toasts, PersonaSwitcher } from "./components/Shell";
 import { AuthGate } from "./screens/auth";
 import { ConsentBanner } from "./components/ConsentBanner";
-import { CommandPalette } from "./components/CommandPalette";
-import { BeachBackdrop } from "./components/Beach";
-import { LifeRing } from "./components/LifeRing";
-import { DiveTransition } from "./components/DiveTransition";
-import { prefersReducedMotion } from "./lib/motion";
+import { CustomerBackdrop } from "./components/CustomerBackdrop";
 import { routeFor } from "./routes";
 import { parseHash, buildHash, isValidPage } from "./app/router";
 import { HTML_LANG, normalizeLang } from "./app/i18n";
@@ -44,6 +40,7 @@ const saved = loadLS() as {
   consent?: Consent;
   background?: BeachBackground;
   beachLayout?: Record<string, SunbedSlot[]>;
+  zoneLogos?: Record<string, string>;
 };
 // A deep link in the URL wins over the last saved location.
 const initialRoute = parseHash();
@@ -68,16 +65,16 @@ export default function App() {
   const [consent, setConsentState] = useState<Consent>(saved.consent || DEFAULT_CONSENT);
   const [background, setBackground] = useState<BeachBackground>(saved.background || DEFAULT_BACKGROUND);
   const [beachLayout, setBeachLayoutState] = useState<Record<string, SunbedSlot[]>>(saved.beachLayout || {});
-  const [diving, setDiving] = useState(false);
+  const [zoneLogos, setZoneLogosState] = useState<Record<string, string>>(saved.zoneLogos || {});
 
   useEffect(() => {
     // Guard the write: Safari Private Mode and a full quota throw on setItem.
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos }));
     } catch {
       /* storage unavailable (private mode / quota) — ignore */
     }
-  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout]);
+  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos]);
 
   // Keep <html lang> in sync with the chosen language (a11y / SEO correctness).
   useEffect(() => {
@@ -98,6 +95,17 @@ export default function App() {
   // Publish (or replace) a zone's umbrella layout from the admin Map Editor.
   const setZoneLayout = useCallback((zoneId: string, slots: SunbedSlot[]) => {
     setBeachLayoutState((m) => ({ ...m, [zoneId]: slots }));
+  }, []);
+  // Set (or clear, with null) a store's logo from the admin Map Editor.
+  const setZoneLogo = useCallback((zoneId: string, src: string | null) => {
+    setZoneLogosState((m) => {
+      if (!src) {
+        const next = { ...m };
+        delete next[zoneId];
+        return next;
+      }
+      return { ...m, [zoneId]: src };
+    });
   }, []);
 
   const page = pageByPersona[persona];
@@ -147,14 +155,11 @@ export default function App() {
     setHint(h ? { ...h, persona: p, page: k, ts: Date.now() } : null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
-  // Cinematic entry: a beach "dive" wipe that covers the home→wizard swap, then
-  // clears to reveal the immersive flow. Skipped under reduced motion.
-  const dive = useCallback(() => {
-    if (prefersReducedMotion()) { go("customer", "plan"); return; }
-    setDiving(true);
-    window.setTimeout(() => go("customer", "plan"), 360);
-    window.setTimeout(() => setDiving(false), 1000);
-  }, [go]);
+  // Cinematic entry into the booking wizard. The "reveal" is now the page
+  // background itself: entering the "plan" page lifts the shoreline so the sand
+  // sweeps up into view (see CustomerBackdrop) and the immersive flow mounts on
+  // top — so this just navigates.
+  const dive = useCallback(() => go("customer", "plan"), [go]);
 
   const addToCart = useCallback((item: CartItem) => setCart((c) => (c.find((x) => x.kind === item.kind && x.id === item.id) ? c : [...c, item])), []);
   const removeFromCart = useCallback((kind: CartItem["kind"], id: string) => setCart((c) => c.filter((x) => !(x.kind === kind && x.id === id))), []);
@@ -162,9 +167,14 @@ export default function App() {
 
   // Memoised so the provider value keeps a stable identity across renders.
   const ctx = useMemo<AppContextValue>(
-    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout }),
-    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout],
+    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo }),
+    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo],
   );
+
+  // The booking wizard takes over the whole viewport: the beach becomes the
+  // tappable surface, so the standing chrome (tenant logo, bottom tab bar) steps
+  // aside and the backdrop lifts its shoreline.
+  const immersive = persona === "customer" && page === "plan";
 
   return (
     <AppCtx.Provider value={ctx}>
@@ -172,18 +182,12 @@ export default function App() {
         <AuthGate />
       ) : (
         <div className="w-full px-3 sm:px-5 pt-4 relative min-h-dvh flex flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-1">
-          {persona === "customer" && (
-            <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
-              <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax shoreline={0.8} />
-              {/* A life-buoy bobbing in the open-water band on the left. */}
-              <LifeRing className="hidden sm:block absolute left-[8%] top-[72%] w-[60px] h-[60px]" />
-            </div>
-          )}
-          {persona === "customer" && (
+          {persona === "customer" && <CustomerBackdrop immersive={immersive} />}
+          {persona === "customer" && !immersive && (
             <button
               onClick={() => go("customer", "home")}
               aria-label="Go to home"
-              className="flex justify-center items-center pt-3 pb-2 w-full group hover:opacity-90 active:opacity-75 transition-opacity"
+              className="flex justify-center items-center pt-3 pb-2 mb-6 sm:mb-8 w-full group hover:opacity-90 active:opacity-75 transition-opacity"
             >
               <img src={`${import.meta.env.BASE_URL}tenant-logo.png`} alt="Ακτή του Ηλίου" className="h-[100px] w-auto" />
             </button>
@@ -197,21 +201,29 @@ export default function App() {
               <main className="min-w-0">{routeFor(persona, page)}</main>
             </div>
           ) : (
-            <div className="flex gap-5">
+            <div className="flex-1 flex gap-5 min-h-0">
               <Sidebar persona={persona} page={page} setPage={setPage} />
               <main className="flex-1 min-w-0">{routeFor(persona, page)}</main>
             </div>
           )}
           {/* The tenant badge bows out once the guest dives into the booking
               wizard, so the beach + zones take over the screen. */}
-          {!(persona === "customer" && page === "plan") && <SiteFooter />}
+          {!immersive && <SiteFooter />}
+          {/* Bottom tab bar (mobile only) stays visible everywhere — including the
+              immersive booking flow — so global navigation is always reachable. */}
           <BottomTabBar persona={persona} page={page} setPage={setPage} />
+          {/* The "view as another persona" control lives in the bottom-right
+              corner on the customer surface — a quiet demo affordance, opening
+              upward, lifted clear of the mobile bottom tab bar. */}
+          {persona === "customer" && (
+            <div className="fixed right-3 sm:right-5 z-40 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] md:bottom-4">
+              <PersonaSwitcher persona={persona} setPersona={setPersona} variant="demo" side="top" />
+            </div>
+          )}
         </div>
       )}
       <ConsentBanner />
-      {signedIn && <CommandPalette />}
       <Toasts items={toasts} onDismiss={dismissToast} />
-      <DiveTransition active={diving} />
     </AppCtx.Provider>
   );
 }

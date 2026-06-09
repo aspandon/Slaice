@@ -1,17 +1,21 @@
-import { lazy, Suspense, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
-import { Icon } from "../lib/icons";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, ErrorState, useMockLoad, FutureBanner, ContextPanel } from "../components/ui";
+import { lazyWithReload } from "../lib/staleChunk";
+import { SortHeader, Pager, dateVal, cmpVal, type SortState } from "../components/TableTools";
+import { Icon, type IconRenderer } from "../lib/icons";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, ErrorState, useMockLoad, FutureBanner, ContextPanel, Spinner } from "../components/ui";
 import type { TabEntry } from "../components/ui";
 import { BarChart, HBarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts";
-import { BeachBackdrop } from "../components/Beach";
+import { BeachBackdrop, SunbedMark } from "../components/Beach";
 
-// Lazy so konva only loads when the Sunbed-layout tab is opened.
-const BeachCanvas = lazy(() => import("../components/BeachCanvas").then((m) => ({ default: m.BeachCanvas })));
+// Lazy so konva only loads when the Sunbed-layout tab is opened. lazyWithReload
+// recovers if a redeploy has renamed this chunk under an already-open tab.
+const BeachCanvas = lazyWithReload(() => import("../components/BeachCanvas").then((m) => ({ default: m.BeachCanvas })));
 import { BackgroundPicker } from "../components/BackgroundPicker";
+import { fileToBackgroundSrc } from "../lib/image";
 import { ZONES, zoneLayout } from "../data/beach";
 import type { SunbedSlot, SunbedState, SunbedKind } from "../domain/types";
-import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS } from "../data/mock";
+import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS, personByFirst, CUSTOMERS, type AdminBooking } from "../data/mock";
 import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr";
 import { useApp } from "../app/store";
 import { downloadCSV } from "../lib/download";
@@ -254,13 +258,33 @@ function ZoneArrangeEditor() {
    each one's availability/price, then publish. The saved SunbedSlot[] lands in
    the app store and the booking wizard renders that exact arrangement. */
 function SunbedLayoutEditor() {
-  const { toast, beachLayout, setZoneLayout } = useApp();
+  const { toast, beachLayout, setZoneLayout, zoneLogos, setZoneLogo } = useApp();
   const [zoneId, setZoneId] = useState(ZONES[0].id);
   const zone = ZONES.find((z) => z.id === zoneId) ?? ZONES[0];
   // Working copy: the published layout if any, otherwise the default grid.
   const [slots, setSlots] = useState<SunbedSlot[]>(() => beachLayout[zoneId] ?? zoneLayout(zone));
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [snapOn, setSnapOn] = useState(true);
+  // Grid generator — total sets + columns per row (rows derive from the two).
+  const [gridCount, setGridCount] = useState(() => (beachLayout[ZONES[0].id] ?? zoneLayout(ZONES[0])).length);
+  const [gridCols, setGridCols] = useState(8);
+  const [logoBusy, setLogoBusy] = useState(false);
+  const logo = zoneLogos[zoneId];
+  const onLogo = async (file?: File) => {
+    if (!file) return;
+    setLogoBusy(true);
+    try {
+      // Small max dims — a logo only needs to read at ~thumbnail size and is
+      // persisted to localStorage alongside the rest of the saved state.
+      const src = await fileToBackgroundSrc(file, { maxW: 256, maxH: 256, quality: 0.9 });
+      setZoneLogo(zoneId, src);
+      toast(`Logo set for ${zone.name}.`, { tone: "success" });
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "That image could not be used.", { tone: "error" });
+    } finally {
+      setLogoBusy(false);
+    }
+  };
 
   const selList = slots.filter((s) => sel.has(s.id));
   const one = selList.length === 1 ? selList[0] : null;
@@ -270,9 +294,20 @@ function SunbedLayoutEditor() {
 
   const switchZone = (id: string) => {
     const z = ZONES.find((x) => x.id === id) ?? ZONES[0];
+    const next = beachLayout[id] ?? zoneLayout(z);
     setZoneId(id);
-    setSlots(beachLayout[id] ?? zoneLayout(z));
+    setSlots(next);
+    setGridCount(next.length);
     setSel(new Set());
+  };
+  // Lay out `count` sets in a grid `cols` wide (last row fills left-to-right).
+  const generateGrid = () => {
+    const cols = Math.max(1, Math.min(16, gridCols));
+    const count = Math.max(1, Math.min(120, gridCount));
+    const next = zoneLayout(zone, cols, Math.ceil(count / cols)).slice(0, count);
+    setSlots(next);
+    setSel(new Set());
+    toast(`Generated ${count} sets · ${cols} per row for ${zone.name}.`, { tone: "success" });
   };
   const select = (id: string, additive: boolean) =>
     setSel((s) => {
@@ -335,6 +370,44 @@ function SunbedLayoutEditor() {
 
       <Card className="p-5 h-max">
         <div className="font-semibold text-navy-900 mb-3 flex items-center gap-2"><span className="w-3 h-3 rounded-full" style={{ background: zone.color }} /> {zone.name} · sunbeds</div>
+
+        {/* Optional store logo — shown under the store name on the customer beach. */}
+        <div className="mb-3 rounded-xl ring-1 ring-slate-200 bg-slate-50 p-2.5 flex items-center gap-2.5">
+          <span className="w-12 h-12 rounded-lg bg-white ring-1 ring-slate-200 grid place-items-center overflow-hidden shrink-0">
+            {logo ? <img src={logo} alt={`${zone.name} logo`} className="w-full h-full object-contain" /> : <Icon.image size={18} className="text-slate-300" />}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[12.5px] font-semibold text-navy-900">Store logo</div>
+            <div className="text-[11px] text-slate-500 leading-tight">Optional · shown under the store name on the beach.</div>
+          </div>
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            <label className={`cursor-pointer inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold ring-1 bg-white transition ${logoBusy ? "ring-teal-300 text-teal-700" : "ring-slate-200 text-slate-700 hover:ring-teal-400"}`}>
+              <input type="file" accept="image/*" aria-label={`Upload a logo for ${zone.name}`} className="sr-only" disabled={logoBusy}
+                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; void onLogo(f); }} />
+              {logoBusy ? <Spinner size={12} /> : <Icon.upload size={12} />} {logo ? "Replace" : "Upload"}
+            </label>
+            {logo && <button onClick={() => setZoneLogo(zoneId, null)} className="text-[11px] text-slate-500 hover:text-rose-600">Remove</button>}
+          </div>
+        </div>
+
+        {/* Grid generator — set the number of sets + columns per row, then lay
+            out a fresh grid (rows are derived). Fine-tune individual sets below. */}
+        <div className="mb-3 rounded-xl ring-1 ring-slate-200 bg-slate-50 p-2.5">
+          <div className="text-[12.5px] font-semibold text-navy-900 mb-2 flex items-center gap-1.5"><Icon.grid size={13} /> Grid generator</div>
+          <div className="grid grid-cols-2 gap-2">
+            <Field label="Umbrella sets">
+              <Input type="number" min={1} max={120} value={gridCount} onChange={(e) => setGridCount(Math.max(1, Math.min(120, Math.round(+e.target.value) || 1)))} />
+            </Field>
+            <Field label="Columns / row">
+              <Input type="number" min={1} max={16} value={gridCols} onChange={(e) => setGridCols(Math.max(1, Math.min(16, Math.round(+e.target.value) || 1)))} />
+            </Field>
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-2">
+            <span className="text-[11px] text-slate-500 tnum">{gridCols} × {Math.ceil(gridCount / gridCols)} rows</span>
+            <Btn variant="tint" size="sm" icon={Icon.grid} onClick={generateGrid}>Generate</Btn>
+          </div>
+        </div>
+
         <div className="grid grid-cols-3 gap-2 mb-3">
           <Btn variant="tint" size="sm" icon={Icon.plus} onClick={addBed}>Add</Btn>
           <Btn variant="ghost" size="sm" icon={Icon.grid} onClick={duplicate} disabled={!sel.size}>Copy</Btn>
@@ -401,16 +474,104 @@ export function AdminMapEditor() {
 }
 
 /* ============ BOOKINGS LIST ============ */
+/* ---- Shared send-channel picker — QR / offers via Email · Viber · SMS ---- */
+type SendChannel = "Email" | "Viber" | "SMS";
+const SEND_CHANNELS: { key: SendChannel; icon: IconRenderer; color: string }[] = [
+  { key: "Email", icon: Icon.mail, color: "#0d9488" },
+  { key: "Viber", icon: Icon.chat, color: "#7360f2" },
+  { key: "SMS", icon: Icon.phone, color: "#16a34a" },
+];
+
+function SendModal({ open, onClose, title, intro, email, phone, sendLabel = "Send", onSend }: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  intro?: string;
+  email?: string;
+  phone?: string;
+  sendLabel?: string;
+  onSend: (channel: SendChannel, dest: string) => void;
+}) {
+  const [channel, setChannel] = useState<SendChannel>("Email");
+  useEffect(() => { if (open) setChannel("Email"); }, [open]);
+  const destOf = (c: SendChannel) => (c === "Email" ? email : phone) || "—";
+  return (
+    <Modal open={open} onClose={onClose} title={title}
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+        <Btn variant="primary" icon={Icon.check} onClick={() => { onSend(channel, destOf(channel)); onClose(); }}>{sendLabel} via {channel}</Btn></>}>
+      <div className="space-y-3">
+        {intro && <p className="text-[13px] text-slate-600 -mt-1">{intro}</p>}
+        <div className="grid grid-cols-3 gap-2">
+          {SEND_CHANNELS.map((c) => {
+            const CIcon = c.icon;
+            const on = channel === c.key;
+            return (
+              <button key={c.key} type="button" onClick={() => setChannel(c.key)} aria-pressed={on}
+                className={`rounded-xl p-3 text-center ring-1 transition ${on ? "ring-2 ring-teal-500 bg-teal-50/50" : "ring-slate-200 bg-white hover:ring-teal-400"}`}>
+                <span className="mx-auto mb-1.5 w-10 h-10 rounded-xl grid place-items-center text-white shadow-sm" style={{ background: c.color }}><CIcon size={18} /></span>
+                <div className="text-[13px] font-semibold text-navy-900">{c.key}</div>
+                <div className="text-[10.5px] text-slate-500 truncate">{destOf(c.key)}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* Items of one booking, stacked — a customer who reserved several sunbeds plus
+   parking / a locker / tickets sees them all together under their booking id. */
+function BookingItems({ items }: { items: string[] }) {
+  if (items.length <= 1) return <span className="whitespace-nowrap">{items[0] ?? "—"}</span>;
+  return (
+    <div className="space-y-0.5 min-w-[170px]">
+      {items.map((it, i) => (
+        <div key={i} className="flex items-center gap-1.5 whitespace-nowrap">
+          <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
+          <span>{it}</span>
+        </div>
+      ))}
+      <div className="text-[11px] text-slate-400 pt-0.5">{items.length} items · one booking</div>
+    </div>
+  );
+}
+
+type EnrichedBooking = AdminBooking & { surname: string; phone: string; email: string };
+
 export function AdminBookings() {
   const { toast } = useApp();
   const [q, setQ] = useState("");
-  const all = ADMIN_BOOKINGS;
+  const [page, setPage] = useState(0);
+  const [sort, setSort] = useState<SortState>(null);
+  const [sendFor, setSendFor] = useState<EnrichedBooking | null>(null);
   const loading = useMockLoad();
-  const rows = all.filter((r) => (r[0] + r[1] + r[2]).toLowerCase().includes(q.toLowerCase()));
+  const PAGE = 30;
   const chan = (c: string) => ({ Online: "blue", "Walk-in": "amber", Phone: "indigo", Cashier: "green" }[c] || "slate");
+  const enriched: EnrichedBooking[] = ADMIN_BOOKINGS.map((b) => {
+    const p = personByFirst(b.who);
+    return { ...b, surname: p?.last ?? "", phone: p?.phone ?? "", email: p?.email ?? "" };
+  });
+  const filtered = enriched.filter((b) => (b.id + b.who + b.surname + b.phone + b.items.join(" ")).toLowerCase().includes(q.toLowerCase()));
+  const sortVal = (b: EnrichedBooking): string | number => {
+    switch (sort?.key) {
+      case "id": return b.id;
+      case "name": return b.who;
+      case "surname": return b.surname;
+      case "amount": return b.amount;
+      case "date": return dateVal(b.date);
+      default: return 0;
+    }
+  };
+  const sorted = sort ? [...filtered].sort((a, b) => cmpVal(sortVal(a), sortVal(b)) * sort.dir) : filtered;
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = sorted.slice(safePage * PAGE, safePage * PAGE + PAGE);
+  const onSort = (k: string) => { setSort((s) => (s?.key === k ? { key: k, dir: s.dir === 1 ? -1 : 1 } : { key: k, dir: 1 })); setPage(0); };
   const exportCSV = () => {
-    downloadCSV("bookings.csv", ["Booking", "Customer", "Sunbed", "Date", "Channel", "Status", "Amount (€)"], rows);
-    toast(`Exported ${rows.length} bookings to CSV.`, { tone: "success" });
+    downloadCSV("bookings.csv", ["Booking", "Name", "Surname", "Phone", "Items", "Date", "Channel", "Status", "Amount (€)"],
+      sorted.map((b) => [b.id, b.who, b.surname || "—", b.phone || "—", b.items.join(" + "), b.date, b.channel, b.status, b.amount]));
+    toast(`Exported ${sorted.length} bookings to CSV.`, { tone: "success" });
   };
   return (
     <div>
@@ -419,63 +580,186 @@ export function AdminBookings() {
             doesn't add a separate strip above. Export hugs the right edge. */}
         <div className="flex items-center gap-3 mb-3 flex-wrap">
           <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-sm flex-1 min-w-[200px] text-slate-600">
-            <Icon.search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search bookings…" className="text-sm outline-none w-full bg-transparent text-ink" />
+            <Icon.search size={16} /><input value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="Search bookings…" className="text-sm outline-none w-full bg-transparent text-ink" />
           </div>
           <Btn variant="outline" icon={Icon.download} onClick={exportCSV} className="ml-auto">Export</Btn>
         </div>
         {loading ? (
-          <TableSkeleton rows={5} cols={8} />
-        ) : rows.length === 0 ? (
+          <TableSkeleton rows={5} cols={9} />
+        ) : sorted.length === 0 ? (
           <EmptyState icon={Icon.search} title="No matching bookings" body={`Nothing matches “${q}”. Try a different name, sunbed code or booking ID.`} />
         ) : (
-          <Table cols={["Booking", "Customer", "Sunbed", "Date", "Channel", "Status", "Amount", ""]} right={[6]}
-            rows={rows.map((r) => [r[0], r[1], r[2], r[3], <Badge tone={chan(r[4])}>{r[4]}</Badge>, <StatusBadge status={r[5]} />, `€${r[6]}`,
-              <Btn size="sm" variant="ghost" icon={Icon.mail} onClick={() => toast(`QR re-sent for ${r[0]}.`, { tone: "success" })}>Resend QR</Btn>])} />
+          <>
+            <Table cols={[
+              <SortHeader label="Booking" k="id" sort={sort} onSort={onSort} />,
+              <SortHeader label="Name" k="name" sort={sort} onSort={onSort} />,
+              <SortHeader label="Surname" k="surname" sort={sort} onSort={onSort} />,
+              "Phone", "Items",
+              <SortHeader label="Date" k="date" sort={sort} onSort={onSort} />,
+              "Channel", "Status",
+              <SortHeader label="Amount" k="amount" sort={sort} onSort={onSort} align="right" />,
+              "",
+            ]} right={[8]}
+              rows={pageRows.map((b) => [
+                b.id,
+                b.who,
+                b.surname || <span className="text-slate-400">—</span>,
+                b.phone ? <span className="tnum whitespace-nowrap">{b.phone}</span> : <span className="text-slate-400">—</span>,
+                <BookingItems items={b.items} />,
+                b.date,
+                <Badge tone={chan(b.channel)}>{b.channel}</Badge>,
+                <StatusBadge status={b.status} />,
+                `€${b.amount}`,
+                <Btn size="sm" variant="ghost" icon={Icon.mail} onClick={() => setSendFor(b)}>Resend QR</Btn>,
+              ])} />
+            {pageCount > 1 && <Pager page={safePage} pageCount={pageCount} total={sorted.length} pageSize={PAGE} onPage={setPage} />}
+          </>
         )}
       </Card>
+      <SendModal
+        open={sendFor !== null}
+        onClose={() => setSendFor(null)}
+        title="Resend QR"
+        intro={sendFor ? `Send the gate QR for ${sendFor.id} (${sendFor.who}${sendFor.surname ? " " + sendFor.surname : ""}) again.` : undefined}
+        email={sendFor?.email}
+        phone={sendFor?.phone}
+        sendLabel="Resend"
+        onSend={(ch, dest) => toast(`QR for ${sendFor?.id} re-sent via ${ch} to ${dest}.`, { tone: "success" })}
+      />
+    </div>
+  );
+}
+
+/* Compact live beach coverage for the manual booking — the same umbrella sets the
+   customer sees, scaled into the form. Available sets are tappable (fill the
+   code); taken sets are dimmed. */
+function ManualCoverage({ zone, slots, selectedCode, onPick }: {
+  zone: { name: string };
+  slots: SunbedSlot[];
+  selectedCode: string;
+  onPick: (id: string) => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [box, setBox] = useState({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => { const r = el.getBoundingClientRect(); setBox({ w: r.width, h: r.height }); };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const size = useMemo(() => {
+    const base = Math.min(40, box.w * 0.07);
+    if (slots.length < 2 || box.w === 0) return Math.max(16, base);
+    let min = Infinity;
+    for (let i = 0; i < slots.length; i++) {
+      for (let j = i + 1; j < slots.length; j++) {
+        const dx = ((slots[i].x - slots[j].x) / 100) * box.w;
+        const dy = ((slots[i].y - slots[j].y) / 100) * box.h;
+        min = Math.min(min, Math.hypot(dx, dy));
+      }
+    }
+    return Math.max(14, Math.min(base, min * 0.82));
+  }, [slots, box]);
+  const free = slots.filter((s) => s.state === "a").length;
+  const want = selectedCode.trim().toUpperCase();
+  return (
+    <div className="mt-4">
+      <div className="flex items-center justify-between mb-1.5">
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.umbrella size={12} /> Live beach coverage · {zone.name}</div>
+        <div className="text-[11px] text-slate-500 tnum">{free} free · {slots.length} sets</div>
+      </div>
+      <div ref={ref} className="relative w-full rounded-xl ring-1 ring-slate-200 overflow-hidden" style={{ aspectRatio: "16 / 6", background: "linear-gradient(to bottom, #bfe6f5 0%, #cdebf6 16%, #f1ddb4 30%, #ecd3a1 100%)" }}>
+        {slots.map((s) => {
+          const sel = !!want && s.id.toUpperCase() === want;
+          const taken = s.state !== "a";
+          return (
+            <button
+              key={s.id}
+              type="button"
+              disabled={taken}
+              onClick={() => onPick(s.id)}
+              title={`${s.id} · ${taken ? "taken" : "available"}`}
+              className={`absolute -translate-x-1/2 -translate-y-1/2 transition-transform ${taken ? "opacity-35 cursor-not-allowed" : "hover:scale-110 hover:z-10 cursor-pointer"}`}
+              style={{ left: `${s.x}%`, top: `${s.y}%`, width: size, height: size }}
+            >
+              <SunbedMark state={s.state} sel={sel} fill />
+            </button>
+          );
+        })}
+      </div>
+      <div className="mt-1 text-[11px] text-slate-400">Tap an available set to fill the code · taken sets are dimmed.</div>
     </div>
   );
 }
 
 /* ============ MANUAL / PHONE BOOKING ============ */
 export function AdminManual() {
-  const { toast } = useApp();
+  const { toast, beachLayout } = useApp();
   const [done, setDone] = useState(false);
+  const [zoneName, setZoneName] = useState(ZONES[0].name);
+  const [code, setCode] = useState("");
+  const [email, setEmail] = useState("maria@example.com");
+  const [mphone, setMphone] = useState("+30 694 100 0001");
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sentVia, setSentVia] = useState<SendChannel>("Email");
+  const [sentTo, setSentTo] = useState("");
   const today = new Date().toISOString().slice(0, 10);
+  const zone = ZONES.find((z) => z.name === zoneName) ?? ZONES[0];
+  const slots = beachLayout[zone.id] ?? zoneLayout(zone);
+  const reserve = () => {
+    if (!code.trim()) { toast("Pick a set on the map (or type a code) first.", { tone: "error" }); return; }
+    setSendOpen(true);
+  };
   return (
-    <div className="animate-fade-up grid lg:grid-cols-[1fr_320px] gap-5">
-      <div>
-        <PageHead title="Manual / Phone Booking" sub="Reserve and block a sunbed without taking payment (VIP / phone), then send the QR to the customer." badge={<Badge tone="mvp">MVP</Badge>} />
-        <Card className="p-5">
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="Customer name"><Input placeholder="e.g. Maria K." defaultValue="Maria K." /></Field>
-            <Field label="Customer e-mail"><Input placeholder="maria@example.com" defaultValue="maria@example.com" /></Field>
-            <Field label="Zone"><Select options={ZONES.map((z) => z.name)} /></Field>
-            <Field label="Sunbed code"><Input placeholder="CE-92" defaultValue="CE-92" /></Field>
-            <Field label="Date"><Input type="date" defaultValue={today} /></Field>
-            <Field label="Mark as"><Select options={["Unpaid (manual)", "Comp / VIP", "Pay later"]} /></Field>
-          </div>
-          <div className="mt-4 flex flex-col sm:flex-row gap-2">
-            <Btn variant="primary" full className="sm:w-auto" icon={Icon.lock} onClick={() => { setDone(true); toast("Demo — sunbed blocked & QR e-mailed (booking flagged unpaid/manual)."); }}>Reserve & send QR</Btn>
-            <Btn variant="outline" full className="sm:w-auto" icon={Icon.umbrella} onClick={() => toast("Demo — opens the live map to pick a bed.")}>Pick on map</Btn>
-          </div>
-        </Card>
-        {done && (
-          <Card className="p-5 mt-4 flex items-center gap-4 animate-fade-up">
-            <QR size={96} seed="MANUAL-CE92" />
-            <div>
-              <div className="font-semibold text-navy-900 flex items-center gap-2">Reserved <Badge tone="amber">Unpaid</Badge></div>
-              <div className="text-sm text-slate-600">Central · CE-92 — QR sent to maria@example.com. The customer can pay later or present the QR at the gate.</div>
+    <>
+      <div className="animate-fade-up grid lg:grid-cols-[1fr_320px] gap-5">
+        <div>
+          <PageHead title="Manual / Phone Booking" sub="Reserve and block a sunbed without taking payment (VIP / phone), then send the QR to the customer." badge={<Badge tone="mvp">MVP</Badge>} />
+          <Card className="p-5">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <Field label="Customer name"><Input placeholder="e.g. Maria K." defaultValue="Maria K." /></Field>
+              <Field label="Customer e-mail"><Input placeholder="maria@example.com" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
+              <Field label="Customer phone"><Input placeholder="+30 694 …" value={mphone} onChange={(e) => setMphone(e.target.value)} /></Field>
+              <Field label="Zone"><Select value={zoneName} onChange={(e) => { setZoneName(e.target.value); setCode(""); }} options={ZONES.map((z) => z.name)} /></Field>
+              <Field label="Sunbed code"><Input placeholder="CE-92" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} /></Field>
+              <Field label="Date"><Input type="date" defaultValue={today} /></Field>
+              <Field label="Mark as"><Select options={["Unpaid (manual)", "Comp / VIP", "Pay later"]} /></Field>
+            </div>
+            <ManualCoverage zone={zone} slots={slots} selectedCode={code} onPick={(id) => setCode(id)} />
+            <div className="mt-4">
+              <Btn variant="primary" full className="sm:w-auto" icon={Icon.lock} onClick={reserve}>Reserve &amp; send QR</Btn>
             </div>
           </Card>
-        )}
+          {done && (
+            <Card className="p-5 mt-4 flex items-center gap-4 animate-fade-up">
+              <QR size={96} seed={`MANUAL-${code}`} />
+              <div>
+                <div className="font-semibold text-navy-900 flex items-center gap-2">Reserved <Badge tone="amber">Unpaid</Badge></div>
+                <div className="text-sm text-slate-600">{zone.name} · {code} — QR sent via <b>{sentVia}</b> to {sentTo}. The customer can pay later or present the QR at the gate.</div>
+              </div>
+            </Card>
+          )}
+        </div>
+        <ContextPanel title="Manual / phone bookings" items={[
+          { icon: Icon.phone, title: "Block without payment", body: "Used for phone bookings, VIP comps, and pay-later guests." },
+          { icon: Icon.mail, title: "QR by e-mail / Viber / SMS", body: "The guest gets the same gate QR as an online booking, on the channel you pick." },
+          { icon: Icon.cash, title: "Settle later", body: "Mark unpaid bookings paid in Bookings when they arrive." },
+        ]} footer="Manual bookings appear in Reporting with channel = Phone." />
       </div>
-      <ContextPanel title="Manual / phone bookings" items={[
-        { icon: Icon.phone, title: "Block without payment", body: "Used for phone bookings, VIP comps, and pay-later guests." },
-        { icon: Icon.mail, title: "QR by e-mail", body: "The guest gets the same gate QR as an online booking." },
-        { icon: Icon.cash, title: "Settle later", body: "Mark unpaid bookings paid in Bookings when they arrive." },
-      ]} footer="Manual bookings appear in Reporting with channel = Phone." />
-    </div>
+      <SendModal
+        open={sendOpen}
+        onClose={() => setSendOpen(false)}
+        title="Reserve & send QR"
+        intro={`Block ${zone.name} · ${code} and send the gate QR to the customer.`}
+        email={email}
+        phone={mphone}
+        sendLabel="Reserve & send"
+        onSend={(ch, dest) => { setSentVia(ch); setSentTo(dest); setDone(true); toast(`Demo — ${zone.name} · ${code} blocked & QR sent via ${ch} to ${dest}.`, { tone: "success" }); }}
+      />
+    </>
   );
 }
 
@@ -485,10 +769,10 @@ export function AdminUsers() {
   const [q, setQ] = useState("");
   const [tagFilter, setTagFilter] = useState("All");
   const customersQ = useAsync(listCustomers);
-  const users = (customersQ.status === "success" ? customersQ.data : []).map((c) => ({ n: c.name, e: c.email, b: c.bookings, tags: c.tags }));
+  const users = (customersQ.status === "success" ? customersQ.data : []).map((c) => ({ first: c.first, last: c.last, phone: c.phone, e: c.email, b: c.bookings, tags: c.tags }));
   const allTags = ["All", "VIP", "Season pass", "Regular", "New"];
   const tagTone = (t: string) => ({ VIP: "amber", "Season pass": "blue", Regular: "slate", New: "green" }[t] || "slate");
-  const rows = users.filter((u) => (tagFilter === "All" || u.tags.includes(tagFilter)) && (u.n + u.e).toLowerCase().includes(q.toLowerCase()));
+  const rows = users.filter((u) => (tagFilter === "All" || u.tags.includes(tagFilter)) && (u.first + u.last + u.e + u.phone).toLowerCase().includes(q.toLowerCase()));
   return (
     <div className="animate-fade-up">
       <Card className="p-4">
@@ -510,10 +794,10 @@ export function AdminUsers() {
         ) : rows.length === 0 ? (
           <EmptyState compact icon={Icon.users} title="No users match" body="Try a different search or tag filter." />
         ) : (
-          <Table cols={["Name", "Email", "Bookings", "Tags", ""]} right={[2]}
-            rows={rows.map((u) => [u.n, u.e, u.b,
+          <Table cols={["Name", "Surname", "Phone", "Email", "Bookings", "Tags", ""]} right={[4]}
+            rows={rows.map((u) => [u.first, u.last, <span className="tnum whitespace-nowrap">{u.phone}</span>, u.e, u.b,
               <span className="flex gap-1 flex-wrap">{u.tags.map((t) => <Badge key={t} tone={tagTone(t)}>{t}</Badge>)}</span>,
-              <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => toast(`Demo — ${u.n}'s activity (interaction filter).`)}>Activity</Btn>])} />
+              <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => toast(`Demo — ${u.first} ${u.last}'s activity (interaction filter).`)}>Activity</Btn>])} />
         )}
       </Card>
     </div>
@@ -683,14 +967,79 @@ export function AdminReporting() {
 }
 
 /* ============ REFUNDS ============ */
+// Stripe refund demo steps — shown one-by-one after "Refund via Stripe".
+const STRIPE_STEPS: { label: string; icon: IconRenderer }[] = [
+  { label: "Authorizing with Stripe", icon: Icon.lock },
+  { label: "Reversing the charge & application fee", icon: Icon.refund },
+  { label: "Issuing MyDATA credit note (5.1)", icon: Icon.shield },
+  { label: "E-mailing the customer", icon: Icon.mail },
+];
+
+function StripeProgress({ step }: { step: number }) {
+  return (
+    <div className="py-1 space-y-2.5">
+      <div className="flex items-center gap-2 text-[13px] font-semibold text-navy-900"><Spinner size={14} /> Processing refund via Stripe…</div>
+      <div className="space-y-1.5">
+        {STRIPE_STEPS.map((s, i) => {
+          const state = i < step ? "done" : i === step ? "active" : "todo";
+          const StepIcon = s.icon;
+          return (
+            <div key={i} className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 ring-1 transition ${state === "done" ? "ring-teal-200 bg-teal-50/60" : state === "active" ? "ring-slate-200 bg-white shadow-soft" : "ring-slate-100 bg-slate-50/50 opacity-55"}`}>
+              <span className={`w-6 h-6 rounded-full grid place-items-center shrink-0 ${state === "done" ? "bg-teal-600 text-white" : state === "active" ? "bg-navy-900 text-white" : "bg-slate-200 text-slate-400"}`}>
+                {state === "done" ? <Icon.check size={13} /> : state === "active" ? <Spinner size={12} /> : <StepIcon size={12} />}
+              </span>
+              <span className={`text-[13px] ${state === "todo" ? "text-slate-400" : "text-navy-900"}`}>{s.label}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function RefundDone({ amount, type, reason, tx }: { amount: number; type: string; reason: string; tx: string }) {
+  return (
+    <div className="py-2 text-center space-y-2 animate-pop">
+      <span className="mx-auto w-12 h-12 rounded-full bg-teal-600 text-white grid place-items-center shadow"><Icon.check size={22} /></span>
+      <div className="font-semibold text-navy-900">Refunded €{amount}</div>
+      <div className="text-[13px] text-slate-600 max-w-xs mx-auto">{type} · {reason}. Stripe charge reversed, credit note (5.1) filed with MyDATA, and a confirmation e-mailed to the customer.</div>
+      <div className="text-[11px] text-slate-400 tnum">{tx} · re_3PqA2k…f4d</div>
+    </div>
+  );
+}
+
 export function AdminRefunds() {
   const { toast } = useApp();
   const [modal, setModal] = useState<number | null>(null);
   const [period, setPeriod] = useState("month");
   const [rows, setRows] = useState(ADMIN_REFUNDS);
+  const [stage, setStage] = useState<"form" | "processing" | "done">("form");
+  const [step, setStep] = useState(0);
+  const [reason, setReason] = useState("Weather");
+  const [rtype, setRtype] = useState("Full refund");
   const refunded = rows.filter((r) => r.status === "Refunded").reduce((a, b) => a + b.amount, 0);
   const refundedCount = rows.filter((r) => r.status === "Refunded").length;
   const pending = rows.filter((r) => !r.status).length;
+  const active = modal !== null ? rows[modal] : null;
+  const activeLast = active ? personByFirst(active.who)?.last ?? "" : "";
+
+  const openRefund = (i: number) => { setStage("form"); setStep(0); setReason("Weather"); setRtype("Full refund"); setModal(i); };
+
+  // Walk through the Stripe steps once processing starts, then mark refunded.
+  useEffect(() => {
+    if (stage !== "processing") return;
+    if (step < STRIPE_STEPS.length) {
+      const t = setTimeout(() => setStep((s) => s + 1), 850);
+      return () => clearTimeout(t);
+    }
+    const t = setTimeout(() => {
+      setRows((r) => r.map((x, i) => (i === modal ? { ...x, status: "Refunded", reason: x.reason || reason } : x)));
+      setStage("done");
+      toast("Stripe refund issued · credit note (5.1) sent to MyDATA · customer e-mailed.", { tone: "success" });
+    }, 600);
+    return () => clearTimeout(t);
+  }, [stage, step, modal, reason, toast]);
+
   return (
     <div className="animate-fade-up">
       <PageHead title="Refunds" sub="Partial or full refunds via Stripe, with reason logging and auto credit-note (MyDATA)." badge={<Badge tone="mvp">MVP</Badge>}
@@ -705,20 +1054,33 @@ export function AdminRefunds() {
         <StatCard label="Top reason" value="Double booking" sub="33% of refunds" tone="indigo" />
       </div>
       <Card className="p-2">
-        <Table cols={["Transaction", "Date", "Customer", "Amount", "Reason", "Status", ""]} right={[3]}
-          rows={rows.map((r, i) => [r.tx, r.date || "—", r.cust, `€${r.amount}`, r.reason || "—",
-            r.status ? <Badge tone="green">{r.status}</Badge> : <Badge tone="amber">Pending</Badge>,
-            r.status ? <span className="text-slate-500 text-sm">done</span> : <Btn size="sm" variant="outline" icon={Icon.refund} onClick={() => setModal(i)}>Refund</Btn>])} />
+        <Table cols={["Transaction", "Date", "Name", "Surname", "Phone", "Amount", "Reason", "Status", ""]} right={[5]}
+          rows={rows.map((r, i) => {
+            const p = personByFirst(r.who);
+            return [r.tx, r.date || "—", r.who, p?.last || "—", p?.phone ? <span className="tnum whitespace-nowrap">{p.phone}</span> : "—", `€${r.amount}`, r.reason || "—",
+              r.status ? <Badge tone="green">{r.status}</Badge> : <Badge tone="amber">Pending</Badge>,
+              r.status ? <span className="text-slate-500 text-sm">done</span> : <Btn size="sm" variant="outline" icon={Icon.refund} onClick={() => openRefund(i)}>Refund</Btn>];
+          })} />
       </Card>
-      <Modal open={modal !== null} onClose={() => setModal(null)} title="Issue refund"
-        footer={<><Btn variant="ghost" onClick={() => setModal(null)}>Cancel</Btn>
-          <Btn variant="danger" icon={Icon.refund} onClick={() => { setRows((r) => r.map((x, i) => (i === modal ? { ...x, status: "Refunded" } : x))); setModal(null); toast("Demo — Stripe refund issued, credit note (5.1) sent to MyDATA, customer e-mailed."); }}>Refund via Stripe</Btn></>}>
-        {modal !== null && (
+      <Modal open={modal !== null} onClose={() => setModal(null)} title={stage === "done" ? "Refund complete" : "Issue refund"}
+        footer={
+          stage === "form" ? (<><Btn variant="ghost" onClick={() => setModal(null)}>Cancel</Btn>
+            <Btn variant="danger" icon={Icon.refund} onClick={() => { setStep(0); setStage("processing"); }}>Refund via Stripe</Btn></>)
+          : stage === "done" ? (<Btn variant="primary" icon={Icon.check} onClick={() => setModal(null)}>Done</Btn>)
+          : undefined
+        }>
+        {active && (
           <div className="space-y-3">
-            <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm flex justify-between"><span className="text-slate-500">{rows[modal].tx} · {rows[modal].cust}</span><b className="tnum">€{rows[modal].amount}</b></div>
-            <Field label="Refund type"><Select options={["Full refund", "Partial refund"]} /></Field>
-            <Field label="Reason"><Select options={["Weather", "Double booking", "Customer request", "Service issue"]} /></Field>
-            <div className="text-[12px] text-slate-600 flex items-center gap-1.5"><Icon.shield size={13} /> Reverses the application fee and auto-issues a credit note to MyDATA.</div>
+            <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm flex justify-between"><span className="text-slate-500">{active.tx} · {active.who} {activeLast}</span><b className="tnum">€{active.amount}</b></div>
+            {stage === "form" && (
+              <>
+                <Field label="Refund type"><Select value={rtype} onChange={(e) => setRtype(e.target.value)} options={["Full refund", "Partial refund"]} /></Field>
+                <Field label="Reason"><Select value={reason} onChange={(e) => setReason(e.target.value)} options={["Weather", "Double booking", "Customer request", "Service issue"]} /></Field>
+                <div className="text-[12px] text-slate-600 flex items-center gap-1.5"><Icon.shield size={13} /> Reverses the application fee and auto-issues a credit note to MyDATA.</div>
+              </>
+            )}
+            {stage === "processing" && <StripeProgress step={step} />}
+            {stage === "done" && <RefundDone amount={active.amount} type={rtype} reason={reason} tx={active.tx} />}
           </div>
         )}
       </Modal>
@@ -784,10 +1146,248 @@ export function AdminCommunicate() {
   );
 }
 
+/* ============ LOYALTY (Future) ============
+   Propose a handful of proven loyalty patterns (stamp cards, happy hours, tiers,
+   bundles, referrals, birthday treats), plus two working demo builders: a timed
+   public offer and a visit-milestone email campaign whose audience comes from the
+   real customer roster. Ideas-first — the operator picks what to wire for real. */
+export function AdminLoyalty() {
+  const { toast } = useApp();
+  const [reward, setReward] = useState("20% off sunbeds");
+  const [store, setStore] = useState("All stores");
+  const [schedule, setSchedule] = useState("Weekday mornings");
+  const [active, setActive] = useState<Set<string>>(new Set());
+  const [offers, setOffers] = useState<{ id: number; reward: string; store: string; schedule: string }[]>([]);
+  const [send, setSend] = useState<{ off: string; count: number } | null>(null);
+  const idRef = useRef(0);
+  const tier = (min: number) => CUSTOMERS.filter((c) => c.bookings >= min).length;
+
+  const toggleScheme = (title: string) => {
+    const on = active.has(title);
+    setActive((s) => { const n = new Set(s); if (on) n.delete(title); else n.add(title); return n; });
+    toast(on ? `Disabled “${title}”.` : `Enabled “${title}” — now live for guests.`, on ? {} : { tone: "success" });
+  };
+  const publish = () => {
+    setOffers((o) => [{ id: ++idRef.current, reward, store, schedule }, ...o]);
+    toast(`Published offer: ${reward} (${store} · ${schedule}).`, { tone: "success" });
+  };
+
+  const schemes = [
+    { icon: Icon.star, title: "Visit milestones", blurb: "A stamp card — every Nth visit is on the house, tracked automatically by the gate QR.", eg: "10th sunbed free" },
+    { icon: Icon.clock, title: "Happy hours & early-bird", blurb: "Discount the quiet slots so they fill up instead of sitting empty.", eg: "Weekdays 9–11 → 20% off front row" },
+    { icon: Icon.sparkles, title: "Tiered membership", blurb: "Silver / Gold / VIP — perks unlock the more a guest returns each season.", eg: "Gold: free parking + late checkout" },
+    { icon: Icon.gift, title: "Bundle perks", blurb: "Pair a set with a freebie to lift the average spend and the experience.", eg: "Sunbed before noon → free coffee" },
+    { icon: Icon.users, title: "Bring a friend", blurb: "Referrals — both the inviter and the new guest get a small reward.", eg: "Refer a friend → €5 off each" },
+    { icon: Icon.calendar, title: "Birthday week", blurb: "A small, automatic treat during a guest's birthday week. Cheap goodwill.", eg: "Free entry + a drink, on us" },
+  ];
+  const tiers = [
+    { min: 5, off: "10% off", tone: "slate" },
+    { min: 10, off: "15% off + free coffee", tone: "blue" },
+    { min: 20, off: "VIP: front row + free parking", tone: "amber" },
+  ];
+
+  return (
+    <div className="animate-fade-up">
+      <PageHead title="Loyalty" sub="Reward repeat guests and fill the quiet hours — schemes, timed offers and visit-based campaigns." badge={<Badge tone="future">Future</Badge>} />
+      <FutureBanner />
+
+      <div className="mb-5">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-2 px-1">Pick a scheme to start with{active.size > 0 && <span className="text-teal-600"> · {active.size} active</span>}</div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {schemes.map((s) => {
+            const SIcon = s.icon;
+            const on = active.has(s.title);
+            return (
+              <Card key={s.title} className={`p-4 flex flex-col gap-2 transition ${on ? "ring-2 ring-teal-500" : ""}`}>
+                <div className="flex items-center gap-2.5">
+                  <span className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${on ? "bg-teal-600 text-white" : "bg-slaice-100 text-slaice-700"}`}><SIcon size={18} /></span>
+                  <div className="font-semibold text-navy-900 flex-1 min-w-0">{s.title}</div>
+                  {on && <Badge tone="green">Active</Badge>}
+                </div>
+                <div className="text-[13px] text-slate-600 leading-snug">{s.blurb}</div>
+                <div className="text-[12px] text-slate-500 rounded-lg bg-slate-50 ring-1 ring-slate-100 px-2.5 py-1.5">e.g. {s.eg}</div>
+                <Btn variant={on ? "outline" : "tint"} size="sm" full icon={on ? Icon.check : Icon.plus} className="mt-auto" onClick={() => toggleScheme(s.title)}>{on ? "Active · tap to disable" : "Set up"}</Btn>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-5">
+        {/* Timed public offer builder */}
+        <Card className="p-5 space-y-3">
+          <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.clock size={16} /> Timed public offer</div>
+          <div className="text-[12.5px] text-slate-600 -mt-1">Run a deal for everyone, on the dates and hours you choose.</div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Field label="Reward"><Select value={reward} onChange={(e) => setReward(e.target.value)} options={["10% off sunbeds", "20% off sunbeds", "Free coffee with a set", "Free drink with a set", "Free entry ticket", "Buy 1 set, 2nd half price"]} /></Field>
+            <Field label="Applies to"><Select value={store} onChange={(e) => setStore(e.target.value)} options={["All stores", ...ZONES.map((z) => z.name)]} /></Field>
+            <Field label="When"><Select value={schedule} onChange={(e) => setSchedule(e.target.value)} options={["Weekday mornings", "Weekends", "Specific date range", "All month", "Happy hour 17:00–19:00"]} /></Field>
+            <Field label="Time window"><div className="flex items-center gap-2"><Input type="time" defaultValue="09:00" /><span className="text-slate-400">–</span><Input type="time" defaultValue="11:00" /></div></Field>
+          </div>
+          <div className="rounded-xl bg-teal-50/70 ring-1 ring-teal-200 px-3 py-2 text-[12.5px] text-navy-900"><b>Preview:</b> {reward} · {store} · {schedule}.</div>
+          <div className="flex justify-end">
+            <Btn variant="primary" icon={Icon.check} onClick={publish}>Publish offer</Btn>
+          </div>
+          {offers.length > 0 && (
+            <div className="space-y-1.5 pt-1 border-t border-slate-100">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 pt-2">Live offers · {offers.length}</div>
+              {offers.map((o) => (
+                <div key={o.id} className="flex items-center gap-2 rounded-lg ring-1 ring-teal-200 bg-teal-50/50 px-3 py-2 text-[12.5px] animate-pop">
+                  <Icon.clock size={13} className="text-teal-600 shrink-0" />
+                  <span className="flex-1 min-w-0 text-navy-900"><b>{o.reward}</b> · {o.store} · {o.schedule}</span>
+                  <button type="button" onClick={() => setOffers((x) => x.filter((y) => y.id !== o.id))} className="text-slate-400 hover:text-rose-600 shrink-0" aria-label="Remove offer"><Icon.x size={14} /></button>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        {/* Visit-milestone campaign — audience from the real roster */}
+        <Card className="p-5 space-y-3">
+          <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.mail size={16} /> Reward your regulars</div>
+          <div className="text-[12.5px] text-slate-600 -mt-1">Message guests who keep coming back this season — the audience comes from Users &amp; Segments.</div>
+          <div className="space-y-2">
+            {tiers.map((t) => (
+              <div key={t.min} className="flex items-center gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
+                <span className="w-10 h-10 rounded-lg bg-slaice-100 text-slaice-700 grid place-items-center font-bold tnum text-[13px] shrink-0">{t.min}+</span>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13px] font-semibold text-navy-900 flex items-center gap-1.5 flex-wrap">Visited {t.min}+ times → <Badge tone={t.tone}>{t.off}</Badge></div>
+                  <div className="text-[11px] text-slate-500"><b className="tnum">{tier(t.min)}</b> guests qualify this season</div>
+                </div>
+                <Btn size="sm" variant="outline" icon={Icon.mail} onClick={() => setSend({ off: t.off, count: tier(t.min) })}>Send</Btn>
+              </div>
+            ))}
+          </div>
+          <div className="text-[11px] text-slate-500 flex items-center gap-1.5"><Icon.info size={13} /> Thresholds and rewards here are examples — tell me which you like and I’ll wire them up.</div>
+        </Card>
+      </div>
+
+      <SendModal
+        open={send !== null}
+        onClose={() => setSend(null)}
+        title="Send offer to regulars"
+        intro={send ? `Send “${send.off}” to the ${send.count} guests who qualify.` : undefined}
+        email={send ? `${send.count} guests` : undefined}
+        phone={send ? `${send.count} guests` : undefined}
+        sendLabel="Send"
+        onSend={(ch) => toast(`Sent “${send?.off}” to ${send?.count} guests via ${ch}.`, { tone: "success" })}
+      />
+    </div>
+  );
+}
+
+/* ---- DSAR handling journey ---- */
+type DsarRow = (typeof DSAR_QUEUE)[number];
+
+const DSAR_TYPE_DONE: Record<string, string> = {
+  Access: "Data package compiled and a secure download link e-mailed to the verified address.",
+  Portability: "A portable copy (JSON + receipts) was compiled and a secure link e-mailed.",
+  Erasure: "Personal data erased. Invoices are kept under Greek tax law (5 years) and were excluded.",
+  Rectification: "The record was corrected and any affected receipt re-issued; the subject was notified.",
+  Objection: "Marketing and profiling were restricted for this subject; a confirmation was e-mailed.",
+};
+
+interface DsarStep { label: string; detail: string; icon: IconRenderer; action: string }
+function dsarSteps(type: string): DsarStep[] {
+  const verify: DsarStep = { label: "Verify identity", detail: "Confirm the requester owns the account (e-mail / ID match).", icon: Icon.shieldCheck, action: "Identity verified" };
+  const locate: DsarStep = { label: "Locate personal data", detail: "Gather across bookings, invoices, consents and support history.", icon: Icon.search, action: "Data located" };
+  switch (type) {
+    case "Access":
+    case "Portability":
+      return [verify, locate,
+        { label: "Compile export", detail: "Build a machine-readable package (JSON + PDF receipts).", icon: Icon.database, action: "Package built" },
+        { label: "Send secure download", detail: "E-mail a time-limited link to the verified address.", icon: Icon.mail, action: "Link sent" }];
+    case "Erasure":
+      return [verify, locate,
+        { label: "Apply legal holds", detail: "Invoices (ΑΠΥ/ΤΠΥ) are kept 5 years by Greek tax law — excluded from erasure.", icon: Icon.shield, action: "Holds applied" },
+        { label: "Erase the rest", detail: "Delete profile, marketing history and non-retained records.", icon: Icon.trash, action: "Data erased" },
+        { label: "Confirm to subject", detail: "E-mail confirmation of what was erased and what was retained.", icon: Icon.mail, action: "Confirmation sent" }];
+    case "Rectification":
+      return [verify,
+        { label: "Locate the record", detail: "Find the field(s) the subject asked to correct.", icon: Icon.search, action: "Record found" },
+        { label: "Apply correction", detail: "Update name / e-mail / phone and re-issue any affected receipt.", icon: Icon.edit, action: "Correction applied" },
+        { label: "Confirm to subject", detail: "E-mail confirmation of the change.", icon: Icon.mail, action: "Confirmation sent" }];
+    default: // Objection / Restriction
+      return [verify,
+        { label: "Identify processing", detail: "Find the marketing / profiling the subject objects to.", icon: Icon.sliders, action: "Processing identified" },
+        { label: "Restrict processing", detail: "Pause marketing consents and flag the account.", icon: Icon.lock, action: "Processing restricted" },
+        { label: "Confirm to subject", detail: "E-mail confirmation that processing is restricted.", icon: Icon.mail, action: "Confirmation sent" }];
+  }
+}
+
+const dsarTone = (type: string) => (type === "Erasure" ? "red" : type === "Access" ? "blue" : "slate");
+
+function DsarHandleModal({ request, onClose, onComplete }: { request: DsarRow | null; onClose: () => void; onComplete: () => void }) {
+  const [stage, setStage] = useState<"work" | "done">("work");
+  const [step, setStep] = useState(0);
+  // Reset only when a *different* request opens (keyed by id, so completing —
+  // which swaps the row object but keeps the id — doesn't bounce back to step 0).
+  useEffect(() => { setStage("work"); setStep(0); }, [request?.id]);
+  const steps = request ? dsarSteps(request.type) : [];
+  const allDone = step >= steps.length;
+  return (
+    <Modal open={request !== null} onClose={onClose} title={stage === "done" ? "Request completed" : request ? `Handle ${request.id}` : "Handle request"}
+      footer={!request ? undefined : stage === "done"
+        ? <Btn variant="primary" icon={Icon.check} onClick={onClose}>Close</Btn>
+        : <><Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+            <Btn variant="primary" icon={Icon.shieldCheck} disabled={!allDone} onClick={() => { onComplete(); setStage("done"); }}>Complete request</Btn></>}>
+      {request && (
+        <div className="space-y-3">
+          <div className="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-3 py-2.5 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="font-semibold text-navy-900 text-sm flex items-center gap-2">{request.first} {request.last} <Badge tone={dsarTone(request.type)}>{request.type}</Badge></div>
+              <div className="text-[12px] text-slate-500 truncate">{request.email} · {request.phone}</div>
+            </div>
+            <div className="text-right shrink-0 text-[11px] text-slate-500"><div className="font-mono">{request.id}</div><div>received {request.received}</div></div>
+          </div>
+          {stage === "done" ? (
+            <div className="py-2 text-center space-y-2 animate-pop">
+              <span className="mx-auto w-12 h-12 rounded-full bg-teal-600 text-white grid place-items-center shadow"><Icon.check size={22} /></span>
+              <div className="font-semibold text-navy-900">{request.type} request fulfilled</div>
+              <div className="text-[13px] text-slate-600 max-w-sm mx-auto">{DSAR_TYPE_DONE[request.type] ?? DSAR_TYPE_DONE.Objection} Logged to the audit trail, within the 30-day SLA.</div>
+            </div>
+          ) : (
+            <>
+              <div className="text-[12px] text-slate-500">Work through each step — the request closes once every step is done (GDPR Art. 12 · 30-day clock).</div>
+              <ol className="space-y-1.5">
+                {steps.map((s, i) => {
+                  const stt = i < step ? "done" : i === step ? "active" : "todo";
+                  const SIcon = s.icon;
+                  return (
+                    <li key={i} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ring-1 transition ${stt === "done" ? "ring-teal-200 bg-teal-50/60" : stt === "active" ? "ring-slaice-300 bg-white shadow-soft" : "ring-slate-100 bg-slate-50/50 opacity-60"}`}>
+                      <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${stt === "done" ? "bg-teal-600 text-white" : stt === "active" ? "bg-navy-900 text-white" : "bg-slate-200 text-slate-400"}`}>
+                        {stt === "done" ? <Icon.check size={14} /> : <SIcon size={14} />}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] font-semibold text-navy-900">{s.label}</div>
+                        <div className="text-[11px] text-slate-500 leading-snug">{s.detail}</div>
+                      </div>
+                      {stt === "active" && <Btn size="sm" variant="tint" onClick={() => setStep((x) => x + 1)}>{s.action}</Btn>}
+                      {stt === "done" && <span className="text-[11px] font-semibold text-teal-700 shrink-0 inline-flex items-center gap-1"><Icon.check size={11} /> {s.action}</span>}
+                    </li>
+                  );
+                })}
+              </ol>
+            </>
+          )}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 /* ============ PRIVACY & GDPR (Admin / controller side) ============ */
 export function AdminPrivacy() {
   const { toast } = useApp();
   const [tab, setTab] = useState("requests");
+  const [dsar, setDsar] = useState(DSAR_QUEUE);
+  const [handle, setHandle] = useState<number | null>(null);
+  // Editable retention schedule — numeric terms split into value + unit; legal
+  // (tax-mandated) and open-ended terms stay fixed.
+  const [retention, setRetention] = useState(() => RETENTION.map((r) => {
+    const m = r.period.match(/^(\d+)\s+(hours|days|months|years)$/i);
+    return { data: r.data, basis: r.basis, legal: !!r.legal, num: m ? parseInt(m[1], 10) : null, unit: m ? m[2].toLowerCase() : "", text: m ? "" : r.period };
+  }));
   const tabs: TabEntry[] = [
     ["requests", "Data requests", Icon.inbox],
     ["consent", "Consent audit", Icon.sliders],
@@ -795,13 +1395,13 @@ export function AdminPrivacy() {
     ["ropa", "Processing register", Icon.database],
   ];
   const slaTone = (d: number) => d < 0 ? "slate" : d <= 10 ? "red" : d <= 20 ? "amber" : "green";
-  const open = DSAR_QUEUE.filter((r) => r.status !== "Completed");
+  const open = dsar.filter((r) => r.status !== "Completed");
   return (
     <div className="animate-fade-up">
-      <PageHead actions={<><Btn variant="outline" icon={Icon.download} onClick={() => { downloadCSV("dsar-requests.csv", ["ID", "Type", "Subject", "Email", "Received", "Due (days)", "Status"], DSAR_QUEUE.map((r) => [r.id, r.type, r.subject, r.email, r.received, r.dueDays, r.status])); toast("Exported DSAR log (CSV)."); }}>Export log</Btn><Btn variant="primary" icon={Icon.shieldCheck} onClick={() => toast("Demo — privacy settings saved.")}>Save policy</Btn></>} />
+      <PageHead actions={<><Btn variant="outline" icon={Icon.download} onClick={() => { downloadCSV("dsar-requests.csv", ["ID", "Type", "Name", "Surname", "Email", "Phone", "Received", "Due (days)", "Status"], dsar.map((r) => [r.id, r.type, r.first, r.last, r.email, r.phone, r.received, r.dueDays, r.status])); toast("Exported DSAR log (CSV)."); }}>Export log</Btn><Btn variant="primary" icon={Icon.shieldCheck} onClick={() => toast("Demo — privacy settings saved.")}>Save policy</Btn></>} />
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <StatCard label="Open requests" value={String(open.length)} sub="awaiting action" tone="indigo" />
-        <StatCard label="Due ≤ 10 days" value={String(DSAR_QUEUE.filter((r) => r.dueDays >= 0 && r.dueDays <= 10).length)} sub="30-day statutory SLA" tone="rose" />
+        <StatCard label="Due ≤ 10 days" value={String(dsar.filter((r) => r.dueDays >= 0 && r.dueDays <= 10 && r.status !== "Completed").length)} sub="30-day statutory SLA" tone="rose" />
         <StatCard label="Consent rate" value="64%" sub="marketing opt-in" trend="+3pp" />
         <StatCard label="Avg resolution" value="6.2d" sub="well within SLA" tone="teal" />
       </div>
@@ -810,15 +1410,20 @@ export function AdminPrivacy() {
       {tab === "requests" && (
         <Card className="p-2">
           <div className="px-3 pt-2 pb-1 text-[12px] text-slate-500">Data Subject Access Requests — GDPR Art. 15–20, 30-day clock.</div>
-          <Table cols={["Request", "Type", "Subject", "Received", "Due", "Status", ""]} right={[6]}
-            rows={DSAR_QUEUE.map((r) => [
+          <Table cols={["Request", "Type", "Name", "Surname", "Email", "Phone", "Received", "Due", "Status", ""]} right={[9]}
+            rows={dsar.map((r, i) => [
               <span className="font-mono text-[12px] text-navy-900">{r.id}</span>,
-              <Badge tone={r.type === "Erasure" ? "red" : r.type === "Access" ? "blue" : "slate"}>{r.type}</Badge>,
-              <div><div className="font-semibold text-[13px] text-navy-900">{r.subject}</div><div className="text-[11px] text-slate-500">{r.email}</div></div>,
+              <Badge tone={dsarTone(r.type)}>{r.type}</Badge>,
+              <span className="font-semibold text-[13px] text-navy-900">{r.first}</span>,
+              <span className="font-semibold text-[13px] text-navy-900">{r.last}</span>,
+              <span className="text-[12px] text-slate-600">{r.email}</span>,
+              <span className="text-[12px] text-slate-600 tnum whitespace-nowrap">{r.phone}</span>,
               r.received,
               r.status === "Completed" ? <Badge tone="green"><Icon.check size={11} /> Done</Badge> : <Badge tone={slaTone(r.dueDays)}>{r.dueDays}d left</Badge>,
               <Badge tone={r.status === "Completed" ? "green" : r.status === "Awaiting ID" ? "amber" : "slate"}>{r.status}</Badge>,
-              <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => toast(`Demo — handle ${r.id} (${r.type}).`)}>Handle</Btn>,
+              r.status === "Completed"
+                ? <span className="text-slate-400 text-sm">done</span>
+                : <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => setHandle(i)}>Handle</Btn>,
             ])} />
         </Card>
       )}
@@ -853,10 +1458,34 @@ export function AdminPrivacy() {
 
       {tab === "retention" && (
         <Card className="p-2">
-          <div className="px-3 pt-2 pb-1 text-[12px] text-slate-500">Data retention schedule — anonymised or deleted automatically at term.</div>
-          <Table cols={["Data category", "Retention", "Legal basis"]}
-            rows={RETENTION.map((r) => [r.data, <span className={r.legal ? "font-semibold text-navy-900" : ""}>{r.period}</span>, r.legal ? <Badge tone="amber">{r.basis}</Badge> : r.basis])} />
-          <div className="px-3 py-3 flex justify-end"><Btn size="sm" variant="outline" icon={Icon.database} onClick={() => toast("Demo — anonymised 1,204 customers older than 24 months.")}>Run anonymisation</Btn></div>
+          <div className="px-3 pt-2 pb-1.5 text-[12px] text-slate-500">Data retention schedule — set how long each category is kept before it’s auto-anonymised or deleted. Tax-mandated and open-ended terms are fixed.</div>
+          <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            <div>Data category · legal basis</div><div className="text-right">Retention</div>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {retention.map((r, i) => (
+              <div key={r.data} className="grid grid-cols-[1fr_auto] items-center gap-3 px-3 py-2.5">
+                <div className="min-w-0">
+                  <div className="text-[13px] font-semibold text-navy-900">{r.data}</div>
+                  <div className="text-[11px] text-slate-500 flex items-center gap-1.5">{r.legal && <Icon.lock size={11} className="text-amber-600" />}<span className={r.legal ? "text-amber-700" : ""}>{r.basis}</span></div>
+                </div>
+                {r.num !== null ? (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="w-[4.5rem]"><Input type="number" min={1} value={r.num} disabled={r.legal} className="disabled:opacity-60 disabled:cursor-not-allowed"
+                      onChange={(e) => setRetention((rs) => rs.map((x, j) => j === i ? { ...x, num: Math.max(1, Math.round(+e.target.value) || 1) } : x))} /></div>
+                    <div className="w-28"><Select value={r.unit} disabled={r.legal} className="disabled:opacity-60 disabled:cursor-not-allowed"
+                      onChange={(e) => setRetention((rs) => rs.map((x, j) => j === i ? { ...x, unit: e.target.value } : x))} options={["hours", "days", "months", "years"]} /></div>
+                  </div>
+                ) : (
+                  <div className="text-[12px] text-slate-500 italic shrink-0 text-right">{r.text}</div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="px-3 py-3 flex justify-between items-center gap-2 flex-wrap">
+            <Btn size="sm" variant="outline" icon={Icon.database} onClick={() => toast("Demo — anonymised 1,204 customers older than the set term.")}>Run anonymisation</Btn>
+            <Btn size="sm" variant="primary" icon={Icon.check} onClick={() => toast("Demo — retention policy saved. New terms apply to the nightly anonymisation job.", { tone: "success" })}>Save retention policy</Btn>
+          </div>
         </Card>
       )}
 
@@ -867,6 +1496,12 @@ export function AdminPrivacy() {
             rows={ROPA.map((r) => [<b className="text-navy-900">{r.activity}</b>, r.purpose, r.categories, <Badge tone="slate">{r.basis}</Badge>, r.retention])} />
         </Card>
       )}
+
+      <DsarHandleModal
+        request={handle !== null ? dsar[handle] : null}
+        onClose={() => setHandle(null)}
+        onComplete={() => setDsar((rows) => rows.map((x, i) => (i === handle ? { ...x, status: "Completed" } : x)))}
+      />
     </div>
   );
 }

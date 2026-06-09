@@ -61,11 +61,13 @@ export function Stepper({ value, onChange, min = 0, label }: { value: number; on
    Date picker. `value` is an array of ISO YYYY-MM-DD strings. With `multiple`
    off (the default for single-day bookings) selecting a date replaces the
    selection; with it on, dates toggle and accumulate. */
-export function DatePickerRow({ value = [], onChange, quickDays = 7, multiple = true, className = "" }: {
+export function DatePickerRow({ value = [], onChange, quickDays = 7, multiple = true, maxDays, className = "" }: {
   value?: string[];
   onChange: (v: string[]) => void;
   quickDays?: number;
   multiple?: boolean;
+  /** Cap the number of days that can be selected (e.g. 7 for a week). */
+  maxDays?: number;
   className?: string;
 }) {
   const [picker, setPicker] = useState(false);
@@ -81,10 +83,12 @@ export function DatePickerRow({ value = [], onChange, quickDays = 7, multiple = 
   const strip = useMemo(() => dateStrip(quickDays, loc, t), [quickDays, loc]);
   const stripSet = useMemo(() => new Set(strip.map((d) => d.iso)), [strip]);
   const extras = useMemo(() => value.filter((iso) => !stripSet.has(iso)).sort(), [value, stripSet]);
+  const atCap = !!maxDays && multiple && value.length >= maxDays;
   const toggle = (iso: string) => {
     if (!multiple) { onChange([iso]); return; } // single-day: replace selection
     const has = value.includes(iso);
     if (has && value.length === 1) return; // keep at least one
+    if (!has && maxDays && value.length >= maxDays) return; // cap reached
     onChange(has ? value.filter((x) => x !== iso) : [...value, iso].sort());
   };
   const updateArrows = () => {
@@ -119,7 +123,7 @@ export function DatePickerRow({ value = [], onChange, quickDays = 7, multiple = 
         <div ref={scrollRef} className="flex-1 flex gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth">
           {strip.map((d) => {
             const on = value.includes(d.iso);
-            return <DatePill key={d.iso} on={on} label={d.label} sub={d.sub} onClick={() => toggle(d.iso)} />;
+            return <DatePill key={d.iso} on={on} disabled={!on && atCap} label={d.label} sub={d.sub} onClick={() => toggle(d.iso)} />;
           })}
           {extras.map((iso) => {
             const lbl = chipLabel(iso, loc, t);
@@ -136,16 +140,16 @@ export function DatePickerRow({ value = [], onChange, quickDays = 7, multiple = 
           <Icon.arrowR size={14} />
         </button>
       </div>
-      {picker && <DateCalendarModal value={value} onChange={onChange} onClose={() => setPicker(false)} locale={loc} t={t} multiple={multiple} />}
+      {picker && <DateCalendarModal value={value} onChange={onChange} onClose={() => setPicker(false)} locale={loc} t={t} multiple={multiple} maxDays={maxDays} />}
     </div>
   );
 }
 
-function DatePill({ on, label, sub, onClick }: { on?: boolean; label: ReactNode; sub: ReactNode; onClick?: () => void }) {
+function DatePill({ on, label, sub, onClick, disabled = false }: { on?: boolean; label: ReactNode; sub: ReactNode; onClick?: () => void; disabled?: boolean }) {
   return (
-    <button type="button" onClick={onClick} aria-pressed={on}
+    <button type="button" onClick={onClick} aria-pressed={on} disabled={disabled}
       className={`relative px-3.5 py-2.5 min-h-[64px] rounded-xl min-w-[78px] ring-1 transition shrink-0 inline-flex flex-col items-center justify-center gap-1 ${
-        on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"
+        on ? "bg-navy-900 text-white ring-navy-900" : disabled ? "bg-slate-50 ring-slate-200 opacity-40 cursor-not-allowed" : "bg-white ring-slate-200 hover:ring-teal-400"
       }`}>
       <span className="text-[13px] font-semibold leading-none">{label}</span>
       <span className={`text-[11px] leading-none ${on ? "text-white/80" : "text-slate-600"}`}>{sub}</span>
@@ -158,7 +162,7 @@ function DatePill({ on, label, sub, onClick }: { on?: boolean; label: ReactNode;
   );
 }
 
-function DateCalendarModal({ value, onChange, onClose, locale = "en-GB", t = (s) => s, multiple = true }: { value: string[]; onChange: (v: string[]) => void; onClose: () => void; locale?: string; t?: (s: string) => string; multiple?: boolean }) {
+function DateCalendarModal({ value, onChange, onClose, locale = "en-GB", t = (s) => s, multiple = true, maxDays }: { value: string[]; onChange: (v: string[]) => void; onClose: () => void; locale?: string; t?: (s: string) => string; multiple?: boolean; maxDays?: number }) {
   const [month, setMonth] = useState(() => {
     const d = new Date();
     return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -182,10 +186,12 @@ function DateCalendarModal({ value, onChange, onClose, locale = "en-GB", t = (s)
     }
     return out;
   }, [month, today]);
+  const atCap = !!maxDays && value.length >= maxDays;
   const toggle = (iso: string) => {
     if (!multiple) { onChange([iso]); onClose(); return; } // single-day: pick & close
     const has = value.includes(iso);
     if (has && value.length === 1) return;
+    if (!has && maxDays && value.length >= maxDays) return; // cap reached
     onChange(has ? value.filter((x) => x !== iso) : [...value, iso].sort());
   };
   // Localized weekday headers (2024-01-01 is a Monday).
@@ -223,10 +229,11 @@ function DateCalendarModal({ value, onChange, onClose, locale = "en-GB", t = (s)
               if (!c) return <div key={`b-${i}`} />;
               const sel = value.includes(c.iso);
               const isToday = c.iso === todayIso;
+              const capped = !sel && atCap;
               return (
-                <button key={c.iso} type="button" disabled={c.past} onClick={() => toggle(c.iso)}
+                <button key={c.iso} type="button" disabled={c.past || capped} onClick={() => toggle(c.iso)}
                   className={`relative aspect-square rounded-lg text-sm font-medium transition ${
-                    c.past
+                    c.past || capped
                       ? "text-slate-300 cursor-not-allowed"
                       : sel
                         ? "bg-navy-900 text-white shadow-sm hover:bg-navy-800"
@@ -241,7 +248,7 @@ function DateCalendarModal({ value, onChange, onClose, locale = "en-GB", t = (s)
             })}
           </div>
           <div className="mt-3 flex items-center justify-between text-[12px] text-slate-600">
-            <span><b className="text-navy-900 tnum">{value.length}</b> {value.length !== 1 ? t("dates selected") : t("date selected")}</span>
+            <span><b className="text-navy-900 tnum">{value.length}</b>{maxDays ? `/${maxDays}` : ""} {value.length !== 1 ? t("dates selected") : t("date selected")}</span>
             <button onClick={onClose} className="font-semibold text-teal-700 hover:text-teal-800">{t("Done")}</button>
           </div>
         </div>

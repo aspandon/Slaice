@@ -50,7 +50,7 @@ export interface BeachCanvasProps {
 }
 
 export function BeachCanvas({
-  slots, seaLabel = "Sea · front row", backLabel = "Promenade", maxHeight = 420,
+  slots, seaLabel = "Sea · front row", backLabel = "Promenade", maxHeight = 480,
   selected, onToggle, editable = false, selectedIds, onSelect, onMove, snap = 0,
 }: BeachCanvasProps) {
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -65,9 +65,27 @@ export function BeachCanvas({
     return () => ro.disconnect();
   }, []);
 
-  const h = Math.max(200, Math.min(maxHeight, Math.round(w * 0.6)));
+  const h = Math.max(220, Math.min(maxHeight, Math.round(w * 0.66)));
   const seaH = Math.round(h * 0.15);
-  const size = Math.max(20, Math.min(56, w * 0.085));
+  // Size each umbrella set to its nearest neighbour (in book mode) so the glyphs
+  // always keep clear air between them and never collide — vertically *or*
+  // horizontally — whatever layout (default grid or admin-authored) we render.
+  // The editor keeps a fixed size so dragging sets close doesn't resize the
+  // whole field.
+  const baseSize = Math.min(56, w * 0.085);
+  const nearest = (() => {
+    if (editable || slots.length < 2) return Infinity;
+    let m = Infinity;
+    for (let i = 0; i < slots.length; i++) {
+      for (let j = i + 1; j < slots.length; j++) {
+        const dx = ((slots[i].x - slots[j].x) / 100) * w;
+        const dy = ((slots[i].y - slots[j].y) / 100) * (h - seaH);
+        m = Math.min(m, Math.hypot(dx, dy));
+      }
+    }
+    return m;
+  })();
+  const size = Math.max(20, Math.min(baseSize, nearest * 0.85));
   const snapPct = (v: number) => (snap > 0 ? Math.round(v / snap) * snap : v);
   const setCursor = (e: KonvaEventObject<MouseEvent>, c: string) => {
     const stage = e.target.getStage();

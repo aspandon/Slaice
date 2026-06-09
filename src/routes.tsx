@@ -28,6 +28,7 @@ const MAP: Record<string, () => ReactElement> = {
   "admin.refunds": () => <A.AdminRefunds />,
   "admin.privacy": () => <A.AdminPrivacy />,
   "admin.communicate": () => <A.AdminCommunicate />,
+  "admin.loyalty": () => <A.AdminLoyalty />,
   // cashier
   "cashier.issue": () => <CA.CashierIssue />,
   "cashier.redeem": () => <CA.CashierRedeem />,
