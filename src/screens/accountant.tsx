@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import { Icon } from "../lib/icons";
 import { Card, Btn, Badge, PageHead, Table, StatCard, Tabs, Modal, StatusBadge, TableSkeleton, useMockLoad } from "../components/ui";
+import { SortHeader, Pager, dateVal, cmpVal, moneyVal, type SortState } from "../components/TableTools";
 import { Donut } from "../components/charts";
 import { ACCOUNTANT_DOCS, ACCOUNTANT_PAYOUTS } from "../data/mock";
 import { useApp } from "../app/store";
@@ -37,15 +38,34 @@ function CopyMark({ mark, toast }: { mark: string; toast?: AppContextValue["toas
 export function AccountantInvoicing() {
   const { toast } = useApp();
   const [tab, setTab] = useState("all");
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState<SortState>(null);
+  const [page, setPage] = useState(0);
   const [view, setView] = useState<AccountantDoc | null>(null);
-  const docs = ACCOUNTANT_DOCS;
-  const filtered = docs.filter((x) => tab === "all" || x.type === tab);
+  const PAGE = 8;
   const tone = (s: string) => (s.includes("✓") ? "green" : "amber");
   const loading = useMockLoad();
   const amountCell = (a: string) => (a.startsWith("−") ? neg(a) : a);
+  const byTab = ACCOUNTANT_DOCS.filter((x) => tab === "all" || x.type === tab);
+  const filtered = byTab.filter((x) => (x.d + x.t + x.mark + x.st + x.date).toLowerCase().includes(q.toLowerCase()));
+  const sortVal = (x: AccountantDoc): string | number => {
+    switch (sort?.key) {
+      case "doc": return x.d;
+      case "type": return x.t;
+      case "amount": return moneyVal(x.amt);
+      case "status": return x.st;
+      case "date": return dateVal(x.date);
+      default: return 0;
+    }
+  };
+  const sorted = sort ? [...filtered].sort((a, b) => cmpVal(sortVal(a), sortVal(b)) * sort.dir) : filtered;
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = sorted.slice(safePage * PAGE, safePage * PAGE + PAGE);
+  const onSort = (k: string) => { setSort((s) => (s?.key === k ? { key: k, dir: s.dir === 1 ? -1 : 1 } : { key: k, dir: 1 })); setPage(0); };
   return (
     <div className="animate-fade-up">
-      <PageHead actions={<Btn variant="primary" icon={Icon.download} onClick={() => { downloadCSV("invoicing.csv", ["Document", "Type", "MARK", "Amount", "Status"], filtered.map((x) => [x.d, x.t, x.mark, x.amt, x.st])); toast(`Exported ${filtered.length} documents (CSV).`); }}>Export</Btn>} />
+      <PageHead actions={<Btn variant="primary" icon={Icon.download} onClick={() => { downloadCSV("invoicing.csv", ["Document", "Type", "MARK", "Amount", "Status", "Date"], sorted.map((x) => [x.d, x.t, x.mark, x.amt, x.st, x.date])); toast(`Exported ${sorted.length} documents (CSV).`); }}>Export</Btn>} />
       <div className="mb-4 flex items-start gap-2.5 rounded-2xl bg-amber-50/70 ring-1 ring-amber-600/15 px-3.5 py-2.5 text-[12px] text-amber-800">
         <Icon.shieldAlert size={15} className="shrink-0 mt-0.5 text-amber-600" />
         <span className="leading-snug"><b>GDPR &amp; tax law:</b> issued ΑΠΥ/ΤΠΥ and their myDATA records are retained for <b>5 years</b> and are exempt from customer erasure requests — a legal-obligation basis overrides the right to be forgotten for these documents.</span>
@@ -56,17 +76,35 @@ export function AccountantInvoicing() {
         <StatCard label="Cancellations" value="4" icon={Icon.x} />
         <StatCard label="Credit notes" value="2" icon={Icon.refund} />
       </div>
-      <Tabs tabs={[["all", "All"], ["issued", "Issued"], ["cancelled", "Cancellations"], ["credited", "Credit notes"]]} value={tab} onChange={setTab} className="mb-3" />
+      <div className="flex items-center gap-3 mb-3 flex-wrap">
+        <Tabs tabs={[["all", "All"], ["issued", "Issued"], ["cancelled", "Cancellations"], ["credited", "Credit notes"]]} value={tab} onChange={(v) => { setTab(v); setPage(0); }} />
+        <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-xs flex-1 min-w-[180px] text-slate-600 ml-auto">
+          <Icon.search size={16} /><input value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="Search documents…" className="text-sm outline-none w-full bg-transparent text-ink" />
+        </div>
+      </div>
       <Card className="p-2">
         {loading ? (
-          <TableSkeleton rows={5} cols={6} />
+          <TableSkeleton rows={5} cols={7} />
+        ) : sorted.length === 0 ? (
+          <div className="px-3 py-10 text-center text-sm text-slate-500">No documents match “{q}”.</div>
         ) : (
-          <Table cols={["Document", "Type", "MARK", "Amount", "Status", ""]} right={[3]}
-            rows={filtered.map((x) => [x.d, x.t, <CopyMark mark={x.mark} toast={toast} />, amountCell(x.amt), <StatusBadge status={x.st} />,
-              <span className="flex gap-1 justify-end">
-                <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => setView(x)}>View</Btn>
-                <Btn size="sm" variant="ghost" icon={Icon.download} onClick={() => { downloadPDF(`${x.d}.pdf`, accountantReceiptDoc(x)); toast(`Downloaded ${x.d}.pdf`, { tone: "success" }); }}>PDF</Btn>
-              </span>])} />
+          <>
+            <Table cols={[
+              <SortHeader label="Document" k="doc" sort={sort} onSort={onSort} />,
+              <SortHeader label="Type" k="type" sort={sort} onSort={onSort} />,
+              "MARK",
+              <SortHeader label="Amount" k="amount" sort={sort} onSort={onSort} align="right" />,
+              <SortHeader label="Status" k="status" sort={sort} onSort={onSort} />,
+              <SortHeader label="Date" k="date" sort={sort} onSort={onSort} />,
+              "",
+            ]} right={[3]}
+              rows={pageRows.map((x) => [x.d, x.t, <CopyMark mark={x.mark} toast={toast} />, amountCell(x.amt), <StatusBadge status={x.st} />, x.date,
+                <span className="flex gap-1 justify-end">
+                  <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => setView(x)}>View</Btn>
+                  <Btn size="sm" variant="ghost" icon={Icon.download} onClick={() => { downloadPDF(`${x.d}.pdf`, accountantReceiptDoc(x)); toast(`Downloaded ${x.d}.pdf`, { tone: "success" }); }}>PDF</Btn>
+                </span>])} />
+            {pageCount > 1 && <Pager page={safePage} pageCount={pageCount} total={sorted.length} pageSize={PAGE} onPage={setPage} />}
+          </>
         )}
       </Card>
 
