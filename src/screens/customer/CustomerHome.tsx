@@ -16,11 +16,11 @@ export function CustomerHome() {
   const [promoDismissed, setPromoDismissed] = useState(false);
 
   return (
-    <div className="animate-fade-up flex flex-col sm:grid sm:grid-cols-[3fr_2fr] gap-4 sm:items-stretch">
+    <div className="animate-fade-up flex flex-col sm:grid sm:grid-cols-[3fr_2fr] gap-4 sm:items-start">
 
       {/* ── Hero ──────────────────────────────────────────────────── */}
-      <Reveal as="button" onClick={() => dive()} className="text-left group block w-full sm:h-full">
-        <div className={`${CARD} p-6 sm:p-9 pressable cursor-pointer transition duration-300 ease-spring hover:-translate-y-1 hover:bg-white/80 h-full`}>
+      <Reveal as="button" onClick={() => dive()} className="text-left group block w-full">
+        <div className={`${CARD} p-6 sm:p-9 pressable cursor-pointer transition duration-300 ease-spring hover:-translate-y-1 hover:bg-white/80`}>
           <div className="relative">
             <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700">
               <span className="w-6 h-6 rounded-full grid place-items-center bg-gradient-to-br from-amber-300 to-amber-500 text-white shadow-sm">
@@ -42,11 +42,11 @@ export function CustomerHome() {
       </Reveal>
 
       {/* ── Right: promo · rebook · VIP · Season, as a 2×2 ────────── */}
-      <div className="grid sm:grid-cols-2 gap-4 sm:h-full sm:auto-rows-fr">
+      <div className="grid sm:grid-cols-2 gap-4">
 
         {/* Weekend promo */}
         {!promoDismissed && (
-          <div className={`${CARD} p-5 sm:p-6 flex flex-col gap-3 h-full`}>
+          <div className={`${CARD} p-5 sm:p-6 flex flex-col gap-3`}>
             <div className="flex items-start justify-between gap-2">
               <span className="w-10 h-10 rounded-xl grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm">
                 <Icon.bolt size={18} />
@@ -77,7 +77,7 @@ export function CustomerHome() {
         {/* Returning-guest shortcut */}
         <button
           onClick={() => dive()}
-          className={`${CARD} p-5 sm:p-6 flex flex-col gap-3 text-left hover:bg-white/80 transition group h-full`}>
+          className={`${CARD} p-5 sm:p-6 flex flex-col gap-3 text-left hover:bg-white/80 transition group`}>
           <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0">
             <Icon.umbrella size={18} />
           </span>
@@ -109,7 +109,7 @@ function VipTile() {
   const from = Math.min(...passPricing.vipTiers);
   const disc = Math.round(passPricing.vipDiscount * 100);
   return (
-    <div className={`${CARD} h-full flex flex-col transition duration-300 ease-spring hover:-translate-y-0.5 hover:shadow-lift`}>
+    <div className={`${CARD} flex flex-col transition duration-300 ease-spring hover:-translate-y-0.5 hover:shadow-lift`}>
       <button onClick={() => go("customer", "vip")} aria-label={vip ? t("Top up VIP credit") : t("Get VIP Pass")} className="block w-full group">
         <PassCard kind="vip" holder="ELENA M." subtitle={vip ? `€${vip.balance.toLocaleString()} CREDIT` : `MEMBER · ${disc}% OFF`} className="group-hover:brightness-[1.02] transition" />
       </button>
@@ -130,7 +130,7 @@ function SeasonTile() {
   const season = passes.season;
   const from = Math.min(passPricing.seasonMonthly, passPricing.seasonSummer);
   return (
-    <div className={`${CARD} h-full flex flex-col transition duration-300 ease-spring hover:-translate-y-0.5 hover:shadow-lift`}>
+    <div className={`${CARD} flex flex-col transition duration-300 ease-spring hover:-translate-y-0.5 hover:shadow-lift`}>
       <button onClick={() => go("customer", "season")} aria-label={season ? t("Manage Season pass") : t("Get Season Pass")} className="block w-full group">
         <PassCard kind="season" holder="ELENA M." subtitle={season && season.plan === "monthly" ? "MONTHLY 2026" : "SUMMER 2026"} className="group-hover:brightness-[1.02] transition" />
       </button>

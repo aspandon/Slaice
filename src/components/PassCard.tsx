@@ -67,6 +67,8 @@ export function PassCard({ kind, holder, number = "NO. 0042", subtitle, classNam
   const c = CFG[kind];
   const name = holder ?? c.defName;
   const sub = subtitle ?? c.subText;
+  // The tenant beach logo replaces the wordmark, top-left.
+  const logoUrl = `${import.meta.env.BASE_URL}tenant-logo.png`;
   // Corners are rounded by the embedding container (overflow-hidden + rounded),
   // so the art fills it flush — no double-radius notch.
   return (
@@ -85,7 +87,7 @@ export function PassCard({ kind, holder, number = "NO. 0042", subtitle, classNam
           {RAYS.map(([x1, y1, x2, y2], i) => <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} />)}
         </g>
         {WAVES.map((d, i) => <path key={i} d={d} fill={c.waves[i]} />)}
-        <text x="44" y="58" fontSize="14" fontWeight="600" fill={c.ink.akti} style={{ letterSpacing: "3px" }}>AKTI TOU ILIOU</text>
+        <image href={logoUrl} x="40" y="26" width="215" height="50" preserveAspectRatio="xMinYMid meet" />
         <text x="42" y={c.titleY} fontSize={c.titleSize} fontWeight="700" fill={c.ink.title} style={{ letterSpacing: c.titleLS }}>{c.titleText}</text>
         <text x={c.subX} y={c.subY} fontSize="13" fontWeight="600" fill={c.ink.subtitle} style={{ letterSpacing: "3px" }}>{sub}</text>
         <text x="44" y="246" fontSize="11" fontWeight="600" fill={c.ink.memberLabel} style={{ letterSpacing: "2px" }}>MEMBER</text>
