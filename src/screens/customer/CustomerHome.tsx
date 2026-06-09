@@ -98,7 +98,7 @@ function VipTile() {
   const from = Math.min(...passPricing.vipTiers);
   const disc = Math.round(passPricing.vipDiscount * 100);
   return (
-    <div className={`${CARD} flex flex-col w-full max-w-[85.6mm] mx-auto transition duration-300 ease-spring hover:-translate-y-0.5 hover:shadow-lift`}>
+    <div className={`${CARD} flex flex-col w-full transition duration-300 ease-spring hover:-translate-y-0.5 hover:shadow-lift`}>
       <button onClick={() => go("customer", "vip")} aria-label={vip ? t("Top up VIP credit") : t("Get VIP Pass")} className="block w-full group">
         <PassCard kind="vip" holder="ELENA M." subtitle={vip ? `€${vip.balance.toLocaleString()} CREDIT` : `MEMBER · ${disc}% OFF`} validUntil={SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
       </button>
@@ -119,7 +119,7 @@ function SeasonTile() {
   const season = passes.season;
   const from = Math.min(passPricing.seasonMonthly, passPricing.seasonSummer);
   return (
-    <div className={`${CARD} flex flex-col w-full max-w-[85.6mm] mx-auto transition duration-300 ease-spring hover:-translate-y-0.5 hover:shadow-lift`}>
+    <div className={`${CARD} flex flex-col w-full transition duration-300 ease-spring hover:-translate-y-0.5 hover:shadow-lift`}>
       <button onClick={() => go("customer", "season")} aria-label={season ? t("Manage Season pass") : t("Get Season Pass")} className="block w-full group">
         <PassCard kind="season" holder="ELENA M." subtitle={season && season.plan === "monthly" ? "MONTHLY 2026" : "SUMMER 2026"} validUntil={season ? dateOf(season.validUntil) : SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
       </button>
