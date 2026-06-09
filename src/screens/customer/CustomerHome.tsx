@@ -6,7 +6,7 @@ import { PassCard } from "../../components/PassCard";
 import { Reveal } from "../../lib/motion";
 import { SEASON_END_LABEL } from "../../data/passes";
 import { BUILTIN_SCHEMES, makeCustomScheme, schemeProgress, HOME_LOYALTY_STATS } from "../../data/loyalty";
-import type { RewardState } from "../../data/loyalty";
+import type { RewardState, LoyaltyState } from "../../data/loyalty";
 import { useApp, useT } from "../../app/store";
 
 // Bare date from a validity label (e.g. "End of season · 30 Sep 2026").
@@ -19,15 +19,16 @@ const dateOf = (s: string) => s.split(/·|to/).pop()?.trim() ?? s;
 const CARD = "glass-flat rounded-3xl overflow-hidden relative";
 
 export function CustomerHome() {
-  const { dive } = useApp();
+  const { dive, loyalty } = useApp();
   const t = useT();
   const [promoDismissed, setPromoDismissed] = useState(false);
+  const rewards = activeRewards(loyalty);
+  const ready = rewards.filter((a) => a.state.kind === "claim").length;
 
   return (
-    <div className="animate-fade-up flex flex-col gap-4">
-      <div className="flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_85.6mm] gap-4 lg:items-start">
+    <div className="animate-fade-up flex flex-col xl:grid xl:grid-cols-[minmax(0,1fr)_auto] gap-4 xl:items-start">
 
-      {/* ── Left: hero + the two promos beneath it ─────────────────── */}
+      {/* ── Left: hero + the two promos beneath it (narrower now) ──── */}
       <div className="flex flex-col gap-4 min-w-0">
 
       {/* ── Hero ──────────────────────────────────────────────────── */}
@@ -86,14 +87,25 @@ export function CustomerHome() {
       </div>
       </div>
 
-      {/* ── Right: VIP + Season cards (real credit-card width) ──────── */}
-      <div className="flex flex-col gap-4">
-        <VipTile />
-        <SeasonTile />
+      {/* ── Right cluster: a tall "Your rewards" tile beside the cards ─ */}
+      <div className={`grid gap-4 ${rewards.length ? "xl:grid-cols-[22rem_85.6mm]" : "xl:grid-cols-[85.6mm]"}`}>
+        {rewards.length > 0 && (
+          <div className={`${CARD} p-4 flex flex-col h-full min-w-0`}>
+            <div className="flex items-center gap-2 mb-3 px-0.5">
+              <Icon.gift size={15} className="text-teal-600 shrink-0" />
+              <h2 className="font-display font-bold text-navy-900 text-[15px] flex-1 min-w-0">{t("Your rewards")}</h2>
+              {ready > 0 && <Badge tone="green">{ready} {t("ready")}</Badge>}
+            </div>
+            <div className="flex-1 space-y-2.5 overflow-y-auto no-scrollbar -mr-1 pr-1">
+              {rewards.map((a) => <RewardRow key={a.id} icon={a.icon} title={a.title} state={a.state} />)}
+            </div>
+          </div>
+        )}
+        <div className="flex flex-col gap-4">
+          <VipTile />
+          <SeasonTile />
+        </div>
       </div>
-      </div>
-
-      <LoyaltySection />
     </div>
   );
 }
@@ -141,14 +153,11 @@ function SeasonTile() {
   );
 }
 
-/* Active loyalty schemes surfaced for the guest — claim what's earned, see
-   progress on the rest. Schemes + config come from the app store (admin Loyalty). */
+/* Active loyalty schemes for the guest, sorted (claimable first). Schemes + config
+   come from the app store (written by the admin Loyalty screen). */
 const REWARD_ORDER = { claim: 0, progress: 1, perk: 2 } as const;
-function LoyaltySection() {
-  const { loyalty } = useApp();
-  const t = useT();
-  const schemes = [...BUILTIN_SCHEMES, ...loyalty.customIds.map(makeCustomScheme)];
-  const active = schemes
+function activeRewards(loyalty: LoyaltyState) {
+  return [...BUILTIN_SCHEMES, ...loyalty.customIds.map(makeCustomScheme)]
     .filter((s) => loyalty.config[s.id]?.enabled)
     .map((s) => {
       const values = loyalty.config[s.id]?.values ?? {};
@@ -156,52 +165,39 @@ function LoyaltySection() {
       return { id: s.id, icon: s.icon, title, state: schemeProgress(s, values, HOME_LOYALTY_STATS) };
     })
     .sort((a, b) => REWARD_ORDER[a.state.kind] - REWARD_ORDER[b.state.kind]);
-  if (active.length === 0) return null;
-  const ready = active.filter((a) => a.state.kind === "claim").length;
-  return (
-    <section>
-      <div className="flex items-center gap-2 mb-2.5 px-1">
-        <Icon.gift size={15} className="text-teal-600" />
-        <h2 className="font-display font-bold text-navy-900 text-[15px]">{t("Your rewards")}</h2>
-        {ready > 0 && <Badge tone="green">{ready} {t("ready to claim")}</Badge>}
-      </div>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {active.map((a) => <RewardTile key={a.id} icon={a.icon} title={a.title} state={a.state} />)}
-      </div>
-    </section>
-  );
 }
 
-function RewardTile({ icon, title, state }: { icon: IconRenderer; title: string; state: RewardState }) {
+/* One reward as a compact row inside the tall "Your rewards" tile. */
+function RewardRow({ icon, title, state }: { icon: IconRenderer; title: string; state: RewardState }) {
   const { dive, toast } = useApp();
   const t = useT();
   const SIcon = icon;
   const claim = state.kind === "claim";
   return (
-    <div className={`${CARD} p-4 flex flex-col gap-2.5 ${claim ? "ring-2 ring-teal-500" : ""}`}>
+    <div className={`rounded-xl p-3 ring-1 transition ${claim ? "ring-teal-300 bg-teal-50/60" : "ring-slate-200 bg-white/60"}`}>
       <div className="flex items-center gap-2.5">
-        <span className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${claim ? "bg-teal-600 text-white" : "bg-slaice-100 text-slaice-700"}`}><SIcon size={17} /></span>
-        <div className="font-semibold text-navy-900 text-[14px] flex-1 min-w-0 truncate">{t(title)}</div>
-        {claim && <Badge tone="green"><Icon.checkCircle size={11} /> {t("Ready")}</Badge>}
+        <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${claim ? "bg-teal-600 text-white" : "bg-slaice-100 text-slaice-700"}`}><SIcon size={15} /></span>
+        <div className="font-semibold text-navy-900 text-[13.5px] flex-1 min-w-0 truncate">{t(title)}</div>
+        {claim && <Badge tone="green"><Icon.checkCircle size={10} /> {t("Ready")}</Badge>}
       </div>
-      <div className="text-[13px] text-navy-900 font-medium leading-snug">{state.reward}</div>
+      <div className="text-[12.5px] text-navy-900 mt-1.5 leading-snug">{state.reward}</div>
       {state.kind === "progress" && (
-        <div className="mt-auto">
+        <div className="mt-2">
           <div className="flex items-center justify-between text-[11px] text-slate-500 mb-1 gap-2">
             <span className="tnum shrink-0">{state.current}/{state.target} {t(state.unit)}</span>
             {state.note && <span className="truncate">{state.note}</span>}
           </div>
-          <div className="h-2 rounded-full bg-slate-200 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-slaice-500 to-teal-500" style={{ width: `${Math.min(100, Math.round((state.current / state.target) * 100))}%` }} /></div>
+          <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-slaice-500 to-teal-500" style={{ width: `${Math.min(100, Math.round((state.current / state.target) * 100))}%` }} /></div>
         </div>
       )}
       {claim && (
-        <div className="mt-auto flex items-center justify-between gap-2">
+        <div className="mt-2 flex items-center justify-between gap-2">
           {state.note && <span className="text-[11px] text-slate-500 truncate">{state.note}</span>}
           <Btn size="sm" variant="teal" icon={Icon.gift} onClick={() => toast(`${t("Reward ready")} — ${state.reward}. ${t("Show this at the gate to redeem.")}`, { tone: "success" })}>{t("Claim")}</Btn>
         </div>
       )}
       {state.kind === "perk" && (
-        <div className="mt-auto flex items-center justify-between gap-2">
+        <div className="mt-2 flex items-center justify-between gap-2">
           {state.note && <span className="text-[11px] text-slate-500 truncate">{state.note}</span>}
           <button onClick={() => dive()} className="text-[12px] font-semibold text-teal-700 hover:text-teal-800 shrink-0 inline-flex items-center gap-1">{t("Use it")} <Icon.chevR size={13} /></button>
         </div>
