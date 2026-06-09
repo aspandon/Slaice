@@ -576,7 +576,7 @@ function StoreCards({ selectedId, onPick }: { selectedId: string; onPick: (id: s
   const tr = useT();
   const { beachLayout, zoneLogos } = useApp();
   return (
-    <div className="absolute inset-0 overflow-y-auto no-scrollbar">
+    <div className="absolute inset-0 overflow-y-auto no-scrollbar pointer-events-auto">
       <div className="grid grid-cols-2 gap-2.5 p-0.5">
         {ZONES.map((z) => {
           const active = z.id === selectedId;

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BeachBackdrop } from "./Beach";
 import { LifeRing } from "./LifeRing";
-import { prefersReducedMotion } from "../lib/motion";
+import { prefersReducedMotion, staticBackdrop } from "../lib/motion";
 
 /* Sand-top fraction (0–1). Higher = thinner sand strip / ocean vista; lower lifts
    the shoreline so the sand fills the view. */
@@ -16,6 +16,9 @@ const IMMERSIVE = 0.4; // inside the booking wizard — a sand-heavy beach you t
    from re-rendering the entire app tree each frame. */
 export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
   const [shoreline, setShoreline] = useState(immersive ? IMMERSIVE : REST);
+  // Phones / low-res keep a still backdrop (no scroll parallax, no tween) so
+  // mobile Safari doesn't lag; desktop keeps the depth-parallax + shoreline ease.
+  const [stat] = useState(staticBackdrop);
   // Mirror the latest value so the tween can read its start point without
   // re-subscribing the effect on every frame.
   const ref = useRef(shoreline);
@@ -23,7 +26,7 @@ export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
 
   useEffect(() => {
     const target = immersive ? IMMERSIVE : REST;
-    if (prefersReducedMotion()) {
+    if (stat || prefersReducedMotion()) {
       setShoreline(target);
       return;
     }
@@ -40,11 +43,11 @@ export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [immersive]);
+  }, [immersive, stat]);
 
   return (
     <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
-      <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax shoreline={shoreline} />
+      <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax={!stat} shoreline={shoreline} />
       {/* The life-buoy bobs in the open water. As the booking flow lifts the
           shoreline, it rides up with the sea to a spot in the top-left, clear of
           the menu and the tappable sand. */}
