@@ -26,9 +26,10 @@ export function PassPurchase({ kind }: { kind: "vip" | "season" }) {
   const t = useT();
   const vip = kind === "vip";
   const discPct = Math.round(passPricing.vipDiscount * 100);
-  const [phase, setPhase] = useState<"select" | "redirect" | "done">("select");
+  const [phase, setPhase] = useState<"select" | "terms" | "redirect" | "done">("select");
   const [tier, setTier] = useState<number>(passPricing.vipTiers[0] ?? 500);
   const [plan, setPlan] = useState<SeasonPlan>("summer");
+  const [agreed, setAgreed] = useState(false);
   const [ref] = useState(() => nextRef(kind));
 
   const price = vip ? tier : plan === "monthly" ? passPricing.seasonMonthly : passPricing.seasonSummer;
@@ -96,6 +97,59 @@ export function PassPurchase({ kind }: { kind: "vip" | "season" }) {
     );
   }
 
+  if (phase === "terms") {
+    const points = vip
+      ? [
+          t("VIP credit is prepaid and can be spent on any service — sunbeds, tickets, lockers and parking."),
+          `${t("A")} ${discPct}% ${t("discount applies to the part of each order paid with VIP credit; the rest is charged at the normal price.")}`,
+          `${t("Credit is valid until the end of this season")} (${SEASON_END_LABEL}). ${t("Any unused balance expires then and is non-refundable.")}`,
+          t("The card is personal to you and non-transferable — it cannot be shared, sold or given to anyone else."),
+          t("Credit has no cash value and cannot be exchanged for cash."),
+          t("Keep your card safe — misuse or sharing may lead to it being cancelled without a refund."),
+        ]
+      : [
+          `${t("The Season pass covers one entry ticket per visit, for you")}${plan === "monthly" ? ` ${t("for one month")}` : ` ${t("for the whole summer")}`}.`,
+          `${t("It is valid until the end of this season")} (${SEASON_END_LABEL}). ${t("It covers entry only — sunbeds, lockers, parking and other extras are paid separately.")}`,
+          t("The pass is personal and non-transferable — it cannot be lent, shared or given to other people. Photo ID may be requested at the gate."),
+          t("The pass is non-refundable once activated."),
+          t("Letting someone else use your pass may result in it being cancelled without a refund."),
+        ];
+    return (
+      <div className="animate-fade-up max-w-2xl mx-auto">
+        <button onClick={() => setPhase("select")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-600 hover:text-navy-900 mb-3"><Icon.arrowL size={15} /> {t("Back")}</button>
+        <Card className="overflow-hidden">
+          <div className={`${vip ? "grad-slaice" : "grad-sea"} text-white p-5 sm:p-6`}>
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/80"><Icon.shield size={12} /> {t("Please read & accept")}</div>
+            <h1 className="mt-1.5 font-display font-bold text-xl sm:text-2xl">{vip ? t("VIP Pass — terms") : t("Season Pass — terms")}</h1>
+          </div>
+          <div className="p-5 sm:p-6 space-y-4">
+            <ul className="space-y-2.5">
+              {points.map((p, i) => (
+                <li key={i} className="flex items-start gap-2.5 text-[13.5px] text-slate-700 leading-snug">
+                  <Icon.check size={15} className="text-teal-600 shrink-0 mt-0.5" /><span>{p}</span>
+                </li>
+              ))}
+            </ul>
+            <label className="flex items-start gap-3 rounded-xl ring-1 ring-slate-200 bg-slate-50 px-3.5 py-3 cursor-pointer hover:ring-teal-300 transition">
+              <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 w-[18px] h-[18px] accent-teal-600 shrink-0" />
+              <span className="text-[13px] text-navy-900 font-medium leading-snug">{vip ? t("I have read and agree to the VIP Pass terms above.") : t("I have read and agree to the Season Pass terms above.")}</span>
+            </label>
+          </div>
+          <div className="px-5 sm:px-6 py-4 border-t border-slate-200/70 flex items-center justify-between gap-3">
+            <div className="text-[12px] text-slate-500">{t("Total")} · <b className="text-navy-900 tnum">€{price.toLocaleString()}</b></div>
+            <div className="flex items-center gap-2">
+              <Btn variant="ghost" onClick={() => setPhase("select")}>{t("Back")}</Btn>
+              <Btn variant="indigo" icon={Icon.stripe} disabled={!agreed} onClick={() => setPhase("redirect")}>{t("Pay with Stripe")}</Btn>
+            </div>
+          </div>
+        </Card>
+        <div className="mt-3 text-[11px] text-slate-500 flex items-start gap-1.5">
+          <Icon.lock size={12} className="shrink-0 mt-0.5" /> {t("You'll only be charged after you accept and confirm on the next step.")}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="animate-fade-up max-w-2xl mx-auto">
       <button onClick={() => go("customer", "home")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-600 hover:text-navy-900 mb-3"><Icon.arrowL size={15} /> {t("Home")}</button>
@@ -143,7 +197,7 @@ export function PassPurchase({ kind }: { kind: "vip" | "season" }) {
               <div className="font-display text-2xl font-bold text-navy-900 tnum leading-none">€{price.toLocaleString()}</div>
               <div className="text-[11px] text-slate-500 mt-1">{vip ? `${t("One-off · credit never expires before")} ${SEASON_END_LABEL}` : t("One-off · auto-applies at checkout")}</div>
             </div>
-            <Btn variant="indigo" size="lg" icon={Icon.stripe} onClick={() => setPhase("redirect")}>{t("Pay with Stripe")}</Btn>
+            <Btn variant="indigo" size="lg" onClick={() => setPhase("terms")}>{t("Continue")} <Icon.arrowR size={15} /></Btn>
           </div>
 
           <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500"><Icon.lock size={12} /> {t("Secured by Stripe · we never store card details")}</div>
