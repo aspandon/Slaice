@@ -1017,13 +1017,21 @@ export function AdminRefunds() {
   const [step, setStep] = useState(0);
   const [reason, setReason] = useState("Weather");
   const [rtype, setRtype] = useState("Full refund");
-  const refunded = rows.filter((r) => r.status === "Refunded").reduce((a, b) => a + b.amount, 0);
+  // Partial-refund amount the operator types; `committed` freezes it at submit
+  // so the processing/done stages and the row update agree on one figure.
+  const [amount, setAmount] = useState(0);
+  const [committed, setCommitted] = useState(0);
+  const refunded = rows.filter((r) => r.status === "Refunded").reduce((a, b) => a + (b.refundAmount ?? b.amount), 0);
   const refundedCount = rows.filter((r) => r.status === "Refunded").length;
   const pending = rows.filter((r) => !r.status).length;
   const active = modal !== null ? rows[modal] : null;
   const activeLast = active ? personByFirst(active.who)?.last ?? "" : "";
+  const total = active?.amount ?? 0;
+  const partial = rtype === "Partial refund";
+  // A partial refund must be a positive amount no larger than the charge.
+  const validAmount = !partial || (amount > 0 && amount <= total);
 
-  const openRefund = (i: number) => { setStage("form"); setStep(0); setReason("Weather"); setRtype("Full refund"); setModal(i); };
+  const openRefund = (i: number) => { setStage("form"); setStep(0); setReason("Weather"); setRtype("Full refund"); setAmount(rows[i].amount); setModal(i); };
 
   // Walk through the Stripe steps once processing starts, then mark refunded.
   useEffect(() => {
@@ -1033,12 +1041,12 @@ export function AdminRefunds() {
       return () => clearTimeout(t);
     }
     const t = setTimeout(() => {
-      setRows((r) => r.map((x, i) => (i === modal ? { ...x, status: "Refunded", reason: x.reason || reason } : x)));
+      setRows((r) => r.map((x, i) => (i === modal ? { ...x, status: "Refunded", reason: x.reason || reason, refundAmount: committed } : x)));
       setStage("done");
-      toast("Stripe refund issued · credit note (5.1) sent to MyDATA · customer e-mailed.", { tone: "success" });
+      toast(`Stripe refund of €${committed} issued · credit note (5.1) sent to MyDATA · customer e-mailed.`, { tone: "success" });
     }, 600);
     return () => clearTimeout(t);
-  }, [stage, step, modal, reason, toast]);
+  }, [stage, step, modal, reason, committed, toast]);
 
   return (
     <div className="animate-fade-up">
@@ -1057,7 +1065,11 @@ export function AdminRefunds() {
         <Table cols={["Transaction", "Date", "Name", "Surname", "Phone", "Amount", "Reason", "Status", ""]} right={[5]}
           rows={rows.map((r, i) => {
             const p = personByFirst(r.who);
-            return [r.tx, r.date || "—", r.who, p?.last || "—", p?.phone ? <span className="tnum whitespace-nowrap">{p.phone}</span> : "—", `€${r.amount}`, r.reason || "—",
+            return [r.tx, r.date || "—", r.who, p?.last || "—", p?.phone ? <span className="tnum whitespace-nowrap">{p.phone}</span> : "—",
+              r.refundAmount != null && r.refundAmount < r.amount
+                ? <div className="leading-tight"><span className="tnum">€{r.amount}</span><div className="text-[11px] text-rose-600 tnum">−€{r.refundAmount} refunded</div></div>
+                : `€${r.amount}`,
+              r.reason || "—",
               r.status ? <Badge tone="green">{r.status}</Badge> : <Badge tone="amber">Pending</Badge>,
               r.status ? <span className="text-slate-500 text-sm">done</span> : <Btn size="sm" variant="outline" icon={Icon.refund} onClick={() => openRefund(i)}>Refund</Btn>];
           })} />
@@ -1065,7 +1077,7 @@ export function AdminRefunds() {
       <Modal open={modal !== null} onClose={() => setModal(null)} title={stage === "done" ? "Refund complete" : "Issue refund"}
         footer={
           stage === "form" ? (<><Btn variant="ghost" onClick={() => setModal(null)}>Cancel</Btn>
-            <Btn variant="danger" icon={Icon.refund} onClick={() => { setStep(0); setStage("processing"); }}>Refund via Stripe</Btn></>)
+            <Btn variant="danger" icon={Icon.refund} disabled={!validAmount} onClick={() => { setCommitted(partial ? amount : total); setStep(0); setStage("processing"); }}>Refund €{partial ? (validAmount ? amount : 0) : total} via Stripe</Btn></>)
           : stage === "done" ? (<Btn variant="primary" icon={Icon.check} onClick={() => setModal(null)}>Done</Btn>)
           : undefined
         }>
@@ -1075,12 +1087,26 @@ export function AdminRefunds() {
             {stage === "form" && (
               <>
                 <Field label="Refund type"><Select value={rtype} onChange={(e) => setRtype(e.target.value)} options={["Full refund", "Partial refund"]} /></Field>
+                {partial && (
+                  <Field label="Refund amount (€)">
+                    <Input type="number" min={1} max={total} step={1} value={amount}
+                      onChange={(e) => setAmount(Math.max(0, Math.min(total, Math.round(+e.target.value) || 0)))}
+                      className={!validAmount ? "ring-2 ring-rose-400 focus:ring-rose-400" : ""} />
+                    {!validAmount ? (
+                      <div className="text-[11px] text-rose-600 mt-1">Enter an amount between €1 and €{total}.</div>
+                    ) : amount < total ? (
+                      <div className="text-[11px] text-slate-500 mt-1 tnum">Up to €{total} · €{amount} returned, €{total - amount} stays charged.</div>
+                    ) : (
+                      <div className="text-[11px] text-slate-500 mt-1 tnum">Refunding the full €{total} — switch to “Full refund” if intended.</div>
+                    )}
+                  </Field>
+                )}
                 <Field label="Reason"><Select value={reason} onChange={(e) => setReason(e.target.value)} options={["Weather", "Double booking", "Customer request", "Service issue"]} /></Field>
                 <div className="text-[12px] text-slate-600 flex items-center gap-1.5"><Icon.shield size={13} /> Reverses the application fee and auto-issues a credit note to MyDATA.</div>
               </>
             )}
             {stage === "processing" && <StripeProgress step={step} />}
-            {stage === "done" && <RefundDone amount={active.amount} type={rtype} reason={reason} tx={active.tx} />}
+            {stage === "done" && <RefundDone amount={committed} type={rtype} reason={reason} tx={active.tx} />}
           </div>
         )}
       </Modal>
@@ -1089,10 +1115,98 @@ export function AdminRefunds() {
 }
 
 /* ============ COMMUNICATE (Future) ============ */
+/* Campaign channels — same Email/Viber/SMS family as the QR send-picker, plus
+   Push (the in-app notification the preview mocks up). */
+const CAMPAIGN_CHANNELS: { key: string; label: string; icon: IconRenderer; color: string }[] = [
+  { key: "Push notification", label: "Push", icon: Icon.bell, color: "#3a47cc" },
+  { key: "E-mail", label: "E-mail", icon: Icon.mail, color: "#0d9488" },
+  { key: "Viber", label: "Viber", icon: Icon.chat, color: "#7360f2" },
+  { key: "SMS", label: "SMS", icon: Icon.phone, color: "#16a34a" },
+];
+
+/* A channel-true preview of the message, so the operator sees what lands. */
+function CampaignPreview({ channel, msg }: { channel: string; msg: string }) {
+  if (channel === "E-mail")
+    return (
+      <div className="rounded-2xl ring-1 ring-slate-200 bg-white p-4 shadow-lift">
+        <div className="flex items-center gap-2 text-[11px] text-slate-500 mb-2"><Icon.mail size={12} /> Akti tou Iliou &lt;hello@aktitouiliou.gr&gt;</div>
+        <div className="font-semibold text-navy-900 text-sm">Weekend at the beach</div>
+        <div className="text-[12px] text-slate-600 leading-snug mt-1 line-clamp-4">{msg}</div>
+        <span className="inline-flex items-center mt-3 bg-navy-900 text-white text-[11px] font-semibold rounded-lg px-2.5 py-1">Book now</span>
+      </div>
+    );
+  if (channel === "Viber")
+    return (
+      <div className="rounded-2xl bg-[#f4f2fb] ring-1 ring-[#7360f2]/25 p-3">
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#7360f2] mb-1.5"><Icon.chat size={12} /> Viber · Akti tou Iliou</div>
+        <div className="bg-white rounded-2xl rounded-tl-sm shadow-sm px-3 py-2 text-[12.5px] text-navy-900 leading-snug">{msg}</div>
+      </div>
+    );
+  if (channel === "SMS")
+    return (
+      <div className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-3">
+        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 mb-1.5"><Icon.phone size={12} /> SMS · Akti tou Iliou</div>
+        <div className="bg-emerald-500 text-white rounded-2xl rounded-tr-sm shadow-sm px-3 py-2 text-[12.5px] leading-snug ml-auto max-w-[92%]">{msg}</div>
+      </div>
+    );
+  return (
+    <div className="rounded-2xl bg-navy-950 text-white p-4 shadow-lift">
+      <div className="flex items-center gap-2 text-[11px] text-white/70 mb-2"><Icon.bell size={12} /> Akti tou Iliou · now</div>
+      <div className="font-semibold text-sm">Weekend at the beach</div>
+      <div className="text-[12px] text-white/80 leading-snug mt-0.5 line-clamp-3">{msg}</div>
+    </div>
+  );
+}
+
+/* Review → send → sent confirmation, so "Send campaign" is a deliberate journey
+   (who · which channel · what), not a one-click fire. */
+function CampaignReviewModal({ open, onClose, channel, seg, reach, msg, onSend }: {
+  open: boolean; onClose: () => void; channel: string; seg: string; reach: string; msg: string; onSend: () => void;
+}) {
+  const [stage, setStage] = useState<"review" | "sent">("review");
+  useEffect(() => { if (open) setStage("review"); }, [open]);
+  const ch = CAMPAIGN_CHANNELS.find((c) => c.key === channel) ?? CAMPAIGN_CHANNELS[0];
+  const CIcon = ch.icon;
+  return (
+    <Modal open={open} onClose={onClose} title={stage === "sent" ? "Campaign sent" : "Review campaign"}
+      footer={stage === "review"
+        ? <><Btn variant="ghost" onClick={onClose}>Back</Btn><Btn variant="primary" icon={CIcon} onClick={() => { onSend(); setStage("sent"); }}>Send to {reach} users</Btn></>
+        : <Btn variant="primary" icon={Icon.check} onClick={onClose}>Done</Btn>}>
+      {stage === "review" ? (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
+            <span className="w-9 h-9 rounded-xl grid place-items-center text-white shadow-sm shrink-0" style={{ background: ch.color }}><CIcon size={16} /></span>
+            <div className="min-w-0"><div className="text-[11px] text-slate-500">Channel</div><div className="text-[13px] font-semibold text-navy-900">{ch.key}</div></div>
+          </div>
+          <div className="flex items-center justify-between gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="w-9 h-9 rounded-xl grid place-items-center bg-slaice-100 text-slaice-700 shrink-0"><Icon.users size={16} /></span>
+              <div className="min-w-0"><div className="text-[11px] text-slate-500">Audience</div><div className="text-[13px] font-semibold text-navy-900 truncate">{seg}</div></div>
+            </div>
+            <div className="text-right shrink-0"><div className="text-[11px] text-slate-500">Est. reach</div><div className="text-[13px] font-semibold text-navy-900 tnum">{reach}</div></div>
+          </div>
+          <div>
+            <div className="text-[12px] font-semibold text-slate-700 mb-1">Message</div>
+            <div className="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-3 py-2.5 text-[13px] text-navy-900 leading-snug whitespace-pre-wrap">{msg || <span className="text-slate-400">No message.</span>}</div>
+          </div>
+        </div>
+      ) : (
+        <div className="py-2 text-center space-y-2 animate-pop">
+          <span className="mx-auto w-12 h-12 rounded-full bg-teal-600 text-white grid place-items-center shadow"><Icon.check size={22} /></span>
+          <div className="font-semibold text-navy-900">Sent to {reach} {seg} guests</div>
+          <div className="text-[13px] text-slate-600 max-w-xs mx-auto">Delivered via <b>{ch.key}</b>. Opens and clicks will appear in Reporting → Channels.</div>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 export function AdminCommunicate() {
   const { toast } = useApp();
   const [seg, setSeg] = useState("VIP");
   const [msg, setMsg] = useState("☀️ Weekend offer: 20% off front-row sunbeds at Akti tou Iliou. Book now!");
+  const [channel, setChannel] = useState("Push notification");
+  const [review, setReview] = useState(false);
   const reach = seg === "All users" ? "8,420" : seg === "VIP" ? "318" : "1,204";
   return (
     <div className="animate-fade-up">
@@ -1101,20 +1215,30 @@ export function AdminCommunicate() {
       <div className="grid lg:grid-cols-[1fr_320px] gap-5">
         <Card className="p-5 space-y-3">
           <Field label="Audience segment"><Select value={seg} onChange={(e) => setSeg(e.target.value)} options={["VIP", "Season pass", "Regulars", "New", "All users"]} /></Field>
-          <Field label="Channel"><Select options={["Push notification", "E-mail", "SMS", "WhatsApp"]} /></Field>
+          <Field label="Channel">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {CAMPAIGN_CHANNELS.map((c) => {
+                const on = channel === c.key;
+                const CIcon = c.icon;
+                return (
+                  <button key={c.key} type="button" onClick={() => setChannel(c.key)} aria-pressed={on}
+                    className={`rounded-xl p-2.5 text-center ring-1 transition ${on ? "ring-2 ring-teal-500 bg-teal-50/50" : "ring-slate-200 bg-white hover:ring-teal-400"}`}>
+                    <span className="mx-auto mb-1.5 w-9 h-9 rounded-xl grid place-items-center text-white shadow-sm" style={{ background: c.color }}><CIcon size={16} /></span>
+                    <div className="text-[12.5px] font-semibold text-navy-900">{c.label}</div>
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
           <Field label="Message"><textarea rows={4} value={msg} onChange={(e) => setMsg(e.target.value)} className="glass-input w-full rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500/70 outline-none" /></Field>
           <div className="flex items-center justify-between">
-            <div className="text-[12px] text-slate-600">Est. reach: <b className="text-navy-900">{reach}</b> users</div>
-            <Btn variant="primary" icon={Icon.bell} onClick={() => toast("Demo — campaign queued (roadmap feature).")}>Send campaign</Btn>
+            <div className="text-[12px] text-slate-600">Est. reach: <b className="text-navy-900">{reach}</b> users · via {channel}</div>
+            <Btn variant="primary" icon={Icon.bell} disabled={!msg.trim()} onClick={() => setReview(true)}>Send campaign</Btn>
           </div>
         </Card>
         <aside className="space-y-3 lg:sticky lg:top-24 h-max">
           <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 px-1">Preview</div>
-          <div className="rounded-2xl bg-navy-950 text-white p-4 shadow-lift">
-            <div className="flex items-center gap-2 text-[11px] text-white/70 mb-2"><Icon.bell size={12} /> Akti tou Iliou · now</div>
-            <div className="font-semibold text-sm">Weekend at the beach</div>
-            <div className="text-[12px] text-white/80 leading-snug mt-0.5 line-clamp-3">{msg}</div>
-          </div>
+          <CampaignPreview channel={channel} msg={msg} />
           <div className="rounded-2xl ring-1 ring-slate-200 bg-white/70 backdrop-blur p-4 space-y-3 text-[12px] text-slate-600">
             <div className="flex items-center justify-between">
               <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.users size={14} /> Audience</div>
@@ -1142,44 +1266,234 @@ export function AdminCommunicate() {
           </div>
         </aside>
       </div>
+      <CampaignReviewModal
+        open={review}
+        onClose={() => setReview(false)}
+        channel={channel}
+        seg={seg}
+        reach={reach}
+        msg={msg}
+        onSend={() => toast(`Demo — campaign sent to ${reach} ${seg} guests via ${channel}.`, { tone: "success" })}
+      />
     </div>
   );
 }
 
 /* ============ LOYALTY (Future) ============
-   Propose a handful of proven loyalty patterns (stamp cards, happy hours, tiers,
-   bundles, referrals, birthday treats), plus two working demo builders: a timed
-   public offer and a visit-milestone email campaign whose audience comes from the
-   real customer roster. Ideas-first — the operator picks what to wire for real. */
+   A handful of proven loyalty patterns (stamp cards, happy hours, tiers, bundles,
+   referrals, birthday treats) — each one configurable via a typed field schema,
+   plus a way to add your own. Below sit two working demo builders: a timed public
+   offer and a visit-milestone email campaign whose audience comes from the real
+   roster. Schemes are data-driven (fields + a summary builder), so the config
+   modal and the card both render from one source — no per-scheme forms. */
+
+// Reward options reused by the timed-offer builder and custom schemes.
+const LOYALTY_REWARDS = ["10% off sunbeds", "20% off sunbeds", "Free coffee with a set", "Free drink with a set", "Free entry ticket", "Buy 1 set, 2nd half price"];
+
+type SchemeFieldType = "select" | "number" | "time" | "text";
+interface SchemeField {
+  key: string;
+  label: string;
+  type: SchemeFieldType;
+  def: string | number;
+  options?: string[];
+  suffix?: string;
+  min?: number;
+  max?: number;
+  /** Span both columns of the config grid (free-text perks / names). */
+  full?: boolean;
+}
+type SchemeValues = Record<string, string | number>;
+interface LoyaltyScheme {
+  id: string;
+  icon: IconRenderer;
+  title: string;
+  blurb: string;
+  eg: string;
+  fields: SchemeField[];
+  summarize: (v: SchemeValues) => string;
+  /** User-added scheme: title comes from a field and it can be removed. */
+  custom?: boolean;
+}
+
+const BUILTIN_SCHEMES: LoyaltyScheme[] = [
+  {
+    id: "milestones", icon: Icon.star, title: "Visit milestones",
+    blurb: "A stamp card — every Nth visit is on the house, tracked automatically by the gate QR.", eg: "10th sunbed free",
+    fields: [
+      { key: "everyN", label: "Free every", type: "number", def: 10, suffix: "visits", min: 2, max: 50 },
+      { key: "reward", label: "Reward", type: "select", def: "Free sunbed", options: ["Free sunbed", "Free entry", "Free coffee", "20% off next visit"] },
+    ],
+    summarize: (v) => `Every ${v.everyN} visits → ${v.reward}`,
+  },
+  {
+    id: "happy", icon: Icon.clock, title: "Happy hours & early-bird",
+    blurb: "Discount the quiet slots so they fill up instead of sitting empty.", eg: "Weekdays 9–11 → 20% off front row",
+    fields: [
+      { key: "discount", label: "Discount", type: "select", def: "20% off", options: ["10% off", "15% off", "20% off", "30% off"] },
+      { key: "days", label: "Days", type: "select", def: "Weekdays", options: ["Weekdays", "Weekends", "Every day"] },
+      { key: "from", label: "From", type: "time", def: "09:00" },
+      { key: "to", label: "To", type: "time", def: "11:00" },
+    ],
+    summarize: (v) => `${v.discount} · ${v.days} ${v.from}–${v.to}`,
+  },
+  {
+    id: "tiers", icon: Icon.sparkles, title: "Tiered membership",
+    blurb: "Silver / Gold / VIP — perks unlock the more a guest returns each season.", eg: "Gold: free parking + late checkout",
+    fields: [
+      { key: "silverAt", label: "Silver from", type: "number", def: 3, suffix: "visits", min: 1 },
+      { key: "silverPerk", label: "Silver perk", type: "text", def: "10% off sunbeds" },
+      { key: "goldAt", label: "Gold from", type: "number", def: 6, suffix: "visits", min: 1 },
+      { key: "goldPerk", label: "Gold perk", type: "text", def: "Free parking + late checkout" },
+      { key: "vipAt", label: "VIP from", type: "number", def: 12, suffix: "visits", min: 1 },
+      { key: "vipPerk", label: "VIP perk", type: "text", def: "Front row + free coffee" },
+    ],
+    summarize: (v) => `Silver ${v.silverAt}+ · Gold ${v.goldAt}+ · VIP ${v.vipAt}+`,
+  },
+  {
+    id: "bundle", icon: Icon.gift, title: "Bundle perks",
+    blurb: "Pair a set with a freebie to lift the average spend and the experience.", eg: "Sunbed before noon → free coffee",
+    fields: [
+      { key: "buy", label: "When they book", type: "select", def: "A sunbed set", options: ["A sunbed set", "A front-row set", "Any 2 sets", "An entry ticket"] },
+      { key: "get", label: "They get", type: "select", def: "A free coffee", options: ["A free coffee", "A free drink", "A free locker", "2nd set half price"] },
+      { key: "when", label: "When", type: "select", def: "Before noon", options: ["Any time", "Before noon", "Weekdays only"] },
+    ],
+    summarize: (v) => `${v.buy} → ${v.get} · ${v.when}`,
+  },
+  {
+    id: "referral", icon: Icon.users, title: "Bring a friend",
+    blurb: "Referrals — both the inviter and the new guest get a small reward.", eg: "Refer a friend → €5 off each",
+    fields: [
+      { key: "inviter", label: "Inviter gets", type: "select", def: "€5 off", options: ["€5 off", "€10 off", "10% off", "A free coffee"] },
+      { key: "friend", label: "New guest gets", type: "select", def: "€5 off", options: ["€5 off", "€10 off", "10% off", "Free entry"] },
+    ],
+    summarize: (v) => `Inviter ${v.inviter} · Friend ${v.friend}`,
+  },
+  {
+    id: "birthday", icon: Icon.calendar, title: "Birthday week",
+    blurb: "A small, automatic treat during a guest's birthday week. Cheap goodwill.", eg: "Free entry + a drink, on us",
+    fields: [
+      { key: "treat", label: "Treat", type: "select", def: "Free entry + a drink", options: ["Free entry + a drink", "Free sunbed for a day", "20% off everything", "A free dessert"] },
+      { key: "window", label: "Valid", type: "select", def: "Birthday week", options: ["On the day", "Birthday week", "Birthday month"] },
+    ],
+    summarize: (v) => `${v.treat} · ${v.window}`,
+  },
+];
+
+// A blank user-defined scheme: name it, pick a reward, scope and timing.
+const makeCustomScheme = (id: string): LoyaltyScheme => ({
+  id, icon: Icon.gift, title: "Custom scheme", custom: true,
+  blurb: "Your own reward rule — name it and choose what guests get.", eg: "",
+  fields: [
+    { key: "title", label: "Scheme name", type: "text", def: "Custom scheme", full: true },
+    { key: "reward", label: "Reward", type: "select", def: LOYALTY_REWARDS[0], options: LOYALTY_REWARDS },
+    { key: "appliesTo", label: "Applies to", type: "select", def: "All stores", options: ["All stores", ...ZONES.map((z) => z.name)] },
+    { key: "when", label: "When", type: "select", def: "Weekday mornings", options: ["Weekday mornings", "Weekends", "All season", "Happy hour 17:00–19:00"] },
+  ],
+  summarize: (v) => `${v.reward} · ${v.appliesTo} · ${v.when}`,
+});
+
+const schemeDefaults = (s: LoyaltyScheme): SchemeValues => Object.fromEntries(s.fields.map((f) => [f.key, f.def]));
+
+/* One control per field type — keeps the config modal declarative. */
+function SchemeFieldControl({ field, value, onChange }: { field: SchemeField; value: string | number; onChange: (v: string | number) => void }) {
+  if (field.type === "select") return <Select value={String(value)} onChange={(e) => onChange(e.target.value)} options={field.options} />;
+  if (field.type === "time") return <Input type="time" value={String(value)} onChange={(e) => onChange(e.target.value)} />;
+  if (field.type === "number")
+    return (
+      <div className="flex items-center gap-2">
+        <Input type="number" min={field.min} max={field.max} value={Number(value)}
+          onChange={(e) => onChange(Math.max(field.min ?? 0, Math.min(field.max ?? 9999, Math.round(+e.target.value) || field.min || 0)))} />
+        {field.suffix && <span className="text-[12px] text-slate-500 shrink-0">{field.suffix}</span>}
+      </div>
+    );
+  return <Input type="text" value={String(value)} onChange={(e) => onChange(e.target.value)} />;
+}
+
+/* Configure a scheme's parameters. Mounted only while open, so it always seeds
+   fresh from the saved values (or the scheme defaults for a first set-up). */
+function SchemeConfigModal({ scheme, initial, configured, onSave, onClose }: {
+  scheme: LoyaltyScheme; initial: SchemeValues; configured: boolean; onSave: (v: SchemeValues) => void; onClose: () => void;
+}) {
+  const [values, setValues] = useState<SchemeValues>(initial);
+  const SIcon = scheme.icon;
+  const heading = scheme.custom ? String(values.title || "Custom scheme") : scheme.title;
+  return (
+    <Modal open onClose={onClose} wide
+      title={<span className="inline-flex items-center gap-2"><SIcon size={18} className="text-slaice-600" /> Configure · {heading}</span>}
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+        <Btn variant="primary" icon={Icon.check} onClick={() => onSave(values)}>{configured ? "Save changes" : "Save & activate"}</Btn></>}>
+      <div className="space-y-3">
+        <p className="text-[13px] text-slate-600 -mt-1">{scheme.blurb}</p>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {scheme.fields.map((f) => (
+            <div key={f.key} className={f.full ? "sm:col-span-2" : ""}>
+              <Field label={f.label}>
+                <SchemeFieldControl field={f} value={values[f.key]} onChange={(v) => setValues((s) => ({ ...s, [f.key]: v }))} />
+              </Field>
+            </div>
+          ))}
+        </div>
+        <div className="rounded-xl bg-teal-50/70 ring-1 ring-teal-200 px-3 py-2 text-[12.5px] text-navy-900"><b>Preview:</b> {scheme.summarize(values)}</div>
+      </div>
+    </Modal>
+  );
+}
+
 export function AdminLoyalty() {
   const { toast } = useApp();
   const [reward, setReward] = useState("20% off sunbeds");
   const [store, setStore] = useState("All stores");
   const [schedule, setSchedule] = useState("Weekday mornings");
-  const [active, setActive] = useState<Set<string>>(new Set());
   const [offers, setOffers] = useState<{ id: number; reward: string; store: string; schedule: string }[]>([]);
   const [send, setSend] = useState<{ off: string; count: number } | null>(null);
   const idRef = useRef(0);
   const tier = (min: number) => CUSTOMERS.filter((c) => c.bookings >= min).length;
 
-  const toggleScheme = (title: string) => {
-    const on = active.has(title);
-    setActive((s) => { const n = new Set(s); if (on) n.delete(title); else n.add(title); return n; });
-    toast(on ? `Disabled “${title}”.` : `Enabled “${title}” — now live for guests.`, on ? {} : { tone: "success" });
+  // Scheme lifecycle: a scheme is "configured" once it has saved values; the
+  // `enabled` flag then turns it live/paused without losing the config. Custom
+  // schemes are added at runtime and removable.
+  const [customs, setCustoms] = useState<LoyaltyScheme[]>([]);
+  const [config, setConfig] = useState<Record<string, { enabled: boolean; values: SchemeValues }>>({});
+  const [editing, setEditing] = useState<string | null>(null);
+  const allSchemes = useMemo(() => [...BUILTIN_SCHEMES, ...customs], [customs]);
+  const activeCount = Object.values(config).filter((c) => c.enabled).length;
+  const editScheme = editing ? allSchemes.find((s) => s.id === editing) ?? null : null;
+
+  const saveConfig = (id: string, values: SchemeValues) => {
+    setConfig((c) => ({ ...c, [id]: { enabled: true, values } }));
+    const sch = allSchemes.find((s) => s.id === id);
+    const name = sch?.custom ? String(values.title || "Custom scheme") : sch?.title;
+    toast(`Enabled “${name}” — now live for guests.`, { tone: "success" });
+    setEditing(null);
   };
+  const closeConfig = () => {
+    // Drop a brand-new custom card if its first set-up was cancelled.
+    if (editing && !config[editing]) setCustoms((cs) => cs.filter((c) => c.id !== editing));
+    setEditing(null);
+  };
+  const toggleEnabled = (id: string) => {
+    const willEnable = !config[id]?.enabled;
+    setConfig((c) => (c[id] ? { ...c, [id]: { ...c[id], enabled: willEnable } } : c));
+    const sch = allSchemes.find((s) => s.id === id);
+    const name = sch?.custom ? String(config[id]?.values.title || "Custom scheme") : sch?.title;
+    toast(willEnable ? `Resumed “${name}”.` : `Paused “${name}”.`, willEnable ? { tone: "success" } : {});
+  };
+  const addCustom = () => {
+    const id = `custom-${Date.now().toString(36)}`;
+    setCustoms((cs) => [...cs, makeCustomScheme(id)]);
+    setEditing(id);
+  };
+  const removeCustom = (id: string) => {
+    setCustoms((cs) => cs.filter((c) => c.id !== id));
+    setConfig((c) => { const n = { ...c }; delete n[id]; return n; });
+    toast("Removed scheme.");
+  };
+
   const publish = () => {
     setOffers((o) => [{ id: ++idRef.current, reward, store, schedule }, ...o]);
     toast(`Published offer: ${reward} (${store} · ${schedule}).`, { tone: "success" });
   };
-
-  const schemes = [
-    { icon: Icon.star, title: "Visit milestones", blurb: "A stamp card — every Nth visit is on the house, tracked automatically by the gate QR.", eg: "10th sunbed free" },
-    { icon: Icon.clock, title: "Happy hours & early-bird", blurb: "Discount the quiet slots so they fill up instead of sitting empty.", eg: "Weekdays 9–11 → 20% off front row" },
-    { icon: Icon.sparkles, title: "Tiered membership", blurb: "Silver / Gold / VIP — perks unlock the more a guest returns each season.", eg: "Gold: free parking + late checkout" },
-    { icon: Icon.gift, title: "Bundle perks", blurb: "Pair a set with a freebie to lift the average spend and the experience.", eg: "Sunbed before noon → free coffee" },
-    { icon: Icon.users, title: "Bring a friend", blurb: "Referrals — both the inviter and the new guest get a small reward.", eg: "Refer a friend → €5 off each" },
-    { icon: Icon.calendar, title: "Birthday week", blurb: "A small, automatic treat during a guest's birthday week. Cheap goodwill.", eg: "Free entry + a drink, on us" },
-  ];
   const tiers = [
     { min: 5, off: "10% off", tone: "slate" },
     { min: 10, off: "15% off + free coffee", tone: "blue" },
@@ -1192,24 +1506,53 @@ export function AdminLoyalty() {
       <FutureBanner />
 
       <div className="mb-5">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-2 px-1">Pick a scheme to start with{active.size > 0 && <span className="text-teal-600"> · {active.size} active</span>}</div>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-2 px-1">Pick a scheme to set up{activeCount > 0 && <span className="text-teal-600"> · {activeCount} active</span>}</div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {schemes.map((s) => {
+          {allSchemes.map((s) => {
             const SIcon = s.icon;
-            const on = active.has(s.title);
+            const st = config[s.id];
+            const configured = !!st;
+            const on = !!st?.enabled;
+            const title = s.custom ? String(st?.values.title ?? s.title) : s.title;
             return (
-              <Card key={s.title} className={`p-4 flex flex-col gap-2 transition ${on ? "ring-2 ring-teal-500" : ""}`}>
+              <Card key={s.id} className={`p-4 flex flex-col gap-2 transition ${on ? "ring-2 ring-teal-500" : ""}`}>
                 <div className="flex items-center gap-2.5">
                   <span className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${on ? "bg-teal-600 text-white" : "bg-slaice-100 text-slaice-700"}`}><SIcon size={18} /></span>
-                  <div className="font-semibold text-navy-900 flex-1 min-w-0">{s.title}</div>
-                  {on && <Badge tone="green">Active</Badge>}
+                  <div className="font-semibold text-navy-900 flex-1 min-w-0 truncate">{title}</div>
+                  {configured && <Toggle on={on} onChange={() => toggleEnabled(s.id)} />}
                 </div>
                 <div className="text-[13px] text-slate-600 leading-snug">{s.blurb}</div>
-                <div className="text-[12px] text-slate-500 rounded-lg bg-slate-50 ring-1 ring-slate-100 px-2.5 py-1.5">e.g. {s.eg}</div>
-                <Btn variant={on ? "outline" : "tint"} size="sm" full icon={on ? Icon.check : Icon.plus} className="mt-auto" onClick={() => toggleScheme(s.title)}>{on ? "Active · tap to disable" : "Set up"}</Btn>
+                {configured ? (
+                  <div className="text-[12.5px] text-navy-900 rounded-lg bg-teal-50/70 ring-1 ring-teal-200 px-2.5 py-1.5 flex items-start gap-1.5">
+                    <Icon.check size={13} className="text-teal-600 shrink-0 mt-0.5" /><span>{s.summarize(st.values)}</span>
+                  </div>
+                ) : (
+                  <div className="text-[12px] text-slate-500 rounded-lg bg-slate-50 ring-1 ring-slate-100 px-2.5 py-1.5">e.g. {s.eg}</div>
+                )}
+                <div className="mt-auto flex gap-2 pt-0.5">
+                  {configured ? (
+                    <>
+                      <Btn variant="outline" size="sm" full icon={Icon.edit} onClick={() => setEditing(s.id)}>Edit configuration</Btn>
+                      {s.custom && (
+                        <button type="button" onClick={() => removeCustom(s.id)} aria-label={`Remove ${title}`}
+                          className="shrink-0 w-9 h-9 rounded-[14px] grid place-items-center ring-1 ring-slate-200 text-rose-600 hover:bg-rose-50 hover:ring-rose-300 transition"><Icon.trash size={15} /></button>
+                      )}
+                    </>
+                  ) : (
+                    <Btn variant="tint" size="sm" full icon={Icon.plus} onClick={() => setEditing(s.id)}>Set up</Btn>
+                  )}
+                </div>
               </Card>
             );
           })}
+          <button type="button" onClick={addCustom}
+            className="rounded-3xl border-2 border-dashed border-slate-300 hover:border-teal-400 hover:bg-teal-50/40 transition grid place-items-center p-6 text-center min-h-[176px] group">
+            <span className="flex flex-col items-center gap-2 text-slate-500 group-hover:text-teal-700">
+              <span className="w-11 h-11 rounded-2xl bg-white ring-1 ring-slate-200 group-hover:ring-teal-300 grid place-items-center shadow-sm transition"><Icon.plus size={20} /></span>
+              <span className="text-[13px] font-semibold">Add a custom scheme</span>
+              <span className="text-[11.5px] text-slate-400 group-hover:text-teal-600">Name it, pick a reward, choose when.</span>
+            </span>
+          </button>
         </div>
       </div>
 
@@ -1219,7 +1562,7 @@ export function AdminLoyalty() {
           <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.clock size={16} /> Timed public offer</div>
           <div className="text-[12.5px] text-slate-600 -mt-1">Run a deal for everyone, on the dates and hours you choose.</div>
           <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="Reward"><Select value={reward} onChange={(e) => setReward(e.target.value)} options={["10% off sunbeds", "20% off sunbeds", "Free coffee with a set", "Free drink with a set", "Free entry ticket", "Buy 1 set, 2nd half price"]} /></Field>
+            <Field label="Reward"><Select value={reward} onChange={(e) => setReward(e.target.value)} options={LOYALTY_REWARDS} /></Field>
             <Field label="Applies to"><Select value={store} onChange={(e) => setStore(e.target.value)} options={["All stores", ...ZONES.map((z) => z.name)]} /></Field>
             <Field label="When"><Select value={schedule} onChange={(e) => setSchedule(e.target.value)} options={["Weekday mornings", "Weekends", "Specific date range", "All month", "Happy hour 17:00–19:00"]} /></Field>
             <Field label="Time window"><div className="flex items-center gap-2"><Input type="time" defaultValue="09:00" /><span className="text-slate-400">–</span><Input type="time" defaultValue="11:00" /></div></Field>
@@ -1261,6 +1604,16 @@ export function AdminLoyalty() {
           <div className="text-[11px] text-slate-500 flex items-center gap-1.5"><Icon.info size={13} /> Thresholds and rewards here are examples — tell me which you like and I’ll wire them up.</div>
         </Card>
       </div>
+
+      {editScheme && (
+        <SchemeConfigModal
+          scheme={editScheme}
+          configured={!!config[editScheme.id]}
+          initial={config[editScheme.id]?.values ?? schemeDefaults(editScheme)}
+          onSave={(v) => saveConfig(editScheme.id, v)}
+          onClose={closeConfig}
+        />
+      )}
 
       <SendModal
         open={send !== null}
