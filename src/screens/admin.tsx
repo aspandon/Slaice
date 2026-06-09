@@ -1130,10 +1130,118 @@ export function AdminLoyalty() {
   );
 }
 
+/* ---- DSAR handling journey ---- */
+type DsarRow = (typeof DSAR_QUEUE)[number];
+
+const DSAR_TYPE_DONE: Record<string, string> = {
+  Access: "Data package compiled and a secure download link e-mailed to the verified address.",
+  Portability: "A portable copy (JSON + receipts) was compiled and a secure link e-mailed.",
+  Erasure: "Personal data erased. Invoices are kept under Greek tax law (5 years) and were excluded.",
+  Rectification: "The record was corrected and any affected receipt re-issued; the subject was notified.",
+  Objection: "Marketing and profiling were restricted for this subject; a confirmation was e-mailed.",
+};
+
+interface DsarStep { label: string; detail: string; icon: IconRenderer; action: string }
+function dsarSteps(type: string): DsarStep[] {
+  const verify: DsarStep = { label: "Verify identity", detail: "Confirm the requester owns the account (e-mail / ID match).", icon: Icon.shieldCheck, action: "Identity verified" };
+  const locate: DsarStep = { label: "Locate personal data", detail: "Gather across bookings, invoices, consents and support history.", icon: Icon.search, action: "Data located" };
+  switch (type) {
+    case "Access":
+    case "Portability":
+      return [verify, locate,
+        { label: "Compile export", detail: "Build a machine-readable package (JSON + PDF receipts).", icon: Icon.database, action: "Package built" },
+        { label: "Send secure download", detail: "E-mail a time-limited link to the verified address.", icon: Icon.mail, action: "Link sent" }];
+    case "Erasure":
+      return [verify, locate,
+        { label: "Apply legal holds", detail: "Invoices (ΑΠΥ/ΤΠΥ) are kept 5 years by Greek tax law — excluded from erasure.", icon: Icon.shield, action: "Holds applied" },
+        { label: "Erase the rest", detail: "Delete profile, marketing history and non-retained records.", icon: Icon.trash, action: "Data erased" },
+        { label: "Confirm to subject", detail: "E-mail confirmation of what was erased and what was retained.", icon: Icon.mail, action: "Confirmation sent" }];
+    case "Rectification":
+      return [verify,
+        { label: "Locate the record", detail: "Find the field(s) the subject asked to correct.", icon: Icon.search, action: "Record found" },
+        { label: "Apply correction", detail: "Update name / e-mail / phone and re-issue any affected receipt.", icon: Icon.edit, action: "Correction applied" },
+        { label: "Confirm to subject", detail: "E-mail confirmation of the change.", icon: Icon.mail, action: "Confirmation sent" }];
+    default: // Objection / Restriction
+      return [verify,
+        { label: "Identify processing", detail: "Find the marketing / profiling the subject objects to.", icon: Icon.sliders, action: "Processing identified" },
+        { label: "Restrict processing", detail: "Pause marketing consents and flag the account.", icon: Icon.lock, action: "Processing restricted" },
+        { label: "Confirm to subject", detail: "E-mail confirmation that processing is restricted.", icon: Icon.mail, action: "Confirmation sent" }];
+  }
+}
+
+const dsarTone = (type: string) => (type === "Erasure" ? "red" : type === "Access" ? "blue" : "slate");
+
+function DsarHandleModal({ request, onClose, onComplete }: { request: DsarRow | null; onClose: () => void; onComplete: () => void }) {
+  const [stage, setStage] = useState<"work" | "done">("work");
+  const [step, setStep] = useState(0);
+  // Reset only when a *different* request opens (keyed by id, so completing —
+  // which swaps the row object but keeps the id — doesn't bounce back to step 0).
+  useEffect(() => { setStage("work"); setStep(0); }, [request?.id]);
+  const steps = request ? dsarSteps(request.type) : [];
+  const allDone = step >= steps.length;
+  return (
+    <Modal open={request !== null} onClose={onClose} title={stage === "done" ? "Request completed" : request ? `Handle ${request.id}` : "Handle request"}
+      footer={!request ? undefined : stage === "done"
+        ? <Btn variant="primary" icon={Icon.check} onClick={onClose}>Close</Btn>
+        : <><Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+            <Btn variant="primary" icon={Icon.shieldCheck} disabled={!allDone} onClick={() => { onComplete(); setStage("done"); }}>Complete request</Btn></>}>
+      {request && (
+        <div className="space-y-3">
+          <div className="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-3 py-2.5 flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="font-semibold text-navy-900 text-sm flex items-center gap-2">{request.first} {request.last} <Badge tone={dsarTone(request.type)}>{request.type}</Badge></div>
+              <div className="text-[12px] text-slate-500 truncate">{request.email} · {request.phone}</div>
+            </div>
+            <div className="text-right shrink-0 text-[11px] text-slate-500"><div className="font-mono">{request.id}</div><div>received {request.received}</div></div>
+          </div>
+          {stage === "done" ? (
+            <div className="py-2 text-center space-y-2 animate-pop">
+              <span className="mx-auto w-12 h-12 rounded-full bg-teal-600 text-white grid place-items-center shadow"><Icon.check size={22} /></span>
+              <div className="font-semibold text-navy-900">{request.type} request fulfilled</div>
+              <div className="text-[13px] text-slate-600 max-w-sm mx-auto">{DSAR_TYPE_DONE[request.type] ?? DSAR_TYPE_DONE.Objection} Logged to the audit trail, within the 30-day SLA.</div>
+            </div>
+          ) : (
+            <>
+              <div className="text-[12px] text-slate-500">Work through each step — the request closes once every step is done (GDPR Art. 12 · 30-day clock).</div>
+              <ol className="space-y-1.5">
+                {steps.map((s, i) => {
+                  const stt = i < step ? "done" : i === step ? "active" : "todo";
+                  const SIcon = s.icon;
+                  return (
+                    <li key={i} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ring-1 transition ${stt === "done" ? "ring-teal-200 bg-teal-50/60" : stt === "active" ? "ring-slaice-300 bg-white shadow-soft" : "ring-slate-100 bg-slate-50/50 opacity-60"}`}>
+                      <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${stt === "done" ? "bg-teal-600 text-white" : stt === "active" ? "bg-navy-900 text-white" : "bg-slate-200 text-slate-400"}`}>
+                        {stt === "done" ? <Icon.check size={14} /> : <SIcon size={14} />}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] font-semibold text-navy-900">{s.label}</div>
+                        <div className="text-[11px] text-slate-500 leading-snug">{s.detail}</div>
+                      </div>
+                      {stt === "active" && <Btn size="sm" variant="tint" onClick={() => setStep((x) => x + 1)}>{s.action}</Btn>}
+                      {stt === "done" && <span className="text-[11px] font-semibold text-teal-700 shrink-0 inline-flex items-center gap-1"><Icon.check size={11} /> {s.action}</span>}
+                    </li>
+                  );
+                })}
+              </ol>
+            </>
+          )}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 /* ============ PRIVACY & GDPR (Admin / controller side) ============ */
 export function AdminPrivacy() {
   const { toast } = useApp();
   const [tab, setTab] = useState("requests");
+  const [dsar, setDsar] = useState(DSAR_QUEUE);
+  const [handle, setHandle] = useState<number | null>(null);
+  // Editable retention schedule — numeric terms split into value + unit; legal
+  // (tax-mandated) and open-ended terms stay fixed.
+  const [retention, setRetention] = useState(() => RETENTION.map((r) => {
+    const m = r.period.match(/^(\d+)\s+(hours|days|months|years)$/i);
+    return { data: r.data, basis: r.basis, legal: !!r.legal, num: m ? parseInt(m[1], 10) : null, unit: m ? m[2].toLowerCase() : "", text: m ? "" : r.period };
+  }));
   const tabs: TabEntry[] = [
     ["requests", "Data requests", Icon.inbox],
     ["consent", "Consent audit", Icon.sliders],
@@ -1141,13 +1249,13 @@ export function AdminPrivacy() {
     ["ropa", "Processing register", Icon.database],
   ];
   const slaTone = (d: number) => d < 0 ? "slate" : d <= 10 ? "red" : d <= 20 ? "amber" : "green";
-  const open = DSAR_QUEUE.filter((r) => r.status !== "Completed");
+  const open = dsar.filter((r) => r.status !== "Completed");
   return (
     <div className="animate-fade-up">
-      <PageHead actions={<><Btn variant="outline" icon={Icon.download} onClick={() => { downloadCSV("dsar-requests.csv", ["ID", "Type", "Name", "Surname", "Email", "Phone", "Received", "Due (days)", "Status"], DSAR_QUEUE.map((r) => [r.id, r.type, r.first, r.last, r.email, r.phone, r.received, r.dueDays, r.status])); toast("Exported DSAR log (CSV)."); }}>Export log</Btn><Btn variant="primary" icon={Icon.shieldCheck} onClick={() => toast("Demo — privacy settings saved.")}>Save policy</Btn></>} />
+      <PageHead actions={<><Btn variant="outline" icon={Icon.download} onClick={() => { downloadCSV("dsar-requests.csv", ["ID", "Type", "Name", "Surname", "Email", "Phone", "Received", "Due (days)", "Status"], dsar.map((r) => [r.id, r.type, r.first, r.last, r.email, r.phone, r.received, r.dueDays, r.status])); toast("Exported DSAR log (CSV)."); }}>Export log</Btn><Btn variant="primary" icon={Icon.shieldCheck} onClick={() => toast("Demo — privacy settings saved.")}>Save policy</Btn></>} />
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <StatCard label="Open requests" value={String(open.length)} sub="awaiting action" tone="indigo" />
-        <StatCard label="Due ≤ 10 days" value={String(DSAR_QUEUE.filter((r) => r.dueDays >= 0 && r.dueDays <= 10).length)} sub="30-day statutory SLA" tone="rose" />
+        <StatCard label="Due ≤ 10 days" value={String(dsar.filter((r) => r.dueDays >= 0 && r.dueDays <= 10 && r.status !== "Completed").length)} sub="30-day statutory SLA" tone="rose" />
         <StatCard label="Consent rate" value="64%" sub="marketing opt-in" trend="+3pp" />
         <StatCard label="Avg resolution" value="6.2d" sub="well within SLA" tone="teal" />
       </div>
@@ -1157,9 +1265,9 @@ export function AdminPrivacy() {
         <Card className="p-2">
           <div className="px-3 pt-2 pb-1 text-[12px] text-slate-500">Data Subject Access Requests — GDPR Art. 15–20, 30-day clock.</div>
           <Table cols={["Request", "Type", "Name", "Surname", "Email", "Phone", "Received", "Due", "Status", ""]} right={[9]}
-            rows={DSAR_QUEUE.map((r) => [
+            rows={dsar.map((r, i) => [
               <span className="font-mono text-[12px] text-navy-900">{r.id}</span>,
-              <Badge tone={r.type === "Erasure" ? "red" : r.type === "Access" ? "blue" : "slate"}>{r.type}</Badge>,
+              <Badge tone={dsarTone(r.type)}>{r.type}</Badge>,
               <span className="font-semibold text-[13px] text-navy-900">{r.first}</span>,
               <span className="font-semibold text-[13px] text-navy-900">{r.last}</span>,
               <span className="text-[12px] text-slate-600">{r.email}</span>,
@@ -1167,7 +1275,9 @@ export function AdminPrivacy() {
               r.received,
               r.status === "Completed" ? <Badge tone="green"><Icon.check size={11} /> Done</Badge> : <Badge tone={slaTone(r.dueDays)}>{r.dueDays}d left</Badge>,
               <Badge tone={r.status === "Completed" ? "green" : r.status === "Awaiting ID" ? "amber" : "slate"}>{r.status}</Badge>,
-              <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => toast(`Demo — handle ${r.id} (${r.type}).`)}>Handle</Btn>,
+              r.status === "Completed"
+                ? <span className="text-slate-400 text-sm">done</span>
+                : <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => setHandle(i)}>Handle</Btn>,
             ])} />
         </Card>
       )}
@@ -1202,10 +1312,34 @@ export function AdminPrivacy() {
 
       {tab === "retention" && (
         <Card className="p-2">
-          <div className="px-3 pt-2 pb-1 text-[12px] text-slate-500">Data retention schedule — anonymised or deleted automatically at term.</div>
-          <Table cols={["Data category", "Retention", "Legal basis"]}
-            rows={RETENTION.map((r) => [r.data, <span className={r.legal ? "font-semibold text-navy-900" : ""}>{r.period}</span>, r.legal ? <Badge tone="amber">{r.basis}</Badge> : r.basis])} />
-          <div className="px-3 py-3 flex justify-end"><Btn size="sm" variant="outline" icon={Icon.database} onClick={() => toast("Demo — anonymised 1,204 customers older than 24 months.")}>Run anonymisation</Btn></div>
+          <div className="px-3 pt-2 pb-1.5 text-[12px] text-slate-500">Data retention schedule — set how long each category is kept before it’s auto-anonymised or deleted. Tax-mandated and open-ended terms are fixed.</div>
+          <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+            <div>Data category · legal basis</div><div className="text-right">Retention</div>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {retention.map((r, i) => (
+              <div key={r.data} className="grid grid-cols-[1fr_auto] items-center gap-3 px-3 py-2.5">
+                <div className="min-w-0">
+                  <div className="text-[13px] font-semibold text-navy-900">{r.data}</div>
+                  <div className="text-[11px] text-slate-500 flex items-center gap-1.5">{r.legal && <Icon.lock size={11} className="text-amber-600" />}<span className={r.legal ? "text-amber-700" : ""}>{r.basis}</span></div>
+                </div>
+                {r.num !== null ? (
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <div className="w-[4.5rem]"><Input type="number" min={1} value={r.num} disabled={r.legal} className="disabled:opacity-60 disabled:cursor-not-allowed"
+                      onChange={(e) => setRetention((rs) => rs.map((x, j) => j === i ? { ...x, num: Math.max(1, Math.round(+e.target.value) || 1) } : x))} /></div>
+                    <div className="w-28"><Select value={r.unit} disabled={r.legal} className="disabled:opacity-60 disabled:cursor-not-allowed"
+                      onChange={(e) => setRetention((rs) => rs.map((x, j) => j === i ? { ...x, unit: e.target.value } : x))} options={["hours", "days", "months", "years"]} /></div>
+                  </div>
+                ) : (
+                  <div className="text-[12px] text-slate-500 italic shrink-0 text-right">{r.text}</div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="px-3 py-3 flex justify-between items-center gap-2 flex-wrap">
+            <Btn size="sm" variant="outline" icon={Icon.database} onClick={() => toast("Demo — anonymised 1,204 customers older than the set term.")}>Run anonymisation</Btn>
+            <Btn size="sm" variant="primary" icon={Icon.check} onClick={() => toast("Demo — retention policy saved. New terms apply to the nightly anonymisation job.", { tone: "success" })}>Save retention policy</Btn>
+          </div>
         </Card>
       )}
 
@@ -1216,6 +1350,12 @@ export function AdminPrivacy() {
             rows={ROPA.map((r) => [<b className="text-navy-900">{r.activity}</b>, r.purpose, r.categories, <Badge tone="slate">{r.basis}</Badge>, r.retention])} />
         </Card>
       )}
+
+      <DsarHandleModal
+        request={handle !== null ? dsar[handle] : null}
+        onClose={() => setHandle(null)}
+        onComplete={() => setDsar((rows) => rows.map((x, i) => (i === handle ? { ...x, status: "Completed" } : x)))}
+      />
     </div>
   );
 }

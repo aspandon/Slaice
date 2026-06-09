@@ -99,7 +99,7 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
    renders it behind `children`. Pass an explicit `background` to preview a
    specific scene (the picker does this); otherwise it reads the store, so the
    choice flows to the booking map and the customer surface automatically. */
-export function BeachBackdrop({ children, className = "", pos = "relative", parallax = false, background, preview = false, shoreline }: {
+export function BeachBackdrop({ children, className = "", pos = "relative", parallax = false, background, preview = false, shoreline, noVeg = false }: {
   children?: ReactNode;
   className?: string;
   pos?: string;
@@ -110,6 +110,9 @@ export function BeachBackdrop({ children, className = "", pos = "relative", para
   /** Sand-top fraction (0–1): higher pushes the shoreline down for an ocean-vista
    *  look (thin sand strip). Omit for the default balanced beach. */
   shoreline?: number;
+  /** Drop the green vegetation belt so the lower scene reads as pure sand —
+   *  used inside the booking wizard where guests tap sunbeds on the sand. */
+  noVeg?: boolean;
 }) {
   const ctx = useApp();
   const bg = background ?? ctx.background;
@@ -117,9 +120,9 @@ export function BeachBackdrop({ children, className = "", pos = "relative", para
     bg.kind === "custom" ? (
       <CustomBeach src={bg.src} parallax={parallax} />
     ) : parallax ? (
-      <BeachSceneLayered preset={presetById(bg.id)} shoreline={shoreline} />
+      <BeachSceneLayered preset={presetById(bg.id)} shoreline={shoreline} noVeg={noVeg} />
     ) : (
-      <BeachScene preset={presetById(bg.id)} preview={preview} shoreline={shoreline} />
+      <BeachScene preset={presetById(bg.id)} preview={preview} shoreline={shoreline} noVeg={noVeg} />
     );
   return (
     <div className={`${pos} overflow-hidden rounded-2xl ${className}`}>
@@ -173,7 +176,7 @@ function SeaWavelets({ dy = 0 }: { dy?: number }) {
 
 /* Flat beach scene — drives every gradient and decor layer from `preset`. Used
    by the booking map, the auth panel, the map editor canvas and the picker. */
-function BeachScene({ preset, preview = false, shoreline }: { preset: BeachPreset; preview?: boolean; shoreline?: number }) {
+function BeachScene({ preset, preview = false, shoreline, noVeg = false }: { preset: BeachPreset; preview?: boolean; shoreline?: number; noVeg?: boolean }) {
   const rid = useId().replace(/:/g, "");
   const id = (k: string) => `${k}-${rid}`;
   const grain = preset.grain && !preview;
@@ -247,7 +250,7 @@ function BeachScene({ preset, preview = false, shoreline }: { preset: BeachPrese
       {/* Optional decor (sun, palms, sailboat…) above the sand, behind the greenery. */}
       <SceneDecor preset={preset} id={id} />
 
-      {preset.veg && (
+      {preset.veg && !noVeg && (
         <>
           <path d={vegD(dy)} fill={`url(#${id("veg")})`} opacity="0.92" />
           <g fill="#3f6b2c" opacity="0.85">
@@ -280,7 +283,7 @@ function BeachScene({ preset, preview = false, shoreline }: { preset: BeachPrese
    the horizon reads as real depth. Each plane overscans (-12%) and its travel is
    clamped, so a translate never exposes an edge; useParallax no-ops under reduced
    motion, leaving the planes stacked exactly like the flat scene. */
-function BeachSceneLayered({ preset, shoreline }: { preset: BeachPreset; shoreline?: number }) {
+function BeachSceneLayered({ preset, shoreline, noVeg = false }: { preset: BeachPreset; shoreline?: number; noVeg?: boolean }) {
   const rid = useId().replace(/:/g, "");
   const id = (k: string) => `${k}-${rid}`;
   const dy = shorelineShift(shoreline);
@@ -354,7 +357,7 @@ function BeachSceneLayered({ preset, shoreline }: { preset: BeachPreset; shoreli
         </svg>
       </div>
       {/* Near plane — the vegetation belt and tree dots (moves the most). */}
-      {preset.veg && (
+      {preset.veg && !noVeg && (
         <div ref={near} className={plane} style={overscan}>
           <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
             <defs>

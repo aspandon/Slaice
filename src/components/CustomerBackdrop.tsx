@@ -47,7 +47,7 @@ export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
 
   return (
     <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
-      <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax={!stat} shoreline={shoreline} />
+      <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax={!stat} shoreline={shoreline} noVeg={immersive} />
       {/* The life-buoy bobs in the open water. As the booking flow lifts the
           shoreline, it rides up with the sea to a spot in the top-left, clear of
           the menu and the tappable sand. */}
