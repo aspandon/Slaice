@@ -90,6 +90,19 @@ body::before {
   background: transparent;
 }
 
+/* On the customer (consumer-facing) surface the page is laid out to fit, so we
+   hide the page scrollbar — it only appeared on a hair of overflow. Scrolling
+   still works (wheel / trackpad / touch / keyboard) where content does overflow.
+   Staff personas keep a visible scrollbar for their dense data tables. The
+   <html data-persona> attribute is set in App.tsx. */
+html[data-persona="customer"] {
+  scrollbar-width: none; /* Firefox */
+}
+html[data-persona="customer"]::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
 @layer base {
   /* Display weight/tracking — bold, tight, no serif. */
   .font-display {
