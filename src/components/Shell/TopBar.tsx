@@ -60,7 +60,7 @@ const FEEDS: Record<string, FeedItem[]> = {
 
 /* ---------- Top bar ---------- */
 export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setPersona: (p: PersonaId) => void }) {
-  const { lang, setLang, setSignedIn, go, toast, cart, removeFromCart, addToCart, clearCart } = useApp();
+  const { setSignedIn, go, toast, cart, removeFromCart, addToCart, clearCart } = useApp();
   const t = useT();
   const cartCount = (cart || []).length;
   const cartTotal = (cart || []).reduce((a, b) => a + b.price, 0);
@@ -227,6 +227,9 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
           </Popover.Portal>
         </Popover.Root>
 
+        {/* Language picker — its own globe menu, to the right of notifications. */}
+        <LanguageMenu />
+
         {/* avatar menu */}
         <DropdownMenu.Root modal={false}>
           <DropdownMenu.Trigger asChild>
@@ -244,16 +247,6 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
               <DropdownMenu.Item onSelect={() => go("customer", "mybookings")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.grid size={15} /> {t("My bookings")}</DropdownMenu.Item>
               <DropdownMenu.Item onSelect={() => go("customer", "mydocs")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.receipt size={15} /> {t("My documents")}</DropdownMenu.Item>
               <DropdownMenu.Item onSelect={() => setSettingsOpen(true)} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.cog size={15} /> {t("Account settings")}</DropdownMenu.Item>
-              <DropdownMenu.Label className="px-3 pt-2 pb-1 mt-1 border-t border-slate-100 text-[10px] uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-1.5"><Icon.globe size={11} /> {t("Language")}</DropdownMenu.Label>
-              <DropdownMenu.RadioGroup value={lang} onValueChange={(v) => setLang(v as LangCode)} className="px-1.5 pb-1 grid grid-cols-2 gap-1">
-                {LANGUAGES.map((l) => (
-                  <DropdownMenu.RadioItem key={l.code} value={l.code} onSelect={(e) => e.preventDefault()}
-                    className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-[12px] cursor-pointer select-none outline-none ${lang === l.code ? "bg-slate-100 font-semibold text-navy-900" : "text-slate-700 hover:bg-slate-100 data-[highlighted]:bg-slate-100"}`}>
-                    <span><span className="font-semibold mr-1.5 uppercase">{l.code}</span><span className="text-slate-500">{l.native}</span></span>
-                    {lang === l.code && <Icon.check size={12} className="text-teal-600" />}
-                  </DropdownMenu.RadioItem>
-                ))}
-              </DropdownMenu.RadioGroup>
               <div className="border-t border-slate-100 mt-1 pt-1">
                 <DropdownMenu.Item onSelect={() => { setSignedIn(false); toast(t("Signed out (demo).")); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-rose-600 cursor-pointer select-none outline-none hover:bg-rose-50 data-[highlighted]:bg-rose-50"><Icon.arrowL size={15} /> {t("Sign out")}</DropdownMenu.Item>
               </div>
@@ -273,6 +266,35 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
       <NotificationSettingsModal open={notifSettingsOpen} onClose={() => setNotifSettingsOpen(false)} />
       <NavSheet open={navOpen} onClose={() => setNavOpen(false)} persona={persona} page={page} setPage={setPage} />
     </header>
+  );
+}
+
+/* ---------- Language picker (own globe menu) ---------- */
+function LanguageMenu() {
+  const { lang, setLang } = useApp();
+  const t = useT();
+  return (
+    <DropdownMenu.Root modal={false}>
+      <DropdownMenu.Trigger asChild>
+        <button aria-label={t("Language")} title={t("Language")} className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 data-[state=open]:bg-slate-100 data-[state=open]:text-navy-900 transition">
+          <Icon.globe size={18} />
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content align="end" sideOffset={8} aria-label={t("Language")} className="glass w-56 text-ink rounded-xl p-1.5 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
+          <DropdownMenu.Label className="px-3 pt-1.5 pb-1.5 text-[10px] uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-1.5"><Icon.globe size={11} /> {t("Language")}</DropdownMenu.Label>
+          <DropdownMenu.RadioGroup value={lang} onValueChange={(v) => setLang(v as LangCode)} className="px-0.5 pb-0.5 grid grid-cols-2 gap-1">
+            {LANGUAGES.map((l) => (
+              <DropdownMenu.RadioItem key={l.code} value={l.code}
+                className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-[12px] cursor-pointer select-none outline-none ${lang === l.code ? "bg-slate-100 font-semibold text-navy-900" : "text-slate-700 hover:bg-slate-100 data-[highlighted]:bg-slate-100"}`}>
+                <span><span className="font-semibold mr-1.5 uppercase">{l.code}</span><span className="text-slate-500">{l.native}</span></span>
+                {lang === l.code && <Icon.check size={12} className="text-teal-600" />}
+              </DropdownMenu.RadioItem>
+            ))}
+          </DropdownMenu.RadioGroup>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
   );
 }
 

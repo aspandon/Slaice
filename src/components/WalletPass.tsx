@@ -83,7 +83,7 @@ function PassPreview({ pass }: { pass: WalletPassData }) {
   if (pass.variant === "vip" || pass.variant === "season") {
     const no = "NO. " + (pass.ref.match(/\d+/)?.[0] ?? "0042");
     return (
-      <div className="rounded-3xl overflow-hidden shadow-float ring-1 ring-black/5 max-w-[340px] mx-auto bg-white">
+      <div className="rounded-3xl overflow-hidden shadow-float ring-1 ring-black/5 max-w-[85.6mm] mx-auto bg-white">
         <PassCard kind={pass.variant} holder={(pass.holder ?? "Elena M.").toUpperCase()} number={no} />
         <div className="px-5 py-4 flex items-center gap-4">
           <div className="rounded-lg ring-1 ring-slate-200 p-1.5 shrink-0"><QR size={84} seed={pass.ref} /></div>
