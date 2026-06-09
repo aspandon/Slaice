@@ -104,7 +104,7 @@ function VipTile() {
       </button>
       <div className="mt-auto flex items-center justify-between gap-2 px-4 py-3">
         <button onClick={() => go("customer", "vip")} className="inline-flex items-center gap-1 text-slaice-600 hover:text-slaice-700 text-[13px] font-semibold">
-          {vip ? t("Top up credit") : `${t("Get VIP")} — ${t("from")} €${from.toLocaleString()}`} <Icon.chevR size={14} />
+          {t("Get VIP pass")} — {t("from")} €{from.toLocaleString()} <Icon.chevR size={14} />
         </button>
         {vip && <button onClick={() => clearPass("vip")} className="text-[11px] text-slate-400 hover:text-rose-600 shrink-0">{t("Reset")}</button>}
       </div>
