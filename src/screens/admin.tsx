@@ -14,7 +14,7 @@ const BeachCanvas = lazyWithReload(() => import("../components/BeachCanvas").the
 import { BackgroundPicker } from "../components/BackgroundPicker";
 import { fileToBackgroundSrc } from "../lib/image";
 import { ZONES, zoneLayout } from "../data/beach";
-import type { SunbedSlot, SunbedState, SunbedKind } from "../domain/types";
+import type { SunbedSlot, SunbedState, SunbedKind, Customer } from "../domain/types";
 import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS, personByFirst, CUSTOMERS, type AdminBooking } from "../data/mock";
 import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr";
 import { useApp } from "../app/store";
@@ -763,21 +763,52 @@ export function AdminManual() {
   );
 }
 
-/* ============ USERS & SEGMENTS ============ */
+/* ============ USERS & SEGMENTS ============
+   Segments are partly automatic: every guest is "New" by default and is promoted
+   to "Regular" once they pass the visit threshold. VIP and Season pass stay
+   manually assigned, so we keep only those on the record and derive New/Regular
+   from the visit count — one rule, no drift. */
+const REGULAR_AFTER = 15; // strictly more than this many visits → Regular
+const MANUAL_TAGS = ["VIP", "Season pass"];
+const autoSegment = (visits: number): "New" | "Regular" => (visits > REGULAR_AFTER ? "Regular" : "New");
+const manualOf = (tags: string[]) => tags.filter((t) => MANUAL_TAGS.includes(t));
+// Display tags = the auto segment first, then any manual badges.
+const displayTags = (u: Customer) => [autoSegment(u.bookings), ...manualOf(u.tags)];
+const tagTone = (t: string) => ({ VIP: "amber", "Season pass": "blue", Regular: "slate", New: "green" }[t] || "slate");
+
 export function AdminUsers() {
   const { toast } = useApp();
   const [q, setQ] = useState("");
   const [tagFilter, setTagFilter] = useState("All");
   const customersQ = useAsync(listCustomers);
-  const users = (customersQ.status === "success" ? customersQ.data : []).map((c) => ({ first: c.first, last: c.last, phone: c.phone, e: c.email, b: c.bookings, tags: c.tags }));
+  // Editable copy of the roster (mockup: edits live in component state). Seed once
+  // loaded, keeping only manual tags — New/Regular come from autoSegment.
+  const [users, setUsers] = useState<Customer[] | null>(null);
+  const [editId, setEditId] = useState<number | null>(null);
+  const [activityId, setActivityId] = useState<number | null>(null);
+  useEffect(() => {
+    if (customersQ.status === "success" && users === null) {
+      setUsers(customersQ.data.map((c) => ({ ...c, tags: manualOf(c.tags) })));
+    }
+  }, [customersQ.status, customersQ.data, users]);
+
   const allTags = ["All", "VIP", "Season pass", "Regular", "New"];
-  const tagTone = (t: string) => ({ VIP: "amber", "Season pass": "blue", Regular: "slate", New: "green" }[t] || "slate");
-  const rows = users.filter((u) => (tagFilter === "All" || u.tags.includes(tagFilter)) && (u.first + u.last + u.e + u.phone).toLowerCase().includes(q.toLowerCase()));
+  const list = users ?? [];
+  const rows = list.filter((u) => (tagFilter === "All" || displayTags(u).includes(tagFilter)) && (u.first + u.last + u.email + u.phone).toLowerCase().includes(q.toLowerCase()));
+  const editUser = editId !== null ? list.find((u) => u.id === editId) ?? null : null;
+  const activityUser = activityId !== null ? list.find((u) => u.id === activityId) ?? null : null;
+  const loading = customersQ.status === "loading" || (customersQ.status !== "error" && users === null);
+
+  const saveUser = (patch: Customer) => {
+    setUsers((us) => (us ? us.map((u) => (u.id === patch.id ? patch : u)) : us));
+    setEditId(null);
+    toast(`Saved ${patch.first} ${patch.last}.`, { tone: "success" });
+  };
+
   return (
     <div className="animate-fade-up">
       <Card className="p-4">
-        {/* Search · tag filters · New tag — all in one row inside the card.
-            "New tag" is pushed to the far right with ml-auto. */}
+        {/* Search · tag filters · New tag — all in one row inside the card. */}
         <div className="flex items-center gap-3 mb-3 flex-wrap">
           <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-xs flex-1 min-w-[180px] text-slate-600">
             <Icon.search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search users…" className="text-sm outline-none w-full bg-transparent text-ink" />
@@ -787,20 +818,195 @@ export function AdminUsers() {
           </div>
           <Btn variant="outline" icon={Icon.tag} onClick={() => toast("Demo — create a tag / segment.")} className="ml-auto">New tag</Btn>
         </div>
-        {customersQ.status === "loading" ? (
-          <TableSkeleton rows={6} cols={5} />
+        {/* The auto-segmentation rule, stated for the demo. */}
+        <div className="mb-3 flex items-start gap-2 rounded-xl bg-slaice-100 ring-1 ring-slaice-600/20 px-3 py-2 text-[12px] text-slaice-700">
+          <Icon.info size={14} className="shrink-0 mt-0.5 text-slaice-600" />
+          <span>Segments update automatically: every guest starts <b>New</b> and becomes <b>Regular</b> after {REGULAR_AFTER} visits. <b>VIP</b> and <b>Season pass</b> are assigned by hand on a user.</span>
+        </div>
+        {loading ? (
+          <TableSkeleton rows={6} cols={6} />
         ) : customersQ.status === "error" ? (
           <ErrorState compact body="We couldn't load the customer list." onRetry={customersQ.refetch} />
         ) : rows.length === 0 ? (
           <EmptyState compact icon={Icon.users} title="No users match" body="Try a different search or tag filter." />
         ) : (
-          <Table cols={["Name", "Surname", "Phone", "Email", "Bookings", "Tags", ""]} right={[4]}
-            rows={rows.map((u) => [u.first, u.last, <span className="tnum whitespace-nowrap">{u.phone}</span>, u.e, u.b,
-              <span className="flex gap-1 flex-wrap">{u.tags.map((t) => <Badge key={t} tone={tagTone(t)}>{t}</Badge>)}</span>,
-              <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => toast(`Demo — ${u.first} ${u.last}'s activity (interaction filter).`)}>Activity</Btn>])} />
+          <Table cols={["Name", "Surname", "Phone", "Email", "Visits", "Tags", ""]} right={[4]}
+            rows={rows.map((u) => [u.first, u.last, <span className="tnum whitespace-nowrap">{u.phone}</span>, u.email, u.bookings,
+              <span className="flex gap-1 flex-wrap">{displayTags(u).map((t) => <Badge key={t} tone={tagTone(t)}>{t}</Badge>)}</span>,
+              <div className="flex items-center justify-end gap-1">
+                <Btn size="sm" variant="ghost" icon={Icon.edit} onClick={() => setEditId(u.id)}>Edit</Btn>
+                <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => setActivityId(u.id)}>Activity</Btn>
+              </div>])} />
         )}
       </Card>
+      {editUser && <UserEditModal user={editUser} onClose={() => setEditId(null)} onSave={saveUser} />}
+      {activityUser && <UserActivityModal user={activityUser} onClose={() => setActivityId(null)} onEdit={(id) => { setActivityId(null); setEditId(id); }} />}
     </div>
+  );
+}
+
+/* ---- Edit a user: contact details, visit count and the manual segment badges.
+   Editing visits re-derives New/Regular live, demonstrating the auto-rule. ---- */
+function UserEditModal({ user, onClose, onSave }: { user: Customer; onClose: () => void; onSave: (u: Customer) => void }) {
+  const [first, setFirst] = useState(user.first);
+  const [last, setLast] = useState(user.last);
+  const [phone, setPhone] = useState(user.phone);
+  const [email, setEmail] = useState(user.email);
+  const [visits, setVisits] = useState(user.bookings);
+  const [vip, setVip] = useState(user.tags.includes("VIP"));
+  const [seasonPass, setSeasonPass] = useState(user.tags.includes("Season pass"));
+
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  const nameOk = first.trim().length > 0 && last.trim().length > 0;
+  const valid = emailOk && nameOk;
+  const seg = autoSegment(visits);
+
+  const save = () => {
+    const f = first.trim(), l = last.trim();
+    const tags = [...(vip ? ["VIP"] : []), ...(seasonPass ? ["Season pass"] : [])];
+    onSave({ ...user, first: f, last: l, phone: phone.trim(), email: email.trim(), bookings: visits, tags, name: `${f} ${l.charAt(0)}.` });
+  };
+
+  return (
+    <Modal open onClose={onClose} wide title="Edit user"
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn><Btn variant="primary" icon={Icon.check} disabled={!valid} onClick={save}>Save changes</Btn></>}>
+      <div className="space-y-3">
+        <div className="grid sm:grid-cols-2 gap-3">
+          <Field label="Name"><Input value={first} onChange={(e) => setFirst(e.target.value)} placeholder="First name" /></Field>
+          <Field label="Surname"><Input value={last} onChange={(e) => setLast(e.target.value)} placeholder="Surname" /></Field>
+          <Field label="Phone"><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+30 694 …" className="tnum" /></Field>
+          <Field label="Email">
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" className={email && !emailOk ? "ring-2 ring-rose-400 focus:ring-rose-400" : ""} />
+            {email && !emailOk && <div className="text-[11px] text-rose-600 mt-1">Enter a valid email address.</div>}
+          </Field>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-3 items-start">
+          <Field label="Visits this season">
+            <div className="flex items-center gap-2">
+              <Input type="number" min={0} value={visits} onChange={(e) => setVisits(Math.max(0, Math.round(+e.target.value) || 0))} />
+              <span className="text-[12px] text-slate-500 shrink-0">visits</span>
+            </div>
+          </Field>
+          <div>
+            <div className="text-[12px] font-semibold text-slate-700 mb-1">Segment (automatic)</div>
+            <div className="rounded-xl ring-1 ring-slate-200 bg-slate-50 px-3 py-2.5 flex items-center gap-2">
+              <Badge tone={tagTone(seg)}>{seg}</Badge>
+              <span className="text-[11px] text-slate-500">{seg === "New" ? `${REGULAR_AFTER + 1 - visits} more visit${REGULAR_AFTER + 1 - visits !== 1 ? "s" : ""} → Regular` : `Over ${REGULAR_AFTER} visits`}</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className="text-[12px] font-semibold text-slate-700 mb-1.5">Manual segments</div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
+              <span className="flex items-center gap-2"><Badge tone="amber">VIP</Badge><span className="text-[12px] text-slate-500">High-value guest perks</span></span>
+              <Toggle on={vip} onChange={setVip} />
+            </div>
+            <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
+              <span className="flex items-center gap-2"><Badge tone="blue">Season pass</Badge><span className="text-[12px] text-slate-500">Unlimited entry this season</span></span>
+              <Toggle on={seasonPass} onChange={setSeasonPass} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ---- Activity: a CRM-style customer-360 — segment progress, key stats and a
+   synthesized recent-activity timeline. A demo of what "Activity" opens. ---- */
+const ACT_BG: Record<string, string> = { teal: "bg-teal-600", slate: "bg-slate-400", indigo: "bg-slaice-600", amber: "bg-amber-500" };
+function userActivity(u: Customer): { icon: IconRenderer; tone: string; title: string; detail: string; when: string }[] {
+  const each = Math.max(10, Math.round(u.spend / Math.max(1, u.bookings)));
+  const ev = [
+    { icon: Icon.scan, tone: "teal", title: "Checked in at the gate", detail: "QR validated · Central", when: u.lastVisit },
+    { icon: Icon.umbrella, tone: "teal", title: "Sunbed booking", detail: `Central · 2 sets · €${each}`, when: u.lastVisit },
+    { icon: Icon.card, tone: "slate", title: "Payment received", detail: `€${each} · Visa ···· 4242`, when: u.lastVisit },
+    { icon: Icon.ticket, tone: "slate", title: "Entry tickets", detail: "Adult ×2", when: u.lastVisit },
+    { icon: Icon.mail, tone: "indigo", title: "Opened a campaign", detail: "“Weekend offer” · E-mail", when: "2 weeks ago" },
+  ];
+  if (u.bookings >= 10) ev.push({ icon: Icon.gift, tone: "amber", title: "Loyalty stamp earned", detail: `${Math.min(10, u.bookings)}/10 toward a free sunbed`, when: "3 weeks ago" });
+  ev.push({ icon: Icon.users, tone: "slate", title: "Account created", detail: "Tagged New by default", when: `Joined ${["Apr", "May", "Jun"][u.id % 3]} 2026` });
+  return ev;
+}
+
+function UserActivityModal({ user, onClose, onEdit }: { user: Customer; onClose: () => void; onEdit: (id: number) => void }) {
+  const { toast } = useApp();
+  const seg = autoSegment(user.bookings);
+  const avg = Math.round(user.spend / Math.max(1, user.bookings));
+  const toRegular = Math.max(0, REGULAR_AFTER + 1 - user.bookings);
+  const pct = Math.min(100, Math.round((user.bookings / (REGULAR_AFTER + 1)) * 100));
+  const events = userActivity(user);
+  const stats = [
+    { label: "Visits", value: String(user.bookings) },
+    { label: "Total spend", value: `€${user.spend.toLocaleString()}` },
+    { label: "Avg / visit", value: `€${avg}` },
+    { label: "Last visit", value: user.lastVisit },
+  ];
+  return (
+    <Modal open onClose={onClose} wide title="Customer activity"
+      footer={<><Btn variant="ghost" onClick={onClose}>Close</Btn>
+        <Btn variant="outline" icon={Icon.mail} onClick={() => toast(`Demo — message ${user.first} ${user.last} (opens Communicate).`)}>Message</Btn>
+        <Btn variant="primary" icon={Icon.edit} onClick={() => onEdit(user.id)}>Edit profile</Btn></>}>
+      <div className="space-y-4">
+        {/* Identity */}
+        <div className="flex items-center gap-3">
+          <span className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slaice-600 to-teal-600 text-white grid place-items-center font-display font-bold text-lg shrink-0">{user.first.charAt(0)}{user.last.charAt(0)}</span>
+          <div className="min-w-0 flex-1">
+            <div className="font-display font-bold text-navy-900 text-[15px] truncate">{user.first} {user.last}</div>
+            <div className="text-[12px] text-slate-500 truncate">{user.email} · <span className="tnum">{user.phone}</span></div>
+          </div>
+          <div className="flex gap-1 flex-wrap justify-end shrink-0">{displayTags(user).map((t) => <Badge key={t} tone={tagTone(t)}>{t}</Badge>)}</div>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {stats.map((s) => (
+            <div key={s.label} className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
+              <div className="text-[11px] text-slate-500">{s.label}</div>
+              <div className="font-display text-lg font-bold text-navy-900 tnum leading-tight">{s.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Segment progress — ties back to the auto-rule */}
+        <div className="rounded-xl ring-1 ring-slate-200 bg-slate-50/70 px-3 py-2.5">
+          {seg === "Regular" ? (
+            <div className="flex items-center gap-2 text-[13px] text-navy-900"><Icon.checkCircle size={15} className="text-teal-600" /> <b>Regular</b> — past {REGULAR_AFTER} visits this season.</div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between text-[12px] mb-1.5">
+                <span className="text-slate-600"><b className="text-navy-900">{toRegular}</b> more visit{toRegular !== 1 ? "s" : ""} to <b className="text-navy-900">Regular</b></span>
+                <span className="text-slate-500 tnum">{user.bookings}/{REGULAR_AFTER + 1}</span>
+              </div>
+              <div className="h-2 rounded-full bg-slate-200 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-slaice-500 to-teal-500" style={{ width: `${pct}%` }} /></div>
+            </>
+          )}
+        </div>
+
+        {/* Timeline */}
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Recent activity</div>
+          <ol className="space-y-1">
+            {events.map((e, i) => {
+              const EIcon = e.icon;
+              return (
+                <li key={i} className="flex items-start gap-3 rounded-xl px-2.5 py-2 hover:bg-slate-50 transition">
+                  <span className={`w-8 h-8 rounded-lg grid place-items-center text-white shrink-0 ${ACT_BG[e.tone] || ACT_BG.slate}`}><EIcon size={15} /></span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-[13px] font-semibold text-navy-900 leading-tight">{e.title}</div>
+                    <div className="text-[11.5px] text-slate-500 leading-snug">{e.detail}</div>
+                  </div>
+                  <span className="text-[11px] text-slate-400 shrink-0 whitespace-nowrap pt-0.5">{e.when}</span>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
+      </div>
+    </Modal>
   );
 }
 

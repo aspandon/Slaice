@@ -88,6 +88,9 @@ export function CustomerWizard() {
   const [stepIdx, setStepIdx] = useState(initialStep);
   const [people, setPeople] = useState<People>({ adult: 0, resident: 0, child: 0, senior: 0 });
   const [includeTickets, setIncludeTickets] = useState(true);
+  // Track whether the guest has hand-edited the headcount. Until they do, we
+  // pre-fill it from the chosen sets (2 entry tickets per set — see below).
+  const [peopleTouched, setPeopleTouched] = useState(false);
   const [selDates, setSelDates] = useState([todayISO()]);
   const [multiDate, setMultiDate] = useState(false);
   const [zoneId, setZoneId] = useState("central");
@@ -114,6 +117,13 @@ export function CustomerWizard() {
 
   // Bed IDs are zone-scoped — switching zone clears any picked beds.
   useEffect(() => { setBedSel([]); }, [zoneId]);
+
+  // A set seats two, so default the headcount to 2 entry tickets per chosen set.
+  // We stop auto-filling the moment the guest adjusts the numbers themselves.
+  useEffect(() => {
+    if (peopleTouched) return;
+    setPeople({ adult: bedSel.length * 2, resident: 0, child: 0, senior: 0 });
+  }, [bedSel.length, peopleTouched]);
 
   // Keep the per-service day picks within the chosen trip dates.
   useEffect(() => {
@@ -143,6 +153,9 @@ export function CustomerWizard() {
   const pickZone = (id: string) => { setZoneId(id); setPhase("sets"); };
   const toggleBed = (slot: SunbedSlot) =>
     setBedSel((s) => (s.find((b) => b.id === slot.id) ? s.filter((b) => b.id !== slot.id) : [...s, { id: slot.id, price: slot.price }]));
+  // Any manual change to the headcount flips off the auto pre-fill for the rest
+  // of the session, so the guest's numbers are never overwritten.
+  const editPeople = (v: SetStateAction<People>) => { setPeopleTouched(true); setPeople(v); };
 
   const next = () => setStepIdx((i) => Math.min(last, i + 1));
   // Back walks the flow in reverse: sets → zones → out to Home.
@@ -232,10 +245,11 @@ export function CustomerWizard() {
             )}
             {step.id === "people" && (
               <PeopleStep
-                people={people} setPeople={setPeople}
+                people={people} setPeople={editPeople}
                 includeTickets={includeTickets} setIncludeTickets={setIncludeTickets}
                 pickedSets={bedSel.length}
-                onPreset={(v) => setPeople(v)}
+                autoFilled={!peopleTouched}
+                onPreset={(v) => editPeople(v)}
               />
             )}
             {step.id === "locker" && (
@@ -660,12 +674,14 @@ function SandSunbeds({ slots, selected, onToggle, readOnly = false }: {
 }
 
 /* ============ Guests ============ */
-function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, pickedSets, onPreset }: {
+function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, pickedSets, autoFilled, onPreset }: {
   people: People;
   setPeople: Dispatch<SetStateAction<People>>;
   includeTickets: boolean;
   setIncludeTickets: Dispatch<SetStateAction<boolean>>;
   pickedSets: number;
+  /** True while the headcount is still the auto pre-fill (untouched by the guest). */
+  autoFilled: boolean;
   onPreset: (v: People) => void;
 }) {
   const tr = useT();
@@ -702,6 +718,13 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, pick
           </button>
         </div>
       </div>
+
+      {autoFilled && pickedSets > 0 && (
+        <div className="rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2 flex items-start gap-2 text-[12.5px] text-navy-900 animate-fade-up">
+          <Icon.ticket size={14} className="text-teal-600 shrink-0 mt-0.5" />
+          <span>{tr("We pre-filled")} <b>{pickedSets * 2} {tr("entry tickets")}</b> — {tr("2 per set. Change the headcount below if you need to.")}</span>
+        </div>
+      )}
 
       <div>
         <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{tr("Headcount by category")}</div>
