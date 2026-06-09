@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge } from "../../components/ui";
+import { PassCard } from "../../components/PassCard";
 import { Reveal } from "../../lib/motion";
 import { useApp, useT } from "../../app/store";
 
@@ -101,7 +101,7 @@ export function CustomerHome() {
   );
 }
 
-/* VIP credit tile — buy/top up prepaid credit, spent with a discount all season. */
+/* VIP credit tile — the tenant membership card art + a buy/top-up footer. */
 function VipTile() {
   const { go, passes, passPricing, clearPass } = useApp();
   const t = useT();
@@ -109,58 +109,36 @@ function VipTile() {
   const from = Math.min(...passPricing.vipTiers);
   const disc = Math.round(passPricing.vipDiscount * 100);
   return (
-    <div className={`${CARD} p-5 sm:p-6 flex flex-col gap-3 h-full`}>
-      <div className="flex items-start justify-between gap-2">
-        <span className="w-10 h-10 rounded-xl grid place-items-center bg-gradient-to-br from-slaice-500 to-slaice-700 text-white shrink-0 shadow-sm">
-          <Icon.sparkles size={18} />
-        </span>
-        {vip
-          ? <Badge tone="indigo"><Icon.wallet size={11} /> €{vip.balance.toLocaleString()} {t("credit")}</Badge>
-          : <Badge tone="indigo">{disc}% {t("off")}</Badge>}
-      </div>
-      <div className="flex-1">
-        <div className="font-semibold text-navy-900 text-[15px]">{t("VIP Pass")}</div>
-        <div className="text-[12.5px] text-slate-600 mt-1 leading-snug">
-          {vip ? `${t("Spend with")} ${disc}% ${t("off")} · ${vip.validUntil}` : t("Prepay credit, then spend it on anything at the beach with a discount.")}
-        </div>
-      </div>
-      <div className="mt-auto flex items-center justify-between gap-2">
-        <button onClick={() => go("customer", "vip")} className="inline-flex items-center gap-1 text-slaice-600 hover:text-slaice-700 text-[13px] font-semibold rounded-lg px-3 py-1.5 hover:bg-white/50 transition -ml-3">
-          {vip ? t("Top up") : `${t("Get VIP")} — ${t("from")} €${from.toLocaleString()}`} <Icon.chevR size={14} />
+    <div className={`${CARD} h-full flex flex-col transition duration-300 ease-spring hover:-translate-y-0.5 hover:shadow-lift`}>
+      <button onClick={() => go("customer", "vip")} aria-label={vip ? t("Top up VIP credit") : t("Get VIP Pass")} className="block w-full group">
+        <PassCard kind="vip" holder="ELENA M." subtitle={vip ? `€${vip.balance.toLocaleString()} CREDIT` : `MEMBER · ${disc}% OFF`} className="group-hover:brightness-[1.02] transition" />
+      </button>
+      <div className="mt-auto flex items-center justify-between gap-2 px-4 py-3">
+        <button onClick={() => go("customer", "vip")} className="inline-flex items-center gap-1 text-slaice-600 hover:text-slaice-700 text-[13px] font-semibold">
+          {vip ? t("Top up credit") : `${t("Get VIP")} — ${t("from")} €${from.toLocaleString()}`} <Icon.chevR size={14} />
         </button>
-        {vip && <button onClick={() => clearPass("vip")} className="text-[11px] text-slate-400 hover:text-rose-600">{t("Reset")}</button>}
+        {vip && <button onClick={() => clearPass("vip")} className="text-[11px] text-slate-400 hover:text-rose-600 shrink-0">{t("Reset")}</button>}
       </div>
     </div>
   );
 }
 
-/* Season pass tile — covers entry tickets for a month or the whole summer. */
+/* Season pass tile — the tenant membership card art + a buy/manage footer. */
 function SeasonTile() {
   const { go, passes, passPricing, clearPass } = useApp();
   const t = useT();
   const season = passes.season;
   const from = Math.min(passPricing.seasonMonthly, passPricing.seasonSummer);
   return (
-    <div className={`${CARD} p-5 sm:p-6 flex flex-col gap-3 h-full`}>
-      <div className="flex items-start justify-between gap-2">
-        <span className="w-10 h-10 rounded-xl grid place-items-center bg-gradient-to-br from-teal-400 to-teal-600 text-white shrink-0 shadow-sm">
-          <Icon.ticket size={18} />
-        </span>
-        {season
-          ? <Badge tone="green"><Icon.checkCircle size={11} /> {t("Active")}</Badge>
-          : <Badge tone="green">{t("Free entry")}</Badge>}
-      </div>
-      <div className="flex-1">
-        <div className="font-semibold text-navy-900 text-[15px]">{t("Season Pass")}</div>
-        <div className="text-[12.5px] text-slate-600 mt-1 leading-snug">
-          {season ? `${season.plan === "monthly" ? t("Monthly") : t("Whole summer")} · ${season.validUntil}` : t("Skip the entry queue — your entry is covered every visit.")}
-        </div>
-      </div>
-      <div className="mt-auto flex items-center justify-between gap-2">
-        <button onClick={() => go("customer", "season")} className="inline-flex items-center gap-1 text-teal-700 hover:text-teal-800 text-[13px] font-semibold rounded-lg px-3 py-1.5 hover:bg-white/50 transition -ml-3">
-          {season ? t("Change plan") : `${t("Get Season pass")} — ${t("from")} €${from.toLocaleString()}`} <Icon.chevR size={14} />
+    <div className={`${CARD} h-full flex flex-col transition duration-300 ease-spring hover:-translate-y-0.5 hover:shadow-lift`}>
+      <button onClick={() => go("customer", "season")} aria-label={season ? t("Manage Season pass") : t("Get Season Pass")} className="block w-full group">
+        <PassCard kind="season" holder="ELENA M." subtitle={season && season.plan === "monthly" ? "MONTHLY 2026" : "SUMMER 2026"} className="group-hover:brightness-[1.02] transition" />
+      </button>
+      <div className="mt-auto flex items-center justify-between gap-2 px-4 py-3">
+        <button onClick={() => go("customer", "season")} className="inline-flex items-center gap-1 text-teal-700 hover:text-teal-800 text-[13px] font-semibold">
+          {season ? t("Manage pass") : `${t("Get Season pass")} — ${t("from")} €${from.toLocaleString()}`} <Icon.chevR size={14} />
         </button>
-        {season && <button onClick={() => clearPass("season")} className="text-[11px] text-slate-400 hover:text-rose-600">{t("Reset")}</button>}
+        {season && <button onClick={() => clearPass("season")} className="text-[11px] text-slate-400 hover:text-rose-600 shrink-0">{t("Reset")}</button>}
       </div>
     </div>
   );

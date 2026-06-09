@@ -56,13 +56,11 @@ export function PassPurchase({ kind }: { kind: "vip" | "season" }) {
   if (phase === "done") {
     const fields = vip
       ? [
-          { label: t("Holder"), value: "Elena M." },
           { label: t("Credit"), value: `€${(passes.vip?.balance ?? tier).toLocaleString()}` },
           { label: t("Discount"), value: `${discPct}% ${t("off")}` },
           { label: t("Valid"), value: `→ ${SEASON_END_LABEL}` },
         ]
       : [
-          { label: t("Holder"), value: "Elena M." },
           { label: t("Plan"), value: t(seasonPlanLabel(plan)) },
           { label: t("Covers"), value: t("Entry tickets") },
           { label: t("Valid"), value: passes.season?.validUntil ?? seasonValidUntil(plan) },
@@ -78,7 +76,7 @@ export function PassPurchase({ kind }: { kind: "vip" | "season" }) {
               : `${t("You're now a Season-pass holder.")} ${t("Your entry is covered every visit.")}`}
           </p>
 
-          <div className="my-6"><WalletButtons pass={{ ref, variant: kind, title: vip ? t("VIP credit pass") : t("Season pass"), total: `€${price.toLocaleString()}`, fields }} className="" /></div>
+          <div className="my-6"><WalletButtons pass={{ ref, variant: kind, holder: "Elena M.", title: vip ? t("VIP credit pass") : t("Season pass"), total: `€${price.toLocaleString()}`, fields }} className="" /></div>
 
           <div className="grid sm:grid-cols-3 gap-2 text-[12px]">
             <Pill icon={Icon.checkCircle} t={t("Stripe paid")} />

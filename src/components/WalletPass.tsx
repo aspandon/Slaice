@@ -4,6 +4,7 @@ import { Icon } from "../lib/icons";
 import { Sheet } from "./ui";
 import { QR } from "./charts";
 import { TenantLogo } from "./Brand";
+import { PassCard } from "./PassCard";
 import { TENANT } from "../data/beach";
 import { useApp } from "../app/store";
 import { detectWalletPlatform, downloadPkpass, copyGoogleSaveLink } from "../lib/wallet";
@@ -78,42 +79,56 @@ export function WalletButtons({ pass, className = "" }: { pass: WalletPassData; 
 
 /* ---------- The pass preview (looks like a real wallet pass) ---------- */
 function PassPreview({ pass }: { pass: WalletPassData }) {
-  const isPass = pass.variant === "vip" || pass.variant === "season";
+  // VIP / Season passes render the tenant membership card art + a scan strip.
+  if (pass.variant === "vip" || pass.variant === "season") {
+    const no = "NO. " + (pass.ref.match(/\d+/)?.[0] ?? "0042");
+    return (
+      <div className="rounded-3xl overflow-hidden shadow-float ring-1 ring-black/5 max-w-[340px] mx-auto bg-white">
+        <PassCard kind={pass.variant} holder={(pass.holder ?? "Elena M.").toUpperCase()} number={no} />
+        <div className="px-5 py-4 flex items-center gap-4">
+          <div className="rounded-lg ring-1 ring-slate-200 p-1.5 shrink-0"><QR size={84} seed={pass.ref} /></div>
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">{pass.title || "Pass"}</div>
+            <div className="font-mono font-semibold text-navy-900 text-sm">#{pass.ref}</div>
+            <div className="mt-1.5 space-y-0.5">
+              {(pass.fields || []).map((f, i) => (
+                <div key={i} className="text-[11px] flex justify-between gap-3"><span className="text-slate-500">{f.label}</span><b className="text-navy-900">{f.value}</b></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="rounded-3xl overflow-hidden shadow-float ring-1 ring-black/5 max-w-[340px] mx-auto">
-      <div className={`${pass.variant === "vip" ? "grad-slaice" : "grad-sea"} text-white p-5`}>
+      <div className="grad-sea text-white p-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <TenantLogo size={28} />
             <div className="leading-tight">
               <div className="font-display font-bold text-[15px]">{TENANT.name}</div>
-              <div className="text-[10px] uppercase tracking-wider text-teal-200">{isPass ? pass.title || "Pass" : "Beach entry pass"}</div>
+              <div className="text-[10px] uppercase tracking-wider text-teal-200">Beach entry pass</div>
             </div>
           </div>
           <Icon.umbrella size={20} className="text-teal-200" />
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-y-3 gap-x-2">
-          {isPass
-            ? (pass.fields || []).map((f, i) => <PassField key={i} label={f.label} value={f.value} />)
-            : (
-              <>
-                <PassField label="Beach zone" value={pass.zone || "Akti tou Iliou"} />
-                <PassField label="Date" value={pass.date || "—"} />
-                <PassField label="Sunbed" value={pass.seat || "—"} />
-                <PassField label="Guests" value={String(pass.guests ?? "—")} />
-              </>
-            )}
+          <PassField label="Beach zone" value={pass.zone || "Akti tou Iliou"} />
+          <PassField label="Date" value={pass.date || "—"} />
+          <PassField label="Sunbed" value={pass.seat || "—"} />
+          <PassField label="Guests" value={String(pass.guests ?? "—")} />
         </div>
       </div>
 
       <div className="bg-white px-5 py-4 flex items-center gap-4">
         <div className="rounded-lg ring-1 ring-slate-200 p-1.5 shrink-0"><QR size={92} seed={pass.ref} /></div>
         <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">{isPass ? "Pass" : "Booking"}</div>
+          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Booking</div>
           <div className="font-mono font-semibold text-navy-900 text-sm">#{pass.ref}</div>
           {pass.total && <div className="text-[12px] text-slate-500 mt-1">{pass.total} · paid</div>}
-          <div className="text-[11px] text-slate-500 mt-1.5">{isPass ? "Show to staff / at the gate" : "Scan at the gate"}</div>
+          <div className="text-[11px] text-slate-500 mt-1.5">Scan at the gate</div>
         </div>
       </div>
     </div>
