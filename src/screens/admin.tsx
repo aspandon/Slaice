@@ -770,6 +770,8 @@ export function AdminManual() {
    from the visit count — one rule, no drift. */
 const REGULAR_AFTER = 15; // strictly more than this many visits → Regular
 const MANUAL_TAGS = ["VIP", "Season pass"];
+// "Elena V." stands in for the signed-in customer, so a pass she buys shows here.
+const DEMO_CUSTOMER_ID = 3;
 const autoSegment = (visits: number): "New" | "Regular" => (visits > REGULAR_AFTER ? "Regular" : "New");
 const manualOf = (tags: string[]) => tags.filter((t) => MANUAL_TAGS.includes(t));
 // Display tags = the auto segment first, then any manual badges.
@@ -777,7 +779,7 @@ const displayTags = (u: Customer) => [autoSegment(u.bookings), ...manualOf(u.tag
 const tagTone = (t: string) => ({ VIP: "amber", "Season pass": "blue", Regular: "slate", New: "green" }[t] || "slate");
 
 export function AdminUsers() {
-  const { toast } = useApp();
+  const { toast, passes } = useApp();
   const [q, setQ] = useState("");
   const [tagFilter, setTagFilter] = useState("All");
   const customersQ = useAsync(listCustomers);
@@ -794,7 +796,20 @@ export function AdminUsers() {
 
   const allTags = ["All", "VIP", "Season pass", "Regular", "New"];
   const list = users ?? [];
-  const rows = list.filter((u) => (tagFilter === "All" || displayTags(u).includes(tagFilter)) && (u.first + u.last + u.email + u.phone).toLowerCase().includes(q.toLowerCase()));
+  // The signed-in customer reflects any pass she holds as an automatic tag
+  // (marked with a wallet glyph so it reads as pass-derived, not hand-assigned).
+  const passTags = [passes.vip ? "VIP" : null, passes.season ? "Season pass" : null].filter(Boolean) as string[];
+  const tagsFor = (u: Customer): { t: string; pass: boolean }[] => {
+    const base = displayTags(u).map((t) => ({ t, pass: false }));
+    if (u.id !== DEMO_CUSTOMER_ID || passTags.length === 0) return base;
+    passTags.forEach((pt) => {
+      const hit = base.find((b) => b.t === pt);
+      if (hit) hit.pass = true;
+      else base.push({ t: pt, pass: true });
+    });
+    return base;
+  };
+  const rows = list.filter((u) => (tagFilter === "All" || tagsFor(u).some((x) => x.t === tagFilter)) && (u.first + u.last + u.email + u.phone).toLowerCase().includes(q.toLowerCase()));
   const editUser = editId !== null ? list.find((u) => u.id === editId) ?? null : null;
   const activityUser = activityId !== null ? list.find((u) => u.id === activityId) ?? null : null;
   const loading = customersQ.status === "loading" || (customersQ.status !== "error" && users === null);
@@ -832,7 +847,7 @@ export function AdminUsers() {
         ) : (
           <Table cols={["Name", "Surname", "Phone", "Email", "Visits", "Tags", ""]} right={[4]}
             rows={rows.map((u) => [u.first, u.last, <span className="tnum whitespace-nowrap">{u.phone}</span>, u.email, u.bookings,
-              <span className="flex gap-1 flex-wrap">{displayTags(u).map((t) => <Badge key={t} tone={tagTone(t)}>{t}</Badge>)}</span>,
+              <span className="flex gap-1 flex-wrap">{tagsFor(u).map(({ t, pass }) => <Badge key={t} tone={tagTone(t)}>{pass && <Icon.wallet size={9} />}{t}</Badge>)}</span>,
               <div className="flex items-center justify-end gap-1">
                 <Btn size="sm" variant="ghost" icon={Icon.edit} onClick={() => setEditId(u.id)}>Edit</Btn>
                 <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => setActivityId(u.id)}>Activity</Btn>
@@ -1831,6 +1846,78 @@ export function AdminLoyalty() {
         sendLabel="Send"
         onSend={(ch) => toast(`Sent “${send?.off}” to ${send?.count} guests via ${ch}.`, { tone: "success" })}
       />
+    </div>
+  );
+}
+
+/* ============ PASSES (Future) ============
+   VIP credit packs and Season-pass pricing — the prices guests see when buying a
+   pass on the customer app. Editable here, read live by the purchase flow. */
+export function AdminPasses() {
+  const { toast, passPricing, setPassPricing } = useApp();
+  const [tiers, setTiers] = useState<number[]>(passPricing.vipTiers);
+  const [disc, setDisc] = useState(Math.round(passPricing.vipDiscount * 100));
+  const [monthly, setMonthly] = useState(passPricing.seasonMonthly);
+  const [summer, setSummer] = useState(passPricing.seasonSummer);
+  const setTier = (i: number, v: number) => setTiers((ts) => ts.map((x, j) => (j === i ? v : x)));
+  const addTier = () => setTiers((ts) => [...ts, 250]);
+  const removeTier = (i: number) => setTiers((ts) => (ts.length > 1 ? ts.filter((_, j) => j !== i) : ts));
+  const spendsLike = (amt: number) => Math.round(amt / (1 - Math.min(95, Math.max(0, disc)) / 100));
+  const save = () => {
+    setPassPricing({
+      vipTiers: tiers.map((n) => Math.max(0, Math.round(n))).filter((n) => n > 0),
+      vipDiscount: Math.min(95, Math.max(0, disc)) / 100,
+      seasonMonthly: Math.max(0, Math.round(monthly)),
+      seasonSummer: Math.max(0, Math.round(summer)),
+    });
+    toast("Saved — pass pricing is live on the customer app.", { tone: "success" });
+  };
+  return (
+    <div className="animate-fade-up">
+      <PageHead title="Passes" sub="VIP credit packs and Season-pass pricing — what guests see when buying a pass." badge={<Badge tone="future">Future</Badge>}
+        actions={<Btn variant="primary" icon={Icon.check} onClick={save}>Save pricing</Btn>} />
+      <FutureBanner />
+      <div className="grid lg:grid-cols-2 gap-5">
+        {/* VIP credit */}
+        <Card className="p-5 space-y-3">
+          <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.sparkles size={16} className="text-slaice-600" /> VIP credit</div>
+          <div className="text-[12.5px] text-slate-600 -mt-1">Prepaid credit guests spend at checkout — the discount applies to whatever the credit pays for.</div>
+          <Field label="Spend discount">
+            <div className="flex items-center gap-2 max-w-[10rem]">
+              <Input type="number" min={0} max={95} value={disc} onChange={(e) => setDisc(Math.max(0, Math.min(95, Math.round(+e.target.value) || 0)))} />
+              <span className="text-[12px] text-slate-500">% off</span>
+            </div>
+          </Field>
+          <div>
+            <div className="text-[12px] font-semibold text-slate-700 mb-1.5">Credit packs</div>
+            <div className="space-y-2">
+              {tiers.map((amt, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="text-slate-400 text-sm">€</span>
+                  <div className="w-28"><Input type="number" min={0} value={amt} onChange={(e) => setTier(i, Math.max(0, Math.round(+e.target.value) || 0))} /></div>
+                  <span className="text-[12px] text-slate-500 flex-1">credit · spends like <b className="text-navy-900 tnum">€{spendsLike(amt).toLocaleString()}</b></span>
+                  <button type="button" onClick={() => removeTier(i)} aria-label="Remove pack" disabled={tiers.length <= 1}
+                    className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40 transition"><Icon.trash size={15} /></button>
+                </div>
+              ))}
+            </div>
+            <Btn variant="ghost" size="sm" icon={Icon.plus} className="mt-2" onClick={addTier}>Add pack</Btn>
+          </div>
+          <div className="rounded-xl bg-slaice-50 ring-1 ring-slaice-600/15 px-3 py-2 text-[12px] text-slaice-700">Valid to the end of the season · spent on any service · the {disc}% applies to the card-paid share.</div>
+        </Card>
+
+        {/* Season pass */}
+        <Card className="p-5 space-y-3">
+          <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.ticket size={16} className="text-teal-600" /> Season pass</div>
+          <div className="text-[12.5px] text-slate-600 -mt-1">Covers one entry ticket per visit while valid. Two plans for guests to choose:</div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Field label="Monthly (€)"><Input type="number" min={0} value={monthly} onChange={(e) => setMonthly(Math.max(0, Math.round(+e.target.value) || 0))} /></Field>
+            <Field label="Whole summer (€)"><Input type="number" min={0} value={summer} onChange={(e) => setSummer(Math.max(0, Math.round(+e.target.value) || 0))} /></Field>
+          </div>
+          <div className="rounded-xl bg-teal-50 ring-1 ring-teal-600/15 px-3 py-2 text-[12px] text-teal-700">At checkout, one entry per visit is auto-covered for pass holders.</div>
+        </Card>
+      </div>
+      <div className="mt-4 text-[12px] text-slate-500 flex items-center gap-1.5"><Icon.info size={13} /> Changes apply instantly to the customer’s VIP / Season-pass purchase screens.</div>
     </div>
   );
 }

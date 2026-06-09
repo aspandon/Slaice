@@ -15,7 +15,7 @@ export interface Route {
 // Customer account/flow destinations that aren't in the primary NAV but are
 // still legitimate (deep-linkable) pages.
 const EXTRA_PAGES: Partial<Record<PersonaId, string[]>> = {
-  customer: ["checkout", "confirm", "mybookings", "mydocs"],
+  customer: ["checkout", "confirm", "mybookings", "mydocs", "vip", "season"],
 };
 
 const isPersona = (p: string): p is PersonaId => PERSONAS.some((x) => x.id === p);

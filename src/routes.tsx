@@ -3,6 +3,7 @@ import type { PersonaId } from "./domain/types";
 import * as C from "./screens/customer";
 import * as CW from "./screens/CustomerWizard";
 import * as CO from "./screens/Checkout";
+import * as PP from "./screens/PassPurchase";
 import * as A from "./screens/admin";
 import * as CA from "./screens/cashier";
 import * as CT from "./screens/controller";
@@ -17,6 +18,8 @@ const MAP: Record<string, () => ReactElement> = {
   "customer.mydocs": () => <C.CustomerDocs />,
   "customer.checkout": () => <CO.Checkout />,
   "customer.confirm": () => <CO.Confirmation />,
+  "customer.vip": () => <PP.PassPurchase kind="vip" />,
+  "customer.season": () => <PP.PassPurchase kind="season" />,
   // admin
   "admin.dashboard": () => <A.AdminDashboard />,
   "admin.availability": () => <A.AdminAvailability />,
@@ -29,6 +32,7 @@ const MAP: Record<string, () => ReactElement> = {
   "admin.privacy": () => <A.AdminPrivacy />,
   "admin.communicate": () => <A.AdminCommunicate />,
   "admin.loyalty": () => <A.AdminLoyalty />,
+  "admin.passes": () => <A.AdminPasses />,
   // cashier
   "cashier.issue": () => <CA.CashierIssue />,
   "cashier.redeem": () => <CA.CashierRedeem />,

@@ -158,3 +158,38 @@ export interface Consent {
 export type BeachBackground =
   | { kind: "preset"; id: string }
   | { kind: "custom"; src: string; name?: string };
+
+/* ---------- Passes (VIP credit + Season) ----------
+   A guest can hold a VIP credit card (prepaid balance, spent with a discount,
+   valid to the end of the season) and/or a Season pass (covers entry tickets for
+   a month or the whole summer). Both persist on the customer session. */
+export type SeasonPlan = "monthly" | "summer";
+
+export interface VipPass {
+  /** Remaining spendable credit, in euros. */
+  balance: number;
+  /** Total credit purchased to date (for display). */
+  purchased: number;
+  /** Human label, e.g. "End of season · 30 Sep 2026". */
+  validUntil: string;
+}
+
+export interface SeasonPass {
+  plan: SeasonPlan;
+  validUntil: string;
+}
+
+export interface CustomerPasses {
+  vip: VipPass | null;
+  season: SeasonPass | null;
+}
+
+/** Admin-editable pass pricing — read by the customer purchase flow. */
+export interface PassPricing {
+  /** Selectable VIP credit packs (euros). */
+  vipTiers: number[];
+  /** VIP spend discount, 0–1 (e.g. 0.2 = 20% off the card-paid share). */
+  vipDiscount: number;
+  seasonMonthly: number;
+  seasonSummer: number;
+}

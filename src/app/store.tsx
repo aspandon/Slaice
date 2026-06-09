@@ -2,7 +2,8 @@ import { createContext, useContext, useEffect } from "react";
 import type { ReactNode } from "react";
 import { translate } from "./i18n";
 import { DEFAULT_BACKGROUND } from "../data/backgrounds";
-import type { BeachBackground, CartItem, CartKind, Consent, LangCode, PersonaId, SunbedSlot } from "../domain/types";
+import { DEFAULT_PASSES, DEFAULT_PASS_PRICING } from "../data/passes";
+import type { BeachBackground, CartItem, CartKind, Consent, CustomerPasses, LangCode, PassPricing, PersonaId, SeasonPlan, SunbedSlot } from "../domain/types";
 
 // Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
 // highlight the section a journey points at.
@@ -56,6 +57,19 @@ export interface AppContextValue {
    *  shown under the store name on the booking beach. */
   zoneLogos: Record<string, string>;
   setZoneLogo: (zoneId: string, src: string | null) => void;
+  /** The customer's purchased passes (VIP credit + Season) — persisted. */
+  passes: CustomerPasses;
+  /** Buy (or top up) VIP credit by `amount` euros. */
+  buyVipCredit: (amount: number) => void;
+  /** Spend `amount` euros of VIP credit (debits the balance at Checkout). */
+  spendVipCredit: (amount: number) => void;
+  /** Buy a Season pass on the chosen plan. */
+  buySeasonPass: (plan: SeasonPlan) => void;
+  /** Drop a held pass (demo reset). */
+  clearPass: (kind: "vip" | "season") => void;
+  /** Admin-editable VIP/Season pricing, read by the customer purchase flow. */
+  passPricing: PassPricing;
+  setPassPricing: (p: PassPricing) => void;
 }
 
 const DEFAULT_CONSENT: Consent = {
@@ -91,6 +105,13 @@ export const AppCtx = createContext<AppContextValue>({
   setZoneLayout: () => {},
   zoneLogos: {},
   setZoneLogo: () => {},
+  passes: DEFAULT_PASSES,
+  buyVipCredit: () => {},
+  spendVipCredit: () => {},
+  buySeasonPass: () => {},
+  clearPass: () => {},
+  passPricing: DEFAULT_PASS_PRICING,
+  setPassPricing: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);

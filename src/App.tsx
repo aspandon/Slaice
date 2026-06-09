@@ -11,7 +11,8 @@ import { routeFor } from "./routes";
 import { parseHash, buildHash, isValidPage } from "./app/router";
 import { HTML_LANG, normalizeLang } from "./app/i18n";
 import { DEFAULT_BACKGROUND } from "./data/backgrounds";
-import type { BeachBackground, CartItem, Consent, LangCode, PersonaId, SunbedSlot } from "./domain/types";
+import { DEFAULT_PASSES, DEFAULT_PASS_PRICING, SEASON_END_LABEL, seasonValidUntil, round2 } from "./data/passes";
+import type { BeachBackground, CartItem, Consent, CustomerPasses, LangCode, PassPricing, PersonaId, SeasonPlan, SunbedSlot } from "./domain/types";
 
 interface ToastItem {
   id: number;
@@ -41,6 +42,8 @@ const saved = loadLS() as {
   background?: BeachBackground;
   beachLayout?: Record<string, SunbedSlot[]>;
   zoneLogos?: Record<string, string>;
+  passes?: CustomerPasses;
+  passPricing?: PassPricing;
 };
 // A deep link in the URL wins over the last saved location.
 const initialRoute = parseHash();
@@ -66,15 +69,17 @@ export default function App() {
   const [background, setBackground] = useState<BeachBackground>(saved.background || DEFAULT_BACKGROUND);
   const [beachLayout, setBeachLayoutState] = useState<Record<string, SunbedSlot[]>>(saved.beachLayout || {});
   const [zoneLogos, setZoneLogosState] = useState<Record<string, string>>(saved.zoneLogos || {});
+  const [passes, setPasses] = useState<CustomerPasses>(saved.passes || DEFAULT_PASSES);
+  const [passPricing, setPassPricing] = useState<PassPricing>(saved.passPricing || DEFAULT_PASS_PRICING);
 
   useEffect(() => {
     // Guard the write: Safari Private Mode and a full quota throw on setItem.
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing }));
     } catch {
       /* storage unavailable (private mode / quota) — ignore */
     }
-  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos]);
+  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing]);
 
   // Keep <html lang> in sync with the chosen language (a11y / SEO correctness).
   useEffect(() => {
@@ -165,10 +170,31 @@ export default function App() {
   const removeFromCart = useCallback((kind: CartItem["kind"], id: string) => setCart((c) => c.filter((x) => !(x.kind === kind && x.id === id))), []);
   const clearCart = useCallback(() => setCart([]), []);
 
+  // ---- Passes: VIP credit (top-up + spend) and the Season pass. ----
+  const buyVipCredit = useCallback((amount: number) => {
+    setPasses((p) => ({
+      ...p,
+      vip: {
+        balance: round2((p.vip?.balance ?? 0) + amount),
+        purchased: round2((p.vip?.purchased ?? 0) + amount),
+        validUntil: `End of season · ${SEASON_END_LABEL}`,
+      },
+    }));
+  }, []);
+  const spendVipCredit = useCallback((amount: number) => {
+    setPasses((p) => (p.vip ? { ...p, vip: { ...p.vip, balance: Math.max(0, round2(p.vip.balance - amount)) } } : p));
+  }, []);
+  const buySeasonPass = useCallback((plan: SeasonPlan) => {
+    setPasses((p) => ({ ...p, season: { plan, validUntil: seasonValidUntil(plan) } }));
+  }, []);
+  const clearPass = useCallback((kind: "vip" | "season") => {
+    setPasses((p) => ({ ...p, [kind]: null }));
+  }, []);
+
   // Memoised so the provider value keeps a stable identity across renders.
   const ctx = useMemo<AppContextValue>(
-    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo }),
-    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo],
+    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing }),
+    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing],
   );
 
   // The booking wizard takes over the whole viewport: the beach becomes the
