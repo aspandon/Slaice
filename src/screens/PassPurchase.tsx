@@ -13,6 +13,8 @@ import type { SeasonPlan } from "../domain/types";
 // Stable-ish pass reference sequence for the QR / wallet pass.
 let PASS_SEQ = 4880;
 const nextRef = (kind: "vip" | "season") => (kind === "vip" ? "VIP-" : "SEA-") + ++PASS_SEQ;
+// Pull the bare date out of a validity label (e.g. "End of season · 30 Sep 2026").
+const dateOf = (s: string) => s.split(/·|to/).pop()?.trim() ?? s;
 
 /* ============================================================================
    Buy a pass — VIP credit (prepay, spend with a discount) or a Season pass
@@ -76,7 +78,7 @@ export function PassPurchase({ kind }: { kind: "vip" | "season" }) {
               : `${t("You're now a Season-pass holder.")} ${t("Your entry is covered every visit.")}`}
           </p>
 
-          <div className="my-6"><WalletButtons pass={{ ref, variant: kind, holder: "Elena M.", title: vip ? t("VIP credit pass") : t("Season pass"), total: `€${price.toLocaleString()}`, fields }} className="" /></div>
+          <div className="my-6"><WalletButtons pass={{ ref, variant: kind, holder: "Elena M.", title: vip ? t("VIP credit pass") : t("Season pass"), total: `€${price.toLocaleString()}`, validUntil: vip ? SEASON_END_LABEL : dateOf(passes.season?.validUntil ?? seasonValidUntil(plan)), fields }} className="" /></div>
 
           <div className="grid sm:grid-cols-3 gap-2 text-[12px]">
             <Pill icon={Icon.checkCircle} t={t("Stripe paid")} />

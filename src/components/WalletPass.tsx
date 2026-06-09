@@ -21,6 +21,8 @@ export interface WalletPassData {
   variant?: "booking" | "vip" | "season";
   /** Pass title shown on the card header (e.g. "VIP credit pass"). */
   title?: string;
+  /** Valid-until date shown on the membership card (vip/season variants). */
+  validUntil?: string;
   /** Pass detail fields, rendered in the card body for vip/season variants. */
   fields?: { label: string; value: string }[];
 }
@@ -84,7 +86,7 @@ function PassPreview({ pass }: { pass: WalletPassData }) {
     const no = "NO. " + (pass.ref.match(/\d+/)?.[0] ?? "0042");
     return (
       <div className="rounded-3xl overflow-hidden shadow-float ring-1 ring-black/5 max-w-[85.6mm] mx-auto bg-white">
-        <PassCard kind={pass.variant} holder={(pass.holder ?? "Elena M.").toUpperCase()} number={no} />
+        <PassCard kind={pass.variant} holder={(pass.holder ?? "Elena M.").toUpperCase()} number={no} validUntil={pass.validUntil} />
         <div className="px-5 py-4 flex items-center gap-4">
           <div className="rounded-lg ring-1 ring-slate-200 p-1.5 shrink-0"><QR size={84} seed={pass.ref} /></div>
           <div className="min-w-0 flex-1">

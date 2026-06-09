@@ -2,7 +2,11 @@ import { useState } from "react";
 import { Icon } from "../../lib/icons";
 import { PassCard } from "../../components/PassCard";
 import { Reveal } from "../../lib/motion";
+import { SEASON_END_LABEL } from "../../data/passes";
 import { useApp, useT } from "../../app/store";
+
+// Bare date from a validity label (e.g. "End of season · 30 Sep 2026").
+const dateOf = (s: string) => s.split(/·|to/).pop()?.trim() ?? s;
 
 // `.glass-flat`, not `.glass`: a frosted look with NO backdrop-filter, so these
 // cards can't show the GPU backdrop-filter tile seams (shifting vertical lines)
@@ -16,7 +20,10 @@ export function CustomerHome() {
   const [promoDismissed, setPromoDismissed] = useState(false);
 
   return (
-    <div className="animate-fade-up flex flex-col sm:grid sm:grid-cols-[3fr_2fr] gap-4 sm:items-start">
+    <div className="animate-fade-up flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_85.6mm] gap-4 lg:items-start">
+
+      {/* ── Left: hero + the two promos beneath it ─────────────────── */}
+      <div className="flex flex-col gap-4 min-w-0">
 
       {/* ── Hero ──────────────────────────────────────────────────── */}
       <Reveal as="button" onClick={() => dive()} className="text-left group block w-full">
@@ -41,61 +48,43 @@ export function CustomerHome() {
         </div>
       </Reveal>
 
-      {/* ── Right: promo · rebook · VIP · Season, as a 2×2 ────────── */}
+      {/* ── Promos beneath the hero — icon in front of the text ────── */}
       <div className="grid sm:grid-cols-2 gap-4">
 
         {/* Weekend promo */}
         {!promoDismissed && (
-          <div className={`${CARD} p-5 sm:p-6 flex flex-col gap-3`}>
-            <div className="flex items-start justify-between gap-2">
-              <span className="w-10 h-10 rounded-xl grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm">
-                <Icon.bolt size={18} />
-              </span>
-              <button
-                aria-label={t("Dismiss offer")}
-                onClick={() => setPromoDismissed(true)}
-                className="w-7 h-7 grid place-items-center rounded-lg text-slate-400 hover:text-navy-900 hover:bg-white/50 shrink-0 -mt-0.5 -mr-0.5">
-                <Icon.x size={14} />
-              </button>
-            </div>
-            <div className="flex-1">
-              <div className="font-semibold text-navy-900 text-[15px]">
-                <b>{t("20% off")}</b> {t("front-row sunbeds")}
-              </div>
-              <div className="text-[12.5px] text-slate-600 mt-1 leading-snug">
-                {t("This weekend only · gates open 09:00–20:00")}
+          <div className={`${CARD} p-5 relative flex flex-col gap-2.5`}>
+            <button aria-label={t("Dismiss offer")} onClick={() => setPromoDismissed(true)} className="absolute top-3 right-3 w-7 h-7 grid place-items-center rounded-lg text-slate-400 hover:text-navy-900 hover:bg-white/50 transition"><Icon.x size={14} /></button>
+            <div className="flex items-center gap-3 pr-7">
+              <span className="w-10 h-10 rounded-xl grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm"><Icon.bolt size={18} /></span>
+              <div className="min-w-0">
+                <div className="font-semibold text-navy-900 text-[15px] leading-tight"><b>{t("20% off")}</b> {t("front-row sunbeds")}</div>
+                <div className="text-[12.5px] text-slate-600 mt-0.5 leading-snug">{t("This weekend only · gates open 09:00–20:00")}</div>
               </div>
             </div>
-            <button
-              onClick={() => dive()}
-              className="mt-auto self-start text-[13px] font-semibold text-teal-700 hover:text-teal-800 rounded-lg px-3 py-1.5 hover:bg-white/50 transition -ml-3">
-              {t("Claim")} →
-            </button>
+            <button onClick={() => dive()} className="self-start text-[13px] font-semibold text-teal-700 hover:text-teal-800 rounded-lg px-3 py-1.5 hover:bg-white/50 transition -ml-3">{t("Claim")} →</button>
           </div>
         )}
 
         {/* Returning-guest shortcut */}
-        <button
-          onClick={() => dive()}
-          className={`${CARD} p-5 sm:p-6 flex flex-col gap-3 text-left hover:bg-white/80 transition group`}>
-          <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0">
-            <Icon.umbrella size={18} />
-          </span>
-          <div className="flex-1">
-            <div className="font-semibold text-navy-900 text-[15px]">{t("Rebook your usual")}</div>
-            <div className="text-[12.5px] text-slate-600 mt-1 leading-snug">
-              Central · {t("front row — your favourite zone last season")}
+        <button onClick={() => dive()} className={`${CARD} p-5 flex flex-col gap-2.5 text-left hover:bg-white/80 transition group`}>
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
+            <div className="min-w-0">
+              <div className="font-semibold text-navy-900 text-[15px] leading-tight">{t("Rebook your usual")}</div>
+              <div className="text-[12.5px] text-slate-600 mt-0.5 leading-snug">Central · {t("front row — your favourite zone last season")}</div>
             </div>
           </div>
-          <div className="mt-auto flex items-center gap-1 text-teal-600 text-[13px] font-semibold">
-            {t("Book again")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" />
-          </div>
+          <div className="self-start flex items-center gap-1 text-teal-600 text-[13px] font-semibold px-3 py-1.5 -ml-3">{t("Book again")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" /></div>
         </button>
 
-        {/* Passes — grouped beside the promo + rebook tiles */}
+      </div>
+      </div>
+
+      {/* ── Right: VIP + Season cards (real credit-card width) ──────── */}
+      <div className="flex flex-col gap-4">
         <VipTile />
         <SeasonTile />
-
       </div>
     </div>
   );
@@ -111,7 +100,7 @@ function VipTile() {
   return (
     <div className={`${CARD} flex flex-col w-full max-w-[85.6mm] mx-auto transition duration-300 ease-spring hover:-translate-y-0.5 hover:shadow-lift`}>
       <button onClick={() => go("customer", "vip")} aria-label={vip ? t("Top up VIP credit") : t("Get VIP Pass")} className="block w-full group">
-        <PassCard kind="vip" holder="ELENA M." subtitle={vip ? `€${vip.balance.toLocaleString()} CREDIT` : `MEMBER · ${disc}% OFF`} className="group-hover:brightness-[1.02] transition" />
+        <PassCard kind="vip" holder="ELENA M." subtitle={vip ? `€${vip.balance.toLocaleString()} CREDIT` : `MEMBER · ${disc}% OFF`} validUntil={SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
       </button>
       <div className="mt-auto flex items-center justify-between gap-2 px-4 py-3">
         <button onClick={() => go("customer", "vip")} className="inline-flex items-center gap-1 text-slaice-600 hover:text-slaice-700 text-[13px] font-semibold">
@@ -132,7 +121,7 @@ function SeasonTile() {
   return (
     <div className={`${CARD} flex flex-col w-full max-w-[85.6mm] mx-auto transition duration-300 ease-spring hover:-translate-y-0.5 hover:shadow-lift`}>
       <button onClick={() => go("customer", "season")} aria-label={season ? t("Manage Season pass") : t("Get Season Pass")} className="block w-full group">
-        <PassCard kind="season" holder="ELENA M." subtitle={season && season.plan === "monthly" ? "MONTHLY 2026" : "SUMMER 2026"} className="group-hover:brightness-[1.02] transition" />
+        <PassCard kind="season" holder="ELENA M." subtitle={season && season.plan === "monthly" ? "MONTHLY 2026" : "SUMMER 2026"} validUntil={season ? dateOf(season.validUntil) : SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
       </button>
       <div className="mt-auto flex items-center justify-between gap-2 px-4 py-3">
         <button onClick={() => go("customer", "season")} className="inline-flex items-center gap-1 text-teal-700 hover:text-teal-800 text-[13px] font-semibold">
