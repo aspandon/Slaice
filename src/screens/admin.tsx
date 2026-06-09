@@ -14,7 +14,7 @@ import { BackgroundPicker } from "../components/BackgroundPicker";
 import { fileToBackgroundSrc } from "../lib/image";
 import { ZONES, zoneLayout } from "../data/beach";
 import type { SunbedSlot, SunbedState, SunbedKind } from "../domain/types";
-import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS, personByFirst, CUSTOMERS } from "../data/mock";
+import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS, personByFirst, CUSTOMERS, type AdminBooking } from "../data/mock";
 import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr";
 import { useApp } from "../app/store";
 import { downloadCSV } from "../lib/download";
@@ -473,6 +473,87 @@ export function AdminMapEditor() {
 }
 
 /* ============ BOOKINGS LIST ============ */
+/* ---- Shared send-channel picker — QR / offers via Email · Viber · SMS ---- */
+type SendChannel = "Email" | "Viber" | "SMS";
+const SEND_CHANNELS: { key: SendChannel; icon: IconRenderer; color: string }[] = [
+  { key: "Email", icon: Icon.mail, color: "#0d9488" },
+  { key: "Viber", icon: Icon.chat, color: "#7360f2" },
+  { key: "SMS", icon: Icon.phone, color: "#16a34a" },
+];
+
+function SendModal({ open, onClose, title, intro, email, phone, sendLabel = "Send", onSend }: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  intro?: string;
+  email?: string;
+  phone?: string;
+  sendLabel?: string;
+  onSend: (channel: SendChannel, dest: string) => void;
+}) {
+  const [channel, setChannel] = useState<SendChannel>("Email");
+  useEffect(() => { if (open) setChannel("Email"); }, [open]);
+  const destOf = (c: SendChannel) => (c === "Email" ? email : phone) || "—";
+  return (
+    <Modal open={open} onClose={onClose} title={title}
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+        <Btn variant="primary" icon={Icon.check} onClick={() => { onSend(channel, destOf(channel)); onClose(); }}>{sendLabel} via {channel}</Btn></>}>
+      <div className="space-y-3">
+        {intro && <p className="text-[13px] text-slate-600 -mt-1">{intro}</p>}
+        <div className="grid grid-cols-3 gap-2">
+          {SEND_CHANNELS.map((c) => {
+            const CIcon = c.icon;
+            const on = channel === c.key;
+            return (
+              <button key={c.key} type="button" onClick={() => setChannel(c.key)} aria-pressed={on}
+                className={`rounded-xl p-3 text-center ring-1 transition ${on ? "ring-2 ring-teal-500 bg-teal-50/50" : "ring-slate-200 bg-white hover:ring-teal-400"}`}>
+                <span className="mx-auto mb-1.5 w-10 h-10 rounded-xl grid place-items-center text-white shadow-sm" style={{ background: c.color }}><CIcon size={18} /></span>
+                <div className="text-[13px] font-semibold text-navy-900">{c.key}</div>
+                <div className="text-[10.5px] text-slate-500 truncate">{destOf(c.key)}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
+/* ---- Sortable header + pager (Bookings) ---- */
+type SortState = { key: string; dir: 1 | -1 } | null;
+function SortHeader({ label, k, sort, onSort, align }: { label: string; k: string; sort: SortState; onSort: (k: string) => void; align?: "right" }) {
+  const active = sort?.key === k;
+  const arrow = !active ? "▼" : sort?.dir === 1 ? "▲" : "▼";
+  return (
+    <button type="button" onClick={() => onSort(k)} className={`inline-flex items-center gap-1 uppercase tracking-wider hover:text-navy-900 transition ${align === "right" ? "flex-row-reverse" : ""} ${active ? "text-navy-900" : ""}`}>
+      {label}
+      <span className={`text-[9px] leading-none ${active ? "text-teal-600" : "text-slate-300"}`}>{arrow}</span>
+    </button>
+  );
+}
+
+const MONTHS_IDX: Record<string, number> = { Jan: 1, Feb: 2, Mar: 3, Apr: 4, May: 5, Jun: 6, Jul: 7, Aug: 8, Sep: 9, Oct: 10, Nov: 11, Dec: 12 };
+const dateVal = (d: string) => { const [day, mon] = d.split(" "); return (MONTHS_IDX[mon] ?? 0) * 100 + (parseInt(day, 10) || 0); };
+const cmpVal = (a: string | number, b: string | number) => (typeof a === "number" && typeof b === "number" ? a - b : String(a).localeCompare(String(b)));
+
+function Pager({ page, pageCount, total, pageSize, onPage }: { page: number; pageCount: number; total: number; pageSize: number; onPage: (p: number) => void }) {
+  const start = page * pageSize;
+  const end = Math.min(total, start + pageSize);
+  return (
+    <div className="flex items-center justify-between gap-3 px-1 pt-3 flex-wrap">
+      <span className="text-[12.5px] text-slate-500 tnum">Showing {start + 1}–{end} of {total}</span>
+      <div className="flex items-center gap-1">
+        <Btn size="sm" variant="ghost" disabled={page === 0} onClick={() => onPage(page - 1)}>Prev</Btn>
+        {Array.from({ length: pageCount }, (_, i) => (
+          <button key={i} type="button" onClick={() => onPage(i)} aria-current={i === page}
+            className={`min-w-8 h-8 px-2 rounded-lg text-[12.5px] font-semibold tnum transition ${i === page ? "bg-navy-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{i + 1}</button>
+        ))}
+        <Btn size="sm" variant="ghost" disabled={page >= pageCount - 1} onClick={() => onPage(page + 1)}>Next</Btn>
+      </div>
+    </div>
+  );
+}
+
 /* Items of one booking, stacked — a customer who reserved several sunbeds plus
    parking / a locker / tickets sees them all together under their booking id. */
 function BookingItems({ items }: { items: string[] }) {
@@ -490,20 +571,41 @@ function BookingItems({ items }: { items: string[] }) {
   );
 }
 
+type EnrichedBooking = AdminBooking & { surname: string; phone: string; email: string };
+
 export function AdminBookings() {
   const { toast } = useApp();
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(0);
+  const [sort, setSort] = useState<SortState>(null);
+  const [sendFor, setSendFor] = useState<EnrichedBooking | null>(null);
   const loading = useMockLoad();
+  const PAGE = 30;
   const chan = (c: string) => ({ Online: "blue", "Walk-in": "amber", Phone: "indigo", Cashier: "green" }[c] || "slate");
-  const enriched = ADMIN_BOOKINGS.map((b) => {
+  const enriched: EnrichedBooking[] = ADMIN_BOOKINGS.map((b) => {
     const p = personByFirst(b.who);
-    return { ...b, surname: p?.last ?? "", phone: p?.phone ?? "" };
+    return { ...b, surname: p?.last ?? "", phone: p?.phone ?? "", email: p?.email ?? "" };
   });
-  const rows = enriched.filter((b) => (b.id + b.who + b.surname + b.phone + b.items.join(" ")).toLowerCase().includes(q.toLowerCase()));
+  const filtered = enriched.filter((b) => (b.id + b.who + b.surname + b.phone + b.items.join(" ")).toLowerCase().includes(q.toLowerCase()));
+  const sortVal = (b: EnrichedBooking): string | number => {
+    switch (sort?.key) {
+      case "id": return b.id;
+      case "name": return b.who;
+      case "surname": return b.surname;
+      case "amount": return b.amount;
+      case "date": return dateVal(b.date);
+      default: return 0;
+    }
+  };
+  const sorted = sort ? [...filtered].sort((a, b) => cmpVal(sortVal(a), sortVal(b)) * sort.dir) : filtered;
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = sorted.slice(safePage * PAGE, safePage * PAGE + PAGE);
+  const onSort = (k: string) => { setSort((s) => (s?.key === k ? { key: k, dir: s.dir === 1 ? -1 : 1 } : { key: k, dir: 1 })); setPage(0); };
   const exportCSV = () => {
     downloadCSV("bookings.csv", ["Booking", "Name", "Surname", "Phone", "Items", "Date", "Channel", "Status", "Amount (€)"],
-      rows.map((b) => [b.id, b.who, b.surname || "—", b.phone || "—", b.items.join(" + "), b.date, b.channel, b.status, b.amount]));
-    toast(`Exported ${rows.length} bookings to CSV.`, { tone: "success" });
+      sorted.map((b) => [b.id, b.who, b.surname || "—", b.phone || "—", b.items.join(" + "), b.date, b.channel, b.status, b.amount]));
+    toast(`Exported ${sorted.length} bookings to CSV.`, { tone: "success" });
   };
   return (
     <div>
@@ -512,30 +614,52 @@ export function AdminBookings() {
             doesn't add a separate strip above. Export hugs the right edge. */}
         <div className="flex items-center gap-3 mb-3 flex-wrap">
           <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-sm flex-1 min-w-[200px] text-slate-600">
-            <Icon.search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search bookings…" className="text-sm outline-none w-full bg-transparent text-ink" />
+            <Icon.search size={16} /><input value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="Search bookings…" className="text-sm outline-none w-full bg-transparent text-ink" />
           </div>
           <Btn variant="outline" icon={Icon.download} onClick={exportCSV} className="ml-auto">Export</Btn>
         </div>
         {loading ? (
           <TableSkeleton rows={5} cols={9} />
-        ) : rows.length === 0 ? (
+        ) : sorted.length === 0 ? (
           <EmptyState icon={Icon.search} title="No matching bookings" body={`Nothing matches “${q}”. Try a different name, sunbed code or booking ID.`} />
         ) : (
-          <Table cols={["Booking", "Name", "Surname", "Phone", "Items", "Date", "Channel", "Status", "Amount", ""]} right={[8]}
-            rows={rows.map((b) => [
-              b.id,
-              b.who,
-              b.surname || <span className="text-slate-400">—</span>,
-              b.phone ? <span className="tnum whitespace-nowrap">{b.phone}</span> : <span className="text-slate-400">—</span>,
-              <BookingItems items={b.items} />,
-              b.date,
-              <Badge tone={chan(b.channel)}>{b.channel}</Badge>,
-              <StatusBadge status={b.status} />,
-              `€${b.amount}`,
-              <Btn size="sm" variant="ghost" icon={Icon.mail} onClick={() => toast(`QR re-sent for ${b.id}.`, { tone: "success" })}>Resend QR</Btn>,
-            ])} />
+          <>
+            <Table cols={[
+              <SortHeader label="Booking" k="id" sort={sort} onSort={onSort} />,
+              <SortHeader label="Name" k="name" sort={sort} onSort={onSort} />,
+              <SortHeader label="Surname" k="surname" sort={sort} onSort={onSort} />,
+              "Phone", "Items",
+              <SortHeader label="Date" k="date" sort={sort} onSort={onSort} />,
+              "Channel", "Status",
+              <SortHeader label="Amount" k="amount" sort={sort} onSort={onSort} align="right" />,
+              "",
+            ]} right={[8]}
+              rows={pageRows.map((b) => [
+                b.id,
+                b.who,
+                b.surname || <span className="text-slate-400">—</span>,
+                b.phone ? <span className="tnum whitespace-nowrap">{b.phone}</span> : <span className="text-slate-400">—</span>,
+                <BookingItems items={b.items} />,
+                b.date,
+                <Badge tone={chan(b.channel)}>{b.channel}</Badge>,
+                <StatusBadge status={b.status} />,
+                `€${b.amount}`,
+                <Btn size="sm" variant="ghost" icon={Icon.mail} onClick={() => setSendFor(b)}>Resend QR</Btn>,
+              ])} />
+            {pageCount > 1 && <Pager page={safePage} pageCount={pageCount} total={sorted.length} pageSize={PAGE} onPage={setPage} />}
+          </>
         )}
       </Card>
+      <SendModal
+        open={sendFor !== null}
+        onClose={() => setSendFor(null)}
+        title="Resend QR"
+        intro={sendFor ? `Send the gate QR for ${sendFor.id} (${sendFor.who}${sendFor.surname ? " " + sendFor.surname : ""}) again.` : undefined}
+        email={sendFor?.email}
+        phone={sendFor?.phone}
+        sendLabel="Resend"
+        onSend={(ch, dest) => toast(`QR for ${sendFor?.id} re-sent via ${ch} to ${dest}.`, { tone: "success" })}
+      />
     </div>
   );
 }
@@ -612,48 +736,64 @@ export function AdminManual() {
   const [zoneName, setZoneName] = useState(ZONES[0].name);
   const [code, setCode] = useState("");
   const [email, setEmail] = useState("maria@example.com");
+  const [mphone, setMphone] = useState("+30 694 100 0001");
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sentVia, setSentVia] = useState<SendChannel>("Email");
+  const [sentTo, setSentTo] = useState("");
   const today = new Date().toISOString().slice(0, 10);
   const zone = ZONES.find((z) => z.name === zoneName) ?? ZONES[0];
   const slots = beachLayout[zone.id] ?? zoneLayout(zone);
   const reserve = () => {
     if (!code.trim()) { toast("Pick a set on the map (or type a code) first.", { tone: "error" }); return; }
-    setDone(true);
-    toast(`Demo — ${zone.name} · ${code.toUpperCase()} blocked & QR e-mailed (unpaid/manual).`);
+    setSendOpen(true);
   };
   return (
-    <div className="animate-fade-up grid lg:grid-cols-[1fr_320px] gap-5">
-      <div>
-        <PageHead title="Manual / Phone Booking" sub="Reserve and block a sunbed without taking payment (VIP / phone), then send the QR to the customer." badge={<Badge tone="mvp">MVP</Badge>} />
-        <Card className="p-5">
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Field label="Customer name"><Input placeholder="e.g. Maria K." defaultValue="Maria K." /></Field>
-            <Field label="Customer e-mail"><Input placeholder="maria@example.com" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
-            <Field label="Zone"><Select value={zoneName} onChange={(e) => { setZoneName(e.target.value); setCode(""); }} options={ZONES.map((z) => z.name)} /></Field>
-            <Field label="Sunbed code"><Input placeholder="CE-92" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} /></Field>
-            <Field label="Date"><Input type="date" defaultValue={today} /></Field>
-            <Field label="Mark as"><Select options={["Unpaid (manual)", "Comp / VIP", "Pay later"]} /></Field>
-          </div>
-          <ManualCoverage zone={zone} slots={slots} selectedCode={code} onPick={(id) => setCode(id)} />
-          <div className="mt-4">
-            <Btn variant="primary" full className="sm:w-auto" icon={Icon.lock} onClick={reserve}>Reserve &amp; send QR</Btn>
-          </div>
-        </Card>
-        {done && (
-          <Card className="p-5 mt-4 flex items-center gap-4 animate-fade-up">
-            <QR size={96} seed={`MANUAL-${code}`} />
-            <div>
-              <div className="font-semibold text-navy-900 flex items-center gap-2">Reserved <Badge tone="amber">Unpaid</Badge></div>
-              <div className="text-sm text-slate-600">{zone.name} · {code} — QR sent to {email}. The customer can pay later or present the QR at the gate.</div>
+    <>
+      <div className="animate-fade-up grid lg:grid-cols-[1fr_320px] gap-5">
+        <div>
+          <PageHead title="Manual / Phone Booking" sub="Reserve and block a sunbed without taking payment (VIP / phone), then send the QR to the customer." badge={<Badge tone="mvp">MVP</Badge>} />
+          <Card className="p-5">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <Field label="Customer name"><Input placeholder="e.g. Maria K." defaultValue="Maria K." /></Field>
+              <Field label="Customer e-mail"><Input placeholder="maria@example.com" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
+              <Field label="Customer phone"><Input placeholder="+30 694 …" value={mphone} onChange={(e) => setMphone(e.target.value)} /></Field>
+              <Field label="Zone"><Select value={zoneName} onChange={(e) => { setZoneName(e.target.value); setCode(""); }} options={ZONES.map((z) => z.name)} /></Field>
+              <Field label="Sunbed code"><Input placeholder="CE-92" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} /></Field>
+              <Field label="Date"><Input type="date" defaultValue={today} /></Field>
+              <Field label="Mark as"><Select options={["Unpaid (manual)", "Comp / VIP", "Pay later"]} /></Field>
+            </div>
+            <ManualCoverage zone={zone} slots={slots} selectedCode={code} onPick={(id) => setCode(id)} />
+            <div className="mt-4">
+              <Btn variant="primary" full className="sm:w-auto" icon={Icon.lock} onClick={reserve}>Reserve &amp; send QR</Btn>
             </div>
           </Card>
-        )}
+          {done && (
+            <Card className="p-5 mt-4 flex items-center gap-4 animate-fade-up">
+              <QR size={96} seed={`MANUAL-${code}`} />
+              <div>
+                <div className="font-semibold text-navy-900 flex items-center gap-2">Reserved <Badge tone="amber">Unpaid</Badge></div>
+                <div className="text-sm text-slate-600">{zone.name} · {code} — QR sent via <b>{sentVia}</b> to {sentTo}. The customer can pay later or present the QR at the gate.</div>
+              </div>
+            </Card>
+          )}
+        </div>
+        <ContextPanel title="Manual / phone bookings" items={[
+          { icon: Icon.phone, title: "Block without payment", body: "Used for phone bookings, VIP comps, and pay-later guests." },
+          { icon: Icon.mail, title: "QR by e-mail / Viber / SMS", body: "The guest gets the same gate QR as an online booking, on the channel you pick." },
+          { icon: Icon.cash, title: "Settle later", body: "Mark unpaid bookings paid in Bookings when they arrive." },
+        ]} footer="Manual bookings appear in Reporting with channel = Phone." />
       </div>
-      <ContextPanel title="Manual / phone bookings" items={[
-        { icon: Icon.phone, title: "Block without payment", body: "Used for phone bookings, VIP comps, and pay-later guests." },
-        { icon: Icon.mail, title: "QR by e-mail", body: "The guest gets the same gate QR as an online booking." },
-        { icon: Icon.cash, title: "Settle later", body: "Mark unpaid bookings paid in Bookings when they arrive." },
-      ]} footer="Manual bookings appear in Reporting with channel = Phone." />
-    </div>
+      <SendModal
+        open={sendOpen}
+        onClose={() => setSendOpen(false)}
+        title="Reserve & send QR"
+        intro={`Block ${zone.name} · ${code} and send the gate QR to the customer.`}
+        email={email}
+        phone={mphone}
+        sendLabel="Reserve & send"
+        onSend={(ch, dest) => { setSentVia(ch); setSentTo(dest); setDone(true); toast(`Demo — ${zone.name} · ${code} blocked & QR sent via ${ch} to ${dest}.`, { tone: "success" }); }}
+      />
+    </>
   );
 }
 
@@ -1050,7 +1190,21 @@ export function AdminLoyalty() {
   const [reward, setReward] = useState("20% off sunbeds");
   const [store, setStore] = useState("All stores");
   const [schedule, setSchedule] = useState("Weekday mornings");
+  const [active, setActive] = useState<Set<string>>(new Set());
+  const [offers, setOffers] = useState<{ id: number; reward: string; store: string; schedule: string }[]>([]);
+  const [send, setSend] = useState<{ off: string; count: number } | null>(null);
+  const idRef = useRef(0);
   const tier = (min: number) => CUSTOMERS.filter((c) => c.bookings >= min).length;
+
+  const toggleScheme = (title: string) => {
+    const on = active.has(title);
+    setActive((s) => { const n = new Set(s); if (on) n.delete(title); else n.add(title); return n; });
+    toast(on ? `Disabled “${title}”.` : `Enabled “${title}” — now live for guests.`, on ? {} : { tone: "success" });
+  };
+  const publish = () => {
+    setOffers((o) => [{ id: ++idRef.current, reward, store, schedule }, ...o]);
+    toast(`Published offer: ${reward} (${store} · ${schedule}).`, { tone: "success" });
+  };
 
   const schemes = [
     { icon: Icon.star, title: "Visit milestones", blurb: "A stamp card — every Nth visit is on the house, tracked automatically by the gate QR.", eg: "10th sunbed free" },
@@ -1060,6 +1214,11 @@ export function AdminLoyalty() {
     { icon: Icon.users, title: "Bring a friend", blurb: "Referrals — both the inviter and the new guest get a small reward.", eg: "Refer a friend → €5 off each" },
     { icon: Icon.calendar, title: "Birthday week", blurb: "A small, automatic treat during a guest's birthday week. Cheap goodwill.", eg: "Free entry + a drink, on us" },
   ];
+  const tiers = [
+    { min: 5, off: "10% off", tone: "slate" },
+    { min: 10, off: "15% off + free coffee", tone: "blue" },
+    { min: 20, off: "VIP: front row + free parking", tone: "amber" },
+  ];
 
   return (
     <div className="animate-fade-up">
@@ -1067,19 +1226,21 @@ export function AdminLoyalty() {
       <FutureBanner />
 
       <div className="mb-5">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-2 px-1">Pick a scheme to start with</div>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-2 px-1">Pick a scheme to start with{active.size > 0 && <span className="text-teal-600"> · {active.size} active</span>}</div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {schemes.map((s) => {
             const SIcon = s.icon;
+            const on = active.has(s.title);
             return (
-              <Card key={s.title} className="p-4 flex flex-col gap-2">
+              <Card key={s.title} className={`p-4 flex flex-col gap-2 transition ${on ? "ring-2 ring-teal-500" : ""}`}>
                 <div className="flex items-center gap-2.5">
-                  <span className="w-9 h-9 rounded-xl bg-slaice-100 text-slaice-700 grid place-items-center shrink-0"><SIcon size={18} /></span>
-                  <div className="font-semibold text-navy-900">{s.title}</div>
+                  <span className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${on ? "bg-teal-600 text-white" : "bg-slaice-100 text-slaice-700"}`}><SIcon size={18} /></span>
+                  <div className="font-semibold text-navy-900 flex-1 min-w-0">{s.title}</div>
+                  {on && <Badge tone="green">Active</Badge>}
                 </div>
                 <div className="text-[13px] text-slate-600 leading-snug">{s.blurb}</div>
                 <div className="text-[12px] text-slate-500 rounded-lg bg-slate-50 ring-1 ring-slate-100 px-2.5 py-1.5">e.g. {s.eg}</div>
-                <Btn variant="tint" size="sm" full icon={Icon.plus} className="mt-auto" onClick={() => toast(`Demo — set up “${s.title}”.`)}>Set up</Btn>
+                <Btn variant={on ? "outline" : "tint"} size="sm" full icon={on ? Icon.check : Icon.plus} className="mt-auto" onClick={() => toggleScheme(s.title)}>{on ? "Active · tap to disable" : "Set up"}</Btn>
               </Card>
             );
           })}
@@ -1099,33 +1260,52 @@ export function AdminLoyalty() {
           </div>
           <div className="rounded-xl bg-teal-50/70 ring-1 ring-teal-200 px-3 py-2 text-[12.5px] text-navy-900"><b>Preview:</b> {reward} · {store} · {schedule}.</div>
           <div className="flex justify-end">
-            <Btn variant="primary" icon={Icon.check} onClick={() => toast(`Demo — published offer: ${reward} (${store} · ${schedule}).`, { tone: "success" })}>Publish offer</Btn>
+            <Btn variant="primary" icon={Icon.check} onClick={publish}>Publish offer</Btn>
           </div>
+          {offers.length > 0 && (
+            <div className="space-y-1.5 pt-1 border-t border-slate-100">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 pt-2">Live offers · {offers.length}</div>
+              {offers.map((o) => (
+                <div key={o.id} className="flex items-center gap-2 rounded-lg ring-1 ring-teal-200 bg-teal-50/50 px-3 py-2 text-[12.5px] animate-pop">
+                  <Icon.clock size={13} className="text-teal-600 shrink-0" />
+                  <span className="flex-1 min-w-0 text-navy-900"><b>{o.reward}</b> · {o.store} · {o.schedule}</span>
+                  <button type="button" onClick={() => setOffers((x) => x.filter((y) => y.id !== o.id))} className="text-slate-400 hover:text-rose-600 shrink-0" aria-label="Remove offer"><Icon.x size={14} /></button>
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
 
-        {/* Visit-milestone email campaign — audience from the real roster */}
+        {/* Visit-milestone campaign — audience from the real roster */}
         <Card className="p-5 space-y-3">
           <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.mail size={16} /> Reward your regulars</div>
-          <div className="text-[12.5px] text-slate-600 -mt-1">Auto-email guests who keep coming back this season — the audience comes from Users &amp; Segments.</div>
+          <div className="text-[12.5px] text-slate-600 -mt-1">Message guests who keep coming back this season — the audience comes from Users &amp; Segments.</div>
           <div className="space-y-2">
-            {[
-              { min: 5, off: "10% off", tone: "slate" },
-              { min: 10, off: "15% off + free coffee", tone: "blue" },
-              { min: 20, off: "VIP: front row + free parking", tone: "amber" },
-            ].map((t) => (
+            {tiers.map((t) => (
               <div key={t.min} className="flex items-center gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
                 <span className="w-10 h-10 rounded-lg bg-slaice-100 text-slaice-700 grid place-items-center font-bold tnum text-[13px] shrink-0">{t.min}+</span>
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-semibold text-navy-900 flex items-center gap-1.5 flex-wrap">Visited {t.min}+ times → <Badge tone={t.tone}>{t.off}</Badge></div>
                   <div className="text-[11px] text-slate-500"><b className="tnum">{tier(t.min)}</b> guests qualify this season</div>
                 </div>
-                <Btn size="sm" variant="outline" icon={Icon.mail} onClick={() => toast(`Demo — emailed ${tier(t.min)} guests: “${t.off}”.`, { tone: "success" })}>Send</Btn>
+                <Btn size="sm" variant="outline" icon={Icon.mail} onClick={() => setSend({ off: t.off, count: tier(t.min) })}>Send</Btn>
               </div>
             ))}
           </div>
           <div className="text-[11px] text-slate-500 flex items-center gap-1.5"><Icon.info size={13} /> Thresholds and rewards here are examples — tell me which you like and I’ll wire them up.</div>
         </Card>
       </div>
+
+      <SendModal
+        open={send !== null}
+        onClose={() => setSend(null)}
+        title="Send offer to regulars"
+        intro={send ? `Send “${send.off}” to the ${send.count} guests who qualify.` : undefined}
+        email={send ? `${send.count} guests` : undefined}
+        phone={send ? `${send.count} guests` : undefined}
+        sendLabel="Send"
+        onSend={(ch) => toast(`Sent “${send?.off}” to ${send?.count} guests via ${ch}.`, { tone: "success" })}
+      />
     </div>
   );
 }

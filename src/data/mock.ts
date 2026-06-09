@@ -84,7 +84,7 @@ export interface AdminBooking {
   status: string;
   amount: number;
 }
-export const ADMIN_BOOKINGS: AdminBooking[] = [
+const BASE_ADMIN_BOOKINGS: AdminBooking[] = [
   { id: "#BK-10428", who: "Elena", items: ["Sunbed · Central · CE-89", "Sunbed · Central · CE-90", "Parking · P12", "Day locker · A07"], date: "19 Jul", channel: "Online", status: "Confirmed", amount: 80 },
   { id: "#BK-10427", who: "Walk-in", items: ["Sunbed · Macaw · MC-04"], date: "19 Jul", channel: "Walk-in", status: "Confirmed", amount: 35 },
   { id: "#BK-10426", who: "Nikos", items: ["Sunbed · Bestbuy · BE-12", "Sunbed · Bestbuy · BE-13"], date: "19 Jul", channel: "Online", status: "Confirmed", amount: 44 },
@@ -118,6 +118,27 @@ export const ADMIN_BOOKINGS: AdminBooking[] = [
   { id: "#BK-09905", who: "Manos", items: ["Sunbed · Akanthus · AK-02"], date: "22 Jun", channel: "Online", status: "Cancelled", amount: 30 },
   { id: "#BK-09812", who: "Eleni", items: ["Sunbed · Central · CE-67"], date: "15 Jun", channel: "Online", status: "Cancelled", amount: 25 },
 ];
+
+// Older history, generated so the Bookings list has enough rows to paginate.
+const ZN: [string, string][] = [["Central", "CE"], ["Akanthus", "AK"], ["Macaw", "MC"], ["Bestbuy", "BE"], ["Main", "MA"], ["Bolivar", "BO"]];
+const WHO: string[] = ["Maria", "Nikos", "Elena", "Andreas", "Sofia", "Petros", "Anna", "Kostas", "Roula", "Stelios", "Yiannis", "Marina", "Dimitris", "Christina", "Giorgos", "Katerina", "Alexis", "Ioanna", "Manos", "Despina", "Walk-in", "Vasilis", "Foteini", "Thanos"];
+const MON: string[] = ["Jun", "May", "Apr"];
+const MORE_ADMIN_BOOKINGS: AdminBooking[] = Array.from({ length: 36 }, (_, i) => {
+  const [zname, zp] = ZN[i % ZN.length];
+  const code = `${zp}-${String((i * 7) % 90 + 4).padStart(2, "0")}`;
+  const day = String((i * 5) % 27 + 1).padStart(2, "0");
+  return {
+    id: `#BK-${9778 - i * 4}`,
+    who: WHO[(i * 5) % WHO.length],
+    items: [`Sunbed · ${zname} · ${code}`],
+    date: `${day} ${MON[Math.floor(i / 13) % MON.length]}`,
+    channel: ["Online", "Walk-in", "Phone", "Cashier"][i % 4],
+    status: i % 11 === 0 ? "Cancelled" : "Used",
+    amount: [18, 22, 25, 28, 30, 35][i % 6],
+  };
+});
+
+export const ADMIN_BOOKINGS: AdminBooking[] = [...BASE_ADMIN_BOOKINGS, ...MORE_ADMIN_BOOKINGS];
 
 // Admin refunds — `who` is the customer's first name (surname/phone via personByFirst).
 export interface AdminRefund {
