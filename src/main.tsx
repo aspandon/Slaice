@@ -1,6 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
+import { SiteGate } from "./screens/SiteGate";
 import "./index.css";
 import { reloadOnceForStaleChunk } from "./lib/staleChunk";
 
@@ -16,6 +17,8 @@ if (!root) throw new Error("Root element #root not found");
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <SiteGate>
+      <App />
+    </SiteGate>
   </StrictMode>,
 );
