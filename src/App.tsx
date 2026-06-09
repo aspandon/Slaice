@@ -209,7 +209,9 @@ export default function App() {
           {/* The tenant badge bows out once the guest dives into the booking
               wizard, so the beach + zones take over the screen. */}
           {!immersive && <SiteFooter />}
-          {!immersive && <BottomTabBar persona={persona} page={page} setPage={setPage} />}
+          {/* Bottom tab bar (mobile only) stays visible everywhere — including the
+              immersive booking flow — so global navigation is always reachable. */}
+          <BottomTabBar persona={persona} page={page} setPage={setPage} />
           {/* The "view as another persona" control lives in the bottom-right
               corner on the customer surface — a quiet demo affordance, opening
               upward, lifted clear of the mobile bottom tab bar. */}

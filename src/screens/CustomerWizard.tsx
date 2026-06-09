@@ -198,7 +198,7 @@ export function CustomerWizard() {
   const revealDelay = prefersReducedMotion() ? "0ms" : "420ms";
 
   return (
-    <div className="fixed inset-0 z-20 flex flex-col pointer-events-none select-none">
+    <div className="fixed inset-0 z-20 flex flex-col pointer-events-none select-none pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
       {/* ============ Menu over the sea (top) ============
            When picking sunbeds, the min-height holds the menu band down to ~the
            shoreline so the sets always start on the sand (never the sea). The
