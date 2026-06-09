@@ -16,6 +16,8 @@ import { fileToBackgroundSrc } from "../lib/image";
 import { ZONES, zoneLayout } from "../data/beach";
 import { LOYALTY_REWARDS, BUILTIN_SCHEMES, makeCustomScheme, schemeDefaults } from "../data/loyalty";
 import type { LoyaltyScheme, SchemeValues, SchemeField } from "../data/loyalty";
+import { BADGE_COLORS, BADGE_COLOR_KEYS, BADGE_ICONS, GAME_METRICS } from "../data/gamification";
+import type { Achievement, GameMetric } from "../data/gamification";
 import type { SunbedSlot, SunbedState, SunbedKind, Customer } from "../domain/types";
 import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS, personByFirst, CUSTOMERS, type AdminBooking } from "../data/mock";
 import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr";
@@ -1869,6 +1871,72 @@ export function AdminPasses() {
         </Card>
       </div>
       <div className="mt-4 text-[12px] text-slate-500 flex items-center gap-1.5"><Icon.info size={13} /> Changes apply instantly to the customer’s VIP / Season-pass purchase screens.</div>
+    </div>
+  );
+}
+
+/* ============ GAMIFICATION (Future) ============
+   Achievements that earn a guest a summer badge once a metric (visits / bookings
+   / spend) passes a threshold. Editable here, read by the customer home. */
+export function AdminGamification() {
+  const { toast, achievements, setAchievements } = useApp();
+  const [list, setList] = useState<Achievement[]>(achievements);
+  const update = (id: string, patch: Partial<Achievement>) => setList((l) => l.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+  const remove = (id: string) => setList((l) => l.filter((a) => a.id !== id));
+  const add = () => setList((l) => [...l, { id: `ach-${Date.now().toString(36)}`, name: "New badge", icon: "star", color: "sun", metric: "visits", threshold: 5 }]);
+  const save = () => {
+    setAchievements(list.map((a) => ({ ...a, name: a.name.trim() || "Badge", threshold: Math.max(0, Math.round(a.threshold)) })));
+    toast("Saved — badges are live on the customer app.", { tone: "success" });
+  };
+  const earners = (a: Achievement) => CUSTOMERS.filter((c) => (a.metric === "spend" ? c.spend : c.bookings) >= a.threshold).length;
+  return (
+    <div className="animate-fade-up">
+      <PageHead title="Gamification" sub="Achievements that earn guests a summer badge when they hit a milestone." badge={<Badge tone="future">Future</Badge>}
+        actions={<Btn variant="primary" icon={Icon.check} onClick={save}>Save badges</Btn>} />
+      <FutureBanner />
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {list.map((a) => {
+          const Glyph = Icon[a.icon] || Icon.star;
+          return (
+            <Card key={a.id} className="p-4 space-y-3">
+              <div className="flex items-center gap-3">
+                <span className={`w-12 h-12 rounded-2xl grid place-items-center text-white shrink-0 shadow-sm ring-2 ring-white bg-gradient-to-br ${BADGE_COLORS[a.color] || BADGE_COLORS.sun}`}><Glyph size={22} /></span>
+                <div className="min-w-0 flex-1"><Input value={a.name} onChange={(e) => update(a.id, { name: e.target.value })} className="font-semibold" /></div>
+                <button onClick={() => remove(a.id)} aria-label={`Remove ${a.name}`} className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 shrink-0 transition"><Icon.trash size={15} /></button>
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold text-slate-500 mb-1.5">Icon</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {BADGE_ICONS.map((ik) => { const I = Icon[ik] || Icon.star; const on = a.icon === ik; return (
+                    <button key={ik} onClick={() => update(a.id, { icon: ik })} aria-label={ik} className={`w-8 h-8 rounded-lg grid place-items-center ring-1 transition ${on ? "ring-2 ring-navy-900 bg-navy-900 text-white" : "ring-slate-200 text-slate-600 hover:ring-teal-400"}`}><I size={15} /></button>
+                  ); })}
+                </div>
+              </div>
+              <div>
+                <div className="text-[11px] font-semibold text-slate-500 mb-1.5">Colour</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {BADGE_COLOR_KEYS.map((ck) => { const on = a.color === ck; return (
+                    <button key={ck} onClick={() => update(a.id, { color: ck })} aria-label={ck} className={`w-8 h-8 rounded-lg shadow-sm bg-gradient-to-br ${BADGE_COLORS[ck]} ring-2 transition ${on ? "ring-navy-900 scale-105" : "ring-white hover:scale-105"}`} />
+                  ); })}
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="When"><Select value={a.metric} onChange={(e) => update(a.id, { metric: e.target.value as GameMetric })} options={GAME_METRICS.map((m) => ({ v: m.v, l: m.l }))} /></Field>
+                <Field label="Reaches"><Input type="number" min={0} value={a.threshold} onChange={(e) => update(a.id, { threshold: Math.max(0, Math.round(+e.target.value) || 0) })} /></Field>
+              </div>
+              <div className="text-[11px] text-slate-500"><b className="text-navy-900 tnum">{earners(a)}</b> of {CUSTOMERS.length} guests would earn this</div>
+            </Card>
+          );
+        })}
+        <button onClick={add} className="rounded-3xl border-2 border-dashed border-slate-300 hover:border-teal-400 hover:bg-teal-50/40 transition grid place-items-center p-6 text-center min-h-[220px] group">
+          <span className="flex flex-col items-center gap-2 text-slate-500 group-hover:text-teal-700">
+            <span className="w-11 h-11 rounded-2xl bg-white ring-1 ring-slate-200 group-hover:ring-teal-300 grid place-items-center shadow-sm transition"><Icon.plus size={20} /></span>
+            <span className="text-[13px] font-semibold">Add an achievement</span>
+            <span className="text-[11.5px] text-slate-400 group-hover:text-teal-600">Name it, pick an icon + rule.</span>
+          </span>
+        </button>
+      </div>
+      <div className="mt-4 text-[12px] text-slate-500 flex items-center gap-1.5"><Icon.info size={13} /> Badges appear on the guest's home — earned ones light up, locked ones show progress.</div>
     </div>
   );
 }

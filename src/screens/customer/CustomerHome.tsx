@@ -7,6 +7,7 @@ import { Reveal } from "../../lib/motion";
 import { SEASON_END_LABEL } from "../../data/passes";
 import { BUILTIN_SCHEMES, makeCustomScheme, schemeProgress, HOME_LOYALTY_STATS } from "../../data/loyalty";
 import type { RewardState, LoyaltyState } from "../../data/loyalty";
+import { BADGE_COLORS, statValue, metricFmt, HOME_GAME_STATS } from "../../data/gamification";
 import { useApp, useT } from "../../app/store";
 
 // Bare date from a validity label (e.g. "End of season · 30 Sep 2026").
@@ -55,34 +56,39 @@ export function CustomerHome() {
       </Reveal>
 
       {/* ── Promos beneath the hero — icon in front of the text ────── */}
-      <div className="grid sm:grid-cols-2 gap-4">
+      <div className="grid sm:grid-cols-2 gap-4 items-start">
 
-        {/* Weekend promo */}
-        {!promoDismissed && (
-          <div className={`${CARD} p-5 relative flex flex-col gap-2.5`}>
-            <button aria-label={t("Dismiss offer")} onClick={() => setPromoDismissed(true)} className="absolute top-3 right-3 w-7 h-7 grid place-items-center rounded-lg text-slate-400 hover:text-navy-900 hover:bg-white/50 transition"><Icon.x size={14} /></button>
-            <div className="flex items-center gap-3 pr-7">
-              <span className="w-10 h-10 rounded-xl grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm"><Icon.bolt size={18} /></span>
+        {/* Weekend promo — column 1 */}
+        <div className="min-w-0">
+          {!promoDismissed && (
+            <div className={`${CARD} p-5 relative flex flex-col gap-2.5`}>
+              <button aria-label={t("Dismiss offer")} onClick={() => setPromoDismissed(true)} className="absolute top-3 right-3 w-7 h-7 grid place-items-center rounded-lg text-slate-400 hover:text-navy-900 hover:bg-white/50 transition"><Icon.x size={14} /></button>
+              <div className="flex items-center gap-3 pr-7">
+                <span className="w-10 h-10 rounded-xl grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm"><Icon.bolt size={18} /></span>
+                <div className="min-w-0">
+                  <div className="font-semibold text-navy-900 text-[15px] leading-tight"><b>{t("20% off")}</b> {t("front-row sunbeds")}</div>
+                  <div className="text-[12.5px] text-slate-600 mt-0.5 leading-snug">{t("This weekend only · gates open 09:00–20:00")}</div>
+                </div>
+              </div>
+              <button onClick={() => dive()} className="self-start text-[13px] font-semibold text-teal-700 hover:text-teal-800 rounded-lg px-3 py-1.5 hover:bg-white/50 transition -ml-3">{t("Claim")} →</button>
+            </div>
+          )}
+        </div>
+
+        {/* Rebook + Your badges — column 2 (badges sit exactly under Rebook) */}
+        <div className="flex flex-col gap-4 min-w-0">
+          <button onClick={() => dive()} className={`${CARD} p-5 flex flex-col gap-2.5 text-left hover:bg-white/80 transition group`}>
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
               <div className="min-w-0">
-                <div className="font-semibold text-navy-900 text-[15px] leading-tight"><b>{t("20% off")}</b> {t("front-row sunbeds")}</div>
-                <div className="text-[12.5px] text-slate-600 mt-0.5 leading-snug">{t("This weekend only · gates open 09:00–20:00")}</div>
+                <div className="font-semibold text-navy-900 text-[15px] leading-tight">{t("Rebook your usual")}</div>
+                <div className="text-[12.5px] text-slate-600 mt-0.5 leading-snug">Central · {t("front row — your favourite zone last season")}</div>
               </div>
             </div>
-            <button onClick={() => dive()} className="self-start text-[13px] font-semibold text-teal-700 hover:text-teal-800 rounded-lg px-3 py-1.5 hover:bg-white/50 transition -ml-3">{t("Claim")} →</button>
-          </div>
-        )}
-
-        {/* Returning-guest shortcut */}
-        <button onClick={() => dive()} className={`${CARD} p-5 flex flex-col gap-2.5 text-left hover:bg-white/80 transition group`}>
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
-            <div className="min-w-0">
-              <div className="font-semibold text-navy-900 text-[15px] leading-tight">{t("Rebook your usual")}</div>
-              <div className="text-[12.5px] text-slate-600 mt-0.5 leading-snug">Central · {t("front row — your favourite zone last season")}</div>
-            </div>
-          </div>
-          <div className="self-start flex items-center gap-1 text-teal-600 text-[13px] font-semibold px-3 py-1.5 -ml-3">{t("Book again")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" /></div>
-        </button>
+            <div className="self-start flex items-center gap-1 text-teal-600 text-[13px] font-semibold px-3 py-1.5 -ml-3">{t("Book again")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" /></div>
+          </button>
+          <BadgesTile />
+        </div>
 
       </div>
       </div>
@@ -148,6 +154,41 @@ function SeasonTile() {
           {season ? t("Manage pass") : `${t("Get Season pass")} — ${t("from")} €${from.toLocaleString()}`} <Icon.chevR size={14} />
         </button>
         {season && <button onClick={() => clearPass("season")} className="text-[11px] text-slate-400 hover:text-rose-600 shrink-0">{t("Reset")}</button>}
+      </div>
+    </div>
+  );
+}
+
+/* "Your badges" — gamification achievements; earned ones light up (summer
+   gradients), locked ones dim with progress. Sits exactly under Rebook, same size. */
+function BadgesTile() {
+  const { achievements } = useApp();
+  const t = useT();
+  if (achievements.length === 0) return null;
+  const stats = HOME_GAME_STATS;
+  const earnedCount = achievements.filter((a) => statValue(stats, a.metric) >= a.threshold).length;
+  return (
+    <div className={`${CARD} p-5 flex flex-col gap-3`}>
+      <div className="flex items-center gap-2.5">
+        <span className="w-9 h-9 rounded-xl grid place-items-center bg-gradient-to-br from-amber-300 to-amber-500 text-white shrink-0 shadow-sm"><Icon.star size={17} /></span>
+        <div className="font-semibold text-navy-900 text-[15px] flex-1 min-w-0">{t("Your badges")}</div>
+        <Badge tone="amber">{earnedCount}/{achievements.length}</Badge>
+      </div>
+      <div className="flex flex-wrap gap-x-3 gap-y-2.5">
+        {achievements.map((a) => {
+          const Glyph = Icon[a.icon] || Icon.star;
+          const v = statValue(stats, a.metric);
+          const earned = v >= a.threshold;
+          return (
+            <div key={a.id} title={earned ? `${a.name} — ${t("earned!")}` : `${a.name} — ${metricFmt(a.metric, v)} / ${metricFmt(a.metric, a.threshold)}`} className="flex flex-col items-center gap-1 w-[3.4rem]">
+              <span className={`relative w-11 h-11 rounded-full grid place-items-center ring-2 ring-white shadow-sm transition ${earned ? `text-white bg-gradient-to-br ${BADGE_COLORS[a.color] || BADGE_COLORS.sun}` : "bg-slate-200/80 text-slate-400"}`}>
+                <Glyph size={18} />
+                {!earned && <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-white ring-1 ring-slate-200 grid place-items-center"><Icon.lock size={8} className="text-slate-400" /></span>}
+              </span>
+              <span className={`text-[9px] text-center leading-tight w-full truncate ${earned ? "text-navy-900 font-semibold" : "text-slate-400"}`}>{a.name}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

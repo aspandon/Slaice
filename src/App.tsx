@@ -14,6 +14,8 @@ import { DEFAULT_BACKGROUND } from "./data/backgrounds";
 import { DEFAULT_PASSES, DEFAULT_PASS_PRICING, SEASON_END_LABEL, seasonValidUntil, round2 } from "./data/passes";
 import { DEFAULT_LOYALTY } from "./data/loyalty";
 import type { LoyaltyState } from "./data/loyalty";
+import { DEFAULT_ACHIEVEMENTS } from "./data/gamification";
+import type { Achievement } from "./data/gamification";
 import type { BeachBackground, CartItem, Consent, CustomerPasses, LangCode, PassPricing, PersonaId, SeasonPlan, SunbedSlot } from "./domain/types";
 
 interface ToastItem {
@@ -47,6 +49,7 @@ const saved = loadLS() as {
   passes?: CustomerPasses;
   passPricing?: PassPricing;
   loyalty?: LoyaltyState;
+  achievements?: Achievement[];
 };
 // A deep link in the URL wins over the last saved location.
 const initialRoute = parseHash();
@@ -75,15 +78,16 @@ export default function App() {
   const [passes, setPasses] = useState<CustomerPasses>(saved.passes || DEFAULT_PASSES);
   const [passPricing, setPassPricing] = useState<PassPricing>(saved.passPricing || DEFAULT_PASS_PRICING);
   const [loyalty, setLoyaltyState] = useState<LoyaltyState>(saved.loyalty || DEFAULT_LOYALTY);
+  const [achievements, setAchievements] = useState<Achievement[]>(saved.achievements || DEFAULT_ACHIEVEMENTS);
 
   useEffect(() => {
     // Guard the write: Safari Private Mode and a full quota throw on setItem.
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements }));
     } catch {
       /* storage unavailable (private mode / quota) — ignore */
     }
-  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty]);
+  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements]);
 
   // Keep <html lang> in sync with the chosen language (a11y / SEO correctness).
   useEffect(() => {
@@ -198,8 +202,8 @@ export default function App() {
 
   // Memoised so the provider value keeps a stable identity across renders.
   const ctx = useMemo<AppContextValue>(
-    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty }),
-    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty],
+    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements }),
+    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements],
   );
 
   // The booking wizard takes over the whole viewport: the beach becomes the

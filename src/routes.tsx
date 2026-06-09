@@ -33,6 +33,7 @@ const MAP: Record<string, () => ReactElement> = {
   "admin.communicate": () => <A.AdminCommunicate />,
   "admin.loyalty": () => <A.AdminLoyalty />,
   "admin.passes": () => <A.AdminPasses />,
+  "admin.gamification": () => <A.AdminGamification />,
   // cashier
   "cashier.issue": () => <CA.CashierIssue />,
   "cashier.redeem": () => <CA.CashierRedeem />,

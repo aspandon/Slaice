@@ -5,6 +5,8 @@ import { DEFAULT_BACKGROUND } from "../data/backgrounds";
 import { DEFAULT_PASSES, DEFAULT_PASS_PRICING } from "../data/passes";
 import { DEFAULT_LOYALTY } from "../data/loyalty";
 import type { LoyaltyState } from "../data/loyalty";
+import { DEFAULT_ACHIEVEMENTS } from "../data/gamification";
+import type { Achievement } from "../data/gamification";
 import type { BeachBackground, CartItem, CartKind, Consent, CustomerPasses, LangCode, PassPricing, PersonaId, SeasonPlan, SunbedSlot } from "../domain/types";
 
 // Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
@@ -77,6 +79,9 @@ export interface AppContextValue {
   /** Loyalty scheme config (enabled + values + custom IDs) — admin-written, home-read. */
   loyalty: LoyaltyState;
   setLoyalty: (updater: (s: LoyaltyState) => LoyaltyState) => void;
+  /** Gamification achievements (badge rules) — admin-written, home-read. */
+  achievements: Achievement[];
+  setAchievements: (a: Achievement[]) => void;
 }
 
 const DEFAULT_CONSENT: Consent = {
@@ -121,6 +126,8 @@ export const AppCtx = createContext<AppContextValue>({
   setPassPricing: () => {},
   loyalty: DEFAULT_LOYALTY,
   setLoyalty: () => {},
+  achievements: DEFAULT_ACHIEVEMENTS,
+  setAchievements: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);
