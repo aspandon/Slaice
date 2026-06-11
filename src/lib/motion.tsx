@@ -7,14 +7,14 @@ export const prefersReducedMotion = (): boolean =>
   !!window.matchMedia &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/* Keep the full-screen beach backdrop still on phones / low-res / reduced-motion.
-   Scroll-driven parallax and the shoreline tween are the main source of jank on
-   mobile Safari, and pointless when the user asked to reduce motion. */
-export const staticBackdrop = (): boolean => {
-  if (prefersReducedMotion()) return true;
-  if (typeof window === "undefined" || !window.matchMedia) return false;
-  return window.matchMedia("(pointer: coarse)").matches || window.matchMedia("(max-width: 820px)").matches;
-};
+/* The full-screen beach backdrop only goes still for users who asked for
+   reduced motion. Phones get the same live scene as desktop — WebGL sea,
+   weather, ambient sky, the shoreline tween — since modern mobile GPUs handle
+   one DPR-capped fullscreen shader comfortably and the canvas falls back to
+   the static SVG wherever WebGL2 is missing. The one genuinely jank-prone
+   piece on touch devices, scroll-driven parallax, stays desktop-only (see
+   useParallax). */
+export const staticBackdrop = (): boolean => prefersReducedMotion();
 
 /* useReveal — scroll-driven entrance.
    Attach the returned ref to an element that has the `.reveal` class; when it
@@ -122,6 +122,10 @@ export function useParallax<T extends HTMLElement = HTMLElement>(speed = -0.12, 
   useEffect(() => {
     const el = ref.current;
     if (!el || prefersReducedMotion()) return;
+    // Touch scrolling + per-scroll transforms is the one combination that
+    // still janks on mobile Safari — coarse pointers keep the planes stacked
+    // (visually identical at rest) while everything else stays live.
+    if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) return;
     let raf = 0;
     const onScroll = () => {
       cancelAnimationFrame(raf);

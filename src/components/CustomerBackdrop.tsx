@@ -27,8 +27,8 @@ const IMMERSIVE = 0.4; // inside the booking wizard — a sand-heavy beach you t
 export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
   const { weather, dayTime, sceneFx } = useApp();
   const [shoreline, setShoreline] = useState(immersive ? IMMERSIVE : REST);
-  // Phones / low-res keep a still backdrop (no scroll parallax, no tween) so
-  // mobile Safari doesn't lag; desktop keeps the depth-parallax + shoreline ease.
+  // Only reduced-motion users keep a still backdrop — phones run the same live
+  // scene as desktop (the sea canvas caps DPR and degrades to SVG by itself).
   const [stat] = useState(staticBackdrop);
   // Mirror the latest value so the tween can read its start point without
   // re-subscribing the effect on every frame.

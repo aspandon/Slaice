@@ -34,7 +34,8 @@ import type { BeachPreset } from "../data/backgrounds";
    in over it once the first frame is up, and calls `onFail` (→ permanent SVG
    fallback) if WebGL is unavailable, software-rendered, or the context is
    lost. Loaded via React.lazy, so three.js ships in its own chunk that
-   phones / reduced-motion users never download.
+   reduced-motion users and non-WebGL2 engines never download. Runs on phones
+   too — the DPR cap keeps the fragment load modest on small screens.
    ============================================================================ */
 
 /* Demo escape hatch: `localStorage["slaice.liveSea"]="force"` accepts a

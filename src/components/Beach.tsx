@@ -331,8 +331,9 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false }: { pre
 }
 
 /* The animated WebGL water (three.js) is lazy-loaded so its chunk is only
-   fetched on capable desktops — phones and reduced-motion users render the
-   layered scene's static SVG sea and never download three. */
+   fetched on WebGL2-capable devices (desktop and modern phones alike) —
+   reduced-motion users and old engines render the layered scene's static SVG
+   sea and never download three. */
 const LiveSeaCanvas = lazy(() => import("./LiveSeaCanvas"));
 
 /* Quick capability gate before paying for the three.js chunk. three r163+ is
