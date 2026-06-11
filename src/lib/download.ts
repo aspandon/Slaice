@@ -18,13 +18,24 @@ export function downloadBlob(blob: Blob, filename: string) {
 const escapeCSV = (v: unknown): string => {
   if (v === null || v === undefined) return "";
   const s = String(v);
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  return /["\r\n,]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
+
+// Serialise CSV lines into a Blob with two compatibility shims so the file opens
+// as proper columns everywhere:
+//   • a UTF-8 BOM, so Excel reads accents / Greek correctly;
+//   • a `sep=,` directive on line 1, so Excel splits on commas regardless of the
+//     OS list-separator locale. Without it, EU/Greek Excel (which defaults to
+//     ';') dumps every row into a single cell — the "all data in one cell" bug.
+// CRLF endings are the CSV standard and the most spreadsheet-friendly.
+function csvBlob(lines: string[]): Blob {
+  return new Blob(["﻿sep=,\r\n" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+}
 
 export function downloadCSV(filename: string, header: (string | number)[], rows: (string | number)[][]) {
   const lines = [header.map(escapeCSV).join(",")];
   rows.forEach((r) => lines.push(r.map(escapeCSV).join(",")));
-  trigger(new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8;" }), filename);
+  trigger(csvBlob(lines), filename);
 }
 
 /** One titled block (optional title + header + rows) within a multi-section CSV. */
@@ -45,7 +56,7 @@ export function downloadCSVReport(filename: string, sections: CsvSection[]) {
     if (s.header) lines.push(s.header.map(escapeCSV).join(","));
     s.rows.forEach((r) => lines.push(r.map(escapeCSV).join(",")));
   });
-  trigger(new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8;" }), filename);
+  trigger(csvBlob(lines), filename);
 }
 
 export function downloadText(filename: string, text: string, mime = "text/plain;charset=utf-8") {
