@@ -13,6 +13,7 @@ import {
   Info, TriangleAlert, Clock, Inbox, Droplet, Waves, Wind, Plus as CrossPlus,
   UsersRound, ShieldCheck, ShieldAlert, FileDown, Database, SlidersHorizontal,
   Sparkles, CircleHelp, Wallet, LogOut, Moon, Armchair, Image as ImageIcon, Upload,
+  Cloud, CloudRain,
 } from "lucide-react";
 import type { LucideIcon, LucideProps } from "lucide-react";
 import type { ReactElement } from "react";
@@ -95,6 +96,8 @@ export const Icon: Record<string, IconRenderer> = {
   glass: w(Martini),
   wave: w(Waves),
   wind: w(Wind),
+  cloud: w(Cloud),
+  rain: w(CloudRain),
   cross: w(CrossPlus),
   group: w(UsersRound),
   // — new (GDPR / reporting / chrome) —

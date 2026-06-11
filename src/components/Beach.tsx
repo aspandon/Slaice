@@ -7,6 +7,8 @@ import { presetById } from "../data/backgrounds";
 import type { BeachPreset } from "../data/backgrounds";
 import type { BeachBackground, SunbedState } from "../domain/types";
 import { BEDS, CANOPY, CANOPY_WEDGES, FIN, GLYPH_BOX, GLYPH_CONTENT, sunbedPalette } from "./sunbedGlyph";
+// Type-only: erased at build time, so three.js stays in the lazy sea chunk.
+import type { SeaEnv } from "./LiveSeaCanvas";
 
 /* ---------- Sunbed-set mark (presentational) ----------
    Just the SVG glyph — a parasol over twin loungers — with no button wrapper, so
@@ -100,7 +102,7 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
    renders it behind `children`. Pass an explicit `background` to preview a
    specific scene (the picker does this); otherwise it reads the store, so the
    choice flows to the booking map and the customer surface automatically. */
-export function BeachBackdrop({ children, className = "", pos = "relative", parallax = false, background, preview = false, shoreline, noVeg = false }: {
+export function BeachBackdrop({ children, className = "", pos = "relative", parallax = false, background, preview = false, shoreline, noVeg = false, seaEnv }: {
   children?: ReactNode;
   className?: string;
   pos?: string;
@@ -114,6 +116,9 @@ export function BeachBackdrop({ children, className = "", pos = "relative", para
   /** Drop the green vegetation belt so the lower scene reads as pure sand —
    *  used inside the booking wizard where guests tap sunbeds on the sand. */
   noVeg?: boolean;
+  /** Weather / daylight targets for the live water + ambient decor (layered
+   *  scene only). Omitted = calm sunny noon. */
+  seaEnv?: SeaEnv;
 }) {
   const ctx = useApp();
   const bg = background ?? ctx.background;
@@ -121,7 +126,7 @@ export function BeachBackdrop({ children, className = "", pos = "relative", para
     bg.kind === "custom" ? (
       <CustomBeach src={bg.src} parallax={parallax} />
     ) : parallax ? (
-      <BeachSceneLayered preset={presetById(bg.id)} shoreline={shoreline} noVeg={noVeg} />
+      <BeachSceneLayered preset={presetById(bg.id)} shoreline={shoreline} noVeg={noVeg} seaEnv={seaEnv} />
     ) : (
       <BeachScene preset={presetById(bg.id)} preview={preview} shoreline={shoreline} noVeg={noVeg} />
     );
@@ -350,10 +355,11 @@ const liveSeaOK = () =>
    animated water (LiveSeaCanvas). The SVG sea stays rendered beneath it as the
    loading state and the fallback: if WebGL is missing, software-rendered or the
    context dies, the canvas reverts to it without a flash. */
-function BeachSceneLayered({ preset, shoreline, noVeg = false }: { preset: BeachPreset; shoreline?: number; noVeg?: boolean }) {
+function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv }: { preset: BeachPreset; shoreline?: number; noVeg?: boolean; seaEnv?: SeaEnv }) {
   const rid = useId().replace(/:/g, "");
   const id = (k: string) => `${k}-${rid}`;
   const dy = shorelineShift(shoreline);
+  const wind = seaEnv?.wind ?? 0.22;
   const [liveSea, setLiveSea] = useState(liveSeaOK);
   const far = useParallax<HTMLDivElement>(-0.018, 24);
   const mid = useParallax<HTMLDivElement>(-0.04, 44);
@@ -364,18 +370,20 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false }: { preset: Beach
   // Ambient life (desktop layered scene only): clouds drift, the sailboat bobs
   // and slowly tacks, and a flock of birds crosses the bay every so often. The
   // recursive bird timeline outlives gsap.context capture, so tweens are
-  // tracked and killed by hand. Re-inits when the tenant scene changes.
+  // tracked and killed by hand. Re-inits when the tenant scene changes or the
+  // demo wind picks up (everything moves faster, the boat rocks harder).
   useEffect(() => {
     const root = mid.current;
     if (!root || !motionOK()) return;
+    const windK = 0.85 + 0.7 * wind;
     const anims: gsap.core.Animation[] = [];
     root.querySelectorAll('[data-amb="cloud"]').forEach((c, i) => {
-      anims.push(gsap.to(c, { x: i % 2 ? -48 : 56, duration: 85 + i * 24, yoyo: true, repeat: -1, ease: "sine.inOut" }));
+      anims.push(gsap.to(c, { x: i % 2 ? -48 : 56, duration: (85 + i * 24) / windK, yoyo: true, repeat: -1, ease: "sine.inOut" }));
     });
     const boat = root.querySelector('[data-amb="boat"]');
     if (boat) {
-      anims.push(gsap.to(boat, { x: 64, duration: 75, yoyo: true, repeat: -1, ease: "sine.inOut" }));
-      anims.push(gsap.to(boat, { y: 4, rotation: 1.6, transformOrigin: "50% 85%", duration: 4.6, yoyo: true, repeat: -1, ease: "sine.inOut" }));
+      anims.push(gsap.to(boat, { x: 64, duration: 75 / windK, yoyo: true, repeat: -1, ease: "sine.inOut" }));
+      anims.push(gsap.to(boat, { y: 4, rotation: 1.6 * (0.7 + wind), transformOrigin: "50% 85%", duration: 4.6 / windK, yoyo: true, repeat: -1, ease: "sine.inOut" }));
     }
     const birds = root.querySelector('[data-amb="birds"]');
     let flight: gsap.core.Timeline | null = null;
@@ -400,7 +408,7 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false }: { preset: Beach
       if (birds) gsap.set(birds, { clearProps: "all" });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mid is a stable ref
-  }, [preset.id]);
+  }, [preset.id, wind]);
   return (
     <>
       {/* Far plane — sea, glint, wave bands and the top vignette. */}
@@ -438,7 +446,7 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false }: { preset: Beach
         </svg>
         {liveSea && (
           <Suspense fallback={null}>
-            <LiveSeaCanvas preset={preset} dy={dy} onFail={() => setLiveSea(false)} />
+            <LiveSeaCanvas preset={preset} dy={dy} env={seaEnv} onFail={() => setLiveSea(false)} />
           </Suspense>
         )}
         {/* The opaque canvas covers the SVG's vignette, so re-draw it on top —

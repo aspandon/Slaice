@@ -454,6 +454,7 @@ function ZoneArrangeEditor() {
           </div>
         </Card>
 
+        <div className="space-y-4">
         <Card className="p-5 h-max">
           <div className="font-semibold text-navy-900 mb-3 flex items-center gap-2">
             <span className="w-3 h-3 rounded-full" style={{ background: selected.color }} /> Zone properties
@@ -493,6 +494,8 @@ function ZoneArrangeEditor() {
             </div>
           </div>
         </Card>
+        <AtmosphereCard />
+        </div>
       </div>
       <BackgroundPicker open={pickerOpen} onClose={() => setPickerOpen(false)} />
     </div>
@@ -703,6 +706,35 @@ function SunbedLayoutEditor() {
         </div>
       </Card>
     </div>
+  );
+}
+
+/* Customer-surface atmosphere switches — whether the demo weather graphics and
+   the time-of-day lighting (incl. the golden-hour checkout finale) run for
+   guests. Purely cosmetic effects; booking always works with them off. */
+function AtmosphereCard() {
+  const { sceneFx, setSceneFx, toast } = useApp();
+  return (
+    <Card className="p-5 h-max">
+      <div className="font-semibold text-navy-900 mb-1 flex items-center gap-2"><Icon.sun size={15} className="text-gold-600" /> Atmosphere</div>
+      <div className="text-[12px] text-slate-600 mb-3">Visual effects on the customer beach. Cosmetic only — booking is unaffected.</div>
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-[13px] font-semibold text-navy-900">Weather effects</div>
+            <div className="text-[11px] text-slate-500">Demo weather picker, sea state, rain &amp; scene tint</div>
+          </div>
+          <Toggle on={sceneFx.weather} onChange={(v) => { setSceneFx({ weather: v }); toast(`Weather effects ${v ? "enabled" : "disabled"}.`, { tone: "success" }); }} />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="text-[13px] font-semibold text-navy-900">Time-of-day lighting</div>
+            <div className="text-[11px] text-slate-500">Scene clock + golden-hour checkout finale</div>
+          </div>
+          <Toggle on={sceneFx.daytime} onChange={(v) => { setSceneFx({ daytime: v }); toast(`Time-of-day lighting ${v ? "enabled" : "disabled"}.`, { tone: "success" }); }} />
+        </div>
+      </div>
+    </Card>
   );
 }
 

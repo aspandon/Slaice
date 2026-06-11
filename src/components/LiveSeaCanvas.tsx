@@ -114,6 +114,8 @@ interface SeaUniforms extends Record<string, IUniform> {
   uTime: { value: number };
   uRes: { value: Vector2 };
   uDy: { value: number };
+  uWind: { value: number };
+  uGlintW: { value: number };
   uSea0: { value: Vector3 };
   uSea1: { value: Vector3 };
   uSea2: { value: Vector3 };
@@ -149,6 +151,10 @@ precision highp float;
 uniform vec2  uRes;
 uniform float uTime;
 uniform float uDy;
+uniform float uWind;   // 0 calm … 1 windy: agitates swell, shimmer, crests, surf
+uniform float uGlintW; // demo-weather glint visibility (overcast kills the sheen)
+uniform float uDusk;   // golden-hour factor: warms the water + the sun trail
+uniform float uNight;  // dusk-to-night factor: deepens and cools the water
 uniform vec3  uSea0; uniform vec3 uSea1; uniform vec3 uSea2; uniform vec3 uSea3;
 uniform float uGlint;
 uniform float uWaves;
@@ -190,18 +196,23 @@ void main() {
                * uShoreScale + uShoreOff + uDy;
   float dShore = yShore - p.y; // >0 while still in the water
 
-  // Slow, large swell — the whole surface breathes.
+  // Slow, large swell — the whole surface breathes (harder when windy; the
+  // wind also speeds the water clock itself, accumulated JS-side).
   float swell = fbm(p * 0.003 + vec2(t * 0.024, t * 0.014));
-  col *= 1.0 + (swell - 0.5) * 0.07;
+  col *= 1.0 + (swell - 0.5) * (0.05 + 0.09 * uWind);
 
   // Sun-glint sheen (the SVG's radial wash from top-centre), plus twinkle.
+  // uGlintW fades the whole sheen out as the demo weather clouds over; at
+  // golden hour the trail warms to amber and drifts west with the low sun.
   float glint = 0.0;
+  vec3 glintCol = mix(vec3(1.0), vec3(1.0, 0.72, 0.42), uDusk);
   if (uGlint > 0.5) {
-    glint = 1.0 - smoothstep(0.0, 780.0, distance(p, vec2(800.0, 0.0)));
-    col += vec3(1.0) * 0.40 * glint * glint;
+    float gx = mix(800.0, 1080.0, uDusk);
+    glint = (1.0 - smoothstep(0.0, 780.0, distance(p, vec2(gx, 0.0)))) * uGlintW;
+    col += glintCol * 0.40 * (1.0 + 0.35 * uDusk) * glint * glint;
     float s1 = vnoise(p * 0.55 + vec2(t * 0.45, -t * 0.27));
     float s2 = vnoise(p * 0.55 + 37.7 - vec2(t * 0.36, t * 0.22));
-    col += vec3(1.0) * smoothstep(0.62, 0.92, s1 * s2) * glint * 0.55;
+    col += glintCol * smoothstep(0.62, 0.92, s1 * s2) * glint * 0.55;
   }
 
   // Shimmer filaments — warped-noise ridges standing in for the static wavelet
@@ -214,38 +225,57 @@ void main() {
   float n2 = vnoise(p * vec2(0.040, 0.110) - vec2(t * 0.14, t * 0.05));
   float ridge2 = smoothstep(0.62, 0.71, n2) * (1.0 - smoothstep(0.71, 0.82, n2));
   float band = smoothstep(40.0, 200.0, p.y) * smoothstep(15.0, 130.0, dShore);
-  col += vec3(1.0) * (ridge * 0.07 + ridge2 * 0.045) * band * (0.7 + 0.5 * glint);
+  col += vec3(1.0) * (ridge * 0.07 + ridge2 * 0.045) * (0.85 + 0.7 * uWind) * band * (0.7 + 0.5 * glint);
 
-  // Crest lines — the SVG's white wave bands, now undulating and drifting.
+  // Crest lines — the SVG's white wave bands, undulating harder in wind.
+  float amp = 0.85 + 0.7 * uWind;
   for (int i = 0; i < 4; i++) {
     if (float(i) < uWaves) {
       float fi = float(i);
       float yC = 180.0 + 60.0 * fi
-               + 7.0 * sin(p.x * 0.0060 + t * 0.22 + fi * 2.1)
-               + 5.0 * sin(p.x * 0.0023 - t * 0.13 + fi * 0.8);
+               + 7.0 * amp * sin(p.x * 0.0060 + t * 0.22 + fi * 2.1)
+               + 5.0 * amp * sin(p.x * 0.0023 - t * 0.13 + fi * 0.8);
       float a = 1.0 - smoothstep(0.0, 2.2, abs(p.y - yC));
       float op = fi < 1.0 ? 1.0 : fi < 2.0 ? 0.7 : 0.5;
-      col = mix(col, vec3(1.0), a * op * 0.35 * (0.8 + 0.2 * sin(t * 0.5 + fi * 1.9)));
+      col = mix(col, vec3(1.0), a * op * 0.35 * (0.78 + uWind) * (0.8 + 0.2 * sin(t * 0.5 + fi * 1.9)));
     }
   }
 
-  // Shallow water lightens toward the sand; two noisy foam edges breathe on it.
+  // Shallow water lightens toward the sand; two noisy foam edges breathe on it
+  // (the surf reaches further and breaks whiter as the wind picks up).
   float sh = 1.0 - smoothstep(0.0, 150.0, max(dShore, 0.0));
   col = mix(col, mix(uSea3, vec3(1.0), 0.22), sh * 0.30);
-  float e1 = yShore - 9.0 - 11.0 * vnoise(vec2(p.x * 0.016, t * 0.21)) - 5.0 * sin(t * 0.50 + p.x * 0.012);
-  float f1 = (1.0 - smoothstep(0.0, 7.0, abs(p.y - e1))) * (0.46 + 0.22 * vnoise(vec2(p.x * 0.05, t * 0.33)));
-  float e2 = yShore - 30.0 - 15.0 * vnoise(vec2(p.x * 0.012 + 7.3, t * 0.15));
-  float f2 = (1.0 - smoothstep(0.0, 5.0, abs(p.y - e2))) * 0.16;
+  float e1 = yShore - 9.0 - 11.0 * amp * vnoise(vec2(p.x * 0.016, t * 0.21)) - 5.0 * amp * sin(t * 0.50 + p.x * 0.012);
+  float f1 = (1.0 - smoothstep(0.0, 7.0, abs(p.y - e1))) * (0.42 + 0.18 * uWind + 0.22 * vnoise(vec2(p.x * 0.05, t * 0.33)));
+  float e2 = yShore - 30.0 - 15.0 * amp * vnoise(vec2(p.x * 0.012 + 7.3, t * 0.15));
+  float f2 = (1.0 - smoothstep(0.0, 5.0, abs(p.y - e2))) * (0.16 + 0.1 * uWind);
   col = mix(col, uFoamCol, clamp(f1 + f2, 0.0, 1.0) * uFoamA * step(0.0, dShore + 8.0));
+
+  // Time-of-day grade on the water itself (the page-wide overlays handle the
+  // rest of the scene): golden hour warms the surface, nightfall deepens it.
+  col = mix(col, col * vec3(1.10, 0.85, 0.66) + vec3(0.04, 0.0, 0.02), uDusk * 0.5);
+  col = mix(col, col * vec3(0.45, 0.52, 0.72), uNight * 0.55);
 
   gl_FragColor = vec4(col, 1.0);
 }
 `;
 
-export default function LiveSeaCanvas({ preset, dy, onFail }: {
+/** Scene-environment targets for the water (demo weather + time of day). The
+ *  canvas eases toward them every frame, so condition changes glide. */
+export interface SeaEnv {
+  wind: number;
+  glint: number;
+  dusk: number;
+  night: number;
+}
+export const DEFAULT_SEA_ENV: SeaEnv = { wind: 0.22, glint: 1, dusk: 0, night: 0 };
+
+export default function LiveSeaCanvas({ preset, dy, env = DEFAULT_SEA_ENV, onFail }: {
   preset: BeachPreset;
   /** Shoreline shift in scene units — tweened by the wizard's enter/leave. */
   dy: number;
+  /** Weather / daylight targets (lerped per frame). */
+  env?: SeaEnv;
   /** No WebGL / software GL / context lost → the host reverts to the SVG sea. */
   onFail: () => void;
 }) {
@@ -254,6 +284,8 @@ export default function LiveSeaCanvas({ preset, dy, onFail }: {
   // Latest-value refs so the one-time mount effect and the rAF loop never go stale.
   const dyRef = useRef(dy);
   dyRef.current = dy;
+  const envRef = useRef(env);
+  envRef.current = env;
   const presetRef = useRef(preset);
   presetRef.current = preset;
   const failRef = useRef(onFail);
@@ -290,6 +322,10 @@ export default function LiveSeaCanvas({ preset, dy, onFail }: {
       uTime: { value: 0 },
       uRes: { value: new Vector2(1, 1) },
       uDy: { value: dyRef.current },
+      uWind: { value: envRef.current.wind },
+      uGlintW: { value: envRef.current.glint },
+      uDusk: { value: envRef.current.dusk },
+      uNight: { value: envRef.current.night },
       uSea0: { value: new Vector3() },
       uSea1: { value: new Vector3() },
       uSea2: { value: new Vector3() },
@@ -335,10 +371,23 @@ export default function LiveSeaCanvas({ preset, dy, onFail }: {
 
     let raf = 0;
     let shown = false;
-    const t0 = performance.now();
+    let last = -1;
+    let tAcc = 0; // the water's own clock — wind speeds it up
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
-      uniforms.uTime.value = (now - t0) / 1000;
+      const dt = last < 0 ? 0.016 : Math.min(0.1, (now - last) / 1000);
+      last = now;
+      // Ease every env uniform toward its target, then advance the water
+      // clock at a wind-scaled rate. Accumulating (rather than scaling t)
+      // keeps the phase continuous while the wind changes.
+      const e = envRef.current;
+      const k = Math.min(1, dt * 2.2);
+      uniforms.uWind.value += (e.wind - uniforms.uWind.value) * k;
+      uniforms.uGlintW.value += (e.glint - uniforms.uGlintW.value) * k;
+      uniforms.uDusk.value += (e.dusk - uniforms.uDusk.value) * k;
+      uniforms.uNight.value += (e.night - uniforms.uNight.value) * k;
+      tAcc += dt * (0.85 + 0.7 * uniforms.uWind.value);
+      uniforms.uTime.value = tAcc;
       uniforms.uDy.value = dyRef.current;
       renderer.render(scene, camera);
       if (!shown) {
@@ -350,6 +399,7 @@ export default function LiveSeaCanvas({ preset, dy, onFail }: {
     // Stop burning GPU while the tab is hidden.
     const onVis = () => {
       cancelAnimationFrame(raf);
+      last = -1;
       if (!document.hidden) raf = requestAnimationFrame(tick);
     };
     document.addEventListener("visibilitychange", onVis);

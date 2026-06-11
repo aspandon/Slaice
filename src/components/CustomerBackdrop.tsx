@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { BeachBackdrop } from "./Beach";
 import { LifeRing } from "./LifeRing";
 import { prefersReducedMotion, staticBackdrop } from "../lib/motion";
+import { dayLight, GOLDEN_HOUR, WEATHER_DEMO } from "../data/beach";
+import type { SeaEnv } from "./LiveSeaCanvas";
+import { useApp } from "../app/store";
 
 /* Sand-top fraction (0–1). Higher = thinner sand strip / ocean vista; lower lifts
    the shoreline so the sand fills the view. */
@@ -13,8 +16,14 @@ const IMMERSIVE = 0.4; // inside the booking wizard — a sand-heavy beach you t
    wizard animates the shoreline upward so far more sand is revealed (the beach the
    guest then taps zones / sunbeds on); leaving eases it back to the ocean vista.
    Owning the shoreline tween *here* — rather than in App — keeps its ~45 frames
-   from re-rendering the entire app tree each frame. */
-export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
+   from re-rendering the entire app tree each frame.
+
+   This component also resolves the scene "environment": the demo weather and
+   the scene clock (both admin-switchable via sceneFx) become page-wide grading
+   overlays + a rain layer here, and a SeaEnv handed down to the live water.
+   `golden` (checkout/confirmation) overrides the clock with golden hour. */
+export function CustomerBackdrop({ immersive, golden = false }: { immersive: boolean; golden?: boolean }) {
+  const { weather, dayTime, sceneFx } = useApp();
   const [shoreline, setShoreline] = useState(immersive ? IMMERSIVE : REST);
   // Phones / low-res keep a still backdrop (no scroll parallax, no tween) so
   // mobile Safari doesn't lag; desktop keeps the depth-parallax + shoreline ease.
@@ -45,13 +54,49 @@ export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
     return () => cancelAnimationFrame(raf);
   }, [immersive, stat]);
 
+  // Resolve the environment. Disabled effects fall back to a neutral noon /
+  // sunny scene, so the admin switches cleanly restore the original look.
+  const wd = sceneFx.weather ? WEATHER_DEMO[weather] : WEATHER_DEMO.sunny;
+  const hour = sceneFx.daytime ? (golden ? GOLDEN_HOUR : dayTime) : 12;
+  const { warm, night } = sceneFx.daytime ? dayLight(hour) : { warm: 0, night: 0 };
+  const seaEnv: SeaEnv = { wind: wd.wind, glint: wd.glint, dusk: warm, night };
+  const raining = sceneFx.weather && weather === "rainy";
+
   return (
     <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
-      <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax={!stat} shoreline={shoreline} noVeg={immersive} />
+      <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax={!stat} shoreline={shoreline} noVeg={immersive} seaEnv={seaEnv} />
       {/* The life-buoy bobs in the open water. As the booking flow lifts the
           shoreline, it rides up with the sea to a spot in the top-left, clear of
           the menu and the tappable sand. */}
       <LifeRing className={`hidden sm:block absolute left-[8%] w-[60px] h-[60px] transition-[top] duration-700 ease-out ${immersive ? "top-[20%]" : "top-[72%]"}`} />
+
+      {/* ---- Scene grading (CSS transitions ease every change) ----
+          Golden hour: a soft-light warmth over everything plus a screen-blended
+          sun haze high in the sky; dawn/dusk: a deep blue multiply. Weather adds
+          its own grey multiply. Blend overlays grade the SVG fallback and the
+          WebGL sea alike, so phones get the same mood. */}
+      <div
+        className="absolute inset-0 transition-opacity duration-700"
+        style={{ opacity: warm, mixBlendMode: "soft-light", background: "linear-gradient(to top, rgba(255,118,40,0.85), rgba(255,82,96,0.45) 45%, rgba(122,72,150,0.3))" }}
+      />
+      <div
+        className="absolute inset-0 transition-opacity duration-700"
+        style={{ opacity: warm * 0.8, mixBlendMode: "screen", background: "radial-gradient(58% 42% at 68% 6%, rgba(255,168,76,0.5), rgba(255,168,76,0) 70%)" }}
+      />
+      <div
+        className="absolute inset-0 transition-opacity duration-700"
+        style={{ opacity: night * 0.55, mixBlendMode: "multiply", background: "#1d2f55" }}
+      />
+      <div
+        className="absolute inset-0 transition-opacity duration-700"
+        style={{ opacity: wd.dim, mixBlendMode: "multiply", background: "#42566e" }}
+      />
+      {raining && (
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="rain-far" />
+          <div className="rain-near" />
+        </div>
+      )}
     </div>
   );
 }

@@ -132,15 +132,57 @@ export const FACILITIES: Facility[] = [
   { id: "first", kind: "first", label: "First aid", left: "44%", top: "60%" },
 ];
 
-// Mocked live weather + tide line for the overview chip.
-export const WEATHER = {
-  tempC: 28,
-  cond: "Sunny",
-  wind: "Light NE 8 kn",
-  sea: "Calm · 0.3 m",
-  uv: 8,
-  sunset: "20:42",
+/* ---- Demo weather ----
+   There is no live forecast in the mockup: the conditions are a demo control
+   (the pill on the customer Home). Each kind drives the hero chip plus the
+   scene — `wind` agitates the live sea / ambient decor, `dim` darkens the
+   whole backdrop (multiply tint), `glint` scales the sun sheen on the water. */
+export type WeatherKind = "sunny" | "windy" | "overcast" | "rainy";
+export interface WeatherDemo {
+  label: string;
+  tempC: number;
+  icon: "sun" | "wind" | "cloud" | "rain";
+  wind: number;
+  dim: number;
+  glint: number;
+}
+export const WEATHER_KINDS: WeatherKind[] = ["sunny", "windy", "overcast", "rainy"];
+export const WEATHER_DEMO: Record<WeatherKind, WeatherDemo> = {
+  sunny: { label: "Sunny", tempC: 28, icon: "sun", wind: 0.22, dim: 0, glint: 1 },
+  windy: { label: "Windy", tempC: 24, icon: "wind", wind: 1, dim: 0.1, glint: 0.75 },
+  overcast: { label: "Overcast", tempC: 22, icon: "cloud", wind: 0.45, dim: 0.26, glint: 0.12 },
+  rainy: { label: "Rainy", tempC: 19, icon: "rain", wind: 0.7, dim: 0.34, glint: 0.05 },
 };
+
+/* ---- Scene clock (time-of-day lighting) ----
+   A demo hour drives the scene's light: cool half-light at dawn, neutral
+   daylight, a warm ramp into golden hour (~19:30 peak) and a deep blue dusk.
+   Checkout/confirmation override the chosen hour with GOLDEN_HOUR so paying
+   reads as the end of a perfect beach day. Both effects (and the weather
+   graphics) can be switched off by the admin per tenant. */
+export interface SceneFx {
+  weather: boolean;
+  daytime: boolean;
+}
+export const DEFAULT_SCENE_FX: SceneFx = { weather: true, daytime: true };
+export const DAY_MIN = 5.5;
+export const DAY_MAX = 21.5;
+export const DAY_DEFAULT = 10;
+export const GOLDEN_HOUR = 19.3;
+
+const rampH = (h: number, a: number, b: number) => Math.min(1, Math.max(0, (h - a) / (b - a)));
+/** warm = golden-hour factor (0–1), night = dawn/dusk darkening (0–1). */
+export function dayLight(h: number): { warm: number; night: number } {
+  const warm = rampH(h, 16.5, 19) * (1 - rampH(h, 19.9, 21.2));
+  const night = Math.max(1 - rampH(h, 5.5, 7.5), rampH(h, 19.8, 21.5) * 0.85);
+  return { warm, night };
+}
+/** 10.25 → "10:15" for the demo slider label. */
+export function fmtHour(h: number): string {
+  const hh = Math.floor(h);
+  const mm = Math.round((h - hh) * 60);
+  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
 
 export interface QuickPick {
   id: string;

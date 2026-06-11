@@ -5,7 +5,8 @@ import { Badge, Btn } from "../../components/ui";
 import { PassCard } from "../../components/PassCard";
 import { gsap, motionOK, DUR, EASE, useMagnetic, useCardTilt } from "../../lib/fx";
 import { useCountUp } from "../../lib/motion";
-import { ZONES, zoneLayout } from "../../data/beach";
+import { ZONES, zoneLayout, WEATHER_DEMO } from "../../data/beach";
+import { SceneDemoPanel } from "../../components/SceneDemoPanel";
 import { SEASON_END_LABEL } from "../../data/passes";
 import { BUILTIN_SCHEMES, makeCustomScheme, schemeProgress, HOME_LOYALTY_STATS } from "../../data/loyalty";
 import type { RewardState, LoyaltyState } from "../../data/loyalty";
@@ -27,8 +28,16 @@ const CARD = "glass-flat rounded-3xl overflow-hidden relative";
 let homeIntroPlayed = false;
 
 export function CustomerHome() {
-  const { dive, loyalty, beachLayout } = useApp();
+  const { dive, loyalty, beachLayout, weather, dayTime, sceneFx } = useApp();
   const t = useT();
+  // The hero chip mirrors the demo scene: weather icon/label/temp plus a
+  // greeting that follows the scene clock (both fall back to a sunny noon
+  // when the admin disables the effects).
+  const wd = sceneFx.weather ? WEATHER_DEMO[weather] : WEATHER_DEMO.sunny;
+  const hour = sceneFx.daytime ? dayTime : 10; // off → the classic morning chip
+  const greeting = hour < 12 ? "Good morning, Elena" : hour < 18 ? "Good afternoon, Elena" : "Good evening, Elena";
+  const WIcon = Icon[wd.icon] || Icon.sun;
+  const chipBubble = wd.icon === "sun" ? "from-amber-300 to-amber-500" : wd.icon === "wind" ? "from-teal-300 to-teal-500" : "from-slate-400 to-slate-600";
   const [promoDismissed, setPromoDismissed] = useState(false);
   const rewards = activeRewards(loyalty);
   const ready = rewards.filter((a) => a.state.kind === "claim").length;
@@ -80,10 +89,10 @@ export function CustomerHome() {
         <div className={`${CARD} p-6 sm:p-9 pressable cursor-pointer transition duration-300 ease-spring hover:-translate-y-1 hover:bg-white/80`}>
           <div className="relative">
             <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700" data-hero-chip>
-              <span className="w-6 h-6 rounded-full grid place-items-center bg-gradient-to-br from-amber-300 to-amber-500 text-white shadow-sm">
-                <Icon.sun size={11} />
+              <span className={`w-6 h-6 rounded-full grid place-items-center bg-gradient-to-br ${chipBubble} text-white shadow-sm`}>
+                <WIcon size={11} />
               </span>
-              {t("Good morning, Elena")} · {t("Sunny")} 28°
+              {t(greeting)} · {t(wd.label)} {wd.tempC}°
             </div>
             {/* Headline fits one line in English; longer translations (FR/EL/IT…)
                 are wider, so on large screens we lift the width cap and ease the
@@ -164,6 +173,10 @@ export function CustomerHome() {
           <SeasonTile />
         </div>
       </div>
+
+      {/* Demo scene controls (time-of-day + weather), bottom-left — the
+          counterpart to the persona switcher's demo pill on the right. */}
+      <SceneDemoPanel />
     </div>
   );
 }
