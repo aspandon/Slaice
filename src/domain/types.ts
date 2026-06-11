@@ -212,6 +212,61 @@ export interface ZoneMapItem {
   y: number;
 }
 
+/* ---------- Communicate: channel connections ----------
+   The admin connects the tenant's real Email / Viber / SMS providers so those
+   channels can actually send. Push is in-app (no setup). Connection state is
+   persisted for the mockup. */
+export type ChannelKey = "push" | "email" | "viber" | "sms";
+export interface ChannelConnection {
+  connected: boolean;
+  /** Provider chosen during setup, e.g. "SendGrid", "Twilio". */
+  provider?: string;
+  /** Verified sender — from-address / sender id / number. */
+  sender?: string;
+  /** ISO timestamp the connection was completed. */
+  connectedAt?: string;
+}
+export type ChannelSetupState = Record<ChannelKey, ChannelConnection>;
+
+/* ---------- Passes: wallet card designs ----------
+   An admin-designed membership/pass card. Text, colours, the logo and the QR
+   are all editable and draggable on the card, then published; the same design
+   drives the customer card and its Apple / Google Wallet rendition. Positions
+   are a percentage of the card (0–100). Persisted for the mockup. */
+export interface CardElement {
+  /** Position as a percentage of the card face. */
+  x: number;
+  y: number;
+}
+export interface CardText extends CardElement {
+  text: string;
+  /** Font size in px (at the card's design size). */
+  size: number;
+  color: string;
+  /** Letter-spacing in px. */
+  tracking?: number;
+  weight?: number;
+  align?: "left" | "center" | "right";
+}
+export interface PassDesign {
+  id: string;
+  /** Internal name in the designer list. */
+  name: string;
+  /** Two-stop background gradient. */
+  bg: [string, string];
+  /** Decorative wave band colour at the foot of the card. */
+  wave: string;
+  title: CardText;
+  subtitle: CardText;
+  holder: CardText;
+  number: CardText;
+  validUntil: CardText;
+  /** Logo (tenant mark) — a data URL or a public path; null hides it. */
+  logo: { src: string | null } & CardElement & { scale: number };
+  qr: { show: boolean } & CardElement & { scale: number };
+  published: boolean;
+}
+
 /* ---------- Seasonal / day-of-week pricing ----------
    An admin-authored rule that overrides a zone's base price for a date window
    and a set of weekdays — e.g. "August weekends: +€10". Rules are evaluated in

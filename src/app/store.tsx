@@ -8,7 +8,9 @@ import type { LoyaltyState } from "../data/loyalty";
 import { DEFAULT_ACHIEVEMENTS } from "../data/gamification";
 import type { Achievement } from "../data/gamification";
 import { DEFAULT_ZONE_MAP, DEFAULT_PRICE_RULES } from "../data/pricing";
-import type { BeachBackground, CartItem, CartKind, Consent, CustomerPasses, LangCode, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "../domain/types";
+import { DEFAULT_CHANNELS } from "../data/channels";
+import { DEFAULT_PASS_CARDS } from "../data/passDesigns";
+import type { BeachBackground, CartItem, CartKind, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "../domain/types";
 
 // Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
 // highlight the section a journey points at.
@@ -89,6 +91,12 @@ export interface AppContextValue {
   /** Seasonal / day-of-week pricing rules — admin-written, persisted. */
   priceRules: PriceRule[];
   setPriceRules: (r: PriceRule[]) => void;
+  /** Communicate channel connections (Email / Viber / SMS / Push) — persisted. */
+  channels: ChannelSetupState;
+  setChannels: (c: ChannelSetupState) => void;
+  /** Admin-designed wallet pass cards — persisted. */
+  passCards: PassDesign[];
+  setPassCards: (c: PassDesign[]) => void;
 }
 
 const DEFAULT_CONSENT: Consent = {
@@ -139,6 +147,10 @@ export const AppCtx = createContext<AppContextValue>({
   setZoneMap: () => {},
   priceRules: DEFAULT_PRICE_RULES,
   setPriceRules: () => {},
+  channels: DEFAULT_CHANNELS,
+  setChannels: () => {},
+  passCards: DEFAULT_PASS_CARDS,
+  setPassCards: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);
