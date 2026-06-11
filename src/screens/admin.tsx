@@ -707,9 +707,9 @@ function SunbedLayoutEditor() {
 }
 
 /* Customer-surface atmosphere — the tenant's control over the scene effects:
-   master switches for the weather graphics and time-of-day lighting (incl.
-   the golden-hour checkout finale), plus the live values themselves (current
-   weather + scene clock). The guests' Home demo pill mirrors the same state;
+   master switches for the weather graphics and time-of-day lighting, plus the
+   live values themselves (current weather + scene clock), applied identically
+   on every customer page. The guests' Home demo pill mirrors the same state;
    at launch that pill goes away and this card is the only control. Purely
    cosmetic; booking always works with everything off. */
 function AtmosphereCard() {
@@ -730,7 +730,7 @@ function AtmosphereCard() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-[13px] font-semibold text-navy-900">Time-of-day lighting</div>
-              <div className="text-[11px] text-slate-500">Scene clock + golden-hour checkout finale</div>
+              <div className="text-[11px] text-slate-500">Dawn-to-dusk scene clock lighting</div>
             </div>
             <Toggle on={sceneFx.daytime} onChange={(v) => { setSceneFx({ daytime: v }); toast(`Time-of-day lighting ${v ? "enabled" : "disabled"}.`, { tone: "success" }); }} />
           </div>
@@ -759,7 +759,7 @@ function AtmosphereCard() {
             <span className="text-[12px] font-bold text-navy-900 tnum">{fmtHour(dayTime)}</span>
           </div>
           <input type="range" min={DAY_MIN} max={DAY_MAX} step={0.25} value={dayTime} onChange={(e) => setDayTime(parseFloat(e.target.value))} aria-label="Scene clock" className="demo-range w-full" />
-          <div className="text-[11px] text-slate-500 mt-1.5">Checkout always eases into golden hour — sun permitting.</div>
+          <div className="text-[11px] text-slate-500 mt-1.5">Tip: ~19:30 gives the golden-hour look (sun permitting).</div>
         </div>
       </div>
     </Card>

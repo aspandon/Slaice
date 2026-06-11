@@ -134,9 +134,12 @@ export const FACILITIES: Facility[] = [
 
 /* ---- Demo weather ----
    There is no live forecast in the mockup: the conditions are a demo control
-   (the pill on the customer Home). Each kind drives the hero chip plus the
-   scene — `wind` agitates the live sea / ambient decor, `dim` darkens the
-   whole backdrop (multiply tint), `glint` scales the sun sheen on the water. */
+   (the pill on the customer Home, mirrored by the admin Atmosphere card) and
+   apply identically to every customer page. Each kind drives the hero chip
+   plus the scene — `wind` agitates the live sea, `dim` darkens the whole
+   backdrop (multiply tint), `glint` scales the sun sheen on the water, and
+   `cloudSpeed` is the decor clouds' right-to-left drift (scene units/s;
+   0 hides them — a sunny sky is clear). */
 export type WeatherKind = "sunny" | "windy" | "overcast" | "rainy";
 export interface WeatherDemo {
   label: string;
@@ -145,21 +148,21 @@ export interface WeatherDemo {
   wind: number;
   dim: number;
   glint: number;
+  cloudSpeed: number;
 }
 export const WEATHER_KINDS: WeatherKind[] = ["sunny", "windy", "overcast", "rainy"];
 export const WEATHER_DEMO: Record<WeatherKind, WeatherDemo> = {
-  sunny: { label: "Sunny", tempC: 28, icon: "sun", wind: 0.22, dim: 0, glint: 1 },
-  windy: { label: "Windy", tempC: 24, icon: "wind", wind: 1, dim: 0.1, glint: 0.75 },
-  overcast: { label: "Overcast", tempC: 22, icon: "cloud", wind: 0.45, dim: 0.26, glint: 0.12 },
-  rainy: { label: "Rainy", tempC: 19, icon: "rain", wind: 0.7, dim: 0.34, glint: 0.05 },
+  sunny: { label: "Sunny", tempC: 28, icon: "sun", wind: 0.22, dim: 0, glint: 1, cloudSpeed: 0 },
+  windy: { label: "Windy", tempC: 24, icon: "wind", wind: 1, dim: 0.1, glint: 0.75, cloudSpeed: 85 },
+  overcast: { label: "Overcast", tempC: 22, icon: "cloud", wind: 0.45, dim: 0.26, glint: 0.12, cloudSpeed: 7 },
+  rainy: { label: "Rainy", tempC: 19, icon: "rain", wind: 0.7, dim: 0.34, glint: 0.05, cloudSpeed: 22 },
 };
 
 /* ---- Scene clock (time-of-day lighting) ----
    A demo hour drives the scene's light: cool half-light at dawn, neutral
    daylight, a warm ramp into golden hour (~19:30 peak) and a deep blue dusk.
-   Checkout/confirmation override the chosen hour with GOLDEN_HOUR so paying
-   reads as the end of a perfect beach day. Both effects (and the weather
-   graphics) can be switched off by the admin per tenant. */
+   Both effects (and the weather graphics) can be switched off by the admin
+   per tenant. */
 export interface SceneFx {
   weather: boolean;
   daytime: boolean;
@@ -168,7 +171,6 @@ export const DEFAULT_SCENE_FX: SceneFx = { weather: true, daytime: true };
 export const DAY_MIN = 5.5;
 export const DAY_MAX = 21.5;
 export const DAY_DEFAULT = 10;
-export const GOLDEN_HOUR = 19.3;
 
 const rampH = (h: number, a: number, b: number) => Math.min(1, Math.max(0, (h - a) / (b - a)));
 /** warm = golden-hour factor (0–1), night = dawn/dusk darkening (0–1). */

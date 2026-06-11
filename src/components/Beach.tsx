@@ -150,7 +150,6 @@ const SAND_TOP = 500;
 const shorelineShift = (shoreline?: number) => (shoreline == null ? 0 : Math.round(shoreline * 900 - SAND_TOP));
 const sandD = (dy = 0) => `M -20 ${500 + dy} C 220 ${460 + dy} 440 ${555 + dy} 740 ${510 + dy} S 1200 ${450 + dy} 1620 ${510 + dy} L 1620 900 L -20 900 Z`;
 const foamD = (dy = 0) => `M -20 ${470 + dy} C 200 ${430 + dy} 420 ${520 + dy} 720 ${480 + dy} S 1180 ${420 + dy} 1620 ${480 + dy} L 1620 ${540 + dy} L -20 ${540 + dy} Z`;
-const wetD = (dy = 0) => `M -20 ${510 + dy} C 220 ${470 + dy} 440 ${565 + dy} 740 ${520 + dy} S 1200 ${460 + dy} 1620 ${520 + dy} L 1620 ${575 + dy} L -20 ${575 + dy} Z`;
 /* Open parallel of the sand-top curve, `off` px further down the beach. The
    curve is shallow, so a plain vertical shift is a faithful offset. */
 const sandTopD = (dy = 0, off = 0) =>
@@ -297,9 +296,7 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false }: { pre
       {/* Sand + texture overlay */}
       <path d={sandD(dy)} fill={`url(#${id("sand")})`} />
       {grain && <path d={sandD(dy)} filter={`url(#${id("grain")})`} opacity="0.5" />}
-      {/* Wet-sand shading just below the foam */}
-      <path d={wetD(dy)} fill="rgba(190, 140, 80, 0.18)" />
-      {/* Wet sheen, tide marks, damp mottling. */}
+      {/* Wet shading + sheen (both gradient bands — no hard seams), mottling. */}
       <SandDetail preset={preset} dy={dy} mottle={grain} idp={id} />
 
       {/* Optional decor (sun, palms, clouds…) above the sand, behind the greenery. */}
@@ -360,8 +357,8 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv }: { prese
   const rid = useId().replace(/:/g, "");
   const id = (k: string) => `${k}-${rid}`;
   const dy = shorelineShift(shoreline);
-  const wind = seaEnv?.wind ?? 0.22;
   const cloudVis = seaEnv?.clouds ?? 0;
+  const cloudSpeed = seaEnv?.cloudSpeed ?? 0;
   const [liveSea, setLiveSea] = useState(liveSeaOK);
   const far = useParallax<HTMLDivElement>(-0.018, 24);
   const mid = useParallax<HTMLDivElement>(-0.04, 44);
@@ -373,25 +370,23 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv }: { prese
   const ambFirst = useRef(true);
 
   // Ambient life (desktop layered scene only): clouds belong to the weather —
-  // hidden when sunny, scudding across the bay (wrap-around, wind-scaled
-  // speed) otherwise — and a flock of birds crosses every so often. The
+  // hidden when sunny, otherwise drifting right-to-left (wrap-around) at the
+  // weather's own pace — and a flock of birds crosses every so often. The
   // recursive bird timeline outlives gsap.context capture, so tweens are
   // tracked and killed by hand. Re-inits on scene or weather changes.
   useEffect(() => {
     const root = mid.current;
     if (!root || !motionOK()) return;
     const anims: gsap.core.Animation[] = [];
-    // viewBox-units/second: a lazy drift on a calm day, racing when it blows.
-    const speed = 12 + 60 * wind;
     const snap = ambFirst.current;
     ambFirst.current = false;
     root.querySelectorAll('[data-amb="cloud"]').forEach((c, i) => {
       if (snap) gsap.set(c, { opacity: cloudVis * 0.85 });
       else anims.push(gsap.to(c, { opacity: cloudVis * 0.85, duration: 1.2, ease: "power1.inOut", overwrite: "auto" }));
-      if (cloudVis > 0) {
+      if (cloudVis > 0 && cloudSpeed > 0) {
         anims.push(gsap.to(c, {
-          x: "+=2600",
-          duration: 2600 / (speed + i * 7),
+          x: "-=2600",
+          duration: 2600 / (cloudSpeed + i * 3),
           ease: "none",
           repeat: -1,
           modifiers: { x: gsap.utils.unitize(gsap.utils.wrap(-500, 2100)) },
@@ -421,7 +416,7 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv }: { prese
       if (birds) gsap.set(birds, { clearProps: "all" });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mid is a stable ref
-  }, [preset.id, wind, cloudVis]);
+  }, [preset.id, cloudVis, cloudSpeed]);
   return (
     <>
       {/* Far plane — sea, glint, wave bands and the top vignette. */}
@@ -500,9 +495,8 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv }: { prese
           <path d={foamD(dy)} fill={`url(#${id("foam")})`} />
           <path d={sandD(dy)} fill={`url(#${id("sand")})`} />
           {preset.grain && <path d={sandD(dy)} filter={`url(#${id("grain")})`} opacity="0.5" />}
-          <path d={wetD(dy)} fill="rgba(190, 140, 80, 0.18)" />
           <SandDetail preset={preset} dy={dy} mottle={preset.grain} idp={id} />
-          <SceneDecor preset={preset} id={id} />
+          <SceneDecor preset={preset} id={id} liveClouds />
         </svg>
       </div>
       {/* Near plane — the vegetation belt and tree dots (moves the most). */}
@@ -557,13 +551,16 @@ function CustomBeach({ src, parallax = false }: { src: string; parallax?: boolea
 
 /* ---------- Scene decor ----------
    Composable, stylized SVG elements layered into a scene per `preset.decor`.
-   All coordinates live in the shared 1600×900 viewBox. */
-function SceneDecor({ preset, id }: { preset: BeachPreset; id: (k: string) => string }) {
+   All coordinates live in the shared 1600×900 viewBox. On the live (layered)
+   backdrop the clouds start hidden — the ambient driver owns their visibility
+   per demo weather, so a sunny sky can never show a stray cloud. Static
+   scenes (previews, phones) keep them as part of the illustration. */
+function SceneDecor({ preset, id, liveClouds = false }: { preset: BeachPreset; id: (k: string) => string; liveClouds?: boolean }) {
   const d = preset.decor;
   if (d.length === 0) return null;
   return (
     <>
-      {d.includes("clouds") && <Clouds />}
+      {d.includes("clouds") && <Clouds hidden={liveClouds} />}
       {d.includes("sun") && <SunDisc gradId={id("sun")} />}
       {d.includes("birds") && <Birds />}
       {d.includes("rocks") && <Rocks />}
@@ -587,9 +584,11 @@ function SunDisc({ gradId }: { gradId: string }) {
   );
 }
 
-function Cloud({ x, y, s }: { x: number; y: number; s: number }) {
+function Cloud({ x, y, s, hidden = false }: { x: number; y: number; s: number; hidden?: boolean }) {
+  // `hidden` = live backdrop: the ambient driver owns opacity (per weather),
+  // so each cloud starts invisible via an inline style GSAP then overwrites.
   return (
-    <g data-amb="cloud" transform={`translate(${x} ${y}) scale(${s})`} opacity="0.85">
+    <g data-amb="cloud" transform={`translate(${x} ${y}) scale(${s})`} opacity="0.85" style={hidden ? { opacity: 0 } : undefined}>
       <ellipse cx="0" cy="0" rx="70" ry="26" />
       <ellipse cx="48" cy="6" rx="55" ry="22" />
       <ellipse cx="-46" cy="8" rx="48" ry="20" />
@@ -597,15 +596,15 @@ function Cloud({ x, y, s }: { x: number; y: number; s: number }) {
     </g>
   );
 }
-function Clouds() {
+function Clouds({ hidden = false }: { hidden?: boolean }) {
   return (
     <g fill="#ffffff" opacity="0.7">
-      <Cloud x={140} y={150} s={0.9} />
-      <Cloud x={520} y={95} s={0.65} />
-      <Cloud x={800} y={185} s={1.05} />
-      <Cloud x={1120} y={120} s={0.75} />
-      <Cloud x={1430} y={205} s={0.95} />
-      <Cloud x={310} y={255} s={0.55} />
+      <Cloud x={140} y={150} s={0.9} hidden={hidden} />
+      <Cloud x={520} y={95} s={0.65} hidden={hidden} />
+      <Cloud x={800} y={185} s={1.05} hidden={hidden} />
+      <Cloud x={1120} y={120} s={0.75} hidden={hidden} />
+      <Cloud x={1430} y={205} s={0.95} hidden={hidden} />
+      <Cloud x={310} y={255} s={0.55} hidden={hidden} />
     </g>
   );
 }

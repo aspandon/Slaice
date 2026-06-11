@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { BeachBackdrop } from "./Beach";
 import { LifeRing } from "./LifeRing";
 import { prefersReducedMotion, staticBackdrop } from "../lib/motion";
-import { dayLight, GOLDEN_HOUR, WEATHER_DEMO } from "../data/beach";
+import { dayLight, WEATHER_DEMO } from "../data/beach";
 import type { SeaEnv } from "./LiveSeaCanvas";
 import { WeatherFxCanvas } from "./WeatherFx";
 import { useApp } from "../app/store";
@@ -22,8 +22,9 @@ const IMMERSIVE = 0.4; // inside the booking wizard — a sand-heavy beach you t
    This component also resolves the scene "environment": the demo weather and
    the scene clock (both admin-switchable via sceneFx) become page-wide grading
    overlays + a rain layer here, and a SeaEnv handed down to the live water.
-   `golden` (checkout/confirmation) overrides the clock with golden hour. */
-export function CustomerBackdrop({ immersive, golden = false }: { immersive: boolean; golden?: boolean }) {
+   One resolution for every customer page — home, wizard and checkout always
+   share identical conditions. */
+export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
   const { weather, dayTime, sceneFx } = useApp();
   const [shoreline, setShoreline] = useState(immersive ? IMMERSIVE : REST);
   // Phones / low-res keep a still backdrop (no scroll parallax, no tween) so
@@ -58,12 +59,9 @@ export function CustomerBackdrop({ immersive, golden = false }: { immersive: boo
   // Resolve the environment. Disabled effects fall back to a neutral noon /
   // sunny scene, so the admin switches cleanly restore the original look.
   const wd = sceneFx.weather ? WEATHER_DEMO[weather] : WEATHER_DEMO.sunny;
-  const baseHour = sceneFx.daytime ? dayTime : 12;
-  // The golden finale only moves the day FORWARD (a 21:00 scene stays night,
-  // a noon scene eases to sunset) and the warmth is muted by cloud cover —
-  // no golden glow through an overcast or rainy sky. This keeps checkout's
-  // light a continuation of the home scene rather than a different day.
-  const hour = sceneFx.daytime && golden ? Math.max(baseHour, GOLDEN_HOUR) : baseHour;
+  const hour = sceneFx.daytime ? dayTime : 12;
+  // Golden-hour warmth is muted by cloud cover — no amber glow through an
+  // overcast or rainy sky.
   const light = sceneFx.daytime ? dayLight(hour) : { warm: 0, night: 0 };
   const warm = light.warm * (0.2 + 0.8 * wd.glint);
   const night = light.night;
@@ -73,8 +71,10 @@ export function CustomerBackdrop({ immersive, golden = false }: { immersive: boo
     dusk: warm,
     night,
     // Decor clouds belong to weather, not the preset: clear sky when sunny,
-    // scudding clouds for wind, full cover for overcast/rain.
+    // otherwise drifting right-to-left at the weather's own pace (racing in
+    // wind, crawling under flat overcast).
     clouds: sceneFx.weather && weather !== "sunny" ? 1 : 0,
+    cloudSpeed: sceneFx.weather ? wd.cloudSpeed : 0,
   };
   const raining = sceneFx.weather && weather === "rainy";
   // The particle layer runs for rain and for strong wind (gust streaks).
@@ -101,8 +101,8 @@ export function CustomerBackdrop({ immersive, golden = false }: { immersive: boo
           sun haze high in the sky; dawn/dusk: a deep blue multiply. Weather adds
           its own grey multiply. Blend overlays grade the SVG fallback and the
           WebGL sea alike, so phones get the same mood. The daylight overlays
-          glide slowly (1.6s) so checkout's golden-hour entrance reads as a
-          deliberate sunset, not a scene swap. */}
+          glide slowly (1.6s) so scrubbing the scene clock reads as the day
+          actually turning. */}
       <div
         className="absolute inset-0 transition-opacity"
         style={{ transitionDuration: "1600ms", opacity: warm, mixBlendMode: "soft-light", background: "linear-gradient(to top, rgba(255,118,40,0.85), rgba(255,82,96,0.45) 45%, rgba(122,72,150,0.3))" }}

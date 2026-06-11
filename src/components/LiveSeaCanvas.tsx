@@ -268,16 +268,18 @@ void main() {
 
 /** Scene-environment targets for the water (demo weather + time of day). The
  *  canvas eases toward them every frame, so condition changes glide. `clouds`
- *  is consumed by the scene's ambient layer (decor cloud visibility), not the
- *  shader — it rides along so the whole environment stays one object. */
+ *  and `cloudSpeed` are consumed by the scene's ambient layer (decor cloud
+ *  visibility + right-to-left drift), not the shader — they ride along so the
+ *  whole environment stays one object. */
 export interface SeaEnv {
   wind: number;
   glint: number;
   dusk: number;
   night: number;
   clouds: number;
+  cloudSpeed: number;
 }
-export const DEFAULT_SEA_ENV: SeaEnv = { wind: 0.22, glint: 1, dusk: 0, night: 0, clouds: 0 };
+export const DEFAULT_SEA_ENV: SeaEnv = { wind: 0.22, glint: 1, dusk: 0, night: 0, clouds: 0, cloudSpeed: 0 };
 
 export default function LiveSeaCanvas({ preset, dy, env = DEFAULT_SEA_ENV, onFail }: {
   preset: BeachPreset;

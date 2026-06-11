@@ -103,12 +103,12 @@ export interface AppContextValue {
    *  the live sea's agitation and the rain layer. Set from the Home demo panel. */
   weather: WeatherKind;
   setWeather: (w: WeatherKind) => void;
-  /** Demo scene clock (hours, DAY_MIN–DAY_MAX) — drives time-of-day lighting.
-   *  Checkout/confirmation override it with golden hour. */
+  /** Demo scene clock (hours, DAY_MIN–DAY_MAX) — drives time-of-day lighting,
+   *  identically on every customer page. */
   dayTime: number;
   setDayTime: (h: number) => void;
   /** Admin switches for the customer-surface atmosphere: demo weather graphics
-   *  and the time-of-day lighting (incl. the golden-hour finale). */
+   *  and the time-of-day lighting. */
   sceneFx: SceneFx;
   setSceneFx: (patch: Partial<SceneFx>) => void;
 }
