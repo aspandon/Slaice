@@ -1,6 +1,6 @@
-import { useId } from "react";
+import { lazy, Suspense, useId, useState } from "react";
 import type { ReactNode } from "react";
-import { useParallax } from "../lib/motion";
+import { prefersReducedMotion, useParallax } from "../lib/motion";
 import { useApp } from "../app/store";
 import { presetById } from "../data/backgrounds";
 import type { BeachPreset } from "../data/backgrounds";
@@ -278,15 +278,34 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false }: { pre
   );
 }
 
+/* The animated WebGL water (three.js) is lazy-loaded so its chunk is only
+   fetched on capable desktops — phones and reduced-motion users render the
+   layered scene's static SVG sea and never download three. */
+const LiveSeaCanvas = lazy(() => import("./LiveSeaCanvas"));
+
+/* Quick capability gate before paying for the three.js chunk. three r163+ is
+   WebGL2-only; the real context check (incl. rejecting software GL) happens
+   inside LiveSeaCanvas, which falls back here via onFail. */
+const liveSeaOK = () =>
+  typeof window !== "undefined" &&
+  typeof WebGL2RenderingContext !== "undefined" &&
+  !prefersReducedMotion();
+
 /* Depth-parallax beach — the same palette split into far (sea), mid (sand +
    decor) and near (vegetation) planes that drift at different rates on scroll, so
    the horizon reads as real depth. Each plane overscans (-12%) and its travel is
    clamped, so a translate never exposes an edge; useParallax no-ops under reduced
-   motion, leaving the planes stacked exactly like the flat scene. */
+   motion, leaving the planes stacked exactly like the flat scene.
+
+   On WebGL2-capable desktops the far plane's static sea is overlaid by the live
+   animated water (LiveSeaCanvas). The SVG sea stays rendered beneath it as the
+   loading state and the fallback: if WebGL is missing, software-rendered or the
+   context dies, the canvas reverts to it without a flash. */
 function BeachSceneLayered({ preset, shoreline, noVeg = false }: { preset: BeachPreset; shoreline?: number; noVeg?: boolean }) {
   const rid = useId().replace(/:/g, "");
   const id = (k: string) => `${k}-${rid}`;
   const dy = shorelineShift(shoreline);
+  const [liveSea, setLiveSea] = useState(liveSeaOK);
   const far = useParallax<HTMLDivElement>(-0.018, 24);
   const mid = useParallax<HTMLDivElement>(-0.04, 44);
   const near = useParallax<HTMLDivElement>(-0.065, 60);
@@ -327,6 +346,24 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false }: { preset: Beach
           <SeaWavelets dy={dy} />
           <rect width="1600" height="160" fill={`url(#${id("vignette")})`} />
         </svg>
+        {liveSea && (
+          <Suspense fallback={null}>
+            <LiveSeaCanvas preset={preset} dy={dy} onFail={() => setLiveSea(false)} />
+          </Suspense>
+        )}
+        {/* The opaque canvas covers the SVG's vignette, so re-draw it on top —
+            same viewBox + slice fitting keeps it pixel-identical. */}
+        {liveSea && (
+          <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+            <defs>
+              <linearGradient id={id("vignette-live")} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgba(11, 37, 69, 0.35)" />
+                <stop offset="100%" stopColor="rgba(11, 37, 69, 0)" />
+              </linearGradient>
+            </defs>
+            <rect width="1600" height="160" fill={`url(#${id("vignette-live")})`} />
+          </svg>
+        )}
       </div>
       {/* Mid plane — shoreline foam, sand, its grain + wet-sand shading, and decor. */}
       <div ref={mid} className={plane} style={overscan}>

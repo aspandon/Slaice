@@ -50,8 +50,11 @@ Agent), Cashier, Controller, Accountant, Platform/Slaice.
 ## Tech
 
 Vite · React 18 · Tailwind CSS. Dependency-free SVG charts, icons, QR and the
-aerial beach illustration. Source of truth for the feature/journey data lives in
-`src/data/` (derived from the RFP and financial model).
+aerial beach illustration. On WebGL2-capable desktops the customer backdrop's
+sea is a live three.js shader (lazy-loaded chunk; phones, reduced-motion and
+unsupported GPUs keep the static SVG scene). Source of truth for the
+feature/journey data lives in `src/data/` (derived from the RFP and financial
+model).
 
 ```
 src/
