@@ -222,7 +222,7 @@ export default function App() {
             <button
               onClick={() => go("customer", "home")}
               aria-label="Go to home"
-              className="flex justify-center items-center pt-3 pb-2 mb-6 sm:mb-8 w-full group hover:opacity-90 active:opacity-75 transition-opacity"
+              className="flex justify-center items-center pt-1 pb-1 mb-3 sm:mb-4 w-full group hover:opacity-90 active:opacity-75 transition-opacity"
             >
               <img src={`${import.meta.env.BASE_URL}tenant-logo.png`} alt="Ακτή του Ηλίου" className="h-[100px] w-auto" />
             </button>
