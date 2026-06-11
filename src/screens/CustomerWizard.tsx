@@ -175,10 +175,14 @@ export function CustomerWizard() {
   const [lockerScope, setLockerScope] = useState<DayScope>("all");
   const [lockerDays, setLockerDays] = useState<string[]>([]);
   const [parkingOn, setParkingOn] = useState(false);
+  const [parkingQty, setParkingQty] = useState(1);
   const [parkingScope, setParkingScope] = useState<DayScope>("all");
   const [parkingDays, setParkingDays] = useState<string[]>([]);
-  // Vehicle plate per ISO date (multi-day trips can use a different plate each day).
+  // Vehicle plate per ISO date (multi-day trips can use a different plate each
+  // day) — used while booking a single spot.
   const [plates, setPlates] = useState<Record<string, string>>({});
+  // Booking several spots = several cars: one plate per spot, all days.
+  const [spotPlates, setSpotPlates] = useState<string[]>([]);
   // Most guests park the same car all week — default to one shared plate.
   const [parkingSamePlate, setParkingSamePlate] = useState(true);
   // Within the Beach step: choosing a zone vs. tapping its sets.
@@ -225,7 +229,7 @@ export function CustomerWizard() {
   const ticketBreak = Object.entries(people).map(([k, n]) => ({ k, n, t: TICKET[k], total: n * TICKET[k].price * dayCount }));
   const ticketSubtotal = includeTickets ? ticketBreak.reduce((a, b) => a + b.total, 0) : 0;
   const lockerSubtotal = lockerQty * LOCKER_PRICE * lockerDates.length;
-  const parkingSubtotal = PARKING_PRICE * parkingDates.length;
+  const parkingSubtotal = parkingQty * PARKING_PRICE * parkingDates.length;
   const grandTotal = setSubtotal + ticketSubtotal + lockerSubtotal + parkingSubtotal;
 
   const step = STEPS[stepIdx];
@@ -328,9 +332,20 @@ export function CustomerWizard() {
         added++;
       }
     });
+    // One cart line per spot per day; the plate comes from the per-spot list
+    // (several cars) or the per-day map (single spot, possibly varying plate).
     parkingDates.forEach((iso) => {
-      addToCart({ kind: "parking", id: `P@${iso}`, label: tr("Parking spot"), sub: `${plates[iso] || "—"} · ${subOf(iso)}`, price: PARKING_PRICE });
-      added++;
+      for (let i = 0; i < parkingQty; i++) {
+        const plate = (parkingQty > 1 ? spotPlates[i] : plates[iso]) || "—";
+        addToCart({
+          kind: "parking",
+          id: `P${i + 1}@${iso}`,
+          label: parkingQty > 1 ? `${tr("Parking spot")} ${i + 1}` : tr("Parking spot"),
+          sub: `${plate} · ${subOf(iso)}`,
+          price: PARKING_PRICE,
+        });
+        added++;
+      }
     });
     toast(`${tr("Booking ready")} — ${added} ${added !== 1 ? tr("items") : tr("item")} ${tr("added to your basket.")}`, { tone: "success" });
     // Hand the menu card's rect to Checkout so its summary panel morphs out of
@@ -402,9 +417,11 @@ export function CustomerWizard() {
             {step.id === "parking" && (
               <ParkingStep
                 on={parkingOn} setOn={setParkingOn}
+                qty={parkingQty} setQty={setParkingQty}
                 scope={parkingScope} setScope={setParkingScope}
                 days={parkingDays} setDays={setParkingDays}
                 plates={plates} setPlates={setPlates}
+                spotPlates={spotPlates} setSpotPlates={setSpotPlates}
                 samePlate={parkingSamePlate} setSamePlate={setParkingSamePlate}
                 selDates={selDates} multiDate={multiDate}
               />
@@ -416,7 +433,7 @@ export function CustomerWizard() {
                 zone={zone} bedSel={bedSel}
                 includeTickets={includeTickets} ticketBreak={ticketBreak}
                 lockerOn={lockerOn} lockerQty={lockerQty} lockerDates={lockerDates}
-                parkingOn={parkingOn} parkingDates={parkingDates} plates={plates}
+                parkingOn={parkingOn} parkingQty={parkingQty} parkingDates={parkingDates} plates={plates} spotPlates={spotPlates}
                 onJump={(id) => { const i = STEPS.findIndex((s) => s.id === id); if (i >= 0) setStepIdx(i); }}
               />
             )}
@@ -455,7 +472,8 @@ export function CustomerWizard() {
               slots={slots} picked={selectedIds} stepId={step.id}
               guests={totalPeople}
               lockerOn={lockerOn} lockerQty={lockerQty}
-              parkingOn={parkingOn && parkingDates.length > 0} plate={plates[selDates[0]]}
+              parkingOn={parkingOn && parkingDates.length > 0} parkingQty={parkingQty}
+              plate={parkingQty > 1 ? spotPlates[0] : plates[selDates[0]]}
             />
           )}
         </div>
@@ -1060,15 +1078,19 @@ function DayChips({ days, value, onChange }: { days: string[]; value: string[]; 
 }
 
 /* ============ Parking ============ */
-function ParkingStep({ on, setOn, scope, setScope, days, setDays, plates, setPlates, samePlate, setSamePlate, selDates, multiDate }: {
+function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, plates, setPlates, spotPlates, setSpotPlates, samePlate, setSamePlate, selDates, multiDate }: {
   on: boolean;
   setOn: Dispatch<SetStateAction<boolean>>;
+  qty: number;
+  setQty: Dispatch<SetStateAction<number>>;
   scope: DayScope;
   setScope: Dispatch<SetStateAction<DayScope>>;
   days: string[];
   setDays: Dispatch<SetStateAction<string[]>>;
   plates: Record<string, string>;
   setPlates: Dispatch<SetStateAction<Record<string, string>>>;
+  spotPlates: string[];
+  setSpotPlates: Dispatch<SetStateAction<string[]>>;
   samePlate: boolean;
   setSamePlate: Dispatch<SetStateAction<boolean>>;
   selDates: string[];
@@ -1078,6 +1100,7 @@ function ParkingStep({ on, setOn, scope, setScope, days, setDays, plates, setPla
   const { lang } = useApp();
   const loc = localeFor(lang);
   const activeDays = multiDate && scope === "some" ? days : selDates;
+  const n = activeDays.length;
   const choose = (mode: "all" | "some" | "off") => {
     if (mode === "off") { setOn(false); return; }
     setOn(true);
@@ -1087,6 +1110,15 @@ function ParkingStep({ on, setOn, scope, setScope, days, setDays, plates, setPla
   const setPlate = (iso: string, v: string) => setPlates((p) => ({ ...p, [iso]: v.toUpperCase() }));
   // One plate for the whole trip — write it to every chosen day so any parked day is covered.
   const writeShared = (v: string) => setPlates((p) => { const u = v.toUpperCase(); const next = { ...p }; selDates.forEach((d) => { next[d] = u; }); return next; });
+  const setSpotPlate = (i: number, v: string) =>
+    setSpotPlates((s) => { const next = [...s]; next[i] = v.toUpperCase(); return next; });
+  // Growing to several spots seeds spot 1 from the single-spot plate, so the
+  // guest never re-types the car they already entered.
+  const changeQty = (v: number) => {
+    const next = Math.max(1, v);
+    setQty(next);
+    if (next > 1) setSpotPlates((s) => (s[0] ? s : [plates[selDates[0]] || "", ...s.slice(1)]));
+  };
   return (
     <div className="space-y-3">
       {multiDate ? (
@@ -1107,7 +1139,33 @@ function ParkingStep({ on, setOn, scope, setScope, days, setDays, plates, setPla
           <DayChips days={selDates} value={days} onChange={setDays} />
         </div>
       )}
-      {on && (multiDate ? (
+      {on && (
+        <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 flex items-center justify-between animate-pop">
+          <div>
+            <div className="font-semibold text-sm text-navy-900">{tr("How many spots?")}</div>
+            <div className="text-[11px] text-slate-500">{qty} × €{PARKING_PRICE} × {n} {n !== 1 ? tr("days") : tr("day")}</div>
+          </div>
+          <Stepper label={tr("parking spots")} value={qty} onChange={changeQty} min={1} />
+        </div>
+      )}
+      {/* Several spots = several cars: one plate per spot, valid every parked
+          day. The per-day plate matrix below stays for the single-spot case. */}
+      {on && qty > 1 && (
+        <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-3 animate-pop space-y-2.5">
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.car size={12} /> {tr("Vehicle plate per spot")}</div>
+          {Array.from({ length: qty }).map((_, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <span className="text-[12px] font-semibold text-navy-900 w-24 shrink-0">{tr("Spot")} {i + 1}</span>
+              <Input value={spotPlates[i] || ""} onChange={(e) => setSpotPlate(i, e.target.value)} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" />
+            </div>
+          ))}
+          <div className="flex items-center justify-between text-[12px] text-slate-600 pt-1.5 border-t border-slate-100">
+            <span>{qty} {tr("spots")} × {n} {n !== 1 ? tr("days") : tr("day")} × €{PARKING_PRICE}</span>
+            <span className="font-semibold text-navy-900 tnum">€{qty * PARKING_PRICE * n}</span>
+          </div>
+        </div>
+      )}
+      {on && qty === 1 && (multiDate ? (
         <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-3 animate-pop space-y-2.5">
           <div className="flex items-center justify-between gap-3">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.car size={12} /> {samePlate ? tr("Vehicle plate") : tr("Vehicle plate per day")}</div>
@@ -1165,7 +1223,7 @@ function YesNo({ on, title, sub, icon: IconC, onClick }: { on: boolean; title: R
 }
 
 /* ============ Review ============ */
-function ReviewStep({ people, totalPeople, selDates, zone, bedSel = [], includeTickets, ticketBreak, lockerOn, lockerQty, lockerDates, parkingOn, parkingDates, plates, onJump }: {
+function ReviewStep({ people, totalPeople, selDates, zone, bedSel = [], includeTickets, ticketBreak, lockerOn, lockerQty, lockerDates, parkingOn, parkingQty, parkingDates, plates, spotPlates, onJump }: {
   people: People;
   totalPeople: number;
   selDates: string[];
@@ -1178,14 +1236,18 @@ function ReviewStep({ people, totalPeople, selDates, zone, bedSel = [], includeT
   lockerQty: number;
   lockerDates: string[];
   parkingOn: boolean;
+  parkingQty: number;
   parkingDates: string[];
   plates: Record<string, string>;
+  spotPlates: string[];
   onJump: (id: string) => void;
 }) {
   const tr = useT();
   const { lang } = useApp();
   const loc = localeFor(lang);
-  const platesUsed = [...new Set(parkingDates.map((d) => plates[d]).filter(Boolean))];
+  const platesUsed = parkingQty > 1
+    ? [...new Set(spotPlates.slice(0, parkingQty).filter(Boolean))]
+    : [...new Set(parkingDates.map((d) => plates[d]).filter(Boolean))];
   const plateSummary = platesUsed.length === 0 ? tr("plate pending") : platesUsed.join(", ");
   const first = chipLabel(selDates[0], loc, tr);
   const dateLabel = selDates.length === 1
@@ -1206,7 +1268,14 @@ function ReviewStep({ people, totalPeople, selDates, zone, bedSel = [], includeT
         onEdit={() => onJump("people")}
       />
       <ReviewRow icon={Icon.lock} title={tr("Day locker")} body={lockerOn && lockerDates.length > 0 ? `${lockerQty} ${lockerQty !== 1 ? tr("lockers") : tr("locker")} · ${lockerDates.length} ${lockerDates.length !== 1 ? tr("days") : tr("day")}` : tr("Not added")} onEdit={() => onJump("locker")} />
-      <ReviewRow icon={Icon.car} title={tr("Parking Spot")} body={parkingOn && parkingDates.length > 0 ? `${parkingDates.length} ${parkingDates.length !== 1 ? tr("days") : tr("day")} · ${plateSummary}` : tr("Not added")} onEdit={() => onJump("parking")} />
+      <ReviewRow
+        icon={Icon.car}
+        title={tr("Parking Spot")}
+        body={parkingOn && parkingDates.length > 0
+          ? `${parkingQty} ${parkingQty !== 1 ? tr("spots") : tr("spot")} · ${parkingDates.length} ${parkingDates.length !== 1 ? tr("days") : tr("day")} · ${plateSummary}`
+          : tr("Not added")}
+        onEdit={() => onJump("parking")}
+      />
     </div>
   );
 }

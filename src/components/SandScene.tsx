@@ -25,7 +25,7 @@ const TOWEL_COLORS = [
    filled in this order as the headcount grows. */
 const TOWEL_OFFS: [number, number][] = [[-2.6, 4.8], [2.6, 5], [0, 7.4], [-4.8, 1.8]];
 
-export function SandScene({ slots, picked, stepId, guests, lockerOn, lockerQty, parkingOn, plate }: {
+export function SandScene({ slots, picked, stepId, guests, lockerOn, lockerQty, parkingOn, parkingQty, plate }: {
   slots: SunbedSlot[];
   picked: Set<string>;
   stepId: string;
@@ -33,6 +33,7 @@ export function SandScene({ slots, picked, stepId, guests, lockerOn, lockerQty, 
   lockerOn: boolean;
   lockerQty: number;
   parkingOn: boolean;
+  parkingQty: number;
   plate?: string;
 }) {
   const t = useT();
@@ -41,15 +42,13 @@ export function SandScene({ slots, picked, stepId, guests, lockerOn, lockerQty, 
   const showCabin = lockerOn && (stepId === "locker" || stepId === "parking" || stepId === "review");
   const showCar = parkingOn && (stepId === "parking" || stepId === "review");
 
-  // The amenities compose with the picks rather than floating in corners: the
-  // parking bay sits directly beneath the sets (their centroid x) and the
-  // locker cabin shares its baseline beside it — one tidy row under your spot.
+  // Amenities flank the beach on a shared baseline below the picked sets:
+  // the parking bay on the left edge of the sand (where the lot meets the
+  // beach), the locker cabin on the right by the promenade.
   const clampPct = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
-  const setsX = clampPct(sets.reduce((a, s) => a + s.x, 0) / sets.length, 12, 88);
   const rowY = clampPct(Math.max(...sets.map((s) => s.y)) + 26, 34, 74);
-  const sideStep = setsX > 68 ? -17 : 17; // cabin flips left when the sets sit far right
-  const carX = setsX;
-  const cabinX = showCar ? setsX + sideStep : setsX;
+  const carX = 14;
+  const cabinX = 86;
   const towels = guests > 0
     ? Array.from({ length: Math.min(guests, 12) }).map((_, i) => {
         const s = sets[i % sets.length];
@@ -88,7 +87,7 @@ export function SandScene({ slots, picked, stepId, guests, lockerOn, lockerQty, 
         </div>
       ))}
 
-      {/* The locker cabin, on the amenities row beside the parking bay. */}
+      {/* The locker cabin on the right of the beach, by the promenade. */}
       {showCabin && (
         <div className="absolute -translate-x-1/2 animate-pop" style={{ left: `${cabinX}%`, top: `${rowY}%`, width: "clamp(80px, 7.5vw, 116px)", animationFillMode: "both" }}>
           <LockerCabin qty={lockerQty} />
@@ -96,10 +95,10 @@ export function SandScene({ slots, picked, stepId, guests, lockerOn, lockerQty, 
         </div>
       )}
 
-      {/* The reserved bay with the guest's car, directly under their sets. */}
+      {/* The reserved bay(s) with the guest's car, left where the lot meets the sand. */}
       {showCar && (
         <div className="absolute -translate-x-1/2 animate-pop" style={{ left: `${carX}%`, top: `${rowY}%`, width: "clamp(80px, 7.5vw, 116px)", animationFillMode: "both" }}>
-          <ParkingSpot plate={plate} />
+          <ParkingSpot plate={plate} qty={parkingQty} />
           <div className="mt-2.5 text-center text-[10px] font-semibold text-navy-800/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.6)]">{t("Parking Spot")}</div>
         </div>
       )}
@@ -145,8 +144,9 @@ function LockerCabin({ qty }: { qty: number }) {
 }
 
 /* The reserved parking bay: a painted U-bay and "P" on asphalt, with the
-   guest's car (top view — glass, roof, mirrors, lights) parked inside. */
-function ParkingSpot({ plate }: { plate?: string }) {
+   guest's car (top view — glass, roof, mirrors, lights) parked inside. A
+   count badge mirrors the locker cabin when several spots are booked. */
+function ParkingSpot({ plate, qty = 1 }: { plate?: string; qty?: number }) {
   const grad = `ps-body-${useId().replace(/:/g, "")}`;
   return (
     <div className="relative w-full">
@@ -178,6 +178,7 @@ function ParkingSpot({ plate }: { plate?: string }) {
         <circle cx="45" cy="17.5" r="2.4" fill="#fff7d6" />
         <circle cx="75" cy="17.5" r="2.4" fill="#fff7d6" />
       </svg>
+      <span className="absolute -top-1.5 -right-1.5 rounded-full bg-navy-900 text-white text-[10px] font-bold px-1.5 py-0.5 ring-2 ring-white shadow tnum">×{qty}</span>
       {plate && (
         <span className="absolute left-1/2 -translate-x-1/2 -bottom-2 rounded-md bg-white px-1.5 py-0.5 text-[9px] font-bold tnum text-navy-900 ring-1 ring-slate-300 shadow-sm whitespace-nowrap">{plate}</span>
       )}
