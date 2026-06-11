@@ -1,3 +1,4 @@
+import { useId } from "react";
 import type { SunbedSlot } from "../domain/types";
 import { Sunbed } from "./Beach";
 import { useT } from "../app/store";
@@ -39,6 +40,16 @@ export function SandScene({ slots, picked, stepId, guests, lockerOn, lockerQty, 
   if (sets.length === 0) return null;
   const showCabin = lockerOn && (stepId === "locker" || stepId === "parking" || stepId === "review");
   const showCar = parkingOn && (stepId === "parking" || stepId === "review");
+
+  // The amenities compose with the picks rather than floating in corners: the
+  // parking bay sits directly beneath the sets (their centroid x) and the
+  // locker cabin shares its baseline beside it — one tidy row under your spot.
+  const clampPct = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  const setsX = clampPct(sets.reduce((a, s) => a + s.x, 0) / sets.length, 12, 88);
+  const rowY = clampPct(Math.max(...sets.map((s) => s.y)) + 26, 34, 74);
+  const sideStep = setsX > 68 ? -17 : 17; // cabin flips left when the sets sit far right
+  const carX = setsX;
+  const cabinX = showCar ? setsX + sideStep : setsX;
   const towels = guests > 0
     ? Array.from({ length: Math.min(guests, 12) }).map((_, i) => {
         const s = sets[i % sets.length];
@@ -77,17 +88,17 @@ export function SandScene({ slots, picked, stepId, guests, lockerOn, lockerQty, 
         </div>
       ))}
 
-      {/* The locker cabin up by the promenade. */}
+      {/* The locker cabin, on the amenities row beside the parking bay. */}
       {showCabin && (
-        <div className="absolute -translate-x-1/2 animate-pop" style={{ left: "88%", top: "16%", width: "clamp(76px, 7.5vw, 112px)", animationFillMode: "both" }}>
+        <div className="absolute -translate-x-1/2 animate-pop" style={{ left: `${cabinX}%`, top: `${rowY}%`, width: "clamp(80px, 7.5vw, 116px)", animationFillMode: "both" }}>
           <LockerCabin qty={lockerQty} />
           <div className="mt-1 text-center text-[10px] font-semibold text-navy-800/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.6)]">{t("Day locker")}</div>
         </div>
       )}
 
-      {/* The car on its reserved pad at the edge of the sand. */}
+      {/* The reserved bay with the guest's car, directly under their sets. */}
       {showCar && (
-        <div className="absolute -translate-x-1/2 animate-pop" style={{ left: "9%", top: "66%", width: "clamp(84px, 8vw, 124px)", animationFillMode: "both" }}>
+        <div className="absolute -translate-x-1/2 animate-pop" style={{ left: `${carX}%`, top: `${rowY}%`, width: "clamp(80px, 7.5vw, 116px)", animationFillMode: "both" }}>
           <ParkingSpot plate={plate} />
           <div className="mt-2.5 text-center text-[10px] font-semibold text-navy-800/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.6)]">{t("Parking Spot")}</div>
         </div>
@@ -133,19 +144,39 @@ function LockerCabin({ qty }: { qty: number }) {
   );
 }
 
-/* The reserved parking bay: painted lines on asphalt, the guest's car parked. */
+/* The reserved parking bay: a painted U-bay and "P" on asphalt, with the
+   guest's car (top view — glass, roof, mirrors, lights) parked inside. */
 function ParkingSpot({ plate }: { plate?: string }) {
+  const grad = `ps-body-${useId().replace(/:/g, "")}`;
   return (
     <div className="relative w-full">
-      <svg viewBox="0 0 120 92" className="w-full h-auto drop-shadow-md">
-        <rect x="2" y="4" width="116" height="84" rx="10" fill="#3c4452" />
-        <rect x="10" y="12" width="100" height="68" rx="6" fill="none" stroke="#f1c84b" strokeWidth="2.5" strokeDasharray="10 7" />
-        {/* the car, top view */}
-        <rect x="36" y="16" width="48" height="62" rx="13" fill="#e2552f" />
-        <rect x="42" y="28" width="36" height="11" rx="4.5" fill="#9fd8ef" opacity="0.9" />
-        <rect x="42" y="56" width="36" height="9" rx="4" fill="#9fd8ef" opacity="0.7" />
-        <rect x="31" y="30" width="6" height="11" rx="2.5" fill="#33271f" opacity="0.7" />
-        <rect x="83" y="30" width="6" height="11" rx="2.5" fill="#33271f" opacity="0.7" />
+      <svg viewBox="0 0 120 96" className="w-full h-auto drop-shadow-md">
+        <defs>
+          <linearGradient id={grad} x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#fb8a63" />
+            <stop offset="55%" stopColor="#f1683c" />
+            <stop offset="100%" stopColor="#e2552f" />
+          </linearGradient>
+        </defs>
+        {/* asphalt pad */}
+        <rect x="2" y="4" width="116" height="88" rx="10" fill="#4a5362" />
+        <rect x="2" y="4" width="116" height="88" rx="10" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="1.5" />
+        {/* painted bay — open at the top, where the car drove in */}
+        <path d="M 28 14 L 28 82 L 92 82 L 92 14" fill="none" stroke="#ffffff" strokeWidth="3" strokeLinecap="round" opacity="0.85" />
+        {/* painted P beside the bay */}
+        <text x="105" y="32" textAnchor="middle" fontSize="19" fontWeight="800" fill="#ffffff" opacity="0.85" fontFamily="system-ui, sans-serif">P</text>
+        {/* ground shadow */}
+        <ellipse cx="60" cy="79" rx="27" ry="5.5" fill="rgba(0,0,0,0.28)" />
+        {/* the car, nose up: body, mirrors, glass, roof, lights */}
+        <rect x="38" y="14" width="44" height="64" rx="15" fill={`url(#${grad})`} stroke="rgba(0,0,0,0.18)" strokeWidth="1.5" />
+        <rect x="32.5" y="28" width="7" height="9" rx="3" fill="#c9472a" />
+        <rect x="80.5" y="28" width="7" height="9" rx="3" fill="#c9472a" />
+        <path d="M 45 25 q 15 -5 30 0 l -2.5 9 q -12.5 -4 -25 0 Z" fill="#bfe3f2" opacity="0.95" />
+        <rect x="44" y="38" width="32" height="22" rx="6" fill="#ef7a50" />
+        <rect x="47" y="40" width="11" height="18" rx="4" fill="rgba(255,255,255,0.25)" />
+        <path d="M 46 68 q 14 5 28 0 l 2 6 q -16 5 -32 0 Z" fill="#9fd0e6" opacity="0.85" />
+        <circle cx="45" cy="17.5" r="2.4" fill="#fff7d6" />
+        <circle cx="75" cy="17.5" r="2.4" fill="#fff7d6" />
       </svg>
       {plate && (
         <span className="absolute left-1/2 -translate-x-1/2 -bottom-2 rounded-md bg-white px-1.5 py-0.5 text-[9px] font-bold tnum text-navy-900 ring-1 ring-slate-300 shadow-sm whitespace-nowrap">{plate}</span>

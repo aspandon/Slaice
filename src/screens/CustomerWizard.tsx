@@ -499,8 +499,13 @@ export function CustomerWizard() {
 /* ============ Progress rail — the journey path ============
    A dotted footpath across the sand connecting the five steps; the walked
    stretch draws in teal as you advance and a marker strolls to the active
-   station. Stations stay buttons (back-jumps only, like the old rail). */
-const TRAIL_D = "M 2 9 C 9 5.5, 17 11, 25 8.5 S 42 5.5, 50 8 S 67 11, 75 8 S 91 5.5, 98 8.5";
+   station. Stations stay buttons (back-jumps only, like the old rail).
+   The path runs exactly from the first to the last station centre (x 10→90
+   matches the 5-column grid), so `stepIdx / 4` lands the drawn stroke and the
+   marker precisely on each dot. No vector-effect on the strokes: Chromium
+   mis-evaluates pathLength-normalised dashes under non-scaling-stroke, which
+   rendered the walked line as broken dash cycles. */
+const TRAIL_D = "M 10 8.5 C 16 6, 24 10.5, 30 8 S 44 6, 50 8.2 S 64 10.5, 70 7.8 S 84 6, 90 8.5";
 function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number) => void }) {
   const tr = useT();
   const root = useRef<HTMLDivElement>(null);
@@ -516,9 +521,9 @@ function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number
       {/* The path baseline runs through the station-dot centres (14px down);
           x 10/30/50/70/90 in the 0–100 viewBox matches the 5-column grid. */}
       <svg aria-hidden="true" className="absolute left-0 right-0 top-[7px] h-[14px] w-full" viewBox="0 0 100 14" preserveAspectRatio="none">
-        <path d={TRAIL_D} fill="none" stroke="#cbd5e1" strokeWidth={2} strokeLinecap="round" vectorEffect="non-scaling-stroke" pathLength={100} strokeDasharray="0.1 3.1" />
+        <path d={TRAIL_D} fill="none" stroke="#cbd5e1" strokeWidth={2} strokeLinecap="round" pathLength={100} strokeDasharray="0.4 2.8" />
         <path
-          d={TRAIL_D} fill="none" stroke="#14b8a6" strokeWidth={2.5} strokeLinecap="round" vectorEffect="non-scaling-stroke"
+          d={TRAIL_D} fill="none" stroke="#14b8a6" strokeWidth={2.5} strokeLinecap="round"
           pathLength={100} strokeDasharray={100} strokeDashoffset={100 - frac * 100}
           style={{ transition: "stroke-dashoffset .7s cubic-bezier(.22,1,.36,1)" }}
         />
