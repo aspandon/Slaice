@@ -13,7 +13,7 @@ import { BeachBackdrop, SunbedMark } from "../components/Beach";
 const BeachCanvas = lazyWithReload(() => import("../components/BeachCanvas").then((m) => ({ default: m.BeachCanvas })));
 import { BackgroundPicker } from "../components/BackgroundPicker";
 import { fileToBackgroundSrc } from "../lib/image";
-import { ZONES, zoneLayout } from "../data/beach";
+import { ZONES, zoneLayout, WEATHER_KINDS, WEATHER_DEMO, DAY_MIN, DAY_MAX, fmtHour } from "../data/beach";
 import { LOYALTY_REWARDS, BUILTIN_SCHEMES, makeCustomScheme, schemeDefaults } from "../data/loyalty";
 import type { LoyaltyScheme, SchemeValues, SchemeField } from "../data/loyalty";
 import { BADGE_COLORS, BADGE_COLOR_KEYS, BADGE_ICONS, GAME_METRICS } from "../data/gamification";
@@ -454,7 +454,6 @@ function ZoneArrangeEditor() {
           </div>
         </Card>
 
-        <div className="space-y-4">
         <Card className="p-5 h-max">
           <div className="font-semibold text-navy-900 mb-3 flex items-center gap-2">
             <span className="w-3 h-3 rounded-full" style={{ background: selected.color }} /> Zone properties
@@ -494,8 +493,6 @@ function ZoneArrangeEditor() {
             </div>
           </div>
         </Card>
-        <AtmosphereCard />
-        </div>
       </div>
       <BackgroundPicker open={pickerOpen} onClose={() => setPickerOpen(false)} />
     </div>
@@ -709,29 +706,60 @@ function SunbedLayoutEditor() {
   );
 }
 
-/* Customer-surface atmosphere switches — whether the demo weather graphics and
-   the time-of-day lighting (incl. the golden-hour checkout finale) run for
-   guests. Purely cosmetic effects; booking always works with them off. */
+/* Customer-surface atmosphere — the tenant's control over the scene effects:
+   master switches for the weather graphics and time-of-day lighting (incl.
+   the golden-hour checkout finale), plus the live values themselves (current
+   weather + scene clock). The guests' Home demo pill mirrors the same state;
+   at launch that pill goes away and this card is the only control. Purely
+   cosmetic; booking always works with everything off. */
 function AtmosphereCard() {
-  const { sceneFx, setSceneFx, toast } = useApp();
+  const { sceneFx, setSceneFx, weather, setWeather, dayTime, setDayTime, toast } = useApp();
   return (
-    <Card className="p-5 h-max">
+    <Card className="p-5 mt-4">
       <div className="font-semibold text-navy-900 mb-1 flex items-center gap-2"><Icon.sun size={15} className="text-gold-600" /> Atmosphere</div>
-      <div className="text-[12px] text-slate-600 mb-3">Visual effects on the customer beach. Cosmetic only — booking is unaffected.</div>
-      <div className="space-y-2.5">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="text-[13px] font-semibold text-navy-900">Weather effects</div>
-            <div className="text-[11px] text-slate-500">Demo weather picker, sea state, rain &amp; scene tint</div>
+      <div className="text-[12px] text-slate-600 mb-4">Weather graphics and daylight on the customer beach. Cosmetic only — booking is unaffected.</div>
+      <div className="grid md:grid-cols-3 gap-x-6 gap-y-4">
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[13px] font-semibold text-navy-900">Weather effects</div>
+              <div className="text-[11px] text-slate-500">Sea state, rain, cloud cover &amp; scene tint</div>
+            </div>
+            <Toggle on={sceneFx.weather} onChange={(v) => { setSceneFx({ weather: v }); toast(`Weather effects ${v ? "enabled" : "disabled"}.`, { tone: "success" }); }} />
           </div>
-          <Toggle on={sceneFx.weather} onChange={(v) => { setSceneFx({ weather: v }); toast(`Weather effects ${v ? "enabled" : "disabled"}.`, { tone: "success" }); }} />
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-[13px] font-semibold text-navy-900">Time-of-day lighting</div>
+              <div className="text-[11px] text-slate-500">Scene clock + golden-hour checkout finale</div>
+            </div>
+            <Toggle on={sceneFx.daytime} onChange={(v) => { setSceneFx({ daytime: v }); toast(`Time-of-day lighting ${v ? "enabled" : "disabled"}.`, { tone: "success" }); }} />
+          </div>
         </div>
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <div className="text-[13px] font-semibold text-navy-900">Time-of-day lighting</div>
-            <div className="text-[11px] text-slate-500">Scene clock + golden-hour checkout finale</div>
+        <div className={sceneFx.weather ? "" : "opacity-40 pointer-events-none"}>
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Current weather</div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {WEATHER_KINDS.map((k) => {
+              const P = WEATHER_DEMO[k];
+              const PI = Icon[P.icon] || Icon.sun;
+              const active = k === weather;
+              return (
+                <button key={k} onClick={() => setWeather(k)} aria-pressed={active}
+                  className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[12.5px] font-semibold ring-1 transition ${active ? "bg-navy-900 text-white ring-navy-900" : "bg-white text-navy-900 ring-slate-200 hover:ring-teal-400"}`}>
+                  <PI size={14} className={active ? "" : "text-teal-600"} />
+                  <span className="flex-1 leading-tight">{P.label}</span>
+                  <span className={`tnum text-[10.5px] ${active ? "text-white/70" : "text-slate-500"}`}>{P.tempC}°</span>
+                </button>
+              );
+            })}
           </div>
-          <Toggle on={sceneFx.daytime} onChange={(v) => { setSceneFx({ daytime: v }); toast(`Time-of-day lighting ${v ? "enabled" : "disabled"}.`, { tone: "success" }); }} />
+        </div>
+        <div className={sceneFx.daytime ? "" : "opacity-40 pointer-events-none"}>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Scene clock</span>
+            <span className="text-[12px] font-bold text-navy-900 tnum">{fmtHour(dayTime)}</span>
+          </div>
+          <input type="range" min={DAY_MIN} max={DAY_MAX} step={0.25} value={dayTime} onChange={(e) => setDayTime(parseFloat(e.target.value))} aria-label="Scene clock" className="demo-range w-full" />
+          <div className="text-[11px] text-slate-500 mt-1.5">Checkout always eases into golden hour — sun permitting.</div>
         </div>
       </div>
     </Card>
@@ -747,6 +775,8 @@ export function AdminMapEditor() {
         <div className="text-[12px] text-slate-500 hidden sm:block">Arrange zones, then place each zone&apos;s sunbeds in detail.</div>
       </div>
       {tab === "zones" ? <ZoneArrangeEditor /> : <SunbedLayoutEditor />}
+      {/* Page-level (visible on both tabs): the scene-atmosphere controls. */}
+      <AtmosphereCard />
     </div>
   );
 }

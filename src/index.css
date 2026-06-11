@@ -368,6 +368,32 @@ html[data-persona="customer"]::-webkit-scrollbar {
     box-shadow: 0 1px 4px rgba(15, 23, 42, 0.3);
   }
 
+  /* Overcast cloud cover — two banks of huge soft gradient blobs drifting
+     slowly in opposite directions over the upper scene. Opacity is driven by
+     the demo weather; under reduced motion the banks simply hang still. */
+  .cloud-bank,
+  .cloud-bank-b {
+    position: absolute;
+    inset: -22% -32%;
+    pointer-events: none;
+    background-image:
+      radial-gradient(42% 26% at 16% 20%, rgba(241, 245, 249, 0.9), rgba(241, 245, 249, 0) 70%),
+      radial-gradient(52% 30% at 62% 10%, rgba(226, 232, 240, 0.85), rgba(226, 232, 240, 0) 72%),
+      radial-gradient(40% 24% at 90% 26%, rgba(203, 213, 225, 0.75), rgba(203, 213, 225, 0) 70%);
+    animation: cloudDrift 150s ease-in-out infinite alternate;
+  }
+  .cloud-bank-b {
+    background-image:
+      radial-gradient(46% 26% at 34% 34%, rgba(214, 222, 233, 0.7), rgba(214, 222, 233, 0) 70%),
+      radial-gradient(38% 22% at 78% 44%, rgba(229, 234, 241, 0.6), rgba(229, 234, 241, 0) 70%);
+    animation-duration: 200s;
+    animation-direction: alternate-reverse;
+  }
+  @keyframes cloudDrift {
+    from { transform: translateX(-3.5%); }
+    to { transform: translateX(3.5%); }
+  }
+
   /* Breathing glow for the primary hero CTA — shadow-only (no transform, so it
      can't fight the magnetic-hover tween that owns the element's transform). */
   .cta-breathe {

@@ -10,7 +10,9 @@
 import type { BeachBackground } from "../domain/types";
 
 /** Composable scene props layered over the gradients to make a preset feel
- *  richer. Simple presets use none; elaborate ones combine a few. */
+ *  richer. Every preset carries the ambient trio (clouds, sailboat, birds) so
+ *  the desktop backdrop always has life; the heavier scene-identity pieces
+ *  (sun, palms, rocks) stay per-preset. */
 export type DecorKind = "sun" | "clouds" | "palms" | "sailboat" | "birds" | "rocks";
 
 export interface BeachPreset {
@@ -51,7 +53,7 @@ const SIMPLE: BeachPreset[] = [
     glint: true,
     waves: 2,
     grain: false,
-    decor: [],
+    decor: ["clouds", "sailboat", "birds"],
   },
   {
     id: "turquoise",
@@ -65,7 +67,7 @@ const SIMPLE: BeachPreset[] = [
     glint: true,
     waves: 2,
     grain: false,
-    decor: [],
+    decor: ["clouds", "sailboat", "birds"],
   },
   {
     id: "sunset",
@@ -79,7 +81,7 @@ const SIMPLE: BeachPreset[] = [
     glint: false,
     waves: 2,
     grain: false,
-    decor: ["sun"],
+    decor: ["sun", "clouds", "sailboat", "birds"],
   },
   {
     id: "slate",
@@ -93,7 +95,7 @@ const SIMPLE: BeachPreset[] = [
     glint: false,
     waves: 1,
     grain: false,
-    decor: [],
+    decor: ["clouds", "sailboat", "birds"],
   },
 ];
 
@@ -128,7 +130,7 @@ const ELABORATE: BeachPreset[] = [
     glint: true,
     waves: 3,
     grain: true,
-    decor: ["sun", "palms", "birds"],
+    decor: ["sun", "clouds", "sailboat", "palms", "birds"],
   },
   {
     id: "golden",
@@ -156,7 +158,7 @@ const ELABORATE: BeachPreset[] = [
     glint: true,
     waves: 3,
     grain: true,
-    decor: ["rocks", "palms"],
+    decor: ["clouds", "sailboat", "rocks", "palms", "birds"],
   },
 ];
 

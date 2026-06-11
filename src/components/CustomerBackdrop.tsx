@@ -58,12 +58,21 @@ export function CustomerBackdrop({ immersive, golden = false }: { immersive: boo
   // Resolve the environment. Disabled effects fall back to a neutral noon /
   // sunny scene, so the admin switches cleanly restore the original look.
   const wd = sceneFx.weather ? WEATHER_DEMO[weather] : WEATHER_DEMO.sunny;
-  const hour = sceneFx.daytime ? (golden ? GOLDEN_HOUR : dayTime) : 12;
-  const { warm, night } = sceneFx.daytime ? dayLight(hour) : { warm: 0, night: 0 };
+  const baseHour = sceneFx.daytime ? dayTime : 12;
+  // The golden finale only moves the day FORWARD (a 21:00 scene stays night,
+  // a noon scene eases to sunset) and the warmth is muted by cloud cover —
+  // no golden glow through an overcast or rainy sky. This keeps checkout's
+  // light a continuation of the home scene rather than a different day.
+  const hour = sceneFx.daytime && golden ? Math.max(baseHour, GOLDEN_HOUR) : baseHour;
+  const light = sceneFx.daytime ? dayLight(hour) : { warm: 0, night: 0 };
+  const warm = light.warm * (0.2 + 0.8 * wd.glint);
+  const night = light.night;
   const seaEnv: SeaEnv = { wind: wd.wind, glint: wd.glint, dusk: warm, night };
   const raining = sceneFx.weather && weather === "rainy";
   // The particle layer runs for rain and for strong wind (gust streaks).
   const particles = raining || (sceneFx.weather && wd.wind > 0.5);
+  // Cloud cover for grey weather (rain slightly heavier than plain overcast).
+  const clouds = sceneFx.weather && (weather === "overcast" || weather === "rainy") ? (weather === "rainy" ? 0.7 : 0.58) : 0;
 
   return (
     <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
@@ -73,22 +82,30 @@ export function CustomerBackdrop({ immersive, golden = false }: { immersive: boo
           the menu and the tappable sand. */}
       <LifeRing className={`hidden sm:block absolute left-[8%] w-[60px] h-[60px] transition-[top] duration-700 ease-out ${immersive ? "top-[20%]" : "top-[72%]"}`} />
 
-      {/* ---- Scene grading (CSS transitions ease every change) ----
+      {/* Cloud cover for overcast/rainy — drifting banks of soft grey blobs. */}
+      <div className="absolute inset-0 overflow-hidden transition-opacity duration-1000" style={{ opacity: clouds }}>
+        <div className="cloud-bank" />
+        <div className="cloud-bank-b" />
+      </div>
+
+      {/* ---- Scene grading ----
           Golden hour: a soft-light warmth over everything plus a screen-blended
           sun haze high in the sky; dawn/dusk: a deep blue multiply. Weather adds
           its own grey multiply. Blend overlays grade the SVG fallback and the
-          WebGL sea alike, so phones get the same mood. */}
+          WebGL sea alike, so phones get the same mood. The daylight overlays
+          glide slowly (1.6s) so checkout's golden-hour entrance reads as a
+          deliberate sunset, not a scene swap. */}
       <div
-        className="absolute inset-0 transition-opacity duration-700"
-        style={{ opacity: warm, mixBlendMode: "soft-light", background: "linear-gradient(to top, rgba(255,118,40,0.85), rgba(255,82,96,0.45) 45%, rgba(122,72,150,0.3))" }}
+        className="absolute inset-0 transition-opacity"
+        style={{ transitionDuration: "1600ms", opacity: warm, mixBlendMode: "soft-light", background: "linear-gradient(to top, rgba(255,118,40,0.85), rgba(255,82,96,0.45) 45%, rgba(122,72,150,0.3))" }}
       />
       <div
-        className="absolute inset-0 transition-opacity duration-700"
-        style={{ opacity: warm * 0.8, mixBlendMode: "screen", background: "radial-gradient(58% 42% at 68% 6%, rgba(255,168,76,0.5), rgba(255,168,76,0) 70%)" }}
+        className="absolute inset-0 transition-opacity"
+        style={{ transitionDuration: "1600ms", opacity: warm * 0.8, mixBlendMode: "screen", background: "radial-gradient(58% 42% at 68% 6%, rgba(255,168,76,0.5), rgba(255,168,76,0) 70%)" }}
       />
       <div
-        className="absolute inset-0 transition-opacity duration-700"
-        style={{ opacity: night * 0.55, mixBlendMode: "multiply", background: "#1d2f55" }}
+        className="absolute inset-0 transition-opacity"
+        style={{ transitionDuration: "1600ms", opacity: night * 0.55, mixBlendMode: "multiply", background: "#1d2f55" }}
       />
       <div
         className="absolute inset-0 transition-opacity duration-700"

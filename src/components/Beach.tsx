@@ -159,22 +159,20 @@ const sandTopD = (dy = 0, off = 0) =>
 const sandBandD = (dy = 0, o1 = 0, o2 = 0) =>
   `${sandTopD(dy, o1)} L 1620 ${510 + o2 + dy} C 1200 ${450 + o2 + dy} 1040 ${465 + o2 + dy} 740 ${510 + o2 + dy} C 440 ${555 + o2 + dy} 220 ${460 + o2 + dy} -20 ${500 + o2 + dy} Z`;
 
-/* Darken a hex colour (f < 1) → "r g b" floats for feColorMatrix, plus rgb(). */
+/* Darken a hex colour (f < 1) → 0–1 floats for feColorMatrix. */
 const shadeRgb = (hex: string, f: number): [number, number, number] => {
   const n = parseInt(hex.slice(1), 16);
   return [(((n >> 16) & 255) / 255) * f, (((n >> 8) & 255) / 255) * f, ((n & 255) / 255) * f];
 };
-const rgbCss = ([r, g, b]: [number, number, number]) => `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
 
 /* ---------- Sand detail ----------
-   Subtle realism layered over the flat sand fill: a wet reflective sheen just
-   under the foam, two faint high-water marks left by earlier waves (the lower
-   one broken, like a tide line of debris), and — on grainy presets — soft
-   large-scale mottling that reads as damp patches. Every tint derives from the
-   preset's own sand palette so all scenes stay coherent. */
+   Subtle realism layered over the flat sand fill — and deliberately free of
+   hard horizontal edges, which read as stripes across the beach. The wet zone
+   under the foam is a gradient band that dissolves into dry sand, topped by a
+   soft reflective sheen; grainy presets add large-scale mottling that reads as
+   damp patches. Tints derive from the preset's own sand palette. */
 function SandDetail({ preset, dy = 0, mottle, idp }: { preset: BeachPreset; dy?: number; mottle: boolean; idp: (k: string) => string }) {
   const dark = shadeRgb(preset.sand[2], 0.55);
-  const darkCss = rgbCss(dark);
   return (
     <>
       {mottle && (
@@ -187,13 +185,16 @@ function SandDetail({ preset, dy = 0, mottle, idp }: { preset: BeachPreset; dy?:
           <path d={sandD(dy)} filter={`url(#${idp("mottle")})`} opacity="0.5" />
         </>
       )}
+      <linearGradient id={idp("wet")} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor="rgba(190, 140, 80, 0.26)" />
+        <stop offset="100%" stopColor="rgba(190, 140, 80, 0)" />
+      </linearGradient>
+      <path d={sandBandD(dy, 8, 92)} fill={`url(#${idp("wet")})`} />
       <linearGradient id={idp("sheen")} x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stopColor="rgba(255,255,255,0.32)" />
+        <stop offset="0%" stopColor="rgba(255,255,255,0.26)" />
         <stop offset="100%" stopColor="rgba(255,255,255,0)" />
       </linearGradient>
-      <path d={sandBandD(dy, 2, 42)} fill={`url(#${idp("sheen")})`} />
-      <path d={sandTopD(dy, 36)} fill="none" stroke={darkCss} strokeWidth="2.4" opacity="0.12" />
-      <path d={sandTopD(dy, 58)} fill="none" stroke={darkCss} strokeWidth="1.8" opacity="0.1" strokeDasharray="16 12" strokeLinecap="round" />
+      <path d={sandBandD(dy, 2, 56)} fill={`url(#${idp("sheen")})`} />
     </>
   );
 }

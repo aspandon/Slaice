@@ -4195,8 +4195,8 @@ void main() {
 
   // Whitecaps — wind shears the ridge tops into broken white flecks. Almost
   // absent on a calm day, unmistakable chop when it blows.
-  float caps = smoothstep(0.82 - 0.2 * uWind, 0.96, n1) * uWind;
-  col = mix(col, vec3(1.0), caps * 0.45 * band);
+  float caps = smoothstep(0.78 - 0.25 * uWind, 0.95, n1) * uWind;
+  col = mix(col, vec3(1.0), caps * 0.6 * band);
 
   // Crest lines — the SVG's white wave bands, undulating much harder in wind
   // (and presets with fewer bands gain extra ones as it picks up).
@@ -4209,7 +4209,7 @@ void main() {
                + 5.0 * amp * sin(p.x * 0.0023 - t * 0.13 + fi * 0.8);
       float a = 1.0 - smoothstep(0.0, 2.2, abs(p.y - yC));
       float op = fi < 1.0 ? 1.0 : fi < 2.0 ? 0.7 : 0.5;
-      col = mix(col, vec3(1.0), a * op * 0.35 * (0.78 + uWind) * (0.8 + 0.2 * sin(t * 0.5 + fi * 1.9)));
+      col = mix(col, vec3(1.0), a * op * 0.35 * (0.7 + 1.3 * uWind) * (0.8 + 0.2 * sin(t * 0.5 + fi * 1.9)));
     }
   }
 

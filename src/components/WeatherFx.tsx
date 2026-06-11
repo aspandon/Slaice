@@ -113,8 +113,8 @@ export function WeatherFxCanvas({ rain, wind }: { rain: boolean; wind: number })
       if (wind > 0.5) {
         gustIn -= dt;
         if (gustIn <= 0) {
-          gustIn = rnd(0.35, 1.3) / wind;
-          gusts.push({ x: rnd(-0.2 * W, 0.2 * W), y: rnd(H * 0.06, H * 0.85), len: rnd(140, 340), sp: rnd(620, 980), o: rnd(0.1, 0.22), t: 0, dur: rnd(1.1, 1.9), amp: rnd(6, 16) });
+          gustIn = rnd(0.22, 0.85) / wind;
+          gusts.push({ x: rnd(-0.2 * W, 0.2 * W), y: rnd(H * 0.06, H * 0.85), len: rnd(160, 380), sp: rnd(620, 980), o: rnd(0.2, 0.38), t: 0, dur: rnd(1.1, 1.9), amp: rnd(6, 16) });
         }
         for (let i = gusts.length - 1; i >= 0; i--) {
           const u = gusts[i];
@@ -127,7 +127,7 @@ export function WeatherFxCanvas({ rain, wind }: { rain: boolean; wind: number })
           // Fade in/out across the gust's life; a gentle sine gives it a swoosh.
           const a = u.o * Math.sin(Math.min(1, u.t / u.dur) * Math.PI);
           g.strokeStyle = `rgba(255,255,255,${a})`;
-          g.lineWidth = 1.4;
+          g.lineWidth = 2;
           g.beginPath();
           for (let s = 0; s <= 1; s += 0.2) {
             const px = u.x - u.len * s;
