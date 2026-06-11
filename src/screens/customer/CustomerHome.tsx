@@ -1,9 +1,11 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
 import { Badge, Btn } from "../../components/ui";
 import { PassCard } from "../../components/PassCard";
 import { gsap, motionOK, DUR, EASE, useMagnetic, useCardTilt } from "../../lib/fx";
+import { useCountUp } from "../../lib/motion";
+import { ZONES, zoneLayout } from "../../data/beach";
 import { SEASON_END_LABEL } from "../../data/passes";
 import { BUILTIN_SCHEMES, makeCustomScheme, schemeProgress, HOME_LOYALTY_STATS } from "../../data/loyalty";
 import type { RewardState, LoyaltyState } from "../../data/loyalty";
@@ -25,13 +27,23 @@ const CARD = "glass-flat rounded-3xl overflow-hidden relative";
 let homeIntroPlayed = false;
 
 export function CustomerHome() {
-  const { dive, loyalty } = useApp();
+  const { dive, loyalty, beachLayout } = useApp();
   const t = useT();
   const [promoDismissed, setPromoDismissed] = useState(false);
   const rewards = activeRewards(loyalty);
   const ready = rewards.filter((a) => a.state.kind === "claim").length;
   const scope = useRef<HTMLDivElement>(null);
   const cta = useMagnetic<HTMLSpanElement>(0.22, 6);
+
+  // Live availability for the hero — summed from the same per-zone layouts the
+  // booking wizard sells from (admin-authored where present), so the number is
+  // always consistent with what the guest will actually find inside.
+  const freeToday = useMemo(
+    () => ZONES.reduce((a, z) => a + (beachLayout[z.id] ?? zoneLayout(z)).filter((s) => s.state === "a").length, 0),
+    [beachLayout],
+  );
+  const fromPrice = useMemo(() => Math.min(...ZONES.map((z) => z.from)), []);
+  const { display: freeDisplay } = useCountUp(freeToday, { duration: 1100 });
 
   // Entrance choreography. Elements render in their final state; GSAP only adds
   // the motion, so reduced-motion users get the static layout untouched.
@@ -51,7 +63,8 @@ export function CustomerHome() {
         .from("[data-hero-chip]", { y: 10, opacity: 0, duration: 0.45 }, 0.15)
         .from("[data-hero-word]", { y: "0.7em", opacity: 0, duration: DUR.md, stagger: 0.045 }, 0.25)
         .from("[data-hero-sub]", { y: 12, opacity: 0, duration: 0.5 }, "-=0.3")
-        .from("[data-hero-cta]", { y: 12, opacity: 0, scale: 0.92, duration: 0.55, ease: EASE.spring }, "-=0.35");
+        .from("[data-hero-live]", { y: 10, opacity: 0, duration: 0.45 }, "-=0.3")
+        .from("[data-hero-cta]", { y: 12, opacity: 0, scale: 0.92, duration: 0.55, ease: EASE.spring }, "-=0.3");
     }, scope);
     return () => { clearTimeout(mark); ctx.revert(); };
   }, []);
@@ -83,7 +96,11 @@ export function CustomerHome() {
             <div className="text-[14px] text-slate-700 mt-3 max-w-xl" data-hero-sub>
               {t("Guests, dates, sunbeds, locker, parking — one guided flow with a live total.")}
             </div>
-            <span ref={cta} className="cta-breathe mt-6 inline-flex items-center gap-2 rounded-[14px] px-5 py-2.5 text-sm font-semibold bg-navy-900 text-white shadow-btn-primary" data-hero-cta>
+            <div className="mt-4 flex items-center gap-2.5 text-[13px] font-semibold text-navy-900" data-hero-live>
+              <span aria-hidden="true" className="live-dot relative w-2 h-2 rounded-full bg-teal-500 text-teal-500 shrink-0" />
+              <span><b className="tnum">{freeDisplay}</b> {t("sunbeds free today")} · {t("from")} €{fromPrice}</span>
+            </div>
+            <span ref={cta} className="cta-breathe mt-5 inline-flex items-center gap-2 rounded-[14px] px-5 py-2.5 text-sm font-semibold bg-navy-900 text-white shadow-btn-primary" data-hero-cta>
               <Icon.sparkles size={16} /> {t("Start guided booking")} <Icon.arrowR size={16} />
             </span>
           </div>

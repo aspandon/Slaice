@@ -4,7 +4,7 @@ import { Icon } from "../lib/icons";
 import type { IconRenderer } from "../lib/icons";
 import { Btn, Badge, Stepper, Input, Field, DatePickerRow, Toggle } from "../components/ui";
 import { prefersReducedMotion } from "../lib/motion";
-import { gsap, Flip, motionOK, EASE } from "../lib/fx";
+import { gsap, Flip, motionOK, stashFlip, EASE } from "../lib/fx";
 import { Sunbed, SunbedMark } from "../components/Beach";
 import { SandScene } from "../components/SandScene";
 import { ZONES, ZONE_BLOCKS, todayISO, chipLabel, zoneLayout } from "../data/beach";
@@ -333,6 +333,9 @@ export function CustomerWizard() {
       added++;
     });
     toast(`${tr("Booking ready")} — ${added} ${added !== 1 ? tr("items") : tr("item")} ${tr("added to your basket.")}`, { tone: "success" });
+    // Hand the menu card's rect to Checkout so its summary panel morphs out of
+    // it — the journey's last scene instead of a hard screen swap.
+    stashFlip("checkout-panel", '[data-flip-id="checkout-panel"]');
     go("customer", "checkout");
   };
 
@@ -353,7 +356,7 @@ export function CustomerWizard() {
            store overview gives the menu band less reserved height so the
            clusters get more room to spread. */}
       <div className={`shrink-0 flex items-start justify-center px-3 pt-2 sm:pt-3 ${showSets ? "min-h-[50vh]" : "min-h-[44vh]"}`}>
-        <div className="pointer-events-auto w-full max-w-2xl glass-card rounded-3xl shadow-float flex flex-col max-h-[64vh] overflow-hidden animate-fade-down">
+        <div className="pointer-events-auto w-full max-w-2xl glass-card rounded-3xl shadow-float flex flex-col max-h-[64vh] overflow-hidden animate-fade-down" data-flip-id="checkout-panel">
           {/* Pinned header — leave, progress, (step title only on the form steps). */}
           <div className="p-4 sm:p-5 pb-3 shrink-0">
             <div className="flex items-center justify-between mb-3">

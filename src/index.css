@@ -323,6 +323,22 @@ html[data-persona="customer"]::-webkit-scrollbar {
     100% { background-position: -65% 0; }
   }
 
+  /* "Live" indicator dot — a ping ring expands from the dot (colour comes
+     from currentColor). Under reduced motion the ring's animation collapses
+     to its final, invisible frame, leaving just the solid dot. */
+  .live-dot::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: 9999px;
+    background: currentColor;
+    animation: livePing 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+  }
+  @keyframes livePing {
+    0% { transform: scale(1); opacity: 0.55; }
+    75%, 100% { transform: scale(3); opacity: 0; }
+  }
+
   /* Breathing glow for the primary hero CTA — shadow-only (no transform, so it
      can't fight the magnetic-hover tween that owns the element's transform). */
   .cta-breathe {

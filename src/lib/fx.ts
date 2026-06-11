@@ -101,6 +101,27 @@ export function useCardTilt<T extends HTMLElement = HTMLElement>(maxDeg = 7) {
   return ref;
 }
 
+/* ---- Cross-screen FLIP hand-off ----
+   Lets one screen capture an element's rect as it navigates away (stash) and
+   the next screen morph its own counterpart from that rect (take) — e.g. the
+   wizard's glass menu flying into the checkout summary panel. Entries expire
+   quickly so an aborted navigation can never morph something much later. */
+const flipStash = new Map<string, { state: ReturnType<typeof Flip.getState>; t: number }>();
+export function stashFlip(key: string, selector: string) {
+  if (!motionOK()) return;
+  const els = document.querySelectorAll(selector);
+  if (els.length) flipStash.set(key, { state: Flip.getState(els), t: Date.now() });
+}
+export function takeFlip(key: string) {
+  const hit = flipStash.get(key);
+  if (!hit) return null;
+  // Deleted on a micro-delay, not synchronously: StrictMode's dev-only
+  // mount→unmount→mount cycle re-runs the consuming effect immediately and
+  // must still find the entry.
+  setTimeout(() => flipStash.delete(key), 50);
+  return Date.now() - hit.t < 1500 ? hit.state : null;
+}
+
 /* burstConfetti — a one-shot celebration burst (gold / teal / coral / white)
    launched from the centre of `from`, thrown with Physics2D and cleaned up
    automatically. Used by the booking confirmation. */

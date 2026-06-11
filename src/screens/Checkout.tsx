@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../lib/icons";
 import type { IconRenderer } from "../lib/icons";
-import { gsap, motionOK, EASE, burstConfetti } from "../lib/fx";
+import { gsap, motionOK, takeFlip, Flip, EASE, burstConfetti } from "../lib/fx";
 import { Card, Btn, Badge, PageHead, EmptyState, SwipeRow, Toggle } from "../components/ui";
 import { QR } from "../components/charts";
 import { SlaiceLogo, TenantLogo } from "../components/Brand";
@@ -57,6 +57,20 @@ export function Checkout() {
     if (vipDebit > 0) spendVipCredit(vipDebit);
     setPhase("done");
   };
+  // Arriving from the wizard: its glass menu hands over its rect and the
+  // summary panel morphs out of it while the basket rows stagger in — checkout
+  // reads as the journey's last scene, not a different app. Direct visits
+  // (cart icon, deep link) find no stash and keep the plain fade-up.
+  useLayoutEffect(() => {
+    const state = takeFlip("checkout-panel");
+    if (!state) return;
+    const ctx = gsap.context(() => {
+      Flip.from(state, { targets: '[data-flip-id="checkout-panel"]', scale: true, duration: 0.8, ease: EASE.inOut });
+      gsap.from("[data-cart-row]", { y: 16, opacity: 0, stagger: 0.06, duration: 0.5, ease: EASE.out, delay: 0.15 });
+    });
+    return () => ctx.revert();
+  }, []);
+
   const removeItem = (it: CartItem) => { removeFromCart(it.kind, it.id); toast(`${t("Removed")} ${it.label}.`, { action: { label: t("Undo"), onClick: () => addToCart(it) } }); };
   const emptyBasket = () => {
     const snapshot = [...cart];
@@ -107,7 +121,8 @@ export function Checkout() {
           {/* Swipe a row left (or tap the trash) to remove it. */}
           <div className="divide-y divide-slate-100">
             {cart.map((it) => (
-              <SwipeRow key={it.kind + it.id} onDelete={() => removeItem(it)} rounded="">
+              <div key={it.kind + it.id} data-cart-row>
+              <SwipeRow onDelete={() => removeItem(it)} rounded="">
                 <div className="flex items-center justify-between px-3 py-3 bg-white">
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="w-9 h-9 rounded-lg bg-slate-100 grid place-items-center text-slate-500 shrink-0">{kindIcon(it.kind)}</span>
@@ -116,13 +131,14 @@ export function Checkout() {
                   <div className="flex items-center gap-2 shrink-0"><span className="font-semibold tnum">€{it.price}</span><button aria-label={`${t("Remove")} ${it.label}`} onClick={() => removeItem(it)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={16} /></button></div>
                 </div>
               </SwipeRow>
+              </div>
             ))}
           </div>
         </Card>
         <div className="mt-3 text-[12px] text-slate-600 flex items-center gap-1.5"><Icon.shield size={13} /> {t("On success: booking confirmed via webhook, QR e-mailed, and an ΑΠΥ auto-issued to MyDATA.")}</div>
       </div>
 
-      <div className="lg:sticky lg:top-4 h-max">
+      <div className="lg:sticky lg:top-4 h-max" data-flip-id="checkout-panel">
         <Card className="p-5">
           <div className="flex items-center gap-2 mb-3"><TenantLogo size={30} /><div className="text-sm font-semibold text-navy-900">{TENANT.name}</div></div>
           {/* Customer-facing summary: subtotal, any pass deductions, then what's due now. */}

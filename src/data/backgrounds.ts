@@ -112,7 +112,9 @@ const ELABORATE: BeachPreset[] = [
     glint: true,
     waves: 4,
     grain: true,
-    decor: [],
+    // Sky/sea life for the ambient layer — clouds drift, the boat tacks and
+    // the flock crosses the bay on the desktop backdrop (static elsewhere).
+    decor: ["clouds", "sailboat", "birds"],
   },
   {
     id: "palms",
