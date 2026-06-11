@@ -6,7 +6,7 @@ import { useT } from "../../app/store";
 export function SiteFooter() {
   const t = useT();
   return (
-    <footer className="mt-10 md:mt-16 pt-4 md:pt-10 pb-0 flex justify-center relative z-10">
+    <footer className="mt-6 pt-3 pb-1 flex justify-center relative z-10">
       <div className="flex items-center gap-1.5 text-[11.5px] text-slate-700">
         <span>{t("powered by")}</span>
         <span className="font-bold text-navy-900">SLA<span className="text-gold-600">i</span>CE</span>
