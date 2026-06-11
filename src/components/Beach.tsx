@@ -375,15 +375,15 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv }: { prese
   useEffect(() => {
     const root = mid.current;
     if (!root || !motionOK()) return;
-    const windK = 0.85 + 0.7 * wind;
+    const windK = 0.75 + 1.1 * wind;
     const anims: gsap.core.Animation[] = [];
     root.querySelectorAll('[data-amb="cloud"]').forEach((c, i) => {
-      anims.push(gsap.to(c, { x: i % 2 ? -48 : 56, duration: (85 + i * 24) / windK, yoyo: true, repeat: -1, ease: "sine.inOut" }));
+      anims.push(gsap.to(c, { x: (i % 2 ? -48 : 56) * (0.8 + wind), duration: (85 + i * 24) / windK, yoyo: true, repeat: -1, ease: "sine.inOut" }));
     });
     const boat = root.querySelector('[data-amb="boat"]');
     if (boat) {
       anims.push(gsap.to(boat, { x: 64, duration: 75 / windK, yoyo: true, repeat: -1, ease: "sine.inOut" }));
-      anims.push(gsap.to(boat, { y: 4, rotation: 1.6 * (0.7 + wind), transformOrigin: "50% 85%", duration: 4.6 / windK, yoyo: true, repeat: -1, ease: "sine.inOut" }));
+      anims.push(gsap.to(boat, { y: 4 + 3 * wind, rotation: 0.6 + 3.2 * wind, transformOrigin: "50% 85%", duration: 4.6 / windK, yoyo: true, repeat: -1, ease: "sine.inOut" }));
     }
     const birds = root.querySelector('[data-amb="birds"]');
     let flight: gsap.core.Timeline | null = null;

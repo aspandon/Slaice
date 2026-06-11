@@ -199,7 +199,7 @@ void main() {
   // Slow, large swell — the whole surface breathes (harder when windy; the
   // wind also speeds the water clock itself, accumulated JS-side).
   float swell = fbm(p * 0.003 + vec2(t * 0.024, t * 0.014));
-  col *= 1.0 + (swell - 0.5) * (0.05 + 0.09 * uWind);
+  col *= 1.0 + (swell - 0.5) * (0.05 + 0.13 * uWind);
 
   // Sun-glint sheen (the SVG's radial wash from top-centre), plus twinkle.
   // uGlintW fades the whole sheen out as the demo weather clouds over; at
@@ -227,10 +227,16 @@ void main() {
   float band = smoothstep(40.0, 200.0, p.y) * smoothstep(15.0, 130.0, dShore);
   col += vec3(1.0) * (ridge * 0.07 + ridge2 * 0.045) * (0.85 + 0.7 * uWind) * band * (0.7 + 0.5 * glint);
 
-  // Crest lines — the SVG's white wave bands, undulating harder in wind.
-  float amp = 0.85 + 0.7 * uWind;
+  // Whitecaps — wind shears the ridge tops into broken white flecks. Almost
+  // absent on a calm day, unmistakable chop when it blows.
+  float caps = smoothstep(0.82 - 0.2 * uWind, 0.96, n1) * uWind;
+  col = mix(col, vec3(1.0), caps * 0.45 * band);
+
+  // Crest lines — the SVG's white wave bands, undulating much harder in wind
+  // (and presets with fewer bands gain extra ones as it picks up).
+  float amp = 0.8 + 1.1 * uWind;
   for (int i = 0; i < 4; i++) {
-    if (float(i) < uWaves) {
+    if (float(i) < uWaves + 2.0 * uWind) {
       float fi = float(i);
       float yC = 180.0 + 60.0 * fi
                + 7.0 * amp * sin(p.x * 0.0060 + t * 0.22 + fi * 2.1)
@@ -246,7 +252,7 @@ void main() {
   float sh = 1.0 - smoothstep(0.0, 150.0, max(dShore, 0.0));
   col = mix(col, mix(uSea3, vec3(1.0), 0.22), sh * 0.30);
   float e1 = yShore - 9.0 - 11.0 * amp * vnoise(vec2(p.x * 0.016, t * 0.21)) - 5.0 * amp * sin(t * 0.50 + p.x * 0.012);
-  float f1 = (1.0 - smoothstep(0.0, 7.0, abs(p.y - e1))) * (0.42 + 0.18 * uWind + 0.22 * vnoise(vec2(p.x * 0.05, t * 0.33)));
+  float f1 = (1.0 - smoothstep(0.0, 7.0, abs(p.y - e1))) * (0.42 + 0.28 * uWind + 0.22 * vnoise(vec2(p.x * 0.05, t * 0.33)));
   float e2 = yShore - 30.0 - 15.0 * amp * vnoise(vec2(p.x * 0.012 + 7.3, t * 0.15));
   float f2 = (1.0 - smoothstep(0.0, 5.0, abs(p.y - e2))) * (0.16 + 0.1 * uWind);
   col = mix(col, uFoamCol, clamp(f1 + f2, 0.0, 1.0) * uFoamA * step(0.0, dShore + 8.0));

@@ -4,6 +4,7 @@ import { LifeRing } from "./LifeRing";
 import { prefersReducedMotion, staticBackdrop } from "../lib/motion";
 import { dayLight, GOLDEN_HOUR, WEATHER_DEMO } from "../data/beach";
 import type { SeaEnv } from "./LiveSeaCanvas";
+import { WeatherFxCanvas } from "./WeatherFx";
 import { useApp } from "../app/store";
 
 /* Sand-top fraction (0–1). Higher = thinner sand strip / ocean vista; lower lifts
@@ -61,6 +62,8 @@ export function CustomerBackdrop({ immersive, golden = false }: { immersive: boo
   const { warm, night } = sceneFx.daytime ? dayLight(hour) : { warm: 0, night: 0 };
   const seaEnv: SeaEnv = { wind: wd.wind, glint: wd.glint, dusk: warm, night };
   const raining = sceneFx.weather && weather === "rainy";
+  // The particle layer runs for rain and for strong wind (gust streaks).
+  const particles = raining || (sceneFx.weather && wd.wind > 0.5);
 
   return (
     <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
@@ -91,12 +94,7 @@ export function CustomerBackdrop({ immersive, golden = false }: { immersive: boo
         className="absolute inset-0 transition-opacity duration-700"
         style={{ opacity: wd.dim, mixBlendMode: "multiply", background: "#42566e" }}
       />
-      {raining && (
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="rain-far" />
-          <div className="rain-near" />
-        </div>
-      )}
+      {particles && <WeatherFxCanvas key={`${raining}-${wd.wind}`} rain={raining} wind={wd.wind} />}
     </div>
   );
 }

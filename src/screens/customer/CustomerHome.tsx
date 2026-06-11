@@ -63,11 +63,15 @@ export function CustomerHome() {
     // synchronously) doesn't burn the once-per-session full intro in dev.
     const mark = setTimeout(() => { homeIntroPlayed = true; }, 0);
     const ctx = gsap.context(() => {
+      // Heal first: if a previous entrance was interrupted mid-tween (nav away,
+      // tab switch, a competing CSS transition), a card could be left with a
+      // stale inline opacity — clear everything before animating again.
+      gsap.set("[data-home-card],[data-hero-chip],[data-hero-word],[data-hero-sub],[data-hero-live],[data-hero-cta]", { clearProps: "opacity" });
       if (replay) {
-        gsap.from("[data-home-card]", { y: 16, opacity: 0, duration: 0.45, ease: EASE.out, stagger: 0.05 });
+        gsap.from("[data-home-card]", { y: 16, opacity: 0, duration: 0.45, ease: EASE.out, stagger: 0.05, overwrite: "auto", clearProps: "opacity" });
         return;
       }
-      gsap.timeline({ defaults: { ease: EASE.out } })
+      gsap.timeline({ defaults: { ease: EASE.out, overwrite: "auto", clearProps: "opacity" } })
         .from("[data-home-card]", { y: 26, opacity: 0, duration: 0.7, stagger: 0.08 })
         .from("[data-hero-chip]", { y: 10, opacity: 0, duration: 0.45 }, 0.15)
         .from("[data-hero-word]", { y: "0.7em", opacity: 0, duration: DUR.md, stagger: 0.045 }, 0.25)
@@ -138,7 +142,10 @@ export function CustomerHome() {
 
         {/* Rebook + Your badges — column 2 (badges sit exactly under Rebook) */}
         <div className="flex flex-col gap-4 min-w-0">
-          <button onClick={() => dive()} className={`${CARD} p-5 flex flex-col gap-2.5 text-left hover:bg-white/80 transition group`} data-home-card>
+          {/* transition-colors only: a broad `transition` here also transitions
+              opacity/transform and fights the GSAP entrance that animates this
+              node — which could strand the card near-invisible. */}
+          <button onClick={() => dive()} className={`${CARD} p-5 flex flex-col gap-2.5 text-left hover:bg-white/80 transition-colors group`} data-home-card>
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
               <div className="min-w-0">
