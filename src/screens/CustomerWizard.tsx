@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { Icon } from "../lib/icons";
 import type { IconRenderer } from "../lib/icons";
 import { Btn, Badge, Stepper, Input, Field, DatePickerRow, Toggle } from "../components/ui";
 import { prefersReducedMotion } from "../lib/motion";
+import { gsap, Flip, motionOK, EASE } from "../lib/fx";
 import { Sunbed, SunbedMark } from "../components/Beach";
+import { SandScene } from "../components/SandScene";
 import { ZONES, ZONE_BLOCKS, todayISO, chipLabel, zoneLayout } from "../data/beach";
 import type { SunbedSlot } from "../domain/types";
 import { useApp, useSpotlight, useT } from "../app/store";
@@ -35,6 +37,77 @@ const STEPS = [
   { id: "parking", label: "Parking Spot", icon: "car", sub: "Reserve a spot (optional)",    optional: true },
   { id: "review",  label: "Review",   icon: "checkCircle", sub: "Confirm & checkout" },
 ];
+
+type FlipStateT = ReturnType<typeof Flip.getState>;
+
+/* ---- Sunbed pick feedback (C3) ----
+   Selecting a set pops the umbrella open, ripples the sand around it, and arcs
+   a price chip up into the running total, which pulses on arrival. Deselecting
+   gives a small dip. Imperative one-shot DOM — nothing for React to track. */
+function bedPickFx(el: HTMLElement, price: number, adding: boolean) {
+  if (!motionOK()) return;
+  if (!adding) {
+    gsap.fromTo(el, { scale: 0.88 }, { scale: 1, duration: 0.3, ease: "power2.out" });
+    return;
+  }
+  gsap.fromTo(el, { scale: 0.72 }, { scale: 1, duration: 0.55, ease: EASE.pop });
+  const rip = document.createElement("span");
+  rip.className = "absolute inset-0 rounded-full ring-2 ring-coral-500 pointer-events-none";
+  el.appendChild(rip);
+  gsap.fromTo(rip, { scale: 0.6, opacity: 0.9 }, { scale: 2.2, opacity: 0, duration: 0.7, ease: "power1.out", onComplete: () => rip.remove() });
+
+  const totalEl = document.querySelector<HTMLElement>("[data-wizard-total]");
+  if (!totalEl) return;
+  const a = el.getBoundingClientRect();
+  const b = totalEl.getBoundingClientRect();
+  const chip = document.createElement("div");
+  chip.className = "fixed z-[60] pointer-events-none rounded-full bg-navy-900 text-white text-[12px] font-bold px-2.5 py-1 shadow-float tnum";
+  chip.textContent = `+€${price}`;
+  chip.style.left = `${a.left + a.width / 2}px`;
+  chip.style.top = `${a.top + a.height * 0.2}px`;
+  document.body.appendChild(chip);
+  const dx = b.left + b.width / 2 - (a.left + a.width / 2);
+  const dy = b.top + b.height / 2 - (a.top + a.height * 0.2);
+  gsap.timeline({ onComplete: () => chip.remove() })
+    .fromTo(chip, { xPercent: -50, yPercent: -50, scale: 0.5, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.18, ease: "power2.out" })
+    // Arc up and over to the total (the chip rises before it travels).
+    .to(chip, {
+      motionPath: { path: [{ x: 0, y: 0 }, { x: dx * 0.45, y: Math.min(dy * 0.4, -70) }, { x: dx, y: dy }], curviness: 1.3 },
+      duration: 0.7,
+      ease: "power2.inOut",
+    }, 0.06)
+    .to(chip, { scale: 0.35, opacity: 0, duration: 0.18, ease: "power2.in" }, "-=0.14")
+    .fromTo(totalEl, { scale: 1 }, { scale: 1.07, duration: 0.13, yoyo: true, repeat: 1, ease: "power1.inOut", transformOrigin: "left center" }, "-=0.25");
+}
+
+/* ---- Zone fly-out snapshots (C1) ----
+   When a store cluster is tapped, the overview unmounts immediately so the
+   picked zone's umbrellas can FLIP into the full grid. The *other* clusters
+   (and the picked one's name label) would vanish abruptly — so they're cloned
+   at their viewport rects into a throwaway fixed layer and drift away from the
+   picked store while fading. Pure snapshots: no reflow, no React. */
+function cloneFadeClusters(pickedId: string) {
+  const layer = document.createElement("div");
+  layer.className = "fixed inset-0 z-10 pointer-events-none";
+  layer.setAttribute("aria-hidden", "true");
+  document.body.appendChild(layer);
+  const picked = document.querySelector<HTMLElement>(`[data-cluster="${pickedId}"]`);
+  const pr = picked?.getBoundingClientRect();
+  const pcx = pr ? pr.left + pr.width / 2 : window.innerWidth / 2;
+  document.querySelectorAll<HTMLElement>("[data-cluster]").forEach((el) => {
+    const isPicked = el.dataset.cluster === pickedId;
+    // The picked cluster's beds continue as the big grid — only its label fades.
+    const src = isPicked ? el.querySelector<HTMLElement>("[data-cluster-label]") : el;
+    if (!src) return;
+    const r = src.getBoundingClientRect();
+    const node = src.cloneNode(true) as HTMLElement;
+    node.style.cssText += `;position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;margin:0;`;
+    layer.appendChild(node);
+    const drift = isPicked ? 0 : (r.left + r.width / 2 - pcx) * 0.14;
+    gsap.to(node, { opacity: 0, scale: isPicked ? 1 : 0.9, x: drift, duration: isPicked ? 0.25 : 0.45, ease: "power2.in" });
+  });
+  gsap.delayedCall(0.6, () => layer.remove());
+}
 
 /* Smoothly tween a numeric value whenever it changes — used by the live total so
    the user sees the balance move when toggling a service. */
@@ -110,6 +183,14 @@ export function CustomerWizard() {
   const [parkingSamePlate, setParkingSamePlate] = useState(true);
   // Within the Beach step: choosing a zone vs. tapping its sets.
   const [phase, setPhase] = useState<BeachPhase>("zones");
+  // Desktop overview = clusters on open sand (FLIP-zoomable); phones = cards.
+  const richOverview = useMediaQuery("(min-width: 768px) and (min-height: 560px)");
+  // Camera-zoom plumbing: the captured FLIP state riding across the phase
+  // switch, whether the next zones-mount should enter via FLIP (vs the usual
+  // stagger), and a guard against re-entrant taps mid-transition.
+  const flipRef = useRef<FlipStateT | null>(null);
+  const flipBackRef = useRef(false);
+  const zoomingRef = useRef(false);
 
   const totalPeople = people.adult + people.resident + people.child + people.senior;
   const dayCount = selDates.length;
@@ -150,9 +231,61 @@ export function CustomerWizard() {
   const step = STEPS[stepIdx];
   const last = STEPS.length - 1;
 
-  const pickZone = (id: string) => { setZoneId(id); setPhase("sets"); };
-  const toggleBed = (slot: SunbedSlot) =>
-    setBedSel((s) => (s.find((b) => b.id === slot.id) ? s.filter((b) => b.id !== slot.id) : [...s, { id: slot.id, price: slot.price }]));
+  // Tap a store → the camera dives in: its umbrellas FLIP from the cluster into
+  // the full pick grid while the other stores drift away (desktop only; the
+  // phone card list keeps the instant swap).
+  const pickZone = (id: string) => {
+    if (zoomingRef.current) return;
+    if (richOverview && motionOK() && phase === "zones") {
+      flipRef.current = Flip.getState(`[data-cluster="${id}"] [data-flip-id]`);
+      cloneFadeClusters(id);
+      zoomingRef.current = true;
+    }
+    flipBackRef.current = false;
+    setZoneId(id);
+    setPhase("sets");
+  };
+  // Reverse camera: the big grid FLIPs back down into its cluster on the map.
+  const backToZones = () => {
+    if (zoomingRef.current) return;
+    if (richOverview && motionOK()) {
+      flipRef.current = Flip.getState("[data-bed-cell]");
+      flipBackRef.current = true;
+      zoomingRef.current = true;
+    }
+    setPhase("zones");
+  };
+  // Runs right after the phase switch renders the destination layout: animate
+  // the matched sunbeds from their captured rects (zoom in and zoom out). The
+  // flip itself is deferred one frame — the destination grids measure their
+  // box in a layout effect and re-render synchronously, so by the rAF the
+  // cells sit at their final size/positions (and nothing has painted yet).
+  useLayoutEffect(() => {
+    const state = flipRef.current;
+    if (!state) return;
+    flipRef.current = null;
+    const zoomIn = phase === "sets";
+    const targets = zoomIn ? "[data-bed-cell]" : `[data-cluster="${zoneId}"] [data-flip-id]`;
+    gsap.set(targets, { opacity: 0 }); // belt-and-braces against a stray pre-flip paint
+    const raf = requestAnimationFrame(() => {
+      gsap.set(targets, { opacity: 1 });
+      Flip.from(state, {
+        targets,
+        scale: true,
+        duration: zoomIn ? 0.9 : 0.75,
+        ease: EASE.inOut,
+        stagger: zoomIn ? { each: 0.0045, from: "center" } : 0,
+        onComplete: () => { zoomingRef.current = false; },
+      });
+    });
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- flip reads refs + DOM
+  }, [phase]);
+  const toggleBed = (slot: SunbedSlot, el?: HTMLElement | null) => {
+    const adding = !bedSel.find((b) => b.id === slot.id);
+    setBedSel((s) => (adding ? [...s, { id: slot.id, price: slot.price }] : s.filter((b) => b.id !== slot.id)));
+    if (el) bedPickFx(el, slot.price, adding);
+  };
   // Any manual change to the headcount flips off the auto pre-fill for the rest
   // of the session, so the guest's numbers are never overwritten.
   const editPeople = (v: SetStateAction<People>) => { setPeopleTouched(true); setPeople(v); };
@@ -161,7 +294,7 @@ export function CustomerWizard() {
   // Back walks the flow in reverse: sets → zones → out to Home.
   const back = () => {
     if (stepIdx === 0) {
-      if (step.id === "beach" && phase === "sets") { setPhase("zones"); return; }
+      if (step.id === "beach" && phase === "sets") { backToZones(); return; }
       go("customer", "home");
       return;
     }
@@ -203,11 +336,13 @@ export function CustomerWizard() {
     go("customer", "checkout");
   };
 
-  // The sand carries the zone choices, then the sunbed sets — but only on the
-  // Beach step itself. Once the guest moves on, the beach clears (no sets shown
-  // on Guests / Locker / Parking / Review).
+  // The sand carries the zone choices, then the sunbed sets. After the Beach
+  // step it stays alive: your picked sets remain on the sand (read-only) and
+  // each later step adds its vignette — towels for the guests, the locker
+  // cabin, your car at the parking pad — so the booking visibly builds up.
   const showZones = step.id === "beach" && phase === "zones";
   const showSets = step.id === "beach" && phase === "sets";
+  const showScene = step.id !== "beach" && bedSel.length > 0;
   const revealDelay = prefersReducedMotion() ? "0ms" : "420ms";
 
   return (
@@ -238,7 +373,7 @@ export function CustomerWizard() {
               <BeachMenu
                 selDates={selDates} setSelDates={setSelDates}
                 multiDate={multiDate} setMultiDate={setMultiDate}
-                phase={phase} setPhase={setPhase}
+                phase={phase} setPhase={(p) => (p === "zones" ? backToZones() : setPhase(p))}
                 zone={zone} bedSel={bedSel} setBedSel={setBedSel}
                 avail={avail} dayCount={dayCount}
               />
@@ -288,7 +423,7 @@ export function CustomerWizard() {
           <div className="flex items-center justify-between gap-3 p-4 sm:p-5 pt-3 border-t border-slate-200/70 shrink-0">
             <div className="leading-tight">
               <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500">{tr("Total")}</div>
-              <div className="font-display text-2xl font-bold text-navy-900 tnum leading-none">€<LiveEuro value={grandTotal} /></div>
+              <div className="font-display text-2xl font-bold text-navy-900 tnum leading-none" data-wizard-total>€<LiveEuro value={grandTotal} /></div>
             </div>
             <div className="flex items-center gap-2">
               <Btn variant="ghost" icon={Icon.arrowL} onClick={back}>
@@ -310,18 +445,31 @@ export function CustomerWizard() {
         {/* The store overview spreads the full beach width (panoramic); a single
             zone's sunbed grid stays at a comfortable reading width. */}
         <div className={`relative w-full ${showSets ? "max-w-5xl" : "max-w-[1700px]"}`}>
-          {showZones && <StoreOverview selectedId={zoneId} onPick={pickZone} />}
+          {showZones && <StoreOverview selectedId={zoneId} onPick={pickZone} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} />}
           {showSets && <SandSunbeds slots={slots} selected={selectedIds} onToggle={toggleBed} />}
+          {showScene && (
+            <SandScene
+              slots={slots} picked={selectedIds} stepId={step.id}
+              guests={totalPeople}
+              lockerOn={lockerOn} lockerQty={lockerQty}
+              parkingOn={parkingOn && parkingDates.length > 0} plate={plates[selDates[0]]}
+            />
+          )}
         </div>
       </div>
 
       {/* ============ Bottom bar — guidance + always-on Slaice credit ============ */}
       <div className="shrink-0 px-3 pb-1.5 pt-1 pointer-events-none">
-        {(showZones || showSets) && (
+        {(showZones || showSets || showScene) && (
           <div className="max-w-3xl mx-auto pointer-events-auto">
             {showZones && (
               <div className="rounded-2xl glass px-4 py-1.5 text-center">
                 <span className="text-[12.5px] text-navy-900"><b>{tr("Tap a zone on the beach")}</b> {tr("to choose where you'll sit — the sea is at the top.")}</span>
+              </div>
+            )}
+            {showScene && (
+              <div className="rounded-2xl glass px-4 py-1.5 text-center">
+                <span className="text-[12.5px] text-navy-900"><b>{zone.name}</b> · {bedSel.length} {bedSel.length !== 1 ? tr("umbrella sets") : tr("umbrella set")} — {tr("your picks stay on the sand while you finish up.")}</span>
               </div>
             )}
             {showSets && (
@@ -345,34 +493,68 @@ export function CustomerWizard() {
   );
 }
 
-/* ============ Progress rail ============ */
+/* ============ Progress rail — the journey path ============
+   A dotted footpath across the sand connecting the five steps; the walked
+   stretch draws in teal as you advance and a marker strolls to the active
+   station. Stations stay buttons (back-jumps only, like the old rail). */
+const TRAIL_D = "M 2 9 C 9 5.5, 17 11, 25 8.5 S 42 5.5, 50 8 S 67 11, 75 8 S 91 5.5, 98 8.5";
 function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number) => void }) {
   const tr = useT();
+  const root = useRef<HTMLDivElement>(null);
+  const frac = stepIdx / (STEPS.length - 1);
+  // Pop the active station's dot whenever the step changes.
+  useEffect(() => {
+    if (!motionOK() || !root.current) return;
+    const el = root.current.querySelector(`[data-station="${stepIdx}"] [data-station-dot]`);
+    if (el) gsap.fromTo(el, { scale: 0.55 }, { scale: 1, duration: 0.5, ease: EASE.pop });
+  }, [stepIdx]);
   return (
-    <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
-      {STEPS.map((s, i) => {
-        const I = Icon[s.icon];
-        const done = i < stepIdx;
-        const active = i === stepIdx;
-        const reachable = i <= stepIdx; // forward jumps only via Continue
-        return (
-          <div key={s.id} className="flex items-center gap-1 shrink-0">
+    <div ref={root} className="relative">
+      {/* The path baseline runs through the station-dot centres (14px down);
+          x 10/30/50/70/90 in the 0–100 viewBox matches the 5-column grid. */}
+      <svg aria-hidden="true" className="absolute left-0 right-0 top-[7px] h-[14px] w-full" viewBox="0 0 100 14" preserveAspectRatio="none">
+        <path d={TRAIL_D} fill="none" stroke="#cbd5e1" strokeWidth={2} strokeLinecap="round" vectorEffect="non-scaling-stroke" pathLength={100} strokeDasharray="0.1 3.1" />
+        <path
+          d={TRAIL_D} fill="none" stroke="#14b8a6" strokeWidth={2.5} strokeLinecap="round" vectorEffect="non-scaling-stroke"
+          pathLength={100} strokeDasharray={100} strokeDashoffset={100 - frac * 100}
+          style={{ transition: "stroke-dashoffset .7s cubic-bezier(.22,1,.36,1)" }}
+        />
+      </svg>
+      <div
+        aria-hidden="true"
+        className="absolute top-[7px] w-3.5 h-3.5 rounded-full bg-white ring-2 ring-teal-500 shadow -translate-x-1/2 z-[1]"
+        style={{ left: `calc(10% + ${frac} * 80%)`, transition: "left .7s cubic-bezier(.22,1,.36,1)" }}
+      />
+      <div className="relative grid grid-cols-5">
+        {STEPS.map((s, i) => {
+          const I = Icon[s.icon];
+          const done = i < stepIdx;
+          const active = i === stepIdx;
+          const reachable = i <= stepIdx; // forward jumps only via Continue
+          return (
             <button
+              key={s.id}
+              data-station={i}
               onClick={() => reachable && onJump(i)}
               disabled={!reachable}
-              className={`flex items-center gap-2 rounded-xl px-2.5 py-1.5 transition ${
-                active ? "bg-navy-900 text-white shadow-btn-primary" : done ? "bg-teal-50 text-teal-700 hover:bg-teal-100" : "text-slate-500"
-              }`}
+              aria-current={active ? "step" : undefined}
+              className="flex flex-col items-center gap-1 min-w-0 group disabled:cursor-default"
             >
-              <span className={`w-6 h-6 rounded-full grid place-items-center text-[11px] font-bold ${active ? "bg-white/15" : done ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-500"}`}>
+              <span
+                data-station-dot
+                className={`w-7 h-7 rounded-full grid place-items-center transition-colors ${
+                  active ? "bg-navy-900 text-white shadow-btn-primary" : done ? "bg-teal-500 text-white" : "bg-white/80 ring-1 ring-slate-300 text-slate-400 group-hover:ring-teal-400"
+                }`}
+              >
                 {done ? <Icon.check size={13} /> : I ? <I size={12} /> : i + 1}
               </span>
-              <span className="text-[12px] font-semibold whitespace-nowrap">{tr(s.label)}</span>
+              <span className={`text-[10px] font-semibold leading-none truncate max-w-full px-0.5 ${active ? "text-navy-900" : done ? "text-teal-700" : "text-slate-400"}`}>
+                {tr(s.label)}
+              </span>
             </button>
-            {i < STEPS.length - 1 && <Icon.chevR size={12} className="text-slate-300 shrink-0" />}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -494,18 +676,21 @@ function declutter(init: { x: number; y: number }[], W: number, H: number, cw: n
    Tablet / desktop: a panoramic beach — each store's real umbrella rows laid out
    on the open sand (no card chrome) at the admin's position, auto-spaced so they
    never overlap, with the store name + optional logo set on the sand beneath. Tap
-   to open it. Phones / tight screens fall back to compact cards. */
-function StoreOverview({ selectedId, onPick }: { selectedId: string; onPick: (id: string) => void }) {
-  const rich = useMediaQuery("(min-width: 768px) and (min-height: 560px)");
-  return rich ? <StoreClusters selectedId={selectedId} onPick={onPick} /> : <StoreCards selectedId={selectedId} onPick={onPick} />;
+   to open it. Phones / tight screens fall back to compact cards. `rich` is owned
+   by the wizard (it gates the FLIP zoom); `flipEnter` names the zone whose beds
+   are flying back in, so the entrance stagger skips that cluster. */
+function StoreOverview({ selectedId, onPick, rich, flipEnter }: { selectedId: string; onPick: (id: string) => void; rich: boolean; flipEnter: string | null }) {
+  return rich ? <StoreClusters selectedId={selectedId} onPick={onPick} flipEnter={flipEnter} /> : <StoreCards selectedId={selectedId} onPick={onPick} />;
 }
 
-function StoreClusters({ selectedId, onPick }: { selectedId: string; onPick: (id: string) => void }) {
+function StoreClusters({ selectedId, onPick, flipEnter }: { selectedId: string; onPick: (id: string) => void; flipEnter: string | null }) {
   const tr = useT();
   const { beachLayout, zoneLogos } = useApp();
   const ref = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
-  useEffect(() => {
+  // Layout effect: the first measure must land before paint so the zoom-out
+  // FLIP (deferred one frame by the wizard) finds the clusters at final size.
+  useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     const measure = () => { const r = el.getBoundingClientRect(); setBox({ w: Math.round(r.width), h: Math.round(r.height) }); };
@@ -514,6 +699,21 @@ function StoreClusters({ selectedId, onPick }: { selectedId: string; onPick: (id
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // Entrance — GSAP instead of a CSS class so it can't re-trigger on re-render.
+  // Runs once the measured positions exist; when the camera is zooming back out
+  // (`flipEnter`), that zone's cluster appears instantly so its beds can FLIP.
+  const entered = useRef(false);
+  const hasPositions = box.w > 0 && box.h > 0;
+  useLayoutEffect(() => {
+    if (entered.current || !hasPositions || !ref.current) return;
+    entered.current = true;
+    if (!motionOK()) return;
+    const targets = ref.current.querySelectorAll(
+      flipEnter ? `[data-cluster]:not([data-cluster="${flipEnter}"])` : "[data-cluster]",
+    );
+    gsap.from(targets, { opacity: 0, scale: 0.94, y: 10, duration: 0.5, ease: EASE.out, stagger: 0.06, delay: flipEnter ? 0.1 : 0 });
+  }, [hasPositions, flipEnter]);
 
   // Big enough to fill the open beach, small enough that six sit side by side.
   const cw = clampN(box.w * 0.155, 120, 290);
@@ -544,27 +744,30 @@ function StoreClusters({ selectedId, onPick }: { selectedId: string; onPick: (id
         return (
           <button
             key={z.id}
+            data-cluster={z.id}
             onClick={() => onPick(z.id)}
             aria-pressed={active}
             aria-label={`${z.name} — ${slots.length} ${tr("sets")}, ${free} ${tr("free")}, ${tr("from")} €${z.from}${active ? `, ${tr("selected")}` : ""}`}
-            className="absolute group focus:outline-none animate-fade-up pointer-events-auto"
-            style={{ left: pos.x - cw / 2, top: pos.y - ch / 2, width: cw, animationDelay: `${i * 60}ms` }}
+            className="absolute group focus:outline-none pointer-events-auto"
+            style={{ left: pos.x - cw / 2, top: pos.y - ch / 2, width: cw }}
           >
             {/* Soft tint on the sand under the selected / hovered store, so it
                 reads as one beach section without a hard card edge. */}
             <span aria-hidden className={`absolute left-1/2 -translate-x-1/2 top-0 rounded-[45%] blur-2xl transition-opacity duration-300 ${active ? "opacity-45" : "opacity-0 group-hover:opacity-25"}`} style={{ width: "94%", height: plotH, background: z.color }} />
 
-            {/* The store's real umbrella rows, straight on the sand (no card). */}
+            {/* The store's real umbrella rows, straight on the sand (no card).
+                data-flip-id pairs each mini glyph with its big grid cell so the
+                zoom-in/out FLIPs them as one continuous camera move. */}
             <span className={`relative block transition-transform duration-300 ease-spring group-hover:-translate-y-1.5 ${active ? "-translate-y-0.5" : ""}`} style={{ height: plotH }}>
               {slots.map((s) => (
-                <span key={s.id} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${s.x}%`, top: `${s.y}%`, width: glyph, height: glyph }}>
+                <span key={s.id} data-flip-id={s.id} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${s.x}%`, top: `${s.y}%`, width: glyph, height: glyph }}>
                   <SunbedMark state={s.state} fill />
                 </span>
               ))}
             </span>
 
             {/* Store label set on the sand — logo + name + a line of detail. */}
-            <span className="relative block text-center mt-0.5">
+            <span className="relative block text-center mt-0.5" data-cluster-label>
               {logo && <img src={logo} alt="" className="mx-auto mb-1 h-8 w-auto max-w-[82%] object-contain drop-shadow-[0_1px_2px_rgba(255,255,255,0.55)]" />}
               <span className={`block font-display font-bold text-[15px] tracking-wide transition-colors drop-shadow-[0_1px_1px_rgba(255,255,255,0.75)] ${active ? "" : "text-navy-900 group-hover:text-teal-800"}`} style={active ? { color: z.color } : undefined}>{z.name}</span>
               <span className="block text-[10.5px] font-semibold tnum text-navy-800/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.6)]">{tr("from")} €{z.from} · {free} {tr("free")}</span>
@@ -627,16 +830,21 @@ function StoreCards({ selectedId, onPick }: { selectedId: string; onPick: (id: s
 /* ============ Sand layer — umbrella sets ============
    The chosen zone's layout, drawn directly on the sand. Front row (small y) sits
    near the sea at the top; the back row toward the promenade. Each set is sized to
-   its nearest neighbour so glyphs keep clear air and never collide. */
+   its nearest neighbour so glyphs keep clear air and never collide. Cells carry
+   data-flip-id (the zoom FLIP pairs them with the overview minis) and hand their
+   element to onToggle so the pick effects can run from the tapped spot. */
 function SandSunbeds({ slots, selected, onToggle, readOnly = false }: {
   slots: SunbedSlot[];
   selected: Set<string>;
-  onToggle?: (s: SunbedSlot) => void;
+  onToggle?: (s: SunbedSlot, el: HTMLElement | null) => void;
   readOnly?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const cells = useRef(new Map<string, HTMLElement>());
   const [box, setBox] = useState({ w: 0, h: 0 });
-  useEffect(() => {
+  // Layout effect: glyph size derives from this box, so it must settle before
+  // paint for the zoom-in FLIP to capture the cells at their final size.
+  useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
     const measure = () => { const r = el.getBoundingClientRect(); setBox({ w: Math.round(r.width), h: Math.round(r.height) }); };
@@ -663,10 +871,13 @@ function SandSunbeds({ slots, selected, onToggle, readOnly = false }: {
       {slots.map((s) => (
         <div
           key={s.id}
+          ref={(el) => { if (el) cells.current.set(s.id, el); else cells.current.delete(s.id); }}
+          data-bed-cell
+          data-flip-id={s.id}
           className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
           style={{ left: `${s.x}%`, top: `${s.y}%`, width: size, height: size }}
         >
-          <Sunbed state={s.state} sel={selected.has(s.id)} price={s.price} label={s.id} fill readOnly={readOnly} onClick={readOnly ? undefined : () => onToggle?.(s)} />
+          <Sunbed state={s.state} sel={selected.has(s.id)} price={s.price} label={s.id} fill readOnly={readOnly} onClick={readOnly ? undefined : () => onToggle?.(s, cells.current.get(s.id) ?? null)} />
         </div>
       ))}
     </div>

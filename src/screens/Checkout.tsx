@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../lib/icons";
 import type { IconRenderer } from "../lib/icons";
+import { gsap, motionOK, EASE, burstConfetti } from "../lib/fx";
 import { Card, Btn, Badge, PageHead, EmptyState, SwipeRow, Toggle } from "../components/ui";
 import { QR } from "../components/charts";
 import { SlaiceLogo, TenantLogo } from "../components/Brand";
@@ -215,6 +216,28 @@ export function Confirmation({ inline }: { inline?: boolean }) {
   const t = useT();
   // Stable across re-renders so the QR and wallet pass don't change.
   const [ref] = useState(nextBookingRef);
+  const scope = useRef<HTMLDivElement>(null);
+
+  // Celebration: the check springs in and throws confetti, the QR card flips
+  // up in 3D, then the wallet/receipt rows stagger in. Elements render in
+  // their final state — under reduced motion none of this runs.
+  useLayoutEffect(() => {
+    if (!motionOK()) return;
+    const ctx = gsap.context(() => {
+      gsap.timeline({ defaults: { ease: EASE.out } })
+        .from("[data-confirm-check]", { scale: 0, rotation: -100, duration: 0.7, ease: EASE.pop })
+        .add(() => {
+          const el = scope.current?.querySelector<HTMLElement>("[data-confirm-check]");
+          if (el) burstConfetti(el);
+        }, "-=0.25")
+        .from("[data-confirm-head]", { y: 14, opacity: 0, duration: 0.45 }, "-=0.4")
+        .fromTo("[data-confirm-qr]",
+          { transformPerspective: 900, rotationY: 95, opacity: 0 },
+          { rotationY: 0, opacity: 1, duration: 0.85, clearProps: "transform" }, "-=0.2")
+        .from("[data-confirm-item]", { y: 14, opacity: 0, stagger: 0.08, duration: 0.45 }, "-=0.45");
+    }, scope);
+    return () => ctx.revert();
+  }, []);
   // Derive a representative wallet pass from the basket.
   const sunbeds = cart.filter((i) => i.kind === "sunbed");
   const total = cart.reduce((a, b) => a + b.price, 0);
@@ -231,25 +254,27 @@ export function Confirmation({ inline }: { inline?: boolean }) {
   };
   const Wrapper = inline ? "div" : "div";
   return (
-    <Wrapper className="animate-fade-up max-w-xl mx-auto">
+    <Wrapper ref={scope} className="animate-fade-up max-w-xl mx-auto">
       <Card className="p-6 sm:p-8 text-center">
-        <div className="w-16 h-16 mx-auto rounded-2xl bg-teal-600 text-white grid place-items-center animate-pop"><Icon.check size={34} /></div>
-        <h2 className="mt-4 font-display font-bold text-2xl text-navy-900">{t("Payment successful")}</h2>
-        <p className="text-sm text-slate-500 mt-1">{t("Your booking is confirmed. The QR below has been e-mailed to you, and a MyDATA receipt (ΑΠΥ) was issued.")}</p>
+        <div className="w-16 h-16 mx-auto rounded-2xl bg-teal-600 text-white grid place-items-center" data-confirm-check><Icon.check size={34} /></div>
+        <h2 className="mt-4 font-display font-bold text-2xl text-navy-900" data-confirm-head>{t("Payment successful")}</h2>
+        <p className="text-sm text-slate-500 mt-1" data-confirm-head>{t("Your booking is confirmed. The QR below has been e-mailed to you, and a MyDATA receipt (ΑΠΥ) was issued.")}</p>
 
-        <div className="my-5 grid place-items-center"><QR size={180} seed={ref} /></div>
-        <div className="font-mono text-sm text-navy-900 font-semibold">#{ref}</div>
+        <div className="my-5 grid place-items-center" data-confirm-qr><QR size={180} seed={ref} /></div>
+        <div className="font-mono text-sm text-navy-900 font-semibold" data-confirm-item>#{ref}</div>
 
         {/* Add to Apple / Google Wallet */}
-        <WalletButtons pass={pass} className="mt-6 pt-5 border-t border-slate-100" />
+        <div data-confirm-item>
+          <WalletButtons pass={pass} className="mt-6 pt-5 border-t border-slate-100" />
+        </div>
 
-        <div className="mt-6 grid sm:grid-cols-3 gap-2 text-[12px]">
+        <div className="mt-6 grid sm:grid-cols-3 gap-2 text-[12px]" data-confirm-item>
           <Pill icon={Icon.checkCircle} t={t("Stripe paid")} />
           <Pill icon={Icon.mail} t={t("QR e-mailed")} />
           <Pill icon={Icon.receipt} t={t("ΑΠΥ → MyDATA ✓")} />
         </div>
 
-        <div className="mt-6 flex gap-2 justify-center flex-wrap">
+        <div className="mt-6 flex gap-2 justify-center flex-wrap" data-confirm-item>
           <Btn variant="teal" icon={Icon.grid} onClick={() => { clearCart(); go("customer", "mybookings"); }}>{t("View my bookings")}</Btn>
           <Btn variant="outline" icon={Icon.calendar} onClick={() => {
             const start = todayISO();

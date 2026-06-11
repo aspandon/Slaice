@@ -292,6 +292,47 @@ html[data-persona="customer"]::-webkit-scrollbar {
       radial-gradient(circle 420px at var(--gx, 50%) var(--gy, 50%), rgba(45, 212, 191, 0.15), transparent 65%);
   }
 
+  /* Sheen that paints OVER the content — for image/SVG cards (the pass-card
+     art) where a glare across the artwork is the point. Driven by the same
+     --gx/--gy/--ga variables (useCardTilt writes them). */
+  .sheen-card {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: var(--ga, 0);
+    transition: opacity 0.35s ease;
+    background: radial-gradient(circle 240px at var(--gx, 50%) var(--gy, 50%), rgba(255, 255, 255, 0.34), transparent 62%);
+  }
+
+  /* Kinetic gradient text — a gold glint periodically sweeps across the teal
+     phrase (the hero's "in 60 seconds"). Static teal under reduced motion via
+     the global animation kill. */
+  .text-shimmer {
+    background: linear-gradient(100deg, #0d9488 0%, #0d9488 38%, #2dd4bf 46%, #f2b705 52%, #0d9488 60%, #0d9488 100%);
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: #0d9488; /* fallback + reduced-motion colour */
+    -webkit-text-fill-color: transparent;
+    animation: shimmerText 5.5s ease-in-out infinite;
+  }
+  @keyframes shimmerText {
+    0%, 45% { background-position: 115% 0; }
+    100% { background-position: -65% 0; }
+  }
+
+  /* Breathing glow for the primary hero CTA — shadow-only (no transform, so it
+     can't fight the magnetic-hover tween that owns the element's transform). */
+  .cta-breathe {
+    animation: ctaBreathe 3.4s ease-in-out infinite;
+  }
+  @keyframes ctaBreathe {
+    0%, 100% { box-shadow: 0 1px 2px rgba(11, 37, 69, 0.24), 0 10px 22px -12px rgba(11, 37, 69, 0.45); }
+    50% { box-shadow: 0 1px 2px rgba(11, 37, 69, 0.28), 0 16px 34px -12px rgba(13, 148, 136, 0.6); }
+  }
+
   /* Sheet drag — momentary disable of transition while a finger is dragging. */
   .sheet-dragging {
     transition: none !important;
@@ -357,5 +398,12 @@ html[data-persona="customer"]::-webkit-scrollbar {
   .reveal {
     opacity: 1;
     transform: none;
+  }
+  /* Shimmer text falls back to plain teal — a frozen gradient frame could
+     land mid-glint and read as a random gold patch. */
+  .text-shimmer {
+    animation: none;
+    background: none;
+    -webkit-text-fill-color: currentColor;
   }
 }
