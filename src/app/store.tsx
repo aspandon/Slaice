@@ -7,7 +7,8 @@ import { DEFAULT_LOYALTY } from "../data/loyalty";
 import type { LoyaltyState } from "../data/loyalty";
 import { DEFAULT_ACHIEVEMENTS } from "../data/gamification";
 import type { Achievement } from "../data/gamification";
-import type { BeachBackground, CartItem, CartKind, Consent, CustomerPasses, LangCode, PassPricing, PersonaId, SeasonPlan, SunbedSlot } from "../domain/types";
+import { DEFAULT_ZONE_MAP, DEFAULT_PRICE_RULES } from "../data/pricing";
+import type { BeachBackground, CartItem, CartKind, Consent, CustomerPasses, LangCode, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "../domain/types";
 
 // Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
 // highlight the section a journey points at.
@@ -82,6 +83,12 @@ export interface AppContextValue {
   /** Gamification achievements (badge rules) — admin-written, home-read. */
   achievements: Achievement[];
   setAchievements: (a: Achievement[]) => void;
+  /** Map Layout Editor zone arrangement (positions + grid + identity) — persisted. */
+  zoneMap: ZoneMapItem[];
+  setZoneMap: (z: ZoneMapItem[]) => void;
+  /** Seasonal / day-of-week pricing rules — admin-written, persisted. */
+  priceRules: PriceRule[];
+  setPriceRules: (r: PriceRule[]) => void;
 }
 
 const DEFAULT_CONSENT: Consent = {
@@ -128,6 +135,10 @@ export const AppCtx = createContext<AppContextValue>({
   setLoyalty: () => {},
   achievements: DEFAULT_ACHIEVEMENTS,
   setAchievements: () => {},
+  zoneMap: DEFAULT_ZONE_MAP,
+  setZoneMap: () => {},
+  priceRules: DEFAULT_PRICE_RULES,
+  setPriceRules: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);

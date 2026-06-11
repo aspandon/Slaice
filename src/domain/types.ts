@@ -193,3 +193,45 @@ export interface PassPricing {
   seasonMonthly: number;
   seasonSummer: number;
 }
+
+/* ---------- Map editor: zone arrangement ----------
+   One zone's identity, grid size and position (% of the canvas) as arranged in
+   the admin Map Layout Editor's "Zone map" tab. Persisted so a tenant's layout
+   survives a reload (there is no backend in the mockup). Shape matches the
+   editor's working model 1:1. */
+export interface ZoneMapItem {
+  id: string;
+  name: string;
+  prefix: string;
+  color: string;
+  total: number;
+  rows: number;
+  cols: number;
+  /** Position as a percentage of the canvas (0–100). */
+  x: number;
+  y: number;
+}
+
+/* ---------- Seasonal / day-of-week pricing ----------
+   An admin-authored rule that overrides a zone's base price for a date window
+   and a set of weekdays — e.g. "August weekends: +€10". Rules are evaluated in
+   order (later matches win) by domain/pricing.ts and persisted for the demo. */
+/** Which weekdays a rule covers. */
+export type PriceRuleDays = "all" | "weekday" | "weekend";
+/** How a rule changes the base price. */
+export type PriceRuleMode = "set" | "addAbs" | "addPct";
+export interface PriceRule {
+  id: string;
+  /** Human label, e.g. "August weekends". */
+  label: string;
+  /** Zone id this applies to, or "all". */
+  zone: string;
+  /** Inclusive date window, ISO `YYYY-MM-DD`. */
+  from: string;
+  to: string;
+  days: PriceRuleDays;
+  mode: PriceRuleMode;
+  /** € for `set`/`addAbs`, percent for `addPct` (may be negative). */
+  amount: number;
+  enabled: boolean;
+}

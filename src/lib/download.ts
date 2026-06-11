@@ -27,6 +27,27 @@ export function downloadCSV(filename: string, header: (string | number)[], rows:
   trigger(new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8;" }), filename);
 }
 
+/** One titled block (optional title + header + rows) within a multi-section CSV. */
+export interface CsvSection {
+  title?: string;
+  header?: (string | number)[];
+  rows: (string | number)[][];
+}
+
+// Multi-section CSV: several titled blocks in one sheet, blank-line separated.
+// Lets a report export carry its KPIs *and* its tables/series in one faithful
+// file (used by Reporting → Export, where each tab shows several panels).
+export function downloadCSVReport(filename: string, sections: CsvSection[]) {
+  const lines: string[] = [];
+  sections.forEach((s, i) => {
+    if (i) lines.push("");
+    if (s.title) lines.push(escapeCSV(s.title));
+    if (s.header) lines.push(s.header.map(escapeCSV).join(","));
+    s.rows.forEach((r) => lines.push(r.map(escapeCSV).join(",")));
+  });
+  trigger(new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8;" }), filename);
+}
+
 export function downloadText(filename: string, text: string, mime = "text/plain;charset=utf-8") {
   trigger(new Blob([text], { type: mime }), filename);
 }
