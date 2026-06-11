@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
 import { Badge, Btn } from "../../components/ui";
 import { PassCard } from "../../components/PassCard";
-import { Reveal } from "../../lib/motion";
+import { gsap, motionOK, DUR, EASE, useMagnetic, useCardTilt } from "../../lib/fx";
+import { useCountUp } from "../../lib/motion";
+import { ZONES, zoneLayout, WEATHER_DEMO } from "../../data/beach";
+import { SceneDemoPanel } from "../../components/SceneDemoPanel";
 import { SEASON_END_LABEL } from "../../data/passes";
 import { BUILTIN_SCHEMES, makeCustomScheme, schemeProgress, HOME_LOYALTY_STATS } from "../../data/loyalty";
 import type { RewardState, LoyaltyState } from "../../data/loyalty";
@@ -19,45 +22,103 @@ const dateOf = (s: string) => s.split(/·|to/).pop()?.trim() ?? s;
 // same; see index.css.
 const CARD = "glass-flat rounded-3xl overflow-hidden relative";
 
+/* The full hero choreography (word-by-word headline, chip/CTA pops) plays once
+   per session; returning to Home repeats only a quick card stagger so the page
+   never feels slow on the way back. */
+let homeIntroPlayed = false;
+
 export function CustomerHome() {
-  const { dive, loyalty } = useApp();
+  const { dive, loyalty, beachLayout, weather, dayTime, sceneFx } = useApp();
   const t = useT();
+  // The hero chip mirrors the demo scene: weather icon/label/temp plus a
+  // greeting that follows the scene clock (both fall back to a sunny noon
+  // when the admin disables the effects).
+  const wd = sceneFx.weather ? WEATHER_DEMO[weather] : WEATHER_DEMO.sunny;
+  const hour = sceneFx.daytime ? dayTime : 10; // off → the classic morning chip
+  const greeting = hour < 12 ? "Good morning, Elena" : hour < 18 ? "Good afternoon, Elena" : "Good evening, Elena";
+  const WIcon = Icon[wd.icon] || Icon.sun;
+  const chipBubble = wd.icon === "sun" ? "from-amber-300 to-amber-500" : wd.icon === "wind" ? "from-teal-300 to-teal-500" : "from-slate-400 to-slate-600";
   const [promoDismissed, setPromoDismissed] = useState(false);
   const rewards = activeRewards(loyalty);
   const ready = rewards.filter((a) => a.state.kind === "claim").length;
+  const scope = useRef<HTMLDivElement>(null);
+  const cta = useMagnetic<HTMLSpanElement>(0.22, 6);
+
+  // Live availability for the hero — summed from the same per-zone layouts the
+  // booking wizard sells from (admin-authored where present), so the number is
+  // always consistent with what the guest will actually find inside.
+  const freeToday = useMemo(
+    () => ZONES.reduce((a, z) => a + (beachLayout[z.id] ?? zoneLayout(z)).filter((s) => s.state === "a").length, 0),
+    [beachLayout],
+  );
+  const fromPrice = useMemo(() => Math.min(...ZONES.map((z) => z.from)), []);
+  const { display: freeDisplay } = useCountUp(freeToday, { duration: 1100 });
+
+  // Entrance choreography. Elements render in their final state; GSAP only adds
+  // the motion, so reduced-motion users get the static layout untouched.
+  useLayoutEffect(() => {
+    if (!motionOK()) return;
+    const replay = homeIntroPlayed;
+    // Deferred so StrictMode's synthetic mount/unmount cycle (which cleans up
+    // synchronously) doesn't burn the once-per-session full intro in dev.
+    const mark = setTimeout(() => { homeIntroPlayed = true; }, 0);
+    const ctx = gsap.context(() => {
+      // Heal first: if a previous entrance was interrupted mid-tween (nav away,
+      // tab switch, a competing CSS transition), a card could be left with a
+      // stale inline opacity — clear everything before animating again.
+      gsap.set("[data-home-card],[data-hero-chip],[data-hero-word],[data-hero-sub],[data-hero-live],[data-hero-cta]", { clearProps: "opacity" });
+      if (replay) {
+        gsap.from("[data-home-card]", { y: 16, opacity: 0, duration: 0.45, ease: EASE.out, stagger: 0.05, overwrite: "auto", clearProps: "opacity" });
+        return;
+      }
+      gsap.timeline({ defaults: { ease: EASE.out, overwrite: "auto", clearProps: "opacity" } })
+        .from("[data-home-card]", { y: 26, opacity: 0, duration: 0.7, stagger: 0.08 })
+        .from("[data-hero-chip]", { y: 10, opacity: 0, duration: 0.45 }, 0.15)
+        .from("[data-hero-word]", { y: "0.7em", opacity: 0, duration: DUR.md, stagger: 0.045 }, 0.25)
+        .from("[data-hero-sub]", { y: 12, opacity: 0, duration: 0.5 }, "-=0.3")
+        .from("[data-hero-live]", { y: 10, opacity: 0, duration: 0.45 }, "-=0.3")
+        .from("[data-hero-cta]", { y: 12, opacity: 0, scale: 0.92, duration: 0.55, ease: EASE.spring }, "-=0.3");
+    }, scope);
+    return () => { clearTimeout(mark); ctx.revert(); };
+  }, []);
 
   return (
-    <div className="animate-fade-up flex flex-col xl:grid xl:grid-cols-[minmax(0,1fr)_auto] gap-4 xl:items-start">
+    <div ref={scope} className="flex flex-col xl:grid xl:grid-cols-[minmax(0,1fr)_auto] gap-4 xl:items-start">
 
       {/* ── Left: hero + the two promos beneath it (narrower now) ──── */}
       <div className="flex flex-col gap-4 min-w-0">
 
       {/* ── Hero ──────────────────────────────────────────────────── */}
-      <Reveal as="button" onClick={() => dive()} className="text-left group block w-full">
+      <button onClick={() => dive()} className="text-left group block w-full" data-home-card>
         <div className={`${CARD} p-6 sm:p-9 pressable cursor-pointer transition duration-300 ease-spring hover:-translate-y-1 hover:bg-white/80`}>
           <div className="relative">
-            <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700">
-              <span className="w-6 h-6 rounded-full grid place-items-center bg-gradient-to-br from-amber-300 to-amber-500 text-white shadow-sm">
-                <Icon.sun size={11} />
+            <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700" data-hero-chip>
+              <span className={`w-6 h-6 rounded-full grid place-items-center bg-gradient-to-br ${chipBubble} text-white shadow-sm`}>
+                <WIcon size={11} />
               </span>
-              {t("Good morning, Elena")} · {t("Sunny")} 28°
+              {t(greeting)} · {t(wd.label)} {wd.tempC}°
             </div>
             {/* Headline fits one line in English; longer translations (FR/EL/IT…)
                 are wider, so on large screens we lift the width cap and ease the
                 size a touch (32px) so the line uses the available space instead
                 of wrapping. */}
             <h1 className="mt-3 font-display font-bold text-[28px] sm:text-[36px] xl:text-[32px] leading-[1.05] tracking-tight text-navy-900 max-w-2xl xl:max-w-none">
-              {t("Plan your full beach day")} <span className="text-teal-700">{t("in 60 seconds")}</span>
+              <KineticWords text={t("Plan your full beach day")} />{" "}
+              <span className="text-shimmer inline-block" data-hero-word>{t("in 60 seconds")}</span>
             </h1>
-            <div className="text-[14px] text-slate-700 mt-3 max-w-xl">
+            <div className="text-[14px] text-slate-700 mt-3 max-w-xl" data-hero-sub>
               {t("Guests, dates, sunbeds, locker, parking — one guided flow with a live total.")}
             </div>
-            <span className="mt-6 inline-flex items-center gap-2 rounded-[14px] px-5 py-2.5 text-sm font-semibold bg-navy-900 text-white shadow-btn-primary group-hover:translate-x-0.5 transition">
+            <div className="mt-4 flex items-center gap-2.5 text-[13px] font-semibold text-navy-900" data-hero-live>
+              <span aria-hidden="true" className="live-dot relative w-2 h-2 rounded-full bg-teal-500 text-teal-500 shrink-0" />
+              <span><b className="tnum">{freeDisplay}</b> {t("sunbeds free today")} · {t("from")} €{fromPrice}</span>
+            </div>
+            <span ref={cta} className="cta-breathe mt-5 inline-flex items-center gap-2 rounded-[14px] px-5 py-2.5 text-sm font-semibold bg-navy-900 text-white shadow-btn-primary" data-hero-cta>
               <Icon.sparkles size={16} /> {t("Start guided booking")} <Icon.arrowR size={16} />
             </span>
           </div>
         </div>
-      </Reveal>
+      </button>
 
       {/* ── Promos beneath the hero — icon in front of the text ────── */}
       <div className="grid sm:grid-cols-2 gap-4 items-start">
@@ -65,7 +126,7 @@ export function CustomerHome() {
         {/* Weekend promo — column 1 */}
         <div className="min-w-0">
           {!promoDismissed && (
-            <div className={`${CARD} p-5 relative flex flex-col gap-2.5`}>
+            <div className={`${CARD} p-5 relative flex flex-col gap-2.5`} data-home-card>
               <button aria-label={t("Dismiss offer")} onClick={() => setPromoDismissed(true)} className="absolute top-3 right-3 w-7 h-7 grid place-items-center rounded-lg text-slate-400 hover:text-navy-900 hover:bg-white/50 transition"><Icon.x size={14} /></button>
               <div className="flex items-center gap-3 pr-7">
                 <span className="w-10 h-10 rounded-xl grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm"><Icon.bolt size={18} /></span>
@@ -81,7 +142,10 @@ export function CustomerHome() {
 
         {/* Rebook + Your badges — column 2 (badges sit exactly under Rebook) */}
         <div className="flex flex-col gap-4 min-w-0">
-          <button onClick={() => dive()} className={`${CARD} p-5 flex flex-col gap-2.5 text-left hover:bg-white/80 transition group`}>
+          {/* transition-colors only: a broad `transition` here also transitions
+              opacity/transform and fights the GSAP entrance that animates this
+              node — which could strand the card near-invisible. */}
+          <button onClick={() => dive()} className={`${CARD} p-5 flex flex-col gap-2.5 text-left hover:bg-white/80 transition-colors group`} data-home-card>
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
               <div className="min-w-0">
@@ -100,7 +164,7 @@ export function CustomerHome() {
       {/* ── Right cluster: a tall "Your rewards" tile beside the cards ─ */}
       <div className={`grid gap-4 ${rewards.length ? "xl:grid-cols-[22rem_85.6mm]" : "xl:grid-cols-[85.6mm]"}`}>
         {rewards.length > 0 && (
-          <div className={`${CARD} p-4 flex flex-col h-full min-w-0`}>
+          <div className={`${CARD} p-4 flex flex-col h-full min-w-0`} data-home-card>
             <div className="flex items-center gap-2 mb-3 px-0.5">
               <Icon.gift size={15} className="text-teal-600 shrink-0" />
               <h2 className="font-display font-bold text-navy-900 text-[15px] flex-1 min-w-0">{t("Your rewards")}</h2>
@@ -116,19 +180,27 @@ export function CustomerHome() {
           <SeasonTile />
         </div>
       </div>
+
+      {/* Demo scene controls (time-of-day + weather), bottom-left — the
+          counterpart to the persona switcher's demo pill on the right. */}
+      <SceneDemoPanel />
     </div>
   );
 }
 
-/* VIP credit tile — the tenant membership card art + a buy/top-up footer. */
+/* VIP credit tile — the tenant membership card art + a buy/top-up footer.
+   Tilts in 3D toward the cursor with a light sweep across the card art
+   (useCardTilt owns the transform, so hover lift is shadow-only here). */
 function VipTile() {
   const { go, passes, passPricing, clearPass } = useApp();
   const t = useT();
+  const tilt = useCardTilt<HTMLDivElement>(6);
   const vip = passes.vip;
   const from = Math.min(...passPricing.vipTiers);
   const disc = Math.round(passPricing.vipDiscount * 100);
   return (
-    <div className={`${CARD} flex flex-col w-full transition duration-300 ease-spring hover:-translate-y-0.5 hover:shadow-lift`}>
+    <div ref={tilt} className={`${CARD} flex flex-col w-full transition-shadow duration-300 hover:shadow-lift`} data-home-card>
+      <span aria-hidden="true" className="sheen-card" />
       <button onClick={() => go("customer", "vip")} aria-label={vip ? t("Top up VIP credit") : t("Get VIP Pass")} className="block w-full group">
         <PassCard kind="vip" holder="ELENA M." subtitle={vip ? `€${vip.balance.toLocaleString()} CREDIT` : `MEMBER · ${disc}% OFF`} validUntil={SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
       </button>
@@ -142,14 +214,17 @@ function VipTile() {
   );
 }
 
-/* Season pass tile — the tenant membership card art + a buy/manage footer. */
+/* Season pass tile — the tenant membership card art + a buy/manage footer.
+   Same 3D tilt + light sweep as the VIP tile. */
 function SeasonTile() {
   const { go, passes, passPricing, clearPass } = useApp();
   const t = useT();
+  const tilt = useCardTilt<HTMLDivElement>(6);
   const season = passes.season;
   const from = Math.min(passPricing.seasonMonthly, passPricing.seasonSummer);
   return (
-    <div className={`${CARD} flex flex-col w-full transition duration-300 ease-spring hover:-translate-y-0.5 hover:shadow-lift`}>
+    <div ref={tilt} className={`${CARD} flex flex-col w-full transition-shadow duration-300 hover:shadow-lift`} data-home-card>
+      <span aria-hidden="true" className="sheen-card" />
       <button onClick={() => go("customer", "season")} aria-label={season ? t("Manage Season pass") : t("Get Season Pass")} className="block w-full group">
         <PassCard kind="season" holder="ELENA M." subtitle={season && season.plan === "monthly" ? "MONTHLY 2026" : "SUMMER 2026"} validUntil={season ? dateOf(season.validUntil) : SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
       </button>
@@ -172,7 +247,7 @@ function BadgesTile() {
   const stats = HOME_GAME_STATS;
   const earnedCount = achievements.filter((a) => statValue(stats, a.metric) >= a.threshold).length;
   return (
-    <div className={`${CARD} p-5 flex flex-col gap-3`}>
+    <div className={`${CARD} p-5 flex flex-col gap-3`} data-home-card>
       <div className="flex items-center gap-2.5">
         <span className="w-9 h-9 rounded-xl grid place-items-center bg-gradient-to-br from-amber-300 to-amber-500 text-white shrink-0 shadow-sm"><Icon.star size={17} /></span>
         <div className="font-semibold text-navy-900 text-[15px] flex-1 min-w-0">{t("Your badges")}</div>
@@ -195,6 +270,23 @@ function BadgesTile() {
         })}
       </div>
     </div>
+  );
+}
+
+/* Splits a (translated) phrase into per-word spans the entrance timeline can
+   stagger. NBSP inside each span keeps the natural word gap while the words
+   rise independently; static rendering is identical to plain text. */
+function KineticWords({ text }: { text: string }) {
+  const words = text.split(" ");
+  return (
+    <>
+      {words.map((w, i) => (
+        <span key={`${w}-${i}`} className="inline-block" data-hero-word>
+          {w}
+          {i < words.length - 1 ? " " : ""}
+        </span>
+      ))}
+    </>
   );
 }
 

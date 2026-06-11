@@ -11,6 +11,8 @@ import { DEFAULT_ZONE_MAP, DEFAULT_PRICE_RULES } from "../data/pricing";
 import { DEFAULT_CHANNELS } from "../data/channels";
 import { DEFAULT_PASS_CARDS } from "../data/passDesigns";
 import type { BeachBackground, CartItem, CartKind, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "../domain/types";
+import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "../data/beach";
+import type { SceneFx, WeatherKind } from "../data/beach";
 
 // Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
 // highlight the section a journey points at.
@@ -97,6 +99,18 @@ export interface AppContextValue {
   /** Admin-designed wallet pass cards — persisted. */
   passCards: PassDesign[];
   setPassCards: (c: PassDesign[]) => void;
+  /** Demo weather (no real forecast) — drives the hero chip, the backdrop tint,
+   *  the live sea's agitation and the rain layer. Set from the Home demo panel. */
+  weather: WeatherKind;
+  setWeather: (w: WeatherKind) => void;
+  /** Demo scene clock (hours, DAY_MIN–DAY_MAX) — drives time-of-day lighting,
+   *  identically on every customer page. */
+  dayTime: number;
+  setDayTime: (h: number) => void;
+  /** Admin switches for the customer-surface atmosphere: demo weather graphics
+   *  and the time-of-day lighting. */
+  sceneFx: SceneFx;
+  setSceneFx: (patch: Partial<SceneFx>) => void;
 }
 
 const DEFAULT_CONSENT: Consent = {
@@ -151,6 +165,12 @@ export const AppCtx = createContext<AppContextValue>({
   setChannels: () => {},
   passCards: DEFAULT_PASS_CARDS,
   setPassCards: () => {},
+  weather: "sunny",
+  setWeather: () => {},
+  dayTime: DAY_DEFAULT,
+  setDayTime: () => {},
+  sceneFx: DEFAULT_SCENE_FX,
+  setSceneFx: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);

@@ -10,8 +10,10 @@
 import type { BeachBackground } from "../domain/types";
 
 /** Composable scene props layered over the gradients to make a preset feel
- *  richer. Simple presets use none; elaborate ones combine a few. */
-export type DecorKind = "sun" | "clouds" | "palms" | "sailboat" | "birds" | "rocks";
+ *  richer. Every preset carries the ambient pair (clouds, birds) so the
+ *  desktop backdrop always has life; the heavier scene-identity pieces
+ *  (sun, palms, rocks) stay per-preset. */
+export type DecorKind = "sun" | "clouds" | "palms" | "birds" | "rocks";
 
 export interface BeachPreset {
   id: string;
@@ -51,7 +53,7 @@ const SIMPLE: BeachPreset[] = [
     glint: true,
     waves: 2,
     grain: false,
-    decor: [],
+    decor: ["clouds", "birds"],
   },
   {
     id: "turquoise",
@@ -65,7 +67,7 @@ const SIMPLE: BeachPreset[] = [
     glint: true,
     waves: 2,
     grain: false,
-    decor: [],
+    decor: ["clouds", "birds"],
   },
   {
     id: "sunset",
@@ -79,7 +81,7 @@ const SIMPLE: BeachPreset[] = [
     glint: false,
     waves: 2,
     grain: false,
-    decor: ["sun"],
+    decor: ["sun", "clouds", "birds"],
   },
   {
     id: "slate",
@@ -93,7 +95,7 @@ const SIMPLE: BeachPreset[] = [
     glint: false,
     waves: 1,
     grain: false,
-    decor: [],
+    decor: ["clouds", "birds"],
   },
 ];
 
@@ -112,7 +114,9 @@ const ELABORATE: BeachPreset[] = [
     glint: true,
     waves: 4,
     grain: true,
-    decor: [],
+    // Sky/sea life for the ambient layer — clouds scud with the wind and the
+    // flock crosses the bay on the desktop backdrop (static elsewhere).
+    decor: ["clouds", "birds"],
   },
   {
     id: "palms",
@@ -126,7 +130,7 @@ const ELABORATE: BeachPreset[] = [
     glint: true,
     waves: 3,
     grain: true,
-    decor: ["sun", "palms", "birds"],
+    decor: ["sun", "clouds", "palms", "birds"],
   },
   {
     id: "golden",
@@ -140,7 +144,7 @@ const ELABORATE: BeachPreset[] = [
     glint: false,
     waves: 3,
     grain: true,
-    decor: ["sun", "clouds", "sailboat", "birds"],
+    decor: ["sun", "clouds", "birds"],
   },
   {
     id: "cove",
@@ -154,7 +158,7 @@ const ELABORATE: BeachPreset[] = [
     glint: true,
     waves: 3,
     grain: true,
-    decor: ["rocks", "palms"],
+    decor: ["clouds", "rocks", "palms", "birds"],
   },
 ];
 

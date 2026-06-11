@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../lib/icons";
 import type { IconRenderer } from "../lib/icons";
+import { gsap, motionOK, takeFlip, Flip, EASE, burstConfetti } from "../lib/fx";
 import { Card, Btn, Badge, PageHead, EmptyState, SwipeRow, Toggle } from "../components/ui";
 import { QR } from "../components/charts";
 import { SlaiceLogo, TenantLogo } from "../components/Brand";
@@ -56,6 +57,20 @@ export function Checkout() {
     if (vipDebit > 0) spendVipCredit(vipDebit);
     setPhase("done");
   };
+  // Arriving from the wizard: its glass menu hands over its rect and the
+  // summary panel morphs out of it while the basket rows stagger in — checkout
+  // reads as the journey's last scene, not a different app. Direct visits
+  // (cart icon, deep link) find no stash and keep the plain fade-up.
+  useLayoutEffect(() => {
+    const state = takeFlip("checkout-panel");
+    if (!state) return;
+    const ctx = gsap.context(() => {
+      Flip.from(state, { targets: '[data-flip-id="checkout-panel"]', scale: true, duration: 0.8, ease: EASE.inOut });
+      gsap.from("[data-cart-row]", { y: 16, opacity: 0, stagger: 0.06, duration: 0.5, ease: EASE.out, delay: 0.15 });
+    });
+    return () => ctx.revert();
+  }, []);
+
   const removeItem = (it: CartItem) => { removeFromCart(it.kind, it.id); toast(`${t("Removed")} ${it.label}.`, { action: { label: t("Undo"), onClick: () => addToCart(it) } }); };
   const emptyBasket = () => {
     const snapshot = [...cart];
@@ -106,7 +121,8 @@ export function Checkout() {
           {/* Swipe a row left (or tap the trash) to remove it. */}
           <div className="divide-y divide-slate-100">
             {cart.map((it) => (
-              <SwipeRow key={it.kind + it.id} onDelete={() => removeItem(it)} rounded="">
+              <div key={it.kind + it.id} data-cart-row>
+              <SwipeRow onDelete={() => removeItem(it)} rounded="">
                 <div className="flex items-center justify-between px-3 py-3 bg-white">
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="w-9 h-9 rounded-lg bg-slate-100 grid place-items-center text-slate-500 shrink-0">{kindIcon(it.kind)}</span>
@@ -115,13 +131,14 @@ export function Checkout() {
                   <div className="flex items-center gap-2 shrink-0"><span className="font-semibold tnum">€{it.price}</span><button aria-label={`${t("Remove")} ${it.label}`} onClick={() => removeItem(it)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={16} /></button></div>
                 </div>
               </SwipeRow>
+              </div>
             ))}
           </div>
         </Card>
         <div className="mt-3 text-[12px] text-slate-600 flex items-center gap-1.5"><Icon.shield size={13} /> {t("On success: booking confirmed via webhook, QR e-mailed, and an ΑΠΥ auto-issued to MyDATA.")}</div>
       </div>
 
-      <div className="lg:sticky lg:top-4 h-max">
+      <div className="lg:sticky lg:top-4 h-max" data-flip-id="checkout-panel">
         <Card className="p-5">
           <div className="flex items-center gap-2 mb-3"><TenantLogo size={30} /><div className="text-sm font-semibold text-navy-900">{TENANT.name}</div></div>
           {/* Customer-facing summary: subtotal, any pass deductions, then what's due now. */}
@@ -215,6 +232,28 @@ export function Confirmation({ inline }: { inline?: boolean }) {
   const t = useT();
   // Stable across re-renders so the QR and wallet pass don't change.
   const [ref] = useState(nextBookingRef);
+  const scope = useRef<HTMLDivElement>(null);
+
+  // Celebration: the check springs in and throws confetti, the QR card flips
+  // up in 3D, then the wallet/receipt rows stagger in. Elements render in
+  // their final state — under reduced motion none of this runs.
+  useLayoutEffect(() => {
+    if (!motionOK()) return;
+    const ctx = gsap.context(() => {
+      gsap.timeline({ defaults: { ease: EASE.out } })
+        .from("[data-confirm-check]", { scale: 0, rotation: -100, duration: 0.7, ease: EASE.pop })
+        .add(() => {
+          const el = scope.current?.querySelector<HTMLElement>("[data-confirm-check]");
+          if (el) burstConfetti(el);
+        }, "-=0.25")
+        .from("[data-confirm-head]", { y: 14, opacity: 0, duration: 0.45 }, "-=0.4")
+        .fromTo("[data-confirm-qr]",
+          { transformPerspective: 900, rotationY: 95, opacity: 0 },
+          { rotationY: 0, opacity: 1, duration: 0.85, clearProps: "transform" }, "-=0.2")
+        .from("[data-confirm-item]", { y: 14, opacity: 0, stagger: 0.08, duration: 0.45 }, "-=0.45");
+    }, scope);
+    return () => ctx.revert();
+  }, []);
   // Derive a representative wallet pass from the basket.
   const sunbeds = cart.filter((i) => i.kind === "sunbed");
   const total = cart.reduce((a, b) => a + b.price, 0);
@@ -231,25 +270,27 @@ export function Confirmation({ inline }: { inline?: boolean }) {
   };
   const Wrapper = inline ? "div" : "div";
   return (
-    <Wrapper className="animate-fade-up max-w-xl mx-auto">
+    <Wrapper ref={scope} className="animate-fade-up max-w-xl mx-auto">
       <Card className="p-6 sm:p-8 text-center">
-        <div className="w-16 h-16 mx-auto rounded-2xl bg-teal-600 text-white grid place-items-center animate-pop"><Icon.check size={34} /></div>
-        <h2 className="mt-4 font-display font-bold text-2xl text-navy-900">{t("Payment successful")}</h2>
-        <p className="text-sm text-slate-500 mt-1">{t("Your booking is confirmed. The QR below has been e-mailed to you, and a MyDATA receipt (ΑΠΥ) was issued.")}</p>
+        <div className="w-16 h-16 mx-auto rounded-2xl bg-teal-600 text-white grid place-items-center" data-confirm-check><Icon.check size={34} /></div>
+        <h2 className="mt-4 font-display font-bold text-2xl text-navy-900" data-confirm-head>{t("Payment successful")}</h2>
+        <p className="text-sm text-slate-500 mt-1" data-confirm-head>{t("Your booking is confirmed. The QR below has been e-mailed to you, and a MyDATA receipt (ΑΠΥ) was issued.")}</p>
 
-        <div className="my-5 grid place-items-center"><QR size={180} seed={ref} /></div>
-        <div className="font-mono text-sm text-navy-900 font-semibold">#{ref}</div>
+        <div className="my-5 grid place-items-center" data-confirm-qr><QR size={180} seed={ref} /></div>
+        <div className="font-mono text-sm text-navy-900 font-semibold" data-confirm-item>#{ref}</div>
 
         {/* Add to Apple / Google Wallet */}
-        <WalletButtons pass={pass} className="mt-6 pt-5 border-t border-slate-100" />
+        <div data-confirm-item>
+          <WalletButtons pass={pass} className="mt-6 pt-5 border-t border-slate-100" />
+        </div>
 
-        <div className="mt-6 grid sm:grid-cols-3 gap-2 text-[12px]">
+        <div className="mt-6 grid sm:grid-cols-3 gap-2 text-[12px]" data-confirm-item>
           <Pill icon={Icon.checkCircle} t={t("Stripe paid")} />
           <Pill icon={Icon.mail} t={t("QR e-mailed")} />
           <Pill icon={Icon.receipt} t={t("ΑΠΥ → MyDATA ✓")} />
         </div>
 
-        <div className="mt-6 flex gap-2 justify-center flex-wrap">
+        <div className="mt-6 flex gap-2 justify-center flex-wrap" data-confirm-item>
           <Btn variant="teal" icon={Icon.grid} onClick={() => { clearCart(); go("customer", "mybookings"); }}>{t("View my bookings")}</Btn>
           <Btn variant="outline" icon={Icon.calendar} onClick={() => {
             const start = todayISO();
