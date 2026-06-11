@@ -42,7 +42,11 @@ export function CustomerHome() {
               </span>
               {t("Good morning, Elena")} · {t("Sunny")} 28°
             </div>
-            <h1 className="mt-3 font-display font-bold text-[28px] sm:text-[36px] leading-[1.05] tracking-tight text-navy-900 max-w-2xl">
+            {/* Headline fits one line in English; longer translations (FR/EL/IT…)
+                are wider, so on large screens we lift the width cap and ease the
+                size a touch (32px) so the line uses the available space instead
+                of wrapping. */}
+            <h1 className="mt-3 font-display font-bold text-[28px] sm:text-[36px] xl:text-[32px] leading-[1.05] tracking-tight text-navy-900 max-w-2xl xl:max-w-none">
               {t("Plan your full beach day")} <span className="text-teal-700">{t("in 60 seconds")}</span>
             </h1>
             <div className="text-[14px] text-slate-700 mt-3 max-w-xl">
