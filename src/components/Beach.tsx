@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useId, useState } from "react";
+import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { prefersReducedMotion, useParallax } from "../lib/motion";
 import { gsap, motionOK } from "../lib/fx";
@@ -302,7 +302,7 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false }: { pre
       {/* Wet sheen, tide marks, damp mottling. */}
       <SandDetail preset={preset} dy={dy} mottle={grain} idp={id} />
 
-      {/* Optional decor (sun, palms, sailboat…) above the sand, behind the greenery. */}
+      {/* Optional decor (sun, palms, clouds…) above the sand, behind the greenery. */}
       <SceneDecor preset={preset} id={id} />
 
       {preset.veg && !noVeg && (
@@ -361,31 +361,43 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv }: { prese
   const id = (k: string) => `${k}-${rid}`;
   const dy = shorelineShift(shoreline);
   const wind = seaEnv?.wind ?? 0.22;
+  const cloudVis = seaEnv?.clouds ?? 0;
   const [liveSea, setLiveSea] = useState(liveSeaOK);
   const far = useParallax<HTMLDivElement>(-0.018, 24);
   const mid = useParallax<HTMLDivElement>(-0.04, 44);
   const near = useParallax<HTMLDivElement>(-0.065, 60);
   const plane = "absolute pointer-events-none";
   const overscan = { inset: "-12%", willChange: "transform" } as const;
+  // First ambient run snaps cloud visibility instead of fading it in, so a
+  // sunny first paint never flashes clouds.
+  const ambFirst = useRef(true);
 
-  // Ambient life (desktop layered scene only): clouds drift, the sailboat bobs
-  // and slowly tacks, and a flock of birds crosses the bay every so often. The
+  // Ambient life (desktop layered scene only): clouds belong to the weather —
+  // hidden when sunny, scudding across the bay (wrap-around, wind-scaled
+  // speed) otherwise — and a flock of birds crosses every so often. The
   // recursive bird timeline outlives gsap.context capture, so tweens are
-  // tracked and killed by hand. Re-inits when the tenant scene changes or the
-  // demo wind picks up (everything moves faster, the boat rocks harder).
+  // tracked and killed by hand. Re-inits on scene or weather changes.
   useEffect(() => {
     const root = mid.current;
     if (!root || !motionOK()) return;
-    const windK = 0.75 + 1.1 * wind;
     const anims: gsap.core.Animation[] = [];
+    // viewBox-units/second: a lazy drift on a calm day, racing when it blows.
+    const speed = 12 + 60 * wind;
+    const snap = ambFirst.current;
+    ambFirst.current = false;
     root.querySelectorAll('[data-amb="cloud"]').forEach((c, i) => {
-      anims.push(gsap.to(c, { x: (i % 2 ? -48 : 56) * (0.8 + wind), duration: (85 + i * 24) / windK, yoyo: true, repeat: -1, ease: "sine.inOut" }));
+      if (snap) gsap.set(c, { opacity: cloudVis * 0.85 });
+      else anims.push(gsap.to(c, { opacity: cloudVis * 0.85, duration: 1.2, ease: "power1.inOut", overwrite: "auto" }));
+      if (cloudVis > 0) {
+        anims.push(gsap.to(c, {
+          x: "+=2600",
+          duration: 2600 / (speed + i * 7),
+          ease: "none",
+          repeat: -1,
+          modifiers: { x: gsap.utils.unitize(gsap.utils.wrap(-500, 2100)) },
+        }));
+      }
     });
-    const boat = root.querySelector('[data-amb="boat"]');
-    if (boat) {
-      anims.push(gsap.to(boat, { x: 64, duration: 75 / windK, yoyo: true, repeat: -1, ease: "sine.inOut" }));
-      anims.push(gsap.to(boat, { y: 4 + 3 * wind, rotation: 0.6 + 3.2 * wind, transformOrigin: "50% 85%", duration: 4.6 / windK, yoyo: true, repeat: -1, ease: "sine.inOut" }));
-    }
     const birds = root.querySelector('[data-amb="birds"]');
     let flight: gsap.core.Timeline | null = null;
     let alive = true;
@@ -409,7 +421,7 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv }: { prese
       if (birds) gsap.set(birds, { clearProps: "all" });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mid is a stable ref
-  }, [preset.id, wind]);
+  }, [preset.id, wind, cloudVis]);
   return (
     <>
       {/* Far plane — sea, glint, wave bands and the top vignette. */}
@@ -554,7 +566,6 @@ function SceneDecor({ preset, id }: { preset: BeachPreset; id: (k: string) => st
       {d.includes("clouds") && <Clouds />}
       {d.includes("sun") && <SunDisc gradId={id("sun")} />}
       {d.includes("birds") && <Birds />}
-      {d.includes("sailboat") && <Sailboat />}
       {d.includes("rocks") && <Rocks />}
       {d.includes("palms") && <Palms />}
     </>
@@ -589,9 +600,12 @@ function Cloud({ x, y, s }: { x: number; y: number; s: number }) {
 function Clouds() {
   return (
     <g fill="#ffffff" opacity="0.7">
-      <Cloud x={300} y={120} s={1} />
-      <Cloud x={800} y={86} s={0.7} />
-      <Cloud x={1070} y={150} s={0.85} />
+      <Cloud x={140} y={150} s={0.9} />
+      <Cloud x={520} y={95} s={0.65} />
+      <Cloud x={800} y={185} s={1.05} />
+      <Cloud x={1120} y={120} s={0.75} />
+      <Cloud x={1430} y={205} s={0.95} />
+      <Cloud x={310} y={255} s={0.55} />
     </g>
   );
 }
@@ -607,18 +621,6 @@ function Birds() {
       {pts.map(([x, y], i) => (
         <path key={i} d={`M ${x} ${y} q 11 -10 22 0 q 11 -10 22 0`} />
       ))}
-    </g>
-  );
-}
-
-function Sailboat() {
-  return (
-    <g data-amb="boat" transform="translate(470 300)">
-      <path d="M 40 0 L 40 88 L -28 88 Z" fill="#ffffff" opacity="0.95" />
-      <path d="M 48 14 L 48 88 L 96 88 Z" fill="#eef2f6" opacity="0.9" />
-      <rect x="38" y="-4" width="3" height="92" fill="#5b6b7a" />
-      <path d="M -36 88 L 112 88 L 92 112 L -16 112 Z" fill="#324a5e" />
-      <path d="M -10 116 L 86 116 L 80 124 L -4 124 Z" fill="#ffffff" opacity="0.18" />
     </g>
   );
 }

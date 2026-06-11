@@ -67,7 +67,15 @@ export function CustomerBackdrop({ immersive, golden = false }: { immersive: boo
   const light = sceneFx.daytime ? dayLight(hour) : { warm: 0, night: 0 };
   const warm = light.warm * (0.2 + 0.8 * wd.glint);
   const night = light.night;
-  const seaEnv: SeaEnv = { wind: wd.wind, glint: wd.glint, dusk: warm, night };
+  const seaEnv: SeaEnv = {
+    wind: wd.wind,
+    glint: wd.glint,
+    dusk: warm,
+    night,
+    // Decor clouds belong to weather, not the preset: clear sky when sunny,
+    // scudding clouds for wind, full cover for overcast/rain.
+    clouds: sceneFx.weather && weather !== "sunny" ? 1 : 0,
+  };
   const raining = sceneFx.weather && weather === "rainy";
   // The particle layer runs for rain and for strong wind (gust streaks).
   const particles = raining || (sceneFx.weather && wd.wind > 0.5);
