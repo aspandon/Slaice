@@ -64,6 +64,22 @@ Every capability, screen and journey step carries one or more tags:
 - "Set" / "umbrella set" = **1 umbrella + 2 sunbeds**; one set seats 2 people. Sunbed IDs such as
   `CE-01` identify a _set_.
 
+### Journey maps
+
+Every journey in §8–§13 opens with a **journey map**: a plain-text drawing of its screens and steps,
+so the flow can be read at a glance before the detail below it. Cross-persona journeys in §14 are
+drawn as **swimlanes** (one row per persona, time running left to right). Figures in the maps
+(prices, counts, IDs) are the seed data from §24.
+
+```text
+┌─ Title ──────┐  a screen, panel or modal         ──▶  ▼    the next step
+│ content      │                                   ◆          a decision or choice
+└──────────────┘                                   ●          an outcome / end state
+[Button]          something the user taps          ✓  ✗       success / failure
+(1)━━━(2)┄┄┄(3)   a stepper: done ━━━, ahead ┄┄┄   o  x  #    sunbed set: free / taken / yours
+[DEMO] [GAP]      status tags, as defined above    C-03       another journey in this document
+```
+
 ### Suggested reading order
 
 - **Product / UX agent:** §1 → §2 → §5 → §8–§14 → §15.
@@ -385,6 +401,28 @@ Each journey: **ID · name**, trigger, steps, outcome, rules and states.
 
 ### C-01 · Sign in
 
+```text
+ first visit / after sign-out
+        │
+        ▼
+ ┌───────────────────┐        ┌──────────────────────────────────────────────┐
+ │ Site gate  [DEMO] │        │ Product sign-in  (tenant-branded split view) │
+ │ e-mail + password ├───────▶│ left: beach art · "Relax. Reserve. Repeat."  │
+ └───────────────────┘        └──────────────────────┬───────────────────────┘
+   unlock remembered                                 ◆ how?
+   per device                     ┌──────────────────┴──────────────────┐
+                                  ▼                                     ▼
+                     E-mail ─▶ [Send magic link]          SSO ─▶ Google · Microsoft
+                       │  ✗ invalid ─▶ inline error              Apple · Facebook
+                       ▼        (role="alert")                        │
+                  "Check your inbox" ─▶ [Continue (demo)]             │
+                                  │                                   │
+                                  └─────────────────┬─────────────────┘
+                                                    ▼
+                         ● Signed in ─▶ last customer page (default Home)
+                           └─ consent not decided yet? ─▶ cookie banner (§7.6)
+```
+
 - **Trigger:** first visit or after sign-out.
 - **Steps:** (site gate [DEMO]) → enter e-mail → "Send magic link" → "Check your inbox" → "Continue";
   or tap an SSO provider (Google / Microsoft / Apple / Facebook).
@@ -393,6 +431,33 @@ Each journey: **ID · name**, trigger, steps, outcome, rules and states.
   undecided.
 
 ### C-02 · Explore Home
+
+```text
+ ┌─ Home  #/customer/home ─────────────────────────────────────────────────────────┐
+ │                          [ tenant logo ]             [basket][bell][lang][EM]   │
+ │ ┌─ 1 Hero (whole card = button) ───────────┐  ┌─ 5 Your rewards ──── 1 ready ─┐ │
+ │ │ Good morning, Elena · Sunny 28°          │  │ Tiered · Gold        [Claim]  │ │
+ │ │ Plan your full beach day in 60 seconds   │  │ Milestones [#######-] 8/10    │ │
+ │ │ (*) 240 sunbeds free today · from €18    │  │ Happy hours          Use it > │ │
+ │ │ [ Start guided booking > ]               │  └───────────────────────────────┘ │
+ │ └──────────────────────────────────────────┘  ┌─ 6 VIP ───────┐┌─ 7 Season ───┐ │
+ │ ┌─ 2 Weekend promo ──┐ ┌─ 3 Rebook usual ───┐ │ gold card art ││ blue card art│ │
+ │ │ 20% off front row  │ │ Central · front row│ │ from €500   > ││ from €120  > │ │
+ │ │ Claim >         x  │ │ Book again >       │ └───────────────┘└──────────────┘ │
+ │ └────────────────────┘ ├─ 4 Your badges 3/6 ┤                                   │
+ │                        │ [*][*][*][ ][ ][ ] │                                   │
+ │ [8 scene demo] [DEMO]  └────────────────────┘                        [Demo ▾]   │
+ └─────────────────────────────────────────────────────────────────────────────────┘
+
+ WHERE EACH TILE LEADS
+ 1 Hero ─────────────┐
+ 2 Promo · Claim ────┤                            [GAP] promo discount not applied;
+ 3 Book again ───────┼──▶ Plan my visit (C-03)          nothing is pre-selected
+ 5 Perk · Use it ────┘
+ 5 Claim ────────────────▶ toast "Reward ready — show this at the gate"  [GAP] not tracked
+ 6 VIP tile ─────────────▶ #/customer/vip     (C-08)
+ 7 Season tile ──────────▶ #/customer/season  (C-09)
+```
 
 The Home page is the customer's dashboard. Elements:
 
@@ -425,6 +490,58 @@ The Home page is the customer's dashboard. Elements:
 Entrance motion: full choreography once per session, then a quick card stagger on return.
 
 ### C-03 · Plan my visit (booking wizard) — the core journey [MVP]
+
+```text
+ ENTRY  hero CTA · Claim · Book again · Use it · "Plan my visit" · Plan tab
+          │   (shoreline animates up — the sand fills the screen)
+          ▼
+ ┌─ glass menu over the sea ────────────────────────────────────────────────────┐
+ │ ◀ Leave                                                              1 / 5   │
+ │   (1)━━━━━━━━━━(2)┄┄┄┄┄┄┄┄┄┄(3)┄┄┄┄┄┄┄┄┄┄(4)┄┄┄┄┄┄┄┄┄┄(5)                    │
+ │  Beach       Guests      Locker     Parking      Review                      │
+ │  reached stations jump back · forward only via Continue                      │
+ ├──────────────────────────────────────────────────────────────────────────────┤
+ │  Total €110 (animated)                        [◀ Back / Home]  [Continue ▶]  │
+ └──────────────────────────────────────────────────────────────────────────────┘
+   the beach (sand) below is the tappable surface · guidance bar · powered by SLAiCE
+
+ (1) BEACH ─ "Pick your zone, sunbeds & days"
+   Dates  [Today][Tomorrow][Thu 1][Fri 2]…▶ [calendar]   ◆ several days? ─▶ up to 7
+   ┌─ phase ZONES ────────────────────┐   tap   ┌─ phase SETS ─────────────────────┐
+   │ ≥768×560: panoramic clusters     │ ──────▶ │ SEA / FRONT ROW                  │
+   │   Akanthus  Central  Macaw …     │  zoom   │  x x o o h o o x   o available   │
+   │   "from €X · N free"             │         │  o o x o o o h o   h on hold     │
+   │ phones: zone cards               │ ◀────── │  o o o # # o o o   x taken # you │
+   └──────────────────────────────────┘  back   │ PROMENADE                        │
+     changing zone clears the picks             └──────────────────────────────────┘
+   pick fx: umbrella pops ─▶ sand ripple ─▶ "+€25" chip flies ─▶ Total pulses
+   summary: "2 umbrella sets · CE-01, CE-04 · €50 × 1 day"  [Clear]
+
+ (2) GUESTS ─ "Tell us who's coming"
+   Quick picks  [Solo] [Couple] [Family · 4] [Group · 6]      [+ Add Entry tickets]
+   Individual 13+  €10   [−] 4 [+]      ◀── auto: 2 adults per picked set,
+   Alimos resident  €6   [−] 0 [+]          until the guest edits
+   Child 6–12       €5   [−] 0 [+]
+   Senior 65+       €7   [−] 0 [+]      ◆ guests > 2 × sets? ─▶ amber warning
+
+ (3) LOCKER (optional)          ◆ [Yes, add lockers] / [No, skip]
+   qty [−] 1 [+] × €5/day       multi-day ─▶ ◆ [all days] / [specific days: chips]
+
+ (4) PARKING SPOT (optional)    ◆ [Yes, reserve parking] / [No, skip]
+   qty [−] 1 [+] × €15/day      multi-day ─▶ ◆ [all days] / [specific days]
+   plates:  1 spot ─▶ one plate (or one per day if "Same car plate" is off)
+            N spots ─▶ one plate per spot           missing ─▶ "plate pending"
+
+ (5) REVIEW ─ rows with [Edit] ─▶ jump back to that step
+   Beach · Dates · Guests · Entry tickets · Day locker · Parking Spot
+   [Confirm · €110]  (disabled while total = €0)
+          │
+          ▼
+   basket lines (§17.2) ─▶ toast "Booking ready — 5 items added" ─▶ menu morphs ─▶ C-04
+
+ SAND VIGNETTES (after step 1, read-only)
+   picked sets ──▶ + towels (guests) ──▶ + locker cabin × qty ──▶ + car with plate × qty
+```
 
 **Trigger:** hero CTA, Claim, Book again, Use it, "Plan my visit" buttons, the Plan tab.
 
@@ -498,6 +615,34 @@ vignette — towels for guests, a locker cabin (×qty), the car with its plate o
 
 ### C-04 · Checkout [MVP]
 
+```text
+ from C-03 (menu morphs in) · basket popover [Checkout] · deep link
+        │
+        ▼
+ ┌─ Your basket · 5 items ──────────┐   ┌─ Akti tou Iliou ───────────────────┐
+ │ [set] Sunbed CE-01  Central  €25 │   │ Subtotal                   €110.00 │
+ │ [set] Sunbed CE-02  Central  €25 │   │ − Season pass · 1 entry     −€10   │
+ │ [tkt] Individual × 4  Entry  €40 │   │ − Paid with VIP credit      −€X    │
+ │ [lkr] Day locker 1   Tue      €5 │   │ ─────────────────────────────────  │
+ │ [car] Parking spot ΙΖΡ-1234  €15 │   │ Total / Pay now              €Y    │
+ │ swipe left / trash ─▶ [Undo]     │   │ Use a pass: VIP [on] Season [on]   │
+ │ [Empty basket] ─▶ [Undo]         │   │ Show platform economics  [DEMO]    │
+ └──────────────────────────────────┘   └─────────────────┬──────────────────┘
+   empty ─▶ "Plan my visit"                               │
+                                                          ◆ cash due?
+                                      ┌─── > €0 ──────────┴─── = €0 ──────────┐
+                                      ▼                                       ▼
+                          [Pay €Y] ─▶ Stripe redirect            [Confirm · paid with pass]
+                          "Secure payment on tenant's account"   no card charged
+                          ─▶ [Simulate successful payment] [DEMO]
+                                      │                                       │
+                                      └───────────────────┬───────────────────┘
+                                                          ▼
+                                                 Confirmation (C-05)
+ reassurance: Secured by Stripe · VISA MC AMEX APPLE · free cancellation up to 24 h
+ ◀ Back to planning ─▶ C-03
+```
+
 - **Basket** list: kind icon, label, sub-line (zone/date/plate), price, remove (trash or **swipe left**
   on touch) with **Undo**; **Empty basket** with Undo. Empty state → "Plan my visit".
 - **Summary panel** (tenant logo + name): Subtotal → pass deductions → **Total / Pay now**. "VAT
@@ -515,6 +660,19 @@ vignette — towels for guests, a locker cabin (×qty), the car with its plate o
 
 ### C-05 · Confirmation
 
+```text
+ ✓ check springs in + confetti ─▶ "Payment successful" ─▶ #BK-10429 ─▶ QR flips in
+                                                                        │
+      ┌─────────────────────┬──────────────────────┬────────────────────┼──────────────────┐
+      ▼                     ▼                      ▼                    ▼                  ▼
+ Apple Wallet         Google Wallet        [View my bookings]   [Add to calendar]   [View receipt]
+ unsigned .pkpass     "Save to Wallet"      clears basket        downloads .ics      clears basket
+ (order by platform)  link                  ─▶ C-06                                  ─▶ C-07
+
+ pills:  Stripe paid · QR e-mailed · ΑΠΥ → MyDATA ✓
+ [GAP] leaving any other way keeps the basket full
+```
+
 - Animated check (confetti), "Payment successful", booking reference **#BK-NNNNN** (sequential), a
   **QR code** (flips in), **Add to Apple Wallet / Google Wallet** (platform-detected order),
   status pills (Stripe paid · QR e-mailed · ΑΠΥ → MyDATA ✓).
@@ -527,6 +685,24 @@ vignette — towels for guests, a locker cabin (×qty), the car with its plate o
 
 ### C-06 · My Bookings
 
+```text
+ ┌ Active bookings ┐ ┌ This season  € · n ┐ ┌ Next visit ┐
+ └─────────────────┘ └────────────────────┘ └────────────┘
+ "Your season in review": visits · favourite zone · savings · spend · visits/month sparkline
+ [All] [Active] [Past]                                     [E-mail all QRs] (demo)
+    │
+    ├─ loading ─▶ skeleton rows
+    ├─ error ───▶ message + [Retry]
+    ├─ empty ───▶ filter-specific empty state
+    ▼
+ Booking · Item · Date · Status (Confirmed/Used/Cancelled/Unpaid/Refunded/Pending) · € · [QR]
+                                                                                         │
+                                           ┌─ Entry QR · #BK-… ─────────────┐            │
+                                           │ QR · Apple / Google Wallet     │ ◀──────────┘
+                                           │ [Resend by e-mail]             │
+                                           └────────────────────────────────┘
+```
+
 - KPI cards: Active bookings, This season (€ total, count), Next visit.
 - **"Your season in review"** banner: visits, favourite zone, savings, spend, visits/month sparkline.
 - Tabs **All / Active / Past**; **E-mail all QRs** (demo).
@@ -536,6 +712,24 @@ vignette — towels for guests, a locker cabin (×qty), the car with its plate o
 
 ### C-07 · My Documents
 
+```text
+ ┌ Receipts (ΑΠΥ) ┐ ┌ Total spend ┐ ┌ myDATA 100% ┐
+ └────────────────┘ └─────────────┘ └─────────────┘
+ [All] [ΑΠΥ] [ΤΠΥ] [Credit notes]                    [Download all (ZIP)] ─▶ real PDFs
+    │
+    ▼
+ ΑΠΥ-2026-004281 · for · date · amount · MyDATA ✓ · [View] [PDF]
+                                                      │      └─▶ downloads the PDF
+                                                      ▼
+            ┌─ ΑΠΥ-2026-004281 ────────────────────────────────────────┐
+            │ Akti tou Iliou AE · ΑΦΜ                                  │
+            │ description          net      VAT      gross             │
+            │ Sunbed CE-89       24.19     5.81      30.00             │
+            │ QR · MARK 400001020304002281 · invoiceType 2.1 · pay 7   │
+            │                                       [Download] [Close] │
+            └──────────────────────────────────────────────────────────┘
+```
+
 - KPI cards: receipts this season (ΑΠΥ count), total spend, myDATA status 100%.
 - Tabs **All / ΑΠΥ / ΤΠΥ / Credit notes**; **Download all (ZIP)** bundles real generated PDFs.
 - Table: Document number, For, Date, Amount, Status "MyDATA ✓", **View** / **PDF**.
@@ -543,6 +737,23 @@ vignette — towels for guests, a locker cabin (×qty), the car with its plate o
   **MARK**, "invoiceType 2.1 · payment 7"; Download.
 
 ### C-08 · Buy a VIP Pass (prepaid credit)
+
+```text
+ Home VIP tile ─▶ #/customer/vip
+      │
+      ▼
+ (1) SELECT ─────────▶ (2) TERMS ──────────▶ (3) PAY ──────────────▶ (4) DONE
+  "Prepay credit,       prepaid · 20% off      Stripe redirect          "You're now a VIP
+   save on everything"  on credit-paid part    ─▶ [Simulate payment]     member"
+  ┌───────────┐┌───────────┐ valid to season end     [DEMO]                 wallet buttons
+  │   €500    ││  €1,000   │ non-refundable                               pills: Stripe paid ·
+  │ spends    ││ spends    │ personal · no cash                            Credit added · ΑΠΥ ✓
+  │ like €625 ││like €1,250│ [ ] I have read and                         [Back to home]
+  └───────────┘└───────────┘     agree (required)                        [Plan a visit]
+  packs + % come from Passes (A-12)                                            │
+                                                                               ▼
+ buy again ─▶ balance tops up                           VIP credit usable at checkout (C-04)
+```
 
 1. **Select:** hero "Prepay credit, save on everything"; credit packs (default €500 and €1,000 — admin
    configurable), each showing "Spends like €X · 20% off" and validity to season end.
@@ -555,16 +766,64 @@ vignette — towels for guests, a locker cabin (×qty), the car with its plate o
 
 ### C-09 · Buy a Season Pass
 
+```text
+ Home Season tile ─▶ #/customer/season
+      │
+      ▼
+ (1) SELECT ────────────────▶ (2) TERMS ─────────────▶ (3) PAY ──────────▶ (4) DONE
+  ┌─ Monthly ─────┐┌─ Whole summer ─┐  one entry per visit    Stripe redirect   "Your entry is
+  │ €120          ││ €350           │  entry only · personal  ─▶ [Simulate]      covered every
+  │ 1 month from  ││ to 30 Sep 2026 │  photo ID may be asked     [DEMO]          visit"
+  │ purchase      ││ (season end)   │  non-refundable once                       │
+  └───────────────┘└────────────────┘  activated · [ ] agree                     ▼
+                                                           covers 1 adult entry at checkout (C-04)
+ held pass ─▶ tile shows "Manage pass"
+```
+
 Same four-phase flow: plans **Monthly** (€120, valid one month from purchase) or **Whole summer**
 (€350, to season end); terms (one entry per visit, entry only, personal, photo ID may be requested,
 non-refundable once activated); pay; done ("Your entry is covered every visit").
 
 ### C-10 · Manage account, privacy and security
 
+```text
+ [EM ▾] account menu
+ ├─ My bookings ────────────────────────────────▶ C-06
+ ├─ My documents ───────────────────────────────▶ C-07
+ ├─ Account settings (modal)
+ │   ├─ Profile ········ name · e-mail · phone · language
+ │   ├─ Notifications ·· push · e-mail · SMS (critical only) · marketing offers
+ │   ├─ Saved cards ···· •••• 4242 [remove ─▶ Undo] · [Add card] (SetupIntent, demo)
+ │   ├─ Privacy & data ─▶ PRIVACY CENTRE
+ │   │     ├─ Your data ··· [Export my data (ZIP)] ─▶ my-data.json + summary.pdf
+ │   │     ├─ Consents ···· analytics / marketing toggles · [Re-open cookie banner]
+ │   │     ├─ Who sees it · processors · retention
+ │   │     └─ Delete ······ [Request erasure] ─▶ confirm ─▶ 30-day grace
+ │   │                      (ΑΠΥ/ΤΠΥ + myDATA records kept 5 years)
+ │   └─ Security
+ │         ├─ Change password: current ─▶ new (strength [###-] ≥ 3) ─▶ confirm ─▶ ✓
+ │         └─ Enable 2FA: scan QR / copy key ─▶ 6-digit code ─▶ recovery codes ─▶ ✓
+ └─ Sign out ───────────────────────────────────▶ C-01
+ [globe] language: English · Ελληνικά · Deutsch · Français · Español · Italiano
+```
+
 See §7.4–§7.6: profile, notification preferences, saved cards, change password, 2FA, data export,
 consents, erasure request, cookie preferences, language.
 
 ### C-11 · Notifications
+
+```text
+ [bell •3] ─▶ ┌─ Notifications ─────────────── [Mark all read] ┐
+              │ • Booking confirmed — Central CE-89, QR ready  │
+              │ • Weather alert — re-confirm 24 h before       │
+              │ • Weekend offer · 20% off front row            │
+              │   Receipt ready — ΑΠΥ transmitted to MyDATA    │
+              │                                    [Settings]  │
+              └───────────────────────────────────────┬────────┘
+                                                      ▼
+              channels  Push · E-mail · SMS   ×   categories  booking updates ·
+              weather alerts · offers & promotions · receipts & documents ─▶ [Save]
+```
 
 Customer feed examples: booking confirmed (QR ready), weather alert (re-confirm 24 h before), weekend
 offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open settings.
@@ -575,6 +834,21 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
 
 ### A-01 · Dashboard [MVP]
 
+```text
+ [Day] [Week] [Month] [Year] ─▶ every chart swaps its series       [Export] ─▶ CSV
+ ┌────────────────┐ ┌────────────────┐ ┌────────────────┐ ┌────────────────┐
+ │ Revenue (7d)   │ │ Bookings (7d)  │ │ Occupancy      │ │ Avg basket     │
+ │ €33.4k   +12%  │ │ 1,284     +8%  │ │ 71%      +3pp  │ │ €41      +€2   │
+ └────────────────┘ └────────────────┘ └────────────────┘ └────────────────┘
+ ┌──────────────────────────────┐ ┌───────────────────────┐ ┌──────────────────────┐
+ │ Revenue bars (peaks marked)  │ │ Revenue by capability │ │ Occupancy by zone    │
+ │  _.-=#=-._  (peaks in teal)  │ │ Sunbeds 62% · Tickets │ │ Macaw   ######## 91% │
+ │                              │ │ 28% · Other 10%       │ │ Central ######   71% │
+ └──────────────────────────────┘ └───────────────────────┘ └──────────────────────┘
+ Latest bookings table ──[View all]──▶ Bookings (A-04)
+ Export = one multi-section CSV: KPIs + every chart series + latest bookings
+```
+
 - Period tabs **Day / Week / Month / Year** (chart series change per period); **Export** (multi-section
   CSV of KPIs + every chart series + latest bookings).
 - KPI cards: Revenue (7d) €33.4k (+12%), Bookings (7d) 1,284 (+8%), Occupancy 71% (+3pp), Avg basket
@@ -583,6 +857,25 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
   28% · Other 10%), Occupancy by zone (horizontal bars), Latest bookings table (+ View all → Bookings).
 
 ### A-02 · Availability & Pricing [MVP]
+
+```text
+ ┌─ Tab · Availability ─────────────────┐  ┌─ Tab · Seasonal & day pricing ───────────────┐
+ │ Zone · sunbeds · available · base €  │  │ Rule list: name · effect · scope · [on/off]  │
+ │ Open [on/off] ─▶ badge Open / Closed │  │   "August weekends"   +€10                   │
+ │ [Publish] ─▶ demo toast              │  │   "July weekday early-bird"   −10%           │
+ └──────────────────────────────────────┘  │ [+ New rule] / [Edit] ─▶ Rule editor         │
+                                           │ Price preview: date ─▶ base ─▶ new, per zone │
+                                           └──────────────────────────────────────────────┘
+
+ RULE EDITOR
+ Name (auto-suggested) ─▶ Apply to (All / zone) ─▶ Days (Every day / Weekdays / Weekends)
+   ─▶ Period from → to (+ month presets) ─▶ Change: Set to € / +€ / % ─▶ Amount
+   ─▶ ◆ valid?  end ≥ start · set needs > 0 · others need ≠ 0
+        ├─ no  ─▶ inline errors
+        └─ yes ─▶ live preview (before → after) ─▶ [Save] ─▶ rule list
+
+ [GAP] open/closed and the rules don't reach the customer wizard yet
+```
 
 - **Tab "Availability":** table per zone — sunbeds, available, base price, **Open** toggle, status badge
   (Open / Closed). **Publish** (demo toast). **[GAP]** open/closed does not reach the customer wizard.
@@ -601,6 +894,33 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
   - **[GAP]** rules are not yet applied to customer prices.
 
 ### A-03 · Map Layout Editor [MVP]
+
+```text
+ ┌─ Tab · Zone map ─────────────────────────────┐  ┌─ Tab · Sunbed layout ────────────────────┐
+ │ Canvas on the beach background               │  │ Zone chips  AK  CE  MC  BE  MA  BO       │
+ │ drag a zone ─▶ new position (clamped)        │  │ SEA · FRONT ROW                          │
+ │ select ─▶ name · prefix · colour · rows×cols │  │   o o o o o o   drag · click · shift/cmd │
+ │ [+ Add zone]  [Remove] (one must remain)     │  │   o o # # o o   -click = multi-select    │
+ │ [Background] ─▶ picker modal                 │  │ PROMENADE          [Snap to grid]        │
+ │ [Save layout] + debounced autosave           │  ├──────────────────────────────────────────┤
+ └──────────────────────────────────────────────┘  │ Side: store logo · grid generator (≤120, │
+                                                   │ ≤16/row) · Add · Copy · Reset · Remove   │
+                                                   │ Selection: state · type · €/day · pos    │
+                                                   │ [Publish to wizard] ─▶ C-03 + Home count │
+                                                   └──────────────────────────────────────────┘
+
+ ATMOSPHERE card (both tabs) ─ cosmetic only, booking unaffected
+   Weather effects [on/off] · Time-of-day lighting [on/off]
+   Weather ◆ Sunny 28° / Windy 24° / Overcast 22° / Rainy 19°
+   Scene clock  05:30 ├────────────●──────────┤ 21:30   (~19:30 = golden hour)
+   ─────────────────────────────────────────────▶ every customer page (X-10)
+
+ BACKGROUND PICKER
+   ◆ Clean gradients │ Illustrated scenes │ Your own photo (≤ 1600×900)
+   ─▶ preview ─▶ [Use background] ─▶ customer backdrop + editor canvas
+
+ [GAP] zone-map positions and identity don't drive the customer overview
+```
 
 Two tabs plus an Atmosphere card:
 
@@ -630,6 +950,25 @@ Turquoise, Sunset, Slate Minimal, Akti tou Iliou [default], Palm Cove, Golden Ho
 
 ### A-04 · Bookings [MVP]
 
+```text
+ [Search: ID · name · surname · phone · items]      [Export] ─▶ CSV, one row per item
+        │
+        ▼
+ Booking ▲▼ │ Name ▲▼ │ Surname ▲▼ │ Phone │ Items │ Date ▲▼ │ Channel │ Status │ € ▲▼
+                                           │                   │
+            2 sets + parking + locker ─────┘   Online · Walk-in · Phone · Cashier
+            = "4 items · one booking"
+
+ ◀ 1 2 3 ▶  30 rows per page              row ─▶ [Resend QR]
+                                                    │
+                                                    ▼
+                                            ┌─ Resend QR ────────────────┐
+                                            │ ◆ Email · Viber · SMS      │
+                                            │    (shows the destination) │
+                                            │ [Resend via …] ─▶ toast    │
+                                            └────────────────────────────┘
+```
+
 - Search (ID, name, surname, phone, items), **sortable** columns (Booking, Name, Surname, Date,
   Amount), pagination (30 per page), **Export** CSV (one row per booking _item_; total on the first
   item row).
@@ -639,6 +978,23 @@ Turquoise, Sunset, Slate Minimal, Akti tou Iliou [default], Palm Cove, Golden Ho
 - **Resend QR** modal: choose **Email / Viber / SMS** (shows the destination) → "Resend via …".
 
 ### A-05 · Manual / Phone Booking [MVP]
+
+```text
+ ┌─ Form ─────────────────────────────┐  ┌─ Live beach coverage ──────────────┐
+ │ Customer name / e-mail / phone     │  │ o o x o o o     tap an available   │
+ │ Zone ◆  ·  Sunbed code  ·  Date    │  │ o # o o x o     set ─▶ fills the   │
+ │ Mark as ◆ Unpaid · Comp · VIP ·    │  │ x o o o o o     sunbed code        │
+ │           Pay later                │  │ (published layout; taken = dimmed) │
+ └────────────────────────────────────┘  └────────────────────────────────────┘
+
+ [Reserve & send QR] ─▶ ◆ channel Email / Viber / SMS
+        │
+        ▼
+ ● result card: QR · "Reserved · Unpaid" · "QR sent via … to …"
+        │
+        ▼
+ Bookings (A-04) status Unpaid · channel Phone ─▶ guest pays later or at the gate
+```
 
 - Form: customer name, e-mail, phone, zone, sunbed code, date, **Mark as** (Unpaid (manual) / Comp /
   VIP / Pay later).
@@ -650,6 +1006,23 @@ Turquoise, Sunset, Slate Minimal, Akti tou Iliou [default], Palm Cove, Golden Ho
   later in Bookings. Manual bookings appear in reporting with channel = Phone.
 
 ### A-06 · Users & Segments [MVP]
+
+```text
+ [Search]   filter ◆ All · VIP · Season pass · Regular · New            [New tag] (demo)
+ rule:  every guest starts New ──(15 visits)──▶ Regular      VIP / Season pass = by hand
+
+ Name · Surname · Phone · Email · Visits · Tags · [Edit] · [Activity]
+                                                    │         │
+        ┌───────────────────────────────────────────┘         │
+        ▼                                                     ▼
+ ┌─ Edit user ─────────────────────────┐    ┌─ Activity ─────────────────────────┐
+ │ first · surname · e-mail (checked)  │    │ visits · spend · avg/visit · last  │
+ │ phone · visits this season          │    │ timeline: account created ─▶       │
+ │ auto segment (read-only)            │    │ booking ─▶ paid ─▶ checked in ─▶   │
+ │ VIP [on/off] · Season pass [on/off] │    │ stamp earned ─▶ opened campaign    │
+ │                       [Save]        │    │ [Message]  [Edit profile]          │
+ └─────────────────────────────────────┘    └────────────────────────────────────┘
+```
 
 - Search, tag filters **All / VIP / Season pass / Regular / New**, **New tag** (demo).
 - Rule banner: every guest starts **New** and becomes **Regular** after **15 visits**; **VIP** and
@@ -664,6 +1037,19 @@ Turquoise, Sunset, Slate Minimal, Akti tou Iliou [default], Palm Cove, Golden Ho
 - The demo customer's purchased passes show as pass-derived tags (wallet icon).
 
 ### A-07 · Reporting & Analytics [MVP]
+
+```text
+ ┌───────────┬─────────┬───────────┬──────────┬──────────┬───────────┬─────────┬───────────┐
+ │ Executive │ Revenue │ Occupancy │ Bookings │ Channels │ Customers │ Tickets │ Daily ops │
+ └─────┬─────┴────┬────┴─────┬─────┴────┬─────┴────┬─────┴─────┬─────┴────┬────┴─────┬─────┘
+       │          │          │          │          │           │          │          │
+   9 KPIs    capability  heatmap    lead time   channel ×   new vs     ticket    date ─▶
+   + charts  zone · tx   week×zone  cancel %    role/week   returning  history   ops + docs
+       │
+       └─ insight: "Macaw hits 91% by noon…" ─▶ [Set a rule] (demo toast; should open A-02)
+
+ every tab ─▶ [Export CSV] exactly as displayed
+```
 
 Eight tabs, each exportable to CSV exactly as displayed:
 
@@ -681,6 +1067,27 @@ Eight tabs, each exportable to CSV exactly as displayed:
 
 ### A-08 · Refunds [MVP]
 
+```text
+ [Week] [Month] [Season]   KPIs: refunded · pending · rate · top reason   [Export]
+ #TX-88210 · date · name · amount · reason · Pending ──▶ [Refund]
+                                                            │
+        ┌───────────────────────────────────────────────────┘
+        ▼
+ ┌─ Issue refund ─────────────────────────────────┐
+ │ Refund type ◆ Full  │  Partial (€1 … charge)   │
+ │ Reason ◆ Weather · Double booking ·            │
+ │          Customer request · Service issue      │
+ │ note: reverses the fee, issues a credit note   │
+ │              [Refund €X via Stripe]            │
+ └────────────────────────────────────────────────┘
+        │
+        ▼
+ Authorizing ─▶ Reversing charge ─▶ MyDATA credit ─▶ E-mailing ─▶ ✓ Refund complete
+ with Stripe    + application fee   note (5.1)        customer      re_3PqA2k…f4d
+
+ row becomes Refunded (partial: "−€X refunded") ─▶ credit note in F-01 and C-07
+```
+
 - Period tabs (Week / Month / Season), **Export** CSV.
 - KPIs: Refunded this month (€, count), Pending review, Refund rate, Top reason.
 - Table: Transaction, Date, Name, Surname, Phone, Amount (partial refunds show "−€X refunded"), Reason,
@@ -692,6 +1099,22 @@ Eight tabs, each exportable to CSV exactly as displayed:
   E-mailing the customer → **Refund complete** (Stripe refund id).
 
 ### A-09 · Privacy & GDPR [MVP]
+
+```text
+ KPIs: open requests · due ≤ 10 days · consent rate · avg resolution
+ [Data requests] [Consent audit] [Retention] [Processing register (ROPA)]
+        │
+        ▼
+ DSAR-204 · type · subject · received · due in N days ──▶ [Handle request] ─▶ ◆ type?
+
+   Access / Portability   verify ID ─▶ locate data ─▶ compile export ─▶ secure download
+   Erasure                verify ID ─▶ locate ─▶ legal holds ─▶ erase rest ─▶ confirm
+                                                 (invoices 5 y)
+   Rectification          verify ID ─▶ locate record ─▶ correct (re-issue receipts) ─▶ confirm
+   Restriction/Objection  verify ID ─▶ identify processing ─▶ restrict ─▶ confirm
+
+ status:  Awaiting ID ─▶ In progress ─▶ ✓ Completed          statutory deadline: 30 days
+```
 
 - KPIs: Open requests, Due ≤ 10 days (30-day statutory deadline), Consent rate, Avg resolution.
 - Tabs:
@@ -711,6 +1134,21 @@ Eight tabs, each exportable to CSV exactly as displayed:
 
 ### A-10 · Communicate [Future]
 
+```text
+ ┌─ 1 · Channels ───────────────────┐  ┌─ 2 · Compose campaign ───────────────┐
+ │ Push    ● connected (in-app)     │  │ Audience ◆ All · VIP · Regulars ·    │
+ │ E-mail  ○ [Set up channel]       │  │   Season pass …  ─▶ est. reach       │
+ │ Viber   ○ [Set up channel]       │  │ Channel ◆ Push · E-mail · Viber · SMS│
+ │ SMS     ○ [Set up channel]       │  │   not connected? ─▶ [Set up →]       │
+ ├──────────────────────────────────┤  │ Message ◆ promote a loyalty offer    │
+ │ provider ◆ ─▶ API key / token    │  │   (pre-filled) or write your own     │
+ │ ─▶ sender ─▶ [Connect & verify]  │  │ channel-true preview                 │
+ │ ─▶ SPF+DKIM / Viber approval /   │  │ [Review] ─▶ [Send to N users]        │
+ │    sender-ID rules ─▶ ● connected│  │         ─▶ ✓ Campaign sent           │
+ └──────────────────────────────────┘  └──────────────────────────────────────┘
+ Loyalty (A-11) [Promote] ──▶ lands here with the offer pre-loaded   [DEMO] keys never stored
+```
+
 - **Channel connections:** Push (in-app, connected by default), E-mail, Viber, SMS. **Set up channel**
   modal: provider (E-mail: SendGrid, Mailgun, Postmark, Amazon SES, Custom SMTP · Viber: Viber Business
   Messages, Vonage, Infobip · SMS: Twilio, Vonage, Apifon (GR), Infobip), credential (API key/token),
@@ -726,6 +1164,21 @@ Eight tabs, each exportable to CSV exactly as displayed:
 
 ### A-11 · Loyalty [Future]
 
+```text
+ ┌ Visit      ┐┌ Happy hours ┐┌ Tiered     ┐┌ Bundle ┐┌ Bring a ┐┌ Birthday ┐┌ + Custom ┐
+ │ milestones ││ & early-bird││ membership ││ perks  ││ friend  ││ week     ││ scheme   │
+ └─────┬──────┘└──────┬──────┘└─────┬──────┘└───┬────┘└────┬────┘└────┬─────┘└────┬─────┘
+       └──────────────┴─────────────┴───────────┼──────────┴──────────┴───────────┘
+                                                ▼
+  [Configure] ─▶ typed fields ─▶ [Save] ─▶ [enable / pause] ─▶ Home "Your rewards" (C-02)
+                                     └──▶ [Promote] ─▶ Communicate, pre-filled (A-10)
+
+  TIMED OFFERS   reward ─▶ store ─▶ when ◆ weekday mornings · weekends · all month ·
+                 happy hour 17–19 · date range ─▶ [Publish offer] ─▶ list (remove)
+  REGULARS       5+ visits 10% off │ 10+ 15% + coffee │ 20+ VIP front row + parking
+                 ─▶ audience counts ─▶ channel ─▶ send
+```
+
 - **Scheme cards** (pick to set up): Visit milestones, Happy hours & early-bird, Tiered membership,
   Bundle perks, Bring a friend, Birthday week, plus **Add a custom scheme**. Each card: blurb, example,
   configured summary, **enable/pause** toggle, configure, **Promote** (→ Communicate). Custom schemes
@@ -740,6 +1193,17 @@ Eight tabs, each exportable to CSV exactly as displayed:
 
 ### A-12 · Passes [Future]
 
+```text
+ ┌─ Tab · Pricing ────────────────────┐  ┌─ Tab · Card designer ──────────────┐
+ │ VIP packs  €500  €1,000  [+][–]    │  │ Designs: VIP credit · Season pass  │
+ │ Spend discount  20 %               │  │ edit on the live card: colours ·   │
+ │ Season monthly €120 · summer €350  │  │ wave · texts · logo (drag) · QR    │
+ │ [Save pricing] ─▶ C-08 / C-09 live │  │ Draft ─▶ [Review & publish] ─▶     │
+ └────────────────────────────────────┘  │ Apple + Google renditions ─▶ ✓     │
+                                         └────────────────────────────────────┘
+ [GAP] published card designs don't drive the customer's cards yet
+```
+
 - **Pricing tab:** VIP **credit packs** (add/remove packs), **spend discount** (%), Season **Monthly (€)**
   and **Whole summer (€)** → **Save pricing** (live on the customer purchase flow).
 - **Card designer tab:** a list of card designs (VIP credit, Season pass; duplicate). Edit on a live
@@ -750,6 +1214,16 @@ Eight tabs, each exportable to CSV exactly as displayed:
 - **[GAP]** published designs do not yet drive the customer's cards.
 
 ### A-13 · Gamification [Future]
+
+```text
+ ┌─ Badges ───────────────────────────────────────────────────────────────────┐
+ │ First Splash  [icon ▾] [colour: sun ▾]  When [visits ▾] reaches [ 1 ]  [–] │
+ │ Sun Seeker    …                              visits             5          │
+ │ Big Spender   …                              spend (€)        500          │
+ └────────────────────────────────────────────────────────────────────────────┘
+ [+ Add badge] ─▶ [Save badges] ─▶ Home "Your badges" (C-02)
+                                   earned = colour · locked = grey + lock + progress
+```
 
 - Achievements list: name, icon (curated summer set), colour (sun, coral, gold, teal, sky, sea), rule
   "When **visits / bookings / spend (€)** reaches **N**". Add / remove, **Save badges** (live on the
@@ -763,6 +1237,28 @@ Eight tabs, each exportable to CSV exactly as displayed:
 
 ### K-01 · Issue on-site ticket [MVP]
 
+```text
+ ┌─ Issue Ticket ─────────────────────────┐
+ │ Adult      €10     [−] 2 [+]           │
+ │ Resident    €6     [−] 0 [+]           │
+ │ Child       €5     [−] 0 [+]           │
+ ├────────────────────────────────────────┤
+ │ 2 ticket(s) · anonymous          €20   │
+ └────────────────────────────────────────┘
+        │
+        ▼  ◆ payment?
+        ├── [Charge €20 (card)] ─▶ Stripe Terminal
+        └── [Cash]
+        │
+        ▼
+ ● "Ticket issued · Paid" + QR · ΑΠΥ auto-issued to MyDATA
+        │
+        ▼
+ [Print ticket] ─▶ ESC/POS receipt printer ─▶ validates at the gate scanner (G-01)
+
+ [GAP] no Senior category here; prices are hard-coded instead of shared
+```
+
 - Categories with steppers: Adult €10, Resident €6, Child €5 (anonymous tickets).
 - **Charge €X (card)** (Stripe Terminal) or **Cash** → "Ticket issued · Paid" card with QR, "ΑΠΥ
   auto-issued to MyDATA" → **Print ticket** (ESC/POS receipt printer).
@@ -771,12 +1267,41 @@ Eight tabs, each exportable to CSV exactly as displayed:
 
 ### K-02 · Redeem ticket [MVP]
 
+```text
+ ┌─ Ticket code ─────────┐
+ │ TK-55119              │ ──[Redeem ticket]──▶ ◆ already used?
+ └───────────────────────┘                       ├─ no  ─▶ ✓ Valid — admitted
+                                                 └─ yes ─▶ ✗ Already used — cannot reuse
+                                                              (mock: code contains "used")
+ ─▶ Recent redemptions list
+ online QR tickets are scanned by the Controller instead (G-01)
+```
+
 - Enter a ticket code/number (e.g. `TK-55119`) → **Redeem ticket** → "Valid — admitted ✓" or "Already
   used — cannot reuse" (mock rule: codes containing "used" are already used).
 - Recent redemptions list. QR scanning is not required for cashier-issued tickets; online QR tickets
   are scanned by the Controller.
 
 ### K-03 · Cash register session [Future]
+
+```text
+ NO SESSION ────────[Open session]────────▶ OPEN SESSION ───[Close session]───▶ CLOSED
+ explanation +                                   │                          stats + CSV
+ past sessions table                             │                          ready
+ (#CS-196 … · cashier · cash · card · status)    ▼
+                  ┌─ Cash register session ──────────────────────────────────────────────┐
+                  │ #CS-204 · cashier · open since · duration                            │
+                  │ cash in €1,240 · card in €3,860                                      │
+                  │ tender mix   card ##########-----  cash                              │
+                  │ shift stats  transactions · avg · items/receipt · busiest hour       │
+                  ├──────────────────────────────────────────────────────────────────────┤
+                  │ opening float + cash sales − handovers = expected drawer             │
+                  │ counted − expected = variance   (shortfall ─▶ warning)               │
+                  ├──────────────────────────────────────────────────────────────────────┤
+                  │ ledger  time · Float in / Sale / Handover / Refund · item · €        │
+                  │ [Print Z-report]      [Record handover]                              │
+                  └──────────────────────────────────────────────────────────────────────┘
+```
 
 - **No open session:** explanation, **Open session**, table of **past sessions** (session id, cashier,
   date, duration, cash, card, transactions, status).
@@ -789,6 +1314,23 @@ Eight tabs, each exportable to CSV exactly as displayed:
 
 ### K-04 · Sell a locker [Future]
 
+```text
+ Locker bank ◆ A Entrance €5 · B Pool side €5 · C North gate €5 · D Family €7 · E Premium €9
+                              (each shows free / 30)
+        │
+        ▼
+ ┌─ Bank A · Entrance ──────────────────────────────────────────┐
+ │ A01 A02 A03 A04 A05 A06 A07 A08 A09 A10                      │
+ │ [ ] [x] [ ] [ ] [x] [ ] [*] [ ] [ ] [x]      [ ] free        │
+ │ A11 A12 …                                    [x] taken       │
+ │                                              [*] selected    │
+ └──────────────────────────────────────────────────────────────┘
+        │
+        ▼
+ [Charge €5] ─▶ ● "Locker sold · A07" + QR slip ─▶ [Print slip]
+                  └─ locker marked taken · ΑΠΥ auto-issued
+```
+
 - **Locker banks** (A Entrance, B Pool side, C North gate — €5; D Family area — €7; E Premium — €9),
   30 lockers each, showing free/total.
 - Grid of lockers (free / taken / selected) → **Charge €X** → "Locker sold · A07" with QR slip →
@@ -799,6 +1341,21 @@ Eight tabs, each exportable to CSV exactly as displayed:
 ## 11. User journeys — Controller
 
 ### G-01 · Gate validation [MVP]
+
+```text
+ ┌─ Viewfinder ──────────┐
+ │   [  QR in frame  ]   │
+ │ ───── scan line ───── │ ──[Scan QR]──▶ Scan result modal ─▶ ◆ result (random [DEMO])
+ │                       │
+ └───────────────────────┘
+      ├─ Valid ─────▶ "admit the guest" ─▶ [Admit guest] ─▶ ✓ Admitted — gate opened
+      ├─ Already used ▶ "validated earlier today" ─▶ [Override & admit] (only if sure)
+      └─ Invalid ───▶ "not recognised — do not admit" (no admit button)
+
+ ─▶ Recent validations (tap a row for detail): #BK-… / #TK-… · zone·set · state
+ Gate analytics: scanned 1,284 · 312/hr (peak 11–13) · no-shows 2.8% · duplicates 4
+ Other actions:  [Walk-in] G-02 · [Add ticket] G-03 · [Open same-day availability] G-04
+```
 
 - **Scan QR** (camera viewfinder simulation with scan line) → **Scan result** modal:
   - **Valid** — "admit the guest" → **Admit guest** ("✓ Admitted — gate opened").
@@ -811,15 +1368,49 @@ Eight tabs, each exportable to CSV exactly as displayed:
 
 ### G-02 · Walk-in booking
 
+```text
+ ┌─ Walk-in booking ────────────────────┐
+ │ Zone ◆ Central · Sunbed code CE-92   │
+ │ Guests  [−] 2 [+]   (at least 1)     │
+ │ Payment ◆ Card (Stripe) │ Cash       │
+ │       [Reserve & charge €25]         │
+ └──────────────────────────────────────┘
+ ─▶ added to Recent validations · "QR printed" · channel Walk-in in reporting (X-07)
+```
+
 Modal: zone, sunbed code, guests (stepper ≥ 1), payment (Card (Stripe) / Cash) → **Reserve & charge €X**
 (zone base price) → added to recent validations, "QR printed".
 
 ### G-03 · Add ticket (pay on site)
 
+```text
+ ┌─ Add ticket · pay on site ───────────┐
+ │ Adult (13+)       €10   [−] 1 [+]    │
+ │ Alimos resident    €6   [−] 0 [+]    │
+ │ Child (6–12)       €5   [−] 0 [+]    │
+ │ Senior             €7   [−] 0 [+]    │
+ │      [Charge €10 via Stripe]         │
+ └──────────────────────────────────────┘
+ ─▶ ✓ ticket issued · "QR e-mailed"      [GAP] prices hard-coded here too
+```
+
 Modal: Adult (13+) €10, Alimos resident €6, Child (6–12) €5, Senior €7 → **Charge €X via Stripe**
 ("QR e-mailed").
 
 ### G-04 · Open same-day availability
+
+```text
+ ┌─ Open same-day availability ───────────┐
+ │ Release unsold sunbeds for instant     │
+ │ online booking today                   │
+ │ Akanthus   [−] 0 [+]                   │
+ │ Central    [−] 4 [+]      0 … 24 sets  │
+ │ Macaw      [−] 2 [+]      per zone     │
+ │ …                                      │
+ │         [Publish 6 sets]               │
+ └────────────────────────────────────────┘
+ ─▶ ✓ published ─▶ bookable online today (X-07)
+```
 
 Modal: per zone stepper (0–24 sets) of unsold sunbeds to **release for instant online booking today** →
 **Publish N sets**.
@@ -829,6 +1420,28 @@ Modal: per zone stepper (0–24 sets) of unsold sunbeds to **release for instant
 ## 12. User journeys — Accountant
 
 ### F-01 · e-Invoicing & MyDATA [MVP]
+
+```text
+ banner: ΑΠΥ/ΤΠΥ + myDATA records kept 5 years — exempt from customer erasure
+ KPIs: docs today 738 (726 ΑΠΥ · 12 ΤΠΥ) · transmitted 100% · cancellations · credit notes
+ [All] [Issued] [Cancellations] [Credit notes]   [Search]   sort ▲▼   8/page   [Export]
+        │
+        ▼
+ number · type · MARK · amount · status · date · [View] [PDF]
+          │      │      │        │
+          │      │      │        └─ MyDATA ✓ · Retry queue (failed transmission) · Issued
+          │      │      └─ negatives in red (cancellations, credit notes)
+          │      └─ shortened; click to copy
+          └─ ΑΠΥ · ΤΠΥ · Cancellation · Credit (5.1)
+
+ [View] ─▶ document viewer                [PDF] ─▶ download
+ ┌─ ΑΠΥ-2026-004281 ──────────────────────┐
+ │ Akti tou Iliou AE · ΑΦΜ                │
+ │ line            Net    VAT 24%   Total │
+ │ Sunbed CE-89  24.19     5.81     30.00 │
+ │ MARK · invoiceType 2.1 · payment 7     │
+ └────────────────────────────────────────┘
+```
 
 - Banner: issued ΑΠΥ/ΤΠΥ and their myDATA records are retained **5 years** and exempt from customer
   erasure (legal obligation overrides the right to erasure).
@@ -841,6 +1454,21 @@ Modal: per zone stepper (0–24 sets) of unsold sunbeds to **release for instant
   payment 7.
 
 ### F-02 · Commission & Payouts [MVP]
+
+```text
+ Season gross      Stripe fees        Slaice 5%          Tenant net
+   €704k    ──▶  − €10.2k (~1.5%) ──▶ − €35.2k      ──▶  = €658.6k
+
+ ┌─ Gross → net (this month) ─┐ ┌─ Monthly payouts May–Sep ──────────────┐
+ │ gross                      │ │ May   €48k ####                        │
+ │ − Stripe fee               │ │ …                                      │
+ │ − Slaice 5%                │ │ Aug  €241k ####################  peak  │
+ │ = tenant net               │ │ season totals            [Export CSV]  │
+ └────────────────────────────┘ └────────────────────────────────────────┘
+ VAT by rate: 24% standard · 13% reduced (F&B) · 6% super-reduced
+ myDATA transmission health: 99.6% ok
+ Payout reconciliation: Stripe balance ─▶ in transit to bank ─▶ fees withheld ─▶ unreconciled
+```
 
 - KPIs: Season gross €704k, Stripe fees −€10.2k (~1.5%), Slaice 5% −€35.2k, Tenant net €658.6k.
 - **Gross → net (this month)** table; **Monthly payouts** (May–Sep: gross, Stripe fee, Slaice 5%, tenant
@@ -855,6 +1483,24 @@ Modal: per zone stepper (0–24 sets) of unsold sunbeds to **release for instant
 
 ### P-01 · Tenants [MVP]
 
+```text
+ KPIs: active tenants · pipeline · GMV €704k · Slaice fees €35.2k
+ SaaS: MRR €18.6k (ARR €223k) · NRR 112% · churn 1.1%/mo · ARPA €1,062
+
+ ONBOARDING FUNNEL                                     avg time-to-activate 6.5 days
+   Leads         48  ########################
+   Trials        22  ###########
+   KYC passed    14  #######
+   Live          11  ######                      (# = 2 tenants)
+
+ TENANT LIFECYCLE    Lead ──────▶ Setup ──────▶ Live
+ STRIPE STATUS       pending ─▶ onboarding ─▶ KYC review ─▶ charges ✓
+
+ [Onboard tenant] ─▶ P-02
+ Tenants table ─▶ [Edit] ─▶ name · subdomain · Stripe · status · MRR · modules ─▶ [Save]
+ Capability flags · Akti tou Iliou (MVP on / roadmap off) ─[Manage in Super Admin]▶ P-03
+```
+
 - **Onboard tenant** → P-02.
 - KPIs: Active tenants (Live), Pipeline (Setup + Lead), Platform GMV €704k, Slaice fees €35.2k; SaaS
   metrics: MRR €18.6k (ARR €223k, sparkline), Net revenue retention 112%, Logo churn 1.1%/mo, ARPA
@@ -867,6 +1513,23 @@ Modal: per zone stepper (0–24 sets) of unsold sunbeds to **release for instant
   Admin.
 
 ### P-02 · Tenant onboarding wizard [MVP]
+
+```text
+   (1)━━━━━━━━━━━━━━━(2)━━━━━━━━━━━━━━━(3)━━━━━━━━━━━━━━━(4)
+  Tenant          Branding &         Stripe            Map &
+  details         modules            Connect           go-live
+
+ (1) name · subdomain.slaice.app · country ◆ GR/CY · contact e-mail · ΑΦΜ · language
+ (2) brand colour · logo upload · modules:
+       on:  Sunbed Booking · Entry Ticket · e-Invoice/MyDATA · Payments (Stripe)
+       off: Day Locker · Parking · Cash Register
+ (3) create connected account (Standard) ─▶ onboarding link (KYC) ─▶ check:
+       details_submitted ✓ ─▶ charges_enabled ✓ ─▶ payouts_enabled ✓
+ (4) [Configure map] ─▶ admin Map Layout Editor (A-03)
+     [Go live] ─▶ ● tenant resolves at its subdomain
+
+ [◀ Back] disabled on step 1                                          [Continue ▶]
+```
 
 4 steps with a stepper:
 
@@ -881,12 +1544,46 @@ Modal: per zone stepper (0–24 sets) of unsold sunbeds to **release for instant
 
 ### P-03 · Super Admin [Future]
 
+```text
+ CAPABILITY FLAGS PER TENANT          Akti tou  Demo      Glyfada  Kavouri
+                                      Iliou     Beach #2  Bay      Coast
+ Sunbed Booking                       [on]      [on]      [on]     [on]
+ Entry Ticket                         [on]      [  ]      [on]     [on]
+ e-Invoice / MyDATA                   [on]      [  ]      [  ]     [on]
+ Payments                             [on]      [on]      [on]     [on]
+ Reporting                            [on]      [  ]      [  ]     [on]
+ Day Locker · Parking · Cash Register [  ]      [  ]      [  ]     [  ]
+ Loyalty · Reviews · Catalogue · Geo  [  ]      [  ]      [  ]     [  ]
+                                      click a switch ─▶ module on/off for that tenant
+
+ STRIPE WEBHOOKS  (the signed endpoint verifies Stripe-Signature before processing)
+   checkout.session.completed ──── healthy
+   payment_intent.succeeded ────── healthy
+   payment_intent.payment_failed ─ healthy
+   charge.refunded ─────────────── healthy
+   account.updated ─────────────── healthy
+```
+
 - **Capability flags per tenant** matrix: 12 modules × tenants, toggles.
 - **Stripe webhooks** health: `checkout.session.completed`, `payment_intent.succeeded`,
   `payment_intent.payment_failed`, `charge.refunded`, `account.updated` — "healthy"; signed endpoint
   verifies `Stripe-Signature`.
 
 ### P-04 · Compliance & DPA [MVP]
+
+```text
+ [DPA pack] (PDF, demo)   [Posture report] (demo)
+ KPIs: data residency EU (Frankfurt) · sub-processors (all DPA-signed) · incidents 0 · SLA 72 h
+ Tables: sub-processors (purpose · region · DPA) · per-tenant DPA & posture
+
+ Breach register "All clear" ──[Start workflow]──▶  72-HOUR BREACH WORKFLOW
+
+  1 Assess severity ─▶ 2 Contain & ─▶ 3 Notifiable? ─▶ 4 Notify supervisory ─▶ 5 Notify
+    & scope             remediate      Art. 33/34       authority               tenants &
+                                                                                subjects
+  ─▶ 6 Log to the breach register ─▶ [File & close] ─▶ ● closed
+  |<───────── 72-hour window: steps 1–4, authority notified within 72 h (Art. 33) ─────────>|
+```
 
 - Actions: **DPA pack** (PDF, demo), compliance posture report (demo).
 - KPIs: Data residency EU (Frankfurt), sub-processors count (all DPA-signed), Open incidents 0, Breach
@@ -899,11 +1596,41 @@ Modal: per zone stepper (0–24 sets) of unsold sunbeds to **release for instant
 
 ### P-05 · Verticals [Future]
 
+```text
+ ┌ Theatre / Cinema ─────┐ ┌ Events / Concerts ────┐ ┌ Retail Market ──────────┐
+ │ seats per show,       │ │ tiered/zone seating,  │ │ product catalogue, cash │
+ │ showtimes, seat-class │ │ timed entry, QR       │ │ register, e-invoice &   │
+ │ pricing               │ │ validation            │ │ accounting              │
+ └───────────────────────┘ └───────────────────────┘ └─────────────────────────┘
+
+ CAPABILITY REUSE      Beach (MVP)   Theatre/Cinema  Events        Retail
+ Calendar & inventory  sunbeds/day   seats/show      seats/event   stock units
+ Payments              Stripe        Stripe          Stripe        Stripe + POS
+ Catalogue / pricing   zone/sunbed   seat class      tier/zone     products
+ QR & validation       beach entry   theatre entry   venue entry   —
+ e-Invoice / MyDATA    ΑΠΥ           ΑΠΥ/ΤΠΥ         ΑΠΥ/ΤΠΥ       ΑΠΥ/ΤΠΥ
+ Geo map / layout      beach layout  seat map        venue map     store map
+ Loyalty / reviews     roadmap       points/NPS      points/NPS    loyalty
+```
+
 Cards for Theatre/Cinema, Events/Concerts, Retail Market, and a **cross-business capability reuse**
 matrix (Calendar & inventory, Payments, Catalogue/pricing, QR & validation, e-Invoice/MyDATA, Geo
 map/layout, Loyalty/reviews × Beach / Theatre / Events / Retail).
 
 ### P-06 · Landing page (slaice.app) [Future]
+
+```text
+ ┌─ slaice.app  (preview inside the app shell) ─────────────────────┐
+ │ SLAiCE · Live Through Digital                                    │
+ │                                                                  │
+ │ Digital Multi-Product Platform                                   │
+ │ Digital Business Capability as-a-service                         │
+ │ [Request a demo]   [Explore capabilities]                        │
+ ├──────────────────────────────────────────────────────────────────┤
+ │ Beach │ Theatre & Events │ Retail │ Compliant: Stripe + MyDATA   │
+ └──────────────────────────────────────────────────────────────────┘
+ buttons ─▶ demo toasts · Future: served full-bleed at the root domain
+```
 
 Public marketing page preview: SLAiCE logo, "Digital Multi-Product Platform", "Digital Business
 Capability as-a-service", **Request a demo** / **Explore capabilities**, use-case cards (Beach, Theatre &
@@ -925,6 +1652,116 @@ Events, Retail, Compliant: Stripe + MyDATA).
 | X-08 | **Tenant go-live**         | Platform onboards a tenant with Stripe KYC (P-02) → sets capability flags (P-03) → tenant admin configures the map (A-03) → customers book.                                                                                                              |
 | X-09 | **GDPR request**           | Customer exports data / requests erasure (§7.5) → request appears in the Admin DSAR queue (A-09) → handled with legal holds on invoices → breach/compliance oversight at platform level (P-04).                                                          |
 | X-10 | **Atmosphere**             | Admin toggles weather effects / time-of-day lighting (A-03 Atmosphere) → every customer page renders the same scene (C-02, C-03, C-04).                                                                                                                  |
+
+### 14.1 Journey maps
+
+**X-01 · Book → enter → account**
+
+```text
+ CUSTOMER    │ C-03 book ──▶ C-04 pay ──▶ C-05 QR + ΑΠΥ
+             │                                 │
+ CONTROLLER  │                                 ├──▶ G-01 scan QR ──▶ ✓ admitted
+             │                                 │
+ ADMIN       │                                 ├──▶ A-04 Bookings · A-07 Reporting
+             │                                 │
+ ACCOUNTANT  │                                 └──▶ F-01 ΑΠΥ with MARK ──▶ F-02 net payout
+             │                                                       (gross − Stripe − 5%)
+```
+
+**X-02 · Layout publish**
+
+```text
+ ADMIN       │ A-03 design a zone's sets ──▶ [Publish to wizard]
+             │                                      │
+ CUSTOMER    │                                      ├──▶ C-03 wizard shows that exact layout
+             │                                      ├──▶ C-02 Home "N sunbeds free today"
+             │                                      │
+ ADMIN       │                                      └──▶ A-05 Manual booking mini-map
+```
+
+**X-03 · Refund**
+
+```text
+ ADMIN       │ A-08 [Refund] full / partial
+             │        │
+ STRIPE      │        └──▶ charge + application fee reversed
+             │                     │
+ ACCOUNTANT  │                     └──▶ credit note 5.1 to myDATA (F-01 "Credit notes")
+             │                                   │
+ CUSTOMER    │                                   └──▶ C-07 credit note in My Documents
+```
+
+**X-04 · Loyalty campaign**
+
+```text
+ ADMIN       │ A-11 configure + enable scheme ──▶ [Promote] ──▶ A-10 Communicate (pre-filled)
+             │              │                                        │
+             │              │                                        └──▶ [Send to N users]
+ CUSTOMER    │              └──▶ C-02 Home "Your rewards" ──▶ Claim / Use it ─▶ C-03
+```
+
+**X-05 · Passes**
+
+```text
+ ADMIN       │ A-12 set pass pricing (packs · discount · season prices)
+             │        │
+ CUSTOMER    │        └──▶ C-08 / C-09 buy VIP or Season ──▶ C-04 pass applied at checkout
+             │                        │
+ ADMIN       │                        └──▶ A-06 pass-derived tag on the user
+```
+
+**X-06 · Phone booking**
+
+```text
+ CALL AGENT  │ A-05 reserve a set, no payment ──▶ [Reserve & send QR]
+             │                                          │
+ CUSTOMER    │                                          ├──▶ QR by e-mail / Viber / SMS
+             │                                          │
+ ADMIN       │                                          └──▶ A-04 status Unpaid · channel Phone
+             │                                                        │
+ CONTROLLER  │                                          arrival ──▶ G-01 scan ─▶ settled on site
+```
+
+**X-07 · Walk-in / same-day**
+
+```text
+ CONTROLLER  │ G-04 release unsold sets ──────────┐     G-02 walk-in booking ──┐
+             │                                    │                            │
+ CUSTOMER    │                                    └──▶ bookable online today   │
+             │                                                                 │
+ ADMIN       │                                     A-07 channel "Walk-in" ◀────┘
+```
+
+**X-08 · Tenant go-live**
+
+```text
+ PLATFORM    │ P-02 onboard + Stripe KYC ──▶ P-03 capability flags
+             │                                      │
+ ADMIN       │                                      └──▶ A-03 configure the map ──▶ publish
+             │                                                                       │
+ CUSTOMER    │                              customers book at {tenant}.slaice.app ◀──┘
+```
+
+**X-09 · GDPR request**
+
+```text
+ CUSTOMER    │ §7.5 Privacy Centre: export data / request erasure
+             │        │
+ ADMIN       │        └──▶ A-09 DSAR queue ──▶ handle ──▶ legal hold on invoices (5 y)
+             │                                                    │
+ PLATFORM    │                                                    └──▶ P-04 compliance / breach
+             │                                                         oversight
+```
+
+**X-10 · Atmosphere**
+
+```text
+ ADMIN       │ A-03 Atmosphere: weather fx · daylight · weather · scene clock
+             │        │
+ CUSTOMER    │        ├──▶ C-02 Home
+             │        ├──▶ C-03 wizard          one scene state: every customer page
+             │        └──▶ C-04 checkout        renders the same sky, sea and light
+```
 
 ---
 
