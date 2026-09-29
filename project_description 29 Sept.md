@@ -158,9 +158,14 @@ loyalty).
   appears (magic link or SSO; any input signs you in). **[DEMO]**
 - **Local run:** `npm install` → `npm run dev` (http://localhost:5173). Checks: `npm run typecheck`,
   `npm run lint`, `npm run build`.
-- **Documentation in the repo:** `README.md` and `UX_REVIEW.md` are partly out of date (they mention a
-  Feature Inventory / User Journeys explorer, a ⌘K command palette, a booking hold timer and a bundle
-  discount — none of these exist in the current code). **This document supersedes them.**
+- **Documentation in the repo:** `README.md` and `UX_REVIEW.md` were brought up to date on **29 Sep
+  2026**, verified against `main` @ `ba18313`. `README.md` is the quick start: what Slaice is, how to
+  run and deploy it, the persona map, the tech stack and the folder structure. `UX_REVIEW.md` is the UX
+  backlog: every original finding re-graded against the code (resolved, superseded, partly done,
+  regressed or open), plus new findings N1–N9. Neither describes the retired Feature Inventory / User
+  Journeys explorer any more, and both record that the ⌘K command palette, the booking hold timer and
+  the bundle discount are no longer in the code. **This document remains the full specification and
+  wins on any conflict.**
 
 ---
 
@@ -425,7 +430,8 @@ Entrance motion: full choreography once per session, then a quick card stagger o
 
 **Layout:** a glass menu panel over the sea (top) + the tappable beach (sand) below + a guidance bar
 (bottom) + "powered by SLAiCE". Header: **Leave** (back to Home), step counter "n / 5", and a
-**progress rail** drawn as a footpath across the sand with 5 stations (tap a station to jump). Footer:
+**progress rail** drawn as a footpath across the sand with 5 stations (tap a reached station to jump
+back; forward only via Continue). Footer:
 live **Total €** (animated) + **Back/Home** + **Continue** (or **Confirm · €total** on the last step).
 
 **Step 1 — Beach** ("Pick your zone, sunbeds & days")
@@ -441,7 +447,8 @@ live **Total €** (animated) + **Back/Home** + **Continue** (or **Confirm · �
    - Guidance: "**Tap a zone on the beach** to choose where you'll sit — the sea is at the top."
 3. **Pick sets** — phase _sets_: tapping a zone zooms the "camera" in (FLIP animation) to the zone's
    full set layout on the sand (sea at top = front row). Tap available sets to toggle them.
-   - Legend: Available · On hold · Taken · Yours. Only **available** sets are selectable.
+   - Legend: Available · On hold · Taken · Yours. Only **available** sets are selectable **[GAP]**
+     (on-hold sets can currently be picked too — §22).
    - Feedback: umbrella pops open, sand ripple, a price chip flies into the total which pulses.
    - Summary chip: "N umbrella sets · CE-01, CE-04 · €X × D days" + **Clear**.
    - **Back** (or the menu) returns to the zones overview (reverse zoom). Changing zone **clears** the
@@ -1427,7 +1434,7 @@ Many screens still import `src/data/*` constants directly.
 | Build      | Vite 5 (`base: "./"`, output to `docs/`, targets Chrome/Edge 88, Firefox 78, Safari 14)                                                                 |
 | UI         | React 18.3, TypeScript 5 (strict)                                                                                                                       |
 | Styling    | Tailwind CSS 3.4 (theme tokens in `tailwind.config.js`) + utility layer in `src/index.css` (materials, skeleton, reveal, sheen, focus ring, safe areas) |
-| Primitives | Radix UI (Dialog, DropdownMenu, Popover, Switch, Tabs, Tooltip, VisuallyHidden)                                                                         |
+| Primitives | Radix UI DropdownMenu + Popover; in-house `Modal`, `Sheet`, `Tabs`, `Toggle` (Radix Dialog/Switch/Tabs/Tooltip/VisuallyHidden installed, unused)        |
 | Forms      | React Hook Form + Zod (sign-in, site gate)                                                                                                              |
 | Icons      | lucide-react via an icon registry (`src/lib/icons.tsx`)                                                                                                 |
 | Motion     | GSAP (+ Flip) for choreography; CSS keyframes for simple cases; all gated by `prefers-reduced-motion`                                                   |
@@ -1545,7 +1552,7 @@ src/
 | `Table`                                                                                                        | sticky frosted header on ≥ sm; **reflows into stacked label:value cards on phones**; right-aligned numeric columns                                                        |
 | `SortHeader`, `Pager`                                                                                          | sortable headers, pagination (TableTools)                                                                                                                                 |
 | `Tabs`                                                                                                         | segmented control, optional icons, horizontal scroll                                                                                                                      |
-| `Modal`                                                                                                        | Radix dialog, focus trap, return focus, `wide` option, footer slot                                                                                                        |
+| `Modal`                                                                                                        | In-house dialog (portal): initial focus, Tab trap, focus return, Escape, `aria-labelledby`; `wide` option, footer slot                                                    |
 | `Sheet`                                                                                                        | bottom sheet with drag-to-dismiss (phones)                                                                                                                                |
 | `ConfirmModal`                                                                                                 | destructive confirmations                                                                                                                                                 |
 | `Field`, `Input`, `Select`                                                                                     | 16 px inputs on phones (no iOS zoom)                                                                                                                                      |
@@ -1576,9 +1583,11 @@ src/
 ### 20.7 Accessibility
 
 `:focus-visible` rings, full keyboard operation (lint-enforced: no click-only static elements),
-Radix focus management, `aria-label`s on icon buttons, `aria-pressed` on toggles/chips, charts with
-accessible names, status via icon + text, `<html lang>` sync, reduced-motion honoured in CSS and JS,
-16 px inputs on phones, 44 px targets.
+focus management in menus (Radix) and dialogs (in-house trap + return), `aria-label`s on icon
+buttons, `role="switch"` + `aria-checked` on toggles, `aria-pressed` on chips, charts with accessible
+names, status via icon + text, `<html lang>` sync, reduced-motion honoured in CSS and JS, 16 px inputs
+on phones, 44 px targets. Known gaps — unnamed switches, sub-44 px sunbed targets on phones,
+small-text contrast — are tracked in `UX_REVIEW.md`.
 
 ---
 
@@ -1624,12 +1633,15 @@ Fix these when recreating (the intended behaviour is stated):
 8. **Basket after payment** is cleared only via "View my bookings" / "View receipt".
 9. **Loyalty "Claim"** only shows a toast; nothing is redeemed or tracked.
 10. **Staff screens are mostly untranslated.**
-11. **README / UX_REVIEW** describe features that no longer exist (explorer, ⌘K palette, hold timer,
-    bundle discount).
+11. ~~**README / UX_REVIEW** describe features that no longer exist (explorer, ⌘K palette, hold timer,
+    bundle discount).~~ **Resolved 29 Sep 2026:** both files now match the code (see §3). UX-level
+    issues — accessibility, touch targets, contrast, microcopy — are tracked in `UX_REVIEW.md`.
 12. **QR codes are not scannable** (faux pattern).
 13. **No automated tests**; Prettier formatting is not enforced in CI.
 14. Screens are eagerly loaded (main chunk ~660 kB); `admin.tsx` holds 13 screens (~2,900 lines).
-15. No RBAC structure formed yet for both users and tenants. 
+15. No RBAC structure formed yet for both users and tenants.
+16. **On-hold sets are selectable** in the wizard: only taken sets are disabled
+    (`src/components/sunbedGlyph.ts`). Only available sets should be selectable (C-03).
 
 ---
 
