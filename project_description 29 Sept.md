@@ -1063,6 +1063,12 @@ no Export and no refunds.
   tier, refunds, language, city, marketing consent and tags, with a live preview of who matches.
   Segment actions: edit, duplicate, export CSV, message (→ Communicate), delete. **New tag** creates
   real tags (name + colour) assignable in Edit user. Segments, tags and edits persist in `localStorage`.
+- **Lifecycle & value** (`src/domain/lifecycle.ts`): every guest has a stage — First visit → Active →
+  Regular, or At risk / Lapsed after N days without a visit (thresholds in **Lifecycle rules**) — and an
+  RFM score (recency, frequency, monetary 1–5 by quintile) with a label (Champions, Loyal, Potential,
+  Needs attention, At risk, Hibernating). A stage strip shows counts and % and filters on click. Optional
+  columns (**Columns** menu, remembered): Lifecycle, RFM, Lifetime spend, Last visit, Next visit
+  (predicted from the guest's average gap). Stage and RFM label are also segment-builder fields.
 - Rule banner: every guest starts **New** and becomes **Regular** after **15 visits**; **VIP** and
   **Season pass** are assigned by hand.
 - Table: Name, Surname, Phone, Email, Visits, Tags, **Edit**, **Activity**.

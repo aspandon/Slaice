@@ -128,7 +128,7 @@ export interface AppContextValue {
   setCrm: (updater: (c: CrmState) => CrmState) => void;
 }
 
-export const DEFAULT_CRM: CrmState = { segments: [], tagDefs: [{ name: "Wedding party", color: "#a855f7" }, { name: "Local", color: "#0D9488" }], edits: {}, regularAfter: 15 };
+export const DEFAULT_CRM: CrmState = { segments: [], tagDefs: [{ name: "Wedding party", color: "#a855f7" }, { name: "Local", color: "#0D9488" }], edits: {}, regularAfter: 15, lifecycle: { atRiskDays: 14, lapsedDays: 35 }, columns: ["lifecycle", "spend"] };
 
 const DEFAULT_CONSENT: Consent = {
   necessary: true,

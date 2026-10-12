@@ -48,6 +48,10 @@ export interface CrmState {
   edits: Record<number, Partial<Customer>>;
   /** Visits after which a guest counts as Regular (system rule). */
   regularAfter: number;
+  /** Lifecycle thresholds (AENR-475). */
+  lifecycle: import("./lifecycle").LifecycleSettings;
+  /** Optional guest-list columns the admin chose to show. */
+  columns: string[];
 }
 
 export type PersonaId =

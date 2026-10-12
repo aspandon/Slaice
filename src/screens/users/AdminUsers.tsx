@@ -11,6 +11,16 @@ import { guestFacts, type GuestFacts } from "../../data/guests";
 import { SEGMENT_COLORS, SYSTEM_SEGMENTS, fieldOf, inSegment, ruleLabel, type Segment } from "../../domain/segments";
 import { DEMO_TODAY } from "../../domain/period";
 import { SegmentBuilder } from "./SegmentBuilder";
+import { RFM_LABELS, RFM_TONE, STAGES, STAGE_HELP, STAGE_TONE, predictedNextVisit, rfmScores, stageOf, type LifecycleSettings, type Stage } from "../../domain/lifecycle";
+import { fmtDay } from "../../domain/period";
+import type { FieldDef } from "../../domain/segments";
+import type { ReactNode } from "react";
+
+// Lifecycle stage and RFM label as segment fields (AENR-475).
+const SCORE_FIELDS: FieldDef[] = [
+  { key: "lifecycle", label: "Lifecycle stage", type: "enum", group: "Scores", options: [...STAGES], get: (g) => g.lifecycle ?? "" },
+  { key: "rfm", label: "RFM segment", type: "enum", group: "Scores", options: [...RFM_LABELS], get: (g) => g.rfm ?? "" },
+];
 
 /* ============ USERS & SEGMENTS ============
    Guests are grouped by segments: built-in ones (VIP, Season pass, and the
@@ -56,19 +66,35 @@ export function AdminUsers() {
     });
     return base;
   };
-  const guests: Guest[] = list.map((u) => {
+  const base = list.map((u) => {
     const tags = tagsFor(u).map((x) => x.t);
     const f = guestFacts({ ...u, tags }, tags.filter((t) => !AUTO.includes(t) && t !== "VIP" && t !== "Season pass"));
     return { ...f, name: `${u.first} ${u.last}`, customer: u };
   });
+  // Lifecycle stage + RFM score per guest (AENR-475), usable in segments too.
+  const rfm = rfmScores(base);
+  const guests: Guest[] = base.map((g) => ({ ...g, lifecycle: stageOf(g, ra, crm.lifecycle), rfm: rfm.get(g.id)?.label }));
+  const byId = new Map(guests.map((g) => [g.id, g]));
+  const [stageF, setStageF] = useState<Stage | null>(null);
+  const [lcModal, setLcModal] = useState(false);
 
   // Built-in segments (threshold from the CRM settings) + saved ones.
   const system = SYSTEM_SEGMENTS.map((sg) => (sg.id === "sys-regular" ? { ...sg, rules: [{ field: "visits", op: "gt" as const, a: ra }] } : sg.id === "sys-new" ? { ...sg, rules: [{ field: "visits", op: "lt" as const, a: ra + 1 }] } : sg));
   const segments = [...system, ...crm.segments];
-  const members = (sg: Segment) => guests.filter((g) => inSegment(g, sg, DEMO_TODAY));
+  const members = (sg: Segment) => guests.filter((g) => inSegment(g, sg, DEMO_TODAY, SCORE_FIELDS));
   const active = segments.find((sg) => sg.id === segId) ?? null;
   const inActive = active ? new Set(members(active).map((g) => g.id)) : null;
-  const rows = list.filter((u) => (!inActive || inActive.has(u.id)) && (u.first + u.last + u.email + u.phone).toLowerCase().includes(q.toLowerCase()));
+  const rows = list.filter((u) => (!inActive || inActive.has(u.id)) && (!stageF || byId.get(u.id)?.lifecycle === stageF) && (u.first + u.last + u.email + u.phone).toLowerCase().includes(q.toLowerCase()));
+  const cols = crm.columns;
+  const OPTIONAL: { k: string; l: string; cell: (g: Guest) => ReactNode; right?: boolean }[] = [
+    { k: "lifecycle", l: "Lifecycle", cell: (g) => <Badge tone={STAGE_TONE[g.lifecycle as Stage]}>{g.lifecycle}</Badge> },
+    { k: "rfm", l: "RFM", cell: (g) => { const x = rfm.get(g.id)!; return <span className="whitespace-nowrap"><Badge tone={RFM_TONE[x.label]}>{x.label}</Badge> <span className="text-[11px] text-slate-500 tnum">{x.r}{x.f}{x.m}</span></span>; } },
+    { k: "spend", l: "Lifetime spend", cell: (g) => `€${g.spend.toLocaleString("en-GB")}`, right: true },
+    { k: "lastVisit", l: "Last visit", cell: (g) => <span className="whitespace-nowrap">{fmtDay(g.lastVisit)}</span> },
+    { k: "nextVisit", l: "Next visit (predicted)", cell: (g) => { const n = predictedNextVisit(g); return <span className="whitespace-nowrap text-slate-600">{n ? fmtDay(n) : "—"}</span>; } },
+  ];
+  const shownOptional = OPTIONAL.filter((c) => cols.includes(c.k));
+  const stageCounts = STAGES.map((st) => ({ st, n: guests.filter((g) => g.lifecycle === st).length }));
   const editUser = editId !== null ? list.find((u) => u.id === editId) ?? null : null;
   const activityUser = activityId !== null ? list.find((u) => u.id === activityId) ?? null : null;
   const loading = customersQ.status === "loading";
@@ -148,11 +174,40 @@ export function AdminUsers() {
             </span>
           ))}
         </div>
+        {/* Lifecycle overview — click a stage to filter (AENR-475). */}
+        <div className="mb-3 grid grid-cols-2 sm:grid-cols-5 gap-2" role="group" aria-label="Guests by lifecycle stage">
+          {stageCounts.map(({ st, n }) => (
+            <button key={st} type="button" aria-pressed={stageF === st} onClick={() => setStageF(stageF === st ? null : st)} title={STAGE_HELP[st]}
+              className={`rounded-xl px-3 py-2 text-left ring-1 transition ${stageF === st ? "ring-2 ring-navy-900 bg-white" : "ring-slate-200 bg-white/70 hover:ring-slate-300"}`}>
+              <div className="flex items-center justify-between gap-2"><Badge tone={STAGE_TONE[st]}>{st}</Badge><span className="text-[11px] text-slate-500 tnum">{guests.length ? Math.round((n / guests.length) * 100) : 0}%</span></div>
+              <div className="mt-1 text-[20px] font-bold text-navy-900 tnum font-display leading-none">{n}</div>
+            </button>
+          ))}
+        </div>
+        <div className="mb-3 flex flex-wrap items-center gap-2 text-[12px]">
+          <button type="button" onClick={() => setLcModal(true)} className="inline-flex items-center gap-1.5 font-semibold text-slate-600 hover:text-navy-900"><Icon.cog size={13} /> Lifecycle rules: at risk after {crm.lifecycle.atRiskDays} days, lapsed after {crm.lifecycle.lapsedDays}</button>
+          <DropdownMenu.Root modal={false}>
+            <DropdownMenu.Trigger asChild>
+              <button type="button" className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-semibold ring-1 ring-slate-200 bg-white hover:ring-slate-300"><Icon.layers size={13} /> Columns</button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content align="end" sideOffset={6} className="glass !bg-white/95 w-56 rounded-xl p-1.5 z-[60] shadow-float text-ink">
+                {OPTIONAL.map((c) => (
+                  <DropdownMenu.CheckboxItem key={c.k} checked={cols.includes(c.k)} onSelect={(e) => e.preventDefault()}
+                    onCheckedChange={(on) => setCrm((x) => ({ ...x, columns: on ? [...x.columns, c.k] : x.columns.filter((k) => k !== c.k) }))}
+                    className={menuItem}>
+                    <span className={`w-4 h-4 rounded grid place-items-center ring-1 ${cols.includes(c.k) ? "bg-teal-600 ring-teal-600 text-white" : "ring-slate-300"}`}>{cols.includes(c.k) && <Icon.check size={11} />}</span>{c.l}
+                  </DropdownMenu.CheckboxItem>
+                ))}
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
+        </div>
         {active && (
           <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-2 text-[12px] text-slate-600">
             <i className="w-2.5 h-2.5 rounded-full" style={{ background: active.color }} />
             <b className="text-navy-900">{active.name}</b>
-            <span>{active.kind === "static" ? `Fixed list of ${active.members?.length ?? 0} guests` : active.rules.map((r) => ruleLabel(r, fieldOf(r.field))).join(active.match === "all" ? " AND " : " OR ")}</span>
+            <span>{active.kind === "static" ? `Fixed list of ${active.members?.length ?? 0} guests` : active.rules.map((r) => ruleLabel(r, fieldOf(r.field, SCORE_FIELDS))).join(active.match === "all" ? " AND " : " OR ")}</span>
             <span className="ml-auto flex gap-1.5">
               <Btn size="sm" variant="ghost" icon={Icon.download} onClick={() => exportSegment(active)}>Export</Btn>
               <Btn size="sm" variant="ghost" icon={Icon.mail} onClick={() => go("admin", "communicate")}>Message</Btn>
@@ -172,8 +227,8 @@ export function AdminUsers() {
         ) : rows.length === 0 ? (
           <EmptyState compact icon={Icon.users} title="No users match" body="Try a different search or segment." />
         ) : (
-          <Table cols={["Name", "Surname", "Phone", "Email", "Visits", "Tags", ""]} right={[4]}
-            rows={rows.map((u) => [u.first, u.last, <span className="tnum whitespace-nowrap">{u.phone}</span>, u.email, u.bookings,
+          <Table dense={shownOptional.length > 1} cols={["Name", "Surname", "Phone", "Email", "Visits", ...shownOptional.map((c) => c.l), "Tags", ""]} right={[4, ...shownOptional.map((c, i) => (c.right ? 5 + i : -1)).filter((i) => i >= 0)]}
+            rows={rows.map((u) => [u.first, u.last, <span className="tnum whitespace-nowrap">{u.phone}</span>, u.email, u.bookings, ...shownOptional.map((c) => c.cell(byId.get(u.id)!)),
               <span className="flex gap-1 flex-wrap">{tagsFor(u).map(({ t, pass }) => <Badge key={t} tone={tagTone(t)}>{pass && <Icon.wallet size={9} />}{t}</Badge>)}</span>,
               <div className="flex items-center justify-end gap-1">
                 <Btn size="sm" variant="ghost" icon={Icon.edit} onClick={() => setEditId(u.id)}>Edit</Btn>
@@ -183,12 +238,34 @@ export function AdminUsers() {
       </Card>
       {editUser && <UserEditModal user={editUser} tagNames={tagNames} onClose={() => setEditId(null)} onSave={saveUser} />}
       {activityUser && <UserActivityModal user={activityUser} onClose={() => setActivityId(null)} onEdit={(id) => { setActivityId(null); setEditId(id); }} />}
-      {builder && <SegmentBuilder initial={builder === "new" ? null : builder} guests={guests} tagOptions={crm.tagDefs.map((t) => t.name)} onClose={() => setBuilder(null)} onSave={saveSegment} />}
+      {builder && <SegmentBuilder initial={builder === "new" ? null : builder} guests={guests} extraFields={SCORE_FIELDS} tagOptions={crm.tagDefs.map((t) => t.name)} onClose={() => setBuilder(null)} onSave={saveSegment} />}
+      {lcModal && <LifecycleModal value={crm.lifecycle} onClose={() => setLcModal(false)} onSave={(v) => { setCrm((c) => ({ ...c, lifecycle: v })); setLcModal(false); toast("Lifecycle rules saved — guests re-labelled.", { tone: "success" }); }} />}
       {tagModal && <TagModal existing={tagNames} onClose={() => setTagModal(false)} onSave={(t) => { setCrm((c) => ({ ...c, tagDefs: [...c.tagDefs, t] })); setTagModal(false); toast(`Tag “${t.name}” created — assign it from a guest's Edit.`, { tone: "success" }); }} />}
       <ConfirmModal open={deleting !== null} onClose={() => setDeleting(null)} title={deleting ? `Delete “${deleting.name}”?` : "Delete segment"} confirmLabel="Delete segment"
         body="Guests are not affected — only the saved segment is removed."
         onConfirm={() => { if (deleting) { setCrm((c) => ({ ...c, segments: c.segments.filter((x) => x.id !== deleting.id) })); if (segId === deleting.id) setSegId("all"); } setDeleting(null); }} />
     </div>
+  );
+}
+
+/* Lifecycle thresholds (at risk / lapsed after N days without a visit). */
+function LifecycleModal({ value, onClose, onSave }: { value: LifecycleSettings; onClose: () => void; onSave: (v: LifecycleSettings) => void }) {
+  const [atRisk, setAtRisk] = useState(String(value.atRiskDays));
+  const [lapsed, setLapsed] = useState(String(value.lapsedDays));
+  const a = Number(atRisk), l = Number(lapsed);
+  const err = !(a >= 1) || !(l >= 1) ? "Enter whole numbers of days." : l <= a ? "Lapsed must be later than At risk." : "";
+  return (
+    <Modal open onClose={onClose} title="Lifecycle rules"
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn><Btn variant="primary" icon={Icon.check} disabled={!!err} onClick={() => onSave({ atRiskDays: Math.round(a), lapsedDays: Math.round(l) })}>Save rules</Btn></>}>
+      <div className="space-y-3">
+        <p className="text-sm text-slate-600">Guests move through <b>First visit → Active → Regular</b> as they visit, and to <b>At risk</b> and <b>Lapsed</b> when they stop coming.</p>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="At risk after (days without a visit)"><Input type="number" min={1} value={atRisk} onChange={(e) => setAtRisk(e.target.value)} /></Field>
+          <Field label="Lapsed after (days)"><Input type="number" min={1} value={lapsed} onChange={(e) => setLapsed(e.target.value)} /></Field>
+        </div>
+        {err && <div role="alert" className="text-[12px] text-rose-700">{err}</div>}
+      </div>
+    </Modal>
   );
 }
 
