@@ -22,6 +22,8 @@ import { DEFAULT_CHANNELS } from "./data/channels";
 import { DEFAULT_STAFF, DEFAULT_STAFF_AUDIT, roleLabel } from "./data/staff";
 import { DEFAULT_PASS_CARDS } from "./data/passDesigns";
 import type { BeachBackground, BookingNote, CrmState, StaffAuditEntry, StaffUser, CartItem, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "./domain/types";
+import type { TillState } from "./domain/till";
+import { DEFAULT_TILL } from "./data/till";
 import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "./data/beach";
 import type { SceneFx, WeatherKind } from "./data/beach";
 
@@ -69,6 +71,7 @@ const saved = loadLS() as {
   staffAudit?: StaffAuditEntry[];
   viewAsId?: string | null;
   crm?: CrmState;
+  till?: TillState;
 };
 // A deep link in the URL wins over the last saved location.
 const initialRoute = parseHash();
@@ -112,6 +115,8 @@ export default function App() {
   const [viewAsId, setViewAsId] = useState<string | null>(saved.viewAsId ?? null);
   const [crm, setCrmState] = useState<CrmState>({ ...DEFAULT_CRM, ...(saved.crm || {}) });
   const setCrm = useCallback((u: (c: CrmState) => CrmState) => setCrmState(u), []);
+  const [till, setTillState] = useState<TillState>({ ...DEFAULT_TILL, ...(saved.till || {}) });
+  const setTill = useCallback((u: (t: TillState) => TillState) => setTillState(u), []);
   const updateStaff = useCallback((users: StaffUser[], action: string) => {
     setStaffUsers(users);
     setStaffAudit((a) => [{ at: new Date().toISOString(), by: "Manager / Admin", action }, ...a]);
@@ -120,11 +125,11 @@ export default function App() {
   useEffect(() => {
     // Guard the write: Safari Private Mode and a full quota throw on setItem.
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes, staffUsers, staffAudit, viewAsId, crm }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till }));
     } catch {
       /* storage unavailable (private mode / quota) — ignore */
     }
-  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes, staffUsers, staffAudit, viewAsId, crm]);
+  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till]);
 
   // Keep <html lang> in sync with the chosen language (a11y / SEO correctness).
   useEffect(() => {
@@ -254,8 +259,8 @@ export default function App() {
 
   // Memoised so the provider value keeps a stable identity across renders.
   const ctx = useMemo<AppContextValue>(
-    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm }),
-    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm],
+    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill }),
+    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill],
   );
 
   // The booking wizard takes over the whole viewport: the beach becomes the

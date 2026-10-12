@@ -1,0 +1,53 @@
+// Till sales and refunds as Admin rows (AENR-497 / AENR-506): sunbed sales show
+// in Admin › Bookings with channel Cashier, till refunds and voids in Admin ›
+// Refunds. The back office runs on the demo business day, so till rows carry
+// that date label.
+
+import { ZONES } from "./beach";
+import { DEMO_TODAY, fmtDay } from "../domain/period";
+import { refundedTotal, saleStatus, type TillSale } from "../domain/till";
+import type { AdminBooking, AdminRefund } from "./mock";
+
+const zoneName = (id?: string) => ZONES.find((z) => z.id === id)?.name ?? "";
+const first = (s: TillSale) => s.customer?.name.split(" ")[0] ?? "Walk-in";
+const STATUS: Record<string, string> = {
+  Completed: "Confirmed",
+  "Part refunded": "Confirmed",
+  Refunded: "Refunded",
+  Voided: "Cancelled",
+};
+
+export function tillBookings(sales: readonly TillSale[]): AdminBooking[] {
+  return sales
+    .filter((s) => s.lines.some((l) => l.setId))
+    .map((s) => ({
+      id: `#${s.id}`,
+      who: first(s),
+      items: s.lines.map((l) =>
+        l.setId ? `Sunbed · ${zoneName(l.zoneId)} · ${l.setId}` : `Entry · ${l.label} ×${l.qty}`,
+      ),
+      date: fmtDay(DEMO_TODAY),
+      channel: "Cashier",
+      status: STATUS[saleStatus(s)],
+      amount: s.total,
+    }));
+}
+
+export function tillRefunds(sales: readonly TillSale[]): AdminRefund[] {
+  return sales
+    .filter((s) => s.refunds.length)
+    .map((s) => {
+      const last = s.refunds[s.refunds.length - 1];
+      return {
+        tx: `#${s.id}`,
+        who: first(s),
+        amount: s.total,
+        refundAmount: refundedTotal(s),
+        reason: [...new Set(s.refunds.map((r) => r.reason))].join(", "),
+        status: saleStatus(s) === "Voided" ? "Voided" : "Refunded",
+        date: fmtDay(DEMO_TODAY),
+        channel: "Cashier",
+        approver: last.approver,
+      };
+    });
+}

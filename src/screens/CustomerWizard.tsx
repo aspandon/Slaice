@@ -7,7 +7,8 @@ import { prefersReducedMotion } from "../lib/motion";
 import { gsap, Flip, motionOK, stashFlip, EASE } from "../lib/fx";
 import { Sunbed, SunbedMark } from "../components/Beach";
 import { SandScene } from "../components/SandScene";
-import { ZONES, ZONE_BLOCKS, todayISO, chipLabel, zoneLayout } from "../data/beach";
+import { ZONES, ZONE_BLOCKS, todayISO, chipLabel } from "../data/beach";
+import { useLiveSlots } from "../lib/useLiveSlots";
 import type { SunbedSlot } from "../domain/types";
 import { useApp, useSpotlight, useT } from "../app/store";
 import { localeFor } from "../app/i18n";
@@ -145,7 +146,7 @@ function useAnimatedNumber(value: number, duration = 480) {
    ============================================================================ */
 export function CustomerWizard() {
   const tr = useT();
-  const { go, toast, addToCart, hint, lang, beachLayout } = useApp();
+  const { go, toast, addToCart, hint, lang } = useApp();
   useSpotlight("customer", "plan");
 
   // Deep-link: a Home tile can open the wizard straight at a given step.
@@ -221,7 +222,10 @@ export function CustomerWizard() {
   const parkingDates = parkingOn ? (multiDate && parkingScope === "some" ? parkingDays : selDates) : [];
 
   // The admin-authored layout for this zone, if any — otherwise the default grid.
-  const slots = useMemo(() => beachLayout[zone.id] ?? zoneLayout(zone), [beachLayout, zone]);
+  // …with the live status for the chosen dates applied: sets sold at the till
+  // or held in a till basket aren't bookable online (AENR-520).
+  const liveSlots = useLiveSlots();
+  const slots = useMemo(() => liveSlots(zone, selDates), [liveSlots, zone, selDates]);
   const selectedIds = useMemo(() => new Set(bedSel.map((b) => b.id)), [bedSel]);
   const avail = useMemo(() => slots.filter((s) => s.state === "a").length, [slots]);
 
@@ -465,7 +469,7 @@ export function CustomerWizard() {
         {/* The store overview spreads the full beach width (panoramic); a single
             zone's sunbed grid stays at a comfortable reading width. */}
         <div className={`relative w-full ${showSets ? "max-w-5xl" : "max-w-[1700px]"}`}>
-          {showZones && <StoreOverview selectedId={zoneId} onPick={pickZone} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} />}
+          {showZones && <StoreOverview days={selDates} selectedId={zoneId} onPick={pickZone} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} />}
           {showSets && <SandSunbeds slots={slots} selected={selectedIds} onToggle={toggleBed} />}
           {showScene && (
             <SandScene
@@ -705,13 +709,14 @@ function declutter(init: { x: number; y: number }[], W: number, H: number, cw: n
    to open it. Phones / tight screens fall back to compact cards. `rich` is owned
    by the wizard (it gates the FLIP zoom); `flipEnter` names the zone whose beds
    are flying back in, so the entrance stagger skips that cluster. */
-function StoreOverview({ selectedId, onPick, rich, flipEnter }: { selectedId: string; onPick: (id: string) => void; rich: boolean; flipEnter: string | null }) {
-  return rich ? <StoreClusters selectedId={selectedId} onPick={onPick} flipEnter={flipEnter} /> : <StoreCards selectedId={selectedId} onPick={onPick} />;
+function StoreOverview({ days, selectedId, onPick, rich, flipEnter }: { days: string[]; selectedId: string; onPick: (id: string) => void; rich: boolean; flipEnter: string | null }) {
+  return rich ? <StoreClusters days={days} selectedId={selectedId} onPick={onPick} flipEnter={flipEnter} /> : <StoreCards days={days} selectedId={selectedId} onPick={onPick} />;
 }
 
-function StoreClusters({ selectedId, onPick, flipEnter }: { selectedId: string; onPick: (id: string) => void; flipEnter: string | null }) {
+function StoreClusters({ days, selectedId, onPick, flipEnter }: { days: string[]; selectedId: string; onPick: (id: string) => void; flipEnter: string | null }) {
   const tr = useT();
-  const { beachLayout, zoneLogos } = useApp();
+  const { zoneLogos } = useApp();
+  const liveSlots = useLiveSlots();
   const ref = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
   // Layout effect: the first measure must land before paint so the zoom-out
@@ -763,7 +768,7 @@ function StoreClusters({ selectedId, onPick, flipEnter }: { selectedId: string; 
       {ZONES.map((z, i) => {
         const pos = positions[i];
         if (!pos) return null;
-        const slots = beachLayout[z.id] ?? zoneLayout(z);
+        const slots = liveSlots(z, days);
         const free = slots.filter((s) => s.state === "a").length;
         const logo = zoneLogos[z.id];
         const active = z.id === selectedId;
@@ -815,16 +820,17 @@ function StoreClusters({ selectedId, onPick, flipEnter }: { selectedId: string; 
    material as the menu above, with the store's logo/name, from-price and live
    availability, in a tidy two-column grid. A small zone-colour umbrella chip
    keeps the stores distinguishable. */
-function StoreCards({ selectedId, onPick }: { selectedId: string; onPick: (id: string) => void }) {
+function StoreCards({ days, selectedId, onPick }: { days: string[]; selectedId: string; onPick: (id: string) => void }) {
   const tr = useT();
-  const { beachLayout, zoneLogos } = useApp();
+  const { zoneLogos } = useApp();
+  const liveSlots = useLiveSlots();
   return (
     <div className="absolute inset-0 overflow-y-auto no-scrollbar pointer-events-auto">
       <div className="grid grid-cols-2 gap-2.5 p-0.5">
         {ZONES.map((z) => {
           const active = z.id === selectedId;
           const logo = zoneLogos[z.id];
-          const slots = beachLayout[z.id] ?? zoneLayout(z);
+          const slots = liveSlots(z, days);
           const free = slots.filter((s) => s.state === "a").length;
           return (
             <button

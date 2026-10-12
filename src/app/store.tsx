@@ -13,6 +13,8 @@ import { DEFAULT_PASS_CARDS } from "../data/passDesigns";
 import type { BeachBackground, BookingNote, CrmState, StaffAuditEntry, StaffUser, CartItem, CartKind, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "../domain/types";
 import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "../data/beach";
 import type { SceneFx, WeatherKind } from "../data/beach";
+import { DEFAULT_TILL } from "../data/till";
+import type { TillState } from "../domain/till";
 
 // Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
 // highlight the section a journey points at.
@@ -128,6 +130,9 @@ export interface AppContextValue {
   /** Guest CRM: saved segments, tags, profile edits — persisted. */
   crm: CrmState;
   setCrm: (updater: (c: CrmState) => CrmState) => void;
+  /** Cashier till: sales, holds, shifts, vouchers, offline queue — persisted. */
+  till: TillState;
+  setTill: (updater: (t: TillState) => TillState) => void;
 }
 
 export const DEFAULT_CRM: CrmState = { segments: [], tagDefs: [{ name: "Wedding party", color: "#a855f7" }, { name: "Local", color: "#0D9488" }], edits: {}, regularAfter: 15, lifecycle: { atRiskDays: 14, lapsedDays: 35 }, columns: ["lifecycle", "spend"], imported: [], mergedAway: [], eraseRequests: [], profiles: {}, customFields: [{ id: "cf-birthday", label: "Birthday", type: "date" }, { id: "cf-company", label: "Company", type: "text" }] };
@@ -200,6 +205,8 @@ export const AppCtx = createContext<AppContextValue>({
   exitViewAs: () => {},
   crm: DEFAULT_CRM,
   setCrm: () => {},
+  till: DEFAULT_TILL,
+  setTill: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);

@@ -144,7 +144,12 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 
 ### P1
 
-#### N1 · "On hold" sets can be booked
+#### N1 · "On hold" sets can be booked — ✅ Resolved (12 Oct 2026, AENR-520)
+
+- **Resolution:** `Sunbed` disables on-hold sets (unless they are the guest's own pick) and keeps "On
+  hold" in the tooltip and accessible name. The wizard now overlays the live per-date status from the
+  shared store (`useLiveSlots`): sets sold at the Cashier till are unavailable, sets in a till basket
+  show On hold, and closed stores have no bookable sets.
 
 - **Evidence:** in the wizard only taken sets are disabled — `dim: state === "u" && !sel`
   (`src/components/sunbedGlyph.ts:101`) drives `disabled` (`src/components/Beach.tsx:72`) — so an

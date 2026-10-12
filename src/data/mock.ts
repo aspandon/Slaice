@@ -150,6 +150,9 @@ export interface AdminRefund {
   date: string;
   /** Amount actually refunded — set on a partial refund (< amount). */
   refundAmount?: number;
+  /** Where it was refunded (till refunds: "Cashier") and who approved it. */
+  channel?: string;
+  approver?: string;
 }
 export const ADMIN_REFUNDS: AdminRefund[] = [
   { tx: "#TX-88210", who: "Maria", amount: 30, reason: "", status: null, date: "19 Jul" },
@@ -164,30 +167,6 @@ export const ADMIN_REFUNDS: AdminRefund[] = [
   { tx: "#TX-87601", who: "Marina", amount: 15, reason: "", status: null, date: "20 Jun" },
   { tx: "#TX-87588", who: "Yiannis", amount: 28, reason: "Service issue", status: "Refunded", date: "18 Jun" },
   { tx: "#TX-87540", who: "Alexis", amount: 18, reason: "Weather (rain)", status: "Refunded", date: "15 Jun" },
-];
-
-// Cashier register session transactions
-export const CASHIER_TX: [string, string, string, { type: string; tone: string; label: string }, string | { negative: boolean; label: string }][] = [
-  ["09:14", "Float in", "Opening cash", { type: "tone", tone: "slate", label: "Open" }, "+€100"],
-  ["09:38", "Sale", "Adult", { type: "tone", tone: "amber", label: "Cash" }, "€10"],
-  ["10:02", "Sale", "Adult ×2", { type: "tone", tone: "blue", label: "Card" }, "€20"],
-  ["10:21", "Sale", "Resident ×2", { type: "tone", tone: "amber", label: "Cash" }, "€12"],
-  ["10:55", "Sale", "Child + Adult", { type: "tone", tone: "blue", label: "Card" }, "€15"],
-  ["11:14", "Sale", "Locker A07", { type: "tone", tone: "amber", label: "Cash" }, "€5"],
-  ["11:40", "Sale", "Adult ×3", { type: "tone", tone: "blue", label: "Card" }, "€30"],
-  ["12:05", "Sale", "Senior", { type: "tone", tone: "amber", label: "Cash" }, "€7"],
-  ["12:30", "Sale", "Adult ×2", { type: "tone", tone: "amber", label: "Cash" }, "€20"],
-  ["12:41", "Sale", "Resident", { type: "tone", tone: "blue", label: "Card" }, "€6"],
-  ["13:02", "Handover", "Shift change", { type: "tone", tone: "slate", label: "—" }, { negative: true, label: "−€500" }],
-  ["13:30", "Sale", "Locker B12", { type: "tone", tone: "blue", label: "Card" }, "€5"],
-  ["14:11", "Sale", "Adult ×4", { type: "tone", tone: "blue", label: "Card" }, "€40"],
-  ["14:35", "Sale", "Adult ×2 + Child", { type: "tone", tone: "blue", label: "Card" }, "€25"],
-  ["15:02", "Sale", "Resident ×3", { type: "tone", tone: "amber", label: "Cash" }, "€18"],
-  ["15:28", "Sale", "Locker A14", { type: "tone", tone: "amber", label: "Cash" }, "€5"],
-  ["15:51", "Sale", "Senior ×2", { type: "tone", tone: "blue", label: "Card" }, "€14"],
-  ["16:14", "Sale", "Adult", { type: "tone", tone: "blue", label: "Card" }, "€10"],
-  ["16:40", "Refund", "Adult (rain)", { type: "tone", tone: "slate", label: "—" }, { negative: true, label: "−€10" }],
-  ["17:05", "Sale", "Adult ×5", { type: "tone", tone: "blue", label: "Card" }, "€50"],
 ];
 
 // Controller validations queue
@@ -307,9 +286,6 @@ export const REPORTING_TICKETS: [string, string, string, string, string, string,
   ["#TK-54888", "Child ×2", "Customer", "28 Jun", "New", "€10", { tone: "slate", label: "Used" }],
   ["#TK-54810", "Adult ×3", "Customer", "22 Jun", "Season", "€30", { tone: "slate", label: "Used" }],
 ];
-
-// Cashier register session statistics
-export const CASHIER_SESSION = { id: "#CS-204", cashier: "Kostas L.", openedAt: "09:14", duration: "4h 22m", cashIn: "€1,240", cardIn: "€3,860" };
 
 // Past closed sessions — surfaced before a new session is opened, so the
 // cashier can see what a typical day looks like instead of an empty card.

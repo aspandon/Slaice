@@ -271,12 +271,13 @@ visited **per persona** is remembered.
 
 ### Cashier
 
-| Route                | Screen        | Tag      |
-| -------------------- | ------------- | -------- |
-| `#/cashier/issue`    | Issue Ticket  | [MVP]    |
-| `#/cashier/redeem`   | Redeem Ticket | [Future] |
-| `#/cashier/register` | Cash Register | [Future] |
-| `#/cashier/locker`   | Sell Locker   | [Future] |
+| Route                    | Screen        | Tag      |
+| ------------------------ | ------------- | -------- |
+| `#/cashier/issue`        | Issue Ticket  | [MVP]    |
+| `#/cashier/transactions` | Transactions  | [MVP]    |
+| `#/cashier/redeem`       | Redeem Ticket | [Future] |
+| `#/cashier/register`     | Cash Register | [Future] |
+| `#/cashier/locker`       | Sell Locker   | [Future] |
 
 ### Controller
 
@@ -1345,35 +1346,68 @@ a "beach was closed" empty state.
 
 ## 10. User journeys — Cashier
 
-### K-01 · Issue on-site ticket [MVP]
+### K-01 · Issue on-site ticket — the till [MVP]
 
 ```text
- ┌─ Issue Ticket ─────────────────────────┐
- │ Adult      €10     [−] 2 [+]           │
- │ Resident    €6     [−] 0 [+]           │
- │ Child       €5     [−] 0 [+]           │
- ├────────────────────────────────────────┤
- │ 2 ticket(s) · anonymous          €20   │
- └────────────────────────────────────────┘
-        │
-        ▼  ◆ payment?
-        ├── [Charge €20 (card)] ─▶ Stripe Terminal
-        └── [Cash]
-        │
+ shift strip: SH-0205 · cashier · till · since 09:00   ● Online / Offline (n queued)  [Simulate offline]
+ ┌─ Quick keys ─────────────────────────────────────────────┐   ┌─ Basket ─────────────────────┐
+ │ [1 Adult] [2 Adults] [Adult+Child] [2 Residents] [1 set] │   │ 2 × Adult              €20   │
+ │ [Couple day · save €5] [Family day · save €10]           │   │ Sunbed set MC-01 · Macaw €35 │
+ ├─ 1 · Entry tickets  Adult · Resident · Child · Senior ───┤   │   ⏱ held for this till 4:59  │
+ ├─ 2 · Store  Akanthus 48 free · from €30 … Bolivar closed ┤   │ SUMMER10 −€2.50  [promo][Discount]
+ ├─ 3 · Sunbeds  live map (free / on hold / booked)  [Any free set]  + Attach customer (optional)
+ └──────────────────────────────────────────────────────────┘   │ Total €52.50 (incl. VAT)     │
+                                                                │ [Card] [Cash] [Split/voucher]│
+                                                                └──────────────┬───────────────┘
+   Tender: Card (amount pushed to the terminal; demo outcome approve / decline / time out)
+           Cash (Exact · €20 · €50 · €100 · other → change due) · Voucher (balance) · any split
         ▼
- ● "Ticket issued · Paid" + QR · ΑΠΥ auto-issued to MyDATA
-        │
-        ▼
- [Print ticket] ─▶ ESC/POS receipt printer ─▶ validates at the gate scanner (G-01)
-
- [GAP] no Senior category here; prices are hard-coded instead of shared
+   ✓ Paid · R-1006 · ΑΠΥ Α-2406 · MARK …  (change due)   receipt: Print · Email · SMS · Show QR · None
+   [New sale]  ─▶  last sale kept 30 s for a quick reprint
 ```
 
-- Categories with steppers: Adult €10, Resident €6, Child €5 (anonymous tickets).
-- **Charge €X (card)** (Stripe Terminal) or **Cash** → "Ticket issued · Paid" card with QR, "ΑΠΥ
-  auto-issued to MyDATA" → **Print ticket** (ESC/POS receipt printer).
-- Side panel "How it works": pick categories → take payment → print the QR. Tickets validate at the
-  gate scanner. **[GAP]** no Senior category; prices are hard-coded here.
+- **One basket** for entry tickets (Adult / Resident / Child / Senior, prices from the shared
+  `TICKET_PRICES`), sunbed sets and **bundles** (Couple day, Family day: one basket line, components on
+  the receipt, saving shown as a discount). **Quick keys** make the common sale one tap; a ticket-only
+  sale is three taps (quick key → Cash → Exact).
+- **Store** chips show live free count and today's from-price (pricing rules applied); closed
+  (`CLOSED_STORES`) or full stores are disabled with the reason. **Sunbeds**: the store's live map; only
+  free sets can be picked; **Any free set** auto-assigns the best one (front row, then cheapest).
+- **Holds:** sets in the basket are held for this till for 5 minutes (On hold in the customer wizard
+  and on the other screens), released when removed, cleared or abandoned, and re-checked at payment.
+- **Discounts & promo codes** (AENR-508): presets with a reason (Staff −50%, Local group −10%,
+  Late afternoon −20% on sets); an open amount needs a **manager PIN**. Promo codes are validated
+  (dates, store scope, minimum spend, usage limit) with the reason shown when rejected — e.g. SUMMER10 is
+  valid for Central only. Vouchers / gift cards (GIFT-20, GIFT-50) are a tender with a balance.
+- **Payment:** card (approved / declined with Retry · Pay cash · Cancel sale / timed out), cash with
+  quick-tender buttons and change due, voucher, or any split — "Remaining" is always visible; leaving
+  the tender screen keeps the basket and the holds. Nothing is recorded until fully paid.
+- **After payment:** the sets become booked for today everywhere (customer wizard, Admin › Bookings
+  with channel Cashier), the ΑΠΥ goes to myDATA (simulated MARK; _pending_ offline; demo failure), and
+  the cashier picks the receipt: Print, Email, SMS, Show QR or No receipt.
+- **Shift required:** selling needs an open shift (K-03); without one the page shows the open-shift
+  form.
+- **Offline** (AENR-510): demo toggle in the shift strip. Sales continue; card is capped at €50 per sale
+  and €200 in total; sunbeds come from the cached map with a warning; ΑΠΥ issued locally (pending).
+  **Reconnect** syncs the queue ("Syncing n sales…"); a set booked online meanwhile is a conflict to
+  resolve in Transactions (move to another free set, or refund it with a manager PIN).
+
+### K-01a · Today's transactions [MVP]
+
+- Every till sale of the day (`src/screens/cashier/Transactions.tsx`): time, receipt, items, total,
+  tender, how the receipt was sent, status (Completed / Part refunded / Refunded / Voided) and myDATA
+  status (Sent / Pending / Failed). Search by receipt no., last 4 card digits, amount or phone.
+- Open a sale (side panel): the receipt (tenant legal details, items, VAT, tenders, change, ΑΠΥ and
+  MARK + QR, entry QR, set IDs); **Reprint** (marked COPY, same ΑΠΥ / MARK), **Email**, **SMS**, **Retry**
+  a failed myDATA transmission, and **Void / refund** (AENR-506):
+  - whole sale or single lines (ticket quantities, single sets); **void** when the sale is in the open
+    shift, otherwise **refund** with a credit note linked to the original ΑΠΥ; back to the original
+    tender; reason required (note for Other); warning if entry tickets were probably already used;
+  - a **manager PIN** is needed without refund permission, for any cash refund and above €50 (demo PINs
+    1234, 5678); a wrong PIN changes nothing;
+  - refunded sets are free again for today; refunds show in Admin › Refunds with channel Cashier,
+    reason and approver; the shift's expected cash drops for cash refunds.
+- Demo switch: **fail next myDATA transmission**.
 
 ### K-02 · Redeem ticket [Future]
 
@@ -1394,35 +1428,28 @@ a "beach was closed" empty state.
 - Roadmap preview: Future badge, the roadmap banner under the header and a Future dot in the nav, like
   Cash Register and Sell Locker.
 
-### K-03 · Cash register session [Future]
+### K-03 · Cash register — shift & drawer [Future]
 
 ```text
- NO SESSION ────────[Open session]────────▶ OPEN SESSION ───[Close session]───▶ CLOSED
- explanation +                                   │                          stats + CSV
- past sessions table                             │                          ready
- (#CS-196 … · cashier · cash · card · status)    ▼
-                  ┌─ Cash register session ──────────────────────────────────────────────┐
-                  │ #CS-204 · cashier · open since · duration                            │
-                  │ cash in €1,240 · card in €3,860                                      │
-                  │ tender mix   card ##########-----  cash                              │
-                  │ shift stats  transactions · avg · items/receipt · busiest hour       │
-                  ├──────────────────────────────────────────────────────────────────────┤
-                  │ opening float + cash sales − handovers = expected drawer             │
-                  │ counted − expected = variance   (shortfall ─▶ warning)               │
-                  ├──────────────────────────────────────────────────────────────────────┤
-                  │ ledger  time · Float in / Sale / Handover / Refund · item · €        │
-                  │ [Print Z-report]      [Record handover]                              │
-                  └──────────────────────────────────────────────────────────────────────┘
+ NO SHIFT ──[Open shift: cashier · till · float]──▶ OPEN SHIFT ──[Close shift (Z)]──▶ CLOSED (locked)
+                                                        │
+   expected cash = float + cash sales + paid in − paid out − cash refunds
+   KPIs: expected cash · card · sales · refunds/voids     tender mix (card / cash / voucher)
+   ledger: float · sales · refunds · voids · paid in / out · no sale
+   [Paid in] [Paid out] [No sale (manager PIN)]   [X report] (snapshot)   [Close shift (Z)]
+   Z close: blind count → expected / counted / variance (note required above €2) · card batch ✓
 ```
 
-- **No open session:** explanation, **Open session**, table of **past sessions** (session id, cashier,
-  date, duration, cash, card, transactions, status).
-- **Open session:** KPIs (session id + cashier, open since + duration, cash in, card in); **Tender mix**
-  (card vs cash bar); **Shift stats** (transactions, avg transaction, items/receipt, voids/refunds,
-  busiest hour); **Cash reconciliation** (opening float, expected drawer, counted, **variance** with a
-  shortfall warning); ledger table (time, type: Float in / Sale / Handover / Refund, item, method,
-  amount).
-- Actions: **Print Z-report**, **Record handover**, **Close session** (statistics + CSV ready).
+- Roadmap preview (Future badge and banner) but fully working, because Issue Ticket needs an open
+  shift. **Open shift** with cashier, till and opening float. During the shift: live totals by tender,
+  sales, refunds / voids and discounts; **Paid in / Paid out** with reason; **No sale** drawer opens need
+  a manager PIN and are logged.
+- **X report**: read-only snapshot (sales, discounts, voids, refunds, tenders, ticket counts by
+  category, sets by store, float, paid in / out, cash refunds, expected cash).
+- **Close shift (Z)**: optional blind count, then expected vs counted and the variance; above the €2
+  tolerance a note is required. The Z report is shown and the shift is locked; selling needs a new shift.
+- **Past shifts** with variance and their Z reports; managers also see them in Admin › Reporting ›
+  Operations.
 
 ### K-04 · Sell a locker [Future]
 
@@ -1925,7 +1952,7 @@ Events, Retail, Compliant: Stripe + MyDATA).
 | 41  | Pass pricing + wallet card designer                                              | Admin                           | Future              | A-12             |
 | 42  | On-site anonymous ticket sales + printing                                        | Cashier                         | MVP                 | K-01             |
 | 43  | Ticket redemption                                                                | Cashier                         | Future              | K-02             |
-| 44  | Cash register sessions, Z-report, reconciliation, handover                       | Cashier                         | Future              | K-03             |
+| 44  | Cash register shifts, X / Z reports, reconciliation, paid in / out               | Cashier                         | Future              | K-03             |
 | 45  | On-site locker sales from locker banks                                           | Cashier                         | Future              | K-04             |
 | 46  | QR gate validation (valid/used/invalid, override)                                | Controller                      | MVP                 | G-01             |
 | 47  | Walk-in booking, pay-on-site tickets, same-day release                           | Controller                      | MVP                 | G-02..G-04       |

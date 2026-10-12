@@ -66,17 +66,20 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
 }) {
   const p = sunbedPalette(state, sel);
   const dim = p.dim;
-  const interactive = !dim && !readOnly;
+  // On-hold sets are shown (amber) but can't be picked — someone else is
+  // mid-purchase (AENR-520 / UX N1).
+  const held = state === "h" && !sel;
+  const interactive = !dim && !held && !readOnly;
   return (
     <button
-      disabled={dim || readOnly}
+      disabled={dim || held || readOnly}
       onClick={onClick}
       aria-label={`Sunbed ${label || ""}${dim ? " unavailable" : state === "h" ? " on hold" : ` €${price}`}${sel ? ", selected" : ""}`}
       aria-pressed={sel}
       // `fill` lets the glyph scale to its cell (used by the wizard's pick grid so
       // each umbrella grows on desktop yet stays tappable on phones); `block`
       // alone keeps a fixed `size` but a full-cell hit area.
-      className={`group relative ${block || fill ? "w-full h-full grid place-items-center" : ""} ${interactive ? "cursor-pointer hover:-translate-y-1.5 hover:scale-[1.18] hover:z-20" : dim ? "cursor-not-allowed" : "cursor-default"} transition-transform duration-200 ease-spring`}
+      className={`group relative ${block || fill ? "w-full h-full grid place-items-center" : ""} ${interactive ? "cursor-pointer hover:-translate-y-1.5 hover:scale-[1.18] hover:z-20" : (dim || held) && !readOnly ? "cursor-not-allowed" : "cursor-default"} transition-transform duration-200 ease-spring`}
       style={{ lineHeight: 0, willChange: "transform" }}
     >
       <SunbedMark state={state} sel={sel} size={size} fill={fill} className="drop-shadow-sm transition-[filter] duration-200 group-hover:drop-shadow-[0_8px_10px_rgba(11,37,69,0.5)]" />

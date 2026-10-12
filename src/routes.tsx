@@ -42,6 +42,7 @@ const MAP: Record<string, () => ReactElement> = {
   "callcenter.bookings": () => <A.AdminBookings />,
   // cashier
   "cashier.issue": () => <CA.CashierIssue />,
+  "cashier.transactions": () => <CA.CashierTransactions />,
   "cashier.redeem": () => <CA.CashierRedeem />,
   "cashier.register": () => <CA.CashierRegister />,
   "cashier.locker": () => <CA.CashierLocker />,

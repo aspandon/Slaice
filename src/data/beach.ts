@@ -207,3 +207,6 @@ export const TENANT = {
   place: "Alimos",
   subdomain: "aktitouiliou.slaice.app",
 };
+
+/** Stores closed for the day (demo) — not sellable online or at the till. */
+export const CLOSED_STORES: Record<string, string> = { bolivar: "Closed today — private event" };

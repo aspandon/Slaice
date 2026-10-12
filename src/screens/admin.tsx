@@ -33,6 +33,8 @@ import { readHashQuery, writeHashQuery } from "../app/router";
 import { activeCount, filtersFromParams, filtersToParams, isAmount, matchAmount, type FilterDef, type FilterState } from "../domain/filters";
 import { resolveRange, comparisonRange, lastYearRange, granularityFor, rangeLabel, periodNoun, comparisonLabel, isoFromDayMonth, inRange, fmtWeekday as fmtWeekdayP } from "../domain/period";
 import { summarize, series, buckets, fmtEUR, fmtInt, fmtPct, trendPct, trendPp, trendEUR } from "../data/analytics";
+import { tillBookings, tillRefunds } from "../data/tillAdmin";
+import { VARIANCE_TOLERANCE, eur as eurTill, shiftTotals } from "../domain/till";
 
 /* ============ DASHBOARD ============ */
 export function AdminDashboard() {
@@ -919,7 +921,7 @@ function BookingNotesModal({ booking, onClose, agent }: { booking: EnrichedBooki
 }
 
 export function AdminBookings() {
-  const { toast, persona, bookingNotes } = useApp();
+  const { toast, persona, bookingNotes, till } = useApp();
   // Shared by Manager/Admin and Call Center; agents look up and help callers
   // but don't export or refund — they escalate to a manager (AENR-472).
   const agent = persona === "callcenter";
@@ -931,7 +933,8 @@ export function AdminBookings() {
   const loading = useMockLoad();
   const PAGE = 30;
   const chan = (c: string) => ({ Online: "blue", "Walk-in": "amber", Phone: "indigo", Cashier: "green" }[c] || "slate");
-  const enriched: EnrichedBooking[] = ADMIN_BOOKINGS.map((b) => {
+  // Sunbed sales from the Cashier till appear alongside (channel Cashier).
+  const enriched: EnrichedBooking[] = [...tillBookings(till.sales), ...ADMIN_BOOKINGS].map((b) => {
     const p = personByFirst(b.who);
     return { ...b, surname: p?.last ?? "", phone: p?.phone ?? "", email: p?.email ?? "" };
   });
@@ -1441,7 +1444,30 @@ export function AdminReporting() {
             rows={opsRows.map((r) => [<span className="whitespace-nowrap">{r.l}</span>, fmtInt(r.x.sunbedBookings), fmtInt(r.x.units.Tickets), fmtInt(r.x.units.Lockers), fmtInt(r.x.units.Parking), eur(r.x.revenue), <span className="text-rose-600 tnum">−{eur(r.x.refunds.amount)}</span>, eur(r.x.revenue - r.x.refunds.amount)])} />
         </div>}
       </Card>}
+      {tab === "ops" && <TillShiftsCard />}
     </div>
+  );
+}
+
+/* Closed Cashier till shifts with their Z totals (AENR-507) — the manager's view. */
+function TillShiftsCard() {
+  const { till, go } = useApp();
+  if (!till.shifts.length) return null;
+  const hm = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "");
+  return (
+    <Card className="p-5 mt-4">
+      <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+        <div className="font-semibold text-navy-900">Cashier shifts · Z reports</div>
+        <Btn size="sm" variant="ghost" icon={Icon.arrowR} onClick={() => go("cashier", "register")}>Open Cash Register</Btn>
+      </div>
+      <Table dense cols={["Shift", "Cashier", "Till", "Time", "Sales", "Cash", "Card", "Expected cash", "Counted", "Variance", "Note"]} right={[4, 5, 6, 7, 8, 9]}
+        rows={till.shifts.map((sh) => {
+          const tt = shiftTotals(sh, till.sales);
+          const v = sh.counted !== undefined ? Math.round((sh.counted - tt.expectedCash) * 100) / 100 : 0;
+          return [<span className="font-mono text-[12px]">{sh.id}</span>, sh.cashier, sh.till, <span className="whitespace-nowrap">{hm(sh.openedAt)}–{hm(sh.closedAt)}</span>, eurTill(tt.sales), eurTill(tt.cash), eurTill(tt.card), eurTill(tt.expectedCash), sh.counted !== undefined ? eurTill(sh.counted) : "—",
+            <span className={Math.abs(v) > VARIANCE_TOLERANCE ? "text-rose-600 font-semibold tnum" : "tnum"}>{v > 0 ? "+" : v < 0 ? "−" : ""}{eurTill(Math.abs(v))}</span>, sh.note || "—"];
+        })} />
+    </Card>
   );
 }
 
@@ -1488,7 +1514,7 @@ function RefundDone({ amount, type, reason, tx }: { amount: number; type: string
 }
 
 export function AdminRefunds() {
-  const { toast } = useApp();
+  const { toast, till } = useApp();
   const [modal, setModal] = useState<number | null>(null);
   // The shared period filters the KPIs, the list and the export (AENR-466).
   const [period, setPeriod] = usePeriod({ kind: "preset", preset: "month", offset: 0 });
@@ -1505,7 +1531,8 @@ export function AdminRefunds() {
   const label = range ? rangeLabel(range) : "All dates";
   const noun = periodNoun(period);
   // Rows keep their index into `rows` so the Refund action targets the right one.
-  const visible = rows.map((r, i) => ({ r, i })).filter(({ r }) => inRange(isoFromDayMonth(r.date), range));
+  // Till refunds and voids (already processed at the till) come first; index −1 = read-only.
+  const visible = [...tillRefunds(till.sales).map((r) => ({ r, i: -1 })), ...rows.map((r, i) => ({ r, i }))].filter(({ r }) => inRange(isoFromDayMonth(r.date), range));
   // Totals come from the shared analytics so they match Reporting for the same dates.
   const now = range ? summarize(range) : null;
   const prevS = range ? summarize(comparisonRange(period, range)) : null;
@@ -1567,12 +1594,12 @@ export function AdminRefunds() {
         <Table cols={["Transaction", "Date", "Name", "Surname", "Phone", "Amount", "Reason", "Status", ""]} right={[5]}
           rows={visible.map(({ r, i }) => {
             const p = personByFirst(r.who);
-            return [r.tx, r.date || "—", r.who, p?.last || "—", p?.phone ? <span className="tnum whitespace-nowrap">{p.phone}</span> : "—",
+            return [r.channel ? <span className="inline-flex items-center gap-1.5 whitespace-nowrap">{r.tx}<Badge tone="green">{r.channel}</Badge></span> : r.tx, r.date || "—", r.who, p?.last || "—", p?.phone ? <span className="tnum whitespace-nowrap">{p.phone}</span> : "—",
               r.refundAmount != null && r.refundAmount < r.amount
                 ? <div className="leading-tight"><span className="tnum">€{r.amount}</span><div className="text-[11px] text-rose-600 tnum">−€{r.refundAmount} refunded</div></div>
                 : `€${r.amount}`,
-              r.reason || "—",
-              r.status ? <Badge tone="green">{r.status}</Badge> : <Badge tone="amber">Pending</Badge>,
+              r.approver ? <div className="leading-tight">{r.reason}<div className="text-[11px] text-slate-500">approved by {r.approver}</div></div> : r.reason || "—",
+              r.status ? <Badge tone={r.status === "Voided" ? "slate" : "green"}>{r.status}</Badge> : <Badge tone="amber">Pending</Badge>,
               r.status ? <span className="text-slate-500 text-sm">done</span> : <Btn size="sm" variant="outline" icon={Icon.refund} onClick={() => openRefund(i)}>Refund</Btn>];
           })} />}
       </Card>
