@@ -10,6 +10,7 @@ import { CUSTOMERS } from "../../data/mock";
 import { BUNDLES, DISCOUNT_PRESETS, PROMO_CODES, QUICK_KEYS, type Bundle, type QuickKey } from "../../data/till";
 import { resolvePrice } from "../../domain/pricing";
 import { useExtras } from "../../lib/useExtras";
+import { useSiteStatus } from "../../lib/usePlatform";
 import { basketTotals, discountAmount, eur, lineGross, validatePromo, type Tender, type TenderKind, type TillDiscount, type TillLine, type TillSale, vatBreakdown } from "../../domain/till";
 import type { SunbedSlot, TicketCategory } from "../../domain/types";
 import { useClosure, useLiveSlots, useNow } from "../../lib/useLiveSlots";
@@ -32,7 +33,19 @@ let uidN = 0;
 const uid = (p: string) => `${p}${++uidN}`;
 const mmss = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
 
+/* The till, unless Slaice blocked cashier sales for this tenant (AENR-518). */
 export function CashierIssue() {
+  const site = useSiteStatus();
+  if (site.blockCashier)
+    return (
+      <Card className="p-6 max-w-lg">
+        <div role="alert" className="flex items-start gap-3"><Icon.lock size={20} className="text-rose-600 shrink-0" /><div><div className="font-semibold text-navy-900">Sales are paused for {site.tenant?.name}</div><p className="text-[13px] text-slate-600">Slaice suspended this account ({site.tenant?.suspension?.category}). Tickets already sold still validate at the gate. Contact the manager.</p></div></div>
+      </Card>
+    );
+  return <IssueInner />;
+}
+
+function IssueInner() {
   const { toast, go, persona, priceRules, beachPricing } = useApp();
   const ex = useExtras();
   const closure = useClosure();

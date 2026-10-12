@@ -7,6 +7,7 @@ import { PERSONAS, NAV } from "../../data/personas";
 import type { NavItem } from "../../domain/types";
 import type { NavProps } from "./types";
 import { useT } from "../../app/store";
+import { TenantNav } from "../../screens/tenant/TenantNav";
 
 /* ---------- Mobile page-nav sheet ----------
    The single source of truth for "where can I go" on a phone — opened from the
@@ -40,6 +41,7 @@ export function NavSheet({ open, onClose, persona, page, setPage }: NavProps & {
             {Row(it)}
           </Fragment>
         ))}
+        {persona === "platform" && <TenantNav onNavigate={onClose} />}
         {account.length > 0 && (
           <>
             <div className="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t("Account")}</div>
@@ -80,6 +82,7 @@ export function Sidebar({ persona, page, setPage }: NavProps) {
           );
         })}
       </nav>
+      {persona === "platform" && <TenantNav />}
       <div className="mt-3 px-2 py-2 rounded-xl bg-slate-50 ring-1 ring-slate-200 text-[11px] text-slate-500 leading-relaxed">
         {t("Non-functional mockup. No payments or backend — actions show a demo note.")}
       </div>

@@ -16,6 +16,8 @@ export interface Route {
 // still legitimate (deep-linkable) pages.
 const EXTRA_PAGES: Partial<Record<PersonaId, string[]>> = {
   customer: ["checkout", "confirm", "mybookings", "mydocs", "vip", "season"],
+  // Per-tenant pages: #/platform/tenant/<tenantId>/<section> (AENR-500).
+  platform: ["tenant"],
 };
 
 // Retired pages that now live elsewhere — old links keep working.
@@ -65,3 +67,6 @@ export function writeHashQuery(params: Record<string, string>, drop: string[] = 
   const qs = q.toString();
   window.history.replaceState(window.history.state, "", `${hashPath()}${qs ? `?${qs}` : ""}`);
 }
+
+/** Path segments after `#/persona/page` (e.g. a tenant id and section). */
+export const subPath = (hash: string = window.location.hash): string[] => hashPath(hash).replace(/^#\/?/, "").split("/").filter(Boolean).slice(2);

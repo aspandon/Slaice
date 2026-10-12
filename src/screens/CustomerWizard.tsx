@@ -17,6 +17,7 @@ import { useApp, useSpotlight, useT } from "../app/store";
 import { localeFor } from "../app/i18n";
 import { PARKING_PRICE } from "../domain/pricing";
 import { useExtras } from "../lib/useExtras";
+import { useSiteStatus } from "../lib/usePlatform";
 
 type People = Record<string, number>;
 interface BedPick { id: string; price: number; zoneId: string }
@@ -145,7 +146,26 @@ function useAnimatedNumber(value: number, duration = 480) {
    forms, running total and Back/Continue. After the Beach step the sand keeps
    showing the picks, read-only, while later steps run in the menu.
    ============================================================================ */
+/* The wizard, unless the tenant isn't taking bookings (suspended / paused / closed, AENR-518). */
 export function CustomerWizard() {
+  const site = useSiteStatus();
+  const { go } = useApp();
+  if (site.blockOnline)
+    return (
+      <div className="grid place-items-center min-h-[60dvh] px-3">
+        <div role="alert" className="glass-card rounded-2xl p-8 max-w-md text-center">
+          <span className="mx-auto w-12 h-12 rounded-xl bg-amber-100 text-amber-700 grid place-items-center"><Icon.clock size={22} /></span>
+          <h1 className="mt-3 font-display font-bold text-xl text-navy-900">{site.tenant?.name}</h1>
+          <p className="mt-1 text-sm text-slate-600">{site.message}</p>
+          <p className="mt-1 text-[12.5px] text-slate-500">Bookings you already have stay valid — show your QR at the entrance.</p>
+          <Btn variant="teal" className="mt-4" icon={Icon.grid} onClick={() => go("customer", "mybookings")}>My bookings</Btn>
+        </div>
+      </div>
+    );
+  return <WizardInner />;
+}
+
+function WizardInner() {
   const tr = useT();
   const { go, toast, addToCart, hint, lang, beachPricing, priceRules, calendar, inventory } = useApp();
   useSpotlight("customer", "plan");

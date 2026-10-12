@@ -83,13 +83,3 @@ export const BREACHES = [
 ];
 
 // Platform — per-tenant DPA / compliance posture.
-export const TENANT_DPA = [
-  { tenant: "Akti tou Iliou", dpa: "Signed", residency: "EU", dpo: "Yes", lastReview: "Apr 2026" },
-  { tenant: "Kavouri Coast", dpa: "Signed", residency: "EU", dpo: "Shared", lastReview: "May 2026" },
-  { tenant: "Sun & Sea Paros", dpa: "Signed", residency: "EU", dpo: "Yes", lastReview: "May 2026" },
-  { tenant: "Blue Lagoon Beach", dpa: "Signed", residency: "EU", dpo: "Shared", lastReview: "Mar 2026" },
-  { tenant: "Naxos Sands", dpa: "Signed", residency: "EU", dpo: "Yes", lastReview: "Jun 2026" },
-  { tenant: "Glyfada Bay", dpa: "Pending", residency: "EU", dpo: "No", lastReview: "—" },
-  { tenant: "Mykonos Shore", dpa: "Pending", residency: "EU", dpo: "No", lastReview: "—" },
-  { tenant: "Demo Beach #2", dpa: "Pending", residency: "EU", dpo: "Shared", lastReview: "—" },
-];

@@ -314,14 +314,15 @@ Reservations; phone-first like the Controller. Staff get the role in Admin › R
 
 ### Platform / Slaice
 
-| Route                   | Screen                    | Tag      |
-| ----------------------- | ------------------------- | -------- |
-| `#/platform/tenants`    | Tenants                   | [MVP]    |
-| `#/platform/onboarding` | Tenant Onboarding         | [MVP]    |
-| `#/platform/superadmin` | Super Admin               | [Future] |
-| `#/platform/compliance` | Compliance & DPA          | [MVP]    |
-| `#/platform/verticals`  | Verticals                 | [Future] |
-| `#/platform/landing`    | Landing Page (slaice.app) | [Future] |
+| Route                              | Screen                    | Tag      |
+| ---------------------------------- | ------------------------- | -------- |
+| `#/platform/tenants`               | Tenants                   | [MVP]    |
+| `#/platform/tenant/<id>/<section>` | Tenant page (21 sections) | [MVP]    |
+| `#/platform/onboarding`            | Tenant Onboarding         | [MVP]    |
+| `#/platform/superadmin`            | Super Admin               | [Future] |
+| `#/platform/compliance`            | Compliance & DPA          | [MVP]    |
+| `#/platform/verticals`             | Verticals                 | [Future] |
+| `#/platform/landing`               | Landing Page (slaice.app) | [Future] |
 
 ---
 
@@ -1782,6 +1783,56 @@ For a guest who isn't at the beach yet — Support Agent, Call Center and Admin 
 ---
 
 ## 13. User journeys — Platform / Slaice (super admin)
+
+### P-00 · Tenant pages, View-as, plans and lifecycle [MVP] (AENR-500, 515, 517, 518)
+
+- **Tenant page** `#/platform/tenant/<id>/<section>` (`src/screens/tenant/`, rules in `src/domain/tenants.ts`,
+  `src/domain/plans.ts`): the single place for a tenant's settings. The Platform sidebar lists every tenant
+  (status dot, pinned first, search, collapse; tenants still onboarding under _In onboarding_, opening the
+  wizard at their step; closed tenants drop out). **⌘/Ctrl K** opens a switcher (name, subdomain, ID, ΑΦΜ;
+  recent first) that keeps the current section.
+- **Header**: logo, name, tenant ID (copy), lifecycle badge (tooltip with reason, date and actor), plan,
+  environment tag (Sandbox / Demo — excluded from portfolio MRR unless switched on), data region, account
+  manager; **⋯** menu — View as tenant user, Preview customer site, Send onboarding / remediation link, Copy ID,
+  Export data, Suspend / Reactivate.
+- **Sections** come from a registry (id, label, icon, group, edit permission, badge): _Account_ — Overview
+  (Actions required ordered by severity with Send link / Tenant completed it, KPIs, health, activity), Profile
+  (+ contacts by role, ownership transfer), Contract & account, Subscription & billing, Usage & limits;
+  _Product_ — Modules, Locations & capacity, Branding & domain (DNS verify), Localisation, Release channel;
+  _Money_ — Payments (Stripe flags and requirements, fees & POS terminals, payout schedule), Invoicing & tax;
+  _Access & trust_ — Users & roles (+ Slaice access, support grant, View-as history), Security, Compliance,
+  Integrations; _Support_ — Support (tickets, internal notes, one timeline), Health score (transparent 0–100
+  with weights), Audit log (actor type, filters, CSV), Data export (Queued → Preparing → Ready, 7-day links),
+  Danger zone. Every section has loading, error (demo switch in ⋯), read-only (Slaice role Viewer / Support)
+  states; edits are a draft with Save, sensitive fields ask for a reason and go to the Audit log with old → new;
+  leaving a dirty section asks first.
+- **Plans** (Super Admin › Plans): Starter / Pro / Resort Group with price, modules, limits (hard / soft) and
+  commission; editing creates a new version and tenants stay on theirs until _Migrate_. **Change plan** on a
+  tenant previews gained / lost modules, limits that would be exceeded (hard limits block) and the prorated
+  amount. **Modules** show their source — plan, override (reason, expiry; reverts and is logged on expiry),
+  beta or blocked (e.g. Payments without Stripe charges); the Super Admin matrix edits the same overrides.
+  **Usage meters** show ≥ 80% Near limit and ≥ 100% Over limit in text. MRR is derived from plan + add-ons.
+- **View as tenant user**: reason (≥ 10 chars), ticket, scope (read-only default / read & write), role,
+  15–60 min. Starts at once if the tenant granted support access, else sends an owner request (demo approve /
+  decline; requests expire after 7 days); break-glass for Slaice Admins is flagged Emergency. A persistent
+  banner shows tenant, role, scope and the countdown (warning at 2 min, auto-end, demo −10 min). Read-only
+  disables mutating controls; payouts / bank / exports / plan / refunds are blocked in every session; customer
+  phones are masked with a logged Reveal; pages and changes (e.g. ticket price €10 → €11) go to the tenant's
+  Audit log as “Slaice staff while viewing as”. Ending returns to the tenant page (focus back on ⋯) with a
+  summary; Super Admin › Support access log and the tenant's RBAC page (“Slaice support accessed your account”)
+  list every session.
+- **Lifecycle** (Danger zone): onboarding → live ⇄ paused by tenant / suspended by Slaice → offboarding →
+  closed, allowed transitions only. **Suspend** with reason, impact (online / cashier / staff sign-in), the
+  customer-site message and now / in 7 days, type-the-name confirmation — the customer site (Preview customer
+  site) shows the message and takes no bookings, the till can be paused, existing tickets still validate at the
+  gate. **Reactivate** shows what is restored. **Offboard** runs 7 steps — confirm, export, settle money (a
+  pending payout fails the step until retried), disconnect integrations, revoke access, retention window 30 / 90
+  days (restorable, “Offboarding · deletes on …”), then automatic deletion to **Closed** with a downloadable
+  deletion certificate (legal records retained). A demo clock (+7 / +30 / +90 days) drives expiries.
+- **Tenants (P-01)** becomes a portfolio view: KPIs and MRR from plans, saved views (Needs attention, In
+  onboarding, Renewing in 30 days, At risk, Over limit, Trial ending, Closed), filters, search, plan / health /
+  actions columns, CSV; rows open the tenant page. **Onboarding (P-02)** saves progress per tenant and _Go live_
+  lands on the new tenant's Overview. **Compliance (P-04)** rows open each tenant's Compliance section.
 
 ### P-01 · Tenants [MVP]
 

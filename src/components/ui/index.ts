@@ -8,3 +8,4 @@ export { Tabs } from "./Tabs";
 export type { TabEntry } from "./Tabs";
 export { PeriodPicker } from "./PeriodPicker";
 export { FilterBar, filterCount } from "./FilterBar";
+export { GuardCtx, useGuard, textOf } from "./guard";

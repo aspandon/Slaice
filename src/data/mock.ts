@@ -194,22 +194,6 @@ export const ACCOUNTANT_PAYOUTS = [
   ["Sep", "€96,000", "−€1,400", "−€4,800", "€89,800"],
 ];
 
-// Platform tenants
-export const PLATFORM_TENANTS = [
-  { name: "Akti tou Iliou", subdomain: "aktitouiliou.slaice.app", stripe: { tone: "green", label: "charges ✓" }, modules: ["Booking", "Ticket", "Invoice", "Pay"], status: { tone: "green", label: "Live" }, mrr: "€4.2k" },
-  { name: "Kavouri Coast", subdomain: "kavouri.slaice.app", stripe: { tone: "green", label: "charges ✓" }, modules: ["Booking", "Ticket", "Invoice", "Pay"], status: { tone: "green", label: "Live" }, mrr: "€2.8k" },
-  { name: "Sun & Sea Paros", subdomain: "sunseaparos.slaice.app", stripe: { tone: "green", label: "charges ✓" }, modules: ["Booking", "Ticket", "Invoice", "Pay"], status: { tone: "green", label: "Live" }, mrr: "€3.1k" },
-  { name: "Blue Lagoon Beach", subdomain: "bluelagoon.slaice.app", stripe: { tone: "green", label: "charges ✓" }, modules: ["Booking", "Ticket", "Pay"], status: { tone: "green", label: "Live" }, mrr: "€1.9k" },
-  { name: "Naxos Sands", subdomain: "naxossands.slaice.app", stripe: { tone: "green", label: "charges ✓" }, modules: ["Booking", "Invoice", "Pay"], status: { tone: "green", label: "Live" }, mrr: "€2.2k" },
-  { name: "Glyfada Bay", subdomain: "glyfada.slaice.app", stripe: { tone: "amber", label: "KYC review" }, modules: ["Booking", "Ticket"], status: { tone: "amber", label: "Setup" }, mrr: "—" },
-  { name: "Demo Beach #2", subdomain: "beach2.slaice.app", stripe: { tone: "amber", label: "onboarding" }, modules: ["Booking"], status: { tone: "amber", label: "Setup" }, mrr: "—" },
-  { name: "Mykonos Shore", subdomain: "mykonosshore.slaice.app", stripe: { tone: "amber", label: "KYC review" }, modules: ["Booking", "Ticket"], status: { tone: "amber", label: "Setup" }, mrr: "—" },
-  { name: "Rhodes Bay Club", subdomain: "rhodesbay.slaice.app", stripe: { tone: "amber", label: "onboarding" }, modules: ["Booking"], status: { tone: "amber", label: "Setup" }, mrr: "—" },
-  { name: "Paralia Sun", subdomain: "paraliasun.slaice.app", stripe: { tone: "slate", label: "pending" }, modules: [], status: { tone: "slate", label: "Lead" }, mrr: "—" },
-  { name: "Saronida Beach", subdomain: "saronida.slaice.app", stripe: { tone: "slate", label: "pending" }, modules: [], status: { tone: "slate", label: "Lead" }, mrr: "—" },
-  { name: "Vouliagmeni Cove", subdomain: "vouliagmeni.slaice.app", stripe: { tone: "slate", label: "pending" }, modules: [], status: { tone: "slate", label: "Lead" }, mrr: "—" },
-];
-
 // Top customers (revenue/visits) — used by Reporting/Customers tab
 export const TOP_CUSTOMERS = [
   { name: "Despina K.", segment: { tone: "amber", label: "VIP" }, visits: 33, spend: "€1,480" },

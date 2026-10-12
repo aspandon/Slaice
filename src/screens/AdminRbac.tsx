@@ -1,3 +1,4 @@
+import { SupportAccessCard } from "./tenant/ViewAs";
 import { useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon } from "../lib/icons";
@@ -573,6 +574,8 @@ export function AdminRbac() {
         confirmLabel="Delete user"
         body="This removes their account and access. It can't be undone — suspend instead if they may come back."
       />
+      {/* Transparency (AENR-515): every Slaice support session on this account. */}
+      <div className="mt-4"><SupportAccessCard /></div>
     </div>
   );
 }

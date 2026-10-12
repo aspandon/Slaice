@@ -16,6 +16,8 @@ import { AdminDisplay } from "./screens/display/AdminDisplay";
 import * as AC from "./screens/accountant";
 import { AccountantReports } from "./screens/reporting/FinanceTabs";
 import { DocsPayments } from "./screens/accountant/DocsPayments";
+import { TenantPage } from "./screens/tenant/TenantPage";
+import * as PO from "./screens/tenant/PlatformOverviews";
 import * as P from "./screens/platform";
 
 const MAP: Record<string, () => ReactElement> = {
@@ -73,9 +75,10 @@ const MAP: Record<string, () => ReactElement> = {
   "accountant.commission": () => <AC.AccountantCommission />,
   "accountant.reports": () => <AccountantReports />,
   // platform
-  "platform.tenants": () => <P.PlatformTenants />,
-  "platform.onboarding": () => <P.PlatformOnboarding />,
-  "platform.superadmin": () => <P.PlatformSuperAdmin />,
+  "platform.tenants": () => <PO.PlatformTenants />,
+  "platform.tenant": () => <TenantPage />,
+  "platform.onboarding": () => <PO.PlatformOnboarding />,
+  "platform.superadmin": () => <PO.PlatformSuperAdmin />,
   "platform.compliance": () => <P.PlatformCompliance />,
   "platform.verticals": () => <P.PlatformVerticals />,
   "platform.landing": () => <P.PlatformLanding />,
@@ -91,7 +94,7 @@ const FALLBACK: Record<PersonaId, () => ReactElement> = {
   controller: () => <CT.ControllerScan />,
   support: () => <CT.ControllerScan />,
   accountant: () => <DocsPayments />,
-  platform: () => <P.PlatformTenants />,
+  platform: () => <PO.PlatformTenants />,
 };
 
 export function routeFor(persona: PersonaId, page: string): ReactElement {

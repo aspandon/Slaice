@@ -1,0 +1,90 @@
+import { useCallback, useEffect, useState } from "react";
+import { useApp } from "../app/store";
+import { subPath } from "../app/router";
+import { todayISO } from "../data/beach";
+import { addDays } from "../domain/period";
+import { planVersion } from "../domain/plans";
+import type { AuditEntry, TenantRecord } from "../domain/tenants";
+
+let seq = 0;
+/** Platform helpers: the demo-clock date, tenant lookup and audited updates. */
+export function usePlatform() {
+  const { platform, setPlatform, toast } = useApp();
+  const today = addDays(todayISO(), platform.clockDays);
+  const actor = platform.viewAs ? platform.viewAs.by : "Sofia Antoniou";
+  /** Change a tenant and write one audit entry (actor type follows the View-as session). */
+  const updateTenant = useCallback(
+    (
+      id: string,
+      fn: (t: TenantRecord) => TenantRecord,
+      entry?: Omit<AuditEntry, "id" | "at" | "actor" | "actorType"> & {
+        actorType?: AuditEntry["actorType"];
+      },
+    ) =>
+      setPlatform((p) => ({
+        ...p,
+        tenants: p.tenants.map((t) => {
+          if (t.id !== id) return t;
+          const next = fn(t);
+          if (!entry) return next;
+          const a: AuditEntry = {
+            id: `au-${Date.now().toString(36)}${++seq}`,
+            at: new Date().toISOString(),
+            actor,
+            actorType:
+              entry.actorType ?? (p.viewAs ? "Slaice staff while viewing as" : "Slaice staff"),
+            ...entry,
+          };
+          return { ...next, audit: [a, ...next.audit] };
+        }),
+      })),
+    [setPlatform, actor],
+  );
+  const plan = (t: TenantRecord) => planVersion(platform.plans, t.plan.id, t.plan.version);
+  const planName = (t: TenantRecord) =>
+    `${platform.plans.find((p) => p.id === t.plan.id)?.name ?? t.plan.id} v${t.plan.version}`;
+  /** MRR derived from the plan version and add-ons (AENR-517). */
+  const mrr = (t: TenantRecord) =>
+    ["live", "paused_by_tenant", "suspended_by_slaice"].includes(t.lifecycle)
+      ? (plan(t)?.price ?? 0) + t.addOns
+      : 0;
+  const canEdit = platform.role !== "viewer";
+  return { platform, setPlatform, toast, today, updateTenant, plan, planName, mrr, canEdit, actor };
+}
+
+/** The tenant id and section from `#/platform/tenant/<id>/<section>`, kept in sync with the hash. */
+export function useTenantRoute(): {
+  id: string;
+  section: string;
+  go: (id: string, section?: string) => void;
+} {
+  const [segs, setSegs] = useState(() => subPath());
+  useEffect(() => {
+    const on = () => setSegs(subPath());
+    window.addEventListener("hashchange", on);
+    return () => window.removeEventListener("hashchange", on);
+  }, []);
+  const go = useCallback((id: string, section = "overview") => {
+    window.location.hash = `#/platform/tenant/${id}/${section}`;
+  }, []);
+  return { id: segs[0] ?? "", section: segs[1] ?? "overview", go };
+}
+
+/** Whether the tenant the demo customer / cashier personas represent is open for business (AENR-518). */
+export function useSiteStatus() {
+  const { platform } = useApp();
+  const t = platform.tenants.find((x) => x.id === platform.siteTenant);
+  const suspended = t?.lifecycle === "suspended_by_slaice";
+  const closed = t?.lifecycle === "offboarding" || t?.lifecycle === "closed";
+  const paused = t?.lifecycle === "paused_by_tenant";
+  return {
+    tenant: t,
+    blockOnline: !!t && ((suspended && !!t.suspension?.blockOnline) || paused || closed),
+    blockCashier: !!t && ((suspended && !!t.suspension?.blockCashier) || closed),
+    message: suspended
+      ? (t?.suspension?.message ?? "Bookings are temporarily unavailable.")
+      : paused
+        ? "We're closed for the season — see you next summer."
+        : "This beach no longer takes bookings online.",
+  };
+}

@@ -1,0 +1,497 @@
+import { useState } from "react";
+import { Icon } from "../../lib/icons";
+import { Badge, Btn, Card, Field, Input, Select, Table, Toggle } from "../../components/ui";
+import { useApp } from "../../app/store";
+import { usePlatform } from "../../lib/usePlatform";
+import { SUBPROCESSORS } from "../../data/gdpr";
+import { addDays, fmtDay } from "../../domain/period";
+import { roleLabel } from "../../data/staff";
+import { FinanceSettingsModal } from "../PlatformFinance";
+import { KV, SectionFrame, useTenantDraft, type SectionProps } from "./kit";
+
+const Flag = ({ on, label }: { on: boolean; label: string }) => (
+  <span
+    className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-mono text-[12px] ring-1 ${on ? "bg-emerald-50 text-emerald-700 ring-emerald-600/15" : "bg-amber-50 text-amber-800 ring-amber-600/20"}`}
+  >
+    {on ? <Icon.check size={12} /> : <Icon.alert size={12} />} {label}
+  </span>
+);
+
+/* ---------- Payments ---------- */
+export function Payments({ t }: SectionProps) {
+  const { updateTenant, toast } = usePlatform();
+  const [fees, setFees] = useState(false);
+  const d = useTenantDraft(t, ["stripe"] as const, "Payments", ["stripe"]);
+  return (
+    <SectionFrame
+      title="Payments"
+      sub="Stripe Connect account, fee plan and payout schedule."
+      actions={
+        <>
+          <Btn variant="outline" icon={Icon.cash} onClick={() => setFees(true)}>
+            Fees & terminals
+          </Btn>
+          <Btn
+            variant="indigo"
+            icon={Icon.stripe}
+            onClick={() => toast(`Demo — Stripe onboarding link sent to ${t.contacts[0].email}.`)}
+          >
+            Send onboarding link
+          </Btn>
+        </>
+      }
+    >
+      <Card className="p-4 space-y-3">
+        <div className="flex flex-wrap gap-2">
+          <Flag on={t.stripe.details} label="details_submitted" />
+          <Flag on={t.stripe.charges} label="charges_enabled" />
+          <Flag on={t.stripe.payouts} label="payouts_enabled" />
+        </div>
+        {t.stripe.reqs.length > 0 && (
+          <ul className="text-[13px] space-y-1">
+            {t.stripe.reqs.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-2">
+                <Badge
+                  tone={
+                    r.due === "past_due" ? "red" : r.due === "currently_due" ? "amber" : "slate"
+                  }
+                >
+                  {r.due.replace("_", " ")}
+                </Badge>{" "}
+                {r.label} · due {fmtDay(r.dueDate)} · {r.capability}
+                <Btn
+                  size="sm"
+                  variant="tint"
+                  onClick={() => {
+                    updateTenant(
+                      t.id,
+                      (x) => ({
+                        ...x,
+                        stripe: {
+                          ...x.stripe,
+                          payouts: true,
+                          reqs: x.stripe.reqs.filter((y) => y.id !== r.id),
+                        },
+                      }),
+                      {
+                        section: "Payments",
+                        change: `Stripe requirement completed: ${r.label}`,
+                        actorType: "System",
+                      },
+                    );
+                    toast("Stripe: requirement completed — payouts enabled.", { tone: "success" });
+                  }}
+                >
+                  Simulate completed
+                </Btn>
+              </li>
+            ))}
+          </ul>
+        )}
+        <Field label="Payout schedule (sensitive)">
+          <Select
+            value={d.draft.stripe.schedule}
+            onChange={(e) => d.set("stripe", { ...d.draft.stripe, schedule: e.target.value })}
+            options={["Daily (T+2)", "Every 3 days (T+2)", "Weekly · Monday", "Monthly · 1st"]}
+          />
+        </Field>
+      </Card>
+      {d.bar}
+      {d.reasonModal}
+      {fees && (
+        <FinanceSettingsModal
+          tenant={t.name}
+          subdomain={t.subdomain}
+          onClose={() => setFees(false)}
+        />
+      )}
+    </SectionFrame>
+  );
+}
+
+/* ---------- Invoicing & tax ---------- */
+export function Invoicing({ t }: SectionProps) {
+  const { updateTenant, toast } = usePlatform();
+  const d = useTenantDraft(t, ["invoicing"] as const, "Invoicing & tax");
+  const inv = d.draft.invoicing;
+  return (
+    <SectionFrame
+      title="Invoicing & tax"
+      sub="myDATA / AADE, document series, VAT and the tenant's accountant."
+    >
+      <Card className="p-4 space-y-3">
+        <div className="flex flex-wrap items-center gap-2 text-[13px]">
+          myDATA / AADE:{" "}
+          <Badge
+            tone={t.mydata === "connected" ? "green" : t.mydata === "failing" ? "red" : "amber"}
+          >
+            {t.mydata}
+          </Badge>
+          {t.mydata !== "connected" && (
+            <Btn
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                updateTenant(t.id, (x) => ({ ...x, mydata: "connected" }), {
+                  section: "Invoicing & tax",
+                  change: "myDATA credentials connected",
+                });
+                toast("myDATA connected — test transmission OK.", { tone: "success" });
+              }}
+            >
+              Connect (demo)
+            </Btn>
+          )}
+        </div>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <Field label="ΑΠΥ / ΤΠΥ series">
+            <Input
+              value={inv.series}
+              onChange={(e) => d.set("invoicing", { ...inv, series: e.target.value })}
+            />
+          </Field>
+          <Field label="Standard VAT %">
+            <Input
+              type="number"
+              value={inv.vatRate}
+              onChange={(e) => d.set("invoicing", { ...inv, vatRate: Number(e.target.value) })}
+            />
+          </Field>
+          <Field label="Accountant">
+            <Input
+              value={inv.accountant}
+              onChange={(e) => d.set("invoicing", { ...inv, accountant: e.target.value })}
+            />
+          </Field>
+          <Field label="e-Invoice provider">
+            <Select
+              value={inv.provider}
+              onChange={(e) => d.set("invoicing", { ...inv, provider: e.target.value })}
+              options={["Elorus", "Epsilon Digital", "SoftOne", "Direct myDATA (no provider)"]}
+            />
+          </Field>
+        </div>
+      </Card>
+      {d.bar}
+    </SectionFrame>
+  );
+}
+
+/* ---------- Users & roles (+ Slaice access, AENR-515) ---------- */
+export function Users({ t }: SectionProps) {
+  const { staffUsers } = useApp();
+  const { platform, plan, updateTenant, toast, today } = usePlatform();
+  const users =
+    t.id === "akti"
+      ? staffUsers.map((u) => ({ name: u.name, role: roleLabel(u.role), status: u.status }))
+      : [
+          { name: t.contacts[0].name, role: "Manager / Admin", status: "active" },
+          { name: "Front desk", role: "Cashier", status: "active" },
+          {
+            name: "Gate staff",
+            role: "Controller",
+            status: t.lifecycle === "live" ? "active" : "invited",
+          },
+        ];
+  const sessions = platform.sessions.filter((s) => s.tenantId === t.id);
+  const seats = plan(t)?.limits.seats.included ?? 0;
+  return (
+    <SectionFrame
+      title="Users & roles"
+      sub={`Tenant staff · ${users.length} of ${seats} seats used. Role definitions live in RBAC.`}
+    >
+      <Card className="p-2">
+        <Table
+          dense
+          cols={["Name", "Role", "Status", ""]}
+          rows={users.map((u) => [
+            u.name,
+            u.role,
+            <Badge tone={u.status === "active" ? "green" : "amber"}>{u.status}</Badge>,
+            <span className="flex gap-1 justify-end">
+              <Btn
+                size="sm"
+                variant="ghost"
+                onClick={() => toast(`Demo — 2FA reset for ${u.name}.`)}
+              >
+                Reset 2FA
+              </Btn>
+              <Btn size="sm" variant="ghost" onClick={() => toast(`Demo — ${u.name} deactivated.`)}>
+                Deactivate
+              </Btn>
+            </span>,
+          ])}
+        />
+        <div className="p-2">
+          <Btn
+            size="sm"
+            variant="outline"
+            icon={Icon.plus}
+            onClick={() => toast("Demo — invitation sent.")}
+          >
+            Invite user
+          </Btn>
+        </div>
+      </Card>
+      <Card className="p-4 space-y-2">
+        <h3 className="font-semibold text-navy-900">Slaice access to this tenant</h3>
+        <KV k="Assigned">
+          {[t.accountManager + " (account manager)", ...t.slaiceTeam].join(" · ")}
+        </KV>
+        <KV k="Support access granted by tenant">
+          {t.supportGrant && t.supportGrant.until >= today ? (
+            <Badge tone="green">Until {fmtDay(t.supportGrant.until)}</Badge>
+          ) : (
+            <Badge tone="slate">Not granted</Badge>
+          )}
+        </KV>
+        <div className="flex gap-2">
+          <Btn
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              updateTenant(t.id, (x) => ({ ...x, supportGrant: { until: addDays(today, 30) } }), {
+                section: "Users & roles",
+                change: "Support access granted for 30 days",
+                actorType: "Tenant staff",
+              })
+            }
+          >
+            Simulate tenant grants access
+          </Btn>
+          {t.supportGrant && (
+            <Btn
+              size="sm"
+              variant="ghost"
+              onClick={() =>
+                updateTenant(t.id, (x) => ({ ...x, supportGrant: undefined }), {
+                  section: "Users & roles",
+                  change: "Support access revoked",
+                  actorType: "Tenant staff",
+                })
+              }
+            >
+              Simulate revoke
+            </Btn>
+          )}
+        </div>
+        <h4 className="pt-2 text-[12px] font-semibold uppercase tracking-wider text-slate-500">
+          View-as sessions
+        </h4>
+        {sessions.length === 0 ? (
+          <p className="text-[13px] text-slate-500">None yet.</p>
+        ) : (
+          <ul className="text-[12.5px] space-y-1">
+            {sessions.map((s) => (
+              <li key={s.id}>
+                {new Date(s.startedAt).toLocaleString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}{" "}
+                · <b>{s.by}</b> · {s.scope === "read" ? "Read-only" : "Read & write"} as {s.role} ·{" "}
+                {s.changes.length} changes{s.emergency ? " · EMERGENCY" : ""} · “{s.reason}”
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+    </SectionFrame>
+  );
+}
+
+/* ---------- Security ---------- */
+export function Security({ t }: SectionProps) {
+  const d = useTenantDraft(t, ["security"] as const, "Security", ["security"]);
+  const s = d.draft.security;
+  return (
+    <SectionFrame title="Security" sub="Tenant-wide sign-in policies and recent security events.">
+      <Card className="p-4 space-y-3">
+        <Toggle
+          on={s.require2fa}
+          onChange={(v) => d.set("security", { ...s, require2fa: v })}
+          label="Require 2FA for Admin and Accountant roles"
+        />
+        <Field label="Session timeout">
+          <Select
+            value={String(s.sessionMins)}
+            onChange={(e) => d.set("security", { ...s, sessionMins: Number(e.target.value) })}
+            options={["15", "30", "60", "240"].map((m) => ({ v: m, l: `${m} minutes` }))}
+          />
+        </Field>
+        <fieldset>
+          <legend className="text-[12px] font-semibold text-slate-700 mb-1">
+            Allowed sign-in methods
+          </legend>
+          <div className="flex flex-wrap gap-2">
+            {["Password", "Magic link", "Google"].map((m) => (
+              <label
+                key={m}
+                className="inline-flex items-center gap-2 rounded-lg ring-1 ring-slate-200 px-2.5 min-h-[40px] text-[13px]"
+              >
+                <input
+                  type="checkbox"
+                  className="accent-teal-600"
+                  checked={s.methods.includes(m)}
+                  onChange={(e) =>
+                    d.set("security", {
+                      ...s,
+                      methods: e.target.checked
+                        ? [...s.methods, m]
+                        : s.methods.filter((x) => x !== m),
+                    })
+                  }
+                />{" "}
+                {m}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      </Card>
+      <Card className="p-4">
+        <h3 className="font-semibold text-navy-900 mb-1">Recent security events</h3>
+        <ul className="text-[13px] space-y-1">
+          {t.security.events.map((e) => (
+            <li key={e.at}>
+              {new Date(e.at).toLocaleString("en-GB", {
+                day: "numeric",
+                month: "short",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}{" "}
+              · {e.text}
+            </li>
+          ))}
+        </ul>
+      </Card>
+      {d.bar}
+      {d.reasonModal}
+    </SectionFrame>
+  );
+}
+
+/* ---------- Compliance ---------- */
+export function Compliance({ t }: SectionProps) {
+  const { go } = useApp();
+  const { updateTenant, toast, today } = usePlatform();
+  return (
+    <SectionFrame title="Compliance" sub="DPA, DPO, data region and sub-processors.">
+      <Card className="p-4 grid sm:grid-cols-2 gap-x-6">
+        <div>
+          <KV k="DPA">
+            {t.dpa.status === "Signed" ? (
+              <Badge tone="green">
+                Signed {t.dpa.version} · {t.dpa.signed}
+              </Badge>
+            ) : (
+              <span className="inline-flex gap-2 items-center">
+                <Badge tone="amber">Pending {t.dpa.version}</Badge>
+                <Btn
+                  size="sm"
+                  variant="tint"
+                  onClick={() => {
+                    updateTenant(
+                      t.id,
+                      (x) => ({ ...x, dpa: { ...x.dpa, status: "Signed", signed: today } }),
+                      { section: "Compliance", change: "DPA signed", actorType: "Tenant staff" },
+                    );
+                    toast("DPA signed (simulated).", { tone: "success" });
+                  }}
+                >
+                  Simulate signed
+                </Btn>
+              </span>
+            )}
+          </KV>
+          <KV k="DPO">{t.contacts.find((c) => c.role === "dpo")?.name}</KV>
+          <KV k="Last review">{t.dpa.signed ?? "—"}</KV>
+        </div>
+        <div>
+          <KV k="Data region">
+            <Badge tone="indigo">{t.region}</Badge>
+          </KV>
+          <p className="text-[12px] text-slate-500 py-1.5">
+            Set when the tenant was created. Changing region is a migration handled by Slaice.
+          </p>
+          <KV k="Open incidents">0</KV>
+        </div>
+      </Card>
+      <Card className="p-4">
+        <h3 className="font-semibold text-navy-900 mb-1">
+          Sub-processors that may process data outside the region
+        </h3>
+        {SUBPROCESSORS.some((s) => !/EU/.test(s.region)) ? (
+          <ul className="text-[13px] space-y-1">
+            {SUBPROCESSORS.filter((s) => !/EU/.test(s.region)).map((s) => (
+              <li key={s.name}>
+                {s.name} · {s.purpose} · {s.region}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-[13px] text-slate-600">
+            None — every sub-processor processes data in the EU.
+          </p>
+        )}
+        <div className="mt-2 flex gap-2">
+          <Btn size="sm" variant="ghost" onClick={() => go("platform", "compliance")}>
+            Platform breach register & controller/processor details
+          </Btn>
+        </div>
+      </Card>
+    </SectionFrame>
+  );
+}
+
+/* ---------- Integrations ---------- */
+export function Integrations({ t }: SectionProps) {
+  const { updateTenant, toast } = usePlatform();
+  return (
+    <SectionFrame
+      title="Integrations"
+      sub="myDATA, messaging channels and webhooks for this tenant."
+    >
+      <Card className="p-4 space-y-2">
+        <KV k="myDATA / AADE">
+          <Badge tone={t.mydata === "connected" ? "green" : "amber"}>{t.mydata}</Badge>
+        </KV>
+        {(["email", "sms", "viber"] as const).map((c) => (
+          <KV key={c} k={c === "sms" ? "SMS" : c[0].toUpperCase() + c.slice(1)}>
+            <Badge tone={t.channels[c] ? "green" : "slate"}>
+              {t.channels[c] ? "Connected" : "Not set up"}
+            </Badge>
+          </KV>
+        ))}
+        <KV k="Stripe webhooks">
+          <span className="inline-flex items-center gap-2">
+            <Badge tone={t.webhooks === "healthy" ? "green" : "red"}>{t.webhooks}</Badge>
+            <Btn
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                updateTenant(
+                  t.id,
+                  (x) => ({ ...x, webhooks: x.webhooks === "healthy" ? "failing" : "healthy" }),
+                  {
+                    section: "Integrations",
+                    change: `Webhooks ${t.webhooks === "healthy" ? "failing" : "redelivered OK"}`,
+                    actorType: "System",
+                  },
+                );
+                toast(
+                  t.webhooks === "healthy"
+                    ? "Demo — webhook delivery failing."
+                    : "Redelivered — healthy.",
+                  { tone: t.webhooks === "healthy" ? "warn" : "success" },
+                );
+              }}
+            >
+              {t.webhooks === "healthy" ? "Simulate failure" : "Redeliver"}
+            </Btn>
+          </span>
+        </KV>
+      </Card>
+    </SectionFrame>
+  );
+}

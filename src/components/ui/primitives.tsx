@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
 import { usePointerGlow } from "../../lib/motion";
+import { textOf, useGuardReason } from "./guard";
 
 /* ---------- Badge ---------- */
 export function Badge({ tone = "slate", children, className = "" }: { tone?: string; children?: ReactNode; className?: string }) {
@@ -107,9 +108,11 @@ export function Btn({ children, variant = "primary", size = "md", onClick, icon:
     light: "bg-white/15 text-white hover:bg-white/25 ring-1 ring-white/20 backdrop-blur-sm",
     danger: "bg-rose-600 text-white hover:bg-rose-500 shadow-lift",
   };
-  const isDisabled = disabled && !loading;
+  // View-as guard: a read-only session or a blocked action turns the button off, with the reason.
+  const guarded = useGuardReason(textOf(children));
+  const isDisabled = (disabled || !!guarded) && !loading;
   return (
-    <button type={type} disabled={disabled || loading} onClick={onClick}
+    <button type={type} disabled={disabled || loading || !!guarded} onClick={onClick} title={guarded || undefined}
       className={`${base} ${sizes[size]} ${variants[variant]} ${full ? "w-full" : ""} ${isDisabled ? off : ""} ${className}`}>
       {loading ? <Spinner size={size === "sm" ? 14 : 16} /> : IconC && <IconC size={size === "sm" ? 15 : 17} />}
       {children}

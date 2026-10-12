@@ -27,6 +27,7 @@ import { readHashQuery, writeHashQuery } from "../app/router";
 import { activeCount, filtersFromParams, filtersToParams, isAmount, matchAmount, type FilterDef, type FilterState } from "../domain/filters";
 import { resolveRange, comparisonRange, lastYearRange, granularityFor, rangeLabel, periodNoun, comparisonLabel, isoFromDayMonth, inRange, fmtWeekday as fmtWeekdayP } from "../domain/period";
 import { summarize, series, buckets, fmtEUR, fmtInt, fmtPct, trendPct, trendPp, trendEUR } from "../data/analytics";
+import { Masked } from "./tenant/ViewAs";
 import { onlineBookings, payLinkBookings, tillBookings, tillRefunds } from "../data/tillAdmin";
 import { InvoicesTab, OverviewPanel, PaymentsTab, SectionChips, financeCsv, financePdf, useFinanceData, useSection } from "./reporting/FinanceTabs";
 import { VARIANCE_TOLERANCE, eur as eurTill, shiftTotals } from "../domain/till";
@@ -334,7 +335,7 @@ export function AdminBookings() {
                 <span className="whitespace-nowrap">{b.id}</span>,
                 b.who,
                 b.surname || <span className="text-slate-400">—</span>,
-                b.phone ? <span className="tnum whitespace-nowrap">{b.phone}</span> : <span className="text-slate-400">—</span>,
+                b.phone ? <span className="tnum whitespace-nowrap"><Masked value={b.phone} /></span> : <span className="text-slate-400">—</span>,
                 <BookingItems items={b.items} />,
                 b.date,
                 <Badge tone={chan(b.channel)}>{b.channel}</Badge>,
@@ -940,7 +941,7 @@ export function AdminRefunds() {
         <Table cols={["Transaction", "Date", "Name", "Surname", "Phone", "Amount", "Reason", "Status", ""]} right={[5]}
           rows={visible.map(({ r, i }) => {
             const p = personByFirst(r.who);
-            return [r.channel ? <span className="inline-flex items-center gap-1.5 whitespace-nowrap">{r.tx}<Badge tone="green">{r.channel}</Badge></span> : r.tx, r.date || "—", r.who, p?.last || "—", p?.phone ? <span className="tnum whitespace-nowrap">{p.phone}</span> : "—",
+            return [r.channel ? <span className="inline-flex items-center gap-1.5 whitespace-nowrap">{r.tx}<Badge tone="green">{r.channel}</Badge></span> : r.tx, r.date || "—", r.who, p?.last || "—", p?.phone ? <span className="tnum whitespace-nowrap"><Masked value={p.phone} /></span> : "—",
               r.refundAmount != null && r.refundAmount < r.amount
                 ? <div className="leading-tight"><span className="tnum">€{r.amount}</span><div className="text-[11px] text-rose-600 tnum">−€{r.refundAmount} refunded</div></div>
                 : `€${r.amount}`,

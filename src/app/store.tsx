@@ -23,6 +23,7 @@ import { DEFAULT_DISPLAY, type DisplayConfig } from "../domain/display";
 import { DEFAULT_LAYOUT_STATE, type LayoutState } from "../domain/layoutVersions";
 import { DEFAULT_EXTRAS, type ExtrasState } from "../domain/extras";
 import { DEFAULT_ACCOUNT, type AccountState } from "../domain/account";
+import { emptyPlatform, type PlatformState } from "../domain/platform";
 
 // Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
 // highlight the section a journey points at.
@@ -57,6 +58,8 @@ export interface AppContextValue {
   /** Play the cinematic beach "dive" and open the booking wizard. */
   dive: () => void;
   persona: PersonaId;
+  /** The current page key of the persona. */
+  page: string;
   signedIn: boolean;
   setSignedIn: (v: boolean) => void;
   lang: LangCode;
@@ -176,6 +179,9 @@ export interface AppContextValue {
   /** The guest's account on this device: guest mode, saved card, placed bookings (AENR-532). */
   account: AccountState;
   setAccount: (u: (s: AccountState) => AccountState) => void;
+  /** Slaice console: tenants, plans, View-as sessions (AENR-500/515/517/518). */
+  platform: PlatformState;
+  setPlatform: (u: (s: PlatformState) => PlatformState) => void;
 }
 
 export const DEFAULT_CRM: CrmState = { segments: [], tagDefs: [{ name: "Wedding party", color: "#a855f7" }, { name: "Local", color: "#0D9488" }], edits: {}, regularAfter: 15, lifecycle: { atRiskDays: 14, lapsedDays: 35 }, columns: ["lifecycle", "spend"], imported: [], mergedAway: [], eraseRequests: [], profiles: {}, customFields: [{ id: "cf-birthday", label: "Birthday", type: "date" }, { id: "cf-company", label: "Company", type: "text" }] };
@@ -194,6 +200,7 @@ export const AppCtx = createContext<AppContextValue>({
   go: () => {},
   dive: () => {},
   persona: "customer",
+  page: "",
   signedIn: false,
   setSignedIn: () => {},
   lang: "en",
@@ -272,6 +279,8 @@ export const AppCtx = createContext<AppContextValue>({
   setExtras: () => {},
   account: DEFAULT_ACCOUNT,
   setAccount: () => {},
+  platform: emptyPlatform([]),
+  setPlatform: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);
