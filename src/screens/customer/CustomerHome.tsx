@@ -83,7 +83,7 @@ export function CustomerHome() {
   }, []);
 
   return (
-    <div ref={scope} className="flex flex-col xl:grid xl:grid-cols-[minmax(0,1fr)_auto] gap-4 xl:items-start">
+    <div ref={scope} className="flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_auto] gap-4 lg:items-start">
 
       {/* ── Left: hero + the two promos beneath it (narrower now) ──── */}
       <div className="flex flex-col gap-4 min-w-0">
@@ -102,7 +102,7 @@ export function CustomerHome() {
                 are wider, so on large screens we lift the width cap and ease the
                 size a touch (32px) so the line uses the available space instead
                 of wrapping. */}
-            <h1 className="mt-3 font-display font-bold text-[28px] sm:text-[36px] xl:text-[32px] leading-[1.05] tracking-tight text-navy-900 max-w-2xl xl:max-w-none">
+            <h1 className="mt-3 font-display font-bold text-[28px] sm:text-[36px] lg:text-[32px] leading-[1.05] tracking-tight text-navy-900 max-w-2xl lg:max-w-none">
               <KineticWords text={t("Plan your full beach day")} />{" "}
               <span className="text-shimmer inline-block" data-hero-word>{t("in 60 seconds")}</span>
             </h1>
@@ -163,7 +163,7 @@ export function CustomerHome() {
       </div>
 
       {/* ── Right cluster: a tall "Your rewards" tile beside the cards ─ */}
-      <div className={`grid gap-4 ${rewards.length ? "xl:grid-cols-[22rem_85.6mm]" : "xl:grid-cols-[85.6mm]"}`}>
+      <div className={`grid gap-4 ${rewards.length ? "sm:grid-cols-[minmax(0,1fr)_85.6mm] lg:grid-cols-[85.6mm] xl:grid-cols-[22rem_85.6mm]" : "sm:grid-cols-[85.6mm] sm:justify-center lg:justify-start"}`}>
         {rewards.length > 0 && (
           <div className={`${CARD} p-4 flex flex-col h-full min-w-0`} data-home-card>
             <div className="flex items-center gap-2 mb-3 px-0.5">
@@ -177,7 +177,7 @@ export function CustomerHome() {
             </div>
           </div>
         )}
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 w-full max-w-[85.6mm] mx-auto sm:mx-0">
           <VipTile />
           <SeasonTile />
         </div>
