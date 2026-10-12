@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Icon } from "../lib/icons";
 import { Btn, Input } from "../components/ui";
+import { AgeCheck } from "../components/AgeCheck";
 import { SlaiceLogo, TenantLogo } from "../components/Brand";
 import { BeachBackdrop } from "../components/Beach";
 import { TENANT } from "../data/beach";
@@ -23,7 +24,11 @@ export function AuthGate() {
     setSignedIn(true);
     go("customer", "home");
   };
-  const signInAs = () => { setAccount((a) => ({ ...a, guest: false })); setSignedIn(true); };
+  const [adult, setAdult] = useState(false);
+  const [ageTried, setAgeTried] = useState(false);
+  // Every way into an account needs the 18+ confirmation (AENR-489).
+  const needAge = () => { setAgeTried(true); return !adult; };
+  const signInAs = () => { if (needAge()) return; setAccount((a) => ({ ...a, guest: false })); setSignedIn(true); };
   const t = useT();
   const [sent, setSent] = useState(false);
   const {
@@ -39,11 +44,13 @@ export function AuthGate() {
   const email = watch("email");
 
   const onValid = () => {
+    if (needAge()) return;
     setSent(true);
     toast(t("Demo — magic link 'sent'. Click continue."));
   };
 
   const sso = (p: string) => {
+    if (needAge()) return;
     toast(`${t("Demo —")} ${p} ${t("SSO. Signing you in…")}`);
     setTimeout(signInAs, 500);
   };
@@ -106,6 +113,7 @@ export function AuthGate() {
                   <Icon.alert size={13} /> {errors.email.message}
                 </div>
               )}
+              <AgeCheck checked={adult} onChange={setAdult} invalid={ageTried && !adult} />
               <Btn type="submit" variant="teal" full size="lg" icon={Icon.mail}>{t("Send magic link")}</Btn>
             </form>
           ) : (

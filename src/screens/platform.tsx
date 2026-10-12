@@ -1,66 +1,7 @@
-import { useEffect, useState } from "react";
-import { Icon, type IconRenderer } from "../lib/icons";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, FutureBanner } from "../components/ui";
+import { Icon } from "../lib/icons";
+import { Card, Btn, Badge, PageHead, FutureBanner } from "../components/ui";
 import { SlaiceLogo } from "../components/Brand";
-import { SUBPROCESSORS, BREACHES } from "../data/gdpr";
 import { useApp } from "../app/store";
-import { TenantPostureTable } from "./tenant/PlatformOverviews";
-
-/* ---- 72-hour breach-notification workflow ---- */
-const BREACH_STEPS: { label: string; detail: string; icon: IconRenderer; action: string }[] = [
-  { label: "Assess severity & scope", detail: "Identify the data, systems and number of subjects affected.", icon: Icon.search, action: "Scope assessed" },
-  { label: "Contain & remediate", detail: "Stop the exposure, rotate credentials, patch the vector.", icon: Icon.shield, action: "Contained" },
-  { label: "Assess notifiability (Art. 33/34)", detail: "Decide whether the breach is likely to risk subjects' rights.", icon: Icon.sliders, action: "Risk assessed" },
-  { label: "Notify the supervisory authority", detail: "File with the DPA within 72 hours of becoming aware.", icon: Icon.shieldAlert, action: "DPA notified" },
-  { label: "Notify affected tenants & subjects", detail: "Inform the controllers (tenants) and, if high-risk, the data subjects.", icon: Icon.mail, action: "Tenants notified" },
-  { label: "Log to the breach register", detail: "Record the facts, effects and remedial action for the audit trail.", icon: Icon.database, action: "Logged" },
-];
-
-function BreachWorkflowModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { toast } = useApp();
-  const [stage, setStage] = useState<"work" | "done">("work");
-  const [step, setStep] = useState(0);
-  useEffect(() => { if (open) { setStage("work"); setStep(0); } }, [open]);
-  const allDone = step >= BREACH_STEPS.length;
-  return (
-    <Modal open={open} onClose={onClose} title={stage === "done" ? "Workflow complete" : "Breach notification · 72h workflow"}
-      footer={stage === "done"
-        ? <Btn variant="primary" icon={Icon.check} onClick={onClose}>Close</Btn>
-        : <><Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-            <Btn variant="primary" icon={Icon.shieldCheck} disabled={!allDone} onClick={() => { setStage("done"); toast("Breach workflow logged · DPA + tenants notified within SLA.", { tone: "success" }); }}>File &amp; close</Btn></>}>
-      {stage === "done" ? (
-        <div className="py-2 text-center space-y-2 animate-pop">
-          <span className="mx-auto w-12 h-12 rounded-full bg-teal-600 text-white grid place-items-center shadow"><Icon.check size={22} /></span>
-          <div className="font-semibold text-navy-900">Notification filed</div>
-          <div className="text-[13px] text-slate-600 max-w-sm mx-auto">The supervisory authority and affected tenants were notified within the 72-hour SLA, and the incident is recorded in the breach register.</div>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <div className="text-[12px] text-slate-500">Work each step — GDPR Art. 33 requires notifying the authority within 72 hours of awareness.</div>
-          <ol className="space-y-1.5">
-            {BREACH_STEPS.map((s, i) => {
-              const st = i < step ? "done" : i === step ? "active" : "todo";
-              const SIcon = s.icon;
-              return (
-                <li key={i} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ring-1 transition ${st === "done" ? "ring-teal-200 bg-teal-50/60" : st === "active" ? "ring-slaice-300 bg-white shadow-soft" : "ring-slate-100 bg-slate-50/50 opacity-60"}`}>
-                  <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${st === "done" ? "bg-teal-600 text-white" : st === "active" ? "bg-navy-900 text-white" : "bg-slate-200 text-slate-400"}`}>
-                    {st === "done" ? <Icon.check size={14} /> : <SIcon size={14} />}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-semibold text-navy-900">{s.label}</div>
-                    <div className="text-[11px] text-slate-500 leading-snug">{s.detail}</div>
-                  </div>
-                  {st === "active" && <Btn size="sm" variant="tint" onClick={() => setStep((x) => x + 1)}>{s.action}</Btn>}
-                  {st === "done" && <span className="text-[11px] font-semibold text-teal-700 shrink-0 inline-flex items-center gap-1"><Icon.check size={11} /> {s.action}</span>}
-                </li>
-              );
-            })}
-          </ol>
-        </div>
-      )}
-    </Modal>
-  );
-}
 
 /* ============ VERTICALS ============ */
 export function PlatformVerticals() {
@@ -147,43 +88,5 @@ export function PlatformLanding() {
 }
 
 /* ============ COMPLIANCE & DPA (Platform / Slaice) ============ */
-export function PlatformCompliance() {
-  const { toast } = useApp();
-  const [workflow, setWorkflow] = useState(false);
-  return (
-    <div className="animate-fade-up">
-      <PageHead actions={<><Btn variant="outline" icon={Icon.download} onClick={() => toast("Demo — downloaded the GDPR/DPA pack (PDF).")}>DPA pack</Btn><Btn variant="primary" icon={Icon.shieldCheck} onClick={() => toast("Demo — compliance posture saved.")}>Save</Btn></>} />
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <StatCard label="Data residency" value="EU" sub="Frankfurt region" tone="indigo" />
-        <StatCard label="Sub-processors" value={String(SUBPROCESSORS.length)} sub="all DPA-signed" tone="teal" />
-        <StatCard label="Open incidents" value="0" sub="last 12 months" tone="teal" />
-        <StatCard label="Breach SLA" value="72h" sub="DPA notification" />
-      </div>
-      <div className="grid lg:grid-cols-2 gap-4">
-        <Card className="p-2">
-          <div className="px-3 pt-2 pb-1 font-semibold text-navy-900">Sub-processors</div>
-          <Table cols={["Provider", "Purpose", "Region", "DPA"]}
-            rows={SUBPROCESSORS.map((s) => [<b className="text-navy-900">{s.name}</b>, s.purpose, s.region, <Badge tone={s.dpa === "Signed" ? "green" : "slate"}>{s.dpa}</Badge>])} />
-        </Card>
-        <Card className="p-2">
-          <div className="px-3 pt-2 pb-1 font-semibold text-navy-900">Per-tenant DPA &amp; posture</div>
-          <TenantPostureTable />
-        </Card>
-      </div>
-      <Card className="p-5 mt-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.shieldAlert size={16} className="text-teal-600" /> Breach notification register</div>
-          <Btn size="sm" variant="outline" icon={Icon.bolt} onClick={() => setWorkflow(true)}>Start workflow</Btn>
-        </div>
-        <div className="rounded-2xl bg-teal-50/70 ring-1 ring-teal-600/15 p-4 flex items-center gap-3">
-          <span className="w-10 h-10 rounded-xl bg-white text-teal-700 grid place-items-center shrink-0 shadow-sm"><Icon.shieldCheck size={20} /></span>
-          <div>
-            <div className="font-semibold text-navy-900">All clear</div>
-            <div className="text-[13px] text-slate-600">{BREACHES[0].note} If an incident occurs, affected tenants and supervisory authorities are notified within 72 hours.</div>
-          </div>
-        </div>
-      </Card>
-      <BreachWorkflowModal open={workflow} onClose={() => setWorkflow(false)} />
-    </div>
-  );
-}
+
+export { PlatformCompliance } from "./privacy/PlatformCompliance";

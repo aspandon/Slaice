@@ -1131,6 +1131,7 @@ function PeopleStep({ tickets: TICKET, people, setPeople, includeTickets, setInc
             );
           })}
         </div>
+        <p className="mt-1.5 text-[11.5px] text-slate-500 flex items-start gap-1.5"><Icon.shield size={12} className="shrink-0 mt-0.5" /> {tr("Child tickets record only the type and count — no names or dates of birth.")}</p>
       </div>
 
       {pickedSets > 0 && (

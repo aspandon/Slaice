@@ -11,6 +11,8 @@ import { fmtDay } from "../../domain/period";
 import type { Segment } from "../../domain/segments";
 import { downloadCSV } from "../../lib/download";
 import { CH_LABEL, fmtAt } from "../../domain/comms";
+import { latest, type ConsentPurpose } from "../../domain/gdpr";
+import { usePrivacy } from "../privacy/usePrivacy";
 
 /* ============ 360° guest profile (AENR-477) ============
    One drawer per guest with tabs: Overview · Bookings · Payments & refunds ·
@@ -43,7 +45,12 @@ export function GuestProfile({ guest, customer, rfm, segments, tags, onClose, on
   const bookings = ADMIN_BOOKINGS.filter((b) => b.who === customer.first);
   const refunds = ADMIN_REFUNDS.filter((r) => r.who === customer.first);
   const next = predictedNextVisit(guest);
-  const consent = (k: string) => prof.consent?.[k] ?? { on: guest.consent.includes(k), at: guest.firstVisit, source: "Sign-up" };
+  // The consent log is the single source of truth (AENR-485).
+  const { privacy, recordConsent } = usePrivacy();
+  const consent = (k: string) => {
+    const r = latest(privacy.consentLog, customer.id, k as ConsentPurpose);
+    return r ? { on: r.granted, at: r.at, source: r.source } : { on: guest.consent.includes(k), at: guest.firstVisit, source: "Sign-up" };
+  };
   const [noteText, setNoteText] = useState("");
   const [prefs, setPrefs] = useState(prof.prefs ?? {});
   const [custom, setCustom] = useState<Record<string, string>>(prof.custom ?? {});
@@ -55,7 +62,7 @@ export function GuestProfile({ guest, customer, rfm, segments, tags, onClose, on
     toast("Note added.", { tone: "success" });
   };
   const setConsent = (k: string, on: boolean) => {
-    patch({ consent: { ...prof.consent, [k]: { on, at: new Date().toISOString(), source: "Changed by staff" } } });
+    recordConsent(customer.id, { [k]: on }, "Staff", `${CHANNEL_LABEL[k]} ${on ? "recorded" : "withdrawn"} by staff`);
     toast(`${CHANNEL_LABEL[k]} marketing consent ${on ? "recorded" : "withdrawn"} for ${customer.first}.`, { tone: "success" });
   };
   const exportData = () => {
@@ -84,7 +91,7 @@ export function GuestProfile({ guest, customer, rfm, segments, tags, onClose, on
         <div className="flex items-center gap-3">
           <span className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slaice-600 to-teal-600 text-white grid place-items-center font-display font-bold text-lg shrink-0">{customer.first.charAt(0)}{customer.last.charAt(0)}</span>
           <div className="min-w-0">
-            <div className="font-display font-bold text-navy-900 text-lg truncate flex items-center gap-2">{name}{prof.important && <Badge tone="amber"><Icon.star size={10} /> Important</Badge>}</div>
+            <div className="font-display font-bold text-navy-900 text-lg truncate flex items-center gap-2">{name}{prof.important && <Badge tone="amber"><Icon.star size={10} /> Important</Badge>}{prof.restricted && <Badge tone="red"><Icon.lock size={10} /> Processing restricted</Badge>}</div>
             <div className="text-[12px] text-slate-500 truncate">{customer.email} · <span className="tnum">{customer.phone}</span></div>
           </div>
         </div>

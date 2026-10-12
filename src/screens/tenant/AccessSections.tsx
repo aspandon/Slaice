@@ -3,7 +3,7 @@ import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, Field, Input, Select, Table, Toggle } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { usePlatform } from "../../lib/usePlatform";
-import { SUBPROCESSORS } from "../../data/gdpr";
+import { isEu } from "../../domain/gdpr";
 import { addDays, fmtDay } from "../../domain/period";
 import { roleLabel } from "../../data/staff";
 import { FinanceSettingsModal } from "../PlatformFinance";
@@ -373,7 +373,9 @@ export function Security({ t }: SectionProps) {
 
 /* ---------- Compliance ---------- */
 export function Compliance({ t }: SectionProps) {
-  const { go } = useApp();
+  const { go, privacy } = useApp();
+  const nonEu = privacy.subprocessors.filter((s) => !isEu(s));
+  const incidents = privacy.breaches.filter((b) => !b.closedAt && b.tenantIds?.includes(t.id)).length;
   const { updateTenant, toast, today } = usePlatform();
   return (
     <SectionFrame title="Compliance" sub="DPA, DPO, data region and sub-processors.">
@@ -414,18 +416,18 @@ export function Compliance({ t }: SectionProps) {
           <p className="text-[12px] text-slate-500 py-1.5">
             Set when the tenant was created. Changing region is a migration handled by Slaice.
           </p>
-          <KV k="Open incidents">0</KV>
+          <KV k="Open incidents">{incidents}</KV>
         </div>
       </Card>
       <Card className="p-4">
         <h3 className="font-semibold text-navy-900 mb-1">
           Sub-processors that may process data outside the region
         </h3>
-        {SUBPROCESSORS.some((s) => !/EU/.test(s.region)) ? (
+        {nonEu.length ? (
           <ul className="text-[13px] space-y-1">
-            {SUBPROCESSORS.filter((s) => !/EU/.test(s.region)).map((s) => (
+            {nonEu.map((s) => (
               <li key={s.name}>
-                {s.name} · {s.purpose} · {s.region}
+                {s.name} · {s.purpose} · {s.location} · <b>{s.safeguard}</b>
               </li>
             ))}
           </ul>

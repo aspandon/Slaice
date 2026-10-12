@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../lib/icons";
+import { AgeCheck } from "../components/AgeCheck";
 import type { IconRenderer } from "../lib/icons";
 import { gsap, motionOK, takeFlip, Flip, EASE, burstConfetti } from "../lib/fx";
 import { Card, Btn, Badge, PageHead, EmptyState, SwipeRow, Toggle } from "../components/ui";
@@ -28,6 +29,8 @@ export function Checkout() {
   const [finance] = useFinance();
   const ex = useExtras();
   const [phase, setPhase] = useState<"cart" | "signin" | "redirect" | "done">("cart");
+  const [adult, setAdult] = useState(false);
+  const [ageTried, setAgeTried] = useState(false);
   const [placed, setPlaced] = useState<PlacedBooking | null>(null);
   // The buyer never needs the marketplace split — it's hidden by default and
   // revealed only via an explicit demo toggle.
@@ -115,6 +118,8 @@ export function Checkout() {
 
   if (phase === "signin") {
     const signIn = (how: string) => {
+      setAgeTried(true);
+      if (!adult) return;
       setAccount((a) => ({ ...a, guest: false }));
       toast(`${t("Signed in")} (${how}) — ${t("your basket is right where you left it.")}`, { tone: "success" });
       setPhase("cart");
@@ -126,6 +131,7 @@ export function Checkout() {
           <h2 className="mt-3 font-display font-bold text-xl text-navy-900">{t("Sign in to finish your booking")}</h2>
           <p className="mt-1 text-sm text-slate-600">{t("Your basket is saved —")} {cart.length} {cart.length === 1 ? t("item") : t("items")} · €{total.toFixed(2)}. {t("We need an account to send your QR and receipt.")}</p>
           <div className="mt-5 grid gap-2">
+            <AgeCheck checked={adult} onChange={setAdult} invalid={ageTried && !adult} />
             <Btn variant="teal" full size="lg" icon={Icon.mail} onClick={() => signIn("e-mail link")}>{t("Sign in with an e-mail link")}</Btn>
             <Btn variant="outline" full onClick={() => signIn("Google")}>{t("Continue with Google")}</Btn>
             <Btn variant="ghost" full onClick={() => signIn("new account")}>{t("Create an account")}</Btn>

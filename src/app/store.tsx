@@ -25,6 +25,7 @@ import { DEFAULT_EXTRAS, type ExtrasState } from "../domain/extras";
 import { DEFAULT_ACCOUNT, type AccountState } from "../domain/account";
 import { emptyPlatform, type PlatformState } from "../domain/platform";
 import { DEFAULT_COMMS, type CommsState } from "../data/comms";
+import { DEFAULT_PRIVACY, type PrivacyState } from "../data/gdpr";
 
 // Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
 // highlight the section a journey points at.
@@ -185,6 +186,8 @@ export interface AppContextValue {
   setPlatform: (u: (s: PlatformState) => PlatformState) => void;
   comms: CommsState;
   setComms: (u: (s: CommsState) => CommsState) => void;
+  privacy: PrivacyState;
+  setPrivacy: (u: (s: PrivacyState) => PrivacyState) => void;
 }
 
 export const DEFAULT_CRM: CrmState = { segments: [], tagDefs: [{ name: "Wedding party", color: "#a855f7" }, { name: "Local", color: "#0D9488" }], edits: {}, regularAfter: 15, lifecycle: { atRiskDays: 14, lapsedDays: 35 }, columns: ["lifecycle", "spend"], imported: [], mergedAway: [], eraseRequests: [], profiles: {}, customFields: [{ id: "cf-birthday", label: "Birthday", type: "date" }, { id: "cf-company", label: "Company", type: "text" }] };
@@ -286,6 +289,8 @@ export const AppCtx = createContext<AppContextValue>({
   setPlatform: () => {},
   comms: DEFAULT_COMMS,
   setComms: () => {},
+  privacy: DEFAULT_PRIVACY,
+  setPrivacy: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);

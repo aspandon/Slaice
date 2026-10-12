@@ -1324,37 +1324,67 @@ all three; **Export CSV** and **Export PDF** (a one-page PDF with the key figure
 
 ### A-09 · Privacy & GDPR [MVP]
 
+Roles: the tenant (beach operator) is the **controller**; Slaice is the **processor**. Code:
+`src/screens/privacy/*`, rules in `src/domain/gdpr.ts`, seeded state in `src/data/gdpr.ts`
+(`privacy` slice of the app store).
+
 ```text
- KPIs: open requests · due ≤ 10 days · consent rate · avg resolution
- [Data requests] [Consent audit] [Retention] [Processing register (ROPA)]
-        │
-        ▼
- DSAR-204 · type · subject · received · due in N days ──▶ [Handle request] ─▶ ◆ type?
+ banners: breach on the 72h clock · new DPA version to sign · new sub-processor (objection window)
+ KPIs: open requests (overdue) · due ≤ 10 days · avg resolution · open breaches   — all from the data
+ [Requests] [Consent] [Policies & cookies] [Register & DPIA] [Retention] [Processors & DPO] [Breaches]
 
-   Access / Portability   verify ID ─▶ locate data ─▶ compile export ─▶ secure download
-   Erasure                verify ID ─▶ locate ─▶ legal holds ─▶ erase rest ─▶ confirm
-                                                 (invoices 5 y)
-   Rectification          verify ID ─▶ locate record ─▶ correct (re-issue receipts) ─▶ confirm
-   Restriction/Objection  verify ID ─▶ identify processing ─▶ restrict ─▶ confirm
-
- status:  Awaiting ID ─▶ In progress ─▶ ✓ Completed          statutory deadline: 30 days
+ Request: Received ─▶ Verifying identity ─▶ In progress ─▶ (Extended +1/+2 mo) ─▶ Completed | Refused
+          due = received + 1 calendar month (31 Jan → 28/29 Feb); extension needs a reason + notice
+          inside the first month; refusal records the ground + complaint-rights notice (Hellenic DPA)
+          steps per type · Art. 19 "Notify recipients" · every action → audit trail (exportable)
 ```
 
-- KPIs: Open requests, Due ≤ 10 days (30-day statutory deadline), Consent rate, Avg resolution.
-- Tabs:
-  1. **Data requests** — DSAR queue (ID, type, subject, received, due in N days, status: In progress /
-     Awaiting ID / Completed). **Handle request** runs a type-specific step workflow:
-     - _Access / Portability:_ Verify identity → Locate personal data → Compile export → Send secure
-       download.
-     - _Erasure:_ Verify identity → Locate → **Apply legal holds** (invoices kept 5 years) → Erase the
-       rest → Confirm to subject.
-     - _Rectification:_ Verify → Locate the record → Apply correction (re-issue affected receipts) →
-       Confirm.
-     - _Restriction / Objection:_ Verify → Identify processing → Restrict processing → Confirm.
-  2. **Consent audit** — purposes (necessary / analytics / marketing e-mail / SMS / push) with opt-in %.
-  3. **Retention** — schedule per data category (value + unit: hours/days/months/years), tax-mandated
-     rows flagged.
-  4. **Processing register (ROPA)** — activity, purpose, data categories, legal basis, retention.
+- **Requests (AENR-484):** one queue for requests from the customer Privacy Centre (verified by the
+  account login) and requests staff log from e-mail, phone or in person. Types: Access, Portability,
+  Rectification, Erasure, **Restriction** (Art. 18, separate from Objection), Objection. Overdue
+  requests are flagged at the top. Identity verification records method, who and when. Rectification,
+  erasure and restriction include **Notify recipients** (Stripe, messaging provider, accountant
+  export). Completing a restriction flags the guest **Processing restricted** (shown on the guest
+  profile; Communicate sends them nothing); completing an objection withdraws their marketing
+  consents.
+- **Consent (AENR-485):** an append-only **consent log** per guest — purpose, granted / withdrawn,
+  source (cookie banner, Privacy Centre, checkout, staff, unsubscribe link, sign-up), wording and the
+  notice version. It is the single source of truth: Communicate, the guest profile and the Privacy
+  Centre all read it. Opt-in rates and withdrawals are computed from it; drill into one guest's
+  history.
+- **Policies & cookies (AENR-485):** privacy and cookie policies are versioned (Draft → Published →
+  Superseded, effective date, changelog). Publishing a **material** privacy-policy change re-asks
+  returning customers in the cookie banner; their new choice records the new version. A cookie
+  inventory (name, provider, category, purpose, duration, first/third party) feeds the banner's
+  Manage view and the cookie policy. The banner's policy links open the published policies.
+- **Register & DPIA (AENR-486):** editable Art. 30 record — every mandatory field validated
+  (purpose, lawful basis, data subjects, personal data, recipients, transfers + safeguard, retention
+  linked to the Retention tab, security measures); legitimate-interest activities can't be saved
+  without an **LIA** (purpose, necessity, balancing tests, outcome, review date); profiling flagged
+  (disclosed in the notice, objectable). DPIA register with the EDPB screening criteria (two or more →
+  DPIA likely required), status, owner and review date; seeded for gate CCTV and customer profiling.
+  Export as CSV and PDF.
+- **Retention (AENR-486):** schedule per category (tax-mandated rows locked, incl. a child-ticket row);
+  every change is logged (who, when, old → new); **Run anonymisation** logs a run with record counts;
+  nightly scheduled runs are listed.
+- **Processors & DPO (AENR-487):** the DPO / privacy contact (shown in the Privacy Centre and the
+  notice); the Slaice DPA (version, signed date, PDF, re-sign when Slaice publishes a new version);
+  Slaice's sub-processors (read-only) with location, **transfer safeguard** (EU, adequacy, EU-US DPF,
+  SCCs) and TIA; new sub-processors show a 30-day objection window with **Object**.
+- **Breaches (AENR-488):** every incident documented (facts, data, people and records affected,
+  consequences, measures, risk). A **72-hour clock** runs from awareness — or from Slaice's
+  notification for processor incidents. The draft to the Hellenic DPA carries every Art. 33(3)
+  element and can be filed in phases. High-risk incidents need a plain-language message to the people
+  affected, sent through Communicate. An incident can't be closed without a notifiable yes / no
+  decision and its reason.
+- **Customer side:** Privacy Centre with per-channel marketing consent (e-mail, SMS, Viber, push),
+  requests for access, rectification, restriction, objection and erasure (they land in the queue),
+  open requests, the DPO contact and policy links, and a children's-data section. Accounts need an
+  **18+ confirmation** at sign-in and at checkout sign-in (AENR-489); child tickets record only type
+  and count.
+- **Platform › Compliance & DPA:** Slaice adds sub-processors (TIA required outside the EU; every
+  tenant is notified), publishes DPA versions, and reports incidents to the affected tenants, which
+  then appear in each tenant's breach register.
 
 ### A-14 · RBAC — staff users & roles [MVP]
 

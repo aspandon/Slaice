@@ -8,6 +8,7 @@ import type { CommsState } from "../../data/comms";
 import { DEMO_TODAY } from "../../domain/period";
 import { SCORE_FIELDS, rfmScores, stageOf } from "../../domain/lifecycle";
 import { inSegment, segmentsFor, type Segment } from "../../domain/segments";
+import { latest } from "../../domain/gdpr";
 import {
   addDay,
   deliver,
@@ -34,7 +35,7 @@ export type Guest = GuestFacts & { name: string; first: string; points: number }
 
 /** The CRM's guests with derived facts — the same list Users & Segments shows. */
 export function useAudience() {
-  const { crm } = useApp();
+  const { crm, privacy } = useApp();
   return useMemo(() => {
     const list = [...CUSTOMERS, ...crm.imported]
       .filter((c) => !crm.mergedAway.includes(c.id))
@@ -53,14 +54,18 @@ export function useAudience() {
     }));
     const segments = segmentsFor(crm.segments, crm.regularAfter);
     const recipient = (g: Guest): Recipient => {
-      const prof = crm.profiles[g.id]?.consent ?? {};
-      const has = (k: string) => prof[k]?.on ?? g.consent.includes(k);
-      // Push reaches guests who book online (they have the app) — and Elena,
-      // the demo's signed-in customer.
-      const consent: Ch[] = [
-        ...(g.channel === "Online" || g.id === DEMO_CUSTOMER_ID ? (["push"] as Ch[]) : []),
-        ...(["email", "viber", "sms"] as Ch[]).filter(has),
-      ];
+      const profile = crm.profiles[g.id];
+      // Channel consent comes from the consent log (AENR-485). Without a
+      // record: push reaches guests who book online (they have the app) and
+      // Elena, the demo's signed-in customer.
+      const has = (k: Ch, dflt: boolean) => latest(privacy.consentLog, g.id, k)?.granted ?? dflt;
+      // Art. 18 restriction: data kept but not used — no promotions at all.
+      const consent: Ch[] = profile?.restricted
+        ? []
+        : [
+            ...(has("push", g.channel === "Online" || g.id === DEMO_CUSTOMER_ID) ? (["push"] as Ch[]) : []),
+            ...(["email", "viber", "sms"] as Ch[]).filter((k) => has(k, g.consent.includes(k))),
+          ];
       return {
         id: g.id,
         name: g.name,
@@ -79,7 +84,7 @@ export function useAudience() {
       return guests.filter((g) => inSegment(g, sg, DEMO_TODAY, SCORE_FIELDS));
     };
     return { guests, segments, recipient, members };
-  }, [crm]);
+  }, [crm, privacy.consentLog]);
 }
 export type Audience = ReturnType<typeof useAudience>;
 

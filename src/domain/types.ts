@@ -69,6 +69,8 @@ export interface GuestProfileData {
   important?: boolean;
   consent?: Record<string, { on: boolean; at: string; source: string }>;
   custom?: Record<string, string>;
+  /** Art. 18 — data kept but not used (no marketing, profiling or edits). */
+  restricted?: boolean;
 }
 
 export type PersonaId =
@@ -303,6 +305,8 @@ export interface Consent {
   marketing: boolean;
   decided: boolean;
   ts: string | null;
+  /** Privacy-notice version the choice was made under (AENR-485). */
+  version?: string;
 }
 
 /* ---------- Tenant beach background ----------
