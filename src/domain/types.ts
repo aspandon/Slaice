@@ -140,6 +140,8 @@ export interface SunbedSlot {
   access?: boolean;
   /** Persons the set seats (default 2). */
   cap?: number;
+  /** Derived, never stored: why the set can't be sold on this channel/date (hold, allocation, stop-sell). */
+  inv?: string;
 }
 
 /* ---------- Beach workspace: price categories, date overrides, landmarks (AENR-469) ---------- */

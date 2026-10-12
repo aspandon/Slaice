@@ -3,6 +3,7 @@ import { useApp } from "../app/store";
 import { todayISO, zoneLayout } from "../data/beach";
 import { resolvePrice, restrictionApplies } from "../domain/pricing";
 import { applySetStatus, tillSetStatus, type SetStatus } from "../domain/till";
+import { invLabel, invStatus, type SalesChannel } from "../domain/inventory";
 import type { SunbedSlot, Zone } from "../domain/types";
 
 /** Re-render every `ms` so time-based state (holds expiring) stays current. */
@@ -15,13 +16,20 @@ export function useNow(ms = 1000): number {
   return now;
 }
 
-/** A zone's sunbed sets with the live per-day status (till sales and holds,
- *  closed stores) applied — the one view every persona renders. For several
- *  days, a set taken on any of them counts as taken. */
-export function useLiveSlots(): (zone: Zone, days: readonly string[]) => SunbedSlot[] {
-  const { beachLayout, till, beachPricing, priceRules } = useApp();
+/** The demo clock: real time plus the admin's fast-forward offset (AENR-512). */
+export function useDemoNow(ms = 15000): number {
+  const { inventory } = useApp();
+  return useNow(ms) + inventory.clockOffset * 60000;
+}
+
+/** A zone's sunbed sets with the live per-day status applied — till sales and
+ *  basket holds, closed stores, and inventory controls (holds, channel
+ *  allocations, stop-sell) for the selling channel — the one view every
+ *  persona renders. For several days, a set taken on any of them counts. */
+export function useLiveSlots(channel: SalesChannel = "online"): (zone: Zone, days: readonly string[]) => SunbedSlot[] {
+  const { beachLayout, till, beachPricing, priceRules, inventory } = useApp();
   const closure = useClosure();
-  const now = useNow(15000);
+  const now = useDemoNow();
   return useCallback(
     (zone: Zone, days: readonly string[]) => {
       const status: Record<string, SetStatus> = {};
@@ -33,9 +41,20 @@ export function useLiveSlots(): (zone: Zone, days: readonly string[]) => SunbedS
       const priced = (beachLayout[zone.id] ?? zoneLayout(zone)).map((s) =>
         days[0] ? { ...s, price: resolvePrice(s, zone.id, days[0], beachPricing, priceRules).price } : s,
       );
-      return applySetStatus(priced, status, days.some((d) => !!closure(zone.id, d)));
+      const live = applySetStatus(priced, status, days.some((d) => !!closure(zone.id, d)));
+      // Inventory controls: held → on hold; allocated to another channel or
+      // stop-sold online → unavailable here — with the reason attached.
+      return live.map((s) => {
+        if (s.state === "u") return s;
+        for (const d of days) {
+          const st = invStatus(inventory, zone.id, s.id, s.cat, d, channel, now);
+          if (st.kind === "held") return { ...s, state: "h" as const, inv: invLabel(st) };
+          if (st.kind !== "open") return { ...s, state: "u" as const, inv: invLabel(st) };
+        }
+        return s;
+      });
     },
-    [beachLayout, till, now, closure, beachPricing, priceRules],
+    [beachLayout, till, now, closure, beachPricing, priceRules, inventory, channel],
   );
 }
 

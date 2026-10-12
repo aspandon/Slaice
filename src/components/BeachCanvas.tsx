@@ -65,13 +65,15 @@ export interface BeachCanvasProps {
   onPaint?: (id: string) => void;
   /** Click on empty sand (e.g. to drop a landmark), normalized 0–100. */
   onCanvasClick?: (x: number, y: number) => void;
+  /** Inventory tag per set (e.g. "HELD", "WALK-IN") drawn as a dark label. */
+  tagOf?: (slot: SunbedSlot) => string | undefined;
 }
 
 
 export function BeachCanvas({
   slots, seaLabel = "Sea · front row", backLabel = "Promenade", maxHeight = 480,
   selected, onToggle, editable = false, selectedIds, onSelect, onMove, snap = 0,
-  catOf, priceOf, landmarks, selectedLandmark, onLandmarkSelect, onLandmarkMove, onBoxSelect, paint = false, onPaint, onCanvasClick,
+  catOf, priceOf, tagOf, landmarks, selectedLandmark, onLandmarkSelect, onLandmarkMove, onBoxSelect, paint = false, onPaint, onCanvasClick,
 }: BeachCanvasProps) {
   const [band, setBand] = useState<{ x0: number; y0: number; x1: number; y1: number; add: boolean } | null>(null);
   const painting = useRef(false);
@@ -188,6 +190,7 @@ export function BeachCanvas({
               const front = b.kind === "front";
               const cat = catOf?.(b);
               const price = priceOf?.(b);
+              const tag = tagOf?.(b);
               const handle = (e: KonvaEventObject<MouseEvent | TouchEvent>) => {
                 if (editable && paint) { onPaint?.(b.id); return; }
                 if (editable) onSelect?.(b.id, isAdditive(e));
@@ -258,6 +261,12 @@ export function BeachCanvas({
                     <Group x={-plot / 2} y={-plot / 2 - 1} listening={false}>
                       <Rect width={Math.max(16, cat.code.length * 6 + 6)} height={11} cornerRadius={3} fill={cat.color} />
                       <Text x={3} y={1.5} text={cat.code} fontSize={8.5} fontStyle="bold" fill="#fff" />
+                    </Group>
+                  )}
+                  {tag && (
+                    <Group x={-plot / 2} y={plot / 2 - 11} listening={false}>
+                      <Rect width={Math.max(26, tag.length * 5.6 + 8)} height={11} cornerRadius={3} fill="#0B2545" opacity={0.9} />
+                      <Text x={3} y={1.5} text={tag} fontSize={8} fontStyle="bold" fill="#fff" />
                     </Group>
                   )}
                   {b.access && <Text x={plot / 2 - 11} y={-plot / 2 - 1} text="♿" fontSize={10} listening={false} />}

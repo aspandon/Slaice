@@ -33,7 +33,7 @@ export function CashierIssue() {
   const closure = useClosure();
   const t = useTill();
   const now = useNow(1000);
-  const liveSlots = useLiveSlots();
+  const liveSlots = useLiveSlots("walkin");
   const [lines, setLines] = useState<TillLine[]>([]);
   const [discounts, setDiscounts] = useState<TillDiscount[]>([]);
   const [customer, setCustomer] = useState<TillSale["customer"]>();

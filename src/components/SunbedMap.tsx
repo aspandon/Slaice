@@ -58,11 +58,12 @@ export function SunbedMap({
             state={s.state}
             sel={selected?.has(s.id)}
             price={priceOf ? priceOf(s) : s.price}
-            label={`${s.id}${s.access ? " (step-free)" : ""}`}
+            label={`${s.id}${s.access ? " (step-free)" : ""}${s.inv ? ` — ${s.inv}` : ""}`}
             fill
             readOnly={readOnly}
             onClick={onToggle ? () => onToggle(s) : undefined}
           />
+          {s.inv && <span aria-hidden title={s.inv} className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-navy-900 text-white text-[8px] grid place-items-center ring-2 ring-white pointer-events-none">🔒</span>}
           {s.access && (
             <span
               aria-hidden

@@ -3,6 +3,9 @@ import { lazyWithReload } from "../../lib/staleChunk";
 import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, Field, Input, Select, Spinner, Table, Toggle } from "../../components/ui";
 import { SunbedMap } from "../../components/SunbedMap";
+import { InventoryActions, InventoryPanel } from "./Inventory";
+import { invStatus } from "../../domain/inventory";
+import { useDemoNow } from "../../lib/useLiveSlots";
 import { useApp } from "../../app/store";
 import { ZONES, zoneLayout } from "../../data/beach";
 import { CATEGORY_COLORS, LANDMARK_LABEL } from "../../data/pricing";
@@ -41,7 +44,8 @@ function bands(vals: number[]): number[] {
 const rowLetter = (i: number) => String.fromCharCode(65 + (i % 26));
 
 export function SunbedWorkspace() {
-  const { toast, beachLayout, setZoneLayout, beachPricing, setBeachPricing, priceRules, zoneLogos, setZoneLogo } = useApp();
+  const { toast, beachLayout, setZoneLayout, beachPricing, setBeachPricing, priceRules, zoneLogos, setZoneLogo, inventory } = useApp();
+  const invNow = useDemoNow();
   const published = (): Draft => ({ layouts: Object.fromEntries(ZONES.map((z) => [z.id, beachLayout[z.id] ?? zoneLayout(z)])), pricing: beachPricing });
   const [draft, setDraft] = useState<Draft>(published);
   const [past, setPast] = useState<Draft[]>([]);
@@ -313,6 +317,7 @@ export function SunbedWorkspace() {
                 onBoxSelect={(ids, add) => setSel((cur) => new Set(add ? [...cur, ...ids] : ids))}
                 catOf={(s) => { const c = cats.find((x) => x.id === s.cat); return c ? { color: c.color, code: c.code } : undefined; }}
                 priceOf={(s) => priceOf(s).price}
+                tagOf={(s) => { const st = invStatus(inventory, zoneId, s.id, s.cat, date, "online", invNow); return st.kind === "held" ? "🔒 HELD" : st.kind === "allocated" ? { walkin: "WALK-IN", phone: "PHONE", staff: "STAFF", online: "ONLINE" }[st.channel] : st.kind === "stopsell" ? "NO ONLINE" : undefined; }}
                 landmarks={landmarks} selectedLandmark={lmSel} onLandmarkSelect={(id) => { setLmSel(id); setSel(new Set()); }}
                 onLandmarkMove={(id, x, y) => patchLm(id, { x, y })} onCanvasClick={dropLandmark} />
             </Suspense>
@@ -393,6 +398,7 @@ export function SunbedWorkspace() {
                 {clashes.length > 0 && <div className="text-[12px] text-amber-700">Overlaps {clashes.length} existing override{clashes.length === 1 ? "" : "s"} — the newest wins.</div>}
                 <Btn type="submit" size="sm" variant="primary" disabled={!ov.price || !!ovErr}>Apply to {selList.length} set{selList.length === 1 ? "" : "s"}</Btn>
               </form>
+              <InventoryActions zoneId={zoneId} sel={selList} date={date} />
               <div className="flex gap-2">
                 <Btn size="sm" variant="ghost" icon={Icon.layers} onClick={duplicate}>Duplicate</Btn>
                 <Btn size="sm" variant="ghost" icon={Icon.trash} className="text-rose-600" onClick={removeSel}>Remove</Btn>
@@ -401,6 +407,8 @@ export function SunbedWorkspace() {
           ) : (
             <Card className="p-4 text-[12.5px] text-slate-600">Select sets on the canvas or in the list to edit category, type, state, accessibility or date prices. Use “Paint category” to assign categories by sweeping.</Card>
           )}
+
+          <InventoryPanel zoneId={zoneId} slots={live.layouts[zoneId] ?? slots} date={date} />
 
           <Card className="p-4">
             <div className="flex items-center justify-between mb-2"><div className="font-semibold text-navy-900">Price categories · {zone.name}</div><Btn size="sm" variant="ghost" icon={Icon.plus} onClick={addCat}>Add</Btn></div>

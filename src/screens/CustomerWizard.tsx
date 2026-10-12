@@ -10,6 +10,7 @@ import { SandScene } from "../components/SandScene";
 import { ZONES, ZONE_BLOCKS, todayISO, chipLabel } from "../data/beach";
 import { useLiveSlots } from "../lib/useLiveSlots";
 import { checkRestrictions, dateBlock, resolvePrice } from "../domain/pricing";
+import { stopSellFor } from "../domain/inventory";
 import { LANDMARK_LABEL } from "../data/pricing";
 import type { Landmark, SunbedSlot } from "../domain/types";
 import { useApp, useSpotlight, useT } from "../app/store";
@@ -148,7 +149,7 @@ function useAnimatedNumber(value: number, duration = 480) {
    ============================================================================ */
 export function CustomerWizard() {
   const tr = useT();
-  const { go, toast, addToCart, hint, lang, beachPricing, priceRules, calendar } = useApp();
+  const { go, toast, addToCart, hint, lang, beachPricing, priceRules, calendar, inventory } = useApp();
   useSpotlight("customer", "plan");
 
   // Deep-link: a Home tile can open the wizard straight at a given step.
@@ -237,6 +238,8 @@ export function CustomerWizard() {
   const today = todayISO();
   const blockReason = (iso: string) => dateBlock(zone.id, iso, calendar.restrictions, today, nowTime);
   const stayCheck = checkRestrictions(zone.id, selDates, calendar.restrictions, today, nowTime);
+  // Stop-sell (AENR-512): the store isn't sold online on these dates.
+  const stopSell = stopSellFor(inventory, zone.id, selDates);
   // Each chosen day is priced on its own (categories, seasonal rules, date
   // overrides) and with the booking context (early-bird, last-minute, multi-day).
   const ctx = { bookedOn: today, time: nowTime, stayDays: selDates.length };
@@ -405,7 +408,7 @@ export function CustomerWizard() {
               Review with many lines) overflows the panel. */}
           <div key={`${step.id}-${phase}`} className="px-4 sm:px-5 pb-1 overflow-y-auto animate-fade-up">
             {step.id === "beach" && (
-              <BeachMenu blockReason={blockReason} stayReasons={[...Object.entries(stayCheck.blocked).map(([d, why]) => `${chipLabel(d, localeFor(lang)).sub}: ${why}`), ...stayCheck.reasons]}
+              <BeachMenu blockReason={blockReason} stayReasons={[...(stopSell ? [`${zone.name}: not available online — ask at the beach (${stopSell.reason}).`] : []), ...Object.entries(stayCheck.blocked).map(([d, why]) => `${chipLabel(d, localeFor(lang)).sub}: ${why}`), ...stayCheck.reasons]}
                 selDates={selDates} setSelDates={setSelDates}
                 multiDate={multiDate} setMultiDate={setMultiDate}
                 phase={phase} setPhase={(p) => (p === "zones" ? backToZones() : setPhase(p))}
@@ -468,7 +471,7 @@ export function CustomerWizard() {
                 {stepIdx === 0 && phase === "zones" ? tr("Home") : tr("Back")}
               </Btn>
               {stepIdx < last ? (
-                <Btn variant="teal" onClick={next} disabled={step.id === "beach" && !stayCheck.ok}>{tr("Continue")} <Icon.arrowR size={15} /></Btn>
+                <Btn variant="teal" onClick={next} disabled={step.id === "beach" && (!stayCheck.ok || !!stopSell)}>{tr("Continue")} <Icon.arrowR size={15} /></Btn>
               ) : (
                 <Btn variant="dark" icon={Icon.card} onClick={confirm} disabled={grandTotal === 0}>{tr("Confirm")} · €{grandTotal}</Btn>
               )}
@@ -931,7 +934,8 @@ function SandSunbeds({ slots, selected, onToggle, readOnly = false, landmarks = 
           className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
           style={{ left: `${s.x}%`, top: `${s.y}%`, width: size, height: size }}
         >
-          <Sunbed state={s.state} sel={selected.has(s.id)} price={s.price} label={`${s.id}${s.access ? " (step-free)" : ""}`} fill readOnly={readOnly} onClick={readOnly ? undefined : () => onToggle?.(s, cells.current.get(s.id) ?? null)} />
+          <Sunbed state={s.state} sel={selected.has(s.id)} price={s.price} label={`${s.id}${s.access ? " (step-free)" : ""}${s.inv ? ` — ${s.inv}` : ""}`} fill readOnly={readOnly} onClick={readOnly ? undefined : () => onToggle?.(s, cells.current.get(s.id) ?? null)} />
+          {s.inv && <span aria-hidden title={s.inv} className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-navy-900 text-white text-[8px] grid place-items-center ring-2 ring-white pointer-events-none">🔒</span>}
           {s.access && <span aria-hidden className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-sky-600 text-white text-[9px] grid place-items-center ring-2 ring-white pointer-events-none">♿</span>}
         </div>
       ))}

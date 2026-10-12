@@ -920,6 +920,26 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
 - **Seasonal & day rules**: the existing rule list and price preview (rules apply on top of category
   prices).
 
+#### Inventory: holds, sales-channel status & stop-sell (AENR-512)
+
+- Live operations, applied immediately (not part of the layout draft), in the workspace inspector
+  (`src/screens/beach/Inventory.tsx`, rules in `src/domain/inventory.ts`):
+  - **Hold** the selected sets for a date range with a reason (VIP · Maintenance · Event / group ·
+    Weather · Other + note) and an optional release date-time; held sets show On hold with a lock and the
+    reason (wizard, Cashier map, canvas tag "🔒 HELD") and can't be booked. Release by hand, or
+    automatically at the release time (logged).
+  - **Sales channel status** per set and date range: _Not available online_ (walk-in & phone), _Available
+    online only_, _Available walk-in only_ (Cashier), _Phone only_; optional automatic release of unsold
+    sets to everyone N days before at HH:MM. The canvas tags sets WALK-IN / PHONE / STAFF / ONLINE.
+  - **Stop-sell online** per store (or one price category) and date range with a reason: the booking
+    wizard shows "not available online — ask at the beach" and can't continue; the Cashier keeps selling.
+- **Availability summary** for the chosen date ("48 total · 8 held · 6 walk-in / staff · 0 phone · 2
+  booked/blocked · 32 free online"), the list of active holds / allocations / stop-sells, an activity log,
+  and a **demo clock** (+1 h, fast-forward to the next release, reset) to show expiries and releases.
+- Every map resolves availability per channel: the booking wizard as **online**, the Cashier till as
+  **walk-in** (`useLiveSlots(channel)`), so a set kept for walk-ins is unavailable online but sellable at
+  the till until its release time.
+
 #### Calendar & rules (AENR-511)
 
 - **Month calendar per store** (`src/screens/beach/Calendar.tsx`): each day shows the effective price per
