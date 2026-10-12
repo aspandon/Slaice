@@ -8,7 +8,7 @@ import { useAsync } from "../../lib/useAsync";
 import type { Customer } from "../../domain/types";
 import { downloadCSV } from "../../lib/download";
 import { guestFacts, type GuestFacts } from "../../data/guests";
-import { SEGMENT_COLORS, SYSTEM_SEGMENTS, fieldOf, inSegment, ruleLabel, type Segment } from "../../domain/segments";
+import { SEGMENT_COLORS, fieldOf, segmentsFor, inSegment, ruleLabel, type Segment } from "../../domain/segments";
 import { DEMO_TODAY } from "../../domain/period";
 import { SegmentBuilder } from "./SegmentBuilder";
 import { GuestProfile } from "./GuestProfile";
@@ -18,16 +18,10 @@ import { isAmount, matchAmount, type FilterDef, type FilterState } from "../../d
 import { Pager, SortHeader, cmpVal, type SortState } from "../../components/TableTools";
 import { CHANNELS_CRM } from "../../data/guests";
 import { ZONES } from "../../data/beach";
-import { RFM_LABELS, RFM_TONE, STAGES, STAGE_HELP, STAGE_TONE, predictedNextVisit, rfmScores, stageOf, type LifecycleSettings, type Stage } from "../../domain/lifecycle";
+import { RFM_TONE, SCORE_FIELDS, STAGES, STAGE_HELP, STAGE_TONE, predictedNextVisit, rfmScores, stageOf, type LifecycleSettings, type Stage } from "../../domain/lifecycle";
 import { fmtDay } from "../../domain/period";
-import type { FieldDef } from "../../domain/segments";
 import type { ReactNode } from "react";
 
-// Lifecycle stage and RFM label as segment fields (AENR-475).
-const SCORE_FIELDS: FieldDef[] = [
-  { key: "lifecycle", label: "Lifecycle stage", type: "enum", group: "Scores", options: [...STAGES], get: (g) => g.lifecycle ?? "" },
-  { key: "rfm", label: "RFM segment", type: "enum", group: "Scores", options: [...RFM_LABELS], get: (g) => g.rfm ?? "" },
-];
 
 /* ============ USERS & SEGMENTS ============
    Guests are grouped by segments: built-in ones (VIP, Season pass, and the
@@ -86,8 +80,7 @@ export function AdminUsers() {
   const [lcModal, setLcModal] = useState(false);
 
   // Built-in segments (threshold from the CRM settings) + saved ones.
-  const system = SYSTEM_SEGMENTS.map((sg) => (sg.id === "sys-regular" ? { ...sg, rules: [{ field: "visits", op: "gt" as const, a: ra }] } : sg.id === "sys-new" ? { ...sg, rules: [{ field: "visits", op: "lt" as const, a: ra + 1 }] } : sg));
-  const segments = [...system, ...crm.segments];
+  const segments = segmentsFor(crm.segments, ra);
   const members = (sg: Segment) => guests.filter((g) => inSegment(g, sg, DEMO_TODAY, SCORE_FIELDS));
   const active = segments.find((sg) => sg.id === segId) ?? null;
   const inActive = active ? new Set(members(active).map((g) => g.id)) : null;

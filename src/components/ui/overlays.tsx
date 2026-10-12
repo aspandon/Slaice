@@ -42,7 +42,8 @@ export function Modal({ open, onClose, title, children, footer, wide }: {
   title?: ReactNode;
   children?: ReactNode;
   footer?: ReactNode;
-  wide?: boolean;
+  /** true = 2xl; "xl" for editors that sit beside a live preview. */
+  wide?: boolean | "xl";
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -57,7 +58,7 @@ export function Modal({ open, onClose, title, children, footer, wide }: {
   return createPortal((
     <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
       <button type="button" aria-label="Close" tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-navy-950/40 backdrop-blur-xl cursor-default" />
-      <div ref={panelRef} tabIndex={-1} className={`glass-card-solid relative w-full ${wide ? "sm:max-w-2xl" : "sm:max-w-md"} rounded-t-3xl sm:rounded-3xl animate-slide-up sm:animate-pop max-h-[92dvh] sm:max-h-[90dvh] flex flex-col pb-safe sm:pb-0 outline-none`}>
+      <div ref={panelRef} tabIndex={-1} className={`glass-card-solid relative w-full ${wide === "xl" ? "sm:max-w-5xl" : wide ? "sm:max-w-2xl" : "sm:max-w-md"} rounded-t-3xl sm:rounded-3xl animate-slide-up sm:animate-pop max-h-[92dvh] sm:max-h-[90dvh] flex flex-col pb-safe sm:pb-0 outline-none`}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200/70">
           <div id={titleId} className="font-display font-bold text-navy-900 text-lg">{title}</div>
           <button aria-label="Close" onClick={onClose} className="w-10 h-10 grid place-items-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition"><Icon.x size={20} /></button>

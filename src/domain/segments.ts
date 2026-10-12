@@ -310,3 +310,15 @@ export const SYSTEM_SEGMENTS: Segment[] = [
     updatedAt: "2026-05-01",
   },
 ];
+
+/** Built-in segments with the tenant's Regular threshold, then the saved ones. */
+export function segmentsFor(custom: readonly Segment[], regularAfter: number): Segment[] {
+  const system = SYSTEM_SEGMENTS.map((sg) =>
+    sg.id === "sys-regular"
+      ? { ...sg, rules: [{ field: "visits", op: "gt" as const, a: regularAfter }] }
+      : sg.id === "sys-new"
+        ? { ...sg, rules: [{ field: "visits", op: "lt" as const, a: regularAfter + 1 }] }
+        : sg,
+  );
+  return [...system, ...custom];
+}

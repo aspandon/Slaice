@@ -75,7 +75,7 @@ export function Card({ className = "", children, hover, press, sheen }: { classN
 /* ---------- Button ----------
    Apple-style hierarchy: filled (primary/teal/dark/indigo/danger), tinted
    (tint — light-accent fill), and quiet (ghost/outline). Springy press. */
-export function Btn({ children, variant = "primary", size = "md", onClick, icon: IconC, full, disabled, loading, className = "", type = "button" }: {
+export function Btn({ children, variant = "primary", size = "md", onClick, icon: IconC, full, disabled, loading, className = "", type = "button", title, "aria-label": ariaLabel }: {
   children?: ReactNode;
   variant?: string;
   size?: "sm" | "md" | "lg";
@@ -86,6 +86,10 @@ export function Btn({ children, variant = "primary", size = "md", onClick, icon:
   loading?: boolean;
   className?: string;
   type?: "button" | "submit" | "reset";
+  /** Tooltip — e.g. why the button is disabled. A View-as guard reason wins. */
+  title?: string;
+  /** Accessible name for icon-only buttons. */
+  "aria-label"?: string;
 }) {
   const base = "relative inline-flex items-center justify-center gap-2 rounded-[14px] font-semibold transition-all duration-150 ease-spring active:scale-[.96] disabled:pointer-events-none select-none";
   // min-heights enforce a comfortable touch target (≈ Apple HIG 44pt for md/lg)
@@ -112,7 +116,7 @@ export function Btn({ children, variant = "primary", size = "md", onClick, icon:
   const guarded = useGuardReason(textOf(children));
   const isDisabled = (disabled || !!guarded) && !loading;
   return (
-    <button type={type} disabled={disabled || loading || !!guarded} onClick={onClick} title={guarded || undefined}
+    <button type={type} disabled={disabled || loading || !!guarded} onClick={onClick} title={guarded || title} aria-label={ariaLabel}
       className={`${base} ${sizes[size]} ${variants[variant]} ${full ? "w-full" : ""} ${isDisabled ? off : ""} ${className}`}>
       {loading ? <Spinner size={size === "sm" ? 14 : 16} /> : IconC && <IconC size={size === "sm" ? 15 : 17} />}
       {children}

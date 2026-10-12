@@ -4,6 +4,7 @@ import * as C from "./screens/customer";
 import * as CW from "./screens/CustomerWizard";
 import { AdminRbac } from "./screens/AdminRbac";
 import { AdminUsers } from "./screens/users/AdminUsers";
+import { AdminCommunicate } from "./screens/communicate/Communicate";
 import * as CO from "./screens/Checkout";
 import * as PP from "./screens/PassPurchase";
 import * as A from "./screens/admin";
@@ -40,7 +41,7 @@ const MAP: Record<string, () => ReactElement> = {
   "admin.refunds": () => <A.AdminRefunds />,
   "admin.privacy": () => <A.AdminPrivacy />,
   "admin.rbac": () => <AdminRbac />,
-  "admin.communicate": () => <A.AdminCommunicate />,
+  "admin.communicate": () => <AdminCommunicate />,
   "admin.loyalty": () => <A.AdminLoyalty />,
   "admin.passes": () => <A.AdminPasses />,
   "admin.gamification": () => <A.AdminGamification />,

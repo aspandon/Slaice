@@ -10,6 +10,7 @@ import { RFM_TONE, STAGE_TONE, predictedNextVisit, type Rfm, type Stage } from "
 import { fmtDay } from "../../domain/period";
 import type { Segment } from "../../domain/segments";
 import { downloadCSV } from "../../lib/download";
+import { CH_LABEL, fmtAt } from "../../domain/comms";
 
 /* ============ 360° guest profile (AENR-477) ============
    One drawer per guest with tabs: Overview · Bookings · Payments & refunds ·
@@ -34,7 +35,7 @@ export function GuestProfile({ guest, customer, rfm, segments, tags, onClose, on
   onEdit: () => void;
   onAddTag: (tag: string) => void;
 }) {
-  const { crm, setCrm, toast, go, bookingNotes } = useApp();
+  const { crm, setCrm, toast, go, bookingNotes, comms } = useApp();
   const [tab, setTab] = useState("overview");
   const prof: GuestProfileData = crm.profiles[customer.id] ?? {};
   const patch = (p: Partial<GuestProfileData>) => setCrm((c) => ({ ...c, profiles: { ...c.profiles, [customer.id]: { ...c.profiles[customer.id], ...p } } }));
@@ -66,9 +67,9 @@ export function GuestProfile({ guest, customer, rfm, segments, tags, onClose, on
     ]);
     toast("Guest data exported (access / portability request).", { tone: "success" });
   };
+  const sent = comms.log.filter((e) => e.guestId === customer.id && e.at <= comms.clock).sort((a, b) => b.at.localeCompare(a.at));
   const messages = [
     { ch: "E-mail", t: "Booking confirmed · QR attached", when: fmtDay(guest.lastVisit) },
-    ...(guest.consent.includes("email") ? [{ ch: "E-mail", t: "“Weekend offer” campaign · opened", when: "2 weeks ago" }] : []),
     ...(guest.consent.includes("sms") ? [{ ch: "SMS", t: "Weather alert — re-confirm your visit", when: "3 weeks ago" }] : []),
     ...Object.entries(bookingNotes).filter(([id]) => bookings.some((b) => b.id === id)).flatMap(([id, ns]) => ns.map((n) => ({ ch: "Note", t: `${id}: ${n.text}`, when: new Date(n.at).toLocaleDateString("en-GB") }))),
   ];
@@ -166,7 +167,19 @@ export function GuestProfile({ guest, customer, rfm, segments, tags, onClose, on
       )}
 
       {tab === "messages" && (
-        <ul className="space-y-2">{messages.map((m, i) => <li key={i} className="flex items-start gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2"><Badge tone="slate">{m.ch}</Badge><div className="min-w-0 flex-1 text-[13px] text-navy-900">{m.t}</div><span className="text-[11px] text-slate-500 shrink-0">{m.when}</span></li>)}</ul>
+        <div className="space-y-4">
+          {/* Campaign + automation sends and skips from Communicate (AENR-492). */}
+          {sent.length > 0 && (
+            <section aria-label="Marketing messages">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Campaigns &amp; automations</div>
+              <ul className="space-y-2">{sent.map((e) => <li key={e.id} className="flex items-start gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2"><Badge tone={e.outcome === "Delivered" ? "green" : "amber"}>{e.channel ? CH_LABEL[e.channel] : "—"}</Badge><div className="min-w-0 flex-1 text-[13px] text-navy-900">{e.title}<div className="text-[11.5px] text-slate-500">{e.source} · {e.kind}{e.outcome !== "Delivered" ? ` · ${e.outcome}` : ""}</div></div><span className="text-[11px] text-slate-500 shrink-0 tnum">{fmtAt(e.at)}</span></li>)}</ul>
+            </section>
+          )}
+          <section aria-label="Service messages">
+            {sent.length > 0 && <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Service &amp; notes</div>}
+            <ul className="space-y-2">{messages.map((m, i) => <li key={i} className="flex items-start gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2"><Badge tone="slate">{m.ch}</Badge><div className="min-w-0 flex-1 text-[13px] text-navy-900">{m.t}</div><span className="text-[11px] text-slate-500 shrink-0">{m.when}</span></li>)}</ul>
+          </section>
+        </div>
       )}
 
       {tab === "notes" && (

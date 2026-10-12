@@ -1414,6 +1414,39 @@ all three; **Export CSV** and **Export PDF** (a one-page PDF with the key figure
   open the customer view.
 - Deep link from Loyalty → **Promote** pre-loads the offer.
 
+- **Tabs (AENR-490 / 492):** Compose · Messages · Campaigns · Automations · Channels & rules (tab kept in
+  the URL as `?tab=`). A **demo clock** (+1 hour, +1 day, _Jump to next send_; also advances in real
+  time) drives scheduled sends while the app is open.
+- **Messages library (AENR-490):** saved messages with thumbnail, channels, languages, promo code,
+  status Draft / Ready; create, edit, duplicate, archive / restore, _Use in campaign_. Editor: name,
+  channels, language versions EN (required) / EL / DE / FR / ES / IT (others fall back to English),
+  title + text with **bold** / _italic_, personalisation tokens `{first_name}` `{favourite_zone}`
+  `{points}` `{beach}` with fallback values, an image from the library (tenant images, zone logos,
+  uploads compressed in the browser) with **required alt text** and a crop focus shown at each
+  channel's ratio, a CTA (Plan my visit / promotion / pass / URL), loyalty offer + promo code, and
+  _Send test to me_ **[DEMO]**. Channel-true previews: e-mail (mobile / desktop), Viber, rich push
+  (title/text limits), SMS (text only, short link, character + part counter; image dropped with a
+  warning). An opt-out footer is added on every channel.
+- **One delivery model (AENR-492):** campaigns and automations share the same guardrails — consent per
+  channel (with a fallback order for automations), quiet hours (default 21:00–09:00; push / Viber /
+  SMS move to the end, e-mail exempt), a frequency cap across both (default 2 promotional messages per
+  7 days) and skipping guests with an open refund. Every send writes one log line per guest
+  (delivered or the skip reason), shown in the guest profile's **Messages** tab.
+- **Campaigns:** Send now, Schedule (date + time, Europe/Athens) or Recurring (weekday + time between
+  two dates — one send per occurrence, each with its own results). The audience segment is evaluated
+  at each send; estimated reach is stored at scheduling. List and month **calendar**; statuses
+  Scheduled / Sending / Sent / Paused / Cancelled; pause, resume, cancel, duplicate, skip one
+  occurrence. Results: delivered, opened (not for SMS), clicked, bookings and revenue attributed,
+  unsubscribes, skips — sample data.
+- **Automations:** list (status Active / Paused / Draft, trigger, audience, sent, conversions), create
+  from templates or scratch. Builder: trigger (booking confirmed, before / after the visit, no visit
+  for N days, birthday, checkout abandoned, points reached, pass expiring, **low occupancy forecast**
+  for a zone and weekday checked on a set day and time, sunny weekend, enters a segment) → conditions
+  (segment, language, favourite zone) → delay → message steps from the library (optional follow-ups N
+  days later) → channel fallback order → active window. _Simulate trigger_ **[DEMO]** (low occupancy:
+  live forecast or an assumed %); each occurrence fires once; pausing stops new sends immediately;
+  activity log per automation.
+
 ### A-11 · Loyalty [Future]
 
 ```text

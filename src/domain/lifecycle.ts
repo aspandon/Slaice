@@ -3,6 +3,7 @@
 
 import type { GuestFacts } from "../data/guests";
 import { addDays, daysIn } from "./period";
+import type { FieldDef } from "./segments";
 
 export interface LifecycleSettings {
   /** No visit for more than this many days → At risk. */
@@ -97,3 +98,9 @@ export function predictedNextVisit(g: GuestFacts): string | null {
   const gap = Math.max(1, Math.round(span / (g.visits - 1)));
   return addDays(g.lastVisit, gap);
 }
+
+/** Lifecycle stage and RFM label as segment fields (AENR-475). */
+export const SCORE_FIELDS: FieldDef[] = [
+  { key: "lifecycle", label: "Lifecycle stage", type: "enum", group: "Scores", options: [...STAGES], get: (g) => g.lifecycle ?? "" },
+  { key: "rfm", label: "RFM segment", type: "enum", group: "Scores", options: [...RFM_LABELS], get: (g) => g.rfm ?? "" },
+];
