@@ -10,7 +10,7 @@ import type { Achievement } from "../data/gamification";
 import { DEFAULT_ZONE_MAP, DEFAULT_PRICE_RULES } from "../data/pricing";
 import { DEFAULT_CHANNELS } from "../data/channels";
 import { DEFAULT_PASS_CARDS } from "../data/passDesigns";
-import type { BeachBackground, BookingNote, CartItem, CartKind, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "../domain/types";
+import type { BeachBackground, BookingNote, StaffAuditEntry, StaffUser, CartItem, CartKind, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "../domain/types";
 import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "../data/beach";
 import type { SceneFx, WeatherKind } from "../data/beach";
 
@@ -114,6 +114,15 @@ export interface AppContextValue {
   /** Staff notes per booking id (call-centre notes, escalations) — persisted. */
   bookingNotes: Record<string, BookingNote[]>;
   addBookingNote: (bookingId: string, note: BookingNote) => void;
+  /** Tenant staff accounts and their roles (RBAC) — persisted. */
+  staffUsers: StaffUser[];
+  /** Replace the staff list and record what changed in the audit trail. */
+  updateStaff: (users: StaffUser[], action: string) => void;
+  staffAudit: StaffAuditEntry[];
+  /** "View as" preview: the staff user whose access is being previewed. */
+  viewAs: StaffUser | null;
+  startViewAs: (userId: string) => void;
+  exitViewAs: () => void;
 }
 
 const DEFAULT_CONSENT: Consent = {
@@ -176,6 +185,12 @@ export const AppCtx = createContext<AppContextValue>({
   setSceneFx: () => {},
   bookingNotes: {},
   addBookingNote: () => {},
+  staffUsers: [],
+  updateStaff: () => {},
+  staffAudit: [],
+  viewAs: null,
+  startViewAs: () => {},
+  exitViewAs: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);

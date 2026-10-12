@@ -2,6 +2,7 @@ import type { ReactElement } from "react";
 import type { PersonaId } from "./domain/types";
 import * as C from "./screens/customer";
 import * as CW from "./screens/CustomerWizard";
+import { AdminRbac } from "./screens/AdminRbac";
 import * as CO from "./screens/Checkout";
 import * as PP from "./screens/PassPurchase";
 import * as A from "./screens/admin";
@@ -30,6 +31,7 @@ const MAP: Record<string, () => ReactElement> = {
   "admin.reporting": () => <A.AdminReporting />,
   "admin.refunds": () => <A.AdminRefunds />,
   "admin.privacy": () => <A.AdminPrivacy />,
+  "admin.rbac": () => <AdminRbac />,
   "admin.communicate": () => <A.AdminCommunicate />,
   "admin.loyalty": () => <A.AdminLoyalty />,
   "admin.passes": () => <A.AdminPasses />,

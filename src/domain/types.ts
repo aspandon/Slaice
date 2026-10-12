@@ -18,6 +18,28 @@ export interface BookingNote {
   escalated: boolean;
 }
 
+/** Tenant staff roles that can be assigned to a user (RBAC). Customer is not a
+ *  staff role and Platform / Slaice is the platform back office, not a tenant role. */
+export type StaffRole = "admin" | "callcenter" | "cashier" | "controller" | "accountant";
+export type StaffStatus = "active" | "invited" | "suspended";
+export interface StaffUser {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: StaffRole;
+  status: StaffStatus;
+  /** ISO timestamp, or null if the user never signed in. */
+  lastSignIn: string | null;
+  created: string; // ISO date
+  suspendReason?: string;
+}
+export interface StaffAuditEntry {
+  at: string; // ISO timestamp
+  by: string;
+  action: string;
+}
+
 export type PersonaId =
   | "customer"
   | "admin"

@@ -64,7 +64,7 @@ const FEEDS: Record<string, FeedItem[]> = {
 };
 
 /* ---------- Top bar ---------- */
-export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setPersona: (p: PersonaId) => void }) {
+export function TopBar({ persona, setPersona, page, setPage, previewing = false }: NavProps & { setPersona: (p: PersonaId) => void; previewing?: boolean }) {
   const { setSignedIn, go, toast, cart, removeFromCart, addToCart, clearCart } = useApp();
   const t = useT();
   const cartCount = (cart || []).length;
@@ -263,7 +263,8 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
             ("you are in role X"). On the customer surface the quiet "Demo"
             variant lives in the bottom-right corner instead (see App.tsx), so
             it doesn't crowd this compact action cluster. */}
-        {persona !== "customer" && (
+        {/* While previewing a staff user (RBAC) the role is fixed — exit via the banner. */}
+        {persona !== "customer" && !previewing && (
           <PersonaSwitcher persona={persona} setPersona={setPersona} variant="role" />
         )}
       </div>

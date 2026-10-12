@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { AppCtx } from "./app/store";
 import type { AppContextValue, SpotlightHint, ToastOptions } from "./app/store";
 import { DEFAULT_PAGE } from "./data/personas";
+import { Icon } from "./lib/icons";
 import { TopBar, Sidebar, BottomTabBar, SiteFooter, Toasts, PersonaSwitcher } from "./components/Shell";
 import { AuthGate } from "./screens/auth";
 import { ConsentBanner } from "./components/ConsentBanner";
@@ -18,8 +19,9 @@ import { DEFAULT_ACHIEVEMENTS } from "./data/gamification";
 import type { Achievement } from "./data/gamification";
 import { DEFAULT_ZONE_MAP, DEFAULT_PRICE_RULES } from "./data/pricing";
 import { DEFAULT_CHANNELS } from "./data/channels";
+import { DEFAULT_STAFF, DEFAULT_STAFF_AUDIT, roleLabel } from "./data/staff";
 import { DEFAULT_PASS_CARDS } from "./data/passDesigns";
-import type { BeachBackground, BookingNote, CartItem, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "./domain/types";
+import type { BeachBackground, BookingNote, StaffAuditEntry, StaffUser, CartItem, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "./domain/types";
 import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "./data/beach";
 import type { SceneFx, WeatherKind } from "./data/beach";
 
@@ -63,6 +65,9 @@ const saved = loadLS() as {
   dayTime?: number;
   sceneFx?: SceneFx;
   bookingNotes?: Record<string, BookingNote[]>;
+  staffUsers?: StaffUser[];
+  staffAudit?: StaffAuditEntry[];
+  viewAsId?: string | null;
 };
 // A deep link in the URL wins over the last saved location.
 const initialRoute = parseHash();
@@ -101,15 +106,22 @@ export default function App() {
   const [sceneFx, setSceneFxState] = useState<SceneFx>(saved.sceneFx || DEFAULT_SCENE_FX);
   const [bookingNotes, setBookingNotes] = useState<Record<string, BookingNote[]>>(saved.bookingNotes || {});
   const addBookingNote = useCallback((id: string, note: BookingNote) => setBookingNotes((m) => ({ ...m, [id]: [...(m[id] ?? []), note] })), []);
+  const [staffUsers, setStaffUsers] = useState<StaffUser[]>(saved.staffUsers || DEFAULT_STAFF);
+  const [staffAudit, setStaffAudit] = useState<StaffAuditEntry[]>(saved.staffAudit || DEFAULT_STAFF_AUDIT);
+  const [viewAsId, setViewAsId] = useState<string | null>(saved.viewAsId ?? null);
+  const updateStaff = useCallback((users: StaffUser[], action: string) => {
+    setStaffUsers(users);
+    setStaffAudit((a) => [{ at: new Date().toISOString(), by: "Manager / Admin", action }, ...a]);
+  }, []);
 
   useEffect(() => {
     // Guard the write: Safari Private Mode and a full quota throw on setItem.
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes, staffUsers, staffAudit, viewAsId }));
     } catch {
       /* storage unavailable (private mode / quota) — ignore */
     }
-  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes]);
+  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes, staffUsers, staffAudit, viewAsId]);
 
   // Keep <html lang> in sync with the chosen language (a11y / SEO correctness).
   useEffect(() => {
@@ -196,6 +208,19 @@ export default function App() {
   // sweeps up into view (see CustomerBackdrop) and the immersive flow mounts on
   // top — so this just navigates.
   const dive = useCallback(() => go("customer", "plan"), [go]);
+  // RBAC "view as": show the app exactly as a staff user would see it — their
+  // role's pages only — until the admin exits the preview.
+  const viewAs = staffUsers.find((u) => u.id === viewAsId && u.status === "active") ?? null;
+  const startViewAs = useCallback((id: string) => {
+    const u = staffUsers.find((x) => x.id === id);
+    if (!u || u.status !== "active") return;
+    setViewAsId(id);
+    go(u.role, DEFAULT_PAGE[u.role]);
+  }, [staffUsers, go]);
+  const exitViewAs = useCallback(() => {
+    setViewAsId(null);
+    go("admin", "rbac");
+  }, [go]);
 
   const addToCart = useCallback((item: CartItem) => setCart((c) => (c.find((x) => x.kind === item.kind && x.id === item.id) ? c : [...c, item])), []);
   const removeFromCart = useCallback((kind: CartItem["kind"], id: string) => setCart((c) => c.filter((x) => !(x.kind === kind && x.id === id))), []);
@@ -226,8 +251,8 @@ export default function App() {
 
   // Memoised so the provider value keeps a stable identity across renders.
   const ctx = useMemo<AppContextValue>(
-    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote }),
-    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote],
+    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs }),
+    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs],
   );
 
   // The booking wizard takes over the whole viewport: the beach becomes the
@@ -251,18 +276,25 @@ export default function App() {
               <img src={`${import.meta.env.BASE_URL}tenant-logo.png`} alt="Ακτή του Ηλίου" className="h-[100px] w-auto" />
             </button>
           )}
-          <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} />
+          {viewAs && (
+            <div role="status" className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl bg-navy-900 text-white px-4 py-2.5 text-[13px] shadow-lift">
+              <Icon.eye size={15} className="text-teal-300 shrink-0" />
+              <span className="flex-1 min-w-0">Viewing as <b>{viewAs.name}</b> · {roleLabel(viewAs.role)} — you see only the pages this role can open.</span>
+              <button type="button" onClick={exitViewAs} className="rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1.5 font-semibold transition">Exit preview</button>
+            </div>
+          )}
+          <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} previewing={!!viewAs} />
           {persona === "customer" ? (
             // flex-1 lets the content region grow so the SiteFooter is pushed to
             // the bottom of the viewport (the beach backdrop's green band)
             // instead of floating up under short pages.
             <div className="flex-1">
-              <main className="min-w-0">{routeFor(persona, page)}</main>
+              <main className="min-w-0">{viewAs ? <AccessDenied role={viewAs.role} onHome={() => go(viewAs.role, DEFAULT_PAGE[viewAs.role])} /> : routeFor(persona, page)}</main>
             </div>
           ) : (
             <div className="flex-1 flex gap-5 min-h-0">
               <Sidebar persona={persona} page={page} setPage={setPage} />
-              <main className="flex-1 min-w-0">{routeFor(persona, page)}</main>
+              <main className="flex-1 min-w-0">{viewAs && viewAs.role !== persona ? <AccessDenied role={viewAs.role} onHome={() => go(viewAs.role, DEFAULT_PAGE[viewAs.role])} /> : routeFor(persona, page)}</main>
             </div>
           )}
           {/* The tenant badge bows out once the guest dives into the booking
@@ -274,7 +306,7 @@ export default function App() {
           {/* The "view as another persona" control lives in the bottom-right
               corner on the customer surface — a quiet demo affordance, opening
               upward, lifted clear of the mobile bottom tab bar. */}
-          {persona === "customer" && (
+          {persona === "customer" && !viewAs && (
             <div className="fixed right-3 sm:right-5 z-40 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] md:bottom-4">
               <PersonaSwitcher persona={persona} setPersona={setPersona} variant="demo" side="top" />
             </div>
@@ -284,5 +316,17 @@ export default function App() {
       <ConsentBanner />
       <Toasts items={toasts} onDismiss={dismissToast} />
     </AppCtx.Provider>
+  );
+}
+
+/* Shown while previewing a staff user who opens a page outside their role. */
+function AccessDenied({ role, onHome }: { role: StaffUser["role"]; onHome: () => void }) {
+  return (
+    <div className="glass-card rounded-3xl p-8 max-w-lg mx-auto mt-6 text-center">
+      <div className="w-12 h-12 mx-auto rounded-2xl bg-rose-50 text-rose-600 grid place-items-center"><Icon.lock size={22} /></div>
+      <h1 className="mt-3 font-display font-bold text-xl text-navy-900">Access denied</h1>
+      <p className="mt-1 text-sm text-slate-600">The {roleLabel(role)} role can't open this page.</p>
+      <button type="button" onClick={onHome} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-navy-900 text-white px-4 py-2 text-sm font-semibold">Go to my start page</button>
+    </div>
   );
 }

@@ -256,6 +256,7 @@ visited **per persona** is remembered.
 | `#/admin/reporting`    | Reporting & Analytics  | Reports              | [MVP]    |
 | `#/admin/refunds`      | Refunds                | Refunds              | [MVP]    |
 | `#/admin/privacy`      | Privacy & GDPR         | Privacy              | [MVP]    |
+| `#/admin/rbac`         | RBAC                   | RBAC                 | [MVP]    |
 | `#/admin/communicate`  | Communicate            | Comms                | [Future] |
 | `#/admin/loyalty`      | Loyalty                | Loyalty              | [Future] |
 | `#/admin/passes`       | Passes                 | Passes               | [Future] |
@@ -1163,6 +1164,34 @@ a "beach was closed" empty state.
   3. **Retention** — schedule per data category (value + unit: hours/days/months/years), tax-mandated
      rows flagged.
   4. **Processing register (ROPA)** — activity, purpose, data categories, legal basis, retention.
+
+### A-14 · RBAC — staff users & roles [MVP]
+
+```text
+ [Search] [Role ▾] [Status ▾]                                        [+ Add user]
+ Name · e-mail │ Phone │ Role │ Status (Active / Invited / Suspended) │ Last sign-in │ [View as] [⋯]
+                                                                         ⋯ ─▶ Edit · Simulate acceptance
+                                                                              · Suspend (reason) · Reactivate · Delete
+ What each role can open: Admin · Call Center · Cashier · Controller · Accountant ─▶ [View as role]
+ Audit trail: who changed what, when
+
+ View as ─▶ banner "Viewing as <name> · <role> — Exit preview" ─▶ nav = that role's pages only
+          └─ any other page ─▶ Access denied ─▶ [Go to my start page]
+```
+
+- **Users:** search; filter by role and status; table of name/e-mail, phone, role, status (with the
+  suspension reason), last sign-in.
+- **Add user:** name, e-mail (validated, unique), phone, role (radio cards with what each role does) →
+  **Invited** (invitation simulated) → **Simulate acceptance** → **Active**.
+- **Edit**, **Suspend** (reason required) / **Reactivate**, **Delete** (confirmation). The last active
+  Manager / Admin can't be suspended, deleted or given another role.
+- **Roles → pages** come from `NAV` in `src/data/personas.ts` (one source). Platform / Slaice is not a
+  tenant role.
+- **View as** a user or a role: the app shows only that role's pages, with a persistent banner and
+  **Exit preview**; opening any other page shows **Access denied**. The persona switcher is hidden
+  while previewing. Only active users can be previewed.
+- Every change is listed in the **Audit trail**. Users, audit and the preview persist in
+  `localStorage` **[DEMO]** — enforcement is client-side navigation filtering.
 
 ### A-10 · Communicate [Future]
 
