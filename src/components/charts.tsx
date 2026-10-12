@@ -31,8 +31,10 @@ function seriesSummary(kind: string, data: SeriesPoint[], label?: string): strin
 const PAD_LEFT = 44;   // px reserved for Y-axis labels
 const PAD_BOTTOM = 28; // px reserved for X-axis labels
 
-export function BarChart({ data, color = "#0D9488", height = 220, label }: { data: SeriesPoint[]; color?: string; height?: number; label?: string }) {
-  const max = Math.max(...data.map((d) => d.v)) * 1.15 || 1;
+/** `colors` (optional) colours each bar; `avg` draws a dashed reference line;
+ *  `labelEvery` thins the x-axis labels for long daily series. */
+export function BarChart({ data, color = "#0D9488", height = 220, label, colors, avg, labelEvery = 1 }: { data: SeriesPoint[]; color?: string; height?: number; label?: string; colors?: string[]; avg?: { v: number; label: string }; labelEvery?: number }) {
+  const max = Math.max(...data.map((d) => d.v), avg?.v ?? 0) * 1.15 || 1;
   const ticks = [1, 0.66, 0.33, 0];
   return (
     <div className="relative" style={{ height }} role="img" aria-label={seriesSummary("Bar chart", data, label)}>
@@ -50,14 +52,16 @@ export function BarChart({ data, color = "#0D9488", height = 220, label }: { dat
             const h = (d.v / max) * 60;
             const bw = 100 / data.length;
             return (
-              <rect key={i} x={i * bw + bw * 0.18} y={60 - h} width={bw * 0.64} height={h} rx="0.6" fill={color} opacity={d.hi ? 1 : 0.78} />
+              <rect key={i} x={i * bw + bw * 0.18} y={60 - h} width={bw * 0.64} height={h} rx="0.6" fill={colors?.[i] ?? color} opacity={d.hi ? 1 : 0.78} />
             );
           })}
+          {avg && <line x1="0" x2="100" y1={60 - (avg.v / max) * 60} y2={60 - (avg.v / max) * 60} stroke="#0B2545" strokeWidth="0.35" strokeDasharray="1.2 0.8" />}
         </svg>
+        {avg && <span className="absolute right-0 text-[11px] font-semibold text-navy-900 bg-white/85 rounded px-1 -translate-y-full" style={{ top: `${(1 - avg.v / max) * 100}%` }}>{avg.label}</span>}
       </div>
       {/* X-axis labels */}
       <div className="absolute right-0 bottom-0 grid text-[12.5px] font-medium text-slate-600 pointer-events-none" style={{ left: PAD_LEFT, height: PAD_BOTTOM, gridTemplateColumns: `repeat(${data.length}, 1fr)` }}>
-        {data.map((d, i) => <span key={i} className="text-center pt-1.5 truncate">{d.l}</span>)}
+        {data.map((d, i) => <span key={i} className={`text-center pt-1.5 ${labelEvery > 1 ? "whitespace-nowrap overflow-visible" : "truncate"}`}>{i % labelEvery === 0 ? d.l : ""}</span>)}
       </div>
     </div>
   );

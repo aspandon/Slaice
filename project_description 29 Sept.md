@@ -1101,9 +1101,9 @@ no Export and no refunds.
 ### A-07 · Reporting & Analytics [MVP]
 
 ```text
- ┌───────────┬─────────┬───────────┬──────────┬──────────┬───────────┬─────────┬───────────┐
- │ Executive │ Revenue │ Occupancy │ Bookings │ Channels │ Customers │ Tickets │ Operations│
- └─────┬─────┴────┬────┴─────┬─────┴────┬─────┴────┬─────┴─────┬─────┴────┬────┴─────┬─────┘
+ ┌───────────┬─────────┬───────────┬──────────┬──────────┬───────────┬─────────┬───────────┬──────────┬──────────┐
+ │ Executive │ Revenue │ Occupancy │ Bookings │ Channels │ Customers │ Tickets │ Operations│ Payments │ Invoices │
+ └─────┬─────┴────┬────┴─────┬─────┴────┬─────┴────┬─────┴─────┬─────┴────┬────┴─────┬─────┴────┬─────┴────┬─────┘
        │          │          │          │          │           │          │          │
    9 KPIs    capability  heatmap    lead time   channel ×   new vs     ticket    period ─▶
    + charts  zone · tx   time×zone  cancel %    role        returning  history   ops + docs
@@ -1113,13 +1113,13 @@ no Export and no refunds.
  one period control for all tabs (X-11, default Season) · every tab ─▶ [Export CSV] as displayed
 ```
 
-Eight tabs, all following one **period control** (X-11: Day / Week / Month / Year / Season / Custom,
+Ten tabs, all following one **period control** (X-11: Day / Week / Month / Year / Season / Custom,
 default Season, kept when switching tabs and in the URL). Each tab exports to CSV exactly as displayed,
 with the dates in the title rows and file name. Season and Year compare with the same dates last year;
 shorter periods with the previous equal-length window. A period with no open days (off-season) shows
 a "beach was closed" empty state.
 
-1. **Executive** — Revenue, Bookings, Avg occupancy, Online share, Refund rate, RevPATB, ADR,
+1. **Executive** — starts with **Bookings, payments & AADE** (AENR-521, below), then Revenue, Bookings, Avg occupancy, Online share, Refund rate, RevPATB, ADR,
    Ancillary attach, No-show; revenue over time (hours / days / weeks / months by range length),
    revenue mix, booking pace vs the same period last year; an insight computed from the period
    (weekend vs weekday fill, busiest zone) → **Set a rule** opens Availability & Pricing.
@@ -1143,8 +1143,31 @@ a "beach was closed" empty state.
    to the period).
 7. **Tickets** — ticket history within the period.
 8. **Operations** (renamed from Daily ops) — totals per capability for the period (count, gross,
-   refunds, net) and documents issued (ΑΠΥ/ΤΠΥ); **By day** switch adds a breakdown per day (per week /
+   refunds, net) and documents issued (ΑΠΥ / ΤΠΥ / credit notes ΠΑΠΥ·ΠΤΠΥ, pending transmission); **By day** switch adds a breakdown per day (per week /
    month for long ranges) whose rows add up to the totals; exported with the CSV.
+
+**Overview · Payments · Invoices (AENR-521)** — modelled on a benchmark beach-admin dashboard, in the
+app's own palette (`src/screens/reporting/FinanceTabs.tsx`, `src/data/finance.ts`). The period is read
+as **arrival (visit) dates**; a **Section** chip row (All + each store, in the URL as `?section=`) filters
+all three; **Export CSV** and **Export PDF** (a one-page PDF with the key figures and the main table).
+
+- **Overview** (top of Executive): Sunbed bookings (confirmed sets, avg/day, peak day) · Captured
+  payments & revenue (captured + service fees, number of captures) · Transmitted to AADE
+  (transmitted / issued, %, pending badge, "View documents" → Invoices); confirmed sets per arrival day
+  (weekday / weekend colours, average line); table by section (bookings, share, captured, transmitted).
+- **Payments**: total transactions · captured value · service fees with a per-fee breakdown (units × rate)
+  · platform fees (before VAT) · VAT on platform fees (settlement frequency) · Stripe / bank fees (≈ % of
+  captured; demo 1.5% + €0.25) · Stripe payouts (paid, in transit) · saved-cards usage; saved vs new card
+  bar; recent payouts (date, masked bank, amount, Paid / In transit / Scheduled); daily trends (avg
+  transactions and revenue per day, peak day, chart with average). A note shows the active fee model.
+- **Invoices**: ΑΠΥ (receipts), ΤΠΥ (invoices), ΠΑΠΥ / ΠΤΠΥ (credit notes) with count and %; transmitted
+  via the tenant's e-invoicing provider (Elorus by default) with pending count; total; distribution bar;
+  table by section with count and % per type.
+- Numbers come from the deterministic sample generator per section and day (so rows add up to the totals)
+  plus the Cashier till's real demo activity (card captures, ΑΠΥ, credit notes on refunds, pending
+  transmissions) on the business day. Ticket-only till sales report under "Entrance (tickets only)".
+- The **fee model** comes from the tenant's settings (P-01 › Fees): changing a fee changes the report.
+- The **Accountant** has the same Payments and Invoices reports read-only (`#/accountant/reports`).
 
 ### A-08 · Refunds [MVP]
 
@@ -1648,6 +1671,12 @@ Modal: per zone stepper (0–24 sets) of unsold sunbeds to **release for instant
   time-to-activate 6.5 days).
 - Tenants table: name, subdomain, Stripe status, modules, MRR, status, **Edit** (modal: name,
   subdomain, Stripe status, status, MRR, modules Booking/Ticket/Invoice/Pay).
+- **Fees** (AENR-521, `src/screens/PlatformFinance.tsx`): the tenant's fee lines — name, charged
+  (per online set / per entry person / % of captured value / per booking), amount, paid by (guest =
+  service fee, tenant = platform fee), VAT %, active, active-from date; add / remove; platform-fee
+  settlement (monthly / weekly); **e-invoicing provider** (Elorus, Epsilon Digital, SoftOne or direct
+  myDATA) with a simulated Connect. Demo defaults: €3 per online set, €1 per online entry person, 5%
+  platform fee — exact pricing still to be confirmed. Reporting › Payments computes from these.
 - **Capability flags · Akti tou Iliou** summary (enabled MVP vs roadmap-disabled) → Manage in Super
   Admin.
 

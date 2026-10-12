@@ -13,7 +13,7 @@ import { BeachBackdrop, SunbedMark } from "../components/Beach";
 const BeachCanvas = lazyWithReload(() => import("../components/BeachCanvas").then((m) => ({ default: m.BeachCanvas })));
 import { BackgroundPicker } from "../components/BackgroundPicker";
 import { fileToBackgroundSrc } from "../lib/image";
-import { ZONES, zoneLayout, WEATHER_KINDS, WEATHER_DEMO, DAY_MIN, DAY_MAX, fmtHour } from "../data/beach";
+import { ZONES, zoneLayout, WEATHER_KINDS, WEATHER_DEMO, DAY_MIN, DAY_MAX, fmtHour, TENANT } from "../data/beach";
 import { LOYALTY_REWARDS, BUILTIN_SCHEMES, makeCustomScheme, schemeDefaults } from "../data/loyalty";
 import type { LoyaltyScheme, SchemeValues, SchemeField } from "../data/loyalty";
 import { BADGE_COLORS, BADGE_COLOR_KEYS, BADGE_ICONS, GAME_METRICS } from "../data/gamification";
@@ -25,7 +25,7 @@ import { CardFace, ScaledCard, WalletRendition, TEXT_KEYS, TEXT_LABELS, type Dra
 import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, personByFirst, CUSTOMERS, type AdminBooking } from "../data/mock";
 import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr";
 import { useApp } from "../app/store";
-import { downloadCSV, downloadCSVReport, type CsvSection } from "../lib/download";
+import { downloadCSV, downloadCSVReport, downloadPDF, type CsvSection } from "../lib/download";
 import { usePeriod } from "../lib/usePeriod";
 import { OccupancyTab, occupancyCsv, useOccupancy } from "./reporting/OccupancyTab";
 import { ChannelsTab, channelsCsv, useChannels } from "./reporting/ChannelsTab";
@@ -34,6 +34,7 @@ import { activeCount, filtersFromParams, filtersToParams, isAmount, matchAmount,
 import { resolveRange, comparisonRange, lastYearRange, granularityFor, rangeLabel, periodNoun, comparisonLabel, isoFromDayMonth, inRange, fmtWeekday as fmtWeekdayP } from "../domain/period";
 import { summarize, series, buckets, fmtEUR, fmtInt, fmtPct, trendPct, trendPp, trendEUR } from "../data/analytics";
 import { tillBookings, tillRefunds } from "../data/tillAdmin";
+import { InvoicesTab, OverviewPanel, PaymentsTab, SectionChips, financeCsv, financePdf, useFinanceData, useSection } from "./reporting/FinanceTabs";
 import { VARIANCE_TOLERANCE, eur as eurTill, shiftTotals } from "../domain/till";
 
 /* ============ DASHBOARD ============ */
@@ -1186,6 +1187,7 @@ export function AdminManual() {
 }
 
 /* ============ REPORTING & ANALYTICS ============ */
+const FIN_TABS = ["exec", "payments", "invoices"];
 export function AdminReporting() {
   const { toast, go } = useApp();
   const [tab, setTab] = useState("exec");
@@ -1198,6 +1200,8 @@ export function AdminReporting() {
     ["customers", "Customers", Icon.users],
     ["tickets", "Tickets", Icon.ticket],
     ["ops", "Operations", Icon.clock],
+    ["payments", "Payments", Icon.card],
+    ["invoices", "Invoices", Icon.receipt],
   ];
   // One period for the whole page (kept when switching tabs, AENR-466).
   const [period, setPeriod] = usePeriod({ kind: "preset", preset: "season", offset: 0 });
@@ -1262,6 +1266,10 @@ export function AdminReporting() {
   const heatBuckets = useMemo(() => buckets(range, g === "hour" ? "day" : g).map((b) => ({ ...b, label: g === "month" ? b.label : `${Number(b.range.from.slice(8))}/${Number(b.range.from.slice(5, 7))}` })), [range, g]);
   const occ = useOccupancy(range, cmpRange, g === "hour" ? "day" : g);
   const chs = useChannels(range, cmpRange, g === "hour" ? "day" : g);
+  // Overview / Payments / Invoices (AENR-521): arrival-date range + section.
+  const [section, setSection] = useSection();
+  const fin = useFinanceData(range, section);
+  const finDocs = fin.rep.total.docs;
   // Customers: the seed top-customer list scaled to the period's share of a full season.
   const seasonRev = summarize(resolveRange({ kind: "preset", preset: "season", offset: -1 })!).revenue;
   const custScale = Math.min(1.2, ratio(now.revenue, seasonRev));
@@ -1294,7 +1302,12 @@ export function AdminReporting() {
           { title: `Revenue by ${axis.toLowerCase()} (€)`, header: [axis, "Revenue"], rows: revSeries.map((d) => [d.l, d.v]) },
           { title: "Revenue mix", header: ["Category", "Share %"], rows: mix.map((m) => [m.l, m.v]) },
           { title: `Booking pace (vs same period last year ${paceVsLy ?? "—"})`, header: [axis, "Bookings"], rows: bookSeries.map((d) => [d.l, d.v]) },
+          ...financeCsv("overview", fin, label),
         ];
+      case "payments":
+        return financeCsv("payments", fin, label);
+      case "invoices":
+        return financeCsv("invoices", fin, label);
       case "revenue":
         return [
           { title: `Revenue by capability (€) ${head}`, header: ["Capability", "Revenue"], rows: capRows.map((c) => [c.l, c.v]) },
@@ -1327,7 +1340,7 @@ export function AdminReporting() {
             ...ops.map((o) => [o.l, o.n, eur(o.g), `−${eur(o.rf)}`, eur(o.net)] as (string | number)[]),
             ["Total", opsTotal.n, eur(opsTotal.g), `−${eur(opsTotal.rf)}`, eur(opsTotal.net)],
           ] },
-          { title: "Documents issued", header: ["Type", "Count", "Status"], rows: [["ΑΠΥ", now.bookings, "MyDATA ✓"], ["ΤΠΥ", now.refunds.count, "MyDATA ✓"]] },
+          { title: "Documents issued", header: ["Type", "Count"], rows: [["ΑΠΥ", finDocs.apy], ["ΤΠΥ", finDocs.tpy], ["ΠΑΠΥ", finDocs.papy], ["ΠΤΠΥ", finDocs.ptpy], ["Pending transmission", fin.rep.total.pending]] },
           ...(opsByDay && opsRows.length > 1 ? [{ title: `Operations by ${opsG}`, header: [opsG === "day" ? "Day" : opsG === "week" ? "Week of" : "Month", "Sunbed bookings", "Entry tickets", "Lockers", "Parking", "Gross", "Refunds", "Net"],
             rows: opsRows.map((r) => [r.l, r.x.sunbedBookings, r.x.units.Tickets, r.x.units.Lockers, r.x.units.Parking, eur(r.x.revenue), `−${eur(r.x.refunds.amount)}`, eur(r.x.revenue - r.x.refunds.amount)]) }] : []),
         ];
@@ -1336,7 +1349,13 @@ export function AdminReporting() {
     }
   };
   const tabLabel = (t: string) => tabs.find((x) => x[0] === t)?.[1] ?? t;
-  const exportReport = (t: string) => { downloadCSVReport(`reporting-${t}-${range.from}_${range.to}.csv`, buildReport(t)); toast(`Exported the ${tabLabel(t)} report (${label}, CSV).`, { tone: "success" }); };
+  const secSlug = section ? `-${section}` : "";
+  const exportReport = (t: string) => { downloadCSVReport(`reporting-${t}-${range.from}_${range.to}${FIN_TABS.includes(t) ? secSlug : ""}.csv`, buildReport(t)); toast(`Exported the ${tabLabel(t)} report (${label}, CSV).`, { tone: "success" }); };
+  const exportPdf = (t: string) => {
+    const kind = t === "exec" ? "overview" : (t as "payments" | "invoices");
+    downloadPDF(`reporting-${t}-${range.from}_${range.to}${secSlug}.pdf`, financePdf(kind, fin, label, TENANT.name));
+    toast(`Exported the ${tabLabel(t)} report (${label}, PDF).`, { tone: "success" });
+  };
 
   return (
     <div className="animate-fade-up">
@@ -1345,14 +1364,19 @@ export function AdminReporting() {
       <div className="flex items-center gap-3 mb-3 flex-wrap">
         <Tabs tabs={tabs} value={tab} onChange={setTab} scroll />
         <div className="flex gap-2 ml-auto">
-          <Btn variant="primary" icon={Icon.download} onClick={() => exportReport(tab)}>Export</Btn>
+          {FIN_TABS.includes(tab) && <Btn variant="outline" icon={Icon.doc} onClick={() => exportPdf(tab)}>Export PDF</Btn>}
+          <Btn variant="primary" icon={Icon.download} onClick={() => exportReport(tab)}>{FIN_TABS.includes(tab) ? "Export CSV" : "Export"}</Btn>
         </div>
       </div>
       <PeriodPicker value={period} onChange={setPeriod} presets={["day", "week", "month", "year", "season"]} resetTo={{ kind: "preset", preset: "season", offset: 0 }} className="mb-4" />
 
       {closed && <EmptyState icon={Icon.umbrella} title="The beach was closed" body={`No activity in ${label}. The season runs 1 May – 30 Sep — pick a date inside it.`} />}
 
+      {FIN_TABS.includes(tab) && !closed && <div className="mb-4"><SectionChips value={section} onChange={setSection} /></div>}
+      {!closed && tab === "payments" && <PaymentsTab d={fin} />}
+      {!closed && tab === "invoices" && <InvoicesTab d={fin} />}
       {!closed && tab === "exec" && <>
+        <OverviewPanel d={fin} onDocs={() => setTab("invoices")} />
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {execKpis.slice(0, 5).map((x, i) => <StatCard instant key={x.label} label={x.label} value={x.value} sub={x.sub} tone={x.tone} trend={x.trend}
             sparkline={i === 0 ? <Sparkline data={revSeries.map((d) => d.v)} /> : i === 1 ? <Sparkline data={bookSeries.map((d) => d.v)} color="#0ea5e9" /> : undefined} />)}
@@ -1437,7 +1461,7 @@ export function AdminReporting() {
           ...ops.map((o) => [o.l, fmtInt(o.n), eur(o.g), o.rf ? <span className="text-rose-600 font-medium tnum">−{eur(o.rf)}</span> : "€0", eur(o.net)]),
           [<b>Total</b>, <b>{fmtInt(opsTotal.n)}</b>, <b>{eur(opsTotal.g)}</b>, <b className="text-rose-600">−{eur(opsTotal.rf)}</b>, <b>{eur(opsTotal.net)}</b>],
         ]} />
-        <div className="mt-3 text-[12px] text-slate-600">Documents issued: {fmtInt(now.bookings)} ΑΠΥ · {fmtInt(now.refunds.count)} ΤΠΥ · all transmitted to MyDATA ✓</div>
+        <div className="mt-3 text-[12px] text-slate-600">Documents issued: {fmtInt(finDocs.apy)} ΑΠΥ · {fmtInt(finDocs.tpy)} ΤΠΥ · {fmtInt(finDocs.papy + finDocs.ptpy)} credit notes (ΠΑΠΥ / ΠΤΠΥ) · {fin.rep.total.pending ? `${fmtInt(fin.rep.total.pending)} pending transmission` : "all transmitted to MyDATA ✓"} · <button type="button" className="font-semibold text-teal-700 hover:underline" onClick={() => setTab("invoices")}>Invoices</button></div>
         {opsByDay && opsRows.length > 1 && <div className="mt-5">
           <div className="font-semibold text-navy-900 mb-1">By {opsG}</div>
           <Table dense cols={[opsG === "day" ? "Day" : opsG === "week" ? "Week of" : "Month", "Sunbed bookings", "Entry tickets", "Lockers", "Parking", "Gross", "Refunds", "Net"]} right={[1, 2, 3, 4, 5, 6, 7]}

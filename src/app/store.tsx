@@ -15,6 +15,7 @@ import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "../data/beach";
 import type { SceneFx, WeatherKind } from "../data/beach";
 import { DEFAULT_TILL } from "../data/till";
 import type { TillState } from "../domain/till";
+import type { FinanceConfig } from "../domain/finance";
 
 // Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
 // highlight the section a journey points at.
@@ -133,6 +134,9 @@ export interface AppContextValue {
   /** Cashier till: sales, holds, shifts, vouchers, offline queue — persisted. */
   till: TillState;
   setTill: (updater: (t: TillState) => TillState) => void;
+  /** Per-tenant fee model + e-invoicing provider (Platform › Tenants), keyed by subdomain — persisted. */
+  finance: Record<string, FinanceConfig>;
+  setFinance: (subdomain: string, c: FinanceConfig) => void;
 }
 
 export const DEFAULT_CRM: CrmState = { segments: [], tagDefs: [{ name: "Wedding party", color: "#a855f7" }, { name: "Local", color: "#0D9488" }], edits: {}, regularAfter: 15, lifecycle: { atRiskDays: 14, lapsedDays: 35 }, columns: ["lifecycle", "spend"], imported: [], mergedAway: [], eraseRequests: [], profiles: {}, customFields: [{ id: "cf-birthday", label: "Birthday", type: "date" }, { id: "cf-company", label: "Company", type: "text" }] };
@@ -207,6 +211,8 @@ export const AppCtx = createContext<AppContextValue>({
   setCrm: () => {},
   till: DEFAULT_TILL,
   setTill: () => {},
+  finance: {},
+  setFinance: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);

@@ -6,6 +6,7 @@ import { SlaiceLogo } from "../components/Brand";
 import { PLATFORM_TENANTS } from "../data/mock";
 import { SUBPROCESSORS, BREACHES, TENANT_DPA } from "../data/gdpr";
 import { useApp } from "../app/store";
+import { FinanceSettingsModal } from "./PlatformFinance";
 
 function ModuleList({ modules }: { modules: string[] }) {
   return (
@@ -131,6 +132,7 @@ export function PlatformTenants() {
   const { go, toast } = useApp();
   const [tenants, setTenants] = useState<Tenant[]>(PLATFORM_TENANTS);
   const [editIdx, setEditIdx] = useState<number | null>(null);
+  const [feesIdx, setFeesIdx] = useState<number | null>(null);
   return (
     <div className="animate-fade-up">
       <PageHead title="Tenants" sub="Slaice platform console — connected beaches & verticals." badge={<Badge tone="mvp">MVP</Badge>}
@@ -168,8 +170,12 @@ export function PlatformTenants() {
             t.modules.length > 0 ? <ModuleList modules={t.modules} /> : <span className="text-slate-500">—</span>,
             t.mrr,
             <Badge tone={t.status.tone}>{t.status.label}</Badge>,
-            <Btn size="sm" variant="ghost" icon={Icon.edit} onClick={() => setEditIdx(i)}>Edit</Btn>,
+            <span className="flex gap-1 justify-end">
+              <Btn size="sm" variant="ghost" icon={Icon.cash} onClick={() => setFeesIdx(i)}>Fees</Btn>
+              <Btn size="sm" variant="ghost" icon={Icon.edit} onClick={() => setEditIdx(i)}>Edit</Btn>
+            </span>,
           ])} />
+      {feesIdx !== null && <FinanceSettingsModal tenant={tenants[feesIdx].name} subdomain={tenants[feesIdx].subdomain} onClose={() => setFeesIdx(null)} />}
       </Card>
       <TenantEditModal
         tenant={editIdx !== null ? tenants[editIdx] : null}

@@ -10,6 +10,7 @@ import * as A from "./screens/admin";
 import * as CA from "./screens/cashier";
 import * as CT from "./screens/controller";
 import * as AC from "./screens/accountant";
+import { AccountantReports } from "./screens/reporting/FinanceTabs";
 import * as P from "./screens/platform";
 
 const MAP: Record<string, () => ReactElement> = {
@@ -51,6 +52,7 @@ const MAP: Record<string, () => ReactElement> = {
   // accountant
   "accountant.invoicing": () => <AC.AccountantInvoicing />,
   "accountant.commission": () => <AC.AccountantCommission />,
+  "accountant.reports": () => <AccountantReports />,
   // platform
   "platform.tenants": () => <P.PlatformTenants />,
   "platform.onboarding": () => <P.PlatformOnboarding />,
