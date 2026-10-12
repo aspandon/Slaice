@@ -6,7 +6,7 @@
 import {
   Umbrella, Ticket, ReceiptText, CreditCard, Car, BarChart3, LayoutGrid,
   Users, Map, ScanLine, RotateCcw, Building2, Banknote, Lock, Home, Calendar,
-  Download, Check, CheckCircle2, X, ChevronRight, ChevronDown, ArrowLeft,
+  Download, Check, CheckCircle2, X, ChevronRight, ChevronLeft, ChevronDown, ArrowLeft,
   ArrowRight, Bell, Search, Globe, Tag, FileText, Settings, Zap, Package,
   TrendingUp, Phone, Mail, QrCode, Printer, Star, Filter, Plus, Minus, Trash2,
   Pencil, Play, List, Layers, Martini, MessageCircle, Gift, Shield, Eye, EyeOff, Sun,
@@ -54,6 +54,7 @@ export const Icon: Record<string, IconRenderer> = {
   checkCircle: w(CheckCircle2),
   x: w(X),
   chevR: w(ChevronRight),
+  chevL: w(ChevronLeft),
   chevD: w(ChevronDown),
   arrowL: w(ArrowLeft),
   arrowR: w(ArrowRight),

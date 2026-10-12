@@ -308,16 +308,6 @@ export const REPORTING_TICKETS: [string, string, string, string, string, string,
   ["#TK-54810", "Adult ×3", "Customer", "22 Jun", "Season", "€30", { tone: "slate", label: "Used" }],
 ];
 
-// Reporting · Daily ops tab
-export const DAILY_OPS: [string, number, string, string, string][] = [
-  ["Sunbed bookings", 214, "€6,420", "−€60", "€6,360"],
-  ["Entry tickets", 512, "€4,180", "€0", "€4,180"],
-  ["Day lockers", 38, "€190", "€0", "€190"],
-  ["Parking", 27, "€405", "€0", "€405"],
-  ["Bundles & extras", 64, "€512", "−€16", "€496"],
-  ["Season passes", 9, "€1,080", "€0", "€1,080"],
-];
-
 // Cashier register session statistics
 export const CASHIER_SESSION = { id: "#CS-204", cashier: "Kostas L.", openedAt: "09:14", duration: "4h 22m", cashIn: "€1,240", cardIn: "€3,860" };
 

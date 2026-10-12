@@ -8,7 +8,7 @@ import { AuthGate } from "./screens/auth";
 import { ConsentBanner } from "./components/ConsentBanner";
 import { CustomerBackdrop } from "./components/CustomerBackdrop";
 import { routeFor } from "./routes";
-import { parseHash, buildHash, isValidPage } from "./app/router";
+import { parseHash, buildHash, hashPath, isValidPage } from "./app/router";
 import { HTML_LANG, normalizeLang } from "./app/i18n";
 import { DEFAULT_BACKGROUND } from "./data/backgrounds";
 import { DEFAULT_PASSES, DEFAULT_PASS_PRICING, SEASON_END_LABEL, seasonValidUntil, round2 } from "./data/passes";
@@ -147,7 +147,8 @@ export default function App() {
   const firstRoute = useRef(true);
   useEffect(() => {
     const target = buildHash(persona, page);
-    if (window.location.hash !== target) {
+    // Compare the path only: a page's own query (e.g. ?period=month) stays.
+    if (hashPath() !== target) {
       if (firstRoute.current) window.history.replaceState(null, "", target);
       else window.history.pushState(null, "", target);
     }

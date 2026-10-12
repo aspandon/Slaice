@@ -30,7 +30,7 @@ export function isValidPage(persona: PersonaId, page: string): boolean {
 // Parse `#/persona/page` → { persona, page } (page optional). Returns {} when
 // the hash doesn't name a real persona, so callers can fall back to saved state.
 export function parseHash(hash: string = window.location.hash): Route {
-  const parts = hash.replace(/^#\/?/, "").split("/").filter(Boolean);
+  const parts = hashPath(hash).replace(/^#\/?/, "").split("/").filter(Boolean);
   const persona = parts[0];
   if (!isPersona(persona)) return {};
   let page: string | undefined = parts[1];
@@ -40,4 +40,21 @@ export function parseHash(hash: string = window.location.hash): Route {
 
 export function buildHash(persona: string, page: string): string {
   return `#/${persona}/${page}`;
+}
+
+/* ---------- Page-level query state ----------
+   A page can keep view state in the hash query (`#/admin/dashboard?period=month`)
+   so it survives refresh and can be shared. The query belongs to the current
+   page: navigating to another page drops it. */
+export const hashPath = (hash: string = window.location.hash) => hash.split("?")[0];
+export function readHashQuery(hash: string = window.location.hash): URLSearchParams {
+  return new URLSearchParams(hash.split("?")[1] ?? "");
+}
+/** Replace the current page's query params (no new history entry). */
+export function writeHashQuery(params: Record<string, string>, drop: string[] = []): void {
+  const q = readHashQuery();
+  drop.forEach((k) => q.delete(k));
+  Object.entries(params).forEach(([k, v]) => q.set(k, v));
+  const qs = q.toString();
+  window.history.replaceState(window.history.state, "", `${hashPath()}${qs ? `?${qs}` : ""}`);
 }

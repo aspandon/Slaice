@@ -843,10 +843,11 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
 ### A-01 · Dashboard [MVP]
 
 ```text
- [Day] [Week] [Month] [Year] ─▶ every chart swaps its series       [Export] ─▶ CSV
+ ‹ [Day] [Week] [Month] [Year] [Custom] ›  13 – 19 Jul 2026          [Export] ─▶ CSV
+   └─ one period drives every tile, delta, chart and the export (X-11)
  ┌────────────────┐ ┌────────────────┐ ┌────────────────┐ ┌────────────────┐
- │ Revenue (7d)   │ │ Bookings (7d)  │ │ Occupancy      │ │ Avg basket     │
- │ €33.4k   +12%  │ │ 1,284     +8%  │ │ 71%      +3pp  │ │ €41      +€2   │
+ │ Revenue · week │ │ Bookings · week│ │ Occupancy      │ │ Avg basket     │
+ │ €101.5k  +x%   │ │ 2,190     +x%  │ │ 73%      +xpp  │ │ €46      +€x   │
  └────────────────┘ └────────────────┘ └────────────────┘ └────────────────┘
  ┌──────────────────────────────┐ ┌───────────────────────┐ ┌──────────────────────┐
  │ Revenue bars (peaks marked)  │ │ Revenue by capability │ │ Occupancy by zone    │
@@ -857,10 +858,12 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
  Export = one multi-section CSV: KPIs + every chart series + latest bookings
 ```
 
-- Period tabs **Day / Week / Month / Year** (chart series change per period); **Export** (multi-section
-  CSV of KPIs + every chart series + latest bookings).
-- KPI cards: Revenue (7d) €33.4k (+12%), Bookings (7d) 1,284 (+8%), Occupancy 71% (+3pp), Avg basket
-  €41 (+€2).
+- **Period control** (X-11): Day / Week / Month / Year / Custom, default Week. Every KPI, its delta
+  ("vs previous week"…), every chart and the **Export** (multi-section CSV, dates in the file name)
+  follow it. Kept in the URL (`?period=month`, `?from=…&to=…`).
+- KPI cards: Revenue, Bookings, Occupancy and Avg basket for the period, each with its change against
+  the previous equal-length period. Values come from the shared sample analytics
+  (`src/data/analytics.ts`), so the Dashboard, Reporting and Refunds agree for the same dates.
 - Charts: Revenue bar chart (peaks highlighted), Revenue by capability donut (Sunbeds 62% · Tickets
   28% · Other 10%), Occupancy by zone (horizontal bars), Latest bookings table (+ View all → Bookings).
 
@@ -977,6 +980,7 @@ Turquoise, Sunset, Slate Minimal, Akti tou Iliou [default], Palm Cove, Golden Ho
                                             └────────────────────────────┘
 ```
 
+- Visit-date filter: the shared period control (X-11), default **All dates**.
 - Search (ID, name, surname, phone, items), **sortable** columns (Booking, Name, Surname, Date,
   Amount), pagination (30 per page), **Export** CSV (one row per booking _item_; total on the first
   item row).
@@ -1051,32 +1055,37 @@ Turquoise, Sunset, Slate Minimal, Akti tou Iliou [default], Palm Cove, Golden Ho
  │ Executive │ Revenue │ Occupancy │ Bookings │ Channels │ Customers │ Tickets │ Daily ops │
  └─────┬─────┴────┬────┴─────┬─────┴────┬─────┴────┬─────┴─────┬─────┴────┬────┴─────┬─────┘
        │          │          │          │          │           │          │          │
-   9 KPIs    capability  heatmap    lead time   channel ×   new vs     ticket    date ─▶
-   + charts  zone · tx   week×zone  cancel %    role/week   returning  history   ops + docs
+   9 KPIs    capability  heatmap    lead time   channel ×   new vs     ticket    period ─▶
+   + charts  zone · tx   time×zone  cancel %    role        returning  history   ops + docs
        │
-       └─ insight: "Macaw hits 91% by noon…" ─▶ [Set a rule] (demo toast; should open A-02)
+       └─ insight from the period ("Weekends run 21% fuller…") ─▶ [Set a rule] ─▶ A-02
 
- every tab ─▶ [Export CSV] exactly as displayed
+ one period control for all tabs (X-11, default Season) · every tab ─▶ [Export CSV] as displayed
 ```
 
-Eight tabs, each exportable to CSV exactly as displayed:
+Eight tabs, all following one **period control** (X-11: Day / Week / Month / Year / Season / Custom,
+default Season, kept when switching tabs and in the URL). Each tab exports to CSV exactly as displayed,
+with the dates in the title rows and file name. Season and Year compare with the same dates last year;
+shorter periods with the previous equal-length window. A period with no open days (off-season) shows
+a "beach was closed" empty state.
 
-1. **Executive** — Season revenue €704k, Total bookings 26,040, Avg occupancy 68%, Online share 40%,
-   Refund rate 1.4%, RevPATB €18.4, ADR €27.1, Ancillary attach 0.7, No-show 2.8%; revenue by month,
-   revenue mix, booking pace vs last year; insight card ("Macaw hits 91% by noon… consider dynamic
-   weekend pricing" → **Set a rule**, currently a demo toast; it should open the pricing rules).
-2. **Revenue** — by capability, by zone, all transactions (filterable).
-3. **Occupancy** — by zone, utilisation heatmap (week × zone).
-4. **Bookings** — avg lead time, online vs walk-in, cancellation, sets/booking; volume by day.
-5. **Channels** — sales by channel & role (Online / Walk-in / Cashier), channel by week.
-6. **Customers** — new vs returning, season-pass holders, VIP segment revenue, top customers.
-7. **Tickets** — ticket history.
-8. **Daily ops** — daily operations for a date; documents issued (ΑΠΥ/ΤΠΥ, all transmitted).
+1. **Executive** — Revenue, Bookings, Avg occupancy, Online share, Refund rate, RevPATB, ADR,
+   Ancillary attach, No-show; revenue over time (hours / days / weeks / months by range length),
+   revenue mix, booking pace vs the same period last year; an insight computed from the period
+   (weekend vs weekday fill, busiest zone) → **Set a rule** opens Availability & Pricing.
+2. **Revenue** — by capability, sunbed revenue by zone, latest transactions.
+3. **Occupancy** — by zone, utilisation heatmap (zone × day / week / month).
+4. **Bookings** — avg lead time, online vs other, cancellation, sets/booking; volume over time.
+5. **Channels** — sales by channel & role (Online / Walk-in / Phone / Cashier), revenue over time.
+6. **Customers** — new vs returning, season-pass holders, VIP segment revenue, top customers (scaled
+   to the period).
+7. **Tickets** — ticket history within the period.
+8. **Daily ops** — operations totals per capability for the period; documents issued (ΑΠΥ/ΤΠΥ).
 
 ### A-08 · Refunds [MVP]
 
 ```text
- [Week] [Month] [Season]   KPIs: refunded · pending · rate · top reason   [Export]
+ ‹ [All dates] [Day] [Week] [Month] [Season] [Custom] ›   KPIs: refunded · pending · rate · top reason   [Export]
  #TX-88210 · date · name · amount · reason · Pending ──▶ [Refund]
                                                             │
         ┌───────────────────────────────────────────────────┘
@@ -1096,8 +1105,10 @@ Eight tabs, each exportable to CSV exactly as displayed:
  row becomes Refunded (partial: "−€X refunded") ─▶ credit note in F-01 and C-07
 ```
 
-- Period tabs (Week / Month / Season), **Export** CSV.
-- KPIs: Refunded this month (€, count), Pending review, Refund rate, Top reason.
+- Period control (X-11; All dates / Day / Week / Month / Season / Custom, default Month) filters the
+  KPIs, the list and the **Export** CSV.
+- KPIs: Refunded in the period (€, count, change — from the shared analytics, so it matches Reporting),
+  Pending review and Top reason (from the listed requests), Refund rate (change in pp).
 - Table: Transaction, Date, Name, Surname, Phone, Amount (partial refunds show "−€X refunded"), Reason,
   Status (Pending / Refunded), **Refund** action.
 - **Issue refund** modal: Refund type (Full / Partial — amount between €1 and the charge, with helper
@@ -1650,18 +1661,19 @@ Events, Retail, Compliant: Stripe + MyDATA).
 
 ## 14. Cross-persona end-to-end journeys
 
-| ID   | Journey                    | Path                                                                                                                                                                                                                                                     |
-| ---- | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| X-01 | **Book → enter → account** | Customer books in the wizard (C-03) → pays (C-04) → QR + ΑΠΥ (C-05) → Controller scans QR (G-01) → booking shows in Admin Bookings (A-04) and Reporting (A-07) → ΑΠΥ with MARK in Accountant invoicing (F-01) → net payout after Stripe + 5% fee (F-02). |
-| X-02 | **Layout publish**         | Admin designs a zone's sets and publishes (A-03) → customer wizard shows that exact arrangement and availability (C-03) → Home "N sunbeds free today" updates (C-02) → Manual booking mini-map uses it (A-05).                                           |
-| X-03 | **Refund**                 | Admin issues a full/partial refund (A-08) → Stripe charge + application fee reversed → credit note 5.1 to myDATA (F-01 "Credit notes") → customer sees the credit note in My Documents (C-07).                                                           |
-| X-04 | **Loyalty campaign**       | Admin configures/enables a scheme (A-11) → Promote → Communicate pre-filled (A-10) → customer sees the reward on Home "Your rewards" (C-02).                                                                                                             |
-| X-05 | **Passes**                 | Admin sets pass pricing (A-12) → customer buys VIP/Season (C-08/C-09) → pass applied at checkout (C-04) → user gets a pass-derived tag in Users & Segments (A-06).                                                                                       |
-| X-06 | **Phone booking**          | Call agent reserves a set without payment (A-05) → QR sent by e-mail/Viber/SMS → status Unpaid in Bookings → settled on arrival.                                                                                                                         |
-| X-07 | **Walk-in / same-day**     | Controller releases same-day sets (G-04) or books a walk-in (G-02) → channel Walk-in in reporting.                                                                                                                                                       |
-| X-08 | **Tenant go-live**         | Platform onboards a tenant with Stripe KYC (P-02) → sets capability flags (P-03) → tenant admin configures the map (A-03) → customers book.                                                                                                              |
-| X-09 | **GDPR request**           | Customer exports data / requests erasure (§7.5) → request appears in the Admin DSAR queue (A-09) → handled with legal holds on invoices → breach/compliance oversight at platform level (P-04).                                                          |
-| X-10 | **Atmosphere**             | Admin toggles weather effects / time-of-day lighting (A-03 Atmosphere) → every customer page renders the same scene (C-02, C-03, C-04).                                                                                                                  |
+| ID   | Journey                    | Path                                                                                                                                                                                                                                                             |
+| ---- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| X-01 | **Book → enter → account** | Customer books in the wizard (C-03) → pays (C-04) → QR + ΑΠΥ (C-05) → Controller scans QR (G-01) → booking shows in Admin Bookings (A-04) and Reporting (A-07) → ΑΠΥ with MARK in Accountant invoicing (F-01) → net payout after Stripe + 5% fee (F-02).         |
+| X-02 | **Layout publish**         | Admin designs a zone's sets and publishes (A-03) → customer wizard shows that exact arrangement and availability (C-03) → Home "N sunbeds free today" updates (C-02) → Manual booking mini-map uses it (A-05).                                                   |
+| X-03 | **Refund**                 | Admin issues a full/partial refund (A-08) → Stripe charge + application fee reversed → credit note 5.1 to myDATA (F-01 "Credit notes") → customer sees the credit note in My Documents (C-07).                                                                   |
+| X-04 | **Loyalty campaign**       | Admin configures/enables a scheme (A-11) → Promote → Communicate pre-filled (A-10) → customer sees the reward on Home "Your rewards" (C-02).                                                                                                                     |
+| X-05 | **Passes**                 | Admin sets pass pricing (A-12) → customer buys VIP/Season (C-08/C-09) → pass applied at checkout (C-04) → user gets a pass-derived tag in Users & Segments (A-06).                                                                                               |
+| X-06 | **Phone booking**          | Call agent reserves a set without payment (A-05) → QR sent by e-mail/Viber/SMS → status Unpaid in Bookings → settled on arrival.                                                                                                                                 |
+| X-07 | **Walk-in / same-day**     | Controller releases same-day sets (G-04) or books a walk-in (G-02) → channel Walk-in in reporting.                                                                                                                                                               |
+| X-08 | **Tenant go-live**         | Platform onboards a tenant with Stripe KYC (P-02) → sets capability flags (P-03) → tenant admin configures the map (A-03) → customers book.                                                                                                                      |
+| X-09 | **GDPR request**           | Customer exports data / requests erasure (§7.5) → request appears in the Admin DSAR queue (A-09) → handled with legal holds on invoices → breach/compliance oversight at platform level (P-04).                                                                  |
+| X-10 | **Atmosphere**             | Admin toggles weather effects / time-of-day lighting (A-03 Atmosphere) → every customer page renders the same scene (C-02, C-03, C-04).                                                                                                                          |
+| X-11 | **Period control**         | One `PeriodPicker` + `src/domain/period.ts` (resolve, compare, granularity, URL) + `src/data/analytics.ts` (deterministic per-day sample figures) shared by Dashboard (A-01), Reporting (A-07), Bookings (A-04) and Refunds (A-08). Demo "today" is 19 Jul 2026. |
 
 ### 14.1 Journey maps
 

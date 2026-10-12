@@ -118,7 +118,9 @@ export function PageHead({ actions }: { actions?: ReactNode; title?: ReactNode; 
 /* ---------- Table ----------
    Airier rows, hairline dividers and a sticky frosted header on `sm`+; reflows
    into stacked label:value cards under `sm`. */
-export function Table({ cols, rows, right = [] }: { cols: ReactNode[]; rows: ReactNode[][]; right?: number[] }) {
+// `dense` tightens cell padding for wide tables (many columns).
+export function Table({ cols, rows, right = [], dense = false }: { cols: ReactNode[]; rows: ReactNode[][]; right?: number[]; dense?: boolean }) {
+  const pad = dense ? "px-2.5" : "px-3.5";
   return (
     <>
       {/* Mobile: stacked cards */}
@@ -149,7 +151,7 @@ export function Table({ cols, rows, right = [] }: { cols: ReactNode[]; rows: Rea
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500">
               {cols.map((c, i) => (
-                <th key={i} className={`sticky top-0 z-10 bg-white/85 backdrop-blur-sm py-3 px-3.5 font-semibold border-b border-slate-200/80 ${right.includes(i) ? "text-right" : ""}`}>{c}</th>
+                <th key={i} className={`sticky top-0 z-10 bg-white/85 backdrop-blur-sm py-3 ${pad} font-semibold border-b border-slate-200/80 ${right.includes(i) ? "text-right" : ""}`}>{c}</th>
               ))}
             </tr>
           </thead>
@@ -157,7 +159,7 @@ export function Table({ cols, rows, right = [] }: { cols: ReactNode[]; rows: Rea
             {rows.map((r, ri) => (
               <tr key={ri} className="transition-colors hover:bg-slate-50/80">
                 {r.map((cell, ci) => (
-                  <td key={ci} className={`py-3.5 px-3.5 border-b border-slate-100/80 ${right.includes(ci) ? "text-right tnum" : ""}`}>{cell}</td>
+                  <td key={ci} className={`py-3.5 ${pad} border-b border-slate-100/80 ${right.includes(ci) ? "text-right tnum" : ""}`}>{cell}</td>
                 ))}
               </tr>
             ))}

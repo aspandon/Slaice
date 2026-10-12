@@ -1,9 +1,9 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { lazyWithReload } from "../lib/staleChunk";
-import { SortHeader, Pager, dateVal, cmpVal, type SortState } from "../components/TableTools";
+import { SortHeader, Pager, dateVal, cmpVal, moneyVal, type SortState } from "../components/TableTools";
 import { Icon, type IconRenderer } from "../lib/icons";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, ErrorState, useMockLoad, FutureBanner, NotMvpBadge, ContextPanel, Spinner } from "../components/ui";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, ErrorState, useMockLoad, FutureBanner, NotMvpBadge, ContextPanel, Spinner, PeriodPicker } from "../components/ui";
 import type { TabEntry } from "../components/ui";
 import { BarChart, HBarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts";
 import { BeachBackdrop, SunbedMark } from "../components/Beach";
@@ -22,75 +22,94 @@ import type { SunbedSlot, SunbedState, SunbedKind, Customer, ZoneMapItem, PriceR
 import { effectivePrice, ruleEffectLabel, dayMatches } from "../domain/pricing";
 import { CHANNELS, channelMeta } from "../data/channels";
 import { CardFace, ScaledCard, WalletRendition, TEXT_KEYS, TEXT_LABELS, type DragKey } from "../components/PassDesigner";
-import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS, personByFirst, CUSTOMERS, type AdminBooking } from "../data/mock";
+import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, personByFirst, CUSTOMERS, type AdminBooking } from "../data/mock";
 import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr";
 import { useApp } from "../app/store";
 import { downloadCSV, downloadCSVReport, type CsvSection } from "../lib/download";
 import { listCustomers } from "../api";
 import { useAsync } from "../lib/useAsync";
+import { usePeriod } from "../lib/usePeriod";
+import { resolveRange, comparisonRange, lastYearRange, granularityFor, rangeLabel, periodNoun, comparisonLabel, isoFromDayMonth, inRange } from "../domain/period";
+import { summarize, series, buckets, CHANNELS as CHANNELS_A, fmtEUR, fmtInt, fmtPct, trendPct, trendPp, trendEUR } from "../data/analytics";
 
 /* ============ DASHBOARD ============ */
 export function AdminDashboard() {
   const { go, toast } = useApp();
-  const [period, setPeriod] = useState("week");
-  const rev = ({
-    day: [{ l: "8h", v: 400 }, { l: "10h", v: 900 }, { l: "12h", v: 1500, hi: 1 }, { l: "14h", v: 1300 }, { l: "16h", v: 1100 }, { l: "18h", v: 700 }],
-    week: [{ l: "Mon", v: 3200 }, { l: "Tue", v: 2950 }, { l: "Wed", v: 3600 }, { l: "Thu", v: 4100 }, { l: "Fri", v: 5200, hi: 1 }, { l: "Sat", v: 7400, hi: 1 }, { l: "Sun", v: 6900, hi: 1 }],
-    month: [{ l: "W1", v: 21000 }, { l: "W2", v: 24500 }, { l: "W3", v: 28800, hi: 1 }, { l: "W4", v: 26400 }],
-    year: [{ l: "May", v: 48 }, { l: "Jun", v: 121 }, { l: "Jul", v: 198, hi: 1 }, { l: "Aug", v: 241, hi: 1 }, { l: "Sep", v: 96 }],
-  } as Record<string, { l: string; v: number; hi?: number }[]>)[period];
-  // Occupancy series shared by the chart below and the CSV export (one source).
-  const occByZone = [{ l: "Akanthus", v: 67 }, { l: "Central", v: 83 }, { l: "Macaw", v: 91, hi: 1 }, { l: "Bestbuy", v: 78 }, { l: "Main", v: 68 }, { l: "Bolivar", v: 66 }];
-  // Export the whole dashboard — KPIs *and* the data behind every visual (the
-  // revenue chart, the capability donut, the occupancy bars, latest bookings) —
-  // as one faithful, columnar CSV. A CSV can't embed the charts, so their series
-  // ship as data you can re-plot.
-  const revAxis = ({ day: "Hour", week: "Day", month: "Week", year: "Month" } as Record<string, string>)[period];
+  // One period drives every tile, delta, chart and the export (AENR-466).
+  const [period, setPeriod] = usePeriod({ kind: "preset", preset: "week", offset: 0 });
+  const range = resolveRange(period) ?? resolveRange({ kind: "preset", preset: "week", offset: 0 })!;
+  const now = summarize(range);
+  const prev = summarize(comparisonRange(period, range));
+  const hasPrev = prev.openDays > 0;
+  const noun = periodNoun(period);
+  const vs = comparisonLabel(period);
+  const g = granularityFor(range);
+  const axis = { hour: "Hour", day: "Day", week: "Week of", month: "Month" }[g];
+  const rev = series(range, (x) => x.revenue, g);
+  const other = now.byCapability.Lockers + now.byCapability.Parking;
+  const share = (v: number) => (now.revenue ? Math.round((v / now.revenue) * 100) : 0);
+  const mix = [
+    { l: "Sunbeds", v: share(now.byCapability.Sunbeds), c: "#0D9488", cls: "bg-teal-600" },
+    { l: "Tickets", v: share(now.byCapability.Tickets), c: "#0ea5e9", cls: "bg-sky-500" },
+    { l: "Other", v: share(other), c: "#f59e0b", cls: "bg-amber-500" },
+  ];
+  const occByZone = ZONES.map((z) => ({ l: z.name, v: Math.round((now.occupancyByZone[z.id] ?? 0) * 100) }));
+  const peak = Math.max(...occByZone.map((z) => z.v));
+  const occSeries = occByZone.map((z) => (z.v === peak && peak > 0 ? { ...z, hi: 1 } : z));
+  const kpis = [
+    { label: `Revenue · ${noun}`, value: fmtEUR(now.revenue), trend: hasPrev ? trendPct(now.revenue, prev.revenue) : undefined, tone: "teal" },
+    { label: `Bookings · ${noun}`, value: fmtInt(now.bookings), trend: hasPrev ? trendPct(now.bookings, prev.bookings) : undefined, tone: "navy" },
+    { label: "Occupancy", value: fmtPct(now.occupancy), trend: trendPp(now.occupancy, prev.occupancy, hasPrev), tone: "navy" },
+    { label: "Avg basket", value: fmtEUR(now.avgBasket), trend: trendEUR(now.avgBasket, prev.avgBasket, hasPrev), tone: "navy" },
+  ];
+  const label = rangeLabel(range);
+  // Export the whole dashboard — KPIs *and* the data behind every visual — as
+  // one columnar CSV for the selected period.
   const exportDashboard = () => {
-    downloadCSVReport(`dashboard-${period}.csv`, [
-      { title: "Key metrics", header: ["Metric", "Value", "Detail", "Change"], rows: [
-        ["Revenue (7d)", "€33.4k", "vs prev week", "+12%"], ["Bookings (7d)", "1,284", "online + walk-in", "+8%"],
-        ["Occupancy", "71%", "avg across zones", "+3pp"], ["Avg basket", "€41", "sunbed + entries", "+€2"],
-      ] },
-      { title: `Revenue · this ${period}`, header: [revAxis, `Revenue (${period === "year" ? "€k" : "€"})`], rows: rev.map((d) => [d.l, d.v]) },
-      { title: "Revenue by capability", header: ["Capability", "Share %"], rows: [["Sunbeds", 62], ["Tickets", 28], ["Other", 10]] },
-      { title: "Occupancy by zone (today)", header: ["Zone", "Occupancy %"], rows: occByZone.map((z) => [z.l, z.v]) },
+    downloadCSVReport(`dashboard-${range.from}_${range.to}.csv`, [
+      { title: `Key metrics · ${label}`, header: ["Metric", "Value", "Change", "Compared"], rows: kpis.map((k) => [k.label, k.value, k.trend ?? "—", vs]) },
+      { title: `Revenue · ${label}`, header: [axis, "Revenue (€)"], rows: rev.map((d) => [d.l, d.v]) },
+      { title: "Revenue by capability", header: ["Capability", "Share %"], rows: mix.map((m) => [m.l, m.v]) },
+      { title: `Occupancy by zone · ${label}`, header: ["Zone", "Occupancy %"], rows: occByZone.map((z) => [z.l, z.v]) },
       { title: "Latest bookings", header: ["Booking", "Zone", "Channel", "Amount"], rows: [
         ["#BK-10428", "Central", "Online", "€30"], ["#BK-10427", "Macaw", "Walk-in", "€35"],
         ["#BK-10426", "Bestbuy", "Online", "€44"], ["#BK-10425", "Akanthus", "Online", "€30"],
       ] },
     ]);
-    toast(`Exported the dashboard (${period}) to CSV.`, { tone: "success" });
+    toast(`Exported the dashboard (${label}) to CSV.`, { tone: "success" });
   };
+  const closed = now.openDays === 0;
   return (
     <div className="animate-fade-up">
       <PageHead title="Dashboard" sub="Akti tou Iliou · bookings & revenue overview" badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<><Tabs tabs={[["day", "Day"], ["week", "Week"], ["month", "Month"], ["year", "Year"]]} value={period} onChange={setPeriod} /><Btn variant="outline" icon={Icon.download} onClick={exportDashboard}>Export</Btn></>} />
+        actions={<Btn variant="outline" icon={Icon.download} onClick={exportDashboard}>Export</Btn>} />
+      <PeriodPicker value={period} onChange={setPeriod} className="mb-4" />
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Revenue (7d)" value="€33.4k" sub="vs prev week" tone="teal" trend="+12%" />
-        <StatCard label="Bookings (7d)" value="1,284" sub="online + walk-in" trend="+8%" />
-        <StatCard label="Occupancy" value="71%" sub="avg across zones" trend="+3pp" />
-        <StatCard label="Avg basket" value="€41" sub="sunbed + entries" trend="+€2" />
+        {kpis.map((k) => <StatCard key={k.label} label={k.label} value={k.value} sub={k.trend ? vs : "no comparison data"} tone={k.tone} trend={k.trend} />)}
       </div>
+      {closed && (
+        <div className="mt-4"><EmptyState icon={Icon.umbrella} title="The beach was closed" body={`No bookings or revenue in ${label}. The season runs 1 May – 30 Sep.`} /></div>
+      )}
+      {!closed && <>
       <div className="grid lg:grid-cols-3 gap-4 mt-4">
         <Card className="p-5 lg:col-span-2">
-          <div className="flex items-center justify-between"><div className="font-semibold text-navy-900">Revenue · this {period}</div><Badge tone="green"><Icon.trend size={11} /> +12%</Badge></div>
-          <BarChart data={rev} />
+          <div className="flex items-center justify-between gap-2"><div className="font-semibold text-navy-900">Revenue · {noun}</div>{kpis[0].trend && <Badge tone={kpis[0].trend.startsWith("+") ? "green" : "red"}><Icon.trend size={11} className={kpis[0].trend.startsWith("+") ? "" : "-scale-y-100"} /> {kpis[0].trend}</Badge>}</div>
+          <BarChart data={rev} label={`Revenue by ${axis.toLowerCase()}, ${label}`} />
         </Card>
         <Card className="p-5">
           <div className="font-semibold text-navy-900 mb-2">Revenue by capability</div>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-5">
-            <Donut segments={[{ v: 62, c: "#0D9488" }, { v: 28, c: "#0ea5e9" }, { v: 10, c: "#f59e0b" }]} size={180} />
+            <Donut segments={mix.map((m) => ({ v: m.v, c: m.c }))} size={180} label={`Revenue by capability: ${mix.map((m) => `${m.l} ${m.v}%`).join(", ")}`} />
             <div className="text-sm space-y-2">
-              <Leg c="bg-teal-600" t="Sunbeds 62%" /><Leg c="bg-sky-500" t="Tickets 28%" /><Leg c="bg-amber-500" t="Other 10%" />
+              {mix.map((m) => <Leg key={m.l} c={m.cls} t={`${m.l} ${m.v}%`} />)}
             </div>
           </div>
         </Card>
       </div>
       <div className="grid lg:grid-cols-2 gap-4 mt-4">
         <Card className="p-5">
-          <div className="font-semibold text-navy-900 mb-1">Occupancy by zone (today)</div>
-          <HBarChart color="#0ea5e9" unit="%" max={100} data={occByZone} />
+          <div className="font-semibold text-navy-900 mb-1">Occupancy by zone · {noun}</div>
+          <HBarChart color="#0ea5e9" unit="%" max={100} data={occSeries} label={`Occupancy by zone, ${label}`} />
         </Card>
         <Card className="p-5">
           <div className="flex items-center justify-between mb-2"><div className="font-semibold text-navy-900">Latest bookings</div><Btn size="sm" variant="ghost" onClick={() => go("admin", "bookings")}>View all</Btn></div>
@@ -102,6 +121,7 @@ export function AdminDashboard() {
           ]} />
         </Card>
       </div>
+      </>}
     </div>
   );
 }
@@ -860,7 +880,11 @@ export function AdminBookings() {
     const p = personByFirst(b.who);
     return { ...b, surname: p?.last ?? "", phone: p?.phone ?? "", email: p?.email ?? "" };
   });
-  const filtered = enriched.filter((b) => (b.id + b.who + b.surname + b.phone + b.items.join(" ")).toLowerCase().includes(q.toLowerCase()));
+  // Visit-date filter from the shared period control (AENR-466); all dates by default.
+  const [period, setPeriodRaw] = usePeriod({ kind: "all" });
+  const setPeriod = (p: Parameters<typeof setPeriodRaw>[0]) => { setPeriodRaw(p); setPage(0); };
+  const range = resolveRange(period);
+  const filtered = enriched.filter((b) => inRange(isoFromDayMonth(b.date), range) && (b.id + b.who + b.surname + b.phone + b.items.join(" ")).toLowerCase().includes(q.toLowerCase()));
   const sortVal = (b: EnrichedBooking): string | number => {
     switch (sort?.key) {
       case "id": return b.id;
@@ -887,7 +911,7 @@ export function AdminBookings() {
       const items = b.items.length ? b.items : ["—"];
       items.forEach((it, i) => rows.push([b.id, b.who, b.surname || "—", b.phone || "—", it, b.date, b.channel, b.status, i === 0 ? b.amount : ""]));
     });
-    downloadCSV("bookings.csv", header, rows);
+    downloadCSV(range ? `bookings-${range.from}_${range.to}.csv` : "bookings.csv", header, rows);
     toast(`Exported ${sorted.length} bookings · ${rows.length} item rows to CSV.`, { tone: "success" });
   };
   return (
@@ -901,10 +925,13 @@ export function AdminBookings() {
           </div>
           <Btn variant="outline" icon={Icon.download} onClick={exportCSV} className="ml-auto">Export</Btn>
         </div>
+        <PeriodPicker value={period} onChange={setPeriod} allowAll presets={["day", "week", "month", "year", "season"]} resetTo={{ kind: "all" }} className="mb-3" />
         {loading ? (
           <TableSkeleton rows={5} cols={9} />
         ) : sorted.length === 0 ? (
-          <EmptyState icon={Icon.search} title="No matching bookings" body={`Nothing matches “${q}”. Try a different name, sunbed code or booking ID.`} />
+          <EmptyState icon={Icon.search} title="No matching bookings"
+            body={q ? `Nothing matches “${q}”${range ? ` in ${rangeLabel(range)}` : ""}. Try a different name, sunbed code or booking ID.` : `No bookings in ${range ? rangeLabel(range) : "this period"}.`}
+            action={range ? <Btn size="sm" variant="outline" onClick={() => setPeriod({ kind: "all" })}>Show all dates</Btn> : undefined} />
         ) : (
           <>
             <Table cols={[
@@ -916,9 +943,9 @@ export function AdminBookings() {
               "Channel", "Status",
               <SortHeader label="Amount" k="amount" sort={sort} onSort={onSort} align="right" />,
               "",
-            ]} right={[8]}
+            ]} right={[8]} dense
               rows={pageRows.map((b) => [
-                b.id,
+                <span className="whitespace-nowrap">{b.id}</span>,
                 b.who,
                 b.surname || <span className="text-slate-400">—</span>,
                 b.phone ? <span className="tnum whitespace-nowrap">{b.phone}</span> : <span className="text-slate-400">—</span>,
@@ -927,7 +954,10 @@ export function AdminBookings() {
                 <Badge tone={chan(b.channel)}>{b.channel}</Badge>,
                 <StatusBadge status={b.status} />,
                 `€${b.amount}`,
-                <Btn size="sm" variant="ghost" icon={Icon.mail} onClick={() => setSendFor(b)}>Resend QR</Btn>,
+                <button type="button" onClick={() => setSendFor(b)} aria-label={`Resend QR for ${b.id}`} title="Resend QR"
+                  className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 h-9 text-[12.5px] font-semibold text-navy-900 hover:bg-slate-100 transition">
+                  <Icon.mail size={15} className="text-slate-500" /><span className="hidden xl:inline">Resend</span> QR
+                </button>,
               ])} />
             {pageCount > 1 && <Pager page={safePage} pageCount={pageCount} total={sorted.length} pageSize={PAGE} onPage={setPage} />}
           </>
@@ -1344,7 +1374,7 @@ function UserActivityModal({ user, onClose, onEdit }: { user: Customer; onClose:
 
 /* ============ REPORTING & ANALYTICS ============ */
 export function AdminReporting() {
-  const { toast } = useApp();
+  const { toast, go } = useApp();
   const [tab, setTab] = useState("exec");
   const tabs: TabEntry[] = [
     ["exec", "Executive", Icon.chart],
@@ -1356,220 +1386,286 @@ export function AdminReporting() {
     ["tickets", "Tickets", Icon.ticket],
     ["daily", "Daily ops", Icon.clock],
   ];
-  const season = [{ l: "May", v: 48 }, { l: "Jun", v: 121 }, { l: "Jul", v: 198 }, { l: "Aug", v: 241 }, { l: "Sep", v: 96 }];
+  // One period for the whole page (kept when switching tabs, AENR-466).
+  const [period, setPeriod] = usePeriod({ kind: "preset", preset: "season", offset: 0 });
+  const range = resolveRange(period) ?? resolveRange({ kind: "preset", preset: "season", offset: 0 })!;
+  const label = rangeLabel(range);
+  const noun = periodNoun(period);
+  const now = summarize(range);
+  const prev = summarize(comparisonRange(period, range));
+  const ly = summarize(lastYearRange(range));
+  const hasPrev = prev.openDays > 0;
+  const vs = comparisonLabel(period);
+  const g = granularityFor(range);
+  const axis = { hour: "Hour", day: "Day", week: "Week of", month: "Month" }[g];
+  const closed = now.openDays === 0;
+
+  /* ---- Figures, computed once and shared by the screen and the CSV ---- */
+  const ratio = (a: number, b: number) => (b ? a / b : 0);
+  const otherRev = now.byCapability.Lockers + now.byCapability.Parking;
+  const mix = [
+    { l: "Sunbeds", v: Math.round(ratio(now.byCapability.Sunbeds, now.revenue) * 100), c: "#0D9488", cls: "bg-teal-600" },
+    { l: "Tickets", v: Math.round(ratio(now.byCapability.Tickets, now.revenue) * 100), c: "#0ea5e9", cls: "bg-sky-500" },
+    { l: "Other", v: Math.round(ratio(otherRev, now.revenue) * 100), c: "#f59e0b", cls: "bg-amber-500" },
+  ];
+  const k = (s: typeof now) => ({
+    online: ratio(s.byChannel.Online.bookings, s.bookings),
+    refund: ratio(s.refunds.amount, s.revenue),
+    revpatb: ratio(s.revenue, s.setNights),
+    adr: ratio(s.byCapability.Sunbeds, s.setsSold),
+    attach: ratio(s.units.Lockers + s.units.Parking, s.bookings),
+    noShow: ratio(s.noShows, s.bookings),
+    cancel: ratio(s.cancellations, s.bookings),
+    setsPerBooking: ratio(s.setsSold, s.sunbedBookings),
+  });
+  const kn = k(now), kp = k(prev);
+  const pp = (a: number, b: number, digits = 0) => (hasPrev ? `${a - b >= 0 ? "+" : "−"}${Math.abs((a - b) * 100).toFixed(digits)}pp` : undefined);
+  const execKpis: { label: string; value: string; sub: string; trend?: string; tone?: string }[] = [
+    { label: "Revenue", value: fmtEUR(now.revenue), sub: vs, trend: hasPrev ? trendPct(now.revenue, prev.revenue) : undefined, tone: "teal" },
+    { label: "Bookings", value: fmtInt(now.bookings), sub: vs, trend: hasPrev ? trendPct(now.bookings, prev.bookings) : undefined },
+    { label: "Avg occupancy", value: fmtPct(now.occupancy), sub: "across zones", trend: trendPp(now.occupancy, prev.occupancy, hasPrev) },
+    { label: "Online share", value: fmtPct(kn.online), sub: "of bookings", trend: pp(kn.online, kp.online) },
+    { label: "Refund rate", value: fmtPct(kn.refund, 1), sub: "of revenue", trend: pp(kn.refund, kp.refund, 1), tone: "teal" },
+    { label: "RevPATB", value: `€${kn.revpatb.toFixed(1)}`, sub: "rev / available sunbed", trend: hasPrev ? trendPct(kn.revpatb, kp.revpatb) : undefined, tone: "indigo" },
+    { label: "ADR", value: `€${kn.adr.toFixed(1)}`, sub: "avg daily rate / set", trend: hasPrev ? trendPct(kn.adr, kp.adr) : undefined },
+    { label: "Ancillary attach", value: kn.attach.toFixed(2), sub: "extras per booking", trend: hasPrev ? `${kn.attach - kp.attach >= 0 ? "+" : "−"}${Math.abs(kn.attach - kp.attach).toFixed(2)}` : undefined },
+    { label: "No-show rate", value: fmtPct(kn.noShow, 1), sub: "of reservations", trend: pp(kn.noShow, kp.noShow, 1), tone: "teal" },
+  ];
+  const revSeries = series(range, (x) => x.revenue, g);
+  const bookSeries = series(range, (x) => x.bookings, g);
+  const paceVsLy = ly.bookings ? trendPct(now.bookings, ly.bookings) : undefined;
+  const zoneOcc = ZONES.map((z) => ({ id: z.id, l: z.name, v: Math.round((now.occupancyByZone[z.id] ?? 0) * 100) }));
+  const topZone = [...zoneOcc].sort((a, b) => b.v - a.v)[0];
+  const weekendLift = now.weekdayOccupancy ? Math.round((now.weekendOccupancy / now.weekdayOccupancy - 1) * 100) : 0;
+  const capRows = [
+    { l: "Sunbed", v: now.byCapability.Sunbeds }, { l: "Ticket", v: now.byCapability.Tickets },
+    { l: "Locker", v: now.byCapability.Lockers }, { l: "Parking", v: now.byCapability.Parking },
+  ];
+  const capMax = Math.max(...capRows.map((c) => c.v));
+  const zoneRev = ZONES.map((z) => ({ l: z.name, v: Math.round(now.revenueByZone[z.id] ?? 0) }));
+  // Heatmap: zone × time bucket (days for short ranges, weeks/months for long ones).
+  const heatBuckets = buckets(range, g === "hour" ? "day" : g);
+  const heat = ZONES.map((z) => ({ zone: z, cells: heatBuckets.map((b) => ({ b, v: summarize(b.range).occupancyByZone[z.id] ?? 0 })) }));
+  const chans = CHANNELS_A.map((c, i) => ({ c, b: now.byChannel[c].bookings, r: now.byChannel[c].revenue, share: Math.round(ratio(now.byChannel[c].revenue, now.revenue) * 100), color: ["#0ea5e9", "#f59e0b", "#6366f1", "#0D9488"][i], cls: ["bg-sky-500", "bg-amber-500", "bg-indigo-500", "bg-teal-600"][i] }));
+  const chanRole: Record<string, string> = { Online: "customer", "Walk-in": "controller", Phone: "call centre", Cashier: "on-site" };
+  // Customers: the seed top-customer list scaled to the period's share of a full season.
+  const seasonRev = summarize(resolveRange({ kind: "preset", preset: "season", offset: -1 })!).revenue;
+  const custScale = Math.min(1.2, ratio(now.revenue, seasonRev));
+  const topCustomers = closed ? [] : TOP_CUSTOMERS.map((c) => ({ ...c, visits: Math.max(1, Math.round(c.visits * custScale)), spendN: Math.round(moneyVal(c.spend) * custScale) }));
+  const vipRev = now.revenue * 0.17;
+  const tickets = REPORTING_TICKETS.filter((r) => inRange(isoFromDayMonth(r[3]), range));
+  // Operations: per-capability totals for the period; refunds split by revenue share.
+  const refundShare = (v: number) => Math.round(ratio(v, now.revenue) * now.refunds.amount);
+  const ops = [
+    { l: "Sunbed bookings", n: now.sunbedBookings, g: now.byCapability.Sunbeds },
+    { l: "Entry tickets", n: now.units.Tickets, g: now.byCapability.Tickets },
+    { l: "Day lockers", n: now.units.Lockers, g: now.byCapability.Lockers },
+    { l: "Parking", n: now.units.Parking, g: now.byCapability.Parking },
+  ].map((o) => ({ ...o, rf: refundShare(o.g), net: o.g - refundShare(o.g) }));
+  const opsTotal = ops.reduce((a, o) => ({ n: a.n + o.n, g: a.g + o.g, rf: a.rf + o.rf, net: a.net + o.net }), { n: 0, g: 0, rf: 0, net: 0 });
+  const eur = (n: number) => `€${Math.round(n).toLocaleString("en-GB")}`;
 
   // Build a faithful CSV of exactly what each tab shows — its KPI cards and its
-  // tables / chart series — so the export matches the screen, tab by tab.
+  // tables / chart series — for the selected period.
   const buildReport = (t: string): CsvSection[] => {
+    const head = `· ${label}`;
     switch (t) {
       case "exec":
         return [
-          { title: "Executive · key metrics", header: ["Metric", "Value", "Detail", "Change"], rows: [
-            ["Season revenue", "€704k", "vs last yr", "+9%"], ["Total bookings", "26,040", "sets sold", "+7%"],
-            ["Avg occupancy", "68%", "across zones", "+3pp"], ["Online share", "40%", "of sets", "+5pp"],
-            ["Refund rate", "1.4%", "of revenue", "-0.3pp"], ["RevPATB", "€18.4", "rev / available sunbed", "+6%"],
-            ["ADR", "€27.1", "avg daily rate / set", "+4%"], ["Ancillary attach", "0.7", "extras per booking", "+0.1"],
-            ["No-show rate", "2.8%", "of reservations", "-0.4pp"],
-          ] },
-          { title: "Revenue by month (€k)", header: ["Month", "Revenue"], rows: season.map((s) => [s.l, s.v]) },
-          { title: "Revenue mix", header: ["Category", "Share %"], rows: [["Sunbeds", 62], ["Tickets", 28], ["Other", 10]] },
-          { title: "Booking pace · on the books (vs same time last year)", header: ["Month", "Bookings"], rows: [["Jun", 121], ["Jul", 210], ["Aug", 198], ["Sep", 86], ["Oct", 22]] },
+          { title: `Executive · key metrics ${head}`, header: ["Metric", "Value", "Detail", "Change"], rows: execKpis.map((x) => [x.label, x.value, x.sub, x.trend ?? "—"]) },
+          { title: `Revenue by ${axis.toLowerCase()} (€)`, header: [axis, "Revenue"], rows: revSeries.map((d) => [d.l, d.v]) },
+          { title: "Revenue mix", header: ["Category", "Share %"], rows: mix.map((m) => [m.l, m.v]) },
+          { title: `Booking pace (vs same period last year ${paceVsLy ?? "—"})`, header: [axis, "Bookings"], rows: bookSeries.map((d) => [d.l, d.v]) },
         ];
       case "revenue":
         return [
-          { title: "Revenue by capability (€k)", header: ["Capability", "Revenue"], rows: [["Sunbed", 436], ["Ticket", 197], ["Locker", 31], ["Support", 40]] },
-          { title: "Revenue by zone (€k)", header: ["Zone", "Revenue"], rows: ZONES.map((z) => [z.name, Math.round(z.total * 1.1)]) },
-          { title: "All transactions", header: ["Tx", "Capability", "Channel", "Status", "Amount"], rows: REVENUE_TX.map((r) => [r[0], r[1], r[2].label, r[3].label, r[4]]) },
+          { title: `Revenue by capability (€) ${head}`, header: ["Capability", "Revenue"], rows: capRows.map((c) => [c.l, c.v]) },
+          { title: `Sunbed revenue by zone (€) ${head}`, header: ["Zone", "Revenue"], rows: zoneRev.map((z) => [z.l, z.v]) },
+          { title: "Latest transactions", header: ["Tx", "Capability", "Channel", "Status", "Amount"], rows: REVENUE_TX.map((r) => [r[0], r[1], r[2].label, r[3].label, r[4]]) },
         ];
       case "occupancy":
         return [
-          { title: "Occupancy by zone (%)", header: ["Zone", "Occupancy %"], rows: [["Akanthus", 67], ["Central", 83], ["Macaw", 91], ["Bestbuy", 78], ["Main", 68], ["Bolivar", 66]] },
-          { title: "Utilisation heatmap (% · week × zone)", header: ["Zone", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-            rows: ZONES.map((z) => [z.name, ...Array.from({ length: 7 }, (_, d) => Math.round((0.3 + ((z.total * 7 + d * 13) % 70) / 100) * 100))]) },
+          { title: `Occupancy by zone (%) ${head}`, header: ["Zone", "Occupancy %"], rows: zoneOcc.map((z) => [z.l, z.v]) },
+          { title: `Utilisation heatmap (% · zone × ${axis.toLowerCase()})`, header: ["Zone", ...heatBuckets.map((b) => b.label)], rows: heat.map((h) => [h.zone.name, ...h.cells.map((c) => Math.round(c.v * 100))]) },
         ];
       case "bookings":
         return [
-          { title: "Bookings · key metrics", header: ["Metric", "Value", "Detail"], rows: [
-            ["Avg lead time", "2.3d", "ahead of date"], ["Online vs walk-in", "40 / 60", "% split"], ["Cancellation", "3.1%", ""], ["Sets / booking", "1.8", ""],
+          { title: `Bookings · key metrics ${head}`, header: ["Metric", "Value"], rows: [
+            ["Avg lead time", `${now.avgLeadDays.toFixed(1)}d`], ["Online vs other", `${Math.round(kn.online * 100)} / ${100 - Math.round(kn.online * 100)}`], ["Cancellation", fmtPct(kn.cancel, 1)], ["Sets / booking", kn.setsPerBooking.toFixed(1)],
           ] },
-          { title: "Booking volume by day", header: ["Day", "Bookings"], rows: [["Mon", 120], ["Tue", 98], ["Wed", 142], ["Thu", 165], ["Fri", 210], ["Sat", 320], ["Sun", 298]] },
+          { title: `Booking volume by ${axis.toLowerCase()}`, header: [axis, "Bookings"], rows: bookSeries.map((d) => [d.l, d.v]) },
         ];
       case "channel":
         return [
-          { title: "Sales by channel & role", header: ["Channel", "Share %", "Revenue"], rows: [["Online (customer)", 40, "€281k"], ["Walk-in (controller)", 45, "€317k"], ["Cashier (on-site)", 15, "€106k"]] },
-          { title: "Channel by week (€k)", header: ["Week", "Revenue"], rows: [["W1", 48], ["W2", 56], ["W3", 71], ["W4", 64], ["W5", 78], ["W6", 82]] },
+          { title: `Sales by channel & role ${head}`, header: ["Channel", "Share %", "Bookings", "Revenue"], rows: chans.map((c) => [c.c, c.share, c.b, c.r]) },
+          { title: `Revenue by ${axis.toLowerCase()} (€)`, header: [axis, "Revenue"], rows: revSeries.map((d) => [d.l, d.v]) },
         ];
       case "customers":
         return [
-          { title: "Customers · key metrics", header: ["Metric", "Value", "Detail"], rows: [
-            ["New vs returning", "38 / 62", "% this season"], ["VIP segment rev", "€118k", "17% of total"], ["Season-pass holders", "412", ""],
+          { title: `Customers · key metrics ${head}`, header: ["Metric", "Value", "Detail"], rows: [
+            ["New vs returning", `${Math.round(ratio(now.newGuests, now.bookings) * 100)} / ${Math.round(ratio(now.returningGuests, now.bookings) * 100)}`, "% of bookings"], ["VIP segment rev", fmtEUR(vipRev), "17% of total"], ["Season-pass holders", "412", "active"],
           ] },
-          { title: "Top customers", header: ["Customer", "Segment", "Visits", "Spend"], rows: TOP_CUSTOMERS.map((c) => [c.name, c.segment.label, c.visits, c.spend]) },
+          { title: "Top customers", header: ["Customer", "Segment", "Visits", "Spend"], rows: topCustomers.map((c) => [c.name, c.segment.label, c.visits, eur(c.spendN)]) },
         ];
       case "tickets":
+        return [{ title: `Ticket history ${head}`, header: ["Ticket", "Category", "Issuer", "Date", "Customer type", "Revenue", "Status"], rows: tickets.map((r) => [r[0], r[1], r[2], r[3], r[4], r[5], r[6].label]) }];
+      case "daily":
         return [
-          { title: "Ticket history", header: ["Ticket", "Category", "Issuer", "Date", "Customer type", "Revenue", "Status"], rows: REPORTING_TICKETS.map((r) => [r[0], r[1], r[2], r[3], r[4], r[5], r[6].label]) },
-        ];
-      case "daily": {
-        const totals = DAILY_OPS.reduce((a, r) => ({ c: a.c + r[1], g: a.g + parseFloat(r[2].replace(/[^0-9.]/g, "")), rf: a.rf + parseFloat(r[3].replace(/[^0-9.−-]/g, "").replace("−", "-")), n: a.n + parseFloat(r[4].replace(/[^0-9.]/g, "")) }), { c: 0, g: 0, rf: 0, n: 0 });
-        return [
-          { title: "Daily operations · 19 Jul 2026", header: ["Capability", "Count", "Gross", "Refunds", "Net"], rows: [
-            ...DAILY_OPS.map((r) => [r[0], r[1], r[2], r[3], r[4]] as (string | number)[]),
-            ["Total", totals.c, `€${totals.g.toLocaleString()}`, `€${totals.rf.toLocaleString()}`, `€${totals.n.toLocaleString()}`],
+          { title: `Operations ${head}`, header: ["Capability", "Count", "Gross", "Refunds", "Net"], rows: [
+            ...ops.map((o) => [o.l, o.n, eur(o.g), `−${eur(o.rf)}`, eur(o.net)] as (string | number)[]),
+            ["Total", opsTotal.n, eur(opsTotal.g), `−${eur(opsTotal.rf)}`, eur(opsTotal.net)],
           ] },
-          { title: "Documents issued", header: ["Type", "Count", "Status"], rows: [["ΑΠΥ", 726, "MyDATA ✓"], ["ΤΠΥ", 12, "MyDATA ✓"]] },
+          { title: "Documents issued", header: ["Type", "Count", "Status"], rows: [["ΑΠΥ", now.bookings, "MyDATA ✓"], ["ΤΠΥ", now.refunds.count, "MyDATA ✓"]] },
         ];
-      }
       default:
-        return [{ title: t, header: ["Period", "Bookings"], rows: season.map((s) => [s.l, s.v]) }];
+        return [];
     }
   };
   const tabLabel = (t: string) => tabs.find((x) => x[0] === t)?.[1] ?? t;
-  const exportReport = (t: string) => { downloadCSVReport(`reporting-${t}.csv`, buildReport(t)); toast(`Exported the ${tabLabel(t)} report (CSV).`, { tone: "success" }); };
+  const exportReport = (t: string) => { downloadCSVReport(`reporting-${t}-${range.from}_${range.to}.csv`, buildReport(t)); toast(`Exported the ${tabLabel(t)} report (${label}, CSV).`, { tone: "success" }); };
+  const heatSteps = [
+    { max: 0.20, color: "#dbeafe", label: "0–20%", tone: "Empty" },
+    { max: 0.40, color: "#99f6e4", label: "20–40%", tone: "Low" },
+    { max: 0.60, color: "#5eead4", label: "40–60%", tone: "Moderate" },
+    { max: 0.80, color: "#fbbf24", label: "60–80%", tone: "Busy" },
+    { max: 1.01, color: "#ef4444", label: "80–100%", tone: "Peak" },
+  ];
+  const heatColor = (v: number) => (heatSteps.find((b) => v <= b.max) || heatSteps[heatSteps.length - 1]).color;
 
   return (
     <div className="animate-fade-up">
-      {/* Tabs and the period / export actions share one row. Tabs take the
-          natural width on the left, actions hug the right edge. */}
-      <div className="flex items-center gap-3 mb-4 flex-wrap">
+      {/* Tabs and the export action share one row; the period sits under it and
+          applies to every tab. */}
+      <div className="flex items-center gap-3 mb-3 flex-wrap">
         <Tabs tabs={tabs} value={tab} onChange={setTab} scroll />
         <div className="flex gap-2 ml-auto">
-          <Btn variant="outline" icon={Icon.calendar} onClick={() => toast("Demo — period picker.")}>This season</Btn>
           <Btn variant="primary" icon={Icon.download} onClick={() => exportReport(tab)}>Export</Btn>
         </div>
       </div>
+      <PeriodPicker value={period} onChange={setPeriod} presets={["day", "week", "month", "year", "season"]} resetTo={{ kind: "preset", preset: "season", offset: 0 }} className="mb-4" />
 
-      {tab === "exec" && <>
+      {closed && <EmptyState icon={Icon.umbrella} title="The beach was closed" body={`No activity in ${label}. The season runs 1 May – 30 Sep — pick a date inside it.`} />}
+
+      {!closed && tab === "exec" && <>
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <StatCard instant label="Season revenue" value="€704k" sub="vs last yr" tone="teal" trend="+9%" sparkline={<Sparkline data={[48,121,198,241,96]} />} />
-          <StatCard instant label="Total bookings" value="26,040" sub="sets sold" trend="+7%" sparkline={<Sparkline data={[120,98,142,165,210,320,298]} color="#0ea5e9" />} />
-          <StatCard instant label="Avg occupancy" value="68%" sub="across zones" trend="+3pp" />
-          <StatCard instant label="Online share" value="40%" sub="of sets" trend="+5pp" />
-          <StatCard instant label="Refund rate" value="1.4%" sub="of revenue" trend="-0.3pp" tone="teal" />
+          {execKpis.slice(0, 5).map((x, i) => <StatCard instant key={x.label} label={x.label} value={x.value} sub={x.sub} tone={x.tone} trend={x.trend}
+            sparkline={i === 0 ? <Sparkline data={revSeries.map((d) => d.v)} /> : i === 1 ? <Sparkline data={bookSeries.map((d) => d.v)} color="#0ea5e9" /> : undefined} />)}
         </div>
         {/* Leisure-industry KPIs (RevPATB ≈ RevPAR for sunbeds). */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-          <StatCard instant label="RevPATB" value="€18.4" sub="rev / available sunbed" tone="indigo" trend="+6%" />
-          <StatCard instant label="ADR" value="€27.1" sub="avg daily rate / set" trend="+4%" />
-          <StatCard instant label="Ancillary attach" value="0.7" sub="extras per booking" trend="+0.1" />
-          <StatCard instant label="No-show rate" value="2.8%" sub="of reservations" trend="-0.4pp" tone="teal" />
+          {execKpis.slice(5).map((x) => <StatCard instant key={x.label} label={x.label} value={x.value} sub={x.sub} tone={x.tone} trend={x.trend} />)}
         </div>
         <div className="grid lg:grid-cols-3 gap-4 mt-4">
-          <Card className="p-5 lg:col-span-2"><div className="font-semibold text-navy-900 mb-1">Revenue by month (€k)</div><LineChartMini data={season} /></Card>
+          <Card className="p-5 lg:col-span-2"><div className="font-semibold text-navy-900 mb-1">Revenue by {axis.toLowerCase()} (€) · {noun}</div><LineChartMini data={revSeries} label={`Revenue by ${axis.toLowerCase()}, ${label}`} /></Card>
           <Card className="p-5"><div className="font-semibold text-navy-900 mb-2">Revenue mix</div>
-            <div className="flex items-center gap-4"><Donut segments={[{ v: 62, c: "#0D9488" }, { v: 28, c: "#0ea5e9" }, { v: 10, c: "#f59e0b" }]} />
-              <div className="text-sm space-y-1.5"><Leg c="bg-teal-600" t="Sunbeds 62%" /><Leg c="bg-sky-500" t="Tickets 28%" /><Leg c="bg-amber-500" t="Other 10%" /></div></div>
+            <div className="flex items-center gap-4"><Donut segments={mix.map((m) => ({ v: m.v, c: m.c }))} label={`Revenue mix: ${mix.map((m) => `${m.l} ${m.v}%`).join(", ")}`} />
+              <div className="text-sm space-y-1.5">{mix.map((m) => <Leg key={m.l} c={m.cls} t={`${m.l} ${m.v}%`} />)}</div></div>
           </Card>
         </div>
-        {/* Pace / pickup + an actionable insight callout. */}
+        {/* Pace + an actionable insight callout derived from the period. */}
         <div className="grid lg:grid-cols-3 gap-4 mt-4">
           <Card className="p-5 lg:col-span-2">
-            <div className="font-semibold text-navy-900 mb-1">Booking pace · on the books vs same time last year</div>
-            <BarChart color="#3a47cc" data={[{ l: "Jun", v: 121 }, { l: "Jul", v: 210, hi: 1 }, { l: "Aug", v: 198, hi: 1 }, { l: "Sep", v: 86 }, { l: "Oct", v: 22 }]} />
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <div className="font-semibold text-navy-900">Booking pace · {noun}</div>
+              {paceVsLy && <Badge tone={paceVsLy.startsWith("+") ? "green" : "red"}>{paceVsLy} vs same period last year</Badge>}
+            </div>
+            <BarChart color="#3a47cc" data={bookSeries} label={`Bookings by ${axis.toLowerCase()}, ${label}`} />
           </Card>
           <div className="rounded-3xl bg-gradient-to-br from-slaice-600 to-slaice-500 text-white p-5 shadow-lift flex flex-col">
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-white/80"><Icon.sparkles size={14} /> Insight</div>
-            <div className="mt-2 font-display font-bold text-lg leading-snug">Saturdays run 23% hotter than weekdays.</div>
-            <p className="text-[13px] text-white/85 mt-1 leading-snug">Macaw hits 91% by noon. Consider dynamic weekend pricing on front-row sets to lift RevPATB.</p>
-            <Btn variant="light" size="sm" className="mt-auto self-start" icon={Icon.trend} onClick={() => toast("Demo — open dynamic pricing rules.")}>Set a rule</Btn>
+            <div className="mt-2 font-display font-bold text-lg leading-snug">{weekendLift > 0 ? `Weekends run ${weekendLift}% fuller than weekdays.` : "Demand is even across the week."}</div>
+            <p className="text-[13px] text-white/85 mt-1 leading-snug">{topZone.l} averages {topZone.v}% occupancy {noun}. Consider dynamic weekend pricing on front-row sets to lift RevPATB.</p>
+            <Btn variant="light" size="sm" className="mt-auto self-start" icon={Icon.trend} onClick={() => go("admin", "availability")}>Set a rule</Btn>
           </div>
         </div>
       </>}
 
-      {tab === "revenue" && <>
+      {!closed && tab === "revenue" && <>
         <div className="grid lg:grid-cols-2 gap-4">
-          <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Revenue by capability (€k)</div><BarChart data={[{ l: "Sunbed", v: 436, hi: 1 }, { l: "Ticket", v: 197 }, { l: "Locker", v: 31 }, { l: "Support", v: 40 }]} /></Card>
-          <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Revenue by zone (€k)</div><HBarChart color="#0ea5e9" data={ZONES.map((z) => ({ l: z.name, v: Math.round(z.total * 1.1) }))} /></Card>
+          <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Revenue by capability (€) · {noun}</div><BarChart data={capRows.map((c) => (c.v === capMax ? { ...c, hi: 1 } : c))} label={`Revenue by capability, ${label}`} /></Card>
+          <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Sunbed revenue by zone (€) · {noun}</div><HBarChart color="#0ea5e9" data={zoneRev} label={`Sunbed revenue by zone, ${label}`} /></Card>
         </div>
-        <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-2">All transactions (filterable)</div>
+        <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-2">Latest transactions</div>
           <Table cols={["Tx", "Capability", "Channel", "Status", "Amount"]} right={[4]}
             rows={REVENUE_TX.map((r) => [r[0], r[1], <Badge tone={r[2].tone}>{r[2].label}</Badge>, <Badge tone={r[3].tone}>{r[3].label}</Badge>, r[4].startsWith("−") ? <span className="text-rose-600 font-medium tnum">{r[4]}</span> : r[4]])} /></Card>
       </>}
 
-      {tab === "occupancy" && <>
-        <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Occupancy by zone (%)</div>
-          <HBarChart color="#0ea5e9" unit="%" max={100} data={[{ l: "Akanthus", v: 67 }, { l: "Central", v: 83 }, { l: "Macaw", v: 91, hi: 1 }, { l: "Bestbuy", v: 78 }, { l: "Main", v: 68 }, { l: "Bolivar", v: 66 }]} /></Card>
-        <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-3">Utilisation heatmap (week × zone)</div>
+      {!closed && tab === "occupancy" && <>
+        <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Occupancy by zone (%) · {noun}</div>
+          <HBarChart color="#0ea5e9" unit="%" max={100} data={zoneOcc.map((z) => (z.id === topZone.id ? { l: z.l, v: z.v, hi: 1 } : { l: z.l, v: z.v }))} label={`Occupancy by zone, ${label}`} /></Card>
+        <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-3">Utilisation heatmap (zone × {axis.toLowerCase()})</div>
           {/* Sequential 5-step palette common in hospitality / yield reports:
-              cool light = capacity to sell, warm = approaching peak. Matches
-              what STR / RMS dashboards typically show for occupancy. */}
-          {(() => {
-            const buckets = [
-              { max: 0.20, color: "#dbeafe", label: "0–20%",   tone: "Empty" },
-              { max: 0.40, color: "#99f6e4", label: "20–40%",  tone: "Low" },
-              { max: 0.60, color: "#5eead4", label: "40–60%",  tone: "Moderate" },
-              { max: 0.80, color: "#fbbf24", label: "60–80%",  tone: "Busy" },
-              { max: 1.01, color: "#ef4444", label: "80–100%", tone: "Peak" },
-            ];
-            const colorFor = (v: number) => (buckets.find((b) => v <= b.max) || buckets[buckets.length - 1]).color;
-            return (
-              <>
-                <div className="space-y-1.5">
-                  {ZONES.map((z) => (<div key={z.id} className="flex items-center gap-2">
-                    <div className="w-16 text-[12px] text-slate-500">{z.name}</div>
-                    <div className="flex gap-1">{Array.from({ length: 7 }).map((_, d) => { const v = 0.3 + ((z.total * 7 + d * 13) % 70) / 100; return <div key={d} className="w-7 h-6 rounded ring-1 ring-white/60" style={{ background: colorFor(v) }} title={`${Math.round(v * 100)}%`} />; })}</div>
-                  </div>))}
-                  <div className="flex gap-1 ml-[72px] pt-1 text-[10px] text-slate-600">{["M", "T", "W", "T", "F", "S", "S"].map((d, i) => <div key={i} className="w-7 text-center">{d}</div>)}</div>
-                </div>
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-3 flex-wrap text-[11.5px] text-slate-600">
-                  <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10.5px]">Occupancy</span>
-                  {buckets.map((b) => (
-                    <span key={b.label} className="inline-flex items-center gap-1.5">
-                      <i className="w-4 h-4 rounded ring-1 ring-white/60 inline-block" style={{ background: b.color }} />
-                      <span className="tnum">{b.label}</span>
-                      <span className="text-slate-400">· {b.tone}</span>
-                    </span>
-                  ))}
-                </div>
-              </>
-            );
-          })()}
+              cool light = capacity to sell, warm = approaching peak. */}
+          <div className="overflow-x-auto no-scrollbar">
+            <div className="space-y-1.5 w-max">
+              {heat.map((h) => (<div key={h.zone.id} className="flex items-center gap-2">
+                <div className="w-16 text-[12px] text-slate-500 shrink-0">{h.zone.name}</div>
+                <div className="flex gap-1">{h.cells.map((c) => <div key={c.b.key} className="w-7 h-6 rounded ring-1 ring-white/60" style={{ background: heatColor(c.v) }} title={`${h.zone.name} · ${c.b.label}: ${Math.round(c.v * 100)}%`} />)}</div>
+              </div>))}
+              <div className="flex gap-1 ml-[72px] pt-1 text-[10px] text-slate-600">{heatBuckets.map((b) => <div key={b.key} className="w-7 text-center">{g === "month" ? b.label : `${Number(b.range.from.slice(8))}/${Number(b.range.from.slice(5, 7))}`}</div>)}</div>
+            </div>
+          </div>
+          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-3 flex-wrap text-[11.5px] text-slate-600">
+            <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10.5px]">Occupancy</span>
+            {heatSteps.map((b) => (
+              <span key={b.label} className="inline-flex items-center gap-1.5">
+                <i className="w-4 h-4 rounded ring-1 ring-white/60 inline-block" style={{ background: b.color }} />
+                <span className="tnum">{b.label}</span>
+                <span className="text-slate-400">· {b.tone}</span>
+              </span>
+            ))}
+          </div>
         </Card>
       </>}
 
-      {tab === "bookings" && <>
+      {!closed && tab === "bookings" && <>
         <div className="grid sm:grid-cols-4 gap-4">
-          <StatCard label="Avg lead time" value="2.3d" sub="ahead of date" /><StatCard label="Online vs walk-in" value="40 / 60" sub="% split" /><StatCard label="Cancellation" value="3.1%" /><StatCard label="Sets / booking" value="1.8" />
+          <StatCard label="Avg lead time" value={`${now.avgLeadDays.toFixed(1)}d`} sub="ahead of date" />
+          <StatCard label="Online vs other" value={`${Math.round(kn.online * 100)} / ${100 - Math.round(kn.online * 100)}`} sub="% of bookings" />
+          <StatCard label="Cancellation" value={fmtPct(kn.cancel, 1)} sub={vs} trend={pp(kn.cancel, kp.cancel, 1)} />
+          <StatCard label="Sets / booking" value={kn.setsPerBooking.toFixed(1)} sub="sunbed bookings" />
         </div>
-        <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-1">Booking volume by day</div><LineChartMini data={[{ l: "Mon", v: 120 }, { l: "Tue", v: 98 }, { l: "Wed", v: 142 }, { l: "Thu", v: 165 }, { l: "Fri", v: 210 }, { l: "Sat", v: 320 }, { l: "Sun", v: 298 }]} /></Card>
+        <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-1">Booking volume by {axis.toLowerCase()} · {noun}</div><LineChartMini data={bookSeries} label={`Bookings by ${axis.toLowerCase()}, ${label}`} /></Card>
       </>}
 
-      {tab === "channel" && <div className="grid lg:grid-cols-[1fr_1fr] gap-4">
-        <Card className="p-5"><div className="font-semibold text-navy-900 mb-3">Sales by channel & role</div>
+      {!closed && tab === "channel" && <div className="grid lg:grid-cols-[1fr_1fr] gap-4">
+        <Card className="p-5"><div className="font-semibold text-navy-900 mb-3">Sales by channel & role · {noun}</div>
           <div className="flex items-center justify-center gap-7 flex-wrap py-3">
-            <Donut segments={[{ v: 40, c: "#0ea5e9" }, { v: 45, c: "#f59e0b" }, { v: 15, c: "#0D9488" }]} size={200} />
+            <Donut segments={chans.map((c) => ({ v: c.share, c: c.color }))} size={200} label={`Sales by channel: ${chans.map((c) => `${c.c} ${c.share}%`).join(", ")}`} />
             <div className="text-[14px] space-y-3">
-              <Leg c="bg-sky-500" t="Online (customer) — 40% · €281k" /><Leg c="bg-amber-500" t="Walk-in (controller) — 45% · €317k" /><Leg c="bg-teal-600" t="Cashier (on-site) — 15% · €106k" />
+              {chans.map((c) => <Leg key={c.c} c={c.cls} t={`${c.c} (${chanRole[c.c]}) — ${c.share}% · ${fmtEUR(c.r)}`} />)}
             </div>
           </div>
         </Card>
-        <Card className="p-5"><div className="font-semibold text-navy-900 mb-2">Channel by week (€k)</div>
-          <BarChart color="#0ea5e9" data={[{ l: "W1", v: 48 }, { l: "W2", v: 56 }, { l: "W3", v: 71, hi: 1 }, { l: "W4", v: 64 }, { l: "W5", v: 78 }, { l: "W6", v: 82, hi: 1 }]} />
+        <Card className="p-5"><div className="font-semibold text-navy-900 mb-2">Revenue by {axis.toLowerCase()} · all channels</div>
+          <BarChart color="#0ea5e9" data={revSeries} label={`Revenue by ${axis.toLowerCase()}, ${label}`} />
         </Card>
       </div>}
 
-      {tab === "customers" && <>
+      {!closed && tab === "customers" && <>
         <div className="grid sm:grid-cols-3 gap-4">
-          <StatCard label="New vs returning" value="38 / 62" sub="% this season" /><StatCard label="VIP segment rev" value="€118k" sub="17% of total" /><StatCard label="Season-pass holders" value="412" />
+          <StatCard label="New vs returning" value={`${Math.round(ratio(now.newGuests, now.bookings) * 100)} / ${Math.round(ratio(now.returningGuests, now.bookings) * 100)}`} sub="% of bookings" />
+          <StatCard label="VIP segment rev" value={fmtEUR(vipRev)} sub="17% of total" />
+          <StatCard label="Season-pass holders" value="412" sub="active" />
         </div>
-        <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-2">Top customers</div>
+        <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-2">Top customers · {noun}</div>
           <Table cols={["Customer", "Segment", "Visits", "Spend"]} right={[2, 3]}
-            rows={TOP_CUSTOMERS.map((c) => [c.name, <Badge tone={c.segment.tone}>{c.segment.label}</Badge>, c.visits, c.spend])} /></Card>
+            rows={topCustomers.map((c) => [c.name, <Badge tone={c.segment.tone}>{c.segment.label}</Badge>, c.visits, eur(c.spendN)])} /></Card>
       </>}
 
-      {tab === "tickets" && <Card className="p-5"><div className="flex items-center justify-between mb-2"><div className="font-semibold text-navy-900">Ticket history</div><Btn size="sm" variant="outline" icon={Icon.download} onClick={() => exportReport("tickets")}>CSV</Btn></div>
-        <Table cols={["Ticket", "Category", "Issuer", "Date", "Customer type", "Revenue", "Status"]} right={[5]}
-          rows={REPORTING_TICKETS.map((r) => [r[0], r[1], r[2], r[3], r[4], r[5], <Badge tone={r[6].tone}>{r[6].label}</Badge>])} /></Card>}
+      {!closed && tab === "tickets" && <Card className="p-5"><div className="flex items-center justify-between mb-2"><div className="font-semibold text-navy-900">Ticket history · {noun}</div><Btn size="sm" variant="outline" icon={Icon.download} onClick={() => exportReport("tickets")}>CSV</Btn></div>
+        {tickets.length
+          ? <Table cols={["Ticket", "Category", "Issuer", "Date", "Customer type", "Revenue", "Status"]} right={[5]}
+              rows={tickets.map((r) => [r[0], r[1], r[2], r[3], r[4], r[5], <Badge tone={r[6].tone}>{r[6].label}</Badge>])} />
+          : <EmptyState compact icon={Icon.ticket} title="No tickets in this period" body="Try a wider range, e.g. This season." />}
+      </Card>}
 
-      {tab === "daily" && <Card className="p-5"><div className="flex items-center justify-between mb-2"><div className="font-semibold text-navy-900">Daily operations · 19 Jul 2026</div><Btn size="sm" variant="outline" icon={Icon.download} onClick={() => exportReport("daily")}>Export</Btn></div>
-        <Table cols={["Capability", "Count", "Gross", "Refunds", "Net"]} right={[1, 2, 3, 4]} rows={(() => {
-          const totals = DAILY_OPS.reduce((a, r) => ({ c: a.c + r[1], g: a.g + parseFloat(r[2].replace(/[^0-9.]/g, "")), rf: a.rf + parseFloat(r[3].replace(/[^0-9.−-]/g, "").replace("−", "-")), n: a.n + parseFloat(r[4].replace(/[^0-9.]/g, "")) }), { c: 0, g: 0, rf: 0, n: 0 });
-          return [
-            ...DAILY_OPS.map((r) => [r[0], r[1], r[2], r[3] === "€0" ? "€0" : <span className="text-rose-600 font-medium tnum">{r[3]}</span>, r[4]]),
-            [<b>Total</b>, <b>{totals.c}</b>, <b>€{totals.g.toLocaleString()}</b>, <b className="text-rose-600">€{totals.rf.toLocaleString()}</b>, <b>€{totals.n.toLocaleString()}</b>],
-          ];
-        })()} />
-        <div className="mt-3 text-[12px] text-slate-600">Documents issued: 726 ΑΠΥ · 12 ΤΠΥ · all transmitted to MyDATA ✓</div></Card>}
+      {!closed && tab === "daily" && <Card className="p-5"><div className="flex items-center justify-between mb-2"><div className="font-semibold text-navy-900">Daily operations · {label}</div><Btn size="sm" variant="outline" icon={Icon.download} onClick={() => exportReport("daily")}>Export</Btn></div>
+        <Table cols={["Capability", "Count", "Gross", "Refunds", "Net"]} right={[1, 2, 3, 4]} rows={[
+          ...ops.map((o) => [o.l, fmtInt(o.n), eur(o.g), o.rf ? <span className="text-rose-600 font-medium tnum">−{eur(o.rf)}</span> : "€0", eur(o.net)]),
+          [<b>Total</b>, <b>{fmtInt(opsTotal.n)}</b>, <b>{eur(opsTotal.g)}</b>, <b className="text-rose-600">−{eur(opsTotal.rf)}</b>, <b>{eur(opsTotal.net)}</b>],
+        ]} />
+        <div className="mt-3 text-[12px] text-slate-600">Documents issued: {fmtInt(now.bookings)} ΑΠΥ · {fmtInt(now.refunds.count)} ΤΠΥ · all transmitted to MyDATA ✓</div></Card>}
     </div>
   );
 }
@@ -1619,7 +1715,8 @@ function RefundDone({ amount, type, reason, tx }: { amount: number; type: string
 export function AdminRefunds() {
   const { toast } = useApp();
   const [modal, setModal] = useState<number | null>(null);
-  const [period, setPeriod] = useState("month");
+  // The shared period filters the KPIs, the list and the export (AENR-466).
+  const [period, setPeriod] = usePeriod({ kind: "preset", preset: "month", offset: 0 });
   const [rows, setRows] = useState(ADMIN_REFUNDS);
   const [stage, setStage] = useState<"form" | "processing" | "done">("form");
   const [step, setStep] = useState(0);
@@ -1629,9 +1726,21 @@ export function AdminRefunds() {
   // so the processing/done stages and the row update agree on one figure.
   const [amount, setAmount] = useState(0);
   const [committed, setCommitted] = useState(0);
-  const refunded = rows.filter((r) => r.status === "Refunded").reduce((a, b) => a + (b.refundAmount ?? b.amount), 0);
-  const refundedCount = rows.filter((r) => r.status === "Refunded").length;
-  const pending = rows.filter((r) => !r.status).length;
+  const range = resolveRange(period);
+  const label = range ? rangeLabel(range) : "All dates";
+  const noun = periodNoun(period);
+  // Rows keep their index into `rows` so the Refund action targets the right one.
+  const visible = rows.map((r, i) => ({ r, i })).filter(({ r }) => inRange(isoFromDayMonth(r.date), range));
+  // Totals come from the shared analytics so they match Reporting for the same dates.
+  const now = range ? summarize(range) : null;
+  const prevS = range ? summarize(comparisonRange(period, range)) : null;
+  const hasPrev = !!prevS && prevS.openDays > 0;
+  const refundRate = now && now.revenue ? now.refunds.amount / now.revenue : 0;
+  const prevRate = prevS && prevS.revenue ? prevS.refunds.amount / prevS.revenue : 0;
+  const pending = visible.filter(({ r }) => !r.status).length;
+  const reasons = visible.filter(({ r }) => r.reason).reduce<Record<string, number>>((a, { r }) => ({ ...a, [r.reason]: (a[r.reason] ?? 0) + 1 }), {});
+  const topReason = Object.entries(reasons).sort((a, b) => b[1] - a[1])[0];
+  const reasonTotal = Object.values(reasons).reduce((a, b) => a + b, 0);
   const active = modal !== null ? rows[modal] : null;
   const activeLast = active ? personByFirst(active.who)?.last ?? "" : "";
   const total = active?.amount ?? 0;
@@ -1644,13 +1753,13 @@ export function AdminRefunds() {
   // Functional CSV export — each field in its own column, mirroring the table
   // (matches the itemised Bookings export). Refunded amount only set once issued.
   const exportCSV = () => {
-    const data = rows.map((r) => {
+    const data = visible.map(({ r }) => {
       const p = personByFirst(r.who);
       const refunded = r.status === "Refunded" ? (r.refundAmount ?? r.amount) : "";
       return [r.tx, r.date || "—", r.who, p?.last || "—", p?.phone || "—", r.amount, refunded, r.reason || "—", r.status || "Pending"];
     });
-    downloadCSV("refunds.csv", ["Transaction", "Date", "Name", "Surname", "Phone", "Charge (€)", "Refunded (€)", "Reason", "Status"], data);
-    toast(`Exported ${rows.length} refunds to CSV.`, { tone: "success" });
+    downloadCSV(range ? `refunds-${range.from}_${range.to}.csv` : "refunds.csv", ["Transaction", "Date", "Name", "Surname", "Phone", "Charge (€)", "Refunded (€)", "Reason", "Status"], data);
+    toast(`Exported ${visible.length} refunds (${label}) to CSV.`, { tone: "success" });
   };
 
   // Walk through the Stripe steps once processing starts, then mark refunded.
@@ -1671,19 +1780,18 @@ export function AdminRefunds() {
   return (
     <div className="animate-fade-up">
       <PageHead title="Refunds" sub="Partial or full refunds via Stripe, with reason logging and auto credit-note (MyDATA)." badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<>
-          <Tabs tabs={[["week", "Week"], ["month", "Month"], ["season", "Season"]]} value={period} onChange={setPeriod} />
-          <Btn variant="outline" icon={Icon.download} onClick={exportCSV}>Export</Btn>
-        </>} />
+        actions={<Btn variant="outline" icon={Icon.download} onClick={exportCSV}>Export</Btn>} />
+      <PeriodPicker value={period} onChange={setPeriod} presets={["day", "week", "month", "season"]} allowAll resetTo={{ kind: "preset", preset: "month", offset: 0 }} className="mb-4" />
       <div className="grid sm:grid-cols-4 gap-4 mb-4">
-        <StatCard label="Refunded · this month" value={`€${refunded}`} sub={`${refundedCount} transaction${refundedCount !== 1 ? "s" : ""}`} tone="teal" />
+        <StatCard label={`Refunded · ${noun}`} value={now ? fmtEUR(now.refunds.amount) : "—"} sub={now ? `${fmtInt(now.refunds.count)} transactions` : "pick a period"} tone="teal" trend={now && hasPrev ? trendPct(now.refunds.amount, prevS.refunds.amount) : undefined} />
         <StatCard label="Pending review" value={pending} sub="awaiting decision" />
-        <StatCard label="Refund rate" value="1.4%" sub="of total sales" />
-        <StatCard label="Top reason" value="Double booking" sub="33% of refunds" tone="indigo" />
+        <StatCard label="Refund rate" value={now ? fmtPct(refundRate, 1) : "—"} sub="of total sales" trend={now && hasPrev ? `${refundRate - prevRate >= 0 ? "+" : "−"}${Math.abs((refundRate - prevRate) * 100).toFixed(1)}pp` : undefined} />
+        <StatCard label="Top reason" value={topReason ? topReason[0] : "—"} sub={topReason ? `${Math.round((topReason[1] / reasonTotal) * 100)}% of refunds` : "no refunds yet"} tone="indigo" />
       </div>
       <Card className="p-2">
+        {visible.length === 0 ? <EmptyState compact icon={Icon.refund} title="No refunds in this period" body={`Nothing was requested in ${label}.`} action={<Btn size="sm" variant="outline" onClick={() => setPeriod({ kind: "all" })}>Show all dates</Btn>} /> :
         <Table cols={["Transaction", "Date", "Name", "Surname", "Phone", "Amount", "Reason", "Status", ""]} right={[5]}
-          rows={rows.map((r, i) => {
+          rows={visible.map(({ r, i }) => {
             const p = personByFirst(r.who);
             return [r.tx, r.date || "—", r.who, p?.last || "—", p?.phone ? <span className="tnum whitespace-nowrap">{p.phone}</span> : "—",
               r.refundAmount != null && r.refundAmount < r.amount
@@ -1692,7 +1800,7 @@ export function AdminRefunds() {
               r.reason || "—",
               r.status ? <Badge tone="green">{r.status}</Badge> : <Badge tone="amber">Pending</Badge>,
               r.status ? <span className="text-slate-500 text-sm">done</span> : <Btn size="sm" variant="outline" icon={Icon.refund} onClick={() => openRefund(i)}>Refund</Btn>];
-          })} />
+          })} />}
       </Card>
       <Modal open={modal !== null} onClose={() => setModal(null)} title={stage === "done" ? "Refund complete" : "Issue refund"}
         footer={
