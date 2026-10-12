@@ -15,6 +15,7 @@ import { PayLinks } from "./screens/PayLinks";
 import { AdminDisplay } from "./screens/display/AdminDisplay";
 import * as AC from "./screens/accountant";
 import { AccountantReports } from "./screens/reporting/FinanceTabs";
+import { DocsPayments } from "./screens/accountant/DocsPayments";
 import * as P from "./screens/platform";
 
 const MAP: Record<string, () => ReactElement> = {
@@ -68,7 +69,7 @@ const MAP: Record<string, () => ReactElement> = {
   "admin.paylinks": () => <PayLinks />,
   "admin.display": () => <AdminDisplay />,
   // accountant
-  "accountant.invoicing": () => <AC.AccountantInvoicing />,
+  "accountant.documents": () => <DocsPayments />,
   "accountant.commission": () => <AC.AccountantCommission />,
   "accountant.reports": () => <AccountantReports />,
   // platform
@@ -89,7 +90,7 @@ const FALLBACK: Record<PersonaId, () => ReactElement> = {
   cashier: () => <CA.CashierIssue />,
   controller: () => <CT.ControllerScan />,
   support: () => <CT.ControllerScan />,
-  accountant: () => <AC.AccountantInvoicing />,
+  accountant: () => <DocsPayments />,
   platform: () => <P.PlatformTenants />,
 };
 

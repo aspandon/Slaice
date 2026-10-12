@@ -185,29 +185,6 @@ export const RECENT_VALIDATIONS = [
   { id: "#TK-54988", sub: "Entry · Resident ×2", state: "valid" },
 ];
 
-// Accountant invoicing docs (tenant-wide)
-export const ACCOUNTANT_DOCS = [
-  { d: "ΑΠΥ-2026-004281", t: "ΑΠΥ", mark: "400001020304002281", amt: "€30", st: "MyDATA ✓", type: "issued", date: "19 Jul" },
-  { d: "ΑΠΥ-2026-004280", t: "ΑΠΥ", mark: "400001020304002280", amt: "€25", st: "MyDATA ✓", type: "issued", date: "19 Jul" },
-  { d: "ΑΠΥ-2026-004279", t: "ΑΠΥ", mark: "400001020304002279", amt: "€44", st: "MyDATA ✓", type: "issued", date: "19 Jul" },
-  { d: "ΑΠΥ-2026-004278", t: "ΑΠΥ", mark: "400001020304002278", amt: "€18", st: "MyDATA ✓", type: "issued", date: "19 Jul" },
-  { d: "ΑΠΥ-2026-004277", t: "ΑΠΥ", mark: "400001020304002277", amt: "€35", st: "MyDATA ✓", type: "issued", date: "19 Jul" },
-  { d: "ΑΠΥ-2026-004276", t: "ΑΠΥ", mark: "400001020304002276", amt: "€15", st: "MyDATA ✓", type: "issued", date: "19 Jul" },
-  { d: "ΤΠΥ-2026-000118", t: "ΤΠΥ", mark: "400001020304000118", amt: "€120", st: "MyDATA ✓", type: "issued", date: "18 Jul" },
-  { d: "ΑΠΥ-2026-004210", t: "ΑΠΥ", mark: "400001020304002210", amt: "€28", st: "MyDATA ✓", type: "issued", date: "16 Jul" },
-  { d: "ΤΠΥ-2026-000117", t: "ΤΠΥ", mark: "400001020304000117", amt: "€240", st: "MyDATA ✓", type: "issued", date: "15 Jul" },
-  { d: "ΑΠΥ-2026-004102", t: "ΑΠΥ", mark: "400001020304002102", amt: "€25", st: "MyDATA ✓", type: "issued", date: "12 Jul" },
-  { d: "ΑΠΥ-2026-004044", t: "ΑΠΥ", mark: "400001020304004044", amt: "€43", st: "MyDATA ✓", type: "issued", date: "12 Jul" },
-  { d: "ΑΠΥ-2026-003988", t: "ΑΠΥ", mark: "400001020304003988", amt: "€30", st: "MyDATA ✓", type: "issued", date: "06 Jul" },
-  { d: "ΑΠΥ-2026-003901", t: "ΑΠΥ", mark: "400001020304003901", amt: "€18", st: "Retry queue", type: "issued", date: "06 Jul" },
-  { d: "ΑΚΥ-2026-000044", t: "Cancellation", mark: "400001020304000044", amt: "−€30", st: "Issued", type: "cancelled", date: "18 Jul" },
-  { d: "ΑΚΥ-2026-000043", t: "Cancellation", mark: "400001020304000043", amt: "−€35", st: "Issued", type: "cancelled", date: "08 Jul" },
-  { d: "ΑΚΥ-2026-000042", t: "Cancellation", mark: "400001020304000042", amt: "−€25", st: "Issued", type: "cancelled", date: "06 Jul" },
-  { d: "ΑΚΥ-2026-000041", t: "Cancellation", mark: "400001020304000041", amt: "−€22", st: "Issued", type: "cancelled", date: "01 Jul" },
-  { d: "ΠΙΣ-2026-000012", t: "Credit (5.1)", mark: "400001020304000012", amt: "−€22", st: "MyDATA ✓", type: "credited", date: "12 Jul" },
-  { d: "ΠΙΣ-2026-000011", t: "Credit (5.1)", mark: "400001020304000011", amt: "−€28", st: "MyDATA ✓", type: "credited", date: "10 Jul" },
-];
-
 // Accountant monthly payouts
 export const ACCOUNTANT_PAYOUTS = [
   ["May", "€48,000", "−€700", "−€2,400", "€44,900"],

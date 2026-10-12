@@ -1704,6 +1704,23 @@ For a guest who isn't at the beach yet — Support Agent, Call Center and Admin 
 
 ## 12. User journeys — Accountant
 
+### F-00 · Documents & Payments [MVP] (AENR-526) — the Accountant's landing page
+
+- `#/accountant/documents` (old `#/accountant/invoicing` links redirect), read-only, two tabs, with the shared
+  period control, section chips, filters (type, myDATA status, channel) and search (number, MARK, receipt,
+  amount). Data: `src/data/ledger.ts`, built from the same per-day / per-section figures as Reporting plus the
+  demo's real activity (Cashier sales and refunds, online bookings, paid pay-by-links — badged _Live_).
+- **Documents**: ΑΠΥ, ΤΠΥ, ΠΑΠΥ, ΠΤΠΥ and cancellations with series / number, date and time, counterparty
+  (retail customer, or company + VAT no. for ΤΠΥ), store and channel, net, VAT, total, payment method, MARK and
+  status (sent / pending / failed). Credits and cancellations link to the original document and the original
+  lists its credits (both clickable in the document view, which also has the lines and a PDF).
+- **Payments**: one row per card charge — time, transaction id, booking / receipt, store and channel, card
+  brand ···last4 and POS terminal, amount, fee, net, payout date and status (captured / in payout / paid out /
+  refunded). Totals equal Reporting › Payments for the same period and section (shown under the totals).
+- **Accounting CSV** of exactly the filtered rows (UTF-8, Greek kept): date, time, myDATA type code, type,
+  series, number, counterparty and VAT no., net, VAT rate, VAT, total, method, MARK, original document, store,
+  channel, status; **CSV per line** for documents; period and filters in the ASCII file name.
+
 ### F-01 · e-Invoicing & MyDATA [MVP]
 
 ```text

@@ -21,6 +21,7 @@ const EXTRA_PAGES: Partial<Record<PersonaId, string[]>> = {
 // Retired pages that now live elsewhere — old links keep working.
 const PAGE_ALIASES: Partial<Record<PersonaId, Record<string, string>>> = {
   admin: { map: "availability" }, // Map Layout Editor merged into Beach, Availability & Pricing (AENR-469)
+  accountant: { invoicing: "documents" }, // e-Invoicing & MyDATA merged into Documents & Payments (AENR-526)
 };
 export const resolvePage = (persona: PersonaId, page: string) => PAGE_ALIASES[persona]?.[page] ?? page;
 

@@ -50,7 +50,7 @@ function r(key: string): number {
 
 const dayCache = new Map<string, Record<string, SectionDay>>();
 /** Sample figures for one arrival day, per section. */
-function sampleDay(iso: string): Record<string, SectionDay> {
+export function sampleDay(iso: string): Record<string, SectionDay> {
   const hit = dayCache.get(iso);
   if (hit) return hit;
   const s = dayStats(iso);
