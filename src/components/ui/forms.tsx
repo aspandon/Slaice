@@ -24,10 +24,12 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
 );
 type SelectOption = string | { v: string; l: string };
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement> & { options?: SelectOption[] }>(
-  function Select({ options = [], className = "", ...props }, ref) {
+  // `options` for a flat list; or pass <option>/<optgroup> children for grouped lists.
+  function Select({ options = [], className = "", children, ...props }, ref) {
     return (
       <select ref={ref} {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-base sm:text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none cursor-pointer ${className}`}>
         {options.map((o) => (typeof o === "string" ? <option key={o} value={o}>{o}</option> : <option key={o.v} value={o.v}>{o.l}</option>))}
+        {children}
       </select>
     );
   },

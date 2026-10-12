@@ -40,6 +40,16 @@ export interface StaffAuditEntry {
   action: string;
 }
 
+/** Guest CRM state (Users & Segments) — persisted demo state. Segments and
+ *  tag definitions are the tenant's; `edits` overlays the seed customers. */
+export interface CrmState {
+  segments: import("./segments").Segment[];
+  tagDefs: { name: string; color: string }[];
+  edits: Record<number, Partial<Customer>>;
+  /** Visits after which a guest counts as Regular (system rule). */
+  regularAfter: number;
+}
+
 export type PersonaId =
   | "customer"
   | "admin"

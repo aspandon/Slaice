@@ -10,7 +10,7 @@ import type { Achievement } from "../data/gamification";
 import { DEFAULT_ZONE_MAP, DEFAULT_PRICE_RULES } from "../data/pricing";
 import { DEFAULT_CHANNELS } from "../data/channels";
 import { DEFAULT_PASS_CARDS } from "../data/passDesigns";
-import type { BeachBackground, BookingNote, StaffAuditEntry, StaffUser, CartItem, CartKind, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "../domain/types";
+import type { BeachBackground, BookingNote, CrmState, StaffAuditEntry, StaffUser, CartItem, CartKind, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "../domain/types";
 import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "../data/beach";
 import type { SceneFx, WeatherKind } from "../data/beach";
 
@@ -123,7 +123,12 @@ export interface AppContextValue {
   viewAs: StaffUser | null;
   startViewAs: (userId: string) => void;
   exitViewAs: () => void;
+  /** Guest CRM: saved segments, tags, profile edits — persisted. */
+  crm: CrmState;
+  setCrm: (updater: (c: CrmState) => CrmState) => void;
 }
+
+export const DEFAULT_CRM: CrmState = { segments: [], tagDefs: [{ name: "Wedding party", color: "#a855f7" }, { name: "Local", color: "#0D9488" }], edits: {}, regularAfter: 15 };
 
 const DEFAULT_CONSENT: Consent = {
   necessary: true,
@@ -191,6 +196,8 @@ export const AppCtx = createContext<AppContextValue>({
   viewAs: null,
   startViewAs: () => {},
   exitViewAs: () => {},
+  crm: DEFAULT_CRM,
+  setCrm: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);

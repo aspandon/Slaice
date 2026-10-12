@@ -1055,7 +1055,14 @@ no Export and no refunds.
  └─────────────────────────────────────┘    └────────────────────────────────────┘
 ```
 
-- Search, tag filters **All / VIP / Season pass / Regular / New**, **New tag** (demo).
+- **Segments** (`src/screens/users/`, `src/domain/segments.ts`, `src/data/guests.ts`): chips for All guests,
+  the built-in VIP, Season pass, Regular and New (the New → Regular visit threshold is editable from the
+  Regular segment) and the tenant's saved segments, each with a live count. **New segment** opens a
+  builder: name, colour, dynamic or static, AND / OR, conditions on visits, spend, avg spend, first /
+  last visit, days since last visit, channel, favourite zone, items bought, party size, pass, loyalty
+  tier, refunds, language, city, marketing consent and tags, with a live preview of who matches.
+  Segment actions: edit, duplicate, export CSV, message (→ Communicate), delete. **New tag** creates
+  real tags (name + colour) assignable in Edit user. Segments, tags and edits persist in `localStorage`.
 - Rule banner: every guest starts **New** and becomes **Regular** after **15 visits**; **VIP** and
   **Season pass** are assigned by hand.
 - Table: Name, Surname, Phone, Email, Visits, Tags, **Edit**, **Activity**.
