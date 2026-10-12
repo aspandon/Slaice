@@ -58,6 +58,17 @@ export interface CrmState {
   mergedAway: number[];
   /** Guests with a GDPR erasure request raised from the CRM. */
   eraseRequests: number[];
+  /** 360° profile data per guest (AENR-477). */
+  profiles: Record<number, GuestProfileData>;
+  /** Tenant-defined guest fields. */
+  customFields: { id: string; label: string; type: "text" | "number" | "date" | "select"; options?: string[] }[];
+}
+export interface GuestProfileData {
+  prefs?: { zone?: string; sunbed?: string; party?: string; arrival?: string; needs?: string; contact?: string };
+  notes?: { text: string; at: string; by: string }[];
+  important?: boolean;
+  consent?: Record<string, { on: boolean; at: string; source: string }>;
+  custom?: Record<string, string>;
 }
 
 export type PersonaId =

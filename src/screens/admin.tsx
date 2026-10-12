@@ -1114,12 +1114,14 @@ function ManualCoverage({ zone, slots, selectedCode, onPick }: {
 
 /* ============ MANUAL / PHONE BOOKING ============ */
 export function AdminManual() {
-  const { toast, beachLayout } = useApp();
+  const { toast, beachLayout, hint } = useApp();
+  // Opened from a guest profile ("New booking"): start with that guest's details.
+  const pre = hint?.page === "manual" ? hint.prefill : undefined;
   const [done, setDone] = useState(false);
   const [zoneName, setZoneName] = useState(ZONES[0].name);
   const [code, setCode] = useState("");
-  const [email, setEmail] = useState("maria@example.com");
-  const [mphone, setMphone] = useState("+30 694 100 0001");
+  const [email, setEmail] = useState(pre?.email ?? "maria@example.com");
+  const [mphone, setMphone] = useState(pre?.phone ?? "+30 694 100 0001");
   const [sendOpen, setSendOpen] = useState(false);
   const [sentVia, setSentVia] = useState<SendChannel>("Email");
   const [sentTo, setSentTo] = useState("");
@@ -1137,7 +1139,7 @@ export function AdminManual() {
           <PageHead title="Manual / Phone Booking" sub="Reserve and block a sunbed without taking payment (VIP / phone), then send the QR to the customer." badge={<Badge tone="mvp">MVP</Badge>} />
           <Card className="p-5">
             <div className="grid sm:grid-cols-2 gap-3">
-              <Field label="Customer name"><Input placeholder="e.g. Maria K." defaultValue="Maria K." /></Field>
+              <Field label="Customer name"><Input placeholder="e.g. Maria K." defaultValue={pre?.name ?? "Maria K."} /></Field>
               <Field label="Customer e-mail"><Input placeholder="maria@example.com" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
               <Field label="Customer phone"><Input placeholder="+30 694 …" value={mphone} onChange={(e) => setMphone(e.target.value)} /></Field>
               <Field label="Zone"><Select value={zoneName} onChange={(e) => { setZoneName(e.target.value); setCode(""); }} options={ZONES.map((z) => z.name)} /></Field>

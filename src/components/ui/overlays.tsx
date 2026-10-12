@@ -69,6 +69,42 @@ export function Modal({ open, onClose, title, children, footer, wide }: {
   ), document.body);
 }
 
+/* ---------- Drawer (side panel on sm+, full screen on phones) ----------
+   For record detail views (e.g. a guest profile) that sit beside the list. */
+export function Drawer({ open, onClose, title, children, footer, label }: {
+  open?: boolean;
+  onClose: () => void;
+  title?: ReactNode;
+  children?: ReactNode;
+  footer?: ReactNode;
+  /** Accessible name when the title isn't plain text. */
+  label?: string;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [open, onClose]);
+  useDialogFocus(!!open, panelRef);
+  if (!open) return null;
+  return createPortal((
+    <div role="dialog" aria-modal="true" aria-labelledby={label ? undefined : titleId} aria-label={label} className="fixed inset-0 z-[60] flex justify-end animate-fade-in">
+      <button type="button" aria-label="Close" tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-navy-950/30 backdrop-blur-sm cursor-default" />
+      <div ref={panelRef} tabIndex={-1} className="glass-card-solid relative w-full sm:max-w-2xl h-full flex flex-col outline-none sm:rounded-l-3xl animate-slide-in-right pb-safe sm:pb-0">
+        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-200/70">
+          <div id={titleId} className="min-w-0 flex-1">{title}</div>
+          <button aria-label="Close" onClick={onClose} className="w-10 h-10 grid place-items-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition shrink-0"><Icon.x size={20} /></button>
+        </div>
+        <div className="p-5 overflow-y-auto overscroll-contain flex-1">{children}</div>
+        {footer && <div className="px-5 py-4 border-t border-slate-200/70 flex flex-wrap justify-end gap-2">{footer}</div>}
+      </div>
+    </div>
+  ), document.body);
+}
+
 /* ---------- Sheet (bottom sheet with drag-to-dismiss) ---------- */
 export function Sheet({ open, onClose, title, children, footer }: {
   open?: boolean;

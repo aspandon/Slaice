@@ -1042,17 +1042,17 @@ no Export and no refunds.
  [Search]   filter ◆ All · VIP · Season pass · Regular · New            [New tag] (demo)
  rule:  every guest starts New ──(15 visits)──▶ Regular      VIP / Season pass = by hand
 
- Name · Surname · Phone · Email · Visits · Tags · [Edit] · [Activity]
+ Name · Surname · Phone · Email · Visits · Tags · [Edit] · [Profile]     ★ = important guest
                                                     │         │
-        ┌───────────────────────────────────────────┘         │
-        ▼                                                     ▼
- ┌─ Edit user ─────────────────────────┐    ┌─ Activity ─────────────────────────┐
- │ first · surname · e-mail (checked)  │    │ visits · spend · avg/visit · last  │
- │ phone · visits this season          │    │ timeline: account created ─▶       │
- │ auto segment (read-only)            │    │ booking ─▶ paid ─▶ checked in ─▶   │
- │ VIP [on/off] · Season pass [on/off] │    │ stamp earned ─▶ opened campaign    │
- │                       [Save]        │    │ [Message]  [Edit profile]          │
- └─────────────────────────────────────┘    └────────────────────────────────────┘
+        ┌───────────────────────────────────────────┘         ▼
+        ▼                                    ┌─ Guest profile (side drawer) ───────────┐
+ ┌─ Edit user ─────────────────────────┐    │ Overview · Bookings · Payments · Passes │
+ │ first · surname · e-mail (checked)  │    │ & loyalty · Messages · Notes ·          │
+ │ phone · visits this season          │    │ Preferences · Privacy                   │
+ │ auto segment (read-only)            │    │ [New booking] [Message] [Resend QR]     │
+ │ VIP [on/off] · Season pass [on/off] │    │                         [Edit details]  │
+ │                       [Save]        │    └─────────────────────────────────────────┘
+ └─────────────────────────────────────┘
 ```
 
 - **Segments** (`src/screens/users/`, `src/domain/segments.ts`, `src/data/guests.ts`): chips for All guests,
@@ -1080,13 +1080,21 @@ no Export and no refunds.
   combined).
 - Rule banner: every guest starts **New** and becomes **Regular** after **15 visits**; **VIP** and
   **Season pass** are assigned by hand.
-- Table: Name, Surname, Phone, Email, Visits, Tags, **Edit**, **Activity**.
+- Table: Name, Surname, Phone, Email, Visits, Tags, **Edit**, **Profile**; a star marks important guests.
 - **Edit user** modal: first name, surname, e-mail (validated), phone, visits this season; automatic
   segment shown read-only; manual segment toggles (VIP — "High-value guest perks"; Season pass —
   "Unlimited entry this season").
-- **Activity** modal: stats (visits, total spend, avg/visit, last visit) and a recent-activity timeline
-  (account created, sunbed booking, entry tickets, payment received, checked in at the gate, loyalty
-  stamp earned, opened a campaign), **Message**, **Edit profile**.
+- **Guest profile** (`src/screens/users/GuestProfile.tsx`): a side drawer (full screen on phones) with
+  tabs — **Overview** (visits, lifetime spend, avg basket, last visit, lifecycle stage, RFM, predicted next
+  visit, **Important guest** flag, tags with quick add, segments the guest is in, language / city /
+  channel / favourite zone / party size / customer since, tenant **custom fields** such as Birthday and
+  Company) · **Bookings** (history with status, export) · **Payments** (charges and refunds) · **Passes &
+  loyalty** · **Messages** (confirmations, campaigns, booking notes) · **Notes** (internal staff notes with
+  author and time) · **Preferences** (zone, sunbed, party size, arrival time, accessibility needs,
+  preferred contact) · **Privacy** (per-channel marketing consent with date and source, change logged;
+  **Export guest data**, **Request erasure**, link to Privacy & GDPR). Actions: **New booking** (opens
+  Manual / Phone Booking prefilled), **Message** (Communicate), **Resend QR** (simulated), **Edit
+  details**. Notes, preferences, consent, custom fields and the important flag persist in `localStorage`.
 - The demo customer's purchased passes show as pass-derived tags (wallet icon).
 
 ### A-07 · Reporting & Analytics [MVP]
