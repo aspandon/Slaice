@@ -854,8 +854,7 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
  │  _.-=#=-._  (peaks in teal)  │ │ Sunbeds 62% · Tickets │ │ Macaw   ######## 91% │
  │                              │ │ 28% · Other 10%       │ │ Central ######   71% │
  └──────────────────────────────┘ └───────────────────────┘ └──────────────────────┘
- Latest bookings table ──[View all]──▶ Bookings (A-04)
- Export = one multi-section CSV: KPIs + every chart series + latest bookings
+ Export = one multi-section CSV: KPIs + every chart series
 ```
 
 - **Period control** (X-11): Day / Week / Month / Year / Custom, default Week. Every KPI, its delta
@@ -865,7 +864,8 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
   the previous equal-length period. Values come from the shared sample analytics
   (`src/data/analytics.ts`), so the Dashboard, Reporting and Refunds agree for the same dates.
 - Charts: Revenue bar chart (peaks highlighted), Revenue by capability donut (Sunbeds 62% · Tickets
-  28% · Other 10%), Occupancy by zone (horizontal bars), Latest bookings table (+ View all → Bookings).
+  28% · Other 10%), Occupancy by zone (horizontal bars, full width). Individual bookings are on Bookings
+  (A-04), not the Dashboard.
 
 ### A-02 · Availability & Pricing [MVP]
 

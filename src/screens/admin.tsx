@@ -34,7 +34,7 @@ import { summarize, series, buckets, CHANNELS as CHANNELS_A, fmtEUR, fmtInt, fmt
 
 /* ============ DASHBOARD ============ */
 export function AdminDashboard() {
-  const { go, toast } = useApp();
+  const { toast } = useApp();
   // One period drives every tile, delta, chart and the export (AENR-466).
   const [period, setPeriod] = usePeriod({ kind: "preset", preset: "week", offset: 0 });
   const range = resolveRange(period) ?? resolveRange({ kind: "preset", preset: "week", offset: 0 })!;
@@ -71,10 +71,6 @@ export function AdminDashboard() {
       { title: `Revenue · ${label}`, header: [axis, "Revenue (€)"], rows: rev.map((d) => [d.l, d.v]) },
       { title: "Revenue by capability", header: ["Capability", "Share %"], rows: mix.map((m) => [m.l, m.v]) },
       { title: `Occupancy by zone · ${label}`, header: ["Zone", "Occupancy %"], rows: occByZone.map((z) => [z.l, z.v]) },
-      { title: "Latest bookings", header: ["Booking", "Zone", "Channel", "Amount"], rows: [
-        ["#BK-10428", "Central", "Online", "€30"], ["#BK-10427", "Macaw", "Walk-in", "€35"],
-        ["#BK-10426", "Bestbuy", "Online", "€44"], ["#BK-10425", "Akanthus", "Online", "€30"],
-      ] },
     ]);
     toast(`Exported the dashboard (${label}) to CSV.`, { tone: "success" });
   };
@@ -82,8 +78,7 @@ export function AdminDashboard() {
   return (
     <div className="animate-fade-up">
       <PageHead title="Dashboard" sub="Akti tou Iliou · bookings & revenue overview" badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<Btn variant="outline" icon={Icon.download} onClick={exportDashboard}>Export</Btn>} />
-      <PeriodPicker value={period} onChange={setPeriod} className="mb-4" />
+        actions={<><PeriodPicker value={period} onChange={setPeriod} /><Btn variant="outline" icon={Icon.download} onClick={exportDashboard}>Export</Btn></>} />
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((k) => <StatCard key={k.label} label={k.label} value={k.value} sub={k.trend ? vs : "no comparison data"} tone={k.tone} trend={k.trend} />)}
       </div>
@@ -106,21 +101,11 @@ export function AdminDashboard() {
           </div>
         </Card>
       </div>
-      <div className="grid lg:grid-cols-2 gap-4 mt-4">
-        <Card className="p-5">
-          <div className="font-semibold text-navy-900 mb-1">Occupancy by zone · {noun}</div>
-          <HBarChart color="#0ea5e9" unit="%" max={100} data={occSeries} label={`Occupancy by zone, ${label}`} />
-        </Card>
-        <Card className="p-5">
-          <div className="flex items-center justify-between mb-2"><div className="font-semibold text-navy-900">Latest bookings</div><Btn size="sm" variant="ghost" onClick={() => go("admin", "bookings")}>View all</Btn></div>
-          <Table cols={["Booking", "Zone", "Channel", "Amount"]} right={[3]} rows={[
-            ["#BK-10428", "Central", <Badge tone="blue">Online</Badge>, "€30"],
-            ["#BK-10427", "Macaw", <Badge tone="amber">Walk-in</Badge>, "€35"],
-            ["#BK-10426", "Bestbuy", <Badge tone="blue">Online</Badge>, "€44"],
-            ["#BK-10425", "Akanthus", <Badge tone="blue">Online</Badge>, "€30"],
-          ]} />
-        </Card>
-      </div>
+      {/* Individual bookings live on the Bookings page; the dashboard stays aggregate (AENR-463). */}
+      <Card className="p-5 mt-4">
+        <div className="font-semibold text-navy-900 mb-1">Occupancy by zone · {noun}</div>
+        <HBarChart color="#0ea5e9" unit="%" max={100} data={occSeries} label={`Occupancy by zone, ${label}`} />
+      </Card>
       </>}
     </div>
   );
@@ -1780,8 +1765,7 @@ export function AdminRefunds() {
   return (
     <div className="animate-fade-up">
       <PageHead title="Refunds" sub="Partial or full refunds via Stripe, with reason logging and auto credit-note (MyDATA)." badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<Btn variant="outline" icon={Icon.download} onClick={exportCSV}>Export</Btn>} />
-      <PeriodPicker value={period} onChange={setPeriod} presets={["day", "week", "month", "season"]} allowAll resetTo={{ kind: "preset", preset: "month", offset: 0 }} className="mb-4" />
+        actions={<><PeriodPicker value={period} onChange={setPeriod} presets={["day", "week", "month", "season"]} allowAll resetTo={{ kind: "preset", preset: "month", offset: 0 }} /><Btn variant="outline" icon={Icon.download} onClick={exportCSV}>Export</Btn></>} />
       <div className="grid sm:grid-cols-4 gap-4 mb-4">
         <StatCard label={`Refunded · ${noun}`} value={now ? fmtEUR(now.refunds.amount) : "—"} sub={now ? `${fmtInt(now.refunds.count)} transactions` : "pick a period"} tone="teal" trend={now && hasPrev ? trendPct(now.refunds.amount, prevS.refunds.amount) : undefined} />
         <StatCard label="Pending review" value={pending} sub="awaiting decision" />
