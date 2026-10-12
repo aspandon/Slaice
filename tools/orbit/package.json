@@ -1,0 +1,7 @@
+{
+  "name": "slaice-orbit-tools",
+  "private": true,
+  "type": "module",
+  "description": "Playwright helpers to manage the Slaice backlog in Orbit (not part of the app build).",
+  "dependencies": { "playwright": "1.64.0" }
+}

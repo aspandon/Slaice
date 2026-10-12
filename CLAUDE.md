@@ -19,28 +19,49 @@ You optimize for two readers at once: the person *using* the product, and the ne
 
 ## 2. Project Context
 
-*(Fill this in for your project so the agent stops guessing. Read it first; treat it as ground truth.)*
+Read this first; treat it as ground truth. **Slaice** is a front-end-only, clickable mockup of a multi-tenant beach-booking SaaS (sunbeds, entry tickets, lockers, parking) with seven personas: Customer, Manager/Admin, Call Center, Cashier, Controller, Accountant, Platform.
 
-- **Framework:** e.g. Next.js (App Router) / Remix / Vite SPA / TanStack Start
-- **Language:** TypeScript (strict)
-- **Server / API contract:** e.g. tRPC / GraphQL / REST + OpenAPI
-- **Server state:** e.g. TanStack Query
-- **Client state:** e.g. Zustand / Jotai / Context only
-- **Styling:** e.g. Tailwind + design tokens / CSS Modules / styled-components
-- **Design system / component library:** e.g. in-house tokens + Radix primitives / shadcn/ui
-- **Design source:** e.g. Figma file link, or "principles-driven, no comps"
-- **Motion:** e.g. Motion (Framer Motion) / CSS transitions; house motion principles
-- **Brand & aesthetic:** e.g. dense, dark, Linear/Bloomberg-terminal feel; restrained, professional
-- **Tokens source of truth:** link
-- **Forms & validation:** e.g. React Hook Form + Zod
-- **Testing:** e.g. Vitest + Testing Library + Playwright
-- **Backend / data:** e.g. Supabase, Postgres
-- **Deploy target:** e.g. Cloudflare / Vercel
-- **Breakpoints / density targets:** e.g. mobile-first; comfortable + compact density
-- **Accessibility target:** e.g. WCAG 2.2 AA
-- **Conventions doc:** link
+- **Framework:** Vite + React 18 SPA, custom hash router (`#/<persona>/<page>?query`) — `src/app/router.ts`, routes in `src/routes.tsx`, nav per persona in `src/data/personas.ts`.
+- **Language:** TypeScript (strict).
+- **Server / API contract:** none — **no backend**. All data is deterministic sample data (`src/data/*`) plus demo state.
+- **State:** one app store (`src/app/store.tsx`, `AppCtx` / `useApp()`), provided in `src/App.tsx` and persisted to `localStorage["slaice.v1"]`. New persisted slices: add to the context type + defaults in `store.tsx`, then `useState` + the persist list + the context value in `App.tsx`. Merge defaults with saved state (`{ ...DEFAULT, ...saved.x }`).
+- **Styling:** Tailwind + tokens (`tailwind.config`), shared UI in `src/components/ui` (Card, Btn, Badge, Modal, Drawer, Table, Tabs, Toggle — requires `label` or `ariaLabel`, Field, Input, Select, Stepper, StatCard, PeriodPicker, FilterBar, EmptyState, FutureBanner, NotMvpBadge, StickyActionBar…). Icons: `src/lib/icons.tsx` (`Icon.x` is a Record — a missing key only crashes at runtime, so check the key exists).
+- **Charts:** `src/components/charts.tsx` (BarChart, LineChartMini, MultiLineChart, Donut, StackedBar, QR…). Konva canvas for the beach editor (`src/components/BeachCanvas.tsx`).
+- **Dates:** back-office "today" is `DEMO_TODAY = "2026-07-19"` (`src/domain/period.ts`, season 1 May–30 Sep, shared Period model + `usePeriod`); customer / cashier flows use the real date (`todayISO()`).
+- **Pricing / domain logic:** pure functions in `src/domain/*` (pricing, period, filters, segments, lifecycle, till, …).
+- **i18n:** wrap customer-facing strings in `t()`; run `npm run i18n` to machine-translate into `src/locales/*.json`.
+- **Spec & docs:** `project_description 29 Sept.md` (the living spec — update the relevant section for every change), `README.md` (persona table), `UX_REVIEW.md` (findings — mark resolved items with the ticket key).
+- **Accessibility target:** WCAG 2.2 AA. **Breakpoints:** works at 390px phones up to desktop; tablet-first for Cashier.
+- **Checks before every commit:** `npm run typecheck`, `npm run lint` (jsx-a11y is strict: no `autoFocus`, labels need text), `npm run build -- --outDir /tmp/<scratch>/dist-check`. Format only new files and the spec with Prettier (don't reformat existing files wholesale).
+- **Visual testing:** Playwright with the pre-installed Chromium against `npx vite --port 5199 --strictPort`; bypass the gate with `localStorage["slaice.gate.v1"]="1"` and `slaice.v1` = `{signedIn:true, persona:"<id>", consent:{decided:true}}`. Write test scripts and screenshots to the scratchpad, never into the repo. Restart Vite after moving/renaming files.
 
-> Before writing anything, read the relevant existing code, the design system, and the surrounding UI. **The existing system and conventions override the defaults below** — extend them, don't compete with them.
+## 2A. Working agreement with the product owner (backlog in Orbit)
+
+The product owner sends change requests in chat. The workflow is:
+
+1. **Log every request as tickets in Orbit** — Slaice Agile Space: <https://cc493aa7.orbit-6cb.pages.dev/pmtool?tab=agile&space=752c94c7-74c4-4f27-8ee2-1bcd0531f277> (keys `AENR-###`).
+   - Place each ticket under the **most relevant existing epic**; create a new epic only if none fits. Epics follow the spec areas (e.g. Admin · Reporting & Analytics (A-07) = AENR-462, Cashier = AENR-493, Availability/Pricing/Map = AENR-457, Platform tenant management = AENR-495).
+   - **Combine** with existing similar tickets instead of creating duplicates; add **dependencies/relationships** (Related, Depends On, Caused by…).
+   - Clear requirements format: Goal · Requirements · Acceptance criteria · and always the **front-end demo only** scope note (no backend; sample data + app store + `localStorage` only; journey-critical steps are simulated end-to-end like the existing "Simulate successful payment" flow).
+   - When unsure about terms, research the web; ask the owner when a decision is genuinely theirs.
+   - **Story points:** the owner sets them — only enter points when the owner states a number. Never on epics.
+   - Don't show screenshots of created tickets.
+2. **Implementation** happens only when the owner names the priority ("next priority is AENR-xxx"). Do it yourself (don't hand implementation to sub-agents; agents are fine for research / ticket updates when asked).
+   - Set the story **and its epic to In Progress** when starting; **Completed** when done and pushed.
+   - Any **defect found along the way**: create a Defect under the relevant epic, put it in the **current sprint** (e.g. "Sprint 1 - Fundamental FE Changes"), set it In Progress, fix it, then Completed.
+   - Per story: implement → typecheck / lint / build → Playwright check (desktop + 390px) → update spec / README / UX_REVIEW → `npm run i18n` → commit with the ticket key in the message → push to the session branch → mark Completed.
+3. **Report** briefly at the end: what changed, decisions/trade-offs, deviations, follow-ups; flag anything beyond the ask.
+
+### Orbit tooling (`tools/orbit/`)
+
+Playwright scripts that drive the Orbit UI (Orbit has no API):
+
+- Setup: `cd tools/orbit && npm install` (uses the pre-installed Chromium). Credentials come from the environment variables **`ORBIT_USER` / `ORBIT_PASS`** (set them in the cloud environment settings) or a git-ignored `tools/orbit/.orbit.env` (`ORBIT_USER=…` / `ORBIT_PASS=…` lines). **Never commit credentials or print them.** If neither is set, ask the owner to add them to the environment settings.
+- `node status.mjs "In Progress" AENR-1 AENR-2` — set status (In Progress / Completed / On Hold / Cancelled).
+- `node add.mjs batch.json AENR-<epic> [--points N] [--sprint "Sprint 1"] [--status "In Progress"]` — create stories/defects under an epic from a batch file, add deps, restore the epic description, then set points/sprint/status. Batch format: `{ "epics": [], "stories": [{ "key": "local-id", "epic": "AENR-462", "type": "Story|Defect|Task", "priority": "High", "title": "…", "html": "<p>…</p>" }], "deps": [["local-id", "Related", "AENR-466"]] }`. `run.mjs` (used by `add.mjs`) is resumable via the git-ignored `keys.json`.
+- `node peek.mjs AENR-123` — print an item (status, points, description, deps).
+- `ops.mjs` exports the primitives: openItem, createTop, addChild, setDescription (verifies + retries), setTitle, addDep, setPoints/getPoints, setStatus, setSprint, moveUnder, archive.
+- Orbit quirks: descriptions are a Quill editor (set via `dangerouslyPasteHTML`; the save check compares the last words, so avoid ending a description with an `&`-entity); **adding a child wipes the parent epic's description** (add.mjs restores it); archived items can't be opened, moved or unarchived; status is a native select behind "Click to change status"; sprint changes need the "Add to Sprint" confirm.
 
 ## 3. Core Operating Principles
 
