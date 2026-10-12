@@ -154,14 +154,14 @@ export function PrivacyCenter({ open, onClose }: { open?: boolean; onClose: () =
   );
 }
 
-function ConsentToggle({ label, desc, on, set }: { label?: ReactNode; desc?: ReactNode; on?: boolean; set: (v: boolean) => void }) {
+function ConsentToggle({ label, desc, on, set }: { label: string; desc?: ReactNode; on?: boolean; set: (v: boolean) => void }) {
   return (
     <div className="flex items-center justify-between rounded-2xl ring-1 ring-slate-200 bg-white/70 px-3.5 py-3">
       <div className="min-w-0 pr-3">
         <div className="font-semibold text-sm text-navy-900">{label}</div>
         <div className="text-[12px] text-slate-600 leading-snug mt-0.5">{desc}</div>
       </div>
-      <Toggle on={on} onChange={set} />
+      <Toggle on={on} onChange={set} ariaLabel={label} />
     </div>
   );
 }

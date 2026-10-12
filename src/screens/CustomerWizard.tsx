@@ -616,7 +616,7 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
               ? <><b className="text-navy-900">{selDates.length} {selDates.length !== 1 ? tr("days") : tr("day")}</b> {tr("selected")} · {tr("up to 7")}</>
               : tr("Book several days at once")}</span>
           </div>
-          <Toggle on={multiDate} onChange={(v) => { setMultiDate(v); if (!v && selDates.length > 1) setSelDates([selDates[0]]); }} />
+          <Toggle on={multiDate} onChange={(v) => { setMultiDate(v); if (!v && selDates.length > 1) setSelDates([selDates[0]]); }} ariaLabel={tr("Book several days at once")} />
         </div>
       </div>
 
@@ -1171,7 +1171,7 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
             <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.car size={12} /> {samePlate ? tr("Vehicle plate") : tr("Vehicle plate per day")}</div>
             <label className="flex items-center gap-2 text-[12px] font-semibold text-navy-900 cursor-pointer shrink-0">
               {tr("Same car plate")}
-              <Toggle on={samePlate} onChange={(v) => { setSamePlate(v); if (v) writeShared(plates[activeDays[0]] ?? plates[selDates[0]] ?? ""); }} />
+              <Toggle on={samePlate} onChange={(v) => { setSamePlate(v); if (v) writeShared(plates[activeDays[0]] ?? plates[selDates[0]] ?? ""); }} ariaLabel={tr("Same car plate")} />
             </label>
           </div>
           {activeDays.length === 0 ? (

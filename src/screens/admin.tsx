@@ -250,7 +250,7 @@ function RuleRow({ rule, onEdit, onRemove, onToggle }: { rule: PriceRule; onEdit
         </div>
         <div className="text-[12px] text-slate-500 mt-0.5 truncate">{zoneName} · {dayShortFor(rule.days)} · {periodLabel(rule.from, rule.to)}</div>
       </div>
-      <Toggle on={rule.enabled} onChange={onToggle} />
+      <Toggle on={rule.enabled} onChange={onToggle} ariaLabel={`Enable rule “${rule.label}”`} />
       <button onClick={onEdit} aria-label={`Edit ${rule.label}`} className="w-8 h-8 grid place-items-center rounded-lg text-slate-500 hover:text-navy-900 hover:bg-slate-100 transition"><Icon.edit size={15} /></button>
       <button onClick={onRemove} aria-label={`Remove ${rule.label}`} className="w-8 h-8 grid place-items-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"><Icon.trash size={15} /></button>
     </div>
@@ -333,7 +333,7 @@ export function AdminAvailability() {
             rows={rows.map((z, i) => [
               <span className="flex items-center gap-2"><i className="w-3 h-3 rounded-full" style={{ background: z.color }} />{z.name}</span>,
               z.total, z.avail, `€${z.from}`,
-              <Toggle on={z.open} onChange={(v) => setRows((r) => r.map((x, xi) => (xi === i ? { ...x, open: v } : x)))} />,
+              <Toggle on={z.open} onChange={(v) => setRows((r) => r.map((x, xi) => (xi === i ? { ...x, open: v } : x)))} ariaLabel={`${z.name} open`} />,
               <Badge tone={z.open ? "green" : "amber"}>{z.open ? "Open" : "Closed"}</Badge>,
             ])} />
         </Card>
@@ -725,14 +725,14 @@ function AtmosphereCard() {
               <div className="text-[13px] font-semibold text-navy-900">Weather effects</div>
               <div className="text-[11px] text-slate-500">Sea state, rain, cloud cover &amp; scene tint</div>
             </div>
-            <Toggle on={sceneFx.weather} onChange={(v) => { setSceneFx({ weather: v }); toast(`Weather effects ${v ? "enabled" : "disabled"}.`, { tone: "success" }); }} />
+            <Toggle on={sceneFx.weather} onChange={(v) => { setSceneFx({ weather: v }); toast(`Weather effects ${v ? "enabled" : "disabled"}.`, { tone: "success" }); }} ariaLabel="Weather effects" />
           </div>
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-[13px] font-semibold text-navy-900">Time-of-day lighting</div>
               <div className="text-[11px] text-slate-500">Dawn-to-dusk scene clock lighting</div>
             </div>
-            <Toggle on={sceneFx.daytime} onChange={(v) => { setSceneFx({ daytime: v }); toast(`Time-of-day lighting ${v ? "enabled" : "disabled"}.`, { tone: "success" }); }} />
+            <Toggle on={sceneFx.daytime} onChange={(v) => { setSceneFx({ daytime: v }); toast(`Time-of-day lighting ${v ? "enabled" : "disabled"}.`, { tone: "success" }); }} ariaLabel="Time-of-day lighting" />
           </div>
         </div>
         <div className={sceneFx.weather ? "" : "opacity-40 pointer-events-none"}>
@@ -1234,11 +1234,11 @@ function UserEditModal({ user, onClose, onSave }: { user: Customer; onClose: () 
           <div className="space-y-2">
             <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
               <span className="flex items-center gap-2"><Badge tone="amber">VIP</Badge><span className="text-[12px] text-slate-500">High-value guest perks</span></span>
-              <Toggle on={vip} onChange={setVip} />
+              <Toggle on={vip} onChange={setVip} ariaLabel="VIP segment" />
             </div>
             <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
               <span className="flex items-center gap-2"><Badge tone="blue">Season pass</Badge><span className="text-[12px] text-slate-500">Unlimited entry this season</span></span>
-              <Toggle on={seasonPass} onChange={setSeasonPass} />
+              <Toggle on={seasonPass} onChange={setSeasonPass} ariaLabel="Season pass segment" />
             </div>
           </div>
         </div>
@@ -2242,7 +2242,7 @@ export function AdminLoyalty() {
                 <div className="flex items-center gap-2.5">
                   <span className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${on ? "bg-teal-600 text-white" : "bg-slaice-100 text-slaice-700"}`}><SIcon size={18} /></span>
                   <div className="font-semibold text-navy-900 flex-1 min-w-0 truncate">{title}</div>
-                  {configured && <Toggle on={on} onChange={() => toggleEnabled(s.id)} />}
+                  {configured && <Toggle on={on} onChange={() => toggleEnabled(s.id)} ariaLabel={`Enable ${title}`} />}
                 </div>
                 <div className="text-[13px] text-slate-600 leading-snug">{s.blurb}</div>
                 {configured ? (

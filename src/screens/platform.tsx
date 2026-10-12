@@ -293,7 +293,7 @@ function ModuleToggle({ label, def }: { label: string; def: boolean }) {
   return (
     <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 px-4 py-2.5">
       <span className="text-sm font-medium text-navy-900">{label}</span>
-      <Toggle on={on} onChange={setOn} />
+      <Toggle on={on} onChange={setOn} ariaLabel={label} />
     </div>
   );
 }

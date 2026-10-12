@@ -164,7 +164,7 @@ export function Checkout() {
                     <div className="text-[13px] font-semibold text-navy-900 flex items-center gap-1.5"><Icon.sparkles size={13} className="text-slaice-600" /> {t("VIP credit")}</div>
                     <div className="text-[11px] text-slate-500 tnum">{t("Balance")} €{vipBalance.toFixed(2)} · {Math.round(disc * 100)}% {t("off")}</div>
                   </div>
-                  <Toggle on={applyVip} onChange={setApplyVip} />
+                  <Toggle on={applyVip} onChange={setApplyVip} ariaLabel={t("VIP credit")} />
                 </div>
               )}
               {hasSeason && (
@@ -173,7 +173,7 @@ export function Checkout() {
                     <div className="text-[13px] font-semibold text-navy-900 flex items-center gap-1.5"><Icon.ticket size={13} className="text-teal-600" /> {t("Season pass")}</div>
                     <div className="text-[11px] text-slate-500">{entryTotal > 0 ? `${t("Covers 1 entry")} · ${passes.season?.validUntil ?? ""}` : t("No entry tickets in this order")}</div>
                   </div>
-                  <Toggle on={applySeason} onChange={setApplySeason} />
+                  <Toggle on={applySeason} onChange={setApplySeason} ariaLabel={t("Season pass")} />
                 </div>
               )}
             </div>

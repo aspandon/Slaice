@@ -155,7 +155,10 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 - **Fix:** disable on-hold sets like taken ones and keep the tooltip as the explanation; once holds are
   real, also show the guest's own hold (5.2).
 
-#### N2 · Switches have no accessible name
+#### N2 · Switches have no accessible name — ✅ Resolved (12 Oct 2026, AENR-504)
+
+- **Resolution:** `Toggle` now requires a name at compile time (`label` or `ariaLabel`), every use
+  passes one, and the "Always on" cookie switch is `disabled` with "Always on" in its name.
 
 - **Evidence:** `Toggle` renders `role="switch"` + `aria-checked` but is only named when given `label`
   (`src/components/ui/forms.tsx:37`). 15 of its 18 uses have no name: the visible text sits in a

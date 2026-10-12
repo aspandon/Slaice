@@ -60,8 +60,8 @@ export function ConsentBanner() {
                 </div>
                 <div className="pt-0.5 shrink-0">
                   {p.required
-                    ? <Toggle on={true} onChange={() => {}} />
-                    : <Toggle on={on} onChange={(v) => setDraft((d) => ({ ...d, [p.key]: v }))} />}
+                    ? <Toggle on={true} onChange={() => {}} disabled ariaLabel={`${t(p.label)} · ${t("Always on")}`} />
+                    : <Toggle on={on} onChange={(v) => setDraft((d) => ({ ...d, [p.key]: v }))} ariaLabel={t(p.label)} />}
                 </div>
               </div>
             );

@@ -434,11 +434,11 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
   );
 }
 
-function PrefRow({ label, sub, on, set }: { label: ReactNode; sub: ReactNode; on: boolean; set: (v: boolean) => void }) {
+function PrefRow({ label, sub, on, set }: { label: string; sub: ReactNode; on: boolean; set: (v: boolean) => void }) {
   return (
     <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
       <div><div className="font-semibold text-sm text-navy-900">{label}</div><div className="text-[11px] text-slate-500">{sub}</div></div>
-      <Toggle on={on} onChange={set} />
+      <Toggle on={on} onChange={set} ariaLabel={label} />
     </div>
   );
 }
