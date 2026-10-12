@@ -26,7 +26,6 @@ const MAP: Record<string, () => ReactElement> = {
   // admin
   "admin.dashboard": () => <A.AdminDashboard />,
   "admin.availability": () => <A.AdminAvailability />,
-  "admin.map": () => <A.AdminMapEditor />,
   "admin.bookings": () => <A.AdminBookings />,
   "admin.manual": () => <A.AdminManual />,
   "admin.users": () => <AdminUsers />,

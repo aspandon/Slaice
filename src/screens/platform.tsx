@@ -280,7 +280,7 @@ export function PlatformOnboarding() {
             <div className="mt-3 font-semibold text-navy-900">Ready to go live</div>
             <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">Configure the beach map/zones, then publish. The tenant resolves at <span className="font-mono text-[12px]">beach2.slaice.app</span>.</p>
             <div className="flex gap-2 justify-center mt-4 flex-wrap">
-              <Btn variant="outline" icon={Icon.map} onClick={() => go("admin", "map")}>Configure map</Btn>
+              <Btn variant="outline" icon={Icon.map} onClick={() => go("admin", "availability")}>Configure map</Btn>
               <Btn variant="teal" icon={Icon.bolt} onClick={() => { toast("Demo — tenant is live!"); go("platform", "tenants"); }}>Go live</Btn>
             </div>
           </div>

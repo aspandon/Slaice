@@ -9,7 +9,9 @@ import { Sunbed, SunbedMark } from "../components/Beach";
 import { SandScene } from "../components/SandScene";
 import { ZONES, ZONE_BLOCKS, todayISO, chipLabel } from "../data/beach";
 import { useLiveSlots } from "../lib/useLiveSlots";
-import type { SunbedSlot } from "../domain/types";
+import { resolvePrice } from "../domain/pricing";
+import { LANDMARK_LABEL } from "../data/pricing";
+import type { Landmark, SunbedSlot } from "../domain/types";
 import { useApp, useSpotlight, useT } from "../app/store";
 import { localeFor } from "../app/i18n";
 import { TICKET_PRICES, TICKET_META, LOCKER_PRICE, PARKING_PRICE } from "../domain/pricing";
@@ -146,7 +148,7 @@ function useAnimatedNumber(value: number, duration = 480) {
    ============================================================================ */
 export function CustomerWizard() {
   const tr = useT();
-  const { go, toast, addToCart, hint, lang } = useApp();
+  const { go, toast, addToCart, hint, lang, beachPricing, priceRules } = useApp();
   useSpotlight("customer", "plan");
 
   // Deep-link: a Home tile can open the wizard straight at a given step.
@@ -229,7 +231,9 @@ export function CustomerWizard() {
   const selectedIds = useMemo(() => new Set(bedSel.map((b) => b.id)), [bedSel]);
   const avail = useMemo(() => slots.filter((s) => s.state === "a").length, [slots]);
 
-  const setSubtotal = bedSel.reduce((a, b) => a + b.price, 0) * dayCount;
+  // Each chosen day is priced on its own (categories, seasonal rules, date overrides).
+  const bedPrice = (id: string, iso: string) => { const s = slots.find((x) => x.id === id); return s ? resolvePrice(s, zone.id, iso, beachPricing, priceRules).price : 0; };
+  const setSubtotal = bedSel.reduce((a, b) => a + selDates.reduce((x, iso) => x + bedPrice(b.id, iso), 0), 0);
   const ticketBreak = Object.entries(people).map(([k, n]) => ({ k, n, t: TICKET[k], total: n * TICKET[k].price * dayCount }));
   const ticketSubtotal = includeTickets ? ticketBreak.reduce((a, b) => a + b.total, 0) : 0;
   const lockerSubtotal = lockerQty * LOCKER_PRICE * lockerDates.length;
@@ -316,7 +320,7 @@ export function CustomerWizard() {
     selDates.forEach((iso) => {
       const sub = subOf(iso);
       bedSel.forEach((b) => {
-        addToCart({ kind: "sunbed", id: `${b.id}@${iso}`, label: `${tr("Sunbed")} ${b.id}`, sub: `${zone.name} · ${sub}`, price: b.price });
+        addToCart({ kind: "sunbed", id: `${b.id}@${iso}`, label: `${tr("Sunbed")} ${b.id}`, sub: `${zone.name} · ${sub}`, price: bedPrice(b.id, iso) });
         added++;
       });
       if (includeTickets) {
@@ -470,7 +474,7 @@ export function CustomerWizard() {
             zone's sunbed grid stays at a comfortable reading width. */}
         <div className={`relative w-full ${showSets ? "max-w-5xl" : "max-w-[1700px]"}`}>
           {showZones && <StoreOverview days={selDates} selectedId={zoneId} onPick={pickZone} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} />}
-          {showSets && <SandSunbeds slots={slots} selected={selectedIds} onToggle={toggleBed} />}
+          {showSets && <SandSunbeds slots={slots} selected={selectedIds} onToggle={toggleBed} landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zone.id)} />}
           {showScene && (
             <SandScene
               slots={slots} picked={selectedIds} stepId={step.id}
@@ -770,6 +774,8 @@ function StoreClusters({ days, selectedId, onPick, flipEnter }: { days: string[]
         if (!pos) return null;
         const slots = liveSlots(z, days);
         const free = slots.filter((s) => s.state === "a").length;
+        const from = Math.min(...slots.filter((s) => s.state === "a").map((s) => s.price), Infinity);
+        const fromLabel = Number.isFinite(from) ? from : z.from;
         const logo = zoneLogos[z.id];
         const active = z.id === selectedId;
         return (
@@ -778,7 +784,7 @@ function StoreClusters({ days, selectedId, onPick, flipEnter }: { days: string[]
             data-cluster={z.id}
             onClick={() => onPick(z.id)}
             aria-pressed={active}
-            aria-label={`${z.name} — ${slots.length} ${tr("sets")}, ${free} ${tr("free")}, ${tr("from")} €${z.from}${active ? `, ${tr("selected")}` : ""}`}
+            aria-label={`${z.name} — ${slots.length} ${tr("sets")}, ${free} ${tr("free")}, ${tr("from")} €${fromLabel}${active ? `, ${tr("selected")}` : ""}`}
             className="absolute group focus:outline-none pointer-events-auto"
             style={{ left: pos.x - cw / 2, top: pos.y - ch / 2, width: cw }}
           >
@@ -801,7 +807,7 @@ function StoreClusters({ days, selectedId, onPick, flipEnter }: { days: string[]
             <span className="relative block text-center mt-0.5" data-cluster-label>
               {logo && <img src={logo} alt="" className="mx-auto mb-1 h-8 w-auto max-w-[82%] object-contain drop-shadow-[0_1px_2px_rgba(255,255,255,0.55)]" />}
               <span className={`block font-display font-bold text-[15px] tracking-wide transition-colors drop-shadow-[0_1px_1px_rgba(255,255,255,0.75)] ${active ? "" : "text-navy-900 group-hover:text-teal-800"}`} style={active ? { color: z.color } : undefined}>{z.name}</span>
-              <span className="block text-[10.5px] font-semibold tnum text-navy-800/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.6)]">{tr("from")} €{z.from} · {free} {tr("free")}</span>
+              <span className="block text-[10.5px] font-semibold tnum text-navy-800/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.6)]">{tr("from")} €{fromLabel} · {free} {tr("free")}</span>
             </span>
 
             {active && (
@@ -832,6 +838,8 @@ function StoreCards({ days, selectedId, onPick }: { days: string[]; selectedId: 
           const logo = zoneLogos[z.id];
           const slots = liveSlots(z, days);
           const free = slots.filter((s) => s.state === "a").length;
+        const from = Math.min(...slots.filter((s) => s.state === "a").map((s) => s.price), Infinity);
+        const fromLabel = Number.isFinite(from) ? from : z.from;
           return (
             <button
               key={z.id}
@@ -845,7 +853,7 @@ function StoreCards({ days, selectedId, onPick }: { days: string[]; selectedId: 
                 <span className="mx-auto mb-1.5 w-9 h-9 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: z.color }}><Icon.umbrella size={18} /></span>
               )}
               <span className="block text-navy-900 font-bold text-[14px] leading-tight">{z.name}</span>
-              <span className="block text-slate-600 text-[11px] tnum mt-0.5">{tr("from")} €{z.from} · {free} {tr("free")}</span>
+              <span className="block text-slate-600 text-[11px] tnum mt-0.5">{tr("from")} €{fromLabel} · {free} {tr("free")}</span>
               {active && (
                 <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-teal-500 text-white grid place-items-center shadow ring-2 ring-white">
                   <Icon.check size={12} />
@@ -865,8 +873,9 @@ function StoreCards({ days, selectedId, onPick }: { days: string[]; selectedId: 
    its nearest neighbour so glyphs keep clear air and never collide. Cells carry
    data-flip-id (the zoom FLIP pairs them with the overview minis) and hand their
    element to onToggle so the pick effects can run from the tapped spot. */
-function SandSunbeds({ slots, selected, onToggle, readOnly = false }: {
+function SandSunbeds({ slots, selected, onToggle, readOnly = false, landmarks = [] }: {
   slots: SunbedSlot[];
+  landmarks?: Landmark[];
   selected: Set<string>;
   onToggle?: (s: SunbedSlot, el: HTMLElement | null) => void;
   readOnly?: boolean;
@@ -909,8 +918,16 @@ function SandSunbeds({ slots, selected, onToggle, readOnly = false }: {
           className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
           style={{ left: `${s.x}%`, top: `${s.y}%`, width: size, height: size }}
         >
-          <Sunbed state={s.state} sel={selected.has(s.id)} price={s.price} label={s.id} fill readOnly={readOnly} onClick={readOnly ? undefined : () => onToggle?.(s, cells.current.get(s.id) ?? null)} />
+          <Sunbed state={s.state} sel={selected.has(s.id)} price={s.price} label={`${s.id}${s.access ? " (step-free)" : ""}`} fill readOnly={readOnly} onClick={readOnly ? undefined : () => onToggle?.(s, cells.current.get(s.id) ?? null)} />
+          {s.access && <span aria-hidden className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-sky-600 text-white text-[9px] grid place-items-center ring-2 ring-white pointer-events-none">♿</span>}
         </div>
+      ))}
+      {/* Landmarks (bar, showers, WC…) orient guests; they aren't bookable. */}
+      {landmarks.map((l) => (
+        <span key={l.id} className="absolute -translate-x-1/2 -translate-y-1/2 inline-flex items-center gap-1 rounded-md bg-white/90 ring-1 ring-navy-900/20 px-1.5 py-0.5 text-[10px] font-semibold text-navy-900 shadow-sm pointer-events-none"
+          style={{ left: `${l.x}%`, top: `${l.y}%` }}>
+          <span aria-hidden>{LANDMARK_LABEL[l.kind].icon}</span>{l.label || LANDMARK_LABEL[l.kind].label}
+        </span>
       ))}
     </div>
   );

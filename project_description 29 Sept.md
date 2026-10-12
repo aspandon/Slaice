@@ -245,22 +245,21 @@ visited **per persona** is remembered.
 
 ### Manager / Admin
 
-| Route                  | Screen                 | Short label (mobile) | Tag      |
-| ---------------------- | ---------------------- | -------------------- | -------- |
-| `#/admin/dashboard`    | Dashboard              | Home                 | [MVP]    |
-| `#/admin/availability` | Availability & Pricing | Pricing              | [MVP]    |
-| `#/admin/map`          | Map Layout Editor      | Map                  | [MVP]    |
-| `#/admin/bookings`     | Bookings               | Bookings             | [MVP]    |
-| `#/admin/manual`       | Manual / Phone Booking | Manual               | [MVP]    |
-| `#/admin/users`        | Users & Segments       | Users                | [MVP]    |
-| `#/admin/reporting`    | Reporting & Analytics  | Reports              | [MVP]    |
-| `#/admin/refunds`      | Refunds                | Refunds              | [MVP]    |
-| `#/admin/privacy`      | Privacy & GDPR         | Privacy              | [MVP]    |
-| `#/admin/rbac`         | RBAC                   | RBAC                 | [MVP]    |
-| `#/admin/communicate`  | Communicate            | Comms                | [Future] |
-| `#/admin/loyalty`      | Loyalty                | Loyalty              | [Future] |
-| `#/admin/passes`       | Passes                 | Passes               | [Future] |
-| `#/admin/gamification` | Gamification           | Badges               | [Future] |
+| Route                  | Screen                                                           | Short label (mobile) | Tag      |
+| ---------------------- | ---------------------------------------------------------------- | -------------------- | -------- |
+| `#/admin/dashboard`    | Dashboard                                                        | Home                 | [MVP]    |
+| `#/admin/availability` | Beach, Availability & Pricing (old `#/admin/map` redirects here) | Beach                | [MVP]    |
+| `#/admin/bookings`     | Bookings                                                         | Bookings             | [MVP]    |
+| `#/admin/manual`       | Manual / Phone Booking                                           | Manual               | [MVP]    |
+| `#/admin/users`        | Users & Segments                                                 | Users                | [MVP]    |
+| `#/admin/reporting`    | Reporting & Analytics                                            | Reports              | [MVP]    |
+| `#/admin/refunds`      | Refunds                                                          | Refunds              | [MVP]    |
+| `#/admin/privacy`      | Privacy & GDPR                                                   | Privacy              | [MVP]    |
+| `#/admin/rbac`         | RBAC                                                             | RBAC                 | [MVP]    |
+| `#/admin/communicate`  | Communicate                                                      | Comms                | [Future] |
+| `#/admin/loyalty`      | Loyalty                                                          | Loyalty              | [Future] |
+| `#/admin/passes`       | Passes                                                           | Passes               | [Future] |
+| `#/admin/gamification` | Gamification                                                     | Badges               | [Future] |
 
 ### Call Center
 
@@ -877,97 +876,49 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
   28% · Other 10%), Occupancy by zone (horizontal bars, full width). Individual bookings are on Bookings
   (A-04), not the Dashboard.
 
-### A-02 · Availability & Pricing [MVP]
+### A-02 / A-03 · Beach, Availability & Pricing [MVP] (merged, AENR-469)
 
 ```text
- ┌─ Tab · Availability ─────────────────┐  ┌─ Tab · Seasonal & day pricing ───────────────┐
- │ Zone · sunbeds · available · base €  │  │ Rule list: name · effect · scope · [on/off]  │
- │ Open [on/off] ─▶ badge Open / Closed │  │   "August weekends"   +€10                   │
- │ [Publish] ─▶ demo toast              │  │   "July weekday early-bird"   −10%           │
- └──────────────────────────────────────┘  │ [+ New rule] / [Edit] ─▶ Rule editor         │
-                                           │ Price preview: date ─▶ base ─▶ new, per zone │
-                                           └──────────────────────────────────────────────┘
-
- RULE EDITOR
- Name (auto-suggested) ─▶ Apply to (All / zone) ─▶ Days (Every day / Weekdays / Weekends)
-   ─▶ Period from → to (+ month presets) ─▶ Change: Set to € / +€ / % ─▶ Amount
-   ─▶ ◆ valid?  end ≥ start · set needs > 0 · others need ≠ 0
-        ├─ no  ─▶ inline errors
-        └─ yes ─▶ live preview (before → after) ─▶ [Save] ─▶ rule list
-
- [GAP] open/closed and the rules don't reach the customer wizard yet
+ [Sunbeds & pricing]  [Zones & availability]  [Seasonal & day rules]
+ ┌─ store chips ─ Prices on [date] ─ [Select & move | Paint category | Add landmark] ─ [Canvas | List | Preview as customer] ─ Undo Redo ┐
+ │ Select… (row / column / category / type / state / step-free / all / invert)   12 sets selected · 2 categories                         │
+ │ canvas: sets tinted by category + code, € for the date, ♿, landmarks; drag on sand = box select; paint = press & sweep             │
+ └──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+ inspector: selection (category · type · state · step-free · persons — "mixed" when it differs; price trace)
+            Price for dates (from → to · days · € → apply, overlaps flagged) · categories (name · code · colour · €) · date overrides
+            layout tools (grid with numbering MC-01 or A1, add set, copy layout to another store, store logo)
+ DRAFT — N unsaved changes  [Discard] [Publish]   → wizard, Cashier and display update together
 ```
 
-- **Tab "Availability":** table per zone — sunbeds, available, base price, **Open** toggle, status badge
-  (Open / Closed). **Publish** (demo toast). **[GAP]** open/closed does not reach the customer wizard.
-- **Tab "Seasonal & day pricing":**
-  - Rule list: name, effect badge ("Set to €40", "+€10", "−10%"), zone · days · period, enable toggle,
-    edit, remove. Empty state.
-  - **Rule editor modal:** Rule name (auto-suggested from period + days), Apply to (All zones / a
-    zone), Days (Every day / Weekdays Mon–Fri / Weekends Sat & Sun), Period (from → to date inputs +
-    month presets), Price change (Set price to € / Increase by € / Change by %), Amount. Validation: end
-    ≥ start; `set` needs amount > 0; others need amount ≠ 0. **Live preview** of before → after on a
-    representative zone and matching date.
-  - **Price preview:** pick a date → effective price per zone (struck-through base → new price),
-    weekend/weekday badge.
-  - Seed rules: "August weekends" +€10 (all zones, 1–31 Aug 2026, weekends); "July weekday
-    early-bird" −10% (1–31 Jul 2026, weekdays).
-  - **[GAP]** rules are not yet applied to customer prices.
-
-### A-03 · Map Layout Editor [MVP]
-
-```text
- ┌─ Tab · Zone map ─────────────────────────────┐  ┌─ Tab · Sunbed layout ────────────────────┐
- │ Canvas on the beach background               │  │ Zone chips  AK  CE  MC  BE  MA  BO       │
- │ drag a zone ─▶ new position (clamped)        │  │ SEA · FRONT ROW                          │
- │ select ─▶ name · prefix · colour · rows×cols │  │   o o o o o o   drag · click · shift/cmd │
- │ [+ Add zone]  [Remove] (one must remain)     │  │   o o # # o o   -click = multi-select    │
- │ [Background] ─▶ picker modal                 │  │ PROMENADE          [Snap to grid]        │
- │ [Save layout] + debounced autosave           │  ├──────────────────────────────────────────┤
- └──────────────────────────────────────────────┘  │ Side: store logo · grid generator (≤120, │
-                                                   │ ≤16/row) · Add · Copy · Reset · Remove   │
-                                                   │ Selection: state · type · €/day · pos    │
-                                                   │ [Publish to wizard] ─▶ C-03 + Home count │
-                                                   └──────────────────────────────────────────┘
-
- ATMOSPHERE card (both tabs) ─ cosmetic only, booking unaffected
-   Weather effects [on/off] · Time-of-day lighting [on/off]
-   Weather ◆ Sunny 28° / Windy 24° / Overcast 22° / Rainy 19°
-   Scene clock  05:30 ├────────────●──────────┤ 21:30   (~19:30 = golden hour)
-   ─────────────────────────────────────────────▶ every customer page (X-10)
-
- BACKGROUND PICKER
-   ◆ Clean gradients │ Illustrated scenes │ Your own photo (≤ 1600×900)
-   ─▶ preview ─▶ [Use background] ─▶ customer backdrop + editor canvas
-
- [GAP] zone-map positions and identity don't drive the customer overview
-```
-
-Two tabs plus an Atmosphere card:
-
-1. **Zone map:** a canvas showing the tenant's beach background. Drag zones to position them (pointer
-   drag, clamped); select a zone to edit **name, code prefix, colour, rows × columns**; add / remove
-   zones (at least one must remain); **Background** picker; **Save layout** (also auto-saves, debounced).
-   Hint on small screens: best on a larger screen. **[GAP]** zone positions do not drive the customer
-   overview.
-2. **Sunbed layout** (per zone, zone chips at the top): an interactive canvas (Konva) from _SEA · FRONT
-   ROW_ (top) to _PROMENADE_ (bottom).
-   - Drag sets to arrange; click to select; ⇧/⌘-click for multi-select; **Snap to grid** toggle.
-   - Side panel: **Store logo** (upload/replace/remove, downscaled to 256 px); **Grid generator**
-     (umbrella sets count ≤ 120, columns per row ≤ 16 → Generate); **Add**, **Copy** (duplicate),
-     **Reset** (default grid), remove.
-   - For the selection: **availability** (Available / On hold / Blocked), **type** (Standard / Front
-     row / Cabana), **price (€/day)**, position.
-   - Counter "N sets · M available · K selected".
-   - **Publish to wizard** → customers see exactly this arrangement when they open the zone.
-3. **Atmosphere** card (visible on both tabs): switches **Weather effects** (sea state, rain, cloud
-   cover & scene tint) and **Time-of-day lighting**; current weather (Sunny 28° / Windy 24° / Overcast
-   22° / Rainy 19°); **scene clock** slider (tip: ~19:30 gives golden hour). "Cosmetic only — booking is
-   unaffected."
-
-**Background picker** (modal): preset groups _Clean gradients_ and _Illustrated scenes_ (Azure Bay,
-Turquoise, Sunset, Slate Minimal, Akti tou Iliou [default], Palm Cove, Golden Hour, Hidden Cove) or
-**Your own photo** (JPG/PNG/WebP, downscaled to ≤ 1600×900) → preview → **Use background**.
+- One nav item (**Beach, Availability & Pricing**); `#/admin/map` redirects here.
+- **Sunbeds & pricing** (`src/screens/beach/Workspace.tsx`): every edit goes into one draft (layouts of
+  all stores, price categories, date overrides, landmarks) with Undo / Redo (buttons and ⌘Z / ⇧⌘Z); a
+  bar shows the number of unsaved changes with **Discard** and **Publish** (simulated processing); leaving
+  the page with unsaved changes asks for confirmation.
+- **Price categories** per store (seeded Front row FR, Standard ST, Back BK, assigned by row; the back
+  row keeps the store's "from" price): name, code, colour from a fixed palette, €/day. Colour is never
+  the only signal — every set shows the code and the legend lists the count per category.
+- **Paint category**: pick a category, press and sweep over sets. **Selection**: click, ⇧/⌘-click,
+  drag a rectangle on the sand, or the _Select…_ menu (row, column, category, type, state, step-free, all,
+  invert); a live counter shows sets and categories selected. The **List** view is the keyboard /
+  screen-reader alternative (checkboxes per set and select all).
+- **Price for dates**: apply a € price to the selection for a date range, optionally weekdays or
+  weekends only, with a before → after preview and an overlap warning (the newest override wins).
+  **Precedence**: sunbed date override › seasonal / weekday rules › category price › set default —
+  shown as a trace for a single selected set. Pricing is resolved by `resolvePrice` (`src/domain/pricing.ts`),
+  used by the booking wizard (each chosen date priced on its own), the Cashier till and the canvas.
+- **Sunbed attributes**: type (Standard, Front row, Cabana, Daybed, VIP), state (Available / On hold /
+  Blocked), step-free (♿, shown to guests), persons.
+- **Landmarks**: bar, shower, WC, lifeguard, entrance, ramp, path — placed by clicking the sand, dragged,
+  labelled; shown in the booking wizard, the Cashier map and the preview.
+- **Layout tools**: grid generator with numbering `MC-01…` or row letter + number `MC-A1…`; add, duplicate,
+  remove sets; **copy a store's layout** (numbering and categories) to another store; store logo.
+- **Preview as customer** renders the draft for the chosen date with prices, unavailable sets and landmarks.
+- **Zones & availability**: open / closed per store for today with a reason (live: closed stores can't be
+  booked online or sold at the till); the zone map (positions, name, prefix, colour, rows × columns,
+  background); Atmosphere card.
+- **Seasonal & day rules**: the existing rule list and price preview (rules apply on top of category
+  prices).
 
 ### A-04 · Bookings [MVP]
 

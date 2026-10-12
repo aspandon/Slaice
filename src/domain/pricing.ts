@@ -6,7 +6,7 @@
  * the future backend one obvious contract surface to take over.
  */
 
-import type { CartItem, PriceRule, PriceRuleDays, TicketCategory } from "./types";
+import type { BeachPricing, CartItem, PriceOverride, PriceRule, PriceRuleDays, SunbedSlot, TicketCategory } from "./types";
 
 /** Mock economics, mirrors the Checkout summary. */
 export const SLAICE_FEE_RATE = 0.05; // Slaice application fee
@@ -116,4 +116,47 @@ export function ruleEffectLabel(rule: PriceRule): string {
   const sign = rule.amount < 0 ? "−" : "+";
   const mag = Math.abs(rule.amount);
   return rule.mode === "addAbs" ? `${sign}€${mag}` : `${sign}${mag}%`;
+}
+
+/* ---------- Per-sunbed price resolution (AENR-469) ----------
+   Precedence, highest first:
+     1. a sunbed-specific date override (latest one wins),
+     2. zone / date rules (seasonal & weekday rules) applied on top of…
+     3. …the sunbed's price category, else
+     4. the set's own default price.
+   Returns the price plus a human-readable trace of how it was reached. */
+export interface PriceTrace {
+  price: number;
+  steps: string[];
+  source: "override" | "rule" | "category" | "base";
+}
+export function overrideFor(slotId: string, zoneId: string, dateISO: string, overrides: readonly PriceOverride[]): PriceOverride | undefined {
+  let hit: PriceOverride | undefined;
+  for (const o of overrides) {
+    if (o.zoneId !== zoneId || !o.setIds.includes(slotId)) continue;
+    if (dateISO < o.from || dateISO > o.to || !dayMatches(o.days, isoToDate(dateISO))) continue;
+    hit = o; // later overrides win
+  }
+  return hit;
+}
+export function resolvePrice(
+  slot: Pick<SunbedSlot, "id" | "price" | "cat">,
+  zoneId: string,
+  dateISO: string,
+  pricing: Pick<BeachPricing, "categories" | "overrides">,
+  rules: readonly PriceRule[],
+): PriceTrace {
+  const ov = overrideFor(slot.id, zoneId, dateISO, pricing.overrides);
+  if (ov) return { price: ov.price, steps: [`€${ov.price} · date override “${ov.label}” (${ov.from} → ${ov.to})`], source: "override" };
+  const cat = slot.cat ? pricing.categories.find((c) => c.id === slot.cat && c.zoneId === zoneId) : undefined;
+  const base = cat ? cat.price : slot.price;
+  const steps = [cat ? `€${base} · ${cat.name} (${cat.code}) category` : `€${base} · set default price`];
+  let price = base;
+  for (const r of rules) {
+    if (!ruleMatches(r, zoneId, dateISO)) continue;
+    price = applyRule(price, r);
+    steps.push(`${ruleEffectLabel(r)} · rule “${r.label}” → €${round2(price)}`);
+  }
+  price = Math.max(0, round2(price));
+  return { price, steps, source: steps.length > 1 ? "rule" : cat ? "category" : "base" };
 }

@@ -124,15 +124,63 @@ export interface Sunbed {
    x runs left→right along the shore, y runs from the sea / front row (0) to the
    promenade / back (100). This is the shared contract the admin Map Editor
    writes and the customer wizard's zoom view renders — one source, no drift. */
-export type SunbedKind = "standard" | "front" | "cabana";
+export type SunbedKind = "standard" | "front" | "cabana" | "daybed" | "vip";
 
 export interface SunbedSlot {
   id: string;
   x: number;
   y: number;
   state: SunbedState;
+  /** Default €/day for this set (used when it has no price category). */
   price: number;
   kind?: SunbedKind;
+  /** Price category id (AENR-469). */
+  cat?: string;
+  /** Step-free / near the ramp — shown with an accessibility icon. */
+  access?: boolean;
+  /** Persons the set seats (default 2). */
+  cap?: number;
+}
+
+/* ---------- Beach workspace: price categories, date overrides, landmarks (AENR-469) ---------- */
+/** A colour-coded price category per store, e.g. "Front row · FR · €45". */
+export interface PriceCategory {
+  id: string;
+  zoneId: string;
+  name: string;
+  /** Short code shown on the map next to the colour (never colour alone). */
+  code: string;
+  color: string;
+  /** Default €/day. */
+  price: number;
+  /** Optional minimum spend shown to guests (information only). */
+  minSpend?: number;
+}
+/** A per-sunbed price for a date window — wins over every other rule. */
+export interface PriceOverride {
+  id: string;
+  zoneId: string;
+  setIds: string[];
+  from: string;
+  to: string;
+  days: PriceRuleDays;
+  price: number;
+  label: string;
+}
+export type LandmarkKind = "bar" | "shower" | "wc" | "lifeguard" | "entrance" | "ramp" | "path";
+/** A non-bookable map object that orients guests and staff. */
+export interface Landmark {
+  id: string;
+  zoneId: string;
+  kind: LandmarkKind;
+  x: number;
+  y: number;
+  label?: string;
+}
+export interface BeachPricing {
+  categories: PriceCategory[];
+  overrides: PriceOverride[];
+  landmarks: Landmark[];
 }
 
 /* ---------- Bookings & documents ---------- */

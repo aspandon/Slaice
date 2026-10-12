@@ -55,12 +55,16 @@ export function zoneLayout(zone: Zone, cols = 8, rows = 6): SunbedSlot[] {
   const padY = 12;
   const spanX = 100 - padX * 2;
   const spanY = 100 - padY * 2;
+  // Rows map to the store's price categories: front row, standard, back row.
+  const cat = (r: number) => `${zone.id}-${r === 0 ? "fr" : r === rows - 1 && rows > 1 ? "bk" : "st"}`;
   return makeGrid(zone, cols, rows).map((b) => ({
     id: b.id,
     x: padX + (cols <= 1 ? spanX / 2 : (b.c / (cols - 1)) * spanX),
     y: padY + (rows <= 1 ? spanY / 2 : (b.r / (rows - 1)) * spanY),
     state: b.s,
     price: b.price,
+    cat: cat(b.r),
+    ...(b.r === 0 ? { kind: "front" as const } : {}),
   }));
 }
 
@@ -208,5 +212,6 @@ export const TENANT = {
   subdomain: "aktitouiliou.slaice.app",
 };
 
-/** Stores closed for the day (demo) — not sellable online or at the till. */
-export const CLOSED_STORES: Record<string, string> = { bolivar: "Closed today — private event" };
+/** Default stores closed for the day (demo seed) — the live list is the app
+ *  store's `closedStores`, edited in Beach, Availability & Pricing. */
+export const DEFAULT_CLOSED_STORES: Record<string, string> = { bolivar: "Closed today — private event" };

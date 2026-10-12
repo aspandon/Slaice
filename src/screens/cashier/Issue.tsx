@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, Field, Input, Modal, PageHead, StickyActionBar, Stepper } from "../../components/ui";
 import { Sunbed } from "../../components/Beach";
+import { SunbedMap } from "../../components/SunbedMap";
 import { useApp } from "../../app/store";
-import { CLOSED_STORES, ZONES } from "../../data/beach";
+import { ZONES } from "../../data/beach";
 import { CUSTOMERS } from "../../data/mock";
 import { BUNDLES, DISCOUNT_PRESETS, PROMO_CODES, QUICK_KEYS, TICKET_LABEL, TICKET_ORDER, type Bundle, type QuickKey } from "../../data/till";
-import { TICKET_PRICES, effectivePrice } from "../../domain/pricing";
+import { TICKET_PRICES, resolvePrice } from "../../domain/pricing";
 import { basketTotals, discountAmount, eur, lineGross, validatePromo, type Tender, type TenderKind, type TillDiscount, type TillLine, type TillSale } from "../../domain/till";
 import type { SunbedSlot, TicketCategory } from "../../domain/types";
 import { useLiveSlots, useNow } from "../../lib/useLiveSlots";
@@ -28,7 +29,7 @@ const uid = (p: string) => `${p}${++uidN}`;
 const mmss = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
 
 export function CashierIssue() {
-  const { toast, go, priceRules } = useApp();
+  const { toast, go, priceRules, closedStores: CLOSED_STORES, beachPricing } = useApp();
   const t = useTill();
   const now = useNow(1000);
   const liveSlots = useLiveSlots();
@@ -48,7 +49,7 @@ export function CashierIssue() {
   const [err, setErr] = useState("");
 
   const zone = ZONES.find((z) => z.id === zoneId) ?? ZONES[0];
-  const priceOf = (s: SunbedSlot, zId = zone.id) => effectivePrice(s.price, zId, t.day, priceRules);
+  const priceOf = (s: SunbedSlot, zId = zone.id) => resolvePrice(s, zId, t.day, beachPricing, priceRules).price;
   const inBasket = useMemo(() => new Set(lines.filter((l) => l.setId).map((l) => l.setId as string)), [lines]);
   const zoneSlots = (zId: string) => liveSlots(ZONES.find((z) => z.id === zId)!, [t.day]);
   const slots = zoneSlots(zone.id);
@@ -270,14 +271,8 @@ export function CashierIssue() {
                 <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 p-6 text-center text-sm text-slate-600">{zone.name}: {CLOSED_STORES[zone.id]}. Choose another store.</div>
               ) : (
                 <>
-                  <div className="relative overflow-x-clip rounded-xl bg-gradient-to-b from-sky-100 via-amber-50 to-amber-100/70 ring-1 ring-slate-200 aspect-[16/8] sm:aspect-[16/7]" aria-label={`${zone.name} sunbed map — sea at the top`} role="group">
-                    <div className="absolute inset-x-0 top-0 h-[7%] bg-sky-300/50 rounded-t-xl" aria-hidden />
-                    {slots.map((s) => (
-                      <div key={s.id} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${s.x}%`, top: `${s.y}%`, width: "clamp(30px, 5.2vw, 44px)", height: "clamp(30px, 5.2vw, 44px)" }}>
-                        <Sunbed state={s.state} sel={inBasket.has(s.id)} price={priceOf(s)} label={s.id} fill onClick={() => toggleSet(s)} />
-                      </div>
-                    ))}
-                  </div>
+                  <SunbedMap label={`${zone.name} sunbed map`} slots={slots} selected={inBasket} onToggle={toggleSet} priceOf={(s) => priceOf(s)}
+                    landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zone.id)} />
                   <div className="mt-2 flex flex-wrap gap-3 text-[11.5px] text-slate-600">
                     <span className="flex items-center gap-1"><Sunbed state="a" size={14} readOnly /> Free</span>
                     <span className="flex items-center gap-1"><Sunbed state="h" size={14} readOnly /> On hold</span>

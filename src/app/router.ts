@@ -18,6 +18,12 @@ const EXTRA_PAGES: Partial<Record<PersonaId, string[]>> = {
   customer: ["checkout", "confirm", "mybookings", "mydocs", "vip", "season"],
 };
 
+// Retired pages that now live elsewhere — old links keep working.
+const PAGE_ALIASES: Partial<Record<PersonaId, Record<string, string>>> = {
+  admin: { map: "availability" }, // Map Layout Editor merged into Beach, Availability & Pricing (AENR-469)
+};
+export const resolvePage = (persona: PersonaId, page: string) => PAGE_ALIASES[persona]?.[page] ?? page;
+
 const isPersona = (p: string): p is PersonaId => PERSONAS.some((x) => x.id === p);
 
 // A page is valid if it's in the persona's NAV or its extra (flow) pages.
@@ -33,7 +39,7 @@ export function parseHash(hash: string = window.location.hash): Route {
   const parts = hashPath(hash).replace(/^#\/?/, "").split("/").filter(Boolean);
   const persona = parts[0];
   if (!isPersona(persona)) return {};
-  let page: string | undefined = parts[1];
+  let page: string | undefined = parts[1] && resolvePage(persona, parts[1]);
   if (page && !isValidPage(persona, page)) page = undefined;
   return { persona, page };
 }

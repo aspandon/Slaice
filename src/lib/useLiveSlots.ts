@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useApp } from "../app/store";
-import { CLOSED_STORES, zoneLayout } from "../data/beach";
+import { zoneLayout } from "../data/beach";
+import { resolvePrice } from "../domain/pricing";
 import { applySetStatus, tillSetStatus, type SetStatus } from "../domain/till";
 import type { SunbedSlot, Zone } from "../domain/types";
 
@@ -18,7 +19,7 @@ export function useNow(ms = 1000): number {
  *  closed stores) applied — the one view every persona renders. For several
  *  days, a set taken on any of them counts as taken. */
 export function useLiveSlots(): (zone: Zone, days: readonly string[]) => SunbedSlot[] {
-  const { beachLayout, till } = useApp();
+  const { beachLayout, till, closedStores, beachPricing, priceRules } = useApp();
   const now = useNow(15000);
   return useCallback(
     (zone: Zone, days: readonly string[]) => {
@@ -27,12 +28,12 @@ export function useLiveSlots(): (zone: Zone, days: readonly string[]) => SunbedS
         for (const [id, s] of Object.entries(tillSetStatus(till, d, now)))
           if (status[id] !== "sold") status[id] = s;
       }
-      return applySetStatus(
-        beachLayout[zone.id] ?? zoneLayout(zone),
-        status,
-        !!CLOSED_STORES[zone.id],
+      // Prices shown are the resolved price for the first day (category, rules, overrides).
+      const priced = (beachLayout[zone.id] ?? zoneLayout(zone)).map((s) =>
+        days[0] ? { ...s, price: resolvePrice(s, zone.id, days[0], beachPricing, priceRules).price } : s,
       );
+      return applySetStatus(priced, status, !!closedStores[zone.id]);
     },
-    [beachLayout, till, now],
+    [beachLayout, till, now, closedStores, beachPricing, priceRules],
   );
 }
