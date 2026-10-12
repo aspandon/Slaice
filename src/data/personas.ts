@@ -1,10 +1,11 @@
-// Personas (RFP roles). "Call Agent" is represented inside Manager/Admin (full access),
-// matching the RFP role matrix where Call Agent ≈ Admin minus tenant configuration.
+// Personas (RFP roles). Call Center is its own role (phone bookings + booking
+// lookup); Manager/Admin keeps the same Manual / Phone Booking screen too.
 import type { NavItem, Persona, PersonaId } from "../domain/types";
 
 export const PERSONAS: Persona[] = [
   { id: "customer", label: "Customer", icon: "umbrella", color: "#0D9488", blurb: "Πελάτης — online booking, tickets, QR entry, documents" },
   { id: "admin", label: "Manager / Admin", icon: "chart", color: "#0B2545", blurb: "Διαχειριστής / Call Agent — config, availability, CRM, reporting" },
+  { id: "callcenter", label: "Call Center", icon: "phone", color: "#0891b2", blurb: "Τηλεφωνικό κέντρο — τηλεφωνικές κρατήσεις, αναζήτηση κρατήσεων" },
   { id: "cashier", label: "Cashier", icon: "cash", color: "#0ea5e9", blurb: "Ταμίας — on-site ticket issuing, printing, cash register" },
   { id: "controller", label: "Controller", icon: "scan", color: "#f59e0b", blurb: "Ελεγκτής — gate QR validation, walk-ins" },
   { id: "accountant", label: "Accountant", icon: "receipt", color: "#a855f7", blurb: "Λογιστής — e-invoicing, MyDATA, commission & payouts" },
@@ -37,6 +38,10 @@ export const NAV: Record<PersonaId, NavItem[]> = {
     { k: "passes", label: "Passes", short: "Passes", icon: "wallet", badge: "Future" },
     { k: "gamification", label: "Gamification", short: "Badges", icon: "star", badge: "Future" },
   ],
+  callcenter: [
+    { k: "manual", label: "Manual / Phone Booking", short: "Phone", icon: "phone", badge: "MVP" },
+    { k: "bookings", label: "Bookings", short: "Bookings", icon: "grid", badge: "MVP" },
+  ],
   cashier: [
     { k: "issue", label: "Issue Ticket", short: "Issue", icon: "ticket", badge: "MVP" },
     { k: "redeem", label: "Redeem Ticket", short: "Redeem", icon: "check", badge: "Future" },
@@ -63,6 +68,7 @@ export const NAV: Record<PersonaId, NavItem[]> = {
 export const DEFAULT_PAGE: Record<PersonaId, string> = {
   customer: "home",
   admin: "dashboard",
+  callcenter: "manual",
   cashier: "issue",
   controller: "scan",
   accountant: "invoicing",

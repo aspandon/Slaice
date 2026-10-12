@@ -852,8 +852,53 @@ function BookingItems({ items }: { items: string[] }) {
 
 type EnrichedBooking = AdminBooking & { surname: string; phone: string; email: string };
 
+/* Staff notes on a booking. Call-centre agents can escalate to a manager
+   (e.g. a refund or date change they can't action themselves). */
+function BookingNotesModal({ booking, onClose, agent }: { booking: EnrichedBooking | null; onClose: () => void; agent: boolean }) {
+  const { bookingNotes, addBookingNote, toast } = useApp();
+  const [text, setText] = useState("");
+  const [escalate, setEscalate] = useState(false);
+  const notes = booking ? bookingNotes[booking.id] ?? [] : [];
+  const close = () => { setText(""); setEscalate(false); onClose(); };
+  const save = () => {
+    if (!booking || !text.trim()) return;
+    addBookingNote(booking.id, { text: text.trim(), at: new Date().toISOString(), by: agent ? "Call Center" : "Manager / Admin", escalated: escalate });
+    toast(escalate ? `Note added to ${booking.id} and escalated to a manager.` : `Note added to ${booking.id}.`, { tone: "success" });
+    close();
+  };
+  return (
+    <Modal open={booking !== null} onClose={close} title={booking ? `Notes · ${booking.id}` : "Notes"}
+      footer={<><Btn variant="ghost" onClick={close}>Cancel</Btn><Btn variant="primary" icon={Icon.check} disabled={!text.trim()} onClick={save}>{escalate ? "Add & escalate" : "Add note"}</Btn></>}>
+      {booking && (
+        <div className="space-y-3">
+          <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm flex justify-between gap-2"><span className="text-slate-600">{booking.who} {booking.surname} · {booking.date}</span><b className="tnum">€{booking.amount}</b></div>
+          {notes.length > 0 ? (
+            <ul className="space-y-2">
+              {notes.map((n, i) => (
+                <li key={i} className="rounded-xl ring-1 ring-slate-200 bg-white px-3 py-2">
+                  <div className="text-[11px] text-slate-500 flex items-center gap-2">{n.by} · {new Date(n.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}{n.escalated && <Badge tone="red">Escalated</Badge>}</div>
+                  <div className="text-sm text-navy-900 mt-0.5 whitespace-pre-wrap">{n.text}</div>
+                </li>
+              ))}
+            </ul>
+          ) : <div className="text-[12px] text-slate-500">No notes yet.</div>}
+          <Field label="New note"><textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="e.g. Caller asked to move the booking to Saturday." className="glass-input w-full rounded-xl px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-teal-500/70" /></Field>
+          <label className="flex items-start gap-2.5 text-sm cursor-pointer">
+            <input type="checkbox" checked={escalate} onChange={(e) => setEscalate(e.target.checked)} className="mt-0.5 w-4 h-4 accent-teal-600" />
+            <span className="font-semibold text-navy-900">Escalate to a manager<span className="block font-normal text-[12px] text-slate-500">{agent ? "Refunds and changes you can't make are handled by a manager." : "Flags the booking as needing a manager's decision."}</span></span>
+          </label>
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 export function AdminBookings() {
-  const { toast } = useApp();
+  const { toast, persona, bookingNotes } = useApp();
+  // Shared by Manager/Admin and Call Center; agents look up and help callers
+  // but don't export or refund — they escalate to a manager (AENR-472).
+  const agent = persona === "callcenter";
+  const [noteFor, setNoteFor] = useState<EnrichedBooking | null>(null);
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);
   const [sort, setSort] = useState<SortState>(null);
@@ -908,7 +953,7 @@ export function AdminBookings() {
           <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-sm flex-1 min-w-[200px] text-slate-600">
             <Icon.search size={16} /><input value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="Search bookings…" className="text-sm outline-none w-full bg-transparent text-ink" />
           </div>
-          <Btn variant="outline" icon={Icon.download} onClick={exportCSV} className="ml-auto">Export</Btn>
+          {!agent && <Btn variant="outline" icon={Icon.download} onClick={exportCSV} className="ml-auto">Export</Btn>}
         </div>
         <PeriodPicker value={period} onChange={setPeriod} allowAll presets={["day", "week", "month", "year", "season"]} resetTo={{ kind: "all" }} className="mb-3" />
         {loading ? (
@@ -937,17 +982,27 @@ export function AdminBookings() {
                 <BookingItems items={b.items} />,
                 b.date,
                 <Badge tone={chan(b.channel)}>{b.channel}</Badge>,
-                <StatusBadge status={b.status} />,
+                <div className="flex flex-col items-start gap-1">
+                  <StatusBadge status={b.status} />
+                  {bookingNotes[b.id]?.some((n) => n.escalated) && <Badge tone="red"><Icon.bell size={10} /> Escalated</Badge>}
+                </div>,
                 `€${b.amount}`,
-                <button type="button" onClick={() => setSendFor(b)} aria-label={`Resend QR for ${b.id}`} title="Resend QR"
-                  className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 h-9 text-[12.5px] font-semibold text-navy-900 hover:bg-slate-100 transition">
-                  <Icon.mail size={15} className="text-slate-500" /><span className="hidden xl:inline">Resend</span> QR
-                </button>,
+                <div className="flex items-center">
+                  <button type="button" onClick={() => setSendFor(b)} aria-label={`Resend QR for ${b.id}`} title="Resend QR"
+                    className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-2 h-9 text-[12.5px] font-semibold text-navy-900 hover:bg-slate-100 transition">
+                    <Icon.mail size={15} className="text-slate-500" />QR
+                  </button>
+                  <button type="button" onClick={() => setNoteFor(b)} aria-label={`Notes for ${b.id}${bookingNotes[b.id]?.length ? ` (${bookingNotes[b.id].length})` : ""}`} title="Notes"
+                    className="relative inline-flex items-center gap-1 whitespace-nowrap rounded-xl px-2 h-9 text-[12.5px] font-semibold text-navy-900 hover:bg-slate-100 transition">
+                    <Icon.doc size={15} className="text-slate-500" />{bookingNotes[b.id]?.length ? <span className="tnum">{bookingNotes[b.id].length}</span> : null}
+                  </button>
+                </div>,
               ])} />
             {pageCount > 1 && <Pager page={safePage} pageCount={pageCount} total={sorted.length} pageSize={PAGE} onPage={setPage} />}
           </>
         )}
       </Card>
+      <BookingNotesModal booking={noteFor} onClose={() => setNoteFor(null)} agent={agent} />
       <SendModal
         open={sendFor !== null}
         onClose={() => setSendFor(null)}

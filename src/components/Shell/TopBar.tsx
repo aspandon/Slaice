@@ -36,6 +36,11 @@ const FEEDS: Record<string, FeedItem[]> = {
     { ic: "bell", tone: "indigo", t: "Capacity at 87%", b: "Macaw zone is nearly full for tomorrow.", time: "1h" },
     { ic: "users", tone: "slate", t: "5 new accounts", b: "From the Saturday push campaign.", time: "3h" },
   ],
+  callcenter: [
+    { ic: "phone", tone: "green", t: "Phone booking sent", b: "Macaw · MC-04 blocked · QR sent by SMS to +30 694 …0011.", time: "5m" },
+    { ic: "refund", tone: "amber", t: "Escalation answered", b: "Manager approved the refund for #BK-10410.", time: "40m" },
+    { ic: "bell", tone: "indigo", t: "Busy line", b: "Calls peak 10:00–12:00 on weekends — 2 agents scheduled.", time: "2h" },
+  ],
   cashier: [
     { ic: "ticket", tone: "green", t: "Session opened", b: "Float €100 logged at 09:02. Have a great shift!", time: "now" },
     { ic: "cash", tone: "amber", t: "Cash handover due", b: "Drawer threshold reached: €500 — record a handover.", time: "20m" },

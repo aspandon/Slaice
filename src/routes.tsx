@@ -34,6 +34,9 @@ const MAP: Record<string, () => ReactElement> = {
   "admin.loyalty": () => <A.AdminLoyalty />,
   "admin.passes": () => <A.AdminPasses />,
   "admin.gamification": () => <A.AdminGamification />,
+  // call center — the same screens as the admin's, scoped by persona
+  "callcenter.manual": () => <A.AdminManual />,
+  "callcenter.bookings": () => <A.AdminBookings />,
   // cashier
   "cashier.issue": () => <CA.CashierIssue />,
   "cashier.redeem": () => <CA.CashierRedeem />,
@@ -58,6 +61,7 @@ const MAP: Record<string, () => ReactElement> = {
 const FALLBACK: Record<PersonaId, () => ReactElement> = {
   customer: () => <C.CustomerHome />,
   admin: () => <A.AdminDashboard />,
+  callcenter: () => <A.AdminManual />,
   cashier: () => <CA.CashierIssue />,
   controller: () => <CT.ControllerScan />,
   accountant: () => <AC.AccountantInvoicing />,

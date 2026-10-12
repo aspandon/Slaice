@@ -48,7 +48,7 @@ and serve it with `npx vite preview --outDir dist`.
 
 ## What's inside
 
-Six personas share one app. Every screen has a hash route, `#/<persona>/<page>`: deep links work,
+Seven personas share one app. Every screen has a hash route, `#/<persona>/<page>`: deep links work,
 refresh keeps your place and Back/Forward move between screens. Switch persona with the **Demo** pill
 (bottom-right on customer pages) or the persona chip at the right of the staff top bar. That switcher is
 a demo affordance; in production the role comes from sign-in.
@@ -56,7 +56,8 @@ a demo affordance; in production the role comes from sign-in.
 | Persona                                | Routes              | Screens                                                                                                                                                                                                                            |
 | -------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Customer**                           | `#/customer/…`      | Home · **Plan my visit** (booking wizard) · Checkout · Confirmation · My Bookings · My Documents · VIP Pass and Season Pass purchase — plus account settings, Privacy Centre, change password and 2FA                              |
-| **Manager / Admin** (incl. Call Agent) | `#/admin/…`         | **MVP:** Dashboard · Availability & Pricing · Map Layout Editor · Bookings · Manual/Phone Booking · Users & Segments · Reporting & Analytics · Refunds · Privacy & GDPR. **Future:** Communicate · Loyalty · Passes · Gamification |
+| **Manager / Admin**                    | `#/admin/…`         | **MVP:** Dashboard · Availability & Pricing · Map Layout Editor · Bookings · Manual/Phone Booking · Users & Segments · Reporting & Analytics · Refunds · Privacy & GDPR. **Future:** Communicate · Loyalty · Passes · Gamification |
+| **Call Center** | `#/callcenter/…` | **MVP:** Manual/Phone Booking · Bookings (lookup: resend QR, notes, escalate to a manager) |
 | **Cashier**                            | `#/cashier/…`       | **MVP:** Issue Ticket. **Future:** Redeem Ticket · Cash Register · Sell Locker                                                                                                                                                     |
 | **Controller**                         | `#/controller/scan` | Gate Validation — QR scan simulation, walk-ins, pay-on-site tickets, same-day release                                                                                                                                              |
 | **Accountant**                         | `#/accountant/…`    | e-Invoicing & myDATA · Commission & Payouts                                                                                                                                                                                        |

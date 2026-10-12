@@ -19,7 +19,7 @@ import type { Achievement } from "./data/gamification";
 import { DEFAULT_ZONE_MAP, DEFAULT_PRICE_RULES } from "./data/pricing";
 import { DEFAULT_CHANNELS } from "./data/channels";
 import { DEFAULT_PASS_CARDS } from "./data/passDesigns";
-import type { BeachBackground, CartItem, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "./domain/types";
+import type { BeachBackground, BookingNote, CartItem, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "./domain/types";
 import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "./data/beach";
 import type { SceneFx, WeatherKind } from "./data/beach";
 
@@ -62,6 +62,7 @@ const saved = loadLS() as {
   weather?: WeatherKind;
   dayTime?: number;
   sceneFx?: SceneFx;
+  bookingNotes?: Record<string, BookingNote[]>;
 };
 // A deep link in the URL wins over the last saved location.
 const initialRoute = parseHash();
@@ -98,15 +99,17 @@ export default function App() {
   const [weather, setWeather] = useState<WeatherKind>(saved.weather || "sunny");
   const [dayTime, setDayTime] = useState<number>(saved.dayTime ?? DAY_DEFAULT);
   const [sceneFx, setSceneFxState] = useState<SceneFx>(saved.sceneFx || DEFAULT_SCENE_FX);
+  const [bookingNotes, setBookingNotes] = useState<Record<string, BookingNote[]>>(saved.bookingNotes || {});
+  const addBookingNote = useCallback((id: string, note: BookingNote) => setBookingNotes((m) => ({ ...m, [id]: [...(m[id] ?? []), note] })), []);
 
   useEffect(() => {
     // Guard the write: Safari Private Mode and a full quota throw on setItem.
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes }));
     } catch {
       /* storage unavailable (private mode / quota) — ignore */
     }
-  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx]);
+  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes]);
 
   // Keep <html lang> in sync with the chosen language (a11y / SEO correctness).
   useEffect(() => {
@@ -223,8 +226,8 @@ export default function App() {
 
   // Memoised so the provider value keeps a stable identity across renders.
   const ctx = useMemo<AppContextValue>(
-    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx }),
-    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx],
+    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote }),
+    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote],
   );
 
   // The booking wizard takes over the whole viewport: the beach becomes the

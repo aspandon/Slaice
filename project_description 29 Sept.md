@@ -209,17 +209,18 @@ Iliou) plus the **platform console** that manages all tenants.
 
 ## 5. Personas and roles
 
-All six personas share one app. In the mockup a **persona switcher** lets anyone view any persona
+All seven personas share one app. In the mockup a **persona switcher** lets anyone view any persona
 **[DEMO]**; in production each persona is a role with its own permissions.
 
-| Persona                                    | Greek label (source)      | Who                                                             | Purpose                                                                                       | Default page | Surface style                               |
-| ------------------------------------------ | ------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------ | ------------------------------------------- |
-| **Customer**                               | Πελάτης                   | Beach guest (demo user: _Elena M._, `elena@example.com`)        | Online booking, tickets, QR entry, documents, passes, rewards                                 | `home`       | Consumer, immersive beach scene, no sidebar |
-| **Manager / Admin** (incl. **Call Agent**) | Διαχειριστής / Call Agent | Tenant manager; a call agent ≈ admin minus tenant configuration | Configuration, availability, pricing, map, bookings, CRM, reporting, refunds, GDPR, marketing | `dashboard`  | Staff console: sidebar + top bar            |
-| **Cashier**                                | Ταμίας                    | On-site cashier at the entrance                                 | Anonymous on-site tickets, printing, redeem, cash register, locker sales                      | `issue`      | Staff console                               |
-| **Controller**                             | Ελεγκτής                  | Gate staff                                                      | QR validation, walk-ins, pay-on-site tickets, same-day release                                | `scan`       | Staff console                               |
-| **Accountant**                             | Λογιστής                  | Tenant's accountant                                             | e-Invoicing & myDATA, commission & payouts, VAT                                               | `invoicing`  | Staff console                               |
-| **Platform / Slaice**                      | Slaice staff              | Slaice internal team — the **super admin**                      | Tenants, onboarding, capability flags, webhooks, compliance, verticals, landing page          | `tenants`    | Staff console (indigo brand)                |
+| Persona               | Greek label (source) | Who                                                      | Purpose                                                                                                                  | Default page | Surface style                               |
+| --------------------- | -------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | ------------ | ------------------------------------------- |
+| **Customer**          | Πελάτης              | Beach guest (demo user: _Elena M._, `elena@example.com`) | Online booking, tickets, QR entry, documents, passes, rewards                                                            | `home`       | Consumer, immersive beach scene, no sidebar |
+| **Manager / Admin**   | Διαχειριστής         | Tenant manager                                           | Configuration, availability, pricing, map, bookings, CRM, reporting, refunds, GDPR, marketing                            | `dashboard`  | Staff console: sidebar + top bar            |
+| **Call Center**       | Τηλεφωνικό κέντρο    | Phone agents                                             | Phone bookings (A-05) and booking lookup: search, filter, resend QR, notes, escalate to a manager — no export or refunds | `manual`     | Staff console                               |
+| **Cashier**           | Ταμίας               | On-site cashier at the entrance                          | Anonymous on-site tickets, printing, redeem, cash register, locker sales                                                 | `issue`      | Staff console                               |
+| **Controller**        | Ελεγκτής             | Gate staff                                               | QR validation, walk-ins, pay-on-site tickets, same-day release                                                           | `scan`       | Staff console                               |
+| **Accountant**        | Λογιστής             | Tenant's accountant                                      | e-Invoicing & myDATA, commission & payouts, VAT                                                                          | `invoicing`  | Staff console                               |
+| **Platform / Slaice** | Slaice staff         | Slaice internal team — the **super admin**               | Tenants, onboarding, capability flags, webhooks, compliance, verticals, landing page                                     | `tenants`    | Staff console (indigo brand)                |
 
 ---
 
@@ -259,6 +260,13 @@ visited **per persona** is remembered.
 | `#/admin/loyalty`      | Loyalty                | Loyalty              | [Future] |
 | `#/admin/passes`       | Passes                 | Passes               | [Future] |
 | `#/admin/gamification` | Gamification           | Badges               | [Future] |
+
+### Call Center
+
+| Route                   | Screen                 | Tag   |
+| ----------------------- | ---------------------- | ----- |
+| `#/callcenter/manual`   | Manual / Phone Booking | [MVP] |
+| `#/callcenter/bookings` | Bookings (lookup)      | [MVP] |
 
 ### Cashier
 
@@ -990,6 +998,11 @@ Turquoise, Sunset, Slate Minimal, Akti tou Iliou [default], Palm Cove, Golden Ho
 - **Resend QR** modal: choose **Email / Viber / SMS** (shows the destination) → "Resend via …".
 
 ### A-05 · Manual / Phone Booking [MVP]
+
+Shared by Manager / Admin and the **Call Center** role (`#/callcenter/manual`, its landing page) —
+the same screen. Call Center also gets **Bookings** (A-04) as a lookup: search and filter, Resend QR
+and **Notes** with **Escalate to a manager** (escalated bookings show an _Escalated_ badge to admins);
+no Export and no refunds.
 
 ```text
  ┌─ Form ─────────────────────────────┐  ┌─ Live beach coverage ──────────────┐
@@ -1823,7 +1836,7 @@ Events, Retail, Compliant: Stripe + MyDATA).
 | 30  | Beach background presets / photo upload                                          | Admin                           | MVP                 | A-03             |
 | 31  | Customer-scene atmosphere controls                                               | Admin                           | MVP                 | A-03             |
 | 32  | Bookings list (search, sort, paginate, CSV, resend QR via Email/Viber/SMS)       | Admin                           | MVP                 | A-04             |
-| 33  | Manual / phone booking without payment                                           | Admin (Call Agent)              | MVP                 | A-05             |
+| 33  | Manual / phone booking without payment                                           | Admin, Call Center              | MVP                 | A-05             |
 | 34  | CRM users with auto + manual segments, edit, activity                            | Admin                           | MVP                 | A-06             |
 | 35  | Reporting (8 tabs, CSV per tab)                                                  | Admin                           | MVP                 | A-07             |
 | 36  | Refunds (full/partial, reasons, Stripe + credit note)                            | Admin                           | MVP                 | A-08             |

@@ -9,9 +9,19 @@
  * strings.
  */
 
+/** A staff note on a booking (e.g. from the call centre); `escalated` flags it
+ *  for a manager — such as a refund request the agent can't action. */
+export interface BookingNote {
+  text: string;
+  at: string; // ISO timestamp
+  by: string; // persona label of the author
+  escalated: boolean;
+}
+
 export type PersonaId =
   | "customer"
   | "admin"
+  | "callcenter"
   | "cashier"
   | "controller"
   | "accountant"

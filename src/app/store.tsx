@@ -10,7 +10,7 @@ import type { Achievement } from "../data/gamification";
 import { DEFAULT_ZONE_MAP, DEFAULT_PRICE_RULES } from "../data/pricing";
 import { DEFAULT_CHANNELS } from "../data/channels";
 import { DEFAULT_PASS_CARDS } from "../data/passDesigns";
-import type { BeachBackground, CartItem, CartKind, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "../domain/types";
+import type { BeachBackground, BookingNote, CartItem, CartKind, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "../domain/types";
 import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "../data/beach";
 import type { SceneFx, WeatherKind } from "../data/beach";
 
@@ -111,6 +111,9 @@ export interface AppContextValue {
    *  and the time-of-day lighting. */
   sceneFx: SceneFx;
   setSceneFx: (patch: Partial<SceneFx>) => void;
+  /** Staff notes per booking id (call-centre notes, escalations) — persisted. */
+  bookingNotes: Record<string, BookingNote[]>;
+  addBookingNote: (bookingId: string, note: BookingNote) => void;
 }
 
 const DEFAULT_CONSENT: Consent = {
@@ -171,6 +174,8 @@ export const AppCtx = createContext<AppContextValue>({
   setDayTime: () => {},
   sceneFx: DEFAULT_SCENE_FX,
   setSceneFx: () => {},
+  bookingNotes: {},
+  addBookingNote: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);
