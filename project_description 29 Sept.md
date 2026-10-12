@@ -990,6 +990,11 @@ Turquoise, Sunset, Slate Minimal, Akti tou Iliou [default], Palm Cove, Golden Ho
 ```
 
 - Visit-date filter: the shared period control (X-11), default **All dates**.
+- **Filters** (shared `FilterBar`, `src/domain/filters.ts`): Channel, Status, Amount (more than / less
+  than / between, validated), Item type (sunbed / entry ticket / locker / parking) and Zone. AND across
+  filters, OR within one; they combine with search, sorting and pagination (page resets). Active
+  filters show as removable chips with **Clear all** and a count ("5 of 68 bookings"); they persist in
+  the URL (`?channel=Online&amount=gt:40`), and **Export** writes exactly the filtered rows.
 - Search (ID, name, surname, phone, items), **sortable** columns (Booking, Name, Surname, Date,
   Amount), pagination (30 per page), **Export** CSV (one row per booking _item_; total on the first
   item row).

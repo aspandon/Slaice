@@ -3,7 +3,7 @@ import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { lazyWithReload } from "../lib/staleChunk";
 import { SortHeader, Pager, dateVal, cmpVal, moneyVal, type SortState } from "../components/TableTools";
 import { Icon, type IconRenderer } from "../lib/icons";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, ErrorState, useMockLoad, FutureBanner, NotMvpBadge, ContextPanel, Spinner, PeriodPicker } from "../components/ui";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, ErrorState, useMockLoad, FutureBanner, NotMvpBadge, ContextPanel, Spinner, PeriodPicker, FilterBar, filterCount } from "../components/ui";
 import type { TabEntry } from "../components/ui";
 import { BarChart, HBarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts";
 import { BeachBackdrop, SunbedMark } from "../components/Beach";
@@ -29,6 +29,8 @@ import { downloadCSV, downloadCSVReport, type CsvSection } from "../lib/download
 import { listCustomers } from "../api";
 import { useAsync } from "../lib/useAsync";
 import { usePeriod } from "../lib/usePeriod";
+import { readHashQuery, writeHashQuery } from "../app/router";
+import { activeCount, filtersFromParams, filtersToParams, isAmount, matchAmount, type FilterDef, type FilterState } from "../domain/filters";
 import { resolveRange, comparisonRange, lastYearRange, granularityFor, rangeLabel, periodNoun, comparisonLabel, isoFromDayMonth, inRange } from "../domain/period";
 import { summarize, series, buckets, CHANNELS as CHANNELS_A, fmtEUR, fmtInt, fmtPct, trendPct, trendPp, trendEUR } from "../data/analytics";
 
@@ -852,6 +854,29 @@ function BookingItems({ items }: { items: string[] }) {
 
 type EnrichedBooking = AdminBooking & { surname: string; phone: string; email: string };
 
+/* Structured filters for the bookings list (AENR-471). Values come from the
+   booking data; the date filter is the shared period control. */
+const BOOKING_ITEM_TYPES = [{ v: "Sunbed", l: "Sunbed" }, { v: "Entry", l: "Entry ticket" }, { v: "Day locker", l: "Locker" }, { v: "Parking", l: "Parking" }];
+const BOOKING_FILTERS: FilterDef[] = [
+  { key: "channel", label: "Channel", kind: "multi", options: ["Online", "Walk-in", "Phone", "Cashier"].map((v) => ({ v, l: v })) },
+  { key: "status", label: "Status", kind: "multi", options: ["Confirmed", "Used", "Unpaid", "Refunded", "Cancelled"].map((v) => ({ v, l: v })) },
+  { key: "amount", label: "Amount", kind: "amount" },
+  { key: "item", label: "Item type", kind: "multi", options: BOOKING_ITEM_TYPES },
+  { key: "zone", label: "Zone", kind: "multi", options: ZONES.map((z) => ({ v: z.name, l: z.name })) },
+];
+const itemKind = (item: string) => item.split(" · ")[0];
+const itemZone = (item: string) => (itemKind(item) === "Sunbed" ? item.split(" · ")[1] : null);
+function matchBookingFilters(b: { channel: string; status: string; amount: number; items: string[] }, f: FilterState): boolean {
+  const has = (k: string) => Array.isArray(f[k]) && (f[k] as string[]).length > 0;
+  const inList = (k: string, v: string) => (f[k] as string[]).includes(v);
+  if (has("channel") && !inList("channel", b.channel)) return false;
+  if (has("status") && !inList("status", b.status)) return false;
+  if (isAmount(f.amount) && !matchAmount(b.amount, f.amount)) return false;
+  if (has("item") && !b.items.some((i) => inList("item", itemKind(i)))) return false;
+  if (has("zone") && !b.items.some((i) => { const z = itemZone(i); return !!z && inList("zone", z); })) return false;
+  return true;
+}
+
 /* Staff notes on a booking. Call-centre agents can escalate to a manager
    (e.g. a refund or date change they can't action themselves). */
 function BookingNotesModal({ booking, onClose, agent }: { booking: EnrichedBooking | null; onClose: () => void; agent: boolean }) {
@@ -914,7 +939,11 @@ export function AdminBookings() {
   const [period, setPeriodRaw] = usePeriod({ kind: "all" });
   const setPeriod = (p: Parameters<typeof setPeriodRaw>[0]) => { setPeriodRaw(p); setPage(0); };
   const range = resolveRange(period);
-  const filtered = enriched.filter((b) => inRange(isoFromDayMonth(b.date), range) && (b.id + b.who + b.surname + b.phone + b.items.join(" ")).toLowerCase().includes(q.toLowerCase()));
+  // Channel / status / amount / item / zone filters, kept in the URL.
+  const [filters, setFiltersRaw] = useState<FilterState>(() => filtersFromParams(BOOKING_FILTERS, readHashQuery()));
+  const setFilters = (f: FilterState) => { setFiltersRaw(f); setPage(0); writeHashQuery(filtersToParams(BOOKING_FILTERS, f), BOOKING_FILTERS.map((d) => d.key)); };
+  const filtered = enriched.filter((b) => inRange(isoFromDayMonth(b.date), range) && matchBookingFilters(b, filters) && (b.id + b.who + b.surname + b.phone + b.items.join(" ")).toLowerCase().includes(q.toLowerCase()));
+  const anyFilter = !!range || !!q || activeCount(filters) > 0;
   const sortVal = (b: EnrichedBooking): string | number => {
     switch (sort?.key) {
       case "id": return b.id;
@@ -951,17 +980,18 @@ export function AdminBookings() {
             doesn't add a separate strip above. Export hugs the right edge. */}
         <div className="flex items-center gap-3 mb-3 flex-wrap">
           <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-sm flex-1 min-w-[200px] text-slate-600">
-            <Icon.search size={16} /><input value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="Search bookings…" className="text-sm outline-none w-full bg-transparent text-ink" />
+            <Icon.search size={16} /><input value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="Search bookings…" aria-label="Search bookings by ID, name, phone or item" className="text-sm outline-none w-full bg-transparent text-ink" />
           </div>
           {!agent && <Btn variant="outline" icon={Icon.download} onClick={exportCSV} className="ml-auto">Export</Btn>}
         </div>
         <PeriodPicker value={period} onChange={setPeriod} allowAll presets={["day", "week", "month", "year", "season"]} resetTo={{ kind: "all" }} className="mb-3" />
+        <div className="mb-3"><FilterBar defs={BOOKING_FILTERS} value={filters} onChange={setFilters} count={filterCount(sorted.length, enriched.length, "bookings", filters, !!range || !!q)} /></div>
         {loading ? (
           <TableSkeleton rows={5} cols={9} />
         ) : sorted.length === 0 ? (
           <EmptyState icon={Icon.search} title="No matching bookings"
-            body={q ? `Nothing matches “${q}”${range ? ` in ${rangeLabel(range)}` : ""}. Try a different name, sunbed code or booking ID.` : `No bookings in ${range ? rangeLabel(range) : "this period"}.`}
-            action={range ? <Btn size="sm" variant="outline" onClick={() => setPeriod({ kind: "all" })}>Show all dates</Btn> : undefined} />
+            body={q ? `Nothing matches “${q}”${range ? ` in ${rangeLabel(range)}` : ""} with these filters. Try a different name, sunbed code or booking ID.` : `No bookings match these filters${range ? ` in ${rangeLabel(range)}` : ""}.`}
+            action={anyFilter ? <Btn size="sm" variant="outline" onClick={() => { setQ(""); setFilters({}); setPeriod({ kind: "all" }); }}>Clear filters</Btn> : undefined} />
         ) : (
           <>
             <Table cols={[

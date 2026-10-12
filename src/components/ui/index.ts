@@ -7,3 +7,4 @@ export { SwipeRow } from "./SwipeRow";
 export { Tabs } from "./Tabs";
 export type { TabEntry } from "./Tabs";
 export { PeriodPicker } from "./PeriodPicker";
+export { FilterBar, filterCount } from "./FilterBar";
