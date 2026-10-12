@@ -6,7 +6,7 @@
  * the future backend one obvious contract surface to take over.
  */
 
-import type { BeachPricing, CartItem, PriceOverride, PriceRule, PriceRuleDays, Restriction, RestrictionKind, SunbedSlot, TicketCategory } from "./types";
+import type { DemandBand, BeachPricing, CartItem, PriceOverride, PriceRule, PriceRuleDays, Restriction, RestrictionKind, SunbedSlot, TicketCategory } from "./types";
 
 /** Mock economics, mirrors the Checkout summary. */
 export const SLAICE_FEE_RATE = 0.05; // Slaice application fee
@@ -261,4 +261,35 @@ export function restrictionBadge(r: Restriction): string {
   if (r.kind === "window") return `≤${r.value}d ahead`;
   if (r.kind === "cutoff") return `Cut-off ${r.time}`;
   return "Closed";
+}
+
+/* ---------- Demand pricing suggestions (AENR-513) ----------
+   A deterministic suggestion inside the manager's band: busier dates (high
+   occupancy on the books, booking faster than usual, close to the date) move
+   the price toward the band's top; quiet ones toward the minimum. */
+export interface DemandInput {
+  /** Share of the category's sets already booked (0–1). */
+  occupancy: number;
+  daysOut: number;
+  /** Booking pace vs the same weekday in recent weeks (1 = usual). */
+  pace: number;
+  weekend: boolean;
+}
+export interface DemandSuggestion {
+  price: number;
+  /** 0–1 position in the band. */
+  pressure: number;
+  reason: string;
+}
+export function suggestPrice(band: Pick<DemandBand, "wkMin" | "wkMax" | "weMin" | "weMax" | "step">, x: DemandInput): DemandSuggestion {
+  const [min, max] = x.weekend ? [band.weMin, band.weMax] : [band.wkMin, band.wkMax];
+  // Occupancy carries most weight; nearer dates trust it more; pace nudges either way.
+  const near = x.daysOut <= 3 ? 0.12 : x.daysOut <= 7 ? 0.05 : 0;
+  const pressure = Math.min(1, Math.max(0, (x.occupancy - 0.3) / 0.55 + near + (x.pace - 1) * 0.6));
+  const step = band.step > 0 ? band.step : 1;
+  const price = Math.min(max, Math.max(min, min + Math.round((pressure * (max - min)) / step) * step));
+  const pct = Math.round(x.occupancy * 100);
+  const paceTxt = Math.abs(x.pace - 1) < 0.05 ? "pace as usual" : `pace ${x.pace > 1 ? "+" : "−"}${Math.round(Math.abs(x.pace - 1) * 100)}% vs usual`;
+  const where = pressure >= 0.75 ? "near the top of the band" : pressure <= 0.05 ? "the band minimum" : "inside the band";
+  return { price, pressure, reason: `${pct}% booked ${x.daysOut} day${x.daysOut === 1 ? "" : "s"} out, ${paceTxt} — ${where}` };
 }

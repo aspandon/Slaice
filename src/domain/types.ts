@@ -169,6 +169,33 @@ export interface PriceOverride {
   days: PriceRuleDays;
   price: number;
   label: string;
+  /** Where it came from — "suggestion" for an accepted demand-pricing suggestion (AENR-513). */
+  source?: "manual" | "suggestion";
+  /** Price category the override was made for (suggestions are per category). */
+  catId?: string;
+}
+/** Demand-pricing band for a price category (AENR-513). */
+export interface DemandBand {
+  catId: string;
+  enabled: boolean;
+  wkMin: number;
+  wkMax: number;
+  weMin: number;
+  weMax: number;
+  step: number;
+}
+export interface DemandLogEntry {
+  id: string;
+  at: string;
+  date: string;
+  zoneId: string;
+  catId: string;
+  from: number;
+  to: number;
+  reason: string;
+  overrideId: string;
+  mode: "accepted" | "auto";
+  reverted?: boolean;
 }
 export type LandmarkKind = "bar" | "shower" | "wc" | "lifeguard" | "entrance" | "ramp" | "path";
 /** A non-bookable map object that orients guests and staff. */
@@ -184,6 +211,11 @@ export interface BeachPricing {
   categories: PriceCategory[];
   overrides: PriceOverride[];
   landmarks: Landmark[];
+  /** Demand pricing (AENR-513): bands, locked date|category keys, auto-apply and its log. */
+  demand?: DemandBand[];
+  demandLocks?: string[];
+  demandAuto?: boolean;
+  demandLog?: DemandLogEntry[];
 }
 
 /* ---------- Bookings & documents ---------- */

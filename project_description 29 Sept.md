@@ -941,6 +941,21 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
 - **Seasonal & day rules**: the existing rule list and price preview (rules apply on top of category
   prices).
 
+#### Demand pricing suggestions (AENR-513)
+
+- In **Calendar & rules**, under the calendar (`src/screens/beach/Demand.tsx`, `suggestPrice` in
+  `src/domain/pricing.ts`). Per price category: on / off, weekday min–max €, weekend min–max €, step.
+- **Suggestions for the next 14 days** (from the back-office day, date selectable): current → suggested price
+  with a plain-language reason ("82% booked 5 days out, pace +30% vs usual — near the top of the band") and the
+  expected revenue effect; **Accept / Reject** per row, **Accept all**, and a **lock** per date / category.
+- The suggestion is a pure function of occupancy on the books (sample data), days to go and booking pace vs the
+  usual weekday: busy, near and fast-selling dates move toward the band's top, quiet ones to its minimum.
+- Accepting creates a one-day **date override** (source _Suggestion_) on the category's sets that aren't booked
+  yet, so the calendar, the canvas and the booking wizard show the new price and existing bookings keep theirs.
+- **Auto-apply once a day** (opt-in) with a demo _Run today's update_; every change is logged (date, category,
+  old → new, reason, Accepted / Auto) and can be **reverted** per entry. Never outside a band, never on booked
+  sets, never on a locked date.
+
 #### Entrance live display (AENR-519)
 
 - **Admin › Live Display** (`#/admin/display`): zones to show and their order, rotate overview → each zone

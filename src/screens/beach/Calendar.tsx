@@ -4,6 +4,7 @@ import { Badge, Btn, Card, Field, Input, Select, Toggle } from "../../components
 import { useApp } from "../../app/store";
 import { ZONES, zoneLayout } from "../../data/beach";
 import { dayStats } from "../../data/analytics";
+import { DemandPanel } from "./Demand";
 import {
   RESTRICTION_LABEL,
   RULE_KIND_LABEL,
@@ -792,6 +793,9 @@ export function PricingCalendar({ onEditRule }: { onEditRule: (r: PriceRule) => 
             wins over all of them.
           </div>
         </Card>
+      </div>
+      <div className="mt-4">
+        <DemandPanel zoneId={zoneId} />
       </div>
     </div>
   );
