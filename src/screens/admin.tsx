@@ -30,10 +30,11 @@ import { listCustomers } from "../api";
 import { useAsync } from "../lib/useAsync";
 import { usePeriod } from "../lib/usePeriod";
 import { OccupancyTab, occupancyCsv, useOccupancy } from "./reporting/OccupancyTab";
+import { ChannelsTab, channelsCsv, useChannels } from "./reporting/ChannelsTab";
 import { readHashQuery, writeHashQuery } from "../app/router";
 import { activeCount, filtersFromParams, filtersToParams, isAmount, matchAmount, type FilterDef, type FilterState } from "../domain/filters";
 import { resolveRange, comparisonRange, lastYearRange, granularityFor, rangeLabel, periodNoun, comparisonLabel, isoFromDayMonth, inRange, fmtWeekday as fmtWeekdayP } from "../domain/period";
-import { summarize, series, buckets, CHANNELS as CHANNELS_A, fmtEUR, fmtInt, fmtPct, trendPct, trendPp, trendEUR } from "../data/analytics";
+import { summarize, series, buckets, fmtEUR, fmtInt, fmtPct, trendPct, trendPp, trendEUR } from "../data/analytics";
 
 /* ============ DASHBOARD ============ */
 export function AdminDashboard() {
@@ -1459,7 +1460,9 @@ export function AdminReporting() {
   ];
   // One period for the whole page (kept when switching tabs, AENR-466).
   const [period, setPeriod] = usePeriod({ kind: "preset", preset: "season", offset: 0 });
-  const range = resolveRange(period) ?? resolveRange({ kind: "preset", preset: "season", offset: 0 })!;
+  // Memoised on the period so the tab modules can cache their (heavier) figures.
+  const range = useMemo(() => resolveRange(period) ?? resolveRange({ kind: "preset", preset: "season", offset: 0 })!, [period]);
+  const cmpRange = useMemo(() => comparisonRange(period, range), [period, range]);
   const label = rangeLabel(range);
   const noun = periodNoun(period);
   const now = summarize(range);
@@ -1515,10 +1518,9 @@ export function AdminReporting() {
   const capMax = Math.max(...capRows.map((c) => c.v));
   const zoneRev = ZONES.map((z) => ({ l: z.name, v: Math.round(now.revenueByZone[z.id] ?? 0) }));
   // Occupancy tab (AENR-478): its own filters and analysis, same period.
-  const heatBuckets = buckets(range, g === "hour" ? "day" : g).map((b) => ({ ...b, label: g === "month" ? b.label : `${Number(b.range.from.slice(8))}/${Number(b.range.from.slice(5, 7))}` }));
-  const occ = useOccupancy(range, comparisonRange(period, range), g === "hour" ? "day" : g);
-  const chans = CHANNELS_A.map((c, i) => ({ c, b: now.byChannel[c].bookings, r: now.byChannel[c].revenue, share: Math.round(ratio(now.byChannel[c].revenue, now.revenue) * 100), color: ["#0ea5e9", "#f59e0b", "#6366f1", "#0D9488"][i], cls: ["bg-sky-500", "bg-amber-500", "bg-indigo-500", "bg-teal-600"][i] }));
-  const chanRole: Record<string, string> = { Online: "customer", "Walk-in": "controller", Phone: "call centre", Cashier: "on-site" };
+  const heatBuckets = useMemo(() => buckets(range, g === "hour" ? "day" : g).map((b) => ({ ...b, label: g === "month" ? b.label : `${Number(b.range.from.slice(8))}/${Number(b.range.from.slice(5, 7))}` })), [range, g]);
+  const occ = useOccupancy(range, cmpRange, g === "hour" ? "day" : g);
+  const chs = useChannels(range, cmpRange, g === "hour" ? "day" : g);
   // Customers: the seed top-customer list scaled to the period's share of a full season.
   const seasonRev = summarize(resolveRange({ kind: "preset", preset: "season", offset: -1 })!).revenue;
   const custScale = Math.min(1.2, ratio(now.revenue, seasonRev));
@@ -1568,10 +1570,7 @@ export function AdminReporting() {
           { title: `Booking volume by ${axis.toLowerCase()}`, header: [axis, "Bookings"], rows: bookSeries.map((d) => [d.l, d.v]) },
         ];
       case "channel":
-        return [
-          { title: `Sales by channel & role ${head}`, header: ["Channel", "Share %", "Bookings", "Revenue"], rows: chans.map((c) => [c.c, c.share, c.b, c.r]) },
-          { title: `Revenue by ${axis.toLowerCase()} (€)`, header: [axis, "Revenue"], rows: revSeries.map((d) => [d.l, d.v]) },
-        ];
+        return channelsCsv(chs, label);
       case "customers":
         return [
           { title: `Customers · key metrics ${head}`, header: ["Metric", "Value", "Detail"], rows: [
@@ -1668,19 +1667,7 @@ export function AdminReporting() {
         <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-1">Booking volume by {axis.toLowerCase()} · {noun}</div><LineChartMini data={bookSeries} label={`Bookings by ${axis.toLowerCase()}, ${label}`} /></Card>
       </>}
 
-      {!closed && tab === "channel" && <div className="grid lg:grid-cols-[1fr_1fr] gap-4">
-        <Card className="p-5"><div className="font-semibold text-navy-900 mb-3">Sales by channel & role · {noun}</div>
-          <div className="flex items-center justify-center gap-7 flex-wrap py-3">
-            <Donut segments={chans.map((c) => ({ v: c.share, c: c.color }))} size={200} label={`Sales by channel: ${chans.map((c) => `${c.c} ${c.share}%`).join(", ")}`} />
-            <div className="text-[14px] space-y-3">
-              {chans.map((c) => <Leg key={c.c} c={c.cls} t={`${c.c} (${chanRole[c.c]}) — ${c.share}% · ${fmtEUR(c.r)}`} />)}
-            </div>
-          </div>
-        </Card>
-        <Card className="p-5"><div className="font-semibold text-navy-900 mb-2">Revenue by {axis.toLowerCase()} · all channels</div>
-          <BarChart color="#0ea5e9" data={revSeries} label={`Revenue by ${axis.toLowerCase()}, ${label}`} />
-        </Card>
-      </div>}
+      {!closed && tab === "channel" && <ChannelsTab ch={chs} period={period} label={label} noun={noun} vs={vs} hasPrev={hasPrev} />}
 
       {!closed && tab === "customers" && <>
         <div className="grid sm:grid-cols-3 gap-4">

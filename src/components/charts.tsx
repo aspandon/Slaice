@@ -231,3 +231,38 @@ export function QR({ size = 120, seed = "SLAICE" }: { size?: number; seed?: stri
     </svg>
   );
 }
+
+/* ---------- Multi-line chart ----------
+   Several series on one scale (e.g. revenue per channel over time), each with
+   its own colour and a legend; announced as one labelled image. */
+export function MultiLineChart({ labels, series, height = 220, label }: { labels: string[]; series: { name: string; color: string; values: number[] }[]; height?: number; label?: string }) {
+  const all = series.flatMap((s) => s.values);
+  const max = Math.max(...all, 0) * 1.1 || 1;
+  const ticks = [1, 0.66, 0.33, 0];
+  const xOf = (i: number) => (labels.length > 1 ? (i / (labels.length - 1)) * 100 : 50);
+  const aria = label || `Line chart: ${series.map((s) => s.name).join(", ")}`;
+  const every = Math.max(1, Math.ceil(labels.length / 12));
+  return (
+    <div>
+      <div className="relative" style={{ height }} role="img" aria-label={aria}>
+        <div className="absolute left-0 top-0 flex flex-col justify-between text-[12px] font-medium text-slate-500 tnum pr-2 pointer-events-none" style={{ width: PAD_LEFT, bottom: PAD_BOTTOM }}>
+          {ticks.map((t, i) => <span key={i} className="text-right leading-none">{formatTick(max * t)}</span>)}
+        </div>
+        <div className="absolute top-0 right-0" style={{ left: PAD_LEFT, bottom: PAD_BOTTOM }}>
+          <svg viewBox="0 0 100 60" preserveAspectRatio="none" className="w-full h-full">
+            {ticks.map((t, i) => <line key={i} x1="0" x2="100" y1={60 * (1 - t)} y2={60 * (1 - t)} stroke="#e2e8f0" strokeWidth="0.25" strokeDasharray="0.8 0.8" />)}
+            {series.map((s) => (
+              <polyline key={s.name} points={s.values.map((v, i) => `${xOf(i)},${60 - (v / max) * 60}`).join(" ")} fill="none" stroke={s.color} strokeWidth="1" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+            ))}
+          </svg>
+        </div>
+        <div className="absolute right-0 bottom-0 grid text-[12px] font-medium text-slate-600 pointer-events-none" style={{ left: PAD_LEFT, height: PAD_BOTTOM, gridTemplateColumns: `repeat(${labels.length}, 1fr)` }}>
+          {labels.map((l, i) => <span key={i} className="text-center pt-1.5 truncate">{i % every === 0 ? l : ""}</span>)}
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[12px] text-slate-600">
+        {series.map((s) => <span key={s.name} className="inline-flex items-center gap-1.5"><i className="w-4 h-0.5 inline-block" style={{ background: s.color }} />{s.name}</span>)}
+      </div>
+    </div>
+  );
+}

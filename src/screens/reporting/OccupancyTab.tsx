@@ -98,14 +98,8 @@ export function useOccupancy(
     channels: [],
     days: "all",
   });
-  const report = useMemo(
-    () => occupancyReport(range, f, granularity),
-    [range.from, range.to, f, granularity],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
-  const prev = useMemo(
-    () => occupancyReport(prevRange, f, granularity),
-    [prevRange.from, prevRange.to, f, granularity],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+  const report = useMemo(() => occupancyReport(range, f, granularity), [range, f, granularity]);
+  const prev = useMemo(() => occupancyReport(prevRange, f, granularity), [prevRange, f, granularity]);
   return { f, setF, report, prev };
 }
 
@@ -196,15 +190,10 @@ export function OccupancyTab({
   const zoneMax = Math.max(...r.byZone.map((z) => z.occ));
   const set = setHeatmap(range, f, mapZone);
   // Zone × time heatmap honours the filters (asset, type, channel, days).
-  const bKey = buckets.map((b) => b.key).join();
   const heatBuckets = useMemo(
-    () =>
-      buckets.map((b) => ({
-        ...b,
-        cells: occupancyReport(b.range, f, "day").byZone.map((z) => ({ zoneId: z.id, v: z.occ })),
-      })),
-    [bKey, f],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+    () => buckets.map((b) => ({ ...b, cells: occupancyReport(b.range, f, "day").byZone.map((z) => ({ zoneId: z.id, v: z.occ })) })),
+    [buckets, f],
+  );
   const fc = forecast(DEMO_TODAY, f);
   const kindsApply = f.asset === "sunbeds";
 

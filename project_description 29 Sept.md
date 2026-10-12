@@ -1101,7 +1101,13 @@ a "beach was closed" empty state.
    sets); booked vs checked in vs no-show per zone; 14-day on-the-books forecast vs last year with
    **Set a pricing rule**; sold-out zones and how early; all metrics by zone. CSV exports all of it.
 4. **Bookings** — avg lead time, online vs other, cancellation, sets/booking; volume over time.
-5. **Channels** — sales by channel & role (Online / Walk-in / Phone / Cashier), revenue over time.
+5. **Channels** (`src/screens/reporting/ChannelsTab.tsx`, `src/data/channelReport.ts`) — a scorecard per
+   channel (Online / Walk-in / Phone / Cashier: revenue and change, share, bookings, avg basket, items per
+   booking, lead time, cancellation / refund, no-show, new guests, fees and net) with **View bookings**
+   (opens Bookings filtered by that channel and the same dates); sortable comparison table; revenue by
+   channel over time; share donut; product mix per channel; sales by staff member; bookings by hour and
+   weekday per channel; online funnel (visits → plan started → checkout → paid). Totals reconcile with
+   the Executive tab.
 6. **Customers** — new vs returning, season-pass holders, VIP segment revenue, top customers (scaled
    to the period).
 7. **Tickets** — ticket history within the period.

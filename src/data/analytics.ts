@@ -155,12 +155,22 @@ export function dayStats(iso: string): DayStats {
       Cashier: cashier,
       "Walk-in": 1 - online - phone - cashier,
     };
+    // Baskets differ by channel (online and phone bookings carry more sets and
+    // extras; on-site sales are mostly tickets), so revenue shares are the
+    // booking shares weighted by a basket factor, renormalised.
+    const BASKET: Record<Channel, number> = {
+      Online: 1.12,
+      "Walk-in": 0.86,
+      Phone: 1.08,
+      Cashier: 0.74,
+    };
+    const wsum = CHANNELS.reduce((a, c) => a + shares[c] * BASKET[c], 0);
     let bLeft = s.bookings;
     let rLeft = total;
     CHANNELS.forEach((c, i) => {
       const last = i === CHANNELS.length - 1;
       const b = last ? bLeft : Math.round(s.bookings * shares[c]);
-      const r = last ? rLeft : Math.round(total * shares[c]);
+      const r = last ? rLeft : Math.round((total * shares[c] * BASKET[c]) / wsum);
       s.byChannel[c] = { bookings: b, revenue: r };
       bLeft -= b;
       rLeft -= r;
