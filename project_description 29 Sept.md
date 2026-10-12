@@ -1675,7 +1675,7 @@ Modal: per zone stepper (0–24 sets) of unsold sunbeds to **release for instant
   (per online set / per entry person / % of captured value / per booking), amount, paid by (guest =
   service fee, tenant = platform fee), VAT %, active, active-from date; add / remove; platform-fee
   settlement (monthly / weekly); **e-invoicing provider** (Elorus, Epsilon Digital, SoftOne or direct
-  myDATA) with a simulated Connect. Demo defaults: €3 per online set, €1 per online entry person, 5%
+  myDATA) with a simulated Connect. Demo defaults (placeholders): €2.50 per online set, €0.50 per online entry person, 5%
   platform fee — exact pricing still to be confirmed. Reporting › Payments computes from these.
 - **Capability flags · Akti tou Iliou** summary (enabled MVP vs roadmap-disabled) → Manage in Super
   Admin.

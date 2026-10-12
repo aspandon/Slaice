@@ -262,7 +262,7 @@ export function payouts(
       const pay = addDays(d, 2); // T+2 settlement
       out.push({
         date: pay,
-        bank: "···4521",
+        bank: "···8806",
         amount: moneyFlow(t, cfg).netToBank,
         status:
           pay > DEMO_TODAY ? "Scheduled" : pay >= addDays(DEMO_TODAY, -1) ? "In transit" : "Paid",
