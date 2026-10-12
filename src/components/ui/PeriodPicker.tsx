@@ -105,7 +105,9 @@ export function PeriodPicker({
     "w-9 h-9 grid place-items-center rounded-xl text-slate-500 hover:text-navy-900 hover:bg-slate-100 disabled:opacity-35 disabled:hover:bg-transparent transition";
 
   return (
-    <div className={`flex flex-wrap items-center gap-x-2 gap-y-1.5 min-w-0 max-w-full ${className}`}>
+    <div
+      className={`flex flex-wrap items-center gap-x-2 gap-y-1.5 min-w-0 max-w-full ${className}`}
+    >
       <Popover.Root open={open} onOpenChange={setOpen}>
         <Popover.Anchor asChild>
           <div className="flex items-center gap-1 min-w-0 max-w-full">
