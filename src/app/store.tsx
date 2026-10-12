@@ -21,6 +21,7 @@ import { DEFAULT_SUNBED_OPS, type SunbedOpsState } from "../domain/sunbedOps";
 import type { PayLink } from "../domain/payLink";
 import { DEFAULT_DISPLAY, type DisplayConfig } from "../domain/display";
 import { DEFAULT_LAYOUT_STATE, type LayoutState } from "../domain/layoutVersions";
+import { DEFAULT_EXTRAS, type ExtrasState } from "../domain/extras";
 
 // Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
 // highlight the section a journey points at.
@@ -168,6 +169,9 @@ export interface AppContextValue {
   /** Layout drafts, versions and schedules (AENR-514). */
   layouts: LayoutState;
   setLayouts: (u: (s: LayoutState) => LayoutState) => void;
+  /** Entry-ticket categories, locker banks, their prices and the locker provider (AENR-529/530). */
+  extras: ExtrasState;
+  setExtras: (u: (s: ExtrasState) => ExtrasState) => void;
 }
 
 export const DEFAULT_CRM: CrmState = { segments: [], tagDefs: [{ name: "Wedding party", color: "#a855f7" }, { name: "Local", color: "#0D9488" }], edits: {}, regularAfter: 15, lifecycle: { atRiskDays: 14, lapsedDays: 35 }, columns: ["lifecycle", "spend"], imported: [], mergedAway: [], eraseRequests: [], profiles: {}, customFields: [{ id: "cf-birthday", label: "Birthday", type: "date" }, { id: "cf-company", label: "Company", type: "text" }] };
@@ -260,6 +264,8 @@ export const AppCtx = createContext<AppContextValue>({
   setDisplay: () => {},
   layouts: DEFAULT_LAYOUT_STATE,
   setLayouts: () => {},
+  extras: DEFAULT_EXTRAS,
+  setExtras: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);

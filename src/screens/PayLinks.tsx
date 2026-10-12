@@ -16,9 +16,9 @@ import { SunbedMap } from "../components/SunbedMap";
 import { useApp } from "../app/store";
 import { ZONES, todayISO } from "../data/beach";
 import { CUSTOMERS } from "../data/mock";
-import { TICKET_LABEL, TICKET_ORDER } from "../data/till";
+import { useExtras } from "../lib/useExtras";
 import { addDays, fmtDay } from "../domain/period";
-import { TICKET_PRICES, resolvePrice } from "../domain/pricing";
+import { resolvePrice } from "../domain/pricing";
 import { eur } from "../domain/till";
 import {
   DEADLINES,
@@ -30,7 +30,6 @@ import {
   type PayLinkLine,
   type PayLinkStatus,
 } from "../domain/payLink";
-import type { TicketCategory } from "../domain/types";
 import { useDemoNow, useLiveSlots } from "../lib/useLiveSlots";
 
 /* ============ Pay-by-link reservations (AENR-534) ============
@@ -61,6 +60,7 @@ export function PayLinks() {
     inventory,
     setInventory,
   } = useApp();
+  const ex = useExtras();
   const who =
     viewAs?.name ??
     (persona === "support"
@@ -97,10 +97,10 @@ export function PayLinks() {
         zoneId: z.id,
       };
     }),
-    ...TICKET_ORDER.filter((c) => (qty[c] ?? 0) > 0).map((c) => ({
-      label: TICKET_LABEL[c],
+    ...ex.tickets.filter((tc) => (qty[tc.id] ?? 0) > 0).map(({ id: c }) => ({
+      label: ex.ticketLabel(c),
       qty: qty[c],
-      unit: TICKET_PRICES[c],
+      unit: ex.ticketPrice(c, date),
     })),
   ];
   const total = lines.reduce((a, l) => a + l.qty * l.unit, 0);
@@ -235,13 +235,13 @@ export function PayLinks() {
             <div className="sm:col-span-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
               Entry tickets (optional)
             </div>
-            {TICKET_ORDER.map((c: TicketCategory) => (
+            {ex.tickets.map(({ id: c }) => (
               <div key={c} className="flex items-center justify-between text-sm">
                 <span>
-                  {TICKET_LABEL[c]} <span className="text-slate-500">€{TICKET_PRICES[c]}</span>
+                  {ex.ticketLabel(c)} <span className="text-slate-500">€{ex.ticketPrice(c, date)}</span>
                 </span>
                 <Stepper
-                  label={`${TICKET_LABEL[c]} tickets`}
+                  label={`${ex.ticketLabel(c)} tickets`}
                   value={qty[c] ?? 0}
                   onChange={(v) => setQty((q) => ({ ...q, [c]: v }))}
                 />

@@ -7,9 +7,10 @@ import { SetScanner, type ScanHit } from "../../components/SetScanner";
 import { useApp } from "../../app/store";
 import { ZONES } from "../../data/beach";
 import { CUSTOMERS } from "../../data/mock";
-import { BUNDLES, DISCOUNT_PRESETS, PROMO_CODES, QUICK_KEYS, TICKET_LABEL, TICKET_ORDER, type Bundle, type QuickKey } from "../../data/till";
-import { TICKET_PRICES, resolvePrice } from "../../domain/pricing";
-import { basketTotals, discountAmount, eur, lineGross, validatePromo, type Tender, type TenderKind, type TillDiscount, type TillLine, type TillSale } from "../../domain/till";
+import { BUNDLES, DISCOUNT_PRESETS, PROMO_CODES, QUICK_KEYS, type Bundle, type QuickKey } from "../../data/till";
+import { resolvePrice } from "../../domain/pricing";
+import { useExtras } from "../../lib/useExtras";
+import { basketTotals, discountAmount, eur, lineGross, validatePromo, type Tender, type TenderKind, type TillDiscount, type TillLine, type TillSale, vatBreakdown } from "../../domain/till";
 import type { SunbedSlot, TicketCategory } from "../../domain/types";
 import { useClosure, useLiveSlots, useNow } from "../../lib/useLiveSlots";
 import { useFinance } from "../../lib/useFinance";
@@ -33,6 +34,7 @@ const mmss = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms 
 
 export function CashierIssue() {
   const { toast, go, persona, priceRules, beachPricing } = useApp();
+  const ex = useExtras();
   const closure = useClosure();
   const [finance] = useFinance();
   const t = useTill();
@@ -83,10 +85,21 @@ export function CashierIssue() {
     const id = `t-${cat}`;
     const rest = ls.filter((l) => l.id !== id);
     if (qty <= 0) return rest;
-    const line: TillLine = { id, kind: "ticket", label: TICKET_LABEL[cat], qty, unit: TICKET_PRICES[cat], cat };
+    const line: TillLine = { id, kind: "ticket", label: ex.ticketLabel(cat), qty, unit: ex.ticketPrice(cat, t.day), cat };
     return ls.some((l) => l.id === id) ? ls.map((l) => (l.id === id ? line : l)) : [...ls, line];
   }); };
   const ticketQty = (cat: TicketCategory) => lines.find((l) => l.id === `t-${cat}`)?.qty ?? 0;
+  // Lockers: one line per bank; codes continue after the lockers already rented today.
+  const lockerQty = (bank: string) => lines.find((l) => l.id === `l-${bank}`)?.qty ?? 0;
+  const setLockerQty = (bank: string, qty: number) => { fresh(); setLines((ls) => {
+    const id = `l-${bank}`;
+    const rest = ls.filter((l) => l.id !== id);
+    if (qty <= 0) return rest;
+    const b = ex.banks.find((x) => x.id === bank);
+    const from = (b?.total ?? 0) - (ex.lockerAvail(bank, t.day) ?? 0); // next free number after the rented ones
+    const line: TillLine = { id, kind: "locker", label: `Locker · ${b?.name ?? bank}`, qty, unit: ex.lockerPrice(bank, t.day), bank, codes: Array.from({ length: qty }, (_, i) => `${bank}-${String(from + i + 1).padStart(2, "0")}`) };
+    return ls.some((l) => l.id === id) ? ls.map((l) => (l.id === id ? line : l)) : [...ls, line];
+  }); };
   const setLine = (s: SunbedSlot, zId: string, bundle?: string): TillLine => ({ id: uid("s-"), kind: "sunbed", label: `Sunbed set ${s.id} · ${ZONE_NAMES[zId]}`, qty: 1, unit: priceOf(s, zId), zoneId: zId, setId: s.id, bundle });
   /** Best available = front row first, then cheapest. */
   const bestFree = (n: number) => [...freeIn(zone.id)].sort((a, b) => a.y - b.y || a.price - b.price).slice(0, n);
@@ -142,7 +155,7 @@ export function CashierIssue() {
     const picked = bestFree(b.sets);
     if (picked.length < b.sets) return setErr(`${b.label} needs ${b.sets} free sets in ${zone.name}.`);
     const tag = `${b.label} #${lines.filter((l) => l.bundle).length + 1}`;
-    const tix: TillLine[] = Object.entries(b.tickets).map(([c, n]) => ({ id: uid(`b-${c}-`), kind: "ticket", label: TICKET_LABEL[c as TicketCategory], qty: n ?? 0, unit: TICKET_PRICES[c as TicketCategory], cat: c as TicketCategory, bundle: tag }));
+    const tix: TillLine[] = Object.entries(b.tickets).map(([c, n]) => ({ id: uid(`b-${c}-`), kind: "ticket", label: ex.ticketLabel(c), qty: n ?? 0, unit: ex.ticketPrice(c, t.day), cat: c as TicketCategory, bundle: tag }));
     setLines((ls) => [...ls, ...tix, ...picked.map((s) => setLine(s, zone.id, tag))]);
     t.hold(picked.map((s) => s.id));
     setDiscounts((ds) => [...ds, { id: `d-${tag}`, label: `${b.label} saving`, reason: "Bundle", kind: "abs", value: b.saving }]);
@@ -182,6 +195,7 @@ export function CashierIssue() {
   };
   const onPaid = (tenders: Tender[]) => {
     const sale = t.completeSale({ lines, discounts, total: totals.total, tenders, customer });
+    lines.forEach((l) => { if (l.kind === "locker" && l.bank) ex.recordLockers(l.bank, t.day, l.qty); });
     setTender(null);
     setDone(sale);
     setLines([]);
@@ -227,7 +241,7 @@ export function CashierIssue() {
                   <button key={b.id} type="button" onClick={() => addBundle(b)}
                     className="min-h-[48px] rounded-xl bg-teal-50 text-teal-800 ring-1 ring-teal-600/25 px-4 text-left text-sm hover:bg-teal-100 active:scale-[.97] transition disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
                     <span className="font-semibold">{b.label}</span>
-                    <span className="block text-[11px] text-teal-700/80">{Object.entries(b.tickets).map(([c, n]) => `${n} ${TICKET_LABEL[c as TicketCategory]}`).join(" + ")} + {b.sets} set{b.sets > 1 ? "s" : ""} · save €{b.saving}</span>
+                    <span className="block text-[11px] text-teal-700/80">{Object.entries(b.tickets).map(([c, n]) => `${n} ${ex.ticketLabel(c)}`).join(" + ")} + {b.sets} set{b.sets > 1 ? "s" : ""} · save €{b.saving}</span>
                   </button>
                 ))}
               </div>
@@ -240,13 +254,41 @@ export function CashierIssue() {
                 <span className="text-[12px] text-slate-500">Anonymous · skip for a sunbed-only sale</span>
               </div>
               <div className="grid sm:grid-cols-2 gap-2">
-                {TICKET_ORDER.map((c) => (
-                  <div key={c} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2">
-                    <div><div className="font-semibold text-navy-900 text-sm">{TICKET_LABEL[c]}</div><div className="text-[12px] text-slate-600">€{TICKET_PRICES[c]} each</div></div>
-                    <Stepper label={`${TICKET_LABEL[c]} tickets`} value={ticketQty(c)} onChange={(v) => setTicketQty(c, v)} />
+                {ex.tickets.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between gap-2 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-navy-900 text-sm">{c.short}</div>
+                      <div className="text-[12px] text-slate-600">{ex.ticketPrice(c.id, t.day) === 0 ? "Free" : `€${ex.ticketPrice(c.id, t.day)} each`}{c.note ? <span className="block text-[11px] text-slate-500">{c.note}</span> : null}</div>
+                    </div>
+                    <Stepper label={`${c.short} tickets`} value={ticketQty(c.id)} onChange={(v) => setTicketQty(c.id, v)} />
                   </div>
                 ))}
               </div>
+            </Card>
+
+            {/* Lockers (AENR-531) — live availability from the locker provider */}
+            <Card className="p-4">
+              <div className="flex items-baseline justify-between mb-2">
+                <h2 className="font-display font-bold text-navy-900">Lockers</h2>
+                <span className="text-[12px] text-slate-500">Optional · locker-only sales are fine</span>
+              </div>
+              {ex.banks.length > 0 && ex.banks.every((b) => ex.lockerAvail(b.id, t.day) === null) ? (
+                <div role="status" className="rounded-lg bg-amber-50 text-amber-800 ring-1 ring-amber-600/20 px-3 py-2 text-[12.5px] flex items-center gap-1.5"><Icon.alert size={13} /> Locker provider offline — locker sales are paused.</div>
+              ) : (
+                <div className="grid sm:grid-cols-3 gap-2">
+                  {ex.banks.map((b) => {
+                    const avail = ex.lockerAvail(b.id, t.day) ?? 0;
+                    const q = lockerQty(b.id);
+                    return (
+                      <div key={b.id} className={`rounded-xl ring-1 px-3 py-2 ${avail === 0 && q === 0 ? "ring-slate-200 bg-slate-50 opacity-70" : "ring-slate-200 bg-white/70"}`}>
+                        <div className="font-semibold text-navy-900 text-sm">{b.name}</div>
+                        <div className="text-[12px] text-slate-600">€{ex.lockerPrice(b.id, t.day)} · {b.size} · <span className={avail === 0 ? "text-rose-700 font-semibold" : ""}>{avail === 0 ? "none free" : `${avail} free`}</span></div>
+                        <div className="mt-1.5 flex justify-end"><Stepper label={`${b.name} lockers`} value={q} onChange={(v) => setLockerQty(b.id, Math.min(v, avail))} /></div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </Card>
 
             {/* Step 2 · store */}
@@ -340,8 +382,8 @@ export function CashierIssue() {
                       {plain.map((l) => (
                         <li key={l.id} className="py-2 flex items-start gap-2">
                           <div className="min-w-0 flex-1">
-                            <div className="font-semibold text-navy-900 text-sm">{l.kind === "ticket" ? `${l.qty} × ${l.label}` : l.label}</div>
-                            <div className="text-[11.5px] text-slate-500">{l.kind === "ticket" ? `€${l.unit} each` : `Today’s price €${l.unit}`}</div>
+                            <div className="font-semibold text-navy-900 text-sm">{l.kind !== "sunbed" ? `${l.qty} × ${l.label}` : l.label}</div>
+                            <div className="text-[11.5px] text-slate-500">{l.kind !== "sunbed" ? `€${l.unit} each${l.codes?.length ? ` · ${l.codes.join(", ")}` : ""}` : `Today’s price €${l.unit}`}</div>
                             {l.setId && <HoldChip ms={holdLeft(l.setId)} />}
                           </div>
                           <span className="tnum font-semibold text-sm">{eur(lineGross(l))}</span>
@@ -373,8 +415,11 @@ export function CashierIssue() {
                   )}
 
                   <div className="mt-3 border-t border-slate-200 pt-3 space-y-0.5 text-[13px]">
-                    {totals.discount > 0 && <div className="flex justify-between text-slate-600"><span>Subtotal</span><span className="tnum">{eur(totals.gross)}</span></div>}
+                    {lines.length > 0 && <div className="flex justify-between text-slate-600"><span>Subtotal</span><span className="tnum">{eur(totals.gross)}</span></div>}
                     {totals.discount > 0 && <div className="flex justify-between text-emerald-700"><span>Discounts</span><span className="tnum">−{eur(totals.discount)}</span></div>}
+                    {lines.length > 0 && vatBreakdown(lines, totals.discount).map((r) => (
+                      <div key={r.rate} className="flex justify-between text-[12px] text-slate-500"><span>Net {eur(r.net)} + VAT {Math.round(r.rate * 100)}%</span><span className="tnum">{eur(r.vat)}</span></div>
+                    ))}
                     <div className="flex items-end justify-between pt-1">
                       <span className="text-slate-600">Total <span className="text-[11px] text-slate-400">incl. VAT {eur(totals.vat)}</span></span>
                       <span className="font-display text-3xl font-bold text-navy-900 tnum" aria-live="polite">{eur(totals.total)}</span>

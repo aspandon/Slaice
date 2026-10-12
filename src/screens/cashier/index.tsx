@@ -43,7 +43,7 @@ export { CashierTransactions } from "./Transactions";
 
 /* ============ SELL LOCKER (Future) ============ */
 export function CashierLocker() {
-  const { toast } = useApp();
+  const { toast, go, persona } = useApp();
   const [bankId, setBankId] = useState(CASHIER_LOCKER_BANKS[0].id);
   const [pick, setPick] = useState<{ bank: string; num: number } | null>(null);
   const [sold, setSold] = useState<{ bank: string; num: number; label: string; price: number } | null>(null);
@@ -61,6 +61,11 @@ export function CashierLocker() {
     <div className="animate-fade-up">
       <PageHead title="Sell Locker" sub="Sell a day locker on site; mark it in inventory. Customer redeems at entry." badge={<Badge tone="future">Future</Badge>} />
       <FutureBanner />
+      <div className="mb-4 rounded-2xl bg-teal-50 ring-1 ring-teal-600/20 px-4 py-3 flex flex-wrap items-center gap-3 text-[13px] text-teal-900">
+        <Icon.lock size={16} className="text-teal-700" />
+        <span className="flex-1 min-w-[14rem]"><b>Lockers are now sold in Issue Ticket</b> — with tickets in one payment or on their own, priced and counted from Admin › Lockers. This page shows the planned locker-by-number picker.</span>
+        <Btn size="sm" variant="teal" onClick={() => go(persona, "issue")}>Open Issue Ticket</Btn>
+      </div>
       <div className="grid lg:grid-cols-[1fr_320px] gap-5">
         <Card className="p-5">
           <Field label="Locker bank">

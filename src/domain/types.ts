@@ -287,7 +287,8 @@ export interface NavItem {
 }
 
 /* ---------- Tickets ---------- */
-export type TicketCategory = "adult" | "resident" | "child" | "senior";
+/** A tenant ticket category id (Admin › Entry tickets, AENR-529) — seeded adult, amea, resident, child, senior. */
+export type TicketCategory = string;
 
 /* ---------- Consent / GDPR ---------- */
 export interface Consent {

@@ -5,8 +5,8 @@ import { SunbedMap } from "../components/SunbedMap";
 import { SetScanner, type ScanHit } from "../components/SetScanner";
 import { useApp } from "../app/store";
 import { ZONES } from "../data/beach";
-import { TICKET_LABEL, TICKET_ORDER } from "../data/till";
-import { TICKET_PRICES, resolvePrice } from "../domain/pricing";
+import { useExtras } from "../lib/useExtras";
+import { resolvePrice } from "../domain/pricing";
 import {
   basketTotals,
   eur,
@@ -15,7 +15,6 @@ import {
   type TillLine,
   type TillSale,
 } from "../domain/till";
-import type { TicketCategory } from "../domain/types";
 import { useLiveSlots } from "../lib/useLiveSlots";
 import { useFinance } from "../lib/useFinance";
 import { useTill } from "./cashier/useTill";
@@ -35,6 +34,7 @@ export function ControllerWalkin({
   channel?: "controller" | "support";
 }) {
   const { toast, hint, clearHint, viewAs, beachPricing, priceRules } = useApp();
+  const ex = useExtras();
   const t = useTill();
   const [finance] = useFinance();
   const seller = viewAs?.name ?? (channel === "support" ? "Support Agent" : "Petros Nikolaou");
@@ -97,12 +97,12 @@ export function ControllerWalkin({
         setId: s.id,
       };
     }),
-    ...TICKET_ORDER.filter((c) => (qty[c] ?? 0) > 0).map((c) => ({
+    ...ex.tickets.filter((tc) => (qty[tc.id] ?? 0) > 0).map(({ id: c }) => ({
       id: `w-t-${c}`,
       kind: "ticket" as const,
-      label: TICKET_LABEL[c],
+      label: ex.ticketLabel(c),
       qty: qty[c],
-      unit: TICKET_PRICES[c],
+      unit: ex.ticketPrice(c, t.day),
       cat: c,
     })),
   ];
@@ -221,13 +221,13 @@ export function ControllerWalkin({
                 <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
                   Entry tickets (optional)
                 </div>
-                {TICKET_ORDER.map((c: TicketCategory) => (
+                {ex.tickets.map(({ id: c }) => (
                   <div key={c} className="flex items-center justify-between text-sm">
                     <span>
-                      {TICKET_LABEL[c]} <span className="text-slate-500">€{TICKET_PRICES[c]}</span>
+                      {ex.ticketLabel(c)} <span className="text-slate-500">€{ex.ticketPrice(c, t.day)}</span>
                     </span>
                     <Stepper
-                      label={`${TICKET_LABEL[c]} tickets`}
+                      label={`${ex.ticketLabel(c)} tickets`}
                       value={qty[c] ?? 0}
                       onChange={(v) => setQty((q) => ({ ...q, [c]: v }))}
                     />

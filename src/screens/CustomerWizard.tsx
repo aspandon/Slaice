@@ -15,7 +15,8 @@ import { LANDMARK_LABEL } from "../data/pricing";
 import type { Landmark, SunbedSlot } from "../domain/types";
 import { useApp, useSpotlight, useT } from "../app/store";
 import { localeFor } from "../app/i18n";
-import { TICKET_PRICES, TICKET_META, LOCKER_PRICE, PARKING_PRICE } from "../domain/pricing";
+import { PARKING_PRICE } from "../domain/pricing";
+import { useExtras } from "../lib/useExtras";
 
 type People = Record<string, number>;
 interface BedPick { id: string; price: number }
@@ -25,14 +26,11 @@ type BeachPhase = "zones" | "sets";
 type DayScope = "all" | "some";
 interface TicketBreakItem { k: string; n: number; t: { price: number; label: string; sub: string }; total: number }
 
-/* Pricing comes from the shared domain module (single source of truth), so the
-   wizard and Checkout can never disagree. One "set" = 1 umbrella + 2 sunbeds. */
-const TICKET: Record<string, { price: number; label: string; sub: string }> = {
-  adult:    { price: TICKET_PRICES.adult,    ...TICKET_META.adult },
-  resident: { price: TICKET_PRICES.resident, ...TICKET_META.resident },
-  child:    { price: TICKET_PRICES.child,     ...TICKET_META.child },
-  senior:   { price: TICKET_PRICES.senior,    ...TICKET_META.senior },
-};
+/* Ticket categories, prices and lockers come from Admin › Beach, Availability &
+   Pricing (Entry tickets / Lockers, AENR-529/530) — the same source as the
+   till. One "set" = 1 umbrella + 2 sunbeds. */
+type TicketInfo = Record<string, { price: number; label: string; sub: string }>;
+export interface LockerChoice { id: string; name: string; price: number; avail: number | null }
 
 const STEPS = [
   { id: "beach",   label: "Beach",    icon: "umbrella", sub: "Pick your zone, sunbeds & days" },
@@ -178,6 +176,7 @@ export function CustomerWizard() {
   const [lockerQty, setLockerQty] = useState(1);
   const [lockerScope, setLockerScope] = useState<DayScope>("all");
   const [lockerDays, setLockerDays] = useState<string[]>([]);
+  const [lockerBank, setLockerBank] = useState("A");
   const [parkingOn, setParkingOn] = useState(false);
   const [parkingQty, setParkingQty] = useState(1);
   const [parkingScope, setParkingScope] = useState<DayScope>("all");
@@ -200,7 +199,10 @@ export function CustomerWizard() {
   const flipBackRef = useRef(false);
   const zoomingRef = useRef(false);
 
-  const totalPeople = people.adult + people.resident + people.child + people.senior;
+  const ex = useExtras();
+  const firstDay = selDates[0] ?? todayISO();
+  const TICKET: TicketInfo = Object.fromEntries(ex.tickets.map((t) => [t.id, { price: ex.ticketPrice(t.id, firstDay), label: t.name, sub: t.note ?? "" }]));
+  const totalPeople = ex.tickets.reduce((a, t) => a + (people[t.id] ?? 0), 0);
   const dayCount = selDates.length;
   const zone = ZONES.find((z) => z.id === zoneId) || ZONES[0];
 
@@ -246,9 +248,14 @@ export function CustomerWizard() {
   const bedPrice = (id: string, iso: string, withCtx = true) => { const s = slots.find((x) => x.id === id); return s ? resolvePrice(s, zone.id, iso, beachPricing, priceRules, withCtx ? ctx : undefined).price : 0; };
   const setSubtotal = bedSel.reduce((a, b) => a + selDates.reduce((x, iso) => x + bedPrice(b.id, iso), 0), 0);
   const bookingAdj = setSubtotal - bedSel.reduce((a, b) => a + selDates.reduce((x, iso) => x + bedPrice(b.id, iso, false), 0), 0);
-  const ticketBreak = Object.entries(people).map(([k, n]) => ({ k, n, t: TICKET[k], total: n * TICKET[k].price * dayCount }));
+  // Switched-off categories drop out; each day is priced on its own (weekday / weekend, periods).
+  const ticketBreak = ex.tickets.map((tc) => { const n = people[tc.id] ?? 0; return { k: tc.id, n, t: TICKET[tc.id], total: selDates.reduce((a, iso) => a + n * ex.ticketPrice(tc.id, iso), 0) }; });
   const ticketSubtotal = includeTickets ? ticketBreak.reduce((a, b) => a + b.total, 0) : 0;
-  const lockerSubtotal = lockerQty * LOCKER_PRICE * lockerDates.length;
+  // Lockers: the chosen bank's price per day; availability from the locker provider (AENR-530).
+  const lockerDaysForAvail = lockerOn ? lockerDates : selDates;
+  const bankAvail = (id: string) => { const v = lockerDaysForAvail.map((d) => ex.lockerAvail(id, d)); return v.some((x) => x === null) ? null : Math.min(...(v as number[])); };
+  const lockerChoices: LockerChoice[] = ex.banks.map((b) => ({ id: b.id, name: b.name, price: ex.lockerPrice(b.id, firstDay), avail: bankAvail(b.id) }));
+  const lockerSubtotal = lockerDates.reduce((a, iso) => a + lockerQty * ex.lockerPrice(lockerBank, iso), 0);
   const parkingSubtotal = parkingQty * PARKING_PRICE * parkingDates.length;
   const grandTotal = setSubtotal + ticketSubtotal + lockerSubtotal + parkingSubtotal;
 
@@ -338,7 +345,7 @@ export function CustomerWizard() {
       if (includeTickets) {
         ticketBreak.forEach(({ k, n, t }) => {
           if (n > 0) {
-            addToCart({ kind: "ticket", id: `${k}@${iso}`, label: `${tr(t.label)} × ${n}`, sub: `${tr("Entry ticket")} · ${sub}`, price: n * t.price });
+            addToCart({ kind: "ticket", id: `${k}@${iso}`, label: `${tr(t.label)} × ${n}`, sub: `${tr("Entry ticket")} · ${sub}`, price: n * ex.ticketPrice(k, iso) });
             added++;
           }
         });
@@ -348,7 +355,7 @@ export function CustomerWizard() {
     lockerDates.forEach((iso) => {
       const sub = subOf(iso);
       for (let i = 0; i < lockerQty; i++) {
-        addToCart({ kind: "locker", id: `LK${i + 1}@${iso}`, label: `${tr("Day locker")} ${i + 1}`, sub, price: LOCKER_PRICE });
+        addToCart({ kind: "locker", id: `LK-${lockerBank}${i + 1}@${iso}`, label: `${tr("Day locker")} ${i + 1}`, sub: `${ex.banks.find((b) => b.id === lockerBank)?.name ?? ""} · ${sub}`, price: ex.lockerPrice(lockerBank, iso) });
         added++;
       }
     });
@@ -418,6 +425,7 @@ export function CustomerWizard() {
             )}
             {step.id === "people" && (
               <PeopleStep
+                tickets={TICKET}
                 people={people} setPeople={editPeople}
                 includeTickets={includeTickets} setIncludeTickets={setIncludeTickets}
                 pickedSets={bedSel.length}
@@ -432,6 +440,7 @@ export function CustomerWizard() {
                 days={lockerDays} setDays={setLockerDays}
                 qty={lockerQty} setQty={setLockerQty}
                 selDates={selDates} multiDate={multiDate}
+                banks={lockerChoices} bank={lockerBank} setBank={setLockerBank}
               />
             )}
             {step.id === "parking" && (
@@ -951,7 +960,8 @@ function SandSunbeds({ slots, selected, onToggle, readOnly = false, landmarks = 
 }
 
 /* ============ Guests ============ */
-function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, pickedSets, autoFilled, onPreset }: {
+function PeopleStep({ tickets: TICKET, people, setPeople, includeTickets, setIncludeTickets, pickedSets, autoFilled, onPreset }: {
+  tickets: TicketInfo;
   people: People;
   setPeople: Dispatch<SetStateAction<People>>;
   includeTickets: boolean;
@@ -1012,9 +1022,9 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, pick
               <div key={k} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
                 <div className="min-w-0">
                   <div className="font-semibold text-sm text-navy-900">{tr(t.label)}</div>
-                  <div className="text-[11px] text-slate-500">€{t.price} {tr("entry")} · {tr(t.sub)}</div>
+                  <div className="text-[11px] text-slate-500">€{t.price} {tr("entry")}{t.sub ? ` · ${tr(t.sub)}` : ""}</div>
                 </div>
-                <Stepper label={tr(t.label)} value={people[k]} onChange={(v) => setPeople((p) => ({ ...p, [k]: v }))} />
+                <Stepper label={tr(t.label)} value={people[k] ?? 0} onChange={(v) => setPeople((p) => ({ ...p, [k]: v }))} />
               </div>
             );
           })}
@@ -1037,7 +1047,10 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, pick
 }
 
 /* ============ Locker ============ */
-function LockerStep({ on, setOn, scope, setScope, days, setDays, qty, setQty, selDates, multiDate }: {
+function LockerStep({ on, setOn, scope, setScope, days, setDays, qty, setQty, selDates, multiDate, banks, bank, setBank }: {
+  banks: LockerChoice[];
+  bank: string;
+  setBank: (id: string) => void;
   on: boolean;
   setOn: Dispatch<SetStateAction<boolean>>;
   scope: DayScope;
@@ -1052,14 +1065,35 @@ function LockerStep({ on, setOn, scope, setScope, days, setDays, qty, setQty, se
   const tr = useT();
   const activeDays = multiDate && scope === "some" ? days : selDates;
   const n = activeDays.length;
+  const cur = banks.find((b) => b.id === bank) ?? banks[0];
+  const LOCKER_PRICE = cur?.price ?? 0;
+  const paused = banks.length > 0 && banks.every((b) => b.avail === null);
   const choose = (mode: "all" | "some" | "off") => {
     if (mode === "off") { setOn(false); return; }
     setOn(true);
     setScope(mode);
     if (mode === "some" && days.length === 0) setDays([...selDates]); // start from all chosen days
   };
+  if (paused)
+    return (
+      <div role="status" className="rounded-xl ring-1 ring-amber-300 bg-amber-50/80 px-3 py-3 text-[13px] text-amber-900 flex items-start gap-2">
+        <Icon.alert size={15} className="shrink-0 mt-0.5" /> {tr("Lockers can't be booked online right now — ask at the entrance.")}
+      </div>
+    );
   return (
     <div className="space-y-3">
+      <div role="radiogroup" aria-label={tr("Locker type")} className="grid sm:grid-cols-3 gap-2">
+        {banks.map((b) => {
+          const none = b.avail === 0;
+          return (
+            <button key={b.id} type="button" role="radio" aria-checked={bank === b.id} disabled={none} onClick={() => { setBank(b.id); setOn(true); }}
+              className={`text-left rounded-xl px-3 py-2 ring-1 transition disabled:opacity-50 disabled:cursor-not-allowed ${bank === b.id ? "bg-teal-50 ring-teal-500" : "bg-white/70 ring-slate-200 hover:ring-teal-400"}`}>
+              <div className="text-[13px] font-semibold text-navy-900">{b.name}</div>
+              <div className="text-[11px] text-slate-500">€{b.price}/{tr("day")} · {none ? tr("Sold out") : `${b.avail} ${tr("left")}`}</div>
+            </button>
+          );
+        })}
+      </div>
       {multiDate ? (
         <div className="grid sm:grid-cols-3 gap-2">
           <YesNo on={on && scope === "all"} onClick={() => choose("all")} title={tr("Yes — all days")} sub={`${selDates.length} ${selDates.length !== 1 ? tr("days") : tr("day")} · €${LOCKER_PRICE}/day`} icon={Icon.lock} />
@@ -1084,7 +1118,7 @@ function LockerStep({ on, setOn, scope, setScope, days, setDays, qty, setQty, se
             <div className="font-semibold text-sm text-navy-900">{tr("How many lockers?")}</div>
             <div className="text-[11px] text-slate-500">{qty} × €{LOCKER_PRICE} × {n} {n !== 1 ? tr("days") : tr("day")}</div>
           </div>
-          <Stepper label={tr("lockers")} value={qty} onChange={(v) => setQty(Math.max(1, v))} min={1} />
+          <Stepper label={tr("lockers")} value={qty} onChange={(v) => setQty(Math.max(1, Math.min(cur?.avail ?? v, v)))} min={1} />
         </div>
       )}
       <div className="text-[12px] text-slate-500 flex items-center gap-1.5">

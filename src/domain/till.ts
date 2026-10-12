@@ -7,7 +7,7 @@ import type { TicketCategory } from "./types";
 /* ---------- Basket ---------- */
 export interface TillLine {
   id: string;
-  kind: "ticket" | "sunbed";
+  kind: "ticket" | "sunbed" | "locker";
   label: string;
   qty: number;
   /** Unit price before discounts. */
@@ -15,6 +15,9 @@ export interface TillLine {
   cat?: TicketCategory;
   zoneId?: string;
   setId?: string;
+  /** Locker bank and the locker codes handed out (AENR-531). */
+  bank?: string;
+  codes?: string[];
   /** Bundle the line came from — the basket shows the bundle as one line. */
   bundle?: string;
 }
@@ -131,6 +134,8 @@ export interface TillState {
 
 /* ---------- Money ---------- */
 export const VAT_RATE = 0.24;
+/** VAT per line kind (demo rates — the accountant confirms the tenant's real ones). */
+export const VAT_BY_KIND: Record<TillLine["kind"], number> = { sunbed: 0.24, ticket: 0.13, locker: 0.24 };
 export const r2 = (n: number) => Math.round(n * 100) / 100;
 export const eur = (n: number) => `€${Number.isInteger(r2(n)) ? r2(n) : r2(n).toFixed(2)}`;
 
@@ -167,8 +172,24 @@ export function basketTotals(
     ),
   );
   const total = r2(gross - discount);
-  const net = r2(total / (1 + VAT_RATE));
-  return { gross, discount, total, net, vat: r2(total - net) };
+  const rates = vatBreakdown(lines, discount);
+  const vat = r2(rates.reduce((a, r) => a + r.vat, 0));
+  return { gross, discount, total, net: r2(total - vat), vat };
+}
+
+/** Net and VAT per rate, with the discount spread over the lines by value. */
+export function vatBreakdown(lines: readonly TillLine[], discount = 0): { rate: number; net: number; vat: number }[] {
+  const gross = lines.reduce((a, l) => a + lineGross(l), 0);
+  const by = new Map<number, number>();
+  for (const l of lines) {
+    const share = gross ? lineGross(l) * (1 - discount / gross) : 0;
+    const rate = VAT_BY_KIND[l.kind] ?? VAT_RATE;
+    by.set(rate, (by.get(rate) ?? 0) + share);
+  }
+  return [...by.entries()].sort((a, b) => b[0] - a[0]).map(([rate, inc]) => {
+    const net = r2(inc / (1 + rate));
+    return { rate, net, vat: r2(inc - net) };
+  });
 }
 
 export const paidSoFar = (tenders: readonly Tender[]) =>

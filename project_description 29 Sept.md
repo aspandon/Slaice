@@ -941,6 +941,35 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
 - **Seasonal & day rules**: the existing rule list and price preview (rules apply on top of category
   prices).
 
+#### Till: categories, lockers, VAT and one entry ticket (AENR-531)
+
+- Issue Ticket lists the tenant's ticket categories with today's price and the eligibility note (e.g. AMEA),
+  and a **Lockers** card per bank with today's price and live availability — ticket-only, locker-only and mixed
+  sales are allowed; locker codes (e.g. A-07) are handed out with the sale.
+- The basket shows each line, the subtotal, **net + VAT per rate** (demo rates: sunbeds and lockers 24%,
+  entry tickets 13% — confirmed by the accountant) and the total.
+- The receipt carries **one entry QR for everyone on the sale** ("Entry pass · 3 people"), the locker codes,
+  the VAT per rate and the ΑΠΥ with its MARK. The _Sell Locker_ roadmap page points to Issue Ticket.
+
+#### Entry tickets & lockers (AENR-529, AENR-530)
+
+- Two tabs in Beach, Availability & Pricing (`src/screens/beach/Extras.tsx`, rules in `src/domain/extras.ts`),
+  edited as a draft with **Save** / **Discard** and validation (names, price ≥ €0, end ≥ start; overlapping
+  rules are flagged — the rule lower in the list wins).
+- **Entry tickets**: tenant categories — name, short label, eligibility note shown to guests and staff, base
+  price, on / off, order. Seed: Normal (13+), AMEA (proof at the gate, €0), Alimos resident, Child, Senior.
+  Switching a category off hides it from the wizard and the till.
+- **Lockers**: banks (name, Standard / Large / Premium, base €/day, number of lockers, on / off) and the
+  **locker provider** (simulated _LockerLink_): status, last sync, _Sync now_, a demo outage and per bank /
+  date the available count (sample feed, or a value "reported by the provider"). Offline → locker sales pause
+  in the wizard and the till; a bank at 0 can't be sold that day. Lockers sold through Slaice lower the count.
+- **Prices by period, in bulk** for both: pick several categories / banks, a date range or one day, several
+  days or a whole month, every day / weekdays / weekends, and a price; a week preview shows the effective price
+  per item (weekends shaded).
+- One source of truth (`useExtras`): the booking wizard (headcount and locker steps, each day priced on its
+  own; locker type with availability), the Cashier till, the Controller / Support walk-in sale and
+  pay-by-link.
+
 #### Layout drafts, versions & scheduling (AENR-514)
 
 - The canvas is always a **draft** (badge "Draft · name — N changes from live, not visible to customers yet").

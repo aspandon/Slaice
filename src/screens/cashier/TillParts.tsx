@@ -4,7 +4,7 @@ import { Badge, Btn, Field, Input, Modal } from "../../components/ui";
 import { QR } from "../../components/charts";
 import { TENANT, ZONES } from "../../data/beach";
 import { MANAGER_PINS } from "../../data/till";
-import { basketTotals, changeDue, discountAmount, eur, lineGross, saleStatus, type ReceiptChoice, type TillSale } from "../../domain/till";
+import { basketTotals, changeDue, discountAmount, eur, lineGross, saleStatus, type ReceiptChoice, type TillSale, vatBreakdown } from "../../domain/till";
 
 /* ============ Manager approval ============
    A cashier without the permission enters a manager PIN (RBAC: Manager /
@@ -44,6 +44,8 @@ export const TENDER_LABEL: Record<string, string> = { card: "Card", cash: "Cash"
 export function ReceiptView({ sale, copy = false }: { sale: TillSale; copy?: boolean }) {
   const t = basketTotals(sale.lines, sale.discounts);
   const sets = sale.lines.filter((l) => l.setId);
+  const people = sale.lines.filter((l) => l.kind === "ticket").reduce((a, l) => a + l.qty, 0);
+  const lockers = sale.lines.flatMap((l) => (l.kind === "locker" ? l.codes ?? [] : []));
   const change = changeDue(sale.tenders);
   const status = saleStatus(sale);
   return (
@@ -71,8 +73,9 @@ export function ReceiptView({ sale, copy = false }: { sale: TillSale; copy?: boo
         ))}
         <div className="border-t border-dashed border-slate-300 my-2" />
         <div className="flex justify-between font-bold text-[13px]"><span>TOTAL</span><span className="tnum">{eur(t.total)}</span></div>
-        <div className="flex justify-between"><span>Net</span><span className="tnum">{eur(t.net)}</span></div>
-        <div className="flex justify-between"><span>VAT 24%</span><span className="tnum">{eur(t.vat)}</span></div>
+        {vatBreakdown(sale.lines, t.discount).map((r) => (
+          <div key={r.rate} className="flex justify-between"><span>Net {Math.round(r.rate * 100)}% · VAT</span><span className="tnum">{eur(r.net)} · {eur(r.vat)}</span></div>
+        ))}
         {sale.tenders.map((td, i) => (
           <div key={i} className="flex justify-between"><span>{TENDER_LABEL[td.kind]}{td.ref ? ` ${td.kind === "card" ? "···· " : ""}${td.ref}` : ""}{td.terminal ? ` · ${td.terminal.split(" · ")[0]}` : ""}</span><span className="tnum">{eur(td.given ?? td.amount)}</span></div>
         ))}
@@ -87,8 +90,9 @@ export function ReceiptView({ sale, copy = false }: { sale: TillSale; copy?: boo
         <div className="flex items-start gap-3">
           <QR size={72} seed={`ENTRY-${sale.id}`} />
           <div className="min-w-0">
-            <div className="font-bold">Entry pass</div>
-            <div>Scan at the gate</div>
+            <div className="font-bold">Entry pass{people > 0 ? ` · ${people} ${people === 1 ? "person" : "people"}` : ""}</div>
+            <div>{people > 0 ? "One QR for everyone on this sale" : "Scan at the gate"}</div>
+            {lockers.length > 0 && <div>Locker{lockers.length > 1 ? "s" : ""}: <b>{lockers.join(", ")}</b></div>}
             <div className="mt-1">{sale.mydata === "sent" ? <>MARK {sale.mark}</> : <>myDATA: pending transmission</>}</div>
           </div>
         </div>

@@ -9,6 +9,7 @@ import type { ZoneMapItem, PriceRule, PriceRuleDays, PriceRuleMode } from "../..
 import { effectivePrice, ruleEffectLabel, dayMatches } from "../../domain/pricing";
 import { useApp } from "../../app/store";
 import { SunbedWorkspace } from "./Workspace";
+import { LockersAdmin, TicketsAdmin } from "./Extras";
 import { PricingCalendar } from "./Calendar";
 
 /* ============ AVAILABILITY & PRICING ============ */
@@ -461,8 +462,10 @@ export function AdminAvailability() {
   };
   return (
     <div className="animate-fade-up">
-      <div className="mb-4"><Tabs tabs={[["sunbeds", "Sunbeds & pricing"], ["calendar", "Calendar & rules"], ["zones", "Zones & availability"]]} value={tab} onChange={setTab} /></div>
+      <div className="mb-4"><Tabs scroll tabs={[["sunbeds", "Sunbeds & pricing"], ["calendar", "Calendar & rules"], ["tickets", "Entry tickets"], ["lockers", "Lockers"], ["zones", "Zones & availability"]]} value={tab} onChange={setTab} /></div>
       {tab === "sunbeds" && <SunbedWorkspace />}
+      {tab === "tickets" && <TicketsAdmin />}
+      {tab === "lockers" && <LockersAdmin />}
       {tab === "zones" && (
         <div className="space-y-4">
           <Card className="p-2">
