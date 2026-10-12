@@ -651,6 +651,19 @@ vignette — towels for guests, a locker cabin (×qty), the car with its plate o
 
 **States:** zero sets → total €0 and Confirm disabled; Continue is never blocked on earlier steps.
 
+#### Several stores in one booking (AENR-524)
+
+- Opt-in switch in the Beach step: **Book in more than one store** (off by default — the single-store flow is
+  unchanged). With it on, switching store keeps the picks; the overview shows a "N picked" badge per store;
+  the menu lists the picks **grouped by store** with per-store subtotals, removable one by one, and the total
+  across stores. All stores use the same date(s).
+- Turning it off with picks in several stores asks **which store to keep** (or cancel) — picks are never
+  dropped silently.
+- Every pick is priced per store and date by the shared engine and checked against live availability; a set
+  taken or put on hold since it was picked is flagged and must be replaced before checkout.
+- One basket, one payment; Review, Confirmation, My Bookings and Admin › Bookings list the sets grouped by store
+  under one booking reference.
+
 ### C-04 · Checkout [MVP]
 
 ```text
@@ -695,6 +708,20 @@ vignette — towels for guests, a locker cabin (×qty), the car with its plate o
 - **Back to planning**. Footnote: _"On success: booking confirmed via webhook, QR e-mailed, and an ΑΠΥ
   auto-issued to MyDATA."_
 - **Show platform economics** toggle **[DEMO]**: Stripe ~1.5%, Slaice 5%, tenant net.
+
+#### Sign-in, service fees, saved card, notifications (AENR-532)
+
+- **Browse as a guest** on the sign-in screen; at **Pay**, a guest is asked to sign in or create an account and
+  comes back to the same basket.
+- **Service fees** come from the tenant's customer fee lines (Platform › Tenants › Fees, AENR-521): shown per
+  item ("+€2.50 fee" per set, "+€0.50" per entry person) and as total lines; removing an item removes its fee.
+- The **Stripe step** (simulated) shows the total, takes a card and offers **Save card for faster checkout**; the
+  next booking offers "Pay with Visa ···· 4242".
+- On success the booking is saved on the account (its sets become booked on every map); the confirmation lists
+  the sets by store, "Link + QR by e-mail & SMS" and "ΑΠΥ e-mailed · MARK".
+- **My Bookings** shows for each booking: booking code, sunbed code(s), section, date, guest name, status, price
+  and the QR.
+- Ticket categories (incl. AMEA with its note) and lockers come from Admin (AENR-529/530).
 
 ### C-05 · Confirmation
 

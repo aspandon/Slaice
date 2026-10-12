@@ -95,6 +95,12 @@ export interface CartItem {
   label: string;
   sub: string;
   price: number;
+  /** Structured details for the order, My Bookings and live availability (AENR-524/532). */
+  setId?: string;
+  zoneId?: string;
+  date?: string;
+  /** People on a ticket line. */
+  qty?: number;
 }
 
 /* ---------- Beach / inventory ---------- */

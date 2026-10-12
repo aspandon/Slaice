@@ -8,6 +8,7 @@ import { DEMO_TODAY, fmtDay } from "../domain/period";
 import { refundedTotal, saleStatus, type TillSale } from "../domain/till";
 import type { AdminBooking, AdminRefund } from "./mock";
 import type { PayLink } from "../domain/payLink";
+import type { PlacedBooking } from "../domain/account";
 
 const zoneName = (id?: string) => ZONES.find((z) => z.id === id)?.name ?? "";
 const first = (s: TillSale) => s.customer?.name.split(" ")[0] ?? "Walk-in";
@@ -67,4 +68,20 @@ export function payLinkBookings(links: readonly PayLink[]): AdminBooking[] {
       status: "Confirmed",
       amount: l.total,
     }));
+}
+
+/** Bookings placed online in the customer wizard on this device (AENR-532/524) — one row, every store's sets. */
+export function onlineBookings(list: readonly PlacedBooking[]): AdminBooking[] {
+  return list.map((b) => {
+    const dates = [...new Set(b.items.map((i) => i.date).filter(Boolean))] as string[];
+    return {
+      id: `#${b.ref}`,
+      who: b.guest.first,
+      items: b.items.map((i) => (i.kind === "sunbed" && i.setId ? `Sunbed · ${zoneName(i.zoneId)} · ${i.setId}` : `${i.label}`)),
+      date: dates.length ? fmtDay(dates[0]) : fmtDay(DEMO_TODAY),
+      channel: "Online",
+      status: "Confirmed",
+      amount: b.total,
+    };
+  });
 }

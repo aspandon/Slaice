@@ -7,15 +7,41 @@ import { listCustomerBookings } from "../../api";
 import { useAsync } from "../../lib/useAsync";
 import type { CustomerBooking } from "../../domain/types";
 import { useApp, useT } from "../../app/store";
+import { PROFILE } from "../../domain/account";
+import { fmtDay } from "../../domain/period";
+
+/** One row per booking with the fields guests ask for (AENR-532): code, sunbeds, section, guest, price. */
+type Row = CustomerBooking & { sets: string; section: string; guest: string };
+const parseItem = (item: string) => {
+  const [kind, section, set] = item.split(" · ");
+  return kind === "Sunbed" ? { section: section ?? "—", sets: set ?? "—" } : { section: "—", sets: "—" };
+};
 
 /* ============ MY BOOKINGS ============ */
 export function CustomerBookings() {
-  const { go, toast } = useApp();
+  const { go, toast, account } = useApp();
   const t = useT();
   const [qrFor, setQrFor] = useState<CustomerBooking | null>(null);
   const [filter, setFilter] = useState("all");
   const bookings = useAsync(listCustomerBookings);
-  const data = bookings.status === "success" ? bookings.data : [];
+  // Bookings placed on this device first (several stores grouped), then the account's history.
+  const placed: Row[] = account.bookings.map((b) => {
+    const sun = b.items.filter((i) => i.kind === "sunbed");
+    const stores = [...new Set(sun.map((i) => i.sub.split(" · ")[0]))];
+    const dates = [...new Set(b.items.map((i) => i.date).filter(Boolean))] as string[];
+    return {
+      id: `#${b.ref}`,
+      item: b.items.map((i) => i.label).slice(0, 3).join(", ") + (b.items.length > 3 ? "…" : ""),
+      date: dates.length ? dates.map((d) => fmtDay(d)).join(", ") : "—",
+      status: "Confirmed",
+      price: b.total,
+      state: "active",
+      sets: stores.map((st) => `${[...new Set(sun.filter((i) => i.sub.startsWith(st)).map((i) => i.setId))].join(", ")}`).join(" · ") || "—",
+      section: stores.join(" · ") || "—",
+      guest: `${b.guest.first} ${b.guest.last}`,
+    };
+  });
+  const data: Row[] = [...placed, ...(bookings.status === "success" ? bookings.data.map((d) => ({ ...d, ...parseItem(d.item), guest: `${PROFILE.first} ${PROFILE.last}` })) : [])];
   const filtered = data.filter((d) => filter === "all" || d.state === filter);
   const total = data.reduce((a, b) => a + b.price, 0);
   const active = data.filter((d) => d.state === "active").length;
@@ -58,8 +84,8 @@ export function CustomerBookings() {
         ) : filtered.length === 0 ? (
           <EmptyState icon={Icon.grid} title={filter === "active" ? t("No active bookings") : t("No past bookings yet")} body={filter === "active" ? t("Plan a visit for this weekend — Central front-row spots are 20% off.") : t("Once a visit is over, it will move here.")} action={<Btn variant="teal" icon={Icon.sparkles} onClick={() => go("customer", "plan")}>{t("Plan my visit")}</Btn>} />
         ) : (
-          <Table cols={[t("Booking"), t("Item"), t("Date"), t("Status"), t("Price"), "QR"]} right={[4]}
-            rows={filtered.map((r) => [r.id, r.item, r.date, <StatusBadge status={r.status} />, `€${r.price}`, <Btn size="sm" variant="ghost" icon={Icon.qr} onClick={() => setQrFor(r)}>QR</Btn>])} />
+          <Table cols={[t("Booking"), t("Sunbeds"), t("Section"), t("Date"), t("Guest"), t("Status"), t("Price"), "QR"]} right={[6]}
+            rows={filtered.map((r) => [<span className="font-mono font-semibold text-navy-900">{r.id}</span>, r.sets, r.section, r.date, r.guest, <StatusBadge status={r.status} />, `€${r.price}`, <Btn size="sm" variant="ghost" icon={Icon.qr} onClick={() => setQrFor(r)} aria-label={`QR ${r.id}`}>QR</Btn>])} />
         )}
       </Card>
       <Modal open={!!qrFor} onClose={() => setQrFor(null)} title={`${t("Entry QR")} · ${qrFor?.id ?? ""}`}>

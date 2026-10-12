@@ -12,7 +12,10 @@ import { downloadICS } from "../lib/download";
 import { round2 } from "../data/passes";
 import { useApp, useT } from "../app/store";
 import type { CartItem } from "../domain/types";
-import { SLAICE_FEE_RATE, STRIPE_FEE_RATE, TICKET_PRICES } from "../domain/pricing";
+import { SLAICE_FEE_RATE, STRIPE_FEE_RATE } from "../domain/pricing";
+import { PROFILE, cartKey, serviceFees, type PlacedBooking } from "../domain/account";
+import { useFinance } from "../lib/useFinance";
+import { useExtras } from "../lib/useExtras";
 
 // Stable booking-reference sequence — avoids the collisions/irreproducibility of
 // Math.random() and keeps the confirmation QR consistent within a session.
@@ -20,13 +23,19 @@ let BOOKING_SEQ = 10428;
 const nextBookingRef = () => "BK-" + ++BOOKING_SEQ;
 
 export function Checkout() {
-  const { cart, removeFromCart, addToCart, clearCart, go, toast, passes, spendVipCredit, passPricing } = useApp();
+  const { cart, removeFromCart, addToCart, clearCart, go, toast, passes, spendVipCredit, passPricing, account, setAccount } = useApp();
   const t = useT();
-  const [phase, setPhase] = useState<"cart" | "redirect" | "done">("cart");
+  const [finance] = useFinance();
+  const ex = useExtras();
+  const [phase, setPhase] = useState<"cart" | "signin" | "redirect" | "done">("cart");
+  const [placed, setPlaced] = useState<PlacedBooking | null>(null);
   // The buyer never needs the marketplace split — it's hidden by default and
   // revealed only via an explicit demo toggle.
   const [showEconomics, setShowEconomics] = useState(false);
-  const total = cart.reduce((a, b) => a + b.price, 0);
+  // Service fees from the tenant's customer fee lines (AENR-521 / 532), per item and in total.
+  const goods = round2(cart.reduce((a, b) => a + b.price, 0));
+  const sf = serviceFees(cart, finance.fees, todayISO());
+  const total = round2(goods + sf.total);
   const fee = +(total * SLAICE_FEE_RATE).toFixed(2);
   const stripeFee = +(total * STRIPE_FEE_RATE).toFixed(2);
 
@@ -41,7 +50,7 @@ export function Checkout() {
   const disc = passPricing.vipDiscount;
   const entryTotal = cart.filter((i) => i.kind === "ticket").reduce((a, b) => a + b.price, 0);
   // Season pass: one entry covered per visit (the holder's), valued at a standard adult entry.
-  const seasonCovered = hasSeason && applySeason && entryTotal > 0 ? Math.min(TICKET_PRICES.adult, entryTotal) : 0;
+  const seasonCovered = hasSeason && applySeason && entryTotal > 0 ? Math.min(ex.ticketPrice("adult", todayISO()), entryTotal) : 0;
   const afterSeason = round2(total - seasonCovered);
   const vipBalance = passes.vip?.balance ?? 0;
   // €B of credit, at a `disc` discount, settles B/(1−disc) of the order.
@@ -52,10 +61,21 @@ export function Checkout() {
   const cashDue = round2(afterSeason - vipCover); // paid via Stripe at full price
   const passApplied = seasonCovered > 0 || vipCover > 0;
 
-  // Settle the order: debit VIP credit (if any), then land on the confirmation.
-  const finish = () => {
+  // Settle the order: debit VIP credit (if any), save the booking (and the card
+  // if asked), clear the basket and land on the confirmation.
+  const finish = (card?: { save: boolean; last4: string } | null) => {
     if (vipDebit > 0) spendVipCredit(vipDebit);
+    const booking: PlacedBooking = { ref: nextBookingRef(), at: new Date().toISOString(), items: [...cart], fees: sf.lines, total: cashDue, guest: PROFILE, card: card ? `Visa ···· ${card.last4}` : undefined };
+    setAccount((a) => ({ ...a, bookings: [booking, ...a.bookings], savedCard: card?.save ? { brand: "Visa", last4: card.last4, exp: "12/28" } : a.savedCard }));
+    setPlaced(booking);
+    clearCart();
     setPhase("done");
+  };
+  // Guests browsing without an account sign in first; the basket stays as it is.
+  const pay = () => {
+    if (account.guest) return setPhase("signin");
+    if (cashDue > 0) setPhase("redirect");
+    else finish(null);
   };
   // Arriving from the wizard: its glass menu hands over its rect and the
   // summary panel morphs out of it while the basket rows stagger in — checkout
@@ -78,7 +98,7 @@ export function Checkout() {
     toast(t("Basket emptied."), { action: { label: t("Undo"), onClick: () => snapshot.forEach(addToCart) } });
   };
 
-  if (cart.length === 0 && phase === "cart") {
+  if (cart.length === 0 && phase !== "done") {
     return (
       <div className="animate-fade-up max-w-xl">
         <Card className="p-6">
@@ -93,21 +113,32 @@ export function Checkout() {
     );
   }
 
-  if (phase === "redirect") {
+  if (phase === "signin") {
+    const signIn = (how: string) => {
+      setAccount((a) => ({ ...a, guest: false }));
+      toast(`${t("Signed in")} (${how}) — ${t("your basket is right where you left it.")}`, { tone: "success" });
+      setPhase("cart");
+    };
     return (
       <div className="animate-fade-in grid place-items-center min-h-[60dvh]">
-        <Card className="p-10 max-w-md w-full text-center">
-          <div className="flex items-center justify-center gap-2 text-[#635bff] font-bold text-lg"><Icon.stripe size={22} /> stripe</div>
-          <div className="mt-4 text-sm text-slate-500">{t("Redirecting to")} {TENANT.name}{t("'s secure Stripe Checkout…")}</div>
-          <div className="mt-5 mx-auto w-10 h-10 rounded-full border-2 border-slate-200 border-t-[#635bff] animate-spin" />
-          <div className="mt-5 text-[12px] text-slate-600 flex items-center justify-center gap-1.5"><Icon.lock size={12} /> {t("Secure payment on")} {TENANT.name}{t("'s account · powered by Stripe")}</div>
-          <Btn variant="indigo" full size="lg" className="mt-5" onClick={finish}>{t("Simulate successful payment")}</Btn>
+        <Card className="p-8 max-w-md w-full">
+          <div className="w-12 h-12 rounded-xl bg-teal-600 text-white grid place-items-center"><Icon.lock size={22} /></div>
+          <h2 className="mt-3 font-display font-bold text-xl text-navy-900">{t("Sign in to finish your booking")}</h2>
+          <p className="mt-1 text-sm text-slate-600">{t("Your basket is saved —")} {cart.length} {cart.length === 1 ? t("item") : t("items")} · €{total.toFixed(2)}. {t("We need an account to send your QR and receipt.")}</p>
+          <div className="mt-5 grid gap-2">
+            <Btn variant="teal" full size="lg" icon={Icon.mail} onClick={() => signIn("e-mail link")}>{t("Sign in with an e-mail link")}</Btn>
+            <Btn variant="outline" full onClick={() => signIn("Google")}>{t("Continue with Google")}</Btn>
+            <Btn variant="ghost" full onClick={() => signIn("new account")}>{t("Create an account")}</Btn>
+          </div>
+          <button type="button" onClick={() => setPhase("cart")} className="mt-4 text-[12px] text-slate-600 hover:text-navy-900">← {t("Back to the basket")}</button>
         </Card>
       </div>
     );
   }
 
-  if (phase === "done") return <Confirmation inline />;
+  if (phase === "redirect") return <StripeStep amount={cashDue} saved={account.savedCard} onBack={() => setPhase("cart")} onPaid={finish} />;
+
+  if (phase === "done") return <Confirmation inline booking={placed} />;
 
   return (
     <div className="animate-fade-up grid lg:grid-cols-[1fr_360px] gap-5">
@@ -128,7 +159,7 @@ export function Checkout() {
                     <span className="w-9 h-9 rounded-lg bg-slate-100 grid place-items-center text-slate-500 shrink-0">{kindIcon(it.kind)}</span>
                     <div className="min-w-0"><div className="font-semibold text-sm text-navy-900 truncate">{it.label}</div><div className="text-[12px] text-slate-600 truncate">{it.sub}</div></div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0"><span className="font-semibold tnum">€{it.price}</span><button aria-label={`${t("Remove")} ${it.label}`} onClick={() => removeItem(it)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={16} /></button></div>
+                  <div className="flex items-center gap-2 shrink-0"><span className="text-right"><span className="block font-semibold tnum">€{it.price}</span>{sf.perItem[cartKey(it)] ? <span className="block text-[11px] text-slate-500 tnum">+€{sf.perItem[cartKey(it)].toFixed(2)} {t("fee")}</span> : null}</span><button aria-label={`${t("Remove")} ${it.label}`} onClick={() => removeItem(it)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={16} /></button></div>
                 </div>
               </SwipeRow>
               </div>
@@ -142,7 +173,8 @@ export function Checkout() {
         <Card className="p-5">
           <div className="flex items-center gap-2 mb-3"><TenantLogo size={30} /><div className="text-sm font-semibold text-navy-900">{TENANT.name}</div></div>
           {/* Customer-facing summary: subtotal, any pass deductions, then what's due now. */}
-          <Row l={t("Subtotal")} v={`€${total.toFixed(2)}`} />
+          <Row l={t("Subtotal")} v={`€${goods.toFixed(2)}`} />
+          {sf.lines.map((f) => <Row key={f.label} l={t(f.label)} v={`€${f.amount.toFixed(2)}`} />)}
           {seasonCovered > 0 && <Row l={`${t("Season pass")} · ${t("1 entry")}`} v={`−€${seasonCovered.toFixed(2)}`} discount />}
           {vipCover > 0 && <Row l={t("Paid with VIP credit")} v={`−€${vipCover.toFixed(2)}`} discount />}
           <div className="h-px bg-slate-100 my-2" />
@@ -189,7 +221,7 @@ export function Checkout() {
             </div>
           )}
 
-          <Btn variant="indigo" full size="lg" className="mt-4" icon={cashDue > 0 ? Icon.stripe : Icon.check} onClick={() => (cashDue > 0 ? setPhase("redirect") : finish())}>
+          <Btn variant="indigo" full size="lg" className="mt-4" icon={cashDue > 0 ? Icon.stripe : Icon.check} onClick={pay}>
             {cashDue > 0 ? `${t("Pay")} €${cashDue.toFixed(2)}` : t("Confirm · paid with pass")}
           </Btn>
 
@@ -217,6 +249,59 @@ export function Checkout() {
   );
 }
 
+/* The tenant's Stripe Checkout (simulated): saved card or a new one, with
+   "save card for faster checkout"; Pay → processing → back to Slaice. */
+function StripeStep({ amount, saved, onBack, onPaid }: { amount: number; saved: { brand: string; last4: string; exp: string } | null; onBack: () => void; onPaid: (card: { save: boolean; last4: string }) => void }) {
+  const t = useT();
+  const [useSaved, setUseSaved] = useState(!!saved);
+  const [num, setNum] = useState("4242 4242 4242 4242");
+  const [exp, setExp] = useState("12/28");
+  const [cvc, setCvc] = useState("123");
+  const [save, setSave] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const digits = num.replace(/\D/g, "");
+  const valid = useSaved || (digits.length >= 15 && /^\d{2}\/\d{2}$/.test(exp) && /^\d{3,4}$/.test(cvc));
+  const submit = () => { setBusy(true); window.setTimeout(() => onPaid(useSaved && saved ? { save: false, last4: saved.last4 } : { save, last4: digits.slice(-4) }), 1200); };
+  return (
+    <div className="animate-fade-in grid place-items-center min-h-[60dvh]">
+      <Card className="p-8 max-w-md w-full">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2 text-[#635bff] font-bold text-lg"><Icon.stripe size={22} /> stripe</div>
+          <div className="text-sm font-semibold text-navy-900">{TENANT.name}</div>
+        </div>
+        <div className="mt-4 text-[12px] text-slate-500">{t("Total")}</div>
+        <div className="font-display text-3xl font-bold text-navy-900 tnum">€{amount.toFixed(2)}</div>
+        <form className="mt-4 space-y-3" onSubmit={(e) => { e.preventDefault(); if (valid && !busy) submit(); }}>
+          {saved && (
+            <fieldset className="space-y-1.5">
+              <legend className="sr-only">{t("Card")}</legend>
+              <label className={`flex items-center gap-2 rounded-xl ring-1 px-3 min-h-[48px] cursor-pointer ${useSaved ? "ring-[#635bff] bg-indigo-50/50" : "ring-slate-200"}`}>
+                <input type="radio" name="card" className="accent-[#635bff]" checked={useSaved} onChange={() => setUseSaved(true)} /> <Icon.card size={16} /> {t("Pay with")} {saved.brand} ···· {saved.last4} <span className="ml-auto text-[12px] text-slate-500">{saved.exp}</span>
+              </label>
+              <label className={`flex items-center gap-2 rounded-xl ring-1 px-3 min-h-[48px] cursor-pointer ${!useSaved ? "ring-[#635bff] bg-indigo-50/50" : "ring-slate-200"}`}>
+                <input type="radio" name="card" className="accent-[#635bff]" checked={!useSaved} onChange={() => setUseSaved(false)} /> {t("Use another card")}
+              </label>
+            </fieldset>
+          )}
+          {!useSaved && (
+            <>
+              <label className="block text-[12px] font-semibold text-slate-700">{t("Card number")}<input inputMode="numeric" autoComplete="cc-number" value={num} onChange={(e) => setNum(e.target.value)} className="mt-1 block w-full rounded-xl ring-1 ring-slate-200 px-3 py-2.5 text-[15px] font-mono" /></label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block text-[12px] font-semibold text-slate-700">{t("Expiry")}<input autoComplete="cc-exp" value={exp} onChange={(e) => setExp(e.target.value)} className="mt-1 block w-full rounded-xl ring-1 ring-slate-200 px-3 py-2.5 text-[15px] font-mono" /></label>
+                <label className="block text-[12px] font-semibold text-slate-700">CVC<input inputMode="numeric" autoComplete="cc-csc" value={cvc} onChange={(e) => setCvc(e.target.value)} className="mt-1 block w-full rounded-xl ring-1 ring-slate-200 px-3 py-2.5 text-[15px] font-mono" /></label>
+              </div>
+              <label className="flex items-center gap-2 text-[13px] text-slate-700 min-h-[40px]"><input type="checkbox" className="accent-[#635bff] w-4 h-4" checked={save} onChange={(e) => setSave(e.target.checked)} /> {t("Save card for faster checkout")}</label>
+            </>
+          )}
+          <Btn type="submit" variant="indigo" full size="lg" disabled={!valid} loading={busy}>{busy ? t("Processing…") : `${t("Pay")} €${amount.toFixed(2)}`}</Btn>
+        </form>
+        <div className="mt-3 text-[11px] text-slate-500 flex items-center gap-1.5"><Icon.lock size={12} /> {t("Demo — no real card is charged. Saved cards are stored by Stripe as a token; Slaice only keeps the last 4 digits.")}</div>
+        <button type="button" onClick={onBack} disabled={busy} className="mt-3 text-[12px] text-slate-600 hover:text-navy-900">← {t("Back to the basket")}</button>
+      </Card>
+    </div>
+  );
+}
+
 function Row({ l, v, bold, muted, discount }: { l?: ReactNode; v?: ReactNode; bold?: boolean; muted?: boolean; discount?: boolean }) {
   return <div className={`flex items-center justify-between text-sm py-0.5 ${bold ? "font-bold text-navy-900 text-base" : discount ? "text-teal-700 font-medium" : muted ? "text-slate-600" : "text-slate-600"}`}><span>{l}</span><span className="tnum">{v}</span></div>;
 }
@@ -227,11 +312,13 @@ function kindIcon(kind: string) {
   return <I size={17} />;
 }
 
-export function Confirmation({ inline }: { inline?: boolean }) {
-  const { cart, clearCart, go, toast } = useApp();
+export function Confirmation({ inline, booking }: { inline?: boolean; booking?: PlacedBooking | null }) {
+  const { cart: liveCart, clearCart, go, toast } = useApp();
   const t = useT();
+  // The placed booking when coming from Checkout; else whatever is in the basket.
+  const cart = booking?.items ?? liveCart;
   // Stable across re-renders so the QR and wallet pass don't change.
-  const [ref] = useState(nextBookingRef);
+  const [ref] = useState(() => booking?.ref ?? nextBookingRef());
   const scope = useRef<HTMLDivElement>(null);
 
   // Celebration: the check springs in and throws confetti, the QR card flips
@@ -256,12 +343,14 @@ export function Confirmation({ inline }: { inline?: boolean }) {
   }, []);
   // Derive a representative wallet pass from the basket.
   const sunbeds = cart.filter((i) => i.kind === "sunbed");
-  const total = cart.reduce((a, b) => a + b.price, 0);
+  const total = booking?.total ?? cart.reduce((a, b) => a + b.price, 0);
   const first = sunbeds[0] || cart[0];
+  // Sets grouped by store (a booking can span several, AENR-524).
+  const byStore = [...new Set(sunbeds.map((s) => s.sub.split(" · ")[0]))].map((name) => ({ name, sets: [...new Set(sunbeds.filter((s) => s.sub.startsWith(name)).map((s) => s.setId ?? s.label.replace(/^\S+\s+/, "")))] }));
   const [zone, date] = (first?.sub || "Akti tou Iliou · Today").split(" · ");
   const pass = {
     ref,
-    holder: "Elena M.",
+    holder: booking ? `${booking.guest.first} ${booking.guest.last[0]}.` : "Elena M.",
     zone: zone || "Akti tou Iliou",
     date: date || "Today",
     seat: sunbeds.map((s) => s.label.replace(/^Sunbed\s+/, "")).join(", ") || "—",
@@ -278,6 +367,11 @@ export function Confirmation({ inline }: { inline?: boolean }) {
 
         <div className="my-5 grid place-items-center" data-confirm-qr><QR size={180} seed={ref} /></div>
         <div className="font-mono text-sm text-navy-900 font-semibold" data-confirm-item>#{ref}</div>
+        {byStore.length > 0 && (
+          <ul className="mt-2 text-[13px] text-slate-700 space-y-0.5" data-confirm-item>
+            {byStore.map((g) => <li key={g.name}><b className="text-navy-900">{g.name}</b> × {g.sets.length} · {g.sets.join(", ")}</li>)}
+          </ul>
+        )}
 
         {/* Add to Apple / Google Wallet */}
         <div data-confirm-item>
@@ -285,9 +379,9 @@ export function Confirmation({ inline }: { inline?: boolean }) {
         </div>
 
         <div className="mt-6 grid sm:grid-cols-3 gap-2 text-[12px]" data-confirm-item>
-          <Pill icon={Icon.checkCircle} t={t("Stripe paid")} />
-          <Pill icon={Icon.mail} t={t("QR e-mailed")} />
-          <Pill icon={Icon.receipt} t={t("ΑΠΥ → MyDATA ✓")} />
+          <Pill icon={Icon.checkCircle} t={booking?.card ? `${t("Paid")} · ${booking.card.replace("Visa ", "")}` : t("Stripe paid")} />
+          <Pill icon={Icon.mail} t={t("Link + QR by e-mail & SMS")} />
+          <Pill icon={Icon.receipt} t={t("ΑΠΥ e-mailed · MARK")} />
         </div>
 
         <div className="mt-6 flex gap-2 justify-center flex-wrap" data-confirm-item>

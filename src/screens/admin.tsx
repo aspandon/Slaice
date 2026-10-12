@@ -27,7 +27,7 @@ import { readHashQuery, writeHashQuery } from "../app/router";
 import { activeCount, filtersFromParams, filtersToParams, isAmount, matchAmount, type FilterDef, type FilterState } from "../domain/filters";
 import { resolveRange, comparisonRange, lastYearRange, granularityFor, rangeLabel, periodNoun, comparisonLabel, isoFromDayMonth, inRange, fmtWeekday as fmtWeekdayP } from "../domain/period";
 import { summarize, series, buckets, fmtEUR, fmtInt, fmtPct, trendPct, trendPp, trendEUR } from "../data/analytics";
-import { payLinkBookings, tillBookings, tillRefunds } from "../data/tillAdmin";
+import { onlineBookings, payLinkBookings, tillBookings, tillRefunds } from "../data/tillAdmin";
 import { InvoicesTab, OverviewPanel, PaymentsTab, SectionChips, financeCsv, financePdf, useFinanceData, useSection } from "./reporting/FinanceTabs";
 import { VARIANCE_TOLERANCE, eur as eurTill, shiftTotals } from "../domain/till";
 
@@ -244,7 +244,7 @@ function BookingNotesModal({ booking, onClose, agent }: { booking: EnrichedBooki
 }
 
 export function AdminBookings() {
-  const { toast, persona, bookingNotes, till, payLinks } = useApp();
+  const { toast, persona, bookingNotes, till, payLinks, account } = useApp();
   // Shared by Manager/Admin and Call Center; agents look up and help callers
   // but don't export or refund — they escalate to a manager (AENR-472).
   const agent = persona === "callcenter";
@@ -257,7 +257,7 @@ export function AdminBookings() {
   const PAGE = 30;
   const chan = (c: string) => ({ Online: "blue", "Walk-in": "amber", Phone: "indigo", Cashier: "green", "Pay-by-link": "coral" }[c] || "slate");
   // Sunbed sales from the Cashier till appear alongside (channel Cashier).
-  const enriched: EnrichedBooking[] = [...payLinkBookings(payLinks), ...tillBookings(till.sales), ...ADMIN_BOOKINGS].map((b) => {
+  const enriched: EnrichedBooking[] = [...onlineBookings(account.bookings), ...payLinkBookings(payLinks), ...tillBookings(till.sales), ...ADMIN_BOOKINGS].map((b) => {
     const p = personByFirst(b.who);
     return { ...b, surname: p?.last ?? "", phone: p?.phone ?? "", email: p?.email ?? "" };
   });

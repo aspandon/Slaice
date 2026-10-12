@@ -7,6 +7,7 @@ import { invLabel, invStatus, type SalesChannel } from "../domain/inventory";
 import { opsKey, opsToMap } from "../domain/sunbedOps";
 import { payLinkSets } from "../domain/payLink";
 import { layoutFor } from "../domain/layoutVersions";
+import { bookedSets } from "../domain/account";
 import type { SunbedSlot, Zone } from "../domain/types";
 
 /** Re-render every `ms` so time-based state (holds expiring) stays current. */
@@ -30,7 +31,7 @@ export function useDemoNow(ms = 15000): number {
  *  allocations, stop-sell) for the selling channel — the one view every
  *  persona renders. For several days, a set taken on any of them counts. */
 export function useLiveSlots(channel: SalesChannel = "online"): (zone: Zone, days: readonly string[]) => SunbedSlot[] {
-  const { beachLayout, till, beachPricing, priceRules, inventory, sunbedOps, payLinks, layouts } = useApp();
+  const { beachLayout, till, beachPricing, priceRules, inventory, sunbedOps, payLinks, layouts, account } = useApp();
   const closure = useClosure();
   const now = useDemoNow();
   return useCallback(
@@ -64,6 +65,9 @@ export function useLiveSlots(channel: SalesChannel = "online"): (zone: Zone, day
         const hit = linked.map((m) => m[s.id]).find(Boolean);
         return hit && s.state === "a" ? { ...s, state: hit.kind === "booked" ? ("u" as const) : ("h" as const), inv: hit.label } : s;
       });
+      // Sets in bookings placed online on this device (AENR-532) are booked.
+      const online = days.map((d) => bookedSets(account.bookings, d));
+      for (const set of online) for (const id of set) status[id] = "sold";
       const live = applySetStatus(reserved, status, closedAny);
       // Inventory controls: held → on hold; allocated to another channel or
       // stop-sold online → unavailable here — with the reason attached.
@@ -77,7 +81,7 @@ export function useLiveSlots(channel: SalesChannel = "online"): (zone: Zone, day
         return s;
       });
     },
-    [beachLayout, till, now, closure, beachPricing, priceRules, inventory, channel, sunbedOps, payLinks, layouts],
+    [beachLayout, till, now, closure, beachPricing, priceRules, inventory, channel, sunbedOps, payLinks, layouts, account],
   );
 }
 

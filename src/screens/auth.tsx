@@ -16,7 +16,14 @@ const signInSchema = z.object({
 });
 
 export function AuthGate() {
-  const { setSignedIn, toast } = useApp();
+  const { setSignedIn, toast, setAccount, go } = useApp();
+  // Browse and fill a basket without an account; checkout asks to sign in (AENR-532).
+  const browseAsGuest = () => {
+    setAccount((a) => ({ ...a, guest: true }));
+    setSignedIn(true);
+    go("customer", "home");
+  };
+  const signInAs = () => { setAccount((a) => ({ ...a, guest: false })); setSignedIn(true); };
   const t = useT();
   const [sent, setSent] = useState(false);
   const {
@@ -38,7 +45,7 @@ export function AuthGate() {
 
   const sso = (p: string) => {
     toast(`${t("Demo —")} ${p} ${t("SSO. Signing you in…")}`);
-    setTimeout(() => setSignedIn(true), 500);
+    setTimeout(signInAs, 500);
   };
 
   return (
@@ -106,7 +113,7 @@ export function AuthGate() {
               <div className="w-12 h-12 mx-auto rounded-xl bg-teal-600 text-white grid place-items-center"><Icon.mail size={22} /></div>
               <div className="mt-2 font-semibold text-navy-900">{t("Check your inbox")}</div>
               <div className="text-[13px] text-slate-500">{t("We sent a sign-in link to")} <b>{email}</b>.</div>
-              <Btn variant="teal" full size="lg" className="mt-4" icon={Icon.arrowR} onClick={() => setSignedIn(true)}>{t("Continue (demo)")}</Btn>
+              <Btn variant="teal" full size="lg" className="mt-4" icon={Icon.arrowR} onClick={signInAs}>{t("Continue (demo)")}</Btn>
             </div>
           )}
 
@@ -133,6 +140,10 @@ export function AuthGate() {
               Facebook
             </Btn>
           </div>
+
+          <button type="button" onClick={browseAsGuest} className="mt-5 w-full rounded-xl min-h-[44px] text-[13.5px] font-semibold text-navy-900 ring-1 ring-slate-200 hover:ring-teal-400 hover:bg-white/70 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+            {t("Browse as a guest")} <span className="font-normal text-slate-500">· {t("sign in at checkout")}</span>
+          </button>
 
           <div className="mt-8 flex items-center justify-center gap-2 text-[11px] text-slate-600">
             <Icon.shield size={13} /> {t("Secured demo · no real credentials processed")}
