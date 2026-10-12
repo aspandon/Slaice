@@ -54,6 +54,7 @@ export function ControllerBeach() {
   const {
     toast,
     go,
+    persona,
     sunbedOps,
     setSunbedOps,
     till,
@@ -84,7 +85,7 @@ export function ControllerBeach() {
 
   // Deep link from elsewhere (e.g. a scanned label) opens that set.
   useEffect(() => {
-    if (hint?.persona === "controller" && hint.page === "beach" && hint.setId) {
+    if (hint?.persona === persona && hint.page === "beach" && hint.setId) {
       openSet(hint.setId);
       clearHint();
     }
@@ -102,7 +103,7 @@ export function ControllerBeach() {
         guest: sale.customer?.name ?? "Walk-in",
         guests: sale.lines.filter((l) => l.kind === "ticket").reduce((a, l) => a + l.qty, 0) || 2,
         paid: true,
-        channel: sale.channel === "controller" ? "Controller" : "Cashier",
+        channel: sale.channel === "controller" ? "Controller" : sale.channel === "support" ? "Support Agent" : "Cashier",
       };
     if (s.state !== "u" || sunbedOps.status[opsKey(date, s.id)]) return null;
     const n = parseInt(s.id.replace(/\D/g, ""), 10) || 1;
@@ -123,7 +124,7 @@ export function ControllerBeach() {
   const onHit = (h: ScanHit) => {
     if (h.kind === "booking") {
       toast(`${h.code} is a booking QR — validate it at the gate.`, {
-        action: { label: "Open gate", onClick: () => go("controller", "scan") },
+        action: { label: "Open gate", onClick: () => go(persona, "scan") },
       });
       return;
     }
@@ -383,7 +384,7 @@ export function ControllerBeach() {
                           variant="primary"
                           size="lg"
                           icon={Icon.cash}
-                          onClick={() => go("controller", "walkin", { setId: one.id })}
+                          onClick={() => go(persona, "walkin", { setId: one.id })}
                         >
                           Walk-in sale on {one.id}
                         </Btn>

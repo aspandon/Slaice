@@ -8,6 +8,7 @@ export const PERSONAS: Persona[] = [
   { id: "callcenter", label: "Call Center", icon: "phone", color: "#0891b2", blurb: "Τηλεφωνικό κέντρο — τηλεφωνικές κρατήσεις, αναζήτηση κρατήσεων" },
   { id: "cashier", label: "Cashier", icon: "cash", color: "#0ea5e9", blurb: "Ταμίας — on-site ticket issuing, printing, cash register" },
   { id: "controller", label: "Controller", icon: "scan", color: "#f59e0b", blurb: "Ελεγκτής — gate QR validation, walk-ins" },
+  { id: "support", label: "Support Agent", icon: "headset", color: "#e11d48", blurb: "Υποστήριξη — gate, beach status, walk-ins, till and pay-by-link reservations" },
   { id: "accountant", label: "Accountant", icon: "receipt", color: "#a855f7", blurb: "Λογιστής — e-invoicing, MyDATA, commission & payouts" },
   { id: "platform", label: "Platform / Slaice", icon: "building", color: "#3a47cc", blurb: "Slaice staff — tenants, onboarding, super-admin, verticals" },
 ];
@@ -28,6 +29,7 @@ export const NAV: Record<PersonaId, NavItem[]> = {
     { k: "availability", label: "Beach, Availability & Pricing", short: "Beach", icon: "umbrella", badge: "MVP" },
     { k: "bookings", label: "Bookings", short: "Bookings", icon: "grid", badge: "MVP" },
     { k: "manual", label: "Manual / Phone Booking", short: "Manual", icon: "phone", badge: "MVP" },
+    { k: "paylinks", label: "Pay-by-link", short: "Links", icon: "link", badge: "MVP" },
     { k: "users", label: "Users & Segments", short: "Users", icon: "users", badge: "MVP" },
     { k: "reporting", label: "Reporting & Analytics", short: "Reports", icon: "trend", badge: "MVP" },
     { k: "refunds", label: "Refunds", short: "Refunds", icon: "refund", badge: "MVP" },
@@ -41,6 +43,7 @@ export const NAV: Record<PersonaId, NavItem[]> = {
   callcenter: [
     { k: "manual", label: "Manual / Phone Booking", short: "Phone", icon: "phone", badge: "MVP" },
     { k: "bookings", label: "Bookings", short: "Bookings", icon: "grid", badge: "MVP" },
+    { k: "paylinks", label: "Pay-by-link", short: "Links", icon: "link", badge: "MVP" },
   ],
   cashier: [
     { k: "issue", label: "Issue Ticket", short: "Issue", icon: "ticket", badge: "MVP" },
@@ -53,6 +56,18 @@ export const NAV: Record<PersonaId, NavItem[]> = {
     { k: "scan", label: "Gate Validation", short: "Gate", icon: "scan", badge: "MVP" },
     { k: "beach", label: "Beach Status", short: "Beach", icon: "umbrella", badge: "MVP" },
     { k: "walkin", label: "Walk-in Sale", short: "Walk-in", icon: "cash", badge: "MVP" },
+  ],
+  // Support Agent (AENR-533): every Controller and Cashier page plus pay-by-link.
+  support: [
+    { k: "scan", label: "Gate Validation", short: "Gate", icon: "scan", badge: "MVP", group: "Gate" },
+    { k: "beach", label: "Beach Status", short: "Beach", icon: "umbrella", badge: "MVP", group: "Beach" },
+    { k: "walkin", label: "Walk-in Sale", short: "Walk-in", icon: "cash", badge: "MVP", group: "Beach" },
+    { k: "issue", label: "Issue Ticket", short: "Till", icon: "ticket", badge: "MVP", group: "Till" },
+    { k: "transactions", label: "Transactions", short: "Sales", icon: "list", badge: "MVP", group: "Till" },
+    { k: "register", label: "Cash Register", short: "Register", icon: "cash", badge: "Future", group: "Till" },
+    { k: "redeem", label: "Redeem Ticket", short: "Redeem", icon: "check", badge: "Future", group: "Till" },
+    { k: "locker", label: "Sell Locker", short: "Locker", icon: "lock", badge: "Future", group: "Till" },
+    { k: "paylinks", label: "Pay-by-link", short: "Links", icon: "link", badge: "MVP", group: "Reservations" },
   ],
   accountant: [
     { k: "invoicing", label: "e-Invoicing & MyDATA", short: "MyDATA", icon: "receipt", badge: "MVP" },
@@ -75,6 +90,7 @@ export const DEFAULT_PAGE: Record<PersonaId, string> = {
   callcenter: "manual",
   cashier: "issue",
   controller: "scan",
+  support: "scan",
   accountant: "invoicing",
   platform: "tenants",
 };

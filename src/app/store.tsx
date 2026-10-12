@@ -18,6 +18,7 @@ import type { TillState } from "../domain/till";
 import type { FinanceConfig } from "../domain/finance";
 import { DEFAULT_INVENTORY, type InventoryState } from "../domain/inventory";
 import { DEFAULT_SUNBED_OPS, type SunbedOpsState } from "../domain/sunbedOps";
+import type { PayLink } from "../domain/payLink";
 
 // Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
 // highlight the section a journey points at.
@@ -156,6 +157,9 @@ export interface AppContextValue {
   /** Staff-set sunbed status per date with history (AENR-499) — persisted. */
   sunbedOps: SunbedOpsState;
   setSunbedOps: (u: (s: SunbedOpsState) => SunbedOpsState) => void;
+  /** Pay-by-link reservations (AENR-534). */
+  payLinks: PayLink[];
+  setPayLinks: (u: (s: PayLink[]) => PayLink[]) => void;
 }
 
 export const DEFAULT_CRM: CrmState = { segments: [], tagDefs: [{ name: "Wedding party", color: "#a855f7" }, { name: "Local", color: "#0D9488" }], edits: {}, regularAfter: 15, lifecycle: { atRiskDays: 14, lapsedDays: 35 }, columns: ["lifecycle", "spend"], imported: [], mergedAway: [], eraseRequests: [], profiles: {}, customFields: [{ id: "cf-birthday", label: "Birthday", type: "date" }, { id: "cf-company", label: "Company", type: "text" }] };
@@ -242,6 +246,8 @@ export const AppCtx = createContext<AppContextValue>({
   setInventory: () => {},
   sunbedOps: DEFAULT_SUNBED_OPS,
   setSunbedOps: () => {},
+  payLinks: [],
+  setPayLinks: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);

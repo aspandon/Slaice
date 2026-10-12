@@ -7,6 +7,7 @@ import { ZONES } from "./beach";
 import { DEMO_TODAY, fmtDay } from "../domain/period";
 import { refundedTotal, saleStatus, type TillSale } from "../domain/till";
 import type { AdminBooking, AdminRefund } from "./mock";
+import type { PayLink } from "../domain/payLink";
 
 const zoneName = (id?: string) => ZONES.find((z) => z.id === id)?.name ?? "";
 const first = (s: TillSale) => s.customer?.name.split(" ")[0] ?? "Walk-in";
@@ -51,4 +52,19 @@ export function tillRefunds(sales: readonly TillSale[]): AdminRefund[] {
         approver: last.approver,
       };
     });
+}
+
+/** Paid pay-by-link reservations as Admin bookings (AENR-534), channel Pay-by-link. */
+export function payLinkBookings(links: readonly PayLink[]): AdminBooking[] {
+  return links
+    .filter((l) => l.closed === "paid")
+    .map((l) => ({
+      id: `#${l.id}`,
+      who: l.guest.name.split(" ")[0],
+      items: l.lines.map((x) => (x.setId ? `Sunbed · ${zoneName(x.zoneId)} · ${x.setId}` : `Entry · ${x.label} ×${x.qty}`)),
+      date: fmtDay(l.date),
+      channel: "Pay-by-link",
+      status: "Confirmed",
+      amount: l.total,
+    }));
 }

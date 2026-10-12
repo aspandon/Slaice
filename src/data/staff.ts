@@ -17,7 +17,12 @@ export const STAFF_ROLES: { id: StaffRole; label: string; blurb: string }[] = [
   {
     id: "controller",
     label: "Controller",
-    blurb: "Gate validation, walk-ins and same-day release.",
+    blurb: "Gate validation, beach status, walk-ins and same-day release.",
+  },
+  {
+    id: "support",
+    label: "Support Agent",
+    blurb: "Everything a Controller and a Cashier can do, plus pay-by-link reservations.",
   },
   { id: "accountant", label: "Accountant", blurb: "e-Invoicing, MyDATA, commission and payouts." },
 ];
@@ -114,6 +119,16 @@ export const DEFAULT_STAFF: StaffUser[] = [
     status: "invited",
     lastSignIn: null,
     created: "2026-07-17",
+  },
+  {
+    id: "u-10",
+    name: "Dimitris Galanis",
+    email: "dimitris@aktitouiliou.gr",
+    phone: "+30 694 200 0110",
+    role: "support",
+    status: "active",
+    lastSignIn: "2026-07-19T08:15:00",
+    created: "2026-06-20",
   },
 ];
 

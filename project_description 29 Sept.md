@@ -267,6 +267,7 @@ visited **per persona** is remembered.
 | ----------------------- | ---------------------- | ----- |
 | `#/callcenter/manual`   | Manual / Phone Booking | [MVP] |
 | `#/callcenter/bookings` | Bookings (lookup)      | [MVP] |
+| `#/callcenter/paylinks` | Pay-by-link            | [MVP] |
 
 ### Cashier
 
@@ -285,6 +286,23 @@ visited **per persona** is remembered.
 | `#/controller/scan`   | Gate Validation | [MVP] |
 | `#/controller/beach`  | Beach Status    | [MVP] |
 | `#/controller/walkin` | Walk-in Sale    | [MVP] |
+
+### Support Agent (AENR-533)
+
+Every Controller and Cashier page plus pay-by-link, grouped in the navigation as Gate · Beach · Till ·
+Reservations; phone-first like the Controller. Staff get the role in Admin › RBAC (view-as works).
+
+| Route                    | Screen                                | Tag      |
+| ------------------------ | ------------------------------------- | -------- |
+| `#/support/scan`         | Gate Validation                       | [MVP]    |
+| `#/support/beach`        | Beach Status                          | [MVP]    |
+| `#/support/walkin`       | Walk-in Sale (channel Support)        | [MVP]    |
+| `#/support/issue`        | Issue Ticket                          | [MVP]    |
+| `#/support/transactions` | Transactions                          | [MVP]    |
+| `#/support/register`     | Cash Register                         | [Future] |
+| `#/support/redeem`       | Redeem Ticket                         | [Future] |
+| `#/support/locker`       | Sell Locker                           | [Future] |
+| `#/support/paylinks`     | Pay-by-link reservations (also Admin) | [MVP]    |
 
 ### Accountant
 
@@ -1560,6 +1578,25 @@ all three; **Export CSV** and **Export PDF** (a one-page PDF with the key figure
   terminal, and the Z report splits card takings per terminal.
 - The Cashier till has the same **Scan set QR** entry, which jumps to the set's store and adds it.
 - The gate page's _Walk-in_ and _Add ticket (pay on site)_ open this page; _Beach status_ opens G-02.
+
+### G-04 · Pay-by-link reservations [MVP] (AENR-534)
+
+For a guest who isn't at the beach yet — Support Agent, Call Center and Admin (`#/…/paylinks`).
+
+```text
+ Date ◆ Store ◆ ─▶ tap free sets (+ optional tickets) ─▶ guest (find existing or type) ─▶ SMS / e-mail
+   ─▶ Pay within 30 min / 2 h / end of day ─▶ [Reserve & send link · €X]
+   ─▶ sets show "Reserved — awaiting payment" in the wizard, the till and every staff map
+ Guest opens https://pay.slaice.gr/l/pl-48xx (simulated Stripe page) ─▶ [Pay] ─▶ booking confirmed
+   automatically, QR + ΑΠΥ sent, sets Booked, Admin › Bookings channel Pay-by-link
+ Not paid by the deadline ─▶ Expired, sets released automatically
+```
+
+- **List** with status tabs (Awaiting payment · Paid · Expired · Cancelled), countdown, history; actions
+  Open link (the guest's page, with approve / decline demo), Copy, Resend, +30 min (also revives an
+  expired one), Cancel.
+- Status is derived from the demo clock (`src/domain/payLink.ts`); the page's _+30 min_ advances the same
+  clock as the inventory panel, to show expiry.
 
 ## 12. User journeys — Accountant
 

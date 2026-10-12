@@ -188,6 +188,7 @@
   "Leave": "Dejar",
   "Less than": "Menos que",
   "Letting someone else use your pass may result in it being cancelled without a refund.": "Permitir que otra persona use su pase puede resultar en su cancelación sin reembolso.",
+  "Links": "Campo de golf",
   "Live sea & weather": "Mar y clima en vivo",
   "Locker": "Armario",
   "Loyalty": "Lealtad",
@@ -250,6 +251,7 @@
   "Pay": "Pagar",
   "Pay now": "Paga ahora",
   "Pay with Stripe": "Paga con Stripe",
+  "Pay-by-link": "Pago por enlace",
   "Payment successful": "Pago exitoso",
   "Payments & Invoices": "Pagos y facturas",
   "Payouts": "Pagos",
@@ -365,6 +367,7 @@
   "Subtotal": "Total parcial",
   "Sunbed": "Cama solar",
   "Super Admin": "Súper administrador",
+  "Support Agent": "Agente de soporte",
   "Switch persona (demo)": "Cambiar de persona (demostración)",
   "Switch persona — currently": "Cambiar de persona: actualmente",
   "Taken": "Tomado",
@@ -381,6 +384,7 @@
   "The pass is personal and non-transferable — it cannot be lent, shared or given to other people. Photo ID may be requested at the gate.": "El pase es personal e intransferible: no se puede prestar, compartir ni regalar a otras personas. Se puede solicitar una identificación con foto en la puerta.",
   "This season": "esta temporada",
   "This weekend only · gates open 09:00–20:00": "Solo este fin de semana · puertas abiertas de 09:00 a 20:00",
+  "Till": "Hasta",
   "Time of day": "Hora del día",
   "To": "A",
   "Today": "Hoy",
@@ -524,5 +528,6 @@
   "Λογιστής — e-invoicing, MyDATA, commission & payouts": "Λογιστής — facturación electrónica, MyDATA, comisiones y pagos",
   "Πελάτης — online booking, tickets, QR entry, documents": "Πελάτης — reserva online, billetes, entrada QR, documentos",
   "Ταμίας — on-site ticket issuing, printing, cash register": "Ταμίας: emisión de billetes, impresión y caja registradora in situ",
-  "Τηλεφωνικό κέντρο — τηλεφωνικές κρατήσεις, αναζήτηση κρατήσεων": "Τηλεφωνικό κέντρο — τηλεφωνικές κρατήσεις, αναζήτηση κρατήσεων"
+  "Τηλεφωνικό κέντρο — τηλεφωνικές κρατήσεις, αναζήτηση κρατήσεων": "Τηλεφωνικό κέντρο — τηλεφωνικές κρατήσεις, αναζήτηση κρατήσεων",
+  "Υποστήριξη — gate, beach status, walk-ins, till and pay-by-link reservations": "Υποστήριξη: reservas de puerta, estado de playa, visitas sin cita previa, caja y pago por enlace"
 }

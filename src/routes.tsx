@@ -11,6 +11,7 @@ import * as CA from "./screens/cashier";
 import * as CT from "./screens/controller";
 import { ControllerBeach } from "./screens/ControllerBeach";
 import { ControllerWalkin } from "./screens/ControllerWalkin";
+import { PayLinks } from "./screens/PayLinks";
 import * as AC from "./screens/accountant";
 import { AccountantReports } from "./screens/reporting/FinanceTabs";
 import * as P from "./screens/platform";
@@ -52,6 +53,18 @@ const MAP: Record<string, () => ReactElement> = {
   "controller.scan": () => <CT.ControllerScan />,
   "controller.beach": () => <ControllerBeach />,
   "controller.walkin": () => <ControllerWalkin />,
+  // support agent — the Controller and Cashier screens plus pay-by-link (AENR-533)
+  "support.scan": () => <CT.ControllerScan />,
+  "support.beach": () => <ControllerBeach />,
+  "support.walkin": () => <ControllerWalkin channel="support" />,
+  "support.issue": () => <CA.CashierIssue />,
+  "support.transactions": () => <CA.CashierTransactions />,
+  "support.register": () => <CA.CashierRegister />,
+  "support.redeem": () => <CA.CashierRedeem />,
+  "support.locker": () => <CA.CashierLocker />,
+  "support.paylinks": () => <PayLinks />,
+  "callcenter.paylinks": () => <PayLinks />,
+  "admin.paylinks": () => <PayLinks />,
   // accountant
   "accountant.invoicing": () => <AC.AccountantInvoicing />,
   "accountant.commission": () => <AC.AccountantCommission />,
@@ -73,6 +86,7 @@ const FALLBACK: Record<PersonaId, () => ReactElement> = {
   callcenter: () => <A.AdminManual />,
   cashier: () => <CA.CashierIssue />,
   controller: () => <CT.ControllerScan />,
+  support: () => <CT.ControllerScan />,
   accountant: () => <AC.AccountantInvoicing />,
   platform: () => <P.PlatformTenants />,
 };

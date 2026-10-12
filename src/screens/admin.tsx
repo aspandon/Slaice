@@ -27,7 +27,7 @@ import { readHashQuery, writeHashQuery } from "../app/router";
 import { activeCount, filtersFromParams, filtersToParams, isAmount, matchAmount, type FilterDef, type FilterState } from "../domain/filters";
 import { resolveRange, comparisonRange, lastYearRange, granularityFor, rangeLabel, periodNoun, comparisonLabel, isoFromDayMonth, inRange, fmtWeekday as fmtWeekdayP } from "../domain/period";
 import { summarize, series, buckets, fmtEUR, fmtInt, fmtPct, trendPct, trendPp, trendEUR } from "../data/analytics";
-import { tillBookings, tillRefunds } from "../data/tillAdmin";
+import { payLinkBookings, tillBookings, tillRefunds } from "../data/tillAdmin";
 import { InvoicesTab, OverviewPanel, PaymentsTab, SectionChips, financeCsv, financePdf, useFinanceData, useSection } from "./reporting/FinanceTabs";
 import { VARIANCE_TOLERANCE, eur as eurTill, shiftTotals } from "../domain/till";
 
@@ -183,7 +183,7 @@ type EnrichedBooking = AdminBooking & { surname: string; phone: string; email: s
    booking data; the date filter is the shared period control. */
 const BOOKING_ITEM_TYPES = [{ v: "Sunbed", l: "Sunbed" }, { v: "Entry", l: "Entry ticket" }, { v: "Day locker", l: "Locker" }, { v: "Parking", l: "Parking" }];
 const BOOKING_FILTERS: FilterDef[] = [
-  { key: "channel", label: "Channel", kind: "multi", options: ["Online", "Walk-in", "Phone", "Cashier"].map((v) => ({ v, l: v })) },
+  { key: "channel", label: "Channel", kind: "multi", options: ["Online", "Walk-in", "Phone", "Cashier", "Pay-by-link"].map((v) => ({ v, l: v })) },
   { key: "status", label: "Status", kind: "multi", options: ["Confirmed", "Used", "Unpaid", "Refunded", "Cancelled"].map((v) => ({ v, l: v })) },
   { key: "amount", label: "Amount", kind: "amount" },
   { key: "item", label: "Item type", kind: "multi", options: BOOKING_ITEM_TYPES },
@@ -244,7 +244,7 @@ function BookingNotesModal({ booking, onClose, agent }: { booking: EnrichedBooki
 }
 
 export function AdminBookings() {
-  const { toast, persona, bookingNotes, till } = useApp();
+  const { toast, persona, bookingNotes, till, payLinks } = useApp();
   // Shared by Manager/Admin and Call Center; agents look up and help callers
   // but don't export or refund — they escalate to a manager (AENR-472).
   const agent = persona === "callcenter";
@@ -255,9 +255,9 @@ export function AdminBookings() {
   const [sendFor, setSendFor] = useState<EnrichedBooking | null>(null);
   const loading = useMockLoad();
   const PAGE = 30;
-  const chan = (c: string) => ({ Online: "blue", "Walk-in": "amber", Phone: "indigo", Cashier: "green" }[c] || "slate");
+  const chan = (c: string) => ({ Online: "blue", "Walk-in": "amber", Phone: "indigo", Cashier: "green", "Pay-by-link": "coral" }[c] || "slate");
   // Sunbed sales from the Cashier till appear alongside (channel Cashier).
-  const enriched: EnrichedBooking[] = [...tillBookings(till.sales), ...ADMIN_BOOKINGS].map((b) => {
+  const enriched: EnrichedBooking[] = [...payLinkBookings(payLinks), ...tillBookings(till.sales), ...ADMIN_BOOKINGS].map((b) => {
     const p = personByFirst(b.who);
     return { ...b, surname: p?.last ?? "", phone: p?.phone ?? "", email: p?.email ?? "" };
   });

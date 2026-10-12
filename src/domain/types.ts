@@ -20,7 +20,7 @@ export interface BookingNote {
 
 /** Tenant staff roles that can be assigned to a user (RBAC). Customer is not a
  *  staff role and Platform / Slaice is the platform back office, not a tenant role. */
-export type StaffRole = "admin" | "callcenter" | "cashier" | "controller" | "accountant";
+export type StaffRole = "admin" | "callcenter" | "cashier" | "controller" | "support" | "accountant";
 export type StaffStatus = "active" | "invited" | "suspended";
 export interface StaffUser {
   id: string;
@@ -77,6 +77,7 @@ export type PersonaId =
   | "callcenter"
   | "cashier"
   | "controller"
+  | "support"
   | "accountant"
   | "platform";
 
@@ -247,6 +248,8 @@ export interface NavItem {
   short?: string;
   icon: string;
   badge?: "MVP" | "Future";
+  /** Heading this item sits under in the sidebar / nav sheet (e.g. Support Agent: Gate · Beach · Till). */
+  group?: string;
   /** "account" marks personal destinations kept out of the desktop primary nav. */
   area?: string;
 }

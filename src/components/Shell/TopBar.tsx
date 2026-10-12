@@ -51,6 +51,11 @@ const FEEDS: Record<string, FeedItem[]> = {
     { ic: "bell", tone: "amber", t: "Walk-in spike", b: "5 walk-ins waiting at gate A — bring a teammate?", time: "8m" },
     { ic: "umbrella", tone: "indigo", t: "Same-day map opened", b: "12 sunbeds released for late arrivals.", time: "1h" },
   ],
+  support: [
+    { ic: "link", tone: "amber", t: "Pay-by-link awaiting", b: "MC-04, MC-05 reserved for Eleni — link expires in 25 min.", time: "5m" },
+    { ic: "scan", tone: "green", t: "Gate validated · 124", b: "All scans clear so far this morning.", time: "now" },
+    { ic: "cash", tone: "slate", t: "Till shift open", b: "SH-0205 at the main entrance — you can sell from the till too.", time: "1h" },
+  ],
   accountant: [
     { ic: "receipt", tone: "green", t: "MyDATA: 38 docs ok", b: "All ΑΠΥ from yesterday transmitted with a MARK.", time: "now" },
     { ic: "stripe", tone: "indigo", t: "Payout scheduled", b: "€4,210 net — arriving in your bank Friday.", time: "1h" },

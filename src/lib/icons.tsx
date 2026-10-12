@@ -13,7 +13,7 @@ import {
   Info, TriangleAlert, Clock, Inbox, Droplet, Waves, Wind, Plus as CrossPlus,
   UsersRound, ShieldCheck, ShieldAlert, FileDown, Database, SlidersHorizontal,
   Sparkles, CircleHelp, Wallet, LogOut, Moon, Armchair, Image as ImageIcon, Upload,
-  Cloud, CloudRain,
+  Cloud, CloudRain, Link2, Send, Copy, Headset,
 } from "lucide-react";
 import type { LucideIcon, LucideProps } from "lucide-react";
 import type { ReactElement } from "react";
@@ -115,4 +115,8 @@ export const Icon: Record<string, IconRenderer> = {
   moon: w(Moon),
   image: w(ImageIcon),
   upload: w(Upload),
+  link: w(Link2),
+  send: w(Send),
+  copy: w(Copy),
+  headset: w(Headset),
 };

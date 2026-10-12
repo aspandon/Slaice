@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
@@ -34,7 +34,12 @@ export function NavSheet({ open, onClose, persona, page, setPage }: NavProps & {
   return (
     <Sheet open={open} onClose={onClose} title={p ? t(p.label) : t("Menu")}>
       <div className="grid grid-cols-1 gap-1.5">
-        {items.map(Row)}
+        {items.map((it, i) => (
+          <Fragment key={it.k}>
+            {it.group && it.group !== items[i - 1]?.group && <div className="px-3 pt-2 pb-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t(it.group)}</div>}
+            {Row(it)}
+          </Fragment>
+        ))}
         {account.length > 0 && (
           <>
             <div className="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t("Account")}</div>
@@ -58,17 +63,20 @@ export function Sidebar({ persona, page, setPage }: NavProps) {
         <span className="text-[12px] font-semibold uppercase tracking-wider text-slate-500">{t(p.label)}</span>
       </div>
       <nav className="space-y-0.5 mt-1">
-        {items.map((it) => {
+        {items.map((it, i) => {
           const IconC = Icon[it.icon];
           const active = page === it.k;
           return (
-            <button key={it.k} onClick={() => setPage(it.k)}
+            <Fragment key={it.k}>
+            {it.group && it.group !== items[i - 1]?.group && <div className="px-4 pt-3 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-slate-400">{t(it.group)}</div>}
+            <button onClick={() => setPage(it.k)}
               className={`group relative w-full flex items-center gap-2.5 pl-4 pr-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-600 hover:bg-slate-100 hover:text-navy-900"}`}>
               <span className={`absolute left-1.5 top-2 bottom-2 w-1 rounded-full transition-all duration-200 ${active ? "bg-teal-400 opacity-100" : "bg-transparent opacity-0 group-hover:bg-teal-300 group-hover:opacity-100"}`} />
               {IconC && <IconC size={17} className={active ? "" : "text-slate-500 group-hover:text-teal-600 transition-colors"} />}
               <span className="flex-1 text-left">{t(it.label)}</span>
               {it.badge === "Future" && <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${active ? "bg-orange-300" : "bg-orange-400"}`} title="Roadmap (Future)" />}
             </button>
+            </Fragment>
           );
         })}
       </nav>

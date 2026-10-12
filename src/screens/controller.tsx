@@ -14,7 +14,7 @@ const RESULT_STYLE: Record<string, { wrap: string; badge: string; label: string;
 };
 
 export function ControllerScan() {
-  const { toast, go } = useApp();
+  const { toast, go, persona } = useApp();
   useSpotlight("controller", "scan");
   const [scanning, setScanning] = useState(false);
   const [recent, setRecent] = useState<Validation[]>(RECENT_VALIDATIONS);
@@ -70,9 +70,9 @@ export function ControllerScan() {
           </div>
           <div data-spotlight="walkins" className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-1 gap-2 rounded-xl p-2 -mx-1">
             <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-0.5">Walk-ins & on-the-spot</div>
-            <Btn variant="outline" size="sm" icon={Icon.umbrella} onClick={() => go("controller", "walkin")}>Walk-in sale — scan or tap the set</Btn>
-            <Btn variant="outline" size="sm" icon={Icon.ticket} onClick={() => go("controller", "walkin")}>Add ticket (pay on site)</Btn>
-            <Btn variant="outline" size="sm" icon={Icon.grid} onClick={() => go("controller", "beach")}>Beach status — sets & check-in</Btn>
+            <Btn variant="outline" size="sm" icon={Icon.umbrella} onClick={() => go(persona, "walkin")}>Walk-in sale — scan or tap the set</Btn>
+            <Btn variant="outline" size="sm" icon={Icon.ticket} onClick={() => go(persona, "walkin")}>Add ticket (pay on site)</Btn>
+            <Btn variant="outline" size="sm" icon={Icon.grid} onClick={() => go(persona, "beach")}>Beach status — sets & check-in</Btn>
           </div>
         </Card>
       </div>

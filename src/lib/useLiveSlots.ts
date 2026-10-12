@@ -5,6 +5,7 @@ import { resolvePrice, restrictionApplies } from "../domain/pricing";
 import { applySetStatus, tillSetStatus, type SetStatus } from "../domain/till";
 import { invLabel, invStatus, type SalesChannel } from "../domain/inventory";
 import { opsKey, opsToMap } from "../domain/sunbedOps";
+import { payLinkSets } from "../domain/payLink";
 import type { SunbedSlot, Zone } from "../domain/types";
 
 /** Re-render every `ms` so time-based state (holds expiring) stays current. */
@@ -28,7 +29,7 @@ export function useDemoNow(ms = 15000): number {
  *  allocations, stop-sell) for the selling channel — the one view every
  *  persona renders. For several days, a set taken on any of them counts. */
 export function useLiveSlots(channel: SalesChannel = "online"): (zone: Zone, days: readonly string[]) => SunbedSlot[] {
-  const { beachLayout, till, beachPricing, priceRules, inventory, sunbedOps } = useApp();
+  const { beachLayout, till, beachPricing, priceRules, inventory, sunbedOps, payLinks } = useApp();
   const closure = useClosure();
   const now = useDemoNow();
   return useCallback(
@@ -54,7 +55,13 @@ export function useLiveSlots(channel: SalesChannel = "online"): (zone: Zone, day
         if (freed) { delete status[s.id]; return { ...s, state: "a" as const }; }
         return s;
       });
-      const live = applySetStatus(staffed, status, closedAny);
+      // Pay-by-link (AENR-534): reserved while awaiting payment, booked once paid.
+      const linked = days.map((d) => payLinkSets(payLinks, d, now));
+      const reserved = staffed.map((s) => {
+        const hit = linked.map((m) => m[s.id]).find(Boolean);
+        return hit && s.state === "a" ? { ...s, state: hit.kind === "booked" ? ("u" as const) : ("h" as const), inv: hit.label } : s;
+      });
+      const live = applySetStatus(reserved, status, closedAny);
       // Inventory controls: held → on hold; allocated to another channel or
       // stop-sold online → unavailable here — with the reason attached.
       return live.map((s) => {
@@ -67,7 +74,7 @@ export function useLiveSlots(channel: SalesChannel = "online"): (zone: Zone, day
         return s;
       });
     },
-    [beachLayout, till, now, closure, beachPricing, priceRules, inventory, channel, sunbedOps],
+    [beachLayout, till, now, closure, beachPricing, priceRules, inventory, channel, sunbedOps, payLinks],
   );
 }
 
