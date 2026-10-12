@@ -7,5 +7,7 @@ export function useFinance(
   subdomain: string = TENANT.subdomain,
 ): [FinanceConfig, (c: FinanceConfig) => void] {
   const { finance, setFinance } = useApp();
-  return [finance[subdomain] ?? DEFAULT_FINANCE, (c) => setFinance(subdomain, c)];
+  const cfg = finance[subdomain] ?? DEFAULT_FINANCE;
+  // Configs saved before POS terminals existed get the default set.
+  return [cfg.terminals ? cfg : { ...cfg, terminals: DEFAULT_FINANCE.terminals }, (c) => setFinance(subdomain, c)];
 }

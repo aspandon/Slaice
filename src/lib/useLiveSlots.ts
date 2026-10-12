@@ -4,6 +4,7 @@ import { todayISO, zoneLayout } from "../data/beach";
 import { resolvePrice, restrictionApplies } from "../domain/pricing";
 import { applySetStatus, tillSetStatus, type SetStatus } from "../domain/till";
 import { invLabel, invStatus, type SalesChannel } from "../domain/inventory";
+import { opsKey, opsToMap } from "../domain/sunbedOps";
 import type { SunbedSlot, Zone } from "../domain/types";
 
 /** Re-render every `ms` so time-based state (holds expiring) stays current. */
@@ -27,7 +28,7 @@ export function useDemoNow(ms = 15000): number {
  *  allocations, stop-sell) for the selling channel — the one view every
  *  persona renders. For several days, a set taken on any of them counts. */
 export function useLiveSlots(channel: SalesChannel = "online"): (zone: Zone, days: readonly string[]) => SunbedSlot[] {
-  const { beachLayout, till, beachPricing, priceRules, inventory } = useApp();
+  const { beachLayout, till, beachPricing, priceRules, inventory, sunbedOps } = useApp();
   const closure = useClosure();
   const now = useDemoNow();
   return useCallback(
@@ -41,7 +42,19 @@ export function useLiveSlots(channel: SalesChannel = "online"): (zone: Zone, day
       const priced = (beachLayout[zone.id] ?? zoneLayout(zone)).map((s) =>
         days[0] ? { ...s, price: resolvePrice(s, zone.id, days[0], beachPricing, priceRules).price } : s,
       );
-      const live = applySetStatus(priced, status, days.some((d) => !!closure(zone.id, d)));
+      const closedAny = days.some((d) => !!closure(zone.id, d));
+      // Staff status on the beach (AENR-499) wins over the layout and till state:
+      // a released set is free again, a blocked / occupied one is taken.
+      const staffed = closedAny ? priced : priced.map((s) => {
+        for (const d of days) {
+          const e = sunbedOps.status[opsKey(d, s.id)];
+          if (e && e.status !== "available") return { ...s, state: opsToMap(e.status), inv: e.status === "blocked" ? `Out of service — ${e.reason ?? ""}` : e.status === "hold" ? `Held — ${e.reason ?? ""}` : undefined };
+        }
+        const freed = days.every((d) => sunbedOps.status[opsKey(d, s.id)]?.status === "available");
+        if (freed) { delete status[s.id]; return { ...s, state: "a" as const }; }
+        return s;
+      });
+      const live = applySetStatus(staffed, status, closedAny);
       // Inventory controls: held → on hold; allocated to another channel or
       // stop-sold online → unavailable here — with the reason attached.
       return live.map((s) => {
@@ -54,7 +67,7 @@ export function useLiveSlots(channel: SalesChannel = "online"): (zone: Zone, day
         return s;
       });
     },
-    [beachLayout, till, now, closure, beachPricing, priceRules, inventory, channel],
+    [beachLayout, till, now, closure, beachPricing, priceRules, inventory, channel, sunbedOps],
   );
 }
 

@@ -26,12 +26,12 @@ export function useTill() {
   const status = (now = Date.now()) => tillSetStatus(till, day, now);
 
   /** Record a paid sale. Returns it so the screen can show the receipt. */
-  const completeSale = (draft: { lines: TillLine[]; discounts: TillDiscount[]; total: number; tenders: Tender[]; customer?: TillSale["customer"] }): TillSale => {
+  const completeSale = (draft: { lines: TillLine[]; discounts: TillDiscount[]; total: number; tenders: Tender[]; customer?: TillSale["customer"]; channel?: TillSale["channel"]; seller?: string }): TillSale => {
     const seq = till.seq + 1;
     const mydata = till.offline ? "pending" : till.failNextMydata ? "failed" : "sent";
     const sale: TillSale = {
       id: receiptNo(seq), apy: apyNo(seq), mark: mydata === "sent" ? fakeMark(seq) : "",
-      at: nowIso(), day, shiftId: till.shift?.id ?? null, cashier,
+      at: nowIso(), day, shiftId: draft.channel && draft.channel !== "cashier" ? null : till.shift?.id ?? null, cashier: draft.seller ?? cashier, channel: draft.channel,
       lines: draft.lines, discounts: draft.discounts, total: draft.total, tenders: draft.tenders, customer: draft.customer,
       receipt: "print", mydata, offline: till.offline || undefined, refunds: [],
     };
@@ -95,6 +95,7 @@ export function useTill() {
     patchSale(saleId, (s) => ({ ...s, conflict: undefined, lines: s.lines.map((l) => (l.id === lineId ? { ...l, setId, label } : l)) }));
   const clearConflict = (saleId: string) => patchSale(saleId, (s) => ({ ...s, conflict: undefined }));
   const setFailNext = (v: boolean) => setTill((t) => ({ ...t, failNextMydata: v }));
+  const setTerminal = (id: string) => setTill((t) => ({ ...t, terminal: id }));
 
-  return { till, day, cashier, tillName, hold, release, status, completeSale, setDelivery, reprint, retryMydata, refund, openShift, addMove, closeShift, setOffline, syncOffline, moveLine, clearConflict, setFailNext };
+  return { till, day, cashier, tillName, hold, release, status, completeSale, setDelivery, reprint, retryMydata, refund, openShift, addMove, closeShift, setOffline, syncOffline, moveLine, clearConflict, setFailNext, setTerminal };
 }

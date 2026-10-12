@@ -74,7 +74,7 @@ export function ReceiptView({ sale, copy = false }: { sale: TillSale; copy?: boo
         <div className="flex justify-between"><span>Net</span><span className="tnum">{eur(t.net)}</span></div>
         <div className="flex justify-between"><span>VAT 24%</span><span className="tnum">{eur(t.vat)}</span></div>
         {sale.tenders.map((td, i) => (
-          <div key={i} className="flex justify-between"><span>{TENDER_LABEL[td.kind]}{td.ref ? ` ${td.kind === "card" ? "···· " : ""}${td.ref}` : ""}</span><span className="tnum">{eur(td.given ?? td.amount)}</span></div>
+          <div key={i} className="flex justify-between"><span>{TENDER_LABEL[td.kind]}{td.ref ? ` ${td.kind === "card" ? "···· " : ""}${td.ref}` : ""}{td.terminal ? ` · ${td.terminal.split(" · ")[0]}` : ""}</span><span className="tnum">{eur(td.given ?? td.amount)}</span></div>
         ))}
         {change > 0 && <div className="flex justify-between"><span>Change</span><span className="tnum">{eur(change)}</span></div>}
         {sets.length > 0 && (
@@ -141,7 +141,7 @@ export function SaleDone({ sale, onDeliver, onNew }: { sale: TillSale; onDeliver
         <span className="w-11 h-11 rounded-2xl bg-emerald-500 text-white grid place-items-center shrink-0"><Icon.check size={22} /></span>
         <div className="min-w-0">
           <div className="font-display font-bold text-navy-900 text-lg leading-tight">Paid · {eur(sale.total)}</div>
-          <div className="text-[12px] text-slate-500">{sale.id} · {sale.apy} · {sale.tenders.map((t) => TENDER_LABEL[t.kind]).join(" + ")}</div>
+          <div className="text-[12px] text-slate-500">{sale.id} · {sale.apy} · {sale.tenders.map((t) => TENDER_LABEL[t.kind] + (t.terminal ? ` (${t.terminal.split(" · ")[0]})` : "")).join(" + ")}</div>
         </div>
       </div>
       {change > 0 && (

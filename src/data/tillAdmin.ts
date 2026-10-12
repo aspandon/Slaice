@@ -27,7 +27,8 @@ export function tillBookings(sales: readonly TillSale[]): AdminBooking[] {
         l.setId ? `Sunbed · ${zoneName(l.zoneId)} · ${l.setId}` : `Entry · ${l.label} ×${l.qty}`,
       ),
       date: fmtDay(DEMO_TODAY),
-      channel: "Cashier",
+      // On-the-beach sales by the Controller / Support Agent are walk-ins (AENR-528).
+      channel: s.channel && s.channel !== "cashier" ? "Walk-in" : "Cashier",
       status: STATUS[saleStatus(s)],
       amount: s.total,
     }));

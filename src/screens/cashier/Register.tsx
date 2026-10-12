@@ -201,6 +201,7 @@ function ReportModal({ shift, kind, onClose }: { shift: TillShift; kind: "X" | "
         <Row l="Refunds" v={`−${eur(tot.refunds)}`} />
         <div className="border-t border-dashed border-slate-300 my-2" />
         <Row l="Card" v={eur(tot.card)} />
+        {Object.entries(tot.terminals).map(([k, v]) => <Row key={k} l={`  ↳ ${k}`} v={eur(v)} />)}
         <Row l="Cash" v={eur(tot.cash)} />
         <Row l="Voucher" v={eur(tot.voucher)} />
         <div className="border-t border-dashed border-slate-300 my-2" />

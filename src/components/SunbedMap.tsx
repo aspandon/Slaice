@@ -16,7 +16,10 @@ export function SunbedMap({
   priceOf,
   className = "",
   label,
+  pickAny = false,
 }: {
+  /** Staff view: every set is tappable (booked / blocked too), its status in the name. */
+  pickAny?: boolean;
   slots: SunbedSlot[];
   landmarks?: Landmark[];
   selected?: Set<string>;
@@ -60,9 +63,18 @@ export function SunbedMap({
             price={priceOf ? priceOf(s) : s.price}
             label={`${s.id}${s.access ? " (step-free)" : ""}${s.inv ? ` — ${s.inv}` : ""}`}
             fill
-            readOnly={readOnly}
-            onClick={onToggle ? () => onToggle(s) : undefined}
+            readOnly={readOnly || pickAny}
+            onClick={onToggle && !pickAny ? () => onToggle(s) : undefined}
           />
+          {pickAny && onToggle && (
+            <button
+              type="button"
+              aria-pressed={!!selected?.has(s.id)}
+              aria-label={`${s.id}${s.state === "u" ? " — taken" : s.state === "h" ? " — on hold" : " — free"}${s.inv ? `, ${s.inv}` : ""}`}
+              onClick={() => onToggle(s)}
+              className={`absolute inset-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${selected?.has(s.id) ? "ring-2 ring-navy-900" : ""}`}
+            />
+          )}
           {s.inv && <span aria-hidden title={s.inv} className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-navy-900 text-white text-[8px] grid place-items-center ring-2 ring-white pointer-events-none">🔒</span>}
           {s.access && (
             <span

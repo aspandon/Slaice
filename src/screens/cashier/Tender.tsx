@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../../lib/icons";
 import { Btn, Field, Input, Modal, Spinner } from "../../components/ui";
+import type { PosTerminal } from "../../domain/finance";
 import { eur, offlineCardCheck, paidSoFar, r2, type Tender, type TenderKind, type TillSale } from "../../domain/till";
 
 /* ============ Tender ============
@@ -17,7 +18,11 @@ const METHODS: { k: TenderKind; l: string; icon: typeof Icon.card }[] = [
 ];
 const CARDS = ["4242", "1881", "0005", "7310"];
 
-export function TenderModal({ total, initial, offline, offlineSales, vouchers, onCancel, onPaid }: {
+export function TenderModal({ total, initial, offline, offlineSales, vouchers, onCancel, onPaid, terminals = [], terminal, onTerminal }: {
+  /** POS terminals the card can be sent to (AENR-527); the last used is remembered. */
+  terminals?: PosTerminal[];
+  terminal?: string;
+  onTerminal?: (id: string) => void;
   total: number;
   initial: TenderKind;
   offline: boolean;
@@ -33,6 +38,8 @@ export function TenderModal({ total, initial, offline, offlineSales, vouchers, o
   const [amount, setAmount] = useState(String(total));
   const [phase, setPhase] = useState<CardPhase>("idle");
   const [outcome, setOutcome] = useState<Outcome>("approve");
+  const [termId, setTermId] = useState(() => terminals.find((x) => x.id === terminal && x.online)?.id ?? terminals.find((x) => x.online)?.id ?? "");
+  const term = terminals.find((x) => x.id === termId);
   const [given, setGiven] = useState("");
   const [code, setCode] = useState("");
   const [vErr, setVErr] = useState("");
@@ -64,7 +71,8 @@ export function TenderModal({ total, initial, offline, offlineSales, vouchers, o
       later(900, () => {
         if (outcome === "decline") return setPhase("declined");
         setPhase("idle");
-        add({ kind: "card", amount: amt, ref: CARDS[tenders.length % CARDS.length] });
+        add({ kind: "card", amount: amt, ref: CARDS[tenders.length % CARDS.length], terminal: term?.name });
+        if (termId) onTerminal?.(termId);
       });
     });
   };
@@ -104,7 +112,7 @@ export function TenderModal({ total, initial, offline, offlineSales, vouchers, o
           <ul className="text-[12.5px] space-y-1">
             {tenders.map((t, i) => (
               <li key={i} className="flex justify-between rounded-lg bg-emerald-50 text-emerald-800 px-3 py-1.5">
-                <span className="flex items-center gap-1.5"><Icon.checkCircle size={13} /> {t.kind === "card" ? `Card ···· ${t.ref}` : t.kind === "cash" ? `Cash (received ${eur(t.given ?? t.amount)})` : `Voucher ${t.ref}`}</span>
+                <span className="flex items-center gap-1.5"><Icon.checkCircle size={13} /> {t.kind === "card" ? `Card ···· ${t.ref}${t.terminal ? ` · ${t.terminal.split(" · ")[0]}` : ""}` : t.kind === "cash" ? `Cash (received ${eur(t.given ?? t.amount)})` : `Voucher ${t.ref}`}</span>
                 <span className="tnum font-semibold">{eur(t.amount)}</span>
               </li>
             ))}
@@ -137,6 +145,17 @@ export function TenderModal({ total, initial, offline, offlineSales, vouchers, o
               <div className="space-y-3">
                 {phase === "idle" && (
                   <>
+                    {terminals.length > 0 && (
+                      <div role="radiogroup" aria-label="POS terminal" className="grid gap-1.5">
+                        {terminals.map((x) => (
+                          <label key={x.id} className={`flex items-center gap-2 rounded-xl ring-1 px-3 py-2 text-[13px] ${!x.online ? "opacity-50 cursor-not-allowed ring-slate-200" : termId === x.id ? "ring-2 ring-navy-900 bg-white" : "ring-slate-200 bg-white/70 cursor-pointer"}`}>
+                            <input type="radio" name="terminal" className="accent-teal-600" disabled={!x.online} checked={termId === x.id} onChange={() => setTermId(x.id)} />
+                            <span className="flex-1 font-semibold text-navy-900">{x.name}</span>
+                            <span className={`text-[11px] font-semibold ${x.online ? "text-emerald-700" : "text-rose-700"}`}>{x.online ? "Online" : "Offline"}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
                     <fieldset className="rounded-xl ring-1 ring-dashed ring-slate-300 px-3 py-2">
                       <legend className="px-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">Demo · terminal outcome</legend>
                       <div className="flex flex-wrap gap-3 text-[13px]">
@@ -149,13 +168,13 @@ export function TenderModal({ total, initial, offline, offlineSales, vouchers, o
                       </div>
                     </fieldset>
                     {cardBlock && <div role="alert" className="rounded-xl bg-amber-50 ring-1 ring-amber-600/20 text-amber-800 text-[12.5px] px-3 py-2 flex gap-2"><Icon.alert size={14} className="shrink-0 mt-0.5" />{cardBlock}</div>}
-                    <Btn variant="teal" size="lg" full icon={Icon.card} disabled={amt <= 0 || !!cardBlock} onClick={sendToTerminal}>Send {eur(amt)} to terminal</Btn>
+                    <Btn variant="teal" size="lg" full icon={Icon.card} disabled={amt <= 0 || !!cardBlock || (terminals.length > 0 && !term)} onClick={sendToTerminal}>Send {eur(amt)} to {term ? term.name.split(" · ")[0] : "terminal"}</Btn>
                   </>
                 )}
                 {(phase === "waiting" || phase === "processing") && (
                   <div className="rounded-2xl bg-sky-50 ring-1 ring-sky-600/20 p-5 text-center" role="status">
                     <Spinner />
-                    <div className="mt-2 font-semibold text-navy-900">{phase === "waiting" ? `Present card on the terminal · ${eur(amt)}` : "Processing…"}</div>
+                    <div className="mt-2 font-semibold text-navy-900">{phase === "waiting" ? `Present card on ${term ? term.name : "the terminal"} · ${eur(amt)}` : "Processing…"}</div>
                     <div className="text-[12px] text-slate-500">Stripe Terminal (simulated)</div>
                   </div>
                 )}

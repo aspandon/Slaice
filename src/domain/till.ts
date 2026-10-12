@@ -41,6 +41,8 @@ export interface Tender {
   ref?: string;
   /** Cash handed over (≥ amount) — change = given − amount. */
   given?: number;
+  /** POS terminal that took a card payment (AENR-527). */
+  terminal?: string;
 }
 export type ReceiptChoice = "print" | "email" | "sms" | "qr" | "none";
 export type MyDataStatus = "sent" | "pending" | "failed";
@@ -82,6 +84,8 @@ export interface TillSale {
   conflict?: string;
   refunds: TillRefund[];
   reprints?: number;
+  /** Who sold it: the Cashier till (default), a Controller or a Support Agent on the beach. */
+  channel?: "cashier" | "controller" | "support";
 }
 
 /* ---------- Shift / cash drawer ---------- */
@@ -118,6 +122,8 @@ export interface TillState {
   offline: boolean;
   /** Demo: the next myDATA transmission fails. */
   failNextMydata: boolean;
+  /** Last POS terminal used at this till (AENR-527). */
+  terminal?: string;
   /** Sets booked online while this till was offline (setId → day) — sync conflicts. */
   onlineSold: Record<string, string>;
   seq: number;
@@ -309,6 +315,8 @@ export interface ShiftTotals {
   expectedCash: number;
   tickets: Record<string, number>;
   sunbeds: Record<string, number>;
+  /** Card takings per POS terminal (AENR-527). */
+  terminals: Record<string, number>;
 }
 export function shiftTotals(shift: TillShift, sales: readonly TillSale[]): ShiftTotals {
   const t: ShiftTotals = {
@@ -328,13 +336,17 @@ export function shiftTotals(shift: TillShift, sales: readonly TillSale[]): Shift
     expectedCash: 0,
     tickets: {},
     sunbeds: {},
+    terminals: {},
   };
   for (const s of sales) {
     if (s.shiftId === shift.id) {
       t.tx++;
       t.sales += s.total;
       t.discounts += basketTotals(s.lines, s.discounts).discount;
-      for (const td of s.tenders) t[td.kind] += td.amount;
+      for (const td of s.tenders) {
+        t[td.kind] += td.amount;
+        if (td.kind === "card") t.terminals[td.terminal ?? "Terminal 1 · Entrance"] = (t.terminals[td.terminal ?? "Terminal 1 · Entrance"] ?? 0) + td.amount;
+      }
       for (const l of s.lines) {
         if (l.kind === "ticket") t.tickets[l.label] = (t.tickets[l.label] ?? 0) + l.qty;
         else t.sunbeds[l.zoneId ?? "?"] = (t.sunbeds[l.zoneId ?? "?"] ?? 0) + l.qty;

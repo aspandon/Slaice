@@ -9,6 +9,8 @@ import * as PP from "./screens/PassPurchase";
 import * as A from "./screens/admin";
 import * as CA from "./screens/cashier";
 import * as CT from "./screens/controller";
+import { ControllerBeach } from "./screens/ControllerBeach";
+import { ControllerWalkin } from "./screens/ControllerWalkin";
 import * as AC from "./screens/accountant";
 import { AccountantReports } from "./screens/reporting/FinanceTabs";
 import * as P from "./screens/platform";
@@ -48,6 +50,8 @@ const MAP: Record<string, () => ReactElement> = {
   "cashier.locker": () => <CA.CashierLocker />,
   // controller
   "controller.scan": () => <CT.ControllerScan />,
+  "controller.beach": () => <ControllerBeach />,
+  "controller.walkin": () => <ControllerWalkin />,
   // accountant
   "accountant.invoicing": () => <AC.AccountantInvoicing />,
   "accountant.commission": () => <AC.AccountantCommission />,

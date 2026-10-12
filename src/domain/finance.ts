@@ -28,8 +28,15 @@ export const E_INVOICE_PROVIDERS = [
 ] as const;
 export type EInvoiceProvider = (typeof E_INVOICE_PROVIDERS)[number];
 
+/** A card terminal at the beach (AENR-527). */
+export interface PosTerminal {
+  id: string;
+  name: string;
+  online: boolean;
+}
 export interface FinanceConfig {
   fees: FeeLine[];
+  terminals?: PosTerminal[];
   settlement: "monthly" | "weekly";
   provider: EInvoiceProvider;
   providerConnected: boolean;
@@ -75,6 +82,11 @@ export const DEFAULT_FINANCE: FinanceConfig = {
       from: "2026-05-01",
       active: true,
     },
+  ],
+  terminals: [
+    { id: "T1", name: "Terminal 1 · Entrance", online: true },
+    { id: "T2", name: "Terminal 2 · Bar", online: true },
+    { id: "T3", name: "Terminal 3 · Mobile (beach)", online: true },
   ],
   settlement: "monthly",
   provider: "Elorus",

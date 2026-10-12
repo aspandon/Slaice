@@ -51,6 +51,8 @@ export const NAV: Record<PersonaId, NavItem[]> = {
   ],
   controller: [
     { k: "scan", label: "Gate Validation", short: "Gate", icon: "scan", badge: "MVP" },
+    { k: "beach", label: "Beach Status", short: "Beach", icon: "umbrella", badge: "MVP" },
+    { k: "walkin", label: "Walk-in Sale", short: "Walk-in", icon: "cash", badge: "MVP" },
   ],
   accountant: [
     { k: "invoicing", label: "e-Invoicing & MyDATA", short: "MyDATA", icon: "receipt", badge: "MVP" },

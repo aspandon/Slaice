@@ -56,7 +56,7 @@ export function CashierTransactions() {
               <span className="font-mono text-[12px] text-navy-900 whitespace-nowrap">{s.id}</span>,
               <span className="text-[12.5px] text-slate-600 line-clamp-1 max-w-[220px] inline-block" title={summary(s)}>{summary(s)}</span>,
               <span className="tnum font-semibold">{eur(s.total)}</span>,
-              <span className="whitespace-nowrap">{s.tenders.map((x) => TENDER_LABEL[x.kind]).join(" + ")}</span>,
+              <span className="whitespace-nowrap">{s.tenders.map((x) => TENDER_LABEL[x.kind] + (x.terminal ? ` · ${x.terminal.split(" · ")[0].replace("Terminal ", "T")}` : "")).join(" + ")}{s.channel && s.channel !== "cashier" ? <span className="ml-1 text-[11px] text-slate-500">({s.channel === "support" ? "Support" : "Controller"})</span> : null}</span>,
               RECEIPT_LABEL[s.receipt],
               <SaleStatusBadge sale={s} />,
               <MyDataBadge s={s} />,

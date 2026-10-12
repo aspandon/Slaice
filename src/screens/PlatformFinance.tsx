@@ -22,7 +22,7 @@ export function FinanceSettingsModal({ tenant, subdomain, onClose }: { tenant: s
   const [connecting, setConnecting] = useState(false);
   const patchFee = (id: string, p: Partial<FeeLine>) => setCfg((c) => ({ ...c, fees: c.fees.map((f) => (f.id === id ? { ...f, ...p } : f)) }));
   const addFee = () => setCfg((c) => ({ ...c, fees: [...c.fees, { id: `fee-${Date.now().toString(36)}${++n}`, name: "New fee", basis: "fixedBooking", amount: 1, payer: "customer", vat: 0.24, from: "2026-05-01", active: true }] }));
-  const invalid = cfg.fees.some((f) => !f.name.trim() || !(f.amount >= 0) || (f.basis === "pctBooking" && f.amount > 100));
+  const invalid = (cfg.terminals ?? []).some((x) => !x.name.trim()) || cfg.fees.some((f) => !f.name.trim() || !(f.amount >= 0) || (f.basis === "pctBooking" && f.amount > 100));
   const connect = () => {
     setConnecting(true);
     window.setTimeout(() => {
@@ -69,6 +69,22 @@ export function FinanceSettingsModal({ tenant, subdomain, onClose }: { tenant: s
           <div className="mt-2 grid sm:grid-cols-3 gap-2">
             <Field label="Platform fee settlement"><Select value={cfg.settlement} onChange={(e) => setCfg((c) => ({ ...c, settlement: e.target.value as FinanceConfig["settlement"] }))} options={[{ v: "monthly", l: "Monthly" }, { v: "weekly", l: "Weekly" }]} /></Field>
           </div>
+        </section>
+        <section>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <h3 className="font-semibold text-navy-900">POS terminals</h3>
+            <Btn size="sm" variant="outline" icon={Icon.plus} onClick={() => setCfg((c) => ({ ...c, terminals: [...(c.terminals ?? []), { id: `T${(c.terminals?.length ?? 0) + 1}-${++n}`, name: `Terminal ${(c.terminals?.length ?? 0) + 1}`, online: true }] }))}>Add terminal</Btn>
+          </div>
+          <p className="text-[12px] text-slate-500 mb-2">Staff pick one when taking a card; the Z report splits card takings per terminal. Offline terminals can’t be chosen.</p>
+          <ul className="space-y-2">
+            {(cfg.terminals ?? []).map((x) => (
+              <li key={x.id} className="flex items-center gap-2">
+                <div className="flex-1"><Input aria-label="Terminal name" value={x.name} onChange={(e) => setCfg((c) => ({ ...c, terminals: c.terminals?.map((y) => (y.id === x.id ? { ...y, name: e.target.value } : y)) }))} /></div>
+                <Toggle on={x.online} onChange={(v) => setCfg((c) => ({ ...c, terminals: c.terminals?.map((y) => (y.id === x.id ? { ...y, online: v } : y)) }))} ariaLabel={`${x.name} online`} />
+                <button type="button" aria-label={`Remove ${x.name}`} onClick={() => setCfg((c) => ({ ...c, terminals: c.terminals?.filter((y) => y.id !== x.id) }))} className="w-8 h-8 rounded-lg grid place-items-center text-slate-400 hover:text-rose-600 hover:bg-rose-50"><Icon.trash size={14} /></button>
+              </li>
+            ))}
+          </ul>
         </section>
         <section>
           <h3 className="font-semibold text-navy-900 mb-2">e-Invoicing provider (AADE myDATA)</h3>

@@ -1,7 +1,8 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { lazyWithReload } from "../../lib/staleChunk";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Field, Input, Select, Spinner, Table, Toggle } from "../../components/ui";
+import { Badge, Btn, Card, Field, Input, Modal, Select, Spinner, Table, Toggle } from "../../components/ui";
+import { QR } from "../../components/charts";
 import { SunbedMap } from "../../components/SunbedMap";
 import { InventoryActions, InventoryPanel } from "./Inventory";
 import { invStatus } from "../../domain/inventory";
@@ -60,6 +61,7 @@ export function SunbedWorkspace() {
   const [view, setView] = useState<"canvas" | "list" | "preview">("canvas");
   const [snapOn, setSnapOn] = useState(true);
   const [publishing, setPublishing] = useState(false);
+  const [labels, setLabels] = useState(false);
   const zone = ZONES.find((z) => z.id === zoneId) ?? ZONES[0];
   const slots = draft.layouts[zoneId] ?? [];
   const cats = draft.pricing.categories.filter((c) => c.zoneId === zoneId);
@@ -219,6 +221,7 @@ export function SunbedWorkspace() {
 
   return (
     <div className="space-y-4">
+      {labels && <QrLabelsModal zone={zone.name} ids={(sel.size ? slots.filter((x) => sel.has(x.id)) : slots).map((x) => x.id)} onClose={() => setLabels(false)} />}
       {changes > 0 && (
         <div role="status" className="sticky top-2 z-20 flex flex-wrap items-center gap-3 rounded-2xl bg-navy-900 text-white px-4 py-2.5 shadow-float">
           <Icon.edit size={15} />
@@ -453,7 +456,7 @@ export function SunbedWorkspace() {
               <Field label="Per row"><Input type="number" min={1} max={16} value={grid.cols} onChange={(e) => setGrid((g) => ({ ...g, cols: Number(e.target.value) || 1 }))} /></Field>
               <Field label="Numbering"><Select value={grid.pattern} onChange={(e) => setGrid((g) => ({ ...g, pattern: e.target.value as "prefix" | "row" }))} options={[{ v: "prefix", l: `${zone.prefix}-01` }, { v: "row", l: "A1, A2…" }]} /></Field>
             </div>
-            <div className="flex gap-2"><Btn size="sm" variant="tint" icon={Icon.grid} onClick={generate}>Generate grid</Btn><Btn size="sm" variant="ghost" icon={Icon.plus} onClick={addBed}>Add a set</Btn></div>
+            <div className="flex gap-2"><Btn size="sm" variant="tint" icon={Icon.grid} onClick={generate}>Generate grid</Btn><Btn size="sm" variant="ghost" icon={Icon.plus} onClick={addBed}>Add a set</Btn><Btn size="sm" variant="ghost" icon={Icon.qr} disabled={!slots.length} onClick={() => setLabels(true)}>Print QR labels</Btn></div>
             <div className="flex gap-2 items-end">
               <div className="flex-1"><Field label="Copy this layout to"><Select value={copyTo} onChange={(e) => setCopyTo(e.target.value)} options={[{ v: "", l: "Choose a store…" }, ...ZONES.filter((z) => z.id !== zoneId).map((z) => ({ v: z.id, l: z.name }))]} /></Field></div>
               <Btn size="sm" variant="outline" disabled={!copyTo} onClick={copyLayout}>Copy</Btn>
@@ -473,5 +476,27 @@ export function SunbedWorkspace() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* ---------- QR labels for the sets (AENR-499) ----------
+   One label per set (the selection, or the whole store) encoding `SET:<id>`,
+   which the Controller, Cashier and Support Agent scanners resolve. */
+function QrLabelsModal({ zone, ids, onClose }: { zone: string; ids: string[]; onClose: () => void }) {
+  return (
+    <Modal open onClose={onClose} title={`QR labels · ${zone}`} wide
+      footer={<><Btn variant="ghost" onClick={onClose}>Close</Btn><Btn variant="primary" icon={Icon.receipt} onClick={() => window.print()}>Print {ids.length} label{ids.length === 1 ? "" : "s"}</Btn></>}>
+      <p className="text-[12.5px] text-slate-600 mb-3">Stick one on each set. Staff scan it to see the set’s status, check guests in or sell it as a walk-in. {ids.length} label{ids.length === 1 ? "" : "s"} — select sets on the canvas first to print only those.</p>
+      <div id="qr-labels" className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+        {ids.map((id) => (
+          <div key={id} className="rounded-xl ring-1 ring-slate-200 p-2 grid place-items-center text-center break-inside-avoid">
+            <QR seed={`SET:${id}`} size={84} />
+            <div className="mt-1 font-mono font-bold text-navy-900 text-sm">{id}</div>
+            <div className="text-[10.5px] text-slate-500">{zone}</div>
+          </div>
+        ))}
+      </div>
+      <style>{`@media print{body *{visibility:hidden!important}#qr-labels,#qr-labels *{visibility:visible!important}#qr-labels{position:absolute;inset:0;grid-template-columns:repeat(4,1fr)}}`}</style>
+    </Modal>
   );
 }

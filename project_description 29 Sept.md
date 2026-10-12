@@ -280,9 +280,11 @@ visited **per persona** is remembered.
 
 ### Controller
 
-| Route               | Screen          | Tag   |
-| ------------------- | --------------- | ----- |
-| `#/controller/scan` | Gate Validation | [MVP] |
+| Route                 | Screen          | Tag   |
+| --------------------- | --------------- | ----- |
+| `#/controller/scan`   | Gate Validation | [MVP] |
+| `#/controller/beach`  | Beach Status    | [MVP] |
+| `#/controller/walkin` | Walk-in Sale    | [MVP] |
 
 ### Accountant
 
@@ -1509,7 +1511,7 @@ all three; **Export CSV** and **Export PDF** (a one-page PDF with the key figure
 
  ─▶ Recent validations (tap a row for detail): #BK-… / #TK-… · zone·set · state
  Gate analytics: scanned 1,284 · 312/hr (peak 11–13) · no-shows 2.8% · duplicates 4
- Other actions:  [Walk-in] G-02 · [Add ticket] G-03 · [Open same-day availability] G-04
+ Other actions:  [Walk-in sale] G-03 · [Add ticket (pay on site)] G-03 · [Beach status] G-02
 ```
 
 - **Scan QR** (camera viewfinder simulation with scan line) → **Scan result** modal:
@@ -1521,56 +1523,43 @@ all three; **Export CSV** and **Export PDF** (a one-page PDF with the key figure
 - **Gate analytics:** Scanned today 1,284, Throughput 312/hr (peak 11:00–13:00), No-shows 2.8%,
   Duplicate scans 4; throughput by hour chart.
 
-### G-02 · Walk-in booking
+### G-02 · Beach status — scan a set, check in, release [MVP] (AENR-499)
 
 ```text
- ┌─ Walk-in booking ────────────────────┐
- │ Zone ◆ Central · Sunbed code CE-92   │
- │ Guests  [−] 2 [+]   (at least 1)     │
- │ Payment ◆ Card (Stripe) │ Cash       │
- │       [Reserve & charge €25]         │
- └──────────────────────────────────────┘
- ─▶ added to Recent validations · "QR printed" · channel Walk-in in reporting (X-07)
+ [Today | Tomorrow | date]  Store ◆
+ ┌─ Scan QR (demo camera) ─┐   or type a code (autocomplete, CE-12)
+ └─────────────────────────┘   or tap any set on the map (every state can be opened)
+ ─▶ Set panel: CE-12 · status badge · store · type · price for the date · booking (ref, guest, paid)
+      [Check in] (booked) · [Release for the rest of the day] (booked / vacated) · [Walk-in sale on CE-12] (free)
+      Set status: Put on hold · Out of service · Make available · Mark vacated   (+ reason / note)
+      History: every change with who, when, reason
 ```
 
-Modal: zone, sunbed code, guests (stepper ≥ 1), payment (Card (Stripe) / Cash) → **Reserve & charge €X**
-(zone base price) → added to recent validations, "QR printed".
+- Find a set by its **QR label** (`SET:<code>`, printed from Admin › Beach › Sunbeds & pricing ›
+  _Print QR labels_), by typing its code (case-insensitive, validated) or by tapping it. A booking /
+  ticket QR is recognised and told apart; an unknown code says so.
+- **Statuses** (`src/domain/sunbedOps.ts`): Available, Booked, Occupied (checked in), Vacated, On hold,
+  Out of service. Only valid transitions are offered; hold, out of service and freeing a booked set need a
+  reason (Broken · Cleaning · Weather · Private event · Other + note). Several sets can be changed at once.
+- Changes apply to the chosen date and update **every map live** — the booking wizard, the Cashier till
+  and the walk-in sale — and are kept in the set's history.
 
-### G-03 · Add ticket (pay on site)
+### G-03 · Walk-in sale on the beach [MVP] (AENR-528, AENR-527)
 
 ```text
- ┌─ Add ticket · pay on site ───────────┐
- │ Adult (13+)       €10   [−] 1 [+]    │
- │ Alimos resident    €6   [−] 0 [+]    │
- │ Child (6–12)       €5   [−] 0 [+]    │
- │ Senior             €7   [−] 0 [+]    │
- │      [Charge €10 via Stripe]         │
- └──────────────────────────────────────┘
- ─▶ ✓ ticket issued · "QR e-mailed"      [GAP] prices hard-coded here too
+ Scan / type / tap the free set ─▶ Basket: set(s) + optional entry tickets ─▶ [Cash] | [Card · POS]
+   Card: choose the POS terminal (Terminal 1 · Entrance / 2 · Bar / 3 · Mobile; offline ones disabled)
+ ─▶ one confirmation books the set and records the payment ─▶ ΑΠΥ to myDATA ─▶ receipt (SMS / print / QR)
 ```
 
-Modal: Adult (13+) €10, Alimos resident €6, Child (6–12) €5, Senior €7 → **Charge €X via Stripe**
-("QR e-mailed").
-
-### G-04 · Open same-day availability
-
-```text
- ┌─ Open same-day availability ───────────┐
- │ Release unsold sunbeds for instant     │
- │ online booking today                   │
- │ Akanthus   [−] 0 [+]                   │
- │ Central    [−] 4 [+]      0 … 24 sets  │
- │ Macaw      [−] 2 [+]      per zone     │
- │ …                                      │
- │         [Publish 6 sets]               │
- └────────────────────────────────────────┘
- ─▶ ✓ published ─▶ bookable online today (X-07)
-```
-
-Modal: per zone stepper (0–24 sets) of unsold sunbeds to **release for instant online booking today** →
-**Publish N sets**.
-
----
+- Uses the Cashier till's sale record (channel _Controller_ or _Support_), so the sale shows in Cashier ›
+  Transactions and as a **Walk-in** booking in Admin › Bookings. A set that isn't free (booked, held, out of
+  service, kept for another channel) can't be added — the reason is shown.
+- **POS terminals** are configured per tenant (Platform › Tenants › Fees & e-invoicing): name and online
+  state. The last terminal used is remembered; receipts, Transactions and the X/Z report show the
+  terminal, and the Z report splits card takings per terminal.
+- The Cashier till has the same **Scan set QR** entry, which jumps to the set's store and adds it.
+- The gate page's _Walk-in_ and _Add ticket (pay on site)_ open this page; _Beach status_ opens G-02.
 
 ## 12. User journeys — Accountant
 

@@ -3,6 +3,7 @@ import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, Field, Input, Modal, PageHead, StickyActionBar, Stepper } from "../../components/ui";
 import { Sunbed } from "../../components/Beach";
 import { SunbedMap } from "../../components/SunbedMap";
+import { SetScanner, type ScanHit } from "../../components/SetScanner";
 import { useApp } from "../../app/store";
 import { ZONES } from "../../data/beach";
 import { CUSTOMERS } from "../../data/mock";
@@ -11,6 +12,7 @@ import { TICKET_PRICES, resolvePrice } from "../../domain/pricing";
 import { basketTotals, discountAmount, eur, lineGross, validatePromo, type Tender, type TenderKind, type TillDiscount, type TillLine, type TillSale } from "../../domain/till";
 import type { SunbedSlot, TicketCategory } from "../../domain/types";
 import { useClosure, useLiveSlots, useNow } from "../../lib/useLiveSlots";
+import { useFinance } from "../../lib/useFinance";
 import { useTill } from "./useTill";
 import { ManagerPinModal, ReceiptModal, SaleDone } from "./TillParts";
 import { TenderModal } from "./Tender";
@@ -31,6 +33,7 @@ const mmss = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms 
 export function CashierIssue() {
   const { toast, go, priceRules, beachPricing } = useApp();
   const closure = useClosure();
+  const [finance] = useFinance();
   const t = useTill();
   const now = useNow(1000);
   const liveSlots = useLiveSlots("walkin");
@@ -48,6 +51,7 @@ export function CashierIssue() {
   const [promoErr, setPromoErr] = useState("");
   const [custOpen, setCustOpen] = useState(false);
   const [err, setErr] = useState("");
+  const [scanOpen, setScanOpen] = useState(false);
 
   const zone = ZONES.find((z) => z.id === zoneId) ?? ZONES[0];
   const priceOf = (s: SunbedSlot, zId = zone.id) => resolvePrice(s, zId, t.day, beachPricing, priceRules).price;
@@ -85,9 +89,21 @@ export function CashierIssue() {
   const setLine = (s: SunbedSlot, zId: string, bundle?: string): TillLine => ({ id: uid("s-"), kind: "sunbed", label: `Sunbed set ${s.id} · ${ZONE_NAMES[zId]}`, qty: 1, unit: priceOf(s, zId), zoneId: zId, setId: s.id, bundle });
   /** Best available = front row first, then cheapest. */
   const bestFree = (n: number) => [...freeIn(zone.id)].sort((a, b) => a.y - b.y || a.price - b.price).slice(0, n);
-  const addSets = (picked: SunbedSlot[], bundle?: string) => {
-    setLines((ls) => [...ls, ...picked.map((s) => setLine(s, zone.id, bundle))]);
+  const addSets = (picked: SunbedSlot[], bundle?: string, zId = zone.id) => {
+    setLines((ls) => [...ls, ...picked.map((s) => setLine(s, zId, bundle))]);
     t.hold(picked.map((s) => s.id));
+  };
+  // Scanning the QR label on a set (AENR-499) jumps to its store and adds it.
+  const onScan = (h: ScanHit) => {
+    if (h.kind === "booking") return setErr(`${h.code} is a booking QR — redeem it at the gate, not as a sale.`);
+    setScanOpen(false);
+    fresh();
+    setErr("");
+    setZoneId(h.zoneId);
+    const s = zoneSlots(h.zoneId).find((x) => x.id === h.setId);
+    if (!s || inBasket.has(h.setId)) return;
+    if (s.state !== "a") return setErr(`${h.setId} can't be sold now — ${s.inv ?? (s.state === "h" ? "on hold" : "already booked or out of service")}.`);
+    addSets([s], undefined, h.zoneId);
   };
   const toggleSet = (s: SunbedSlot) => {
     fresh();
@@ -263,7 +279,10 @@ export function CashierIssue() {
             <Card className="p-4">
               <div className="flex flex-wrap items-center gap-2 justify-between mb-2">
                 <h2 className="font-display font-bold text-navy-900">3 · Sunbeds · {zone.name}</h2>
-                <Btn size="sm" variant="outline" icon={Icon.sparkles} disabled={!!closure(zone.id, t.day)} onClick={() => anyFree(1)}>Any free set</Btn>
+                <div className="flex gap-2">
+                  <Btn size="sm" variant="outline" icon={Icon.qr} onClick={() => setScanOpen(true)}>Scan set QR</Btn>
+                  <Btn size="sm" variant="outline" icon={Icon.sparkles} disabled={!!closure(zone.id, t.day)} onClick={() => anyFree(1)}>Any free set</Btn>
+                </div>
               </div>
               {t.till.offline && (
                 <div className="mb-2 rounded-lg bg-amber-50 text-amber-800 ring-1 ring-amber-600/20 px-3 py-1.5 text-[12px] flex items-center gap-1.5"><Icon.alert size={13} /> Offline — this is the cached map; availability may be out of date. Conflicts are flagged when the till reconnects.</div>
@@ -390,8 +409,13 @@ export function CashierIssue() {
         </StickyActionBar>
       )}
       {tender && (
-        <TenderModal total={totals.total} initial={tender} offline={t.till.offline} offlineSales={t.till.sales} vouchers={t.till.vouchers} onCancel={onCancelTender} onPaid={onPaid} />
+        <TenderModal total={totals.total} initial={tender} offline={t.till.offline} offlineSales={t.till.sales} vouchers={t.till.vouchers} onCancel={onCancelTender} onPaid={onPaid}
+          terminals={finance.terminals} terminal={t.till.terminal} onTerminal={t.setTerminal} />
       )}
+      <Modal open={scanOpen} onClose={() => setScanOpen(false)} title="Scan a sunbed set" footer={<Btn variant="ghost" onClick={() => setScanOpen(false)}>Close</Btn>}>
+        <SetScanner onHit={onScan} />
+        {err && <div role="alert" className="mt-2 text-[12.5px] text-rose-700">{err}</div>}
+      </Modal>
       {reprint && <ReceiptModal sale={reprint} copy onClose={() => setReprint(null)} />}
       {pin && <ManagerPinModal reason={pin.reason} onClose={() => setPin(null)} onApproved={(m) => { const p = pin; setPin(null); p.then(m); }} />}
       {discOpen && (

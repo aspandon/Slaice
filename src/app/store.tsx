@@ -17,6 +17,7 @@ import { DEFAULT_TILL } from "../data/till";
 import type { TillState } from "../domain/till";
 import type { FinanceConfig } from "../domain/finance";
 import { DEFAULT_INVENTORY, type InventoryState } from "../domain/inventory";
+import { DEFAULT_SUNBED_OPS, type SunbedOpsState } from "../domain/sunbedOps";
 
 // Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
 // highlight the section a journey points at.
@@ -29,6 +30,8 @@ export interface SpotlightHint {
   step?: string;
   /** Loyalty scheme id to pre-load when deep-linking into Communicate. */
   promote?: string;
+  /** Sunbed set to open / sell (Controller beach → walk-in sale). */
+  setId?: string;
   /** Guest details to pre-fill a manual / phone booking (from the guest profile). */
   prefill?: { name: string; email: string; phone: string };
   ts?: number;
@@ -150,6 +153,9 @@ export interface AppContextValue {
   /** Holds, channel allocations, stop-sell and the demo clock (AENR-512) — persisted. */
   inventory: InventoryState;
   setInventory: (u: (i: InventoryState) => InventoryState) => void;
+  /** Staff-set sunbed status per date with history (AENR-499) — persisted. */
+  sunbedOps: SunbedOpsState;
+  setSunbedOps: (u: (s: SunbedOpsState) => SunbedOpsState) => void;
 }
 
 export const DEFAULT_CRM: CrmState = { segments: [], tagDefs: [{ name: "Wedding party", color: "#a855f7" }, { name: "Local", color: "#0D9488" }], edits: {}, regularAfter: 15, lifecycle: { atRiskDays: 14, lapsedDays: 35 }, columns: ["lifecycle", "spend"], imported: [], mergedAway: [], eraseRequests: [], profiles: {}, customFields: [{ id: "cf-birthday", label: "Birthday", type: "date" }, { id: "cf-company", label: "Company", type: "text" }] };
@@ -234,6 +240,8 @@ export const AppCtx = createContext<AppContextValue>({
   setCalendar: () => {},
   inventory: DEFAULT_INVENTORY,
   setInventory: () => {},
+  sunbedOps: DEFAULT_SUNBED_OPS,
+  setSunbedOps: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);
