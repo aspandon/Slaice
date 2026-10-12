@@ -1071,7 +1071,7 @@ no Export and no refunds.
 
 ```text
  ┌───────────┬─────────┬───────────┬──────────┬──────────┬───────────┬─────────┬───────────┐
- │ Executive │ Revenue │ Occupancy │ Bookings │ Channels │ Customers │ Tickets │ Daily ops │
+ │ Executive │ Revenue │ Occupancy │ Bookings │ Channels │ Customers │ Tickets │ Operations│
  └─────┬─────┴────┬────┴─────┬─────┴────┬─────┴────┬─────┴─────┬─────┴────┬────┴─────┬─────┘
        │          │          │          │          │           │          │          │
    9 KPIs    capability  heatmap    lead time   channel ×   new vs     ticket    period ─▶
@@ -1099,7 +1099,9 @@ a "beach was closed" empty state.
 6. **Customers** — new vs returning, season-pass holders, VIP segment revenue, top customers (scaled
    to the period).
 7. **Tickets** — ticket history within the period.
-8. **Daily ops** — operations totals per capability for the period; documents issued (ΑΠΥ/ΤΠΥ).
+8. **Operations** (renamed from Daily ops) — totals per capability for the period (count, gross,
+   refunds, net) and documents issued (ΑΠΥ/ΤΠΥ); **By day** switch adds a breakdown per day (per week /
+   month for long ranges) whose rows add up to the totals; exported with the CSV.
 
 ### A-08 · Refunds [MVP]
 

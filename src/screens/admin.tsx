@@ -31,7 +31,7 @@ import { useAsync } from "../lib/useAsync";
 import { usePeriod } from "../lib/usePeriod";
 import { readHashQuery, writeHashQuery } from "../app/router";
 import { activeCount, filtersFromParams, filtersToParams, isAmount, matchAmount, type FilterDef, type FilterState } from "../domain/filters";
-import { resolveRange, comparisonRange, lastYearRange, granularityFor, rangeLabel, periodNoun, comparisonLabel, isoFromDayMonth, inRange } from "../domain/period";
+import { resolveRange, comparisonRange, lastYearRange, granularityFor, rangeLabel, periodNoun, comparisonLabel, isoFromDayMonth, inRange, fmtWeekday as fmtWeekdayP } from "../domain/period";
 import { summarize, series, buckets, CHANNELS as CHANNELS_A, fmtEUR, fmtInt, fmtPct, trendPct, trendPp, trendEUR } from "../data/analytics";
 
 /* ============ DASHBOARD ============ */
@@ -1454,7 +1454,7 @@ export function AdminReporting() {
     ["channel", "Channels", Icon.globe],
     ["customers", "Customers", Icon.users],
     ["tickets", "Tickets", Icon.ticket],
-    ["daily", "Daily ops", Icon.clock],
+    ["ops", "Operations", Icon.clock],
   ];
   // One period for the whole page (kept when switching tabs, AENR-466).
   const [period, setPeriod] = usePeriod({ kind: "preset", preset: "season", offset: 0 });
@@ -1533,6 +1533,10 @@ export function AdminReporting() {
     { l: "Parking", n: now.units.Parking, g: now.byCapability.Parking },
   ].map((o) => ({ ...o, rf: refundShare(o.g), net: o.g - refundShare(o.g) }));
   const opsTotal = ops.reduce((a, o) => ({ n: a.n + o.n, g: a.g + o.g, rf: a.rf + o.rf, net: a.net + o.net }), { n: 0, g: 0, rf: 0, net: 0 });
+  // Breakdown by day (by week / month for long ranges) so daily operations stay visible (AENR-480).
+  const [opsByDay, setOpsByDay] = useState(false);
+  const opsG = g === "hour" ? "day" : g;
+  const opsRows = buckets(range, opsG).map((b) => { const x = summarize(b.range); return { l: opsG === "day" ? `${fmtWeekdayP(b.range.from)} ${b.label.includes(" ") ? b.label : rangeLabel(b.range)}` : b.label, x }; }).filter((r) => r.x.openDays > 0);
   const eur = (n: number) => `€${Math.round(n).toLocaleString("en-GB")}`;
 
   // Build a faithful CSV of exactly what each tab shows — its KPI cards and its
@@ -1579,13 +1583,15 @@ export function AdminReporting() {
         ];
       case "tickets":
         return [{ title: `Ticket history ${head}`, header: ["Ticket", "Category", "Issuer", "Date", "Customer type", "Revenue", "Status"], rows: tickets.map((r) => [r[0], r[1], r[2], r[3], r[4], r[5], r[6].label]) }];
-      case "daily":
+      case "ops":
         return [
           { title: `Operations ${head}`, header: ["Capability", "Count", "Gross", "Refunds", "Net"], rows: [
             ...ops.map((o) => [o.l, o.n, eur(o.g), `−${eur(o.rf)}`, eur(o.net)] as (string | number)[]),
             ["Total", opsTotal.n, eur(opsTotal.g), `−${eur(opsTotal.rf)}`, eur(opsTotal.net)],
           ] },
           { title: "Documents issued", header: ["Type", "Count", "Status"], rows: [["ΑΠΥ", now.bookings, "MyDATA ✓"], ["ΤΠΥ", now.refunds.count, "MyDATA ✓"]] },
+          ...(opsByDay && opsRows.length > 1 ? [{ title: `Operations by ${opsG}`, header: [opsG === "day" ? "Day" : opsG === "week" ? "Week of" : "Month", "Sunbed bookings", "Entry tickets", "Lockers", "Parking", "Gross", "Refunds", "Net"],
+            rows: opsRows.map((r) => [r.l, r.x.sunbedBookings, r.x.units.Tickets, r.x.units.Lockers, r.x.units.Parking, eur(r.x.revenue), `−${eur(r.x.refunds.amount)}`, eur(r.x.revenue - r.x.refunds.amount)]) }] : []),
         ];
       default:
         return [];
@@ -1730,12 +1736,22 @@ export function AdminReporting() {
           : <EmptyState compact icon={Icon.ticket} title="No tickets in this period" body="Try a wider range, e.g. This season." />}
       </Card>}
 
-      {!closed && tab === "daily" && <Card className="p-5"><div className="flex items-center justify-between mb-2"><div className="font-semibold text-navy-900">Daily operations · {label}</div><Btn size="sm" variant="outline" icon={Icon.download} onClick={() => exportReport("daily")}>Export</Btn></div>
+      {!closed && tab === "ops" && <Card className="p-5"><div className="flex items-center justify-between gap-2 mb-2 flex-wrap"><div className="font-semibold text-navy-900">Operations · {label}</div>
+          <div className="flex items-center gap-2">
+            {opsRows.length > 1 && <Toggle on={opsByDay} onChange={setOpsByDay} label={`By ${opsG}`} />}
+            <Btn size="sm" variant="outline" icon={Icon.download} onClick={() => exportReport("ops")}>Export</Btn>
+          </div></div>
         <Table cols={["Capability", "Count", "Gross", "Refunds", "Net"]} right={[1, 2, 3, 4]} rows={[
           ...ops.map((o) => [o.l, fmtInt(o.n), eur(o.g), o.rf ? <span className="text-rose-600 font-medium tnum">−{eur(o.rf)}</span> : "€0", eur(o.net)]),
           [<b>Total</b>, <b>{fmtInt(opsTotal.n)}</b>, <b>{eur(opsTotal.g)}</b>, <b className="text-rose-600">−{eur(opsTotal.rf)}</b>, <b>{eur(opsTotal.net)}</b>],
         ]} />
-        <div className="mt-3 text-[12px] text-slate-600">Documents issued: {fmtInt(now.bookings)} ΑΠΥ · {fmtInt(now.refunds.count)} ΤΠΥ · all transmitted to MyDATA ✓</div></Card>}
+        <div className="mt-3 text-[12px] text-slate-600">Documents issued: {fmtInt(now.bookings)} ΑΠΥ · {fmtInt(now.refunds.count)} ΤΠΥ · all transmitted to MyDATA ✓</div>
+        {opsByDay && opsRows.length > 1 && <div className="mt-5">
+          <div className="font-semibold text-navy-900 mb-1">By {opsG}</div>
+          <Table dense cols={[opsG === "day" ? "Day" : opsG === "week" ? "Week of" : "Month", "Sunbed bookings", "Entry tickets", "Lockers", "Parking", "Gross", "Refunds", "Net"]} right={[1, 2, 3, 4, 5, 6, 7]}
+            rows={opsRows.map((r) => [<span className="whitespace-nowrap">{r.l}</span>, fmtInt(r.x.sunbedBookings), fmtInt(r.x.units.Tickets), fmtInt(r.x.units.Lockers), fmtInt(r.x.units.Parking), eur(r.x.revenue), <span className="text-rose-600 tnum">−{eur(r.x.refunds.amount)}</span>, eur(r.x.revenue - r.x.refunds.amount)])} />
+        </div>}
+      </Card>}
     </div>
   );
 }
