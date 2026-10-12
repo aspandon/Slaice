@@ -1069,6 +1069,15 @@ no Export and no refunds.
   Needs attention, At risk, Hibernating). A stage strip shows counts and % and filters on click. Optional
   columns (**Columns** menu, remembered): Lifecycle, RFM, Lifetime spend, Last visit, Next visit
   (predicted from the guest's average gap). Stage and RFM label are also segment-builder fields.
+- **Power tools** (`src/screens/users/GuestTools.tsx`, `src/lib/csv.ts`): ad-hoc filters (visits, spend,
+  days since last visit, lifecycle, channel, zone, pass, consent, tag) in the shared filter bar; sortable
+  Name / Surname / Visits / Spend / Last visit; 25 per page with a count; checkbox selection with select
+  all matching → bulk **Tag** (add / remove), **Add to segment** (new or existing static), **Message**
+  (consent-aware: guests without consent for the channel are skipped and counted), **Export** and
+  **Erasure request** (flags the guests for Privacy & GDPR). **Import CSV** in the browser: column
+  mapping (auto-guessed), preview with row errors and duplicate warnings, merge duplicates or add as
+  new. **Duplicates** lists guests sharing an e-mail or phone and merges them (visits, spend and tags
+  combined).
 - Rule banner: every guest starts **New** and becomes **Regular** after **15 visits**; **VIP** and
   **Season pass** are assigned by hand.
 - Table: Name, Surname, Phone, Email, Visits, Tags, **Edit**, **Activity**.

@@ -11,6 +11,12 @@ import { guestFacts, type GuestFacts } from "../../data/guests";
 import { SEGMENT_COLORS, SYSTEM_SEGMENTS, fieldOf, inSegment, ruleLabel, type Segment } from "../../domain/segments";
 import { DEMO_TODAY } from "../../domain/period";
 import { SegmentBuilder } from "./SegmentBuilder";
+import { ImportModal, MergeModal, duplicateOf, mergeGuests, type ImportRow } from "./GuestTools";
+import { FilterBar, Select } from "../../components/ui";
+import { isAmount, matchAmount, type FilterDef, type FilterState } from "../../domain/filters";
+import { Pager, SortHeader, cmpVal, type SortState } from "../../components/TableTools";
+import { CHANNELS_CRM } from "../../data/guests";
+import { ZONES } from "../../data/beach";
 import { RFM_LABELS, RFM_TONE, STAGES, STAGE_HELP, STAGE_TONE, predictedNextVisit, rfmScores, stageOf, type LifecycleSettings, type Stage } from "../../domain/lifecycle";
 import { fmtDay } from "../../domain/period";
 import type { FieldDef } from "../../domain/segments";
@@ -51,7 +57,7 @@ export function AdminUsers() {
 
   // Seed roster + persisted edits (manual tags only — New/Regular are derived).
   const list: Customer[] = customersQ.status === "success"
-    ? customersQ.data.map((c) => ({ ...c, tags: manualOf(c.tags), ...crm.edits[c.id] }))
+    ? [...customersQ.data, ...crm.imported].filter((c) => !crm.mergedAway.includes(c.id)).map((c) => ({ ...c, tags: manualOf(c.tags), ...crm.edits[c.id] }))
     : [];
   // The signed-in customer reflects any pass she holds as an automatic tag
   // (marked with a wallet glyph so it reads as pass-derived, not hand-assigned).
@@ -84,7 +90,92 @@ export function AdminUsers() {
   const members = (sg: Segment) => guests.filter((g) => inSegment(g, sg, DEMO_TODAY, SCORE_FIELDS));
   const active = segments.find((sg) => sg.id === segId) ?? null;
   const inActive = active ? new Set(members(active).map((g) => g.id)) : null;
-  const rows = list.filter((u) => (!inActive || inActive.has(u.id)) && (!stageF || byId.get(u.id)?.lifecycle === stageF) && (u.first + u.last + u.email + u.phone).toLowerCase().includes(q.toLowerCase()));
+  // Ad-hoc filters, sorting, paging and bulk selection (AENR-476).
+  const [filters, setFiltersRaw] = useState<FilterState>({});
+  const [sort, setSort] = useState<SortState>(null);
+  const [page, setPage] = useState(0);
+  const [sel, setSel] = useState<Set<number>>(new Set());
+  const [importOpen, setImportOpen] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
+  const [bulkMsg, setBulkMsg] = useState(false);
+  const [eraseAsk, setEraseAsk] = useState(false);
+  const setFilters = (f: FilterState) => { setFiltersRaw(f); setPage(0); };
+  const guestFilterDefs: FilterDef[] = [
+    { key: "visits", label: "Visits", kind: "amount", unit: "" },
+    { key: "spend", label: "Spend", kind: "amount" },
+    { key: "days", label: "Days since last visit", kind: "amount", unit: "" },
+    { key: "stage", label: "Lifecycle", kind: "multi", options: STAGES.map((x) => ({ v: x, l: x })) },
+    { key: "channel", label: "Channel", kind: "multi", options: CHANNELS_CRM.map((x) => ({ v: x, l: x })) },
+    { key: "zone", label: "Zone", kind: "multi", options: ZONES.map((z) => ({ v: z.name, l: z.name })) },
+    { key: "pass", label: "Pass", kind: "multi", options: ["VIP", "Season pass", "None"].map((x) => ({ v: x, l: x })) },
+    { key: "consent", label: "Consent", kind: "multi", options: [{ v: "email", l: "E-mail" }, { v: "sms", l: "SMS" }, { v: "viber", l: "Viber" }] },
+    { key: "tag", label: "Tag", kind: "multi", options: crm.tagDefs.map((t) => ({ v: t.name, l: t.name })) },
+  ];
+  const fMulti = (k: string) => (Array.isArray(filters[k]) ? (filters[k] as string[]) : []);
+  const matchFilters = (g: Guest) =>
+    (!isAmount(filters.visits) || matchAmount(g.visits, filters.visits)) &&
+    (!isAmount(filters.spend) || matchAmount(g.spend, filters.spend)) &&
+    (!isAmount(filters.days) || matchAmount(g.daysSinceLast, filters.days)) &&
+    (!fMulti("stage").length || fMulti("stage").includes(g.lifecycle ?? "")) &&
+    (!fMulti("channel").length || fMulti("channel").includes(g.channel)) &&
+    (!fMulti("zone").length || fMulti("zone").includes(g.zone)) &&
+    (!fMulti("pass").length || fMulti("pass").includes(g.pass)) &&
+    (!fMulti("consent").length || fMulti("consent").some((c) => g.consent.includes(c))) &&
+    (!fMulti("tag").length || fMulti("tag").some((t) => g.tags.includes(t)));
+  const filtered = list.filter((u) => { const g = byId.get(u.id)!; return (!inActive || inActive.has(u.id)) && (!stageF || g.lifecycle === stageF) && matchFilters(g) && (u.first + u.last + u.email + u.phone).toLowerCase().includes(q.toLowerCase()); });
+  const sortVal = (u: Customer): string | number => { const g = byId.get(u.id)!; return sort?.key === "name" ? `${u.first} ${u.last}` : sort?.key === "surname" ? u.last : sort?.key === "visits" ? u.bookings : sort?.key === "spend" ? g.spend : sort?.key === "last" ? g.lastVisit : 0; };
+  const sorted = sort ? [...filtered].sort((a, b) => cmpVal(sortVal(a), sortVal(b)) * sort.dir) : filtered;
+  const PAGE = 25;
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE));
+  const safePage = Math.min(page, pageCount - 1);
+  const rows = sorted.slice(safePage * PAGE, safePage * PAGE + PAGE);
+  const onSort = (k: string) => setSort((x) => (x?.key === k ? { key: k, dir: x.dir === 1 ? -1 : 1 } : { key: k, dir: 1 }));
+  const selected = list.filter((u) => sel.has(u.id));
+  const toggleSel = (id: number) => setSel((x) => { const n = new Set(x); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const allShownSelected = sorted.length > 0 && sorted.every((u) => sel.has(u.id));
+  const dupPairs: [Customer, Customer][] = list.flatMap((a, i) => list.slice(i + 1).filter((b) => duplicateOf(b, [a])).map((b) => [a, b] as [Customer, Customer]));
+  // Bulk actions
+  const editTags = (ids: number[], fn: (tags: string[]) => string[]) => setCrm((c) => {
+    const edits = { ...c.edits };
+    ids.forEach((id) => { const u = list.find((x) => x.id === id); if (u) edits[id] = { ...edits[id], tags: fn(u.tags) }; });
+    return { ...c, edits };
+  });
+  const bulkTag = (t: string, add: boolean) => {
+    editTags([...sel], (tags) => (add ? [...new Set([...tags, t])] : tags.filter((x) => x !== t)));
+    toast(`${add ? "Added" : "Removed"} “${t}” ${add ? "to" : "from"} ${sel.size} guest${sel.size === 1 ? "" : "s"}.`, { tone: "success" });
+  };
+  const bulkStatic = (segIdTo: string | null) => {
+    const ids = [...sel];
+    if (segIdTo) {
+      setCrm((c) => ({ ...c, segments: c.segments.map((x) => (x.id === segIdTo ? { ...x, members: [...new Set([...(x.members ?? []), ...ids])], updatedAt: new Date().toISOString() } : x)) }));
+      toast(`Added ${ids.length} guests to the segment.`, { tone: "success" });
+    } else {
+      const sg: Segment = { id: `seg-${Date.now().toString(36)}`, name: `Selection ${fmtDay(DEMO_TODAY)}`, color: SEGMENT_COLORS[5], kind: "static", match: "all", rules: [], members: ids, updatedAt: new Date().toISOString() };
+      setCrm((c) => ({ ...c, segments: [...c.segments, sg] }));
+      toast(`Static segment “${sg.name}” created with ${ids.length} guests — rename it from its menu.`, { tone: "success" });
+    }
+  };
+  const importRows = (irs: ImportRow[], mergeDup: boolean) => {
+    let next = 1000 + crm.imported.length;
+    const added: Customer[] = [];
+    let merged = 0;
+    const edits = { ...crm.edits };
+    irs.forEach((r) => {
+      if (mergeDup && r.dupOf !== null) {
+        const base = list.find((x) => x.id === r.dupOf);
+        if (base) { edits[base.id] = { ...edits[base.id], phone: base.phone || r.phone, email: base.email || r.email }; merged++; return; }
+      }
+      added.push({ id: next++, name: `${r.first} ${r.last.charAt(0)}.`, first: r.first, last: r.last, email: r.email, phone: r.phone, bookings: 0, spend: 0, tags: [], lastVisit: fmtDay(DEMO_TODAY) });
+    });
+    setCrm((c) => ({ ...c, edits, imported: [...c.imported, ...added] }));
+    setImportOpen(false);
+    toast(`Imported ${added.length} new guest${added.length === 1 ? "" : "s"}${merged ? `, merged ${merged} into existing guests` : ""}.`, { tone: "success" });
+  };
+  const doMerge = (keep: Customer, drop: Customer) => {
+    const m = mergeGuests(keep, drop);
+    setCrm((c) => ({ ...c, mergedAway: [...c.mergedAway, drop.id], edits: { ...c.edits, [keep.id]: { ...c.edits[keep.id], phone: m.phone, email: m.email, bookings: m.bookings, spend: m.spend, tags: m.tags } } }));
+    toast(`Merged ${drop.first} ${drop.last} into ${keep.first} ${keep.last}.`, { tone: "success" });
+  };
   const cols = crm.columns;
   const OPTIONAL: { k: string; l: string; cell: (g: Guest) => ReactNode; right?: boolean }[] = [
     { k: "lifecycle", l: "Lifecycle", cell: (g) => <Badge tone={STAGE_TONE[g.lifecycle as Stage]}>{g.lifecycle}</Badge> },
@@ -142,7 +233,9 @@ export function AdminUsers() {
             <Icon.search size={16} /><span className="sr-only">Search guests</span>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search users…" className="text-sm outline-none w-full bg-transparent text-ink" />
           </label>
-          <div className="flex gap-2 ml-auto">
+          <div className="flex gap-2 ml-auto flex-wrap">
+            <Btn variant="outline" icon={Icon.upload} onClick={() => setImportOpen(true)}>Import CSV</Btn>
+            <Btn variant="outline" icon={Icon.users} onClick={() => setMergeOpen(true)}>Duplicates{dupPairs.length ? ` (${dupPairs.length})` : ""}</Btn>
             <Btn variant="outline" icon={Icon.tag} onClick={() => setTagModal(true)}>New tag</Btn>
             <Btn variant="primary" icon={Icon.plus} onClick={() => setBuilder("new")}>New segment</Btn>
           </div>
@@ -220,31 +313,92 @@ export function AdminUsers() {
             <span>Segments update automatically: every guest starts <b>New</b> and becomes <b>Regular</b> after {ra} visits (edit the rule from the Regular segment). <b>VIP</b>, <b>Season pass</b> and custom tags are assigned on a guest. Build your own with <b>New segment</b>.</span>
           </div>
         )}
+        <div className="mb-3"><FilterBar defs={guestFilterDefs} value={filters} onChange={setFilters} count={`${sorted.length} of ${list.length} guests`} /></div>
+        {sel.size > 0 && (
+          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-navy-900 text-white px-3 py-2 text-[13px]" role="region" aria-label="Bulk actions">
+            <b className="tnum">{sel.size} selected</b>
+            {!allShownSelected && sorted.length > sel.size && <button type="button" className="underline underline-offset-2" onClick={() => setSel(new Set(sorted.map((u) => u.id)))}>Select all {sorted.length} matching</button>}
+            <span className="flex-1" />
+            <DropdownMenu.Root modal={false}>
+              <DropdownMenu.Trigger asChild><button type="button" className="rounded-lg bg-white/15 hover:bg-white/25 px-2.5 py-1.5 font-semibold inline-flex items-center gap-1.5"><Icon.tag size={13} /> Tag</button></DropdownMenu.Trigger>
+              <DropdownMenu.Portal><DropdownMenu.Content align="end" sideOffset={6} className="glass !bg-white/95 w-56 rounded-xl p-1.5 z-[60] shadow-float text-ink">
+                {tagNames.map((t) => <DropdownMenu.Item key={`a${t}`} className={menuItem} onSelect={() => bulkTag(t, true)}><Icon.plus size={13} /> Add “{t}”</DropdownMenu.Item>)}
+                <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
+                {tagNames.map((t) => <DropdownMenu.Item key={`r${t}`} className={menuItem} onSelect={() => bulkTag(t, false)}><Icon.x size={13} /> Remove “{t}”</DropdownMenu.Item>)}
+              </DropdownMenu.Content></DropdownMenu.Portal>
+            </DropdownMenu.Root>
+            <DropdownMenu.Root modal={false}>
+              <DropdownMenu.Trigger asChild><button type="button" className="rounded-lg bg-white/15 hover:bg-white/25 px-2.5 py-1.5 font-semibold inline-flex items-center gap-1.5"><Icon.layers size={13} /> Add to segment</button></DropdownMenu.Trigger>
+              <DropdownMenu.Portal><DropdownMenu.Content align="end" sideOffset={6} className="glass !bg-white/95 w-60 rounded-xl p-1.5 z-[60] shadow-float text-ink">
+                <DropdownMenu.Item className={menuItem} onSelect={() => bulkStatic(null)}><Icon.plus size={13} /> New static segment</DropdownMenu.Item>
+                {crm.segments.filter((x) => x.kind === "static").map((x) => <DropdownMenu.Item key={x.id} className={menuItem} onSelect={() => bulkStatic(x.id)}><i className="w-2 h-2 rounded-full" style={{ background: x.color }} /> {x.name}</DropdownMenu.Item>)}
+              </DropdownMenu.Content></DropdownMenu.Portal>
+            </DropdownMenu.Root>
+            <button type="button" onClick={() => setBulkMsg(true)} className="rounded-lg bg-white/15 hover:bg-white/25 px-2.5 py-1.5 font-semibold inline-flex items-center gap-1.5"><Icon.mail size={13} /> Message</button>
+            <button type="button" onClick={() => { downloadCSV(`guests-selection-${selected.length}.csv`, ["Name", "Surname", "Email", "Phone", "Visits", "Spend (€)"], selected.map((u) => [u.first, u.last, u.email, u.phone, u.bookings, byId.get(u.id)?.spend ?? 0])); toast(`Exported ${selected.length} guests.`, { tone: "success" }); }} className="rounded-lg bg-white/15 hover:bg-white/25 px-2.5 py-1.5 font-semibold inline-flex items-center gap-1.5"><Icon.download size={13} /> Export</button>
+            <button type="button" onClick={() => setEraseAsk(true)} className="rounded-lg bg-white/15 hover:bg-rose-500/40 px-2.5 py-1.5 font-semibold inline-flex items-center gap-1.5"><Icon.shield size={13} /> Erasure request</button>
+            <button type="button" onClick={() => setSel(new Set())} aria-label="Clear selection" className="w-8 h-8 grid place-items-center rounded-lg hover:bg-white/15"><Icon.x size={14} /></button>
+          </div>
+        )}
         {loading ? (
           <TableSkeleton rows={6} cols={6} />
         ) : customersQ.status === "error" ? (
           <ErrorState compact body="We couldn't load the customer list." onRetry={customersQ.refetch} />
         ) : rows.length === 0 ? (
-          <EmptyState compact icon={Icon.users} title="No users match" body="Try a different search or segment." />
+          <EmptyState compact icon={Icon.users} title="No users match" body="Try a different search, segment or filter."
+            action={<Btn size="sm" variant="outline" onClick={() => { setQ(""); setFilters({}); setStageF(null); setSegId("all"); }}>Clear filters</Btn>} />
         ) : (
-          <Table dense={shownOptional.length > 1} cols={["Name", "Surname", "Phone", "Email", "Visits", ...shownOptional.map((c) => c.l), "Tags", ""]} right={[4, ...shownOptional.map((c, i) => (c.right ? 5 + i : -1)).filter((i) => i >= 0)]}
-            rows={rows.map((u) => [u.first, u.last, <span className="tnum whitespace-nowrap">{u.phone}</span>, u.email, u.bookings, ...shownOptional.map((c) => c.cell(byId.get(u.id)!)),
-              <span className="flex gap-1 flex-wrap">{tagsFor(u).map(({ t, pass }) => <Badge key={t} tone={tagTone(t)}>{pass && <Icon.wallet size={9} />}{t}</Badge>)}</span>,
+          <>
+          <Table dense={shownOptional.length > 1}
+            cols={[<input type="checkbox" aria-label="Select all shown guests" checked={allShownSelected} onChange={(e) => setSel(e.target.checked ? new Set(sorted.map((u) => u.id)) : new Set())} className="w-4 h-4 accent-teal-600" />,
+              <SortHeader label="Name" k="name" sort={sort} onSort={onSort} />, <SortHeader label="Surname" k="surname" sort={sort} onSort={onSort} />, "Phone", "Email",
+              <SortHeader label="Visits" k="visits" sort={sort} onSort={onSort} align="right" />, ...shownOptional.map((c) => (c.k === "spend" ? <SortHeader key={c.k} label={c.l} k="spend" sort={sort} onSort={onSort} align="right" /> : c.k === "lastVisit" ? <SortHeader key={c.k} label={c.l} k="last" sort={sort} onSort={onSort} /> : c.l)), "Tags", ""]}
+            right={[5, ...shownOptional.map((c, i) => (c.right ? 6 + i : -1)).filter((i) => i >= 0)]}
+            rows={rows.map((u) => [<input type="checkbox" aria-label={`Select ${u.first} ${u.last}`} checked={sel.has(u.id)} onChange={() => toggleSel(u.id)} className="w-4 h-4 accent-teal-600" />,
+              <span className="inline-flex items-center gap-1.5">{u.first}{crm.eraseRequests.includes(u.id) && <Badge tone="red">Erasure requested</Badge>}{u.id >= 1000 && <Badge tone="slate">Imported</Badge>}</span>, u.last, <span className="tnum whitespace-nowrap">{u.phone}</span>, u.email, u.bookings, ...shownOptional.map((c) => c.cell(byId.get(u.id)!)),
+              <span className="flex gap-1 flex-wrap">{tagsFor(u).map(({ t, pass }) => <Badge key={t} tone={tagTone(t)} className="whitespace-nowrap">{pass && <Icon.wallet size={9} />}{t}</Badge>)}</span>,
               <div className="flex items-center justify-end gap-1">
                 <Btn size="sm" variant="ghost" icon={Icon.edit} onClick={() => setEditId(u.id)}>Edit</Btn>
                 <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => setActivityId(u.id)}>Activity</Btn>
               </div>])} />
+          {pageCount > 1 && <Pager page={safePage} pageCount={pageCount} total={sorted.length} pageSize={PAGE} onPage={setPage} />}
+          </>
         )}
       </Card>
       {editUser && <UserEditModal user={editUser} tagNames={tagNames} onClose={() => setEditId(null)} onSave={saveUser} />}
       {activityUser && <UserActivityModal user={activityUser} onClose={() => setActivityId(null)} onEdit={(id) => { setActivityId(null); setEditId(id); }} />}
       {builder && <SegmentBuilder initial={builder === "new" ? null : builder} guests={guests} extraFields={SCORE_FIELDS} tagOptions={crm.tagDefs.map((t) => t.name)} onClose={() => setBuilder(null)} onSave={saveSegment} />}
+      {importOpen && <ImportModal existing={list} onClose={() => setImportOpen(false)} onImport={importRows} />}
+      {mergeOpen && <MergeModal pairs={dupPairs} onClose={() => setMergeOpen(false)} onMerge={doMerge} />}
+      {bulkMsg && <BulkMessageModal guests={selected.map((u) => byId.get(u.id)!)} onClose={() => setBulkMsg(false)} onSend={(ch, n, skipped) => { setBulkMsg(false); toast(`Demo — ${ch} queued for ${n} guest${n === 1 ? "" : "s"}${skipped ? ` · ${skipped} skipped (no ${ch} consent)` : ""}.`, { tone: "success" }); }} />}
+      <ConfirmModal open={eraseAsk} onClose={() => setEraseAsk(false)} title={`Raise an erasure request for ${sel.size} guest${sel.size === 1 ? "" : "s"}?`} confirmLabel="Raise request"
+        body="Creates a GDPR erasure request for each selected guest in Privacy & GDPR. Their data is erased when the request is completed there (invoices are kept for the legal retention period)."
+        onConfirm={() => { setCrm((c) => ({ ...c, eraseRequests: [...new Set([...c.eraseRequests, ...sel])] })); toast(`Erasure requested for ${sel.size} guest${sel.size === 1 ? "" : "s"} — handle them in Privacy & GDPR.`, { tone: "success" }); setEraseAsk(false); setSel(new Set()); }} />
       {lcModal && <LifecycleModal value={crm.lifecycle} onClose={() => setLcModal(false)} onSave={(v) => { setCrm((c) => ({ ...c, lifecycle: v })); setLcModal(false); toast("Lifecycle rules saved — guests re-labelled.", { tone: "success" }); }} />}
       {tagModal && <TagModal existing={tagNames} onClose={() => setTagModal(false)} onSave={(t) => { setCrm((c) => ({ ...c, tagDefs: [...c.tagDefs, t] })); setTagModal(false); toast(`Tag “${t.name}” created — assign it from a guest's Edit.`, { tone: "success" }); }} />}
       <ConfirmModal open={deleting !== null} onClose={() => setDeleting(null)} title={deleting ? `Delete “${deleting.name}”?` : "Delete segment"} confirmLabel="Delete segment"
         body="Guests are not affected — only the saved segment is removed."
         onConfirm={() => { if (deleting) { setCrm((c) => ({ ...c, segments: c.segments.filter((x) => x.id !== deleting.id) })); if (segId === deleting.id) setSegId("all"); } setDeleting(null); }} />
     </div>
+  );
+}
+
+/* Bulk message: consent-aware — only guests who opted in to the channel get it. */
+function BulkMessageModal({ guests, onClose, onSend }: { guests: GuestFacts[]; onClose: () => void; onSend: (channel: string, n: number, skipped: number) => void }) {
+  const [ch, setCh] = useState("email");
+  const ok = guests.filter((g) => g.consent.includes(ch)).length;
+  const label = { email: "E-mail", sms: "SMS", viber: "Viber" }[ch] ?? ch;
+  return (
+    <Modal open onClose={onClose} title={`Message ${guests.length} guest${guests.length === 1 ? "" : "s"}`}
+      footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn><Btn variant="primary" icon={Icon.mail} disabled={!ok} onClick={() => onSend(label, ok, guests.length - ok)}>Send to {ok}</Btn></>}>
+      <div className="space-y-3">
+        <Field label="Channel"><Select value={ch} onChange={(e) => setCh(e.target.value)} options={[{ v: "email", l: "E-mail" }, { v: "sms", l: "SMS" }, { v: "viber", l: "Viber" }]} /></Field>
+        <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-2.5 text-sm text-slate-700" aria-live="polite">
+          <b className="text-navy-900">{ok}</b> of {guests.length} have {label} marketing consent and will get the message{guests.length - ok ? <>; <b className="text-rose-700">{guests.length - ok}</b> will be skipped</> : null}.
+        </div>
+        <p className="text-[12px] text-slate-500">Write and schedule the message itself in Communicate; this sends a quick promotional note (demo).</p>
+      </div>
+    </Modal>
   );
 }
 

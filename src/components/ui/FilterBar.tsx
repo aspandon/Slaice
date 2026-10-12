@@ -73,6 +73,7 @@ export function FilterBar({
             <AmountFilterPop
               key={d.key}
               label={t(d.label)}
+              unit={d.unit ?? "€"}
               value={isAmount(value[d.key]) ? (value[d.key] as AmountFilter) : undefined}
               onChange={(v) => set(d.key, v)}
             />
@@ -180,14 +181,17 @@ function MultiFilter({
 
 function AmountFilterPop({
   label,
+  unit,
   value,
   onChange,
 }: {
   label: string;
+  unit: string;
   value?: AmountFilter;
   onChange: (v: AmountFilter | undefined) => void;
 }) {
   const t = useT();
+  const u = unit ? ` (${unit})` : "";
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<AmountFilter>(value ?? { op: "gt", a: null, b: null });
   const [touched, setTouched] = useState(false);
@@ -212,7 +216,7 @@ function AmountFilterPop({
     >
       <Popover.Trigger asChild>
         <button type="button" className={trigger(!!value)}>
-          {value ? `${label}: ${amountLabel(value)}` : label}
+          {value ? `${label}: ${amountLabel(value, unit)}` : label}
           <Icon.chevD size={13} />
         </button>
       </Popover.Trigger>
@@ -231,7 +235,7 @@ function AmountFilterPop({
               />
             </Field>
             <div className="grid grid-cols-2 gap-2">
-              <Field label={draft.op === "between" ? t("Min (€)") : t("Amount (€)")}>
+              <Field label={draft.op === "between" ? `${t("Min")}${u}` : `${t("Value")}${u}`}>
                 <Input
                   type="number"
                   min={0}
@@ -242,7 +246,7 @@ function AmountFilterPop({
                 />
               </Field>
               {draft.op === "between" && (
-                <Field label={t("Max (€)")}>
+                <Field label={`${t("Max")}${u}`}>
                   <Input
                     type="number"
                     min={0}

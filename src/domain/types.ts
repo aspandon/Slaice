@@ -52,6 +52,12 @@ export interface CrmState {
   lifecycle: import("./lifecycle").LifecycleSettings;
   /** Optional guest-list columns the admin chose to show. */
   columns: string[];
+  /** Guests added by CSV import (AENR-476). */
+  imported: Customer[];
+  /** Guest ids merged into another record (hidden from the list). */
+  mergedAway: number[];
+  /** Guests with a GDPR erasure request raised from the CRM. */
+  eraseRequests: number[];
 }
 
 export type PersonaId =
