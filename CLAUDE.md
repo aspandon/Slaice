@@ -32,7 +32,11 @@ Read this first; treat it as ground truth. **Slaice** is a front-end-only, click
 - **i18n:** wrap customer-facing strings in `t()`; run `npm run i18n` to machine-translate into `src/locales/*.json`.
 - **Spec & docs:** `project_description 29 Sept.md` (the living spec — update the relevant section for every change), `README.md` (persona table), `UX_REVIEW.md` (findings — mark resolved items with the ticket key).
 - **Accessibility target:** WCAG 2.2 AA. **Breakpoints:** works at 390px phones up to desktop; tablet-first for Cashier.
-- **Checks before every commit:** `npm run typecheck`, `npm run lint` (jsx-a11y is strict: no `autoFocus`, labels need text), `npm run build -- --outDir /tmp/<scratch>/dist-check`. Format only new files and the spec with Prettier (don't reformat existing files wholesale).
+- **Checks before every commit:** `npm run typecheck`, `npm run lint` (jsx-a11y is strict: no `autoFocus`, labels need text), `npm run build`. Format only new files and the spec with Prettier (don't reformat existing files wholesale).
+- **GitHub Pages — update `docs/` on every push.** The owner reviews the app at <https://aspandon.github.io/Slaice/>, served by Pages from **the current working branch, folder `/docs`** (Deploy from a branch). Pages serves `docs/` as-is, so the built site must be committed there:
+  1. At the start of a session, make sure the working branch is listed under `on.push.branches` in `.github/workflows/deploy.yml` (add it and push if not) — the workflow rebuilds `docs/` and commits it back as `chore: build site to /docs [skip ci]`.
+  2. Also run `npm run build` (writes `docs/`) and commit `docs/` together with every change you push, so the site is current even if the workflow is slow or fails.
+  3. After each push, `git pull --ff-only` the bot's build commit before pushing again, and confirm the live site serves the new bundle (the `assets/index-*.js` name in `docs/index.html` matches `curl -s https://aspandon.github.io/Slaice/`).
 - **Visual testing:** Playwright with the pre-installed Chromium against `npx vite --port 5199 --strictPort`; bypass the gate with `localStorage["slaice.gate.v1"]="1"` and `slaice.v1` = `{signedIn:true, persona:"<id>", consent:{decided:true}}`. Write test scripts and screenshots to the scratchpad, never into the repo. Restart Vite after moving/renaming files.
 
 ## 2A. Working agreement with the product owner (backlog in Orbit)
