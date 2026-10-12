@@ -3,7 +3,7 @@ import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { lazyWithReload } from "../lib/staleChunk";
 import { SortHeader, Pager, dateVal, cmpVal, type SortState } from "../components/TableTools";
 import { Icon, type IconRenderer } from "../lib/icons";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, ErrorState, useMockLoad, FutureBanner, ContextPanel, Spinner } from "../components/ui";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, ErrorState, useMockLoad, FutureBanner, NotMvpBadge, ContextPanel, Spinner } from "../components/ui";
 import type { TabEntry } from "../components/ui";
 import { BarChart, HBarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts";
 import { BeachBackdrop, SunbedMark } from "../components/Beach";
@@ -716,7 +716,7 @@ function AtmosphereCard() {
   const { sceneFx, setSceneFx, weather, setWeather, dayTime, setDayTime, toast } = useApp();
   return (
     <Card className="p-5 mt-4">
-      <div className="font-semibold text-navy-900 mb-1 flex items-center gap-2"><Icon.sun size={15} className="text-gold-600" /> Atmosphere</div>
+      <div className="font-semibold text-navy-900 mb-1 flex items-center gap-2"><Icon.sun size={15} className="text-gold-600" /> Atmosphere <NotMvpBadge /></div>
       <div className="text-[12px] text-slate-600 mb-4">Weather graphics and daylight on the customer beach. Cosmetic only — booking is unaffected.</div>
       <div className="grid md:grid-cols-3 gap-x-6 gap-y-4">
         <div className="space-y-2.5">

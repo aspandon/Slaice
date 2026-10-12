@@ -265,7 +265,7 @@ visited **per persona** is remembered.
 | Route                | Screen        | Tag      |
 | -------------------- | ------------- | -------- |
 | `#/cashier/issue`    | Issue Ticket  | [MVP]    |
-| `#/cashier/redeem`   | Redeem Ticket | [MVP]    |
+| `#/cashier/redeem`   | Redeem Ticket | [Future] |
 | `#/cashier/register` | Cash Register | [Future] |
 | `#/cashier/locker`   | Sell Locker   | [Future] |
 
@@ -324,7 +324,9 @@ visited **per persona** is remembered.
 - **Bottom tab bar** on phones (always visible, including inside the wizard), with a **More** sheet
   when a persona has more than 5 destinations.
 - **Persona switcher "DEMO" pill**, bottom-right **[DEMO]**.
-- **Scene demo panel**, bottom-left on Home: time-of-day slider + weather picker **[DEMO]**.
+- **Scene demo panel**, bottom-left on Home: time-of-day slider + weather picker **[DEMO]**. The live
+  sea, weather and time-of-day scene is **Not MVP** (badge in the panel and on the admin Atmosphere
+  card); the MVP baseline is the static illustrated beach.
 - In the booking wizard the logo and footer step aside (immersive mode) and the shoreline animates up
   so the sand fills the screen.
 
@@ -392,6 +394,9 @@ Cookie Policy. The decision is stored with a timestamp and can be changed any ti
   (`npm run i18n`, `src/locales/*.json`); missing strings fall back to English.
 - `<html lang>` follows the selected language; dates use `Intl` (`en-GB` for English).
 - Coverage: the **customer surface** is translated; **staff screens are largely English-only**.
+- MVP languages are **English and Greek**. German, French, Spanish and Italian stay selectable but carry
+  a **Not MVP** badge in the language menu and the account-settings language select (`mvp` flag on
+  `LANGUAGES` in `src/app/i18n.ts`).
 
 ---
 
@@ -460,6 +465,9 @@ Each journey: **ID · name**, trigger, steps, outcome, rules and states.
 ```
 
 The Home page is the customer's dashboard. Elements:
+
+Tiles 2, 4, 5, 6 and 7 are roadmap features and carry a **Not MVP** badge (`NotMvpBadge`); the VIP
+and Season pass pages they open show the roadmap banner.
 
 1. **Hero card** (whole card is a button → opens the wizard):
    - Chip: weather icon + greeting by scene hour (< 12 "Good morning", < 18 "Good afternoon", else
@@ -1265,7 +1273,7 @@ Eight tabs, each exportable to CSV exactly as displayed:
 - Side panel "How it works": pick categories → take payment → print the QR. Tickets validate at the
   gate scanner. **[GAP]** no Senior category; prices are hard-coded here.
 
-### K-02 · Redeem ticket [MVP]
+### K-02 · Redeem ticket [Future]
 
 ```text
  ┌─ Ticket code ─────────┐
@@ -1281,6 +1289,8 @@ Eight tabs, each exportable to CSV exactly as displayed:
   used — cannot reuse" (mock rule: codes containing "used" are already used).
 - Recent redemptions list. QR scanning is not required for cashier-issued tickets; online QR tickets
   are scanned by the Controller.
+- Roadmap preview: Future badge, the roadmap banner under the header and a Future dot in the nav, like
+  Cash Register and Sell Locker.
 
 ### K-03 · Cash register session [Future]
 
@@ -1811,7 +1821,7 @@ Events, Retail, Compliant: Stripe + MyDATA).
 | 40  | Loyalty schemes (6 built-in + custom), timed offers, regulars offers             | Admin                           | Future              | A-11             |
 | 41  | Pass pricing + wallet card designer                                              | Admin                           | Future              | A-12             |
 | 42  | On-site anonymous ticket sales + printing                                        | Cashier                         | MVP                 | K-01             |
-| 43  | Ticket redemption                                                                | Cashier                         | MVP                 | K-02             |
+| 43  | Ticket redemption                                                                | Cashier                         | Future              | K-02             |
 | 44  | Cash register sessions, Z-report, reconciliation, handover                       | Cashier                         | Future              | K-03             |
 | 45  | On-site locker sales from locker banks                                           | Cashier                         | Future              | K-04             |
 | 46  | QR gate validation (valid/used/invalid, override)                                | Controller                      | MVP                 | G-01             |
@@ -1825,7 +1835,7 @@ Events, Retail, Compliant: Stripe + MyDATA).
 | 54  | Compliance: sub-processors, tenant DPAs, 72h breach workflow                     | Platform                        | MVP                 | P-04             |
 | 55  | Verticals (theatre, events, retail)                                              | Platform                        | Future              | P-05             |
 | 56  | Marketing landing page                                                           | Platform                        | Future              | P-06             |
-| 57  | Live WebGL sea, weather and time-of-day scene                                    | Customer                        | Built (visual)      | §20.6            |
+| 57  | Live WebGL sea, weather and time-of-day scene                                    | Customer                        | Future (Not MVP)    | §20.6            |
 
 ---
 

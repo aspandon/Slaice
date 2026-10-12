@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Icon } from "../lib/icons";
 import { DAY_MAX, DAY_MIN, fmtHour, WEATHER_DEMO, WEATHER_KINDS } from "../data/beach";
 import { useApp, useT } from "../app/store";
+import { NotMvpBadge } from "./ui";
 
 /* ============================================================================
    Scene demo controls — the bottom-left counterpart to the persona switcher's
@@ -25,6 +26,10 @@ export function SceneDemoPanel() {
 
       {open && (
         <div className="absolute bottom-full mb-2 left-0 w-64 glass-card rounded-2xl shadow-float p-3 animate-pop space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{t("Live sea & weather")}</span>
+            <NotMvpBadge />
+          </div>
           {sceneFx.daytime && (
             <div>
               <div className="flex items-center justify-between mb-1.5">

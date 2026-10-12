@@ -4,7 +4,7 @@ import * as Popover from "@radix-ui/react-popover";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
-import { Badge, Btn, Modal, Field, Input, Select, Toggle, EmptyState } from "../ui";
+import { Badge, Btn, Modal, Field, Input, Select, Toggle, EmptyState, NotMvpBadge } from "../ui";
 import { PrivacyCenter } from "../PrivacyCenter";
 import { ChangePasswordModal, Enable2FAModal } from "../Security";
 import { PERSONAS, NAV } from "../../data/personas";
@@ -281,14 +281,15 @@ function LanguageMenu() {
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content align="end" sideOffset={8} aria-label={t("Language")} className="glass w-56 text-ink rounded-xl p-1.5 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
+        <DropdownMenu.Content align="end" sideOffset={8} aria-label={t("Language")} className="glass w-60 text-ink rounded-xl p-1.5 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
           <DropdownMenu.Label className="px-3 pt-1.5 pb-1.5 text-[10px] uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-1.5"><Icon.globe size={11} /> {t("Language")}</DropdownMenu.Label>
-          <DropdownMenu.RadioGroup value={lang} onValueChange={(v) => setLang(v as LangCode)} className="px-0.5 pb-0.5 grid grid-cols-2 gap-1">
+          <DropdownMenu.RadioGroup value={lang} onValueChange={(v) => setLang(v as LangCode)} className="px-0.5 pb-0.5 grid gap-0.5">
             {LANGUAGES.map((l) => (
               <DropdownMenu.RadioItem key={l.code} value={l.code}
-                className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-[12px] cursor-pointer select-none outline-none ${lang === l.code ? "bg-slate-100 font-semibold text-navy-900" : "text-slate-700 hover:bg-slate-100 data-[highlighted]:bg-slate-100"}`}>
-                <span><span className="font-semibold mr-1.5 uppercase">{l.code}</span><span className="text-slate-500">{l.native}</span></span>
-                {lang === l.code && <Icon.check size={12} className="text-teal-600" />}
+                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12px] cursor-pointer select-none outline-none ${lang === l.code ? "bg-slate-100 font-semibold text-navy-900" : "text-slate-700 hover:bg-slate-100 data-[highlighted]:bg-slate-100"}`}>
+                <span className="flex-1 min-w-0 truncate"><span className="font-semibold mr-1.5 uppercase">{l.code}</span><span className="text-slate-500">{l.native}</span></span>
+                {!l.mvp && <NotMvpBadge className="!text-[10px] !px-1.5" />}
+                <Icon.check size={12} className={`text-teal-600 shrink-0 ${lang === l.code ? "" : "invisible"}`} />
               </DropdownMenu.RadioItem>
             ))}
           </DropdownMenu.RadioGroup>
@@ -371,7 +372,7 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
             <Field label={t("E-mail")}><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
             <Field label={t("Phone")}><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
             <Field label={t("Language")}>
-              <Select value={lang} onChange={(e) => setLang(e.target.value as LangCode)} options={LANGUAGES.map((l) => ({ v: l.code, l: `${l.code.toUpperCase()} — ${l.native}` }))} />
+              <Select value={lang} onChange={(e) => setLang(e.target.value as LangCode)} options={LANGUAGES.map((l) => ({ v: l.code, l: `${l.code.toUpperCase()} — ${l.native}${l.mvp ? "" : ` · ${t("Not MVP")}`}` }))} />
             </Field>
           </div>
         </section>

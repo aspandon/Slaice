@@ -57,12 +57,15 @@ a demo affordance; in production the role comes from sign-in.
 | -------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Customer**                           | `#/customer/…`      | Home · **Plan my visit** (booking wizard) · Checkout · Confirmation · My Bookings · My Documents · VIP Pass and Season Pass purchase — plus account settings, Privacy Centre, change password and 2FA                              |
 | **Manager / Admin** (incl. Call Agent) | `#/admin/…`         | **MVP:** Dashboard · Availability & Pricing · Map Layout Editor · Bookings · Manual/Phone Booking · Users & Segments · Reporting & Analytics · Refunds · Privacy & GDPR. **Future:** Communicate · Loyalty · Passes · Gamification |
-| **Cashier**                            | `#/cashier/…`       | **MVP:** Issue Ticket · Redeem Ticket. **Future:** Cash Register · Sell Locker                                                                                                                                                     |
+| **Cashier**                            | `#/cashier/…`       | **MVP:** Issue Ticket. **Future:** Redeem Ticket · Cash Register · Sell Locker                                                                                                                                                     |
 | **Controller**                         | `#/controller/scan` | Gate Validation — QR scan simulation, walk-ins, pay-on-site tickets, same-day release                                                                                                                                              |
 | **Accountant**                         | `#/accountant/…`    | e-Invoicing & myDATA · Commission & Payouts                                                                                                                                                                                        |
 | **Platform / Slaice**                  | `#/platform/…`      | **MVP:** Tenants · Tenant Onboarding (Stripe Connect KYC) · Compliance & DPA. **Future:** Super Admin (capability flags, webhook health) · Verticals · Landing Page                                                                |
 
 Future screens carry an orange dot in the navigation and a _"Preview · Roadmap 2027–2029"_ banner.
+Roadmap features inside MVP screens carry an orange **Not MVP** badge instead: the customer Home's
+promo, badges, rewards and pass tiles, the German/French/Spanish/Italian languages, and the live sea
+and weather controls.
 The complete route list is in spec §6.
 
 ### The core journey

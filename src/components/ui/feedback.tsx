@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
-import { Btn } from "./primitives";
+import { Badge, Btn } from "./primitives";
+import { useT } from "../../app/store";
 
 /* ---------- Skeleton ---------- */
 export function Skeleton({ className = "" }: { className?: string }) {
@@ -109,14 +110,23 @@ export function ErrorState({ title = "Couldn't load this", body = "Something wen
   );
 }
 
-/* ---------- Future banner (Roadmap preview heads-up) ---------- */
-export function FutureBanner({ children = "Preview · Roadmap 2027–2029 — fully clickable mockup, not part of the MVP." }: { children?: ReactNode }) {
+/* ---------- Roadmap scope markers ----------
+   FutureBanner heads a whole roadmap page; NotMvpBadge marks a single tile or
+   option inside an MVP page. Both share the orange "future" tone and are
+   translated, so customer pages read them in the guest's language. */
+export function FutureBanner({ children }: { children?: ReactNode }) {
+  const t = useT();
   return (
     <div className="mb-4 flex items-center gap-2 rounded-xl bg-slaice-100 ring-1 ring-slaice-600/20 px-3 py-2 text-[12px] text-slaice-700">
       <Icon.info size={14} className="shrink-0 text-slaice-600" />
-      <span className="leading-snug">{children}</span>
+      <span className="leading-snug">{children ?? t("Preview · Roadmap 2027–2029 — fully clickable mockup, not part of the MVP.")}</span>
     </div>
   );
+}
+
+export function NotMvpBadge({ className = "" }: { className?: string }) {
+  const t = useT();
+  return <Badge tone="future" className={`shrink-0 whitespace-nowrap ${className}`}>{t("Not MVP")}</Badge>;
 }
 
 /* ---------- Back to top ---------- */

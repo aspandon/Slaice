@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../lib/icons";
 import type { IconRenderer } from "../lib/icons";
-import { Card, Btn } from "../components/ui";
+import { Card, Btn, FutureBanner } from "../components/ui";
 import { WalletButtons } from "../components/WalletPass";
 import { SlaiceLogo } from "../components/Brand";
 import { TENANT } from "../data/beach";
@@ -21,7 +21,18 @@ const dateOf = (s: string) => s.split(/·|to/).pop()?.trim() ?? s;
    (covers entry). A focused select → Stripe → confirm flow that mirrors the
    booking checkout, ending with "add to wallet" and the pass marked active.
    ============================================================================ */
+// VIP and Season passes are roadmap features: every phase of the purchase
+// flow sits under the shared roadmap banner.
 export function PassPurchase({ kind }: { kind: "vip" | "season" }) {
+  return (
+    <>
+      <div className="max-w-2xl mx-auto"><FutureBanner /></div>
+      <PassPurchaseFlow kind={kind} />
+    </>
+  );
+}
+
+function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
   const { go, toast, passPricing, passes, buyVipCredit, buySeasonPass } = useApp();
   const t = useT();
   const vip = kind === "vip";

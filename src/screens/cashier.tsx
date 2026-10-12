@@ -64,7 +64,8 @@ export function CashierRedeem() {
   return (
     <div className="animate-fade-up grid lg:grid-cols-[1fr_320px] gap-5">
       <div>
-        <PageHead title="Redeem Ticket" sub="Validate a ticket at the entrance (mark as used). For cashier-issued on-site tickets, QR scanning is not required." badge={<Badge tone="mvp">MVP</Badge>} />
+        <PageHead title="Redeem Ticket" sub="Validate a ticket at the entrance (mark as used). For cashier-issued on-site tickets, QR scanning is not required." badge={<Badge tone="future">Future</Badge>} />
+        <FutureBanner />
         <Card className="p-5">
           <Field label="Ticket code or number"><Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="e.g. TK-55119" /></Field>
           <Btn variant="primary" className="mt-3" full icon={Icon.check} disabled={!code} onClick={redeem}>Redeem ticket</Btn>

@@ -21,16 +21,18 @@ export interface Language {
   native: string;
   /** Value for <html lang>. */
   html: string;
+  /** Part of the MVP scope. Non-MVP languages carry a "Not MVP" badge in the pickers. */
+  mvp: boolean;
 }
 
 // Offered languages. `en` is the reference; the rest are auto-translated.
 export const LANGUAGES: Language[] = [
-  { code: "en", label: "English", native: "English",  html: "en" },
-  { code: "el", label: "Greek",   native: "Ελληνικά", html: "el" },
-  { code: "de", label: "German",  native: "Deutsch",  html: "de" },
-  { code: "fr", label: "French",  native: "Français", html: "fr" },
-  { code: "es", label: "Spanish", native: "Español",  html: "es" },
-  { code: "it", label: "Italian", native: "Italiano", html: "it" },
+  { code: "en", label: "English", native: "English",  html: "en", mvp: true },
+  { code: "el", label: "Greek",   native: "Ελληνικά", html: "el", mvp: true },
+  { code: "de", label: "German",  native: "Deutsch",  html: "de", mvp: false },
+  { code: "fr", label: "French",  native: "Français", html: "fr", mvp: false },
+  { code: "es", label: "Spanish", native: "Español",  html: "es", mvp: false },
+  { code: "it", label: "Italian", native: "Italiano", html: "it", mvp: false },
 ];
 
 // Bundle every generated dictionary at build time. Missing files (e.g. a language
