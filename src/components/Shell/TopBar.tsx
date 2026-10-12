@@ -378,7 +378,7 @@ function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }
             <Field label={t("E-mail")}><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
             <Field label={t("Phone")}><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
             <Field label={t("Language")}>
-              <Select value={lang} onChange={(e) => setLang(e.target.value as LangCode)} options={LANGUAGES.map((l) => ({ v: l.code, l: `${l.code.toUpperCase()} — ${l.native}${l.mvp ? "" : ` · ${t("Not MVP")}`}` }))} />
+              <Select value={lang} onChange={(e) => setLang(e.target.value as LangCode)} options={LANGUAGES.map((l) => ({ v: l.code, l: `${l.code.toUpperCase()} — ${l.native}${l.mvp ? "" : ` · ${t("FUTURE")}`}` }))} />
             </Field>
           </div>
         </section>

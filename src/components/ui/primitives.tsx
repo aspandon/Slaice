@@ -8,6 +8,8 @@ export function Badge({ tone = "slate", children, className = "" }: { tone?: str
   const tones: Record<string, string> = {
     mvp: "bg-teal-100 text-teal-600 ring-teal-600/20",
     future: "bg-orange-50 text-orange-600 ring-orange-500/20",
+    // Roadmap features shown inside MVP screens (NotMvpBadge) — purple.
+    roadmap: "bg-purple-50 text-purple-700 ring-purple-600/25",
     slate: "bg-slate-100 text-slate-600 ring-slate-400/20",
     green: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
     blue: "bg-sky-50 text-sky-700 ring-sky-600/20",

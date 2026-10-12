@@ -21,7 +21,7 @@ export interface Language {
   native: string;
   /** Value for <html lang>. */
   html: string;
-  /** Part of the MVP scope. Non-MVP languages carry a "Not MVP" badge in the pickers. */
+  /** Part of the MVP scope. Non-MVP languages carry a "FUTURE" badge in the pickers. */
   mvp: boolean;
 }
 

@@ -335,7 +335,7 @@ visited **per persona** is remembered.
   when a persona has more than 5 destinations.
 - **Persona switcher "DEMO" pill**, bottom-right **[DEMO]**.
 - **Scene demo panel**, bottom-left on Home: time-of-day slider + weather picker **[DEMO]**. The live
-  sea, weather and time-of-day scene is **Not MVP** (badge in the panel and on the admin Atmosphere
+  sea, weather and time-of-day scene is **FUTURE** (badge in the panel and on the admin Atmosphere
   card); the MVP baseline is the static illustrated beach.
 - In the booking wizard the logo and footer step aside (immersive mode) and the shoreline animates up
   so the sand fills the screen.
@@ -405,7 +405,7 @@ Cookie Policy. The decision is stored with a timestamp and can be changed any ti
 - `<html lang>` follows the selected language; dates use `Intl` (`en-GB` for English).
 - Coverage: the **customer surface** is translated; **staff screens are largely English-only**.
 - MVP languages are **English and Greek**. German, French, Spanish and Italian stay selectable but carry
-  a **Not MVP** badge in the language menu and the account-settings language select (`mvp` flag on
+  a **FUTURE** badge in the language menu and the account-settings language select (`mvp` flag on
   `LANGUAGES` in `src/app/i18n.ts`).
 
 ---
@@ -476,7 +476,7 @@ Each journey: **ID · name**, trigger, steps, outcome, rules and states.
 
 The Home page is the customer's dashboard. Elements:
 
-Tiles 2, 4, 5, 6 and 7 are roadmap features and carry a **Not MVP** badge (`NotMvpBadge`); the VIP
+Tiles 2, 4, 5, 6 and 7 are roadmap features and carry a **FUTURE** badge (`NotMvpBadge`); the VIP
 and Season pass pages they open show the roadmap banner.
 
 1. **Hero card** (whole card is a button → opens the wizard):
@@ -1994,7 +1994,7 @@ Events, Retail, Compliant: Stripe + MyDATA).
 | 54  | Compliance: sub-processors, tenant DPAs, 72h breach workflow                     | Platform                        | MVP                 | P-04             |
 | 55  | Verticals (theatre, events, retail)                                              | Platform                        | Future              | P-05             |
 | 56  | Marketing landing page                                                           | Platform                        | Future              | P-06             |
-| 57  | Live WebGL sea, weather and time-of-day scene                                    | Customer                        | Future (Not MVP)    | §20.6            |
+| 57  | Live WebGL sea, weather and time-of-day scene                                    | Customer                        | Future (FUTURE)     | §20.6            |
 
 ---
 

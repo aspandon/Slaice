@@ -64,7 +64,7 @@ a demo affordance; in production the role comes from sign-in.
 | **Platform / Slaice**                  | `#/platform/…`      | **MVP:** Tenants · Tenant Onboarding (Stripe Connect KYC) · Compliance & DPA. **Future:** Super Admin (capability flags, webhook health) · Verticals · Landing Page                                                                |
 
 Future screens carry an orange dot in the navigation and a _"Preview · Roadmap 2027–2029"_ banner.
-Roadmap features inside MVP screens carry an orange **Not MVP** badge instead: the customer Home's
+Roadmap features inside MVP screens carry a purple **FUTURE** badge instead: the customer Home's
 promo, badges, rewards and pass tiles, the German/French/Spanish/Italian languages, and the live sea
 and weather controls.
 The complete route list is in spec §6.

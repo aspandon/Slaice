@@ -126,7 +126,7 @@ export function FutureBanner({ children }: { children?: ReactNode }) {
 
 export function NotMvpBadge({ className = "" }: { className?: string }) {
   const t = useT();
-  return <Badge tone="future" className={`shrink-0 whitespace-nowrap ${className}`}>{t("Not MVP")}</Badge>;
+  return <Badge tone="roadmap" className={`shrink-0 whitespace-nowrap ${className}`}>{t("FUTURE")}</Badge>;
 }
 
 /* ---------- Back to top ---------- */
