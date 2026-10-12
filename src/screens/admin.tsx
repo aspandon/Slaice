@@ -1205,7 +1205,7 @@ export function AdminLoyalty() {
               </div>
             ))}
           </div>
-          <div className="text-[11px] text-slate-500 flex items-center gap-1.5"><Icon.info size={13} /> Thresholds and rewards here are examples — tell me which you like and I’ll wire them up.</div>
+          <div className="text-[11px] text-slate-500 flex items-center gap-1.5"><Icon.info size={13} /> Thresholds and rewards here are examples — change them in the schemes above.</div>
         </Card>
       </div>
 
