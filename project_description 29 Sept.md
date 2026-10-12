@@ -1093,7 +1093,13 @@ a "beach was closed" empty state.
    revenue mix, booking pace vs the same period last year; an insight computed from the period
    (weekend vs weekday fill, busiest zone) → **Set a rule** opens Availability & Pricing.
 2. **Revenue** — by capability, sunbed revenue by zone, latest transactions.
-3. **Occupancy** — by zone, utilisation heatmap (zone × day / week / month).
+3. **Occupancy** (`src/screens/reporting/OccupancyTab.tsx`, `src/data/occupancy.ts`) — filters:
+   capacity (sunbed sets / day lockers / parking), days (all / weekdays / weekends), zone, sunbed type
+   (standard / front row / cabana), channel. KPIs with deltas: avg and peak occupancy, sold-out days,
+   RevPATB, ADR, no-show rate. Occupancy over time vs last year (dashed); by zone; when the beach fills
+   up (by hour); weekday × hour heatmap; zone × time heatmap; beach map coloured per set (hot / cold
+   sets); booked vs checked in vs no-show per zone; 14-day on-the-books forecast vs last year with
+   **Set a pricing rule**; sold-out zones and how early; all metrics by zone. CSV exports all of it.
 4. **Bookings** — avg lead time, online vs other, cancellation, sets/booking; volume over time.
 5. **Channels** — sales by channel & role (Online / Walk-in / Phone / Cashier), revenue over time.
 6. **Customers** — new vs returning, season-pass holders, VIP segment revenue, top customers (scaled

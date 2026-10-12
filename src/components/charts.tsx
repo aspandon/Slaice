@@ -83,12 +83,16 @@ export function HBarChart({ data, color = "#0D9488", unit = "", max, label }: { 
   );
 }
 
-export function LineChartMini({ data, color = "#0D9488", height = 220, label }: { data: SeriesPoint[]; color?: string; height?: number; label?: string }) {
-  const max = Math.max(...data.map((d) => d.v)) * 1.1 || 1;
-  const min = Math.min(...data.map((d) => d.v)) * 0.9;
+// `compare` draws a dashed reference series (e.g. last year) on the same scale.
+export function LineChartMini({ data, color = "#0D9488", height = 220, label, compare, compareColor = "#94a3b8" }: { data: SeriesPoint[]; color?: string; height?: number; label?: string; compare?: SeriesPoint[]; compareColor?: string }) {
+  const all = [...data, ...(compare ?? [])];
+  const max = Math.max(...all.map((d) => d.v)) * 1.1 || 1;
+  const min = Math.min(...all.map((d) => d.v)) * 0.9;
+  const xOf = (i: number) => (data.length > 1 ? (i / (data.length - 1)) * 100 : 50);
   const span = max - min || 1;
   const ticks = [1, 0.66, 0.33, 0];
-  const pts = data.map((d, i) => `${(i / (data.length - 1)) * 100},${60 - ((d.v - min) / span) * 60}`).join(" ");
+  const pts = data.map((d, i) => `${xOf(i)},${60 - ((d.v - min) / span) * 60}`).join(" ");
+  const cmpPts = compare?.map((d, i) => `${xOf(i)},${60 - ((d.v - min) / span) * 60}`).join(" ");
   const area = `0,60 ${pts} 100,60`;
   const gid = `g${color.replace("#", "")}`;
   return (
@@ -108,9 +112,10 @@ export function LineChartMini({ data, color = "#0D9488", height = 220, label }: 
             <line key={i} x1="0" x2="100" y1={60 * (1 - t)} y2={60 * (1 - t)} stroke="#e2e8f0" strokeWidth="0.25" strokeDasharray="0.8 0.8" />
           ))}
           <polygon points={area} fill={`url(#${gid})`} />
+          {cmpPts && <polyline points={cmpPts} fill="none" stroke={compareColor} strokeWidth="0.8" strokeDasharray="2 1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />}
           <polyline points={pts} fill="none" stroke={color} strokeWidth="0.8" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
           {data.map((d, i) => {
-            const x = (i / (data.length - 1)) * 100;
+            const x = xOf(i);
             const y = 60 - ((d.v - min) / span) * 60;
             return <circle key={i} cx={x} cy={y} r="0.8" fill={color} />;
           })}

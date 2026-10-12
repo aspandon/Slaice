@@ -29,6 +29,7 @@ import { downloadCSV, downloadCSVReport, type CsvSection } from "../lib/download
 import { listCustomers } from "../api";
 import { useAsync } from "../lib/useAsync";
 import { usePeriod } from "../lib/usePeriod";
+import { OccupancyTab, occupancyCsv, useOccupancy } from "./reporting/OccupancyTab";
 import { readHashQuery, writeHashQuery } from "../app/router";
 import { activeCount, filtersFromParams, filtersToParams, isAmount, matchAmount, type FilterDef, type FilterState } from "../domain/filters";
 import { resolveRange, comparisonRange, lastYearRange, granularityFor, rangeLabel, periodNoun, comparisonLabel, isoFromDayMonth, inRange, fmtWeekday as fmtWeekdayP } from "../domain/period";
@@ -1513,9 +1514,9 @@ export function AdminReporting() {
   ];
   const capMax = Math.max(...capRows.map((c) => c.v));
   const zoneRev = ZONES.map((z) => ({ l: z.name, v: Math.round(now.revenueByZone[z.id] ?? 0) }));
-  // Heatmap: zone × time bucket (days for short ranges, weeks/months for long ones).
-  const heatBuckets = buckets(range, g === "hour" ? "day" : g);
-  const heat = ZONES.map((z) => ({ zone: z, cells: heatBuckets.map((b) => ({ b, v: summarize(b.range).occupancyByZone[z.id] ?? 0 })) }));
+  // Occupancy tab (AENR-478): its own filters and analysis, same period.
+  const heatBuckets = buckets(range, g === "hour" ? "day" : g).map((b) => ({ ...b, label: g === "month" ? b.label : `${Number(b.range.from.slice(8))}/${Number(b.range.from.slice(5, 7))}` }));
+  const occ = useOccupancy(range, comparisonRange(period, range), g === "hour" ? "day" : g);
   const chans = CHANNELS_A.map((c, i) => ({ c, b: now.byChannel[c].bookings, r: now.byChannel[c].revenue, share: Math.round(ratio(now.byChannel[c].revenue, now.revenue) * 100), color: ["#0ea5e9", "#f59e0b", "#6366f1", "#0D9488"][i], cls: ["bg-sky-500", "bg-amber-500", "bg-indigo-500", "bg-teal-600"][i] }));
   const chanRole: Record<string, string> = { Online: "customer", "Walk-in": "controller", Phone: "call centre", Cashier: "on-site" };
   // Customers: the seed top-customer list scaled to the period's share of a full season.
@@ -1558,10 +1559,7 @@ export function AdminReporting() {
           { title: "Latest transactions", header: ["Tx", "Capability", "Channel", "Status", "Amount"], rows: REVENUE_TX.map((r) => [r[0], r[1], r[2].label, r[3].label, r[4]]) },
         ];
       case "occupancy":
-        return [
-          { title: `Occupancy by zone (%) ${head}`, header: ["Zone", "Occupancy %"], rows: zoneOcc.map((z) => [z.l, z.v]) },
-          { title: `Utilisation heatmap (% · zone × ${axis.toLowerCase()})`, header: ["Zone", ...heatBuckets.map((b) => b.label)], rows: heat.map((h) => [h.zone.name, ...h.cells.map((c) => Math.round(c.v * 100))]) },
-        ];
+        return occupancyCsv(occ.report, occ.f, label);
       case "bookings":
         return [
           { title: `Bookings · key metrics ${head}`, header: ["Metric", "Value"], rows: [
@@ -1599,14 +1597,6 @@ export function AdminReporting() {
   };
   const tabLabel = (t: string) => tabs.find((x) => x[0] === t)?.[1] ?? t;
   const exportReport = (t: string) => { downloadCSVReport(`reporting-${t}-${range.from}_${range.to}.csv`, buildReport(t)); toast(`Exported the ${tabLabel(t)} report (${label}, CSV).`, { tone: "success" }); };
-  const heatSteps = [
-    { max: 0.20, color: "#dbeafe", label: "0–20%", tone: "Empty" },
-    { max: 0.40, color: "#99f6e4", label: "20–40%", tone: "Low" },
-    { max: 0.60, color: "#5eead4", label: "40–60%", tone: "Moderate" },
-    { max: 0.80, color: "#fbbf24", label: "60–80%", tone: "Busy" },
-    { max: 1.01, color: "#ef4444", label: "80–100%", tone: "Peak" },
-  ];
-  const heatColor = (v: number) => (heatSteps.find((b) => v <= b.max) || heatSteps[heatSteps.length - 1]).color;
 
   return (
     <div className="animate-fade-up">
@@ -1666,33 +1656,7 @@ export function AdminReporting() {
             rows={REVENUE_TX.map((r) => [r[0], r[1], <Badge tone={r[2].tone}>{r[2].label}</Badge>, <Badge tone={r[3].tone}>{r[3].label}</Badge>, r[4].startsWith("−") ? <span className="text-rose-600 font-medium tnum">{r[4]}</span> : r[4]])} /></Card>
       </>}
 
-      {!closed && tab === "occupancy" && <>
-        <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Occupancy by zone (%) · {noun}</div>
-          <HBarChart color="#0ea5e9" unit="%" max={100} data={zoneOcc.map((z) => (z.id === topZone.id ? { l: z.l, v: z.v, hi: 1 } : { l: z.l, v: z.v }))} label={`Occupancy by zone, ${label}`} /></Card>
-        <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-3">Utilisation heatmap (zone × {axis.toLowerCase()})</div>
-          {/* Sequential 5-step palette common in hospitality / yield reports:
-              cool light = capacity to sell, warm = approaching peak. */}
-          <div className="overflow-x-auto no-scrollbar">
-            <div className="space-y-1.5 w-max">
-              {heat.map((h) => (<div key={h.zone.id} className="flex items-center gap-2">
-                <div className="w-16 text-[12px] text-slate-500 shrink-0">{h.zone.name}</div>
-                <div className="flex gap-1">{h.cells.map((c) => <div key={c.b.key} className="w-7 h-6 rounded ring-1 ring-white/60" style={{ background: heatColor(c.v) }} title={`${h.zone.name} · ${c.b.label}: ${Math.round(c.v * 100)}%`} />)}</div>
-              </div>))}
-              <div className="flex gap-1 ml-[72px] pt-1 text-[10px] text-slate-600">{heatBuckets.map((b) => <div key={b.key} className="w-7 text-center">{g === "month" ? b.label : `${Number(b.range.from.slice(8))}/${Number(b.range.from.slice(5, 7))}`}</div>)}</div>
-            </div>
-          </div>
-          <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-3 flex-wrap text-[11.5px] text-slate-600">
-            <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10.5px]">Occupancy</span>
-            {heatSteps.map((b) => (
-              <span key={b.label} className="inline-flex items-center gap-1.5">
-                <i className="w-4 h-4 rounded ring-1 ring-white/60 inline-block" style={{ background: b.color }} />
-                <span className="tnum">{b.label}</span>
-                <span className="text-slate-400">· {b.tone}</span>
-              </span>
-            ))}
-          </div>
-        </Card>
-      </>}
+      {!closed && tab === "occupancy" && <OccupancyTab occ={occ} range={range} label={label} noun={noun} vs={vs} hasPrev={hasPrev} buckets={heatBuckets} />}
 
       {!closed && tab === "bookings" && <>
         <div className="grid sm:grid-cols-4 gap-4">
