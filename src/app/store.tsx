@@ -7,10 +7,10 @@ import { DEFAULT_LOYALTY } from "../data/loyalty";
 import type { LoyaltyState } from "../data/loyalty";
 import { DEFAULT_ACHIEVEMENTS } from "../data/gamification";
 import type { Achievement } from "../data/gamification";
-import { DEFAULT_ZONE_MAP, DEFAULT_PRICE_RULES, DEFAULT_BEACH_PRICING } from "../data/pricing";
+import { DEFAULT_ZONE_MAP, DEFAULT_PRICE_RULES, DEFAULT_BEACH_PRICING, DEFAULT_CALENDAR } from "../data/pricing";
 import { DEFAULT_CHANNELS } from "../data/channels";
 import { DEFAULT_PASS_CARDS } from "../data/passDesigns";
-import type { BeachPricing, BeachBackground, BookingNote, CrmState, StaffAuditEntry, StaffUser, CartItem, CartKind, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "../domain/types";
+import type { BeachPricing, CalendarState, BeachBackground, BookingNote, CrmState, StaffAuditEntry, StaffUser, CartItem, CartKind, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "../domain/types";
 import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "../data/beach";
 import type { SceneFx, WeatherKind } from "../data/beach";
 import { DEFAULT_TILL } from "../data/till";
@@ -143,6 +143,9 @@ export interface AppContextValue {
   /** Stores closed for today with the reason (admin › Zones & availability) — persisted. */
   closedStores: Record<string, string>;
   setClosedStores: (c: Record<string, string>) => void;
+  /** Booking restrictions and seasonal templates (AENR-511) — persisted. */
+  calendar: CalendarState;
+  setCalendar: (c: CalendarState) => void;
 }
 
 export const DEFAULT_CRM: CrmState = { segments: [], tagDefs: [{ name: "Wedding party", color: "#a855f7" }, { name: "Local", color: "#0D9488" }], edits: {}, regularAfter: 15, lifecycle: { atRiskDays: 14, lapsedDays: 35 }, columns: ["lifecycle", "spend"], imported: [], mergedAway: [], eraseRequests: [], profiles: {}, customFields: [{ id: "cf-birthday", label: "Birthday", type: "date" }, { id: "cf-company", label: "Company", type: "text" }] };
@@ -223,6 +226,8 @@ export const AppCtx = createContext<AppContextValue>({
   setBeachPricing: () => {},
   closedStores: {},
   setClosedStores: () => {},
+  calendar: DEFAULT_CALENDAR,
+  setCalendar: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);

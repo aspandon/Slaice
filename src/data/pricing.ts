@@ -3,7 +3,7 @@
 // fresh visitor still sees a sensible beach + a couple of live pricing rules to
 // demonstrate the feature. (Pricing *logic* lives in domain/pricing.ts.)
 import { ZONES } from "./beach";
-import type { BeachPricing, Landmark, LandmarkKind, PriceCategory, PriceRule, ZoneMapItem } from "../domain/types";
+import type { BeachPricing, CalendarState, Landmark, LandmarkKind, PriceCategory, PriceRule, ZoneMapItem } from "../domain/types";
 
 // Seed zone positions across the lower (sand) band of the editor canvas: a 3×2
 // grid, all sitting on the sand so they read as beach plots, not floating sea.
@@ -54,4 +54,17 @@ export const LANDMARK_LABEL: Record<LandmarkKind, { icon: string; label: string 
   entrance: { icon: "🚪", label: "Entrance" },
   ramp: { icon: "♿", label: "Ramp" },
   path: { icon: "🚶", label: "Path" },
+};
+
+/* ---------- Pricing calendar defaults (AENR-511) ---------- */
+export const DEFAULT_CALENDAR: CalendarState = {
+  restrictions: [
+    { id: "rs-window", label: "Bookable up to 90 days ahead", zone: "all", from: "2026-01-01", to: "2027-12-31", days: "all", kind: "window", value: 90, enabled: true },
+  ],
+  templates: [
+    { id: "tpl-low", name: "Low", pct: -20 },
+    { id: "tpl-mid", name: "Mid", pct: 0 },
+    { id: "tpl-high", name: "High", pct: 15 },
+    { id: "tpl-peak", name: "Peak", pct: 30 },
+  ],
 };

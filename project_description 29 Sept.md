@@ -920,6 +920,28 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
 - **Seasonal & day rules**: the existing rule list and price preview (rules apply on top of category
   prices).
 
+#### Calendar & rules (AENR-511)
+
+- **Month calendar per store** (`src/screens/beach/Calendar.tsx`): each day shows the effective price per
+  price category, expected occupancy % and badges for date restrictions; weekends in indigo; closed days
+  greyed. Click a day to see how each category's price is built (category → rules, in order) plus the
+  booking-time rules (early-bird, last-minute, multi-day) that may apply.
+- **Select days** by drag, Shift-click, ⌘-click or the keyboard (arrows move, Space selects,
+  Shift+arrows extends, Esc clears; each day has an accessible label with prices and restrictions), then:
+  **Price change** (± %, ± € or set €, optionally limited to categories); **Restriction** (minimum stay,
+  maximum stay, booking window, same-day cut-off time, closed with a reason); a **seasonal template**
+  (Low / Mid / High / Peak, % editable per tenant); **Copy this week forward** to the same weekdays until a
+  date (copies only what was set within that week). **Undo** reverts the last change.
+- **Rule types**: standard (season / weekdays / specific dates, optional category scope), early-bird
+  (booked ≥ N days ahead), last-minute (same day from HH:MM), multi-day (stay ≥ N consecutive days).
+  The precedence list shows rules in the order they apply; a sunbed date override wins over all.
+- **Effect for guests and staff**: the booking wizard disables dates that are closed, outside the
+  booking window or past the same-day cut-off (with the reason), refuses stays that break a minimum /
+  maximum stay (message + Continue disabled), and prices each day with the booking context — early-bird /
+  last-minute show as a "booking discount / same-day supplement" line under the total. Closed days also
+  close the store at the Cashier till. Pure functions: `resolvePrice` (with `PriceContext`),
+  `checkRestrictions`, `dateBlock` in `src/domain/pricing.ts`.
+
 ### A-04 · Bookings [MVP]
 
 ```text

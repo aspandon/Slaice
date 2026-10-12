@@ -400,4 +400,47 @@ export interface PriceRule {
   /** € for `set`/`addAbs`, percent for `addPct` (may be negative). */
   amount: number;
   enabled: boolean;
+  /* — calendar extensions (AENR-511), all optional — */
+  /** standard (default) · early-bird (booked ≥ `lead` days ahead) · last-minute
+   *  (same day from `after`) · multi-day (stay of ≥ `minDays` consecutive days). */
+  kind?: "standard" | "earlybird" | "lastminute" | "multiday";
+  /** Specific dates (holidays, a selection on the calendar) — replaces from/to/days. */
+  dates?: string[];
+  /** Specific weekdays 0 (Sun) – 6 (Sat) — replaces `days`. */
+  dow?: number[];
+  /** Price categories it applies to; empty / absent = all. */
+  cats?: string[];
+  lead?: number;
+  after?: string;
+  minDays?: number;
+}
+
+/* ---------- Booking restrictions (AENR-511) ---------- */
+export type RestrictionKind = "minDays" | "maxDays" | "window" | "cutoff" | "closed";
+export interface Restriction {
+  id: string;
+  label: string;
+  /** Zone id or "all". */
+  zone: string;
+  from: string;
+  to: string;
+  days: PriceRuleDays;
+  dow?: number[];
+  dates?: string[];
+  kind: RestrictionKind;
+  /** minDays / maxDays: days · window: bookable up to N days ahead. */
+  value?: number;
+  /** cutoff: same-day online booking closes at HH:MM. */
+  time?: string;
+  enabled: boolean;
+}
+export interface SeasonTemplate {
+  id: string;
+  name: string;
+  /** % change applied on top of category prices. */
+  pct: number;
+}
+export interface CalendarState {
+  restrictions: Restriction[];
+  templates: SeasonTemplate[];
 }

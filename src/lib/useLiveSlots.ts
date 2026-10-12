@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useApp } from "../app/store";
-import { zoneLayout } from "../data/beach";
-import { resolvePrice } from "../domain/pricing";
+import { todayISO, zoneLayout } from "../data/beach";
+import { resolvePrice, restrictionApplies } from "../domain/pricing";
 import { applySetStatus, tillSetStatus, type SetStatus } from "../domain/till";
 import type { SunbedSlot, Zone } from "../domain/types";
 
@@ -19,7 +19,8 @@ export function useNow(ms = 1000): number {
  *  closed stores) applied — the one view every persona renders. For several
  *  days, a set taken on any of them counts as taken. */
 export function useLiveSlots(): (zone: Zone, days: readonly string[]) => SunbedSlot[] {
-  const { beachLayout, till, closedStores, beachPricing, priceRules } = useApp();
+  const { beachLayout, till, beachPricing, priceRules } = useApp();
+  const closure = useClosure();
   const now = useNow(15000);
   return useCallback(
     (zone: Zone, days: readonly string[]) => {
@@ -32,8 +33,22 @@ export function useLiveSlots(): (zone: Zone, days: readonly string[]) => SunbedS
       const priced = (beachLayout[zone.id] ?? zoneLayout(zone)).map((s) =>
         days[0] ? { ...s, price: resolvePrice(s, zone.id, days[0], beachPricing, priceRules).price } : s,
       );
-      return applySetStatus(priced, status, !!closedStores[zone.id]);
+      return applySetStatus(priced, status, days.some((d) => !!closure(zone.id, d)));
     },
-    [beachLayout, till, now, closedStores, beachPricing, priceRules],
+    [beachLayout, till, now, closure, beachPricing, priceRules],
+  );
+}
+
+/** Why a store is closed on a date: the admin's "closed today" switch (today
+ *  only) or a "closed" restriction on the pricing calendar (AENR-511). */
+export function useClosure(): (zoneId: string, day: string) => string | undefined {
+  const { closedStores, calendar } = useApp();
+  return useCallback(
+    (zoneId: string, day: string) => {
+      if (day === todayISO() && closedStores[zoneId]) return closedStores[zoneId];
+      const r = calendar.restrictions.find((x) => x.kind === "closed" && restrictionApplies(x, zoneId, day));
+      return r ? r.label || "Closed" : undefined;
+    },
+    [closedStores, calendar],
   );
 }

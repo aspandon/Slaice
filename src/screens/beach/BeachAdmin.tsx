@@ -9,6 +9,7 @@ import type { ZoneMapItem, PriceRule, PriceRuleDays, PriceRuleMode } from "../..
 import { effectivePrice, ruleEffectLabel, dayMatches } from "../../domain/pricing";
 import { useApp } from "../../app/store";
 import { SunbedWorkspace } from "./Workspace";
+import { PricingCalendar } from "./Calendar";
 
 /* ============ AVAILABILITY & PRICING ============ */
 /* ---- Seasonal / day-of-week pricing helpers ---- */
@@ -62,6 +63,10 @@ function RuleEditorModal({ open, rule, onClose, onSave }: {
   const [days, setDays] = useState<PriceRuleDays>("weekend");
   const [mode, setMode] = useState<PriceRuleMode>("addAbs");
   const [amount, setAmount] = useState(10);
+  const [kind, setKind] = useState<NonNullable<PriceRule["kind"]>>("standard");
+  const [lead, setLead] = useState(14);
+  const [afterTime, setAfterTime] = useState("15:00");
+  const [minDays, setMinDays] = useState(3);
   // (Re)seed the form whenever the modal opens — for a new rule or an edit.
   useEffect(() => {
     if (!open) return;
@@ -72,6 +77,10 @@ function RuleEditorModal({ open, rule, onClose, onSave }: {
     setDays(rule?.days ?? "weekend");
     setMode(rule?.mode ?? "addAbs");
     setAmount(rule?.amount ?? 10);
+    setKind(rule?.kind ?? "standard");
+    setLead(rule?.lead ?? 14);
+    setAfterTime(rule?.after ?? "15:00");
+    setMinDays(rule?.minDays ?? 3);
   }, [open, rule]);
 
   const unit = MODE_OPTS.find((m) => m.v === mode)?.unit ?? "€";
@@ -89,7 +98,8 @@ function RuleEditorModal({ open, rule, onClose, onSave }: {
 
   const submit = () => {
     if (!valid) return;
-    onSave({ id: rule?.id ?? `r-${Date.now().toString(36)}`, label: label.trim() || autoLabel, zone, from, to, days, mode, amount, enabled: rule?.enabled ?? true });
+    const cond = kind === "earlybird" ? { lead } : kind === "lastminute" ? { after: afterTime } : kind === "multiday" ? { minDays } : {};
+    onSave({ ...(rule ?? {}), id: rule?.id ?? `r-${Date.now().toString(36)}`, label: label.trim() || autoLabel, zone, from, to, days, mode, amount, enabled: rule?.enabled ?? true, kind, lead: undefined, after: undefined, minDays: undefined, ...cond });
     onClose();
   };
 
@@ -98,6 +108,15 @@ function RuleEditorModal({ open, rule, onClose, onSave }: {
       footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn><Btn variant="primary" icon={Icon.check} disabled={!valid} onClick={submit}>{rule ? "Save rule" : "Add rule"}</Btn></>}>
       <div className="space-y-3">
         <Field label="Rule name"><Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={autoLabel || "e.g. August weekends"} /></Field>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <Field label="Rule type" hint={kind === "standard" ? "Applies on the dates below." : "Applies on the dates below only when the booking condition is met."}>
+            <Select value={kind} onChange={(e) => setKind(e.target.value as NonNullable<PriceRule["kind"]>)} options={[{ v: "standard", l: "Standard (season / weekday)" }, { v: "earlybird", l: "Early-bird (booked ahead)" }, { v: "lastminute", l: "Last-minute (same day)" }, { v: "multiday", l: "Multi-day stay discount" }]} />
+          </Field>
+          {kind === "earlybird" && <Field label="Booked at least (days ahead)"><Input type="number" min={1} value={lead} onChange={(e) => setLead(Math.max(1, Number(e.target.value) || 1))} /></Field>}
+          {kind === "lastminute" && <Field label="Same day, from"><Input type="time" value={afterTime} onChange={(e) => setAfterTime(e.target.value)} /></Field>}
+          {kind === "multiday" && <Field label="Stay of at least (consecutive days)"><Input type="number" min={2} value={minDays} onChange={(e) => setMinDays(Math.max(2, Number(e.target.value) || 2))} /></Field>}
+        </div>
+        {rule?.dates?.length ? <div className="text-[12px] text-slate-500">Applies to {rule.dates.length} specific day{rule.dates.length === 1 ? "" : "s"} chosen on the calendar.</div> : null}
         <div className="grid sm:grid-cols-2 gap-3">
           <Field label="Apply to">
             <Select value={zoneName} options={["All zones", ...ZONES.map((z) => z.name)]}
@@ -442,7 +461,7 @@ export function AdminAvailability() {
   };
   return (
     <div className="animate-fade-up">
-      <div className="mb-4"><Tabs tabs={[["sunbeds", "Sunbeds & pricing"], ["zones", "Zones & availability"], ["rules", "Seasonal & day rules"]]} value={tab} onChange={setTab} /></div>
+      <div className="mb-4"><Tabs tabs={[["sunbeds", "Sunbeds & pricing"], ["calendar", "Calendar & rules"], ["zones", "Zones & availability"]]} value={tab} onChange={setTab} /></div>
       {tab === "sunbeds" && <SunbedWorkspace />}
       {tab === "zones" && (
         <div className="space-y-4">
@@ -461,11 +480,12 @@ export function AdminAvailability() {
           <AtmosphereCard />
         </div>
       )}
-      {tab === "rules" && (
-        <PricingRulesPanel rules={priceRules} previewDate={previewDate} setPreviewDate={setPreviewDate}
+      {tab === "calendar" && <PricingCalendar onEditRule={(r) => { setEditing(r); setEditorOpen(true); }} />}
+      {tab === "calendar" && (
+        <div className="mt-4"><PricingRulesPanel rules={priceRules} previewDate={previewDate} setPreviewDate={setPreviewDate}
           onAdd={() => { setEditing(null); setEditorOpen(true); }} onEdit={(r) => { setEditing(r); setEditorOpen(true); }}
           onRemove={(id) => { setPriceRules(priceRules.filter((r) => r.id !== id)); toast("Pricing rule removed."); }}
-          onToggle={(id, v) => setPriceRules(priceRules.map((r) => (r.id === id ? { ...r, enabled: v } : r)))} />
+          onToggle={(id, v) => setPriceRules(priceRules.map((r) => (r.id === id ? { ...r, enabled: v } : r)))} /></div>
       )}
       <RuleEditorModal open={editorOpen} rule={editing} onClose={() => setEditorOpen(false)} onSave={saveRule} />
     </div>

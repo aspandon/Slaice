@@ -10,7 +10,7 @@ import { BUNDLES, DISCOUNT_PRESETS, PROMO_CODES, QUICK_KEYS, TICKET_LABEL, TICKE
 import { TICKET_PRICES, resolvePrice } from "../../domain/pricing";
 import { basketTotals, discountAmount, eur, lineGross, validatePromo, type Tender, type TenderKind, type TillDiscount, type TillLine, type TillSale } from "../../domain/till";
 import type { SunbedSlot, TicketCategory } from "../../domain/types";
-import { useLiveSlots, useNow } from "../../lib/useLiveSlots";
+import { useClosure, useLiveSlots, useNow } from "../../lib/useLiveSlots";
 import { useTill } from "./useTill";
 import { ManagerPinModal, ReceiptModal, SaleDone } from "./TillParts";
 import { TenderModal } from "./Tender";
@@ -29,7 +29,8 @@ const uid = (p: string) => `${p}${++uidN}`;
 const mmss = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
 
 export function CashierIssue() {
-  const { toast, go, priceRules, closedStores: CLOSED_STORES, beachPricing } = useApp();
+  const { toast, go, priceRules, beachPricing } = useApp();
+  const closure = useClosure();
   const t = useTill();
   const now = useNow(1000);
   const liveSlots = useLiveSlots();
@@ -120,7 +121,7 @@ export function CashierIssue() {
   const addBundle = (b: Bundle) => {
     fresh();
     setErr("");
-    if (CLOSED_STORES[zone.id]) return setErr(`${zone.name} is closed — choose another store first.`);
+    if (closure(zone.id, t.day)) return setErr(`${zone.name} is closed — choose another store first.`);
     const picked = bestFree(b.sets);
     if (picked.length < b.sets) return setErr(`${b.label} needs ${b.sets} free sets in ${zone.name}.`);
     const tag = `${b.label} #${lines.filter((l) => l.bundle).length + 1}`;
@@ -239,7 +240,7 @@ export function CashierIssue() {
               </div>
               <div role="radiogroup" aria-label="Store" className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {ZONES.map((z) => {
-                  const closed = CLOSED_STORES[z.id];
+                  const closed = closure(z.id, t.day);
                   const free = freeIn(z.id);
                   const from = free.length ? Math.min(...free.map((s) => priceOf(s, z.id))) : null;
                   const off = !!closed || free.length === 0;
@@ -262,13 +263,13 @@ export function CashierIssue() {
             <Card className="p-4">
               <div className="flex flex-wrap items-center gap-2 justify-between mb-2">
                 <h2 className="font-display font-bold text-navy-900">3 · Sunbeds · {zone.name}</h2>
-                <Btn size="sm" variant="outline" icon={Icon.sparkles} disabled={!!CLOSED_STORES[zone.id]} onClick={() => anyFree(1)}>Any free set</Btn>
+                <Btn size="sm" variant="outline" icon={Icon.sparkles} disabled={!!closure(zone.id, t.day)} onClick={() => anyFree(1)}>Any free set</Btn>
               </div>
               {t.till.offline && (
                 <div className="mb-2 rounded-lg bg-amber-50 text-amber-800 ring-1 ring-amber-600/20 px-3 py-1.5 text-[12px] flex items-center gap-1.5"><Icon.alert size={13} /> Offline — this is the cached map; availability may be out of date. Conflicts are flagged when the till reconnects.</div>
               )}
-              {CLOSED_STORES[zone.id] ? (
-                <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 p-6 text-center text-sm text-slate-600">{zone.name}: {CLOSED_STORES[zone.id]}. Choose another store.</div>
+              {closure(zone.id, t.day) ? (
+                <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 p-6 text-center text-sm text-slate-600">{zone.name}: {closure(zone.id, t.day)}. Choose another store.</div>
               ) : (
                 <>
                   <SunbedMap label={`${zone.name} sunbed map`} slots={slots} selected={inBasket} onToggle={toggleSet} priceOf={(s) => priceOf(s)}

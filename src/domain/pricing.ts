@@ -6,7 +6,7 @@
  * the future backend one obvious contract surface to take over.
  */
 
-import type { BeachPricing, CartItem, PriceOverride, PriceRule, PriceRuleDays, SunbedSlot, TicketCategory } from "./types";
+import type { BeachPricing, CartItem, PriceOverride, PriceRule, PriceRuleDays, Restriction, RestrictionKind, SunbedSlot, TicketCategory } from "./types";
 
 /** Mock economics, mirrors the Checkout summary. */
 export const SLAICE_FEE_RATE = 0.05; // Slaice application fee
@@ -86,13 +86,50 @@ function isoToDate(iso: string): Date {
   return new Date(`${iso}T12:00:00`);
 }
 
-/** Does this rule apply to `zoneId` on `dateISO` (YYYY-MM-DD)? */
+/** Does a date window (range + weekdays, or an explicit date list) cover `dateISO`? */
+export function windowMatches(w: { from: string; to: string; days: PriceRuleDays; dow?: number[]; dates?: string[] }, dateISO: string): boolean {
+  if (w.dates?.length) return w.dates.includes(dateISO);
+  if (dateISO < w.from || dateISO > w.to) return false; // ISO dates sort lexically
+  return w.dow?.length ? w.dow.includes(isoToDate(dateISO).getDay()) : dayMatches(w.days, isoToDate(dateISO));
+}
+
+/** Does this rule apply to `zoneId` on `dateISO` (YYYY-MM-DD)? Conditional
+ *  kinds (early-bird, last-minute, multi-day) also need a booking context. */
 export function ruleMatches(rule: PriceRule, zoneId: string, dateISO: string): boolean {
   if (!rule.enabled) return false;
   if (rule.zone !== "all" && rule.zone !== zoneId) return false;
-  if (dateISO < rule.from || dateISO > rule.to) return false; // ISO dates sort lexically
-  return dayMatches(rule.days, isoToDate(dateISO));
+  return windowMatches(rule, dateISO);
 }
+
+/** Who is booking, when, and for how long — drives the conditional rules. */
+export interface PriceContext {
+  /** Day the booking is made (ISO). */
+  bookedOn?: string;
+  /** Clock time of the booking, "HH:MM". */
+  time?: string;
+  /** Consecutive days in the stay. */
+  stayDays?: number;
+}
+const daysBetween = (a: string, b: string) => Math.round((isoToDate(b).getTime() - isoToDate(a).getTime()) / 86400000);
+/** A conditional rule applies only when its booking condition is met. */
+export function conditionMet(rule: PriceRule, dateISO: string, ctx?: PriceContext): boolean {
+  switch (rule.kind ?? "standard") {
+    case "standard":
+      return true;
+    case "earlybird":
+      return !!ctx?.bookedOn && daysBetween(ctx.bookedOn, dateISO) >= (rule.lead ?? 14);
+    case "lastminute":
+      return !!ctx?.bookedOn && ctx.bookedOn === dateISO && !!ctx.time && ctx.time >= (rule.after ?? "12:00");
+    case "multiday":
+      return (ctx?.stayDays ?? 1) >= (rule.minDays ?? 3);
+  }
+}
+export const RULE_KIND_LABEL: Record<NonNullable<PriceRule["kind"]>, string> = {
+  standard: "Price rule",
+  earlybird: "Early-bird",
+  lastminute: "Last-minute",
+  multiday: "Multi-day",
+};
 
 /** Apply one rule to a running price. */
 function applyRule(base: number, rule: PriceRule): number {
@@ -105,7 +142,7 @@ function applyRule(base: number, rule: PriceRule): number {
  *  applied in order (later rules compound on earlier ones). Never negative. */
 export function effectivePrice(base: number, zoneId: string, dateISO: string, rules: readonly PriceRule[]): number {
   let price = base;
-  for (const r of rules) if (ruleMatches(r, zoneId, dateISO)) price = applyRule(price, r);
+  for (const r of rules) if (ruleMatches(r, zoneId, dateISO) && (r.kind ?? "standard") === "standard" && !r.cats?.length) price = applyRule(price, r);
   return Math.max(0, round2(price));
 }
 
@@ -145,6 +182,7 @@ export function resolvePrice(
   dateISO: string,
   pricing: Pick<BeachPricing, "categories" | "overrides">,
   rules: readonly PriceRule[],
+  ctx?: PriceContext,
 ): PriceTrace {
   const ov = overrideFor(slot.id, zoneId, dateISO, pricing.overrides);
   if (ov) return { price: ov.price, steps: [`€${ov.price} · date override “${ov.label}” (${ov.from} → ${ov.to})`], source: "override" };
@@ -154,9 +192,73 @@ export function resolvePrice(
   let price = base;
   for (const r of rules) {
     if (!ruleMatches(r, zoneId, dateISO)) continue;
+    if (r.cats?.length && !(slot.cat && r.cats.includes(slot.cat))) continue;
+    if (!conditionMet(r, dateISO, ctx)) continue;
     price = applyRule(price, r);
-    steps.push(`${ruleEffectLabel(r)} · rule “${r.label}” → €${round2(price)}`);
+    const kind = r.kind && r.kind !== "standard" ? `${RULE_KIND_LABEL[r.kind]} ` : "";
+    steps.push(`${ruleEffectLabel(r)} · ${kind}rule “${r.label}” → €${round2(price)}`);
   }
   price = Math.max(0, round2(price));
   return { price, steps, source: steps.length > 1 ? "rule" : cat ? "category" : "base" };
+}
+
+/* ---------- Booking restrictions (AENR-511) ----------
+   Per-date blocks (closed, booking window, same-day cut-off) and stay-length
+   rules (minimum / maximum consecutive days), for a zone and a set of dates. */
+export interface RestrictionCheck {
+  ok: boolean;
+  /** Dates that can't be booked at all, with the reason. */
+  blocked: Record<string, string>;
+  /** Stay-length problems for the chosen dates. */
+  reasons: string[];
+}
+const fmtShort = (iso: string) => isoToDate(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+export function restrictionApplies(r: Restriction, zoneId: string, dateISO: string): boolean {
+  return r.enabled && (r.zone === "all" || r.zone === zoneId) && windowMatches(r, dateISO);
+}
+/** Why a single date can't be booked online (or null). */
+export function dateBlock(zoneId: string, dateISO: string, restrictions: readonly Restriction[], today: string, nowTime: string): string | null {
+  for (const r of restrictions) {
+    if (!restrictionApplies(r, zoneId, dateISO)) continue;
+    if (r.kind === "closed") return r.label || "Beach closed";
+    if (r.kind === "window" && daysBetween(today, dateISO) > (r.value ?? 30)) return `Bookable up to ${r.value} days ahead`;
+    if (r.kind === "cutoff" && dateISO === today && nowTime >= (r.time ?? "11:00")) return `Same-day online booking closes at ${r.time}`;
+  }
+  return null;
+}
+export function checkRestrictions(zoneId: string, dates: readonly string[], restrictions: readonly Restriction[], today: string, nowTime: string): RestrictionCheck {
+  const blocked: Record<string, string> = {};
+  for (const d of dates) {
+    const b = dateBlock(zoneId, d, restrictions, today, nowTime);
+    if (b) blocked[d] = b;
+  }
+  // Consecutive runs of the chosen dates.
+  const sorted = [...dates].sort();
+  const runs: string[][] = [];
+  sorted.forEach((d) => { const last = runs[runs.length - 1]; if (last && daysBetween(last[last.length - 1], d) === 1) last.push(d); else runs.push([d]); });
+  const reasons = new Set<string>();
+  for (const run of runs) {
+    for (const d of run) {
+      for (const r of restrictions) {
+        if (!restrictionApplies(r, zoneId, d)) continue;
+        if (r.kind === "minDays" && run.length < (r.value ?? 2)) reasons.add(`${r.label || `Min ${r.value} days`} — ${fmtShort(d)} needs a stay of at least ${r.value} consecutive days`);
+        if (r.kind === "maxDays" && run.length > (r.value ?? 7)) reasons.add(`${r.label || `Max ${r.value} days`} — stays including ${fmtShort(d)} can be at most ${r.value} days`);
+      }
+    }
+  }
+  return { ok: Object.keys(blocked).length === 0 && reasons.size === 0, blocked, reasons: [...reasons] };
+}
+export const RESTRICTION_LABEL: Record<RestrictionKind, string> = {
+  minDays: "Minimum stay",
+  maxDays: "Maximum stay",
+  window: "Booking window",
+  cutoff: "Same-day cut-off",
+  closed: "Closed",
+};
+export function restrictionBadge(r: Restriction): string {
+  if (r.kind === "minDays") return `Min ${r.value}d`;
+  if (r.kind === "maxDays") return `Max ${r.value}d`;
+  if (r.kind === "window") return `≤${r.value}d ahead`;
+  if (r.kind === "cutoff") return `Cut-off ${r.time}`;
+  return "Closed";
 }

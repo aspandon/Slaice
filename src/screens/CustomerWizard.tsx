@@ -9,7 +9,7 @@ import { Sunbed, SunbedMark } from "../components/Beach";
 import { SandScene } from "../components/SandScene";
 import { ZONES, ZONE_BLOCKS, todayISO, chipLabel } from "../data/beach";
 import { useLiveSlots } from "../lib/useLiveSlots";
-import { resolvePrice } from "../domain/pricing";
+import { checkRestrictions, dateBlock, resolvePrice } from "../domain/pricing";
 import { LANDMARK_LABEL } from "../data/pricing";
 import type { Landmark, SunbedSlot } from "../domain/types";
 import { useApp, useSpotlight, useT } from "../app/store";
@@ -148,7 +148,7 @@ function useAnimatedNumber(value: number, duration = 480) {
    ============================================================================ */
 export function CustomerWizard() {
   const tr = useT();
-  const { go, toast, addToCart, hint, lang, beachPricing, priceRules } = useApp();
+  const { go, toast, addToCart, hint, lang, beachPricing, priceRules, calendar } = useApp();
   useSpotlight("customer", "plan");
 
   // Deep-link: a Home tile can open the wizard straight at a given step.
@@ -231,9 +231,18 @@ export function CustomerWizard() {
   const selectedIds = useMemo(() => new Set(bedSel.map((b) => b.id)), [bedSel]);
   const avail = useMemo(() => slots.filter((s) => s.state === "a").length, [slots]);
 
-  // Each chosen day is priced on its own (categories, seasonal rules, date overrides).
-  const bedPrice = (id: string, iso: string) => { const s = slots.find((x) => x.id === id); return s ? resolvePrice(s, zone.id, iso, beachPricing, priceRules).price : 0; };
+  // Booking restrictions (AENR-511): closed days, booking window and same-day
+  // cut-off disable a date; minimum / maximum stay rules block Continue.
+  const nowTime = new Date().toTimeString().slice(0, 5);
+  const today = todayISO();
+  const blockReason = (iso: string) => dateBlock(zone.id, iso, calendar.restrictions, today, nowTime);
+  const stayCheck = checkRestrictions(zone.id, selDates, calendar.restrictions, today, nowTime);
+  // Each chosen day is priced on its own (categories, seasonal rules, date
+  // overrides) and with the booking context (early-bird, last-minute, multi-day).
+  const ctx = { bookedOn: today, time: nowTime, stayDays: selDates.length };
+  const bedPrice = (id: string, iso: string, withCtx = true) => { const s = slots.find((x) => x.id === id); return s ? resolvePrice(s, zone.id, iso, beachPricing, priceRules, withCtx ? ctx : undefined).price : 0; };
   const setSubtotal = bedSel.reduce((a, b) => a + selDates.reduce((x, iso) => x + bedPrice(b.id, iso), 0), 0);
+  const bookingAdj = setSubtotal - bedSel.reduce((a, b) => a + selDates.reduce((x, iso) => x + bedPrice(b.id, iso, false), 0), 0);
   const ticketBreak = Object.entries(people).map(([k, n]) => ({ k, n, t: TICKET[k], total: n * TICKET[k].price * dayCount }));
   const ticketSubtotal = includeTickets ? ticketBreak.reduce((a, b) => a + b.total, 0) : 0;
   const lockerSubtotal = lockerQty * LOCKER_PRICE * lockerDates.length;
@@ -396,7 +405,7 @@ export function CustomerWizard() {
               Review with many lines) overflows the panel. */}
           <div key={`${step.id}-${phase}`} className="px-4 sm:px-5 pb-1 overflow-y-auto animate-fade-up">
             {step.id === "beach" && (
-              <BeachMenu
+              <BeachMenu blockReason={blockReason} stayReasons={[...Object.entries(stayCheck.blocked).map(([d, why]) => `${chipLabel(d, localeFor(lang)).sub}: ${why}`), ...stayCheck.reasons]}
                 selDates={selDates} setSelDates={setSelDates}
                 multiDate={multiDate} setMultiDate={setMultiDate}
                 phase={phase} setPhase={(p) => (p === "zones" ? backToZones() : setPhase(p))}
@@ -452,13 +461,14 @@ export function CustomerWizard() {
             <div className="leading-tight">
               <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500">{tr("Total")}</div>
               <div className="font-display text-2xl font-bold text-navy-900 tnum leading-none" data-wizard-total>€<LiveEuro value={grandTotal} /></div>
+              {bookingAdj !== 0 && <div className="text-[11px] font-semibold text-teal-700 mt-0.5">{tr("incl.")} {bookingAdj < 0 ? tr("booking discount") : tr("same-day supplement")} {bookingAdj < 0 ? "−" : "+"}€{Math.abs(Math.round(bookingAdj * 100) / 100)}</div>}
             </div>
             <div className="flex items-center gap-2">
               <Btn variant="ghost" icon={Icon.arrowL} onClick={back}>
                 {stepIdx === 0 && phase === "zones" ? tr("Home") : tr("Back")}
               </Btn>
               {stepIdx < last ? (
-                <Btn variant="teal" onClick={next}>{tr("Continue")} <Icon.arrowR size={15} /></Btn>
+                <Btn variant="teal" onClick={next} disabled={step.id === "beach" && !stayCheck.ok}>{tr("Continue")} <Icon.arrowR size={15} /></Btn>
               ) : (
                 <Btn variant="dark" icon={Icon.card} onClick={confirm} disabled={grandTotal === 0}>{tr("Confirm")} · €{grandTotal}</Btn>
               )}
@@ -596,7 +606,9 @@ function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number
 /* ============ Beach step — menu side (dates + phase controls) ============
    The map and the sunbed grid have moved onto the page background; the menu keeps
    the dates and the supporting info (zone summary, legend, picks). */
-function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setPhase, zone, bedSel, setBedSel, avail, dayCount }: {
+function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setPhase, zone, bedSel, setBedSel, avail, dayCount, blockReason, stayReasons }: {
+  blockReason: (iso: string) => string | null;
+  stayReasons: string[];
   selDates: string[];
   setSelDates: Dispatch<SetStateAction<string[]>>;
   multiDate: boolean;
@@ -616,7 +628,8 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
       {/* Dates — apply to the whole booking. */}
       <div>
         <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.calendar size={12} /> {tr("When are you coming?")}</div>
-        <DatePickerRow value={selDates} onChange={setSelDates} multiple={multiDate} maxDays={7} />
+        <DatePickerRow value={selDates} onChange={setSelDates} multiple={multiDate} maxDays={7} blockReason={blockReason} />
+        {stayReasons.length > 0 && <div role="alert" className="mt-2 rounded-xl bg-amber-50 ring-1 ring-amber-600/20 px-3 py-2 text-[12px] text-amber-800 space-y-0.5">{stayReasons.map((r) => <div key={r}>{r}</div>)}</div>}
         <div className="mt-2 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
           <div className="flex items-start gap-2 text-[12.5px]">
             <Icon.calendar size={13} className="text-slate-500 shrink-0 mt-0.5" />
