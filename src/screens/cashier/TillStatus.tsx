@@ -11,7 +11,7 @@ const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: 
    Which shift is selling, and whether the till is online. Offline is a demo
    toggle; reconnecting syncs the queued sales (and surfaces conflicts). */
 export function TillStatus() {
-  const { toast, go } = useApp();
+  const { toast, go, persona } = useApp();
   const t = useTill();
   const [syncing, setSyncing] = useState(0);
   const queued = t.till.sales.filter((s) => s.offline).length;
@@ -22,7 +22,7 @@ export function TillStatus() {
       setSyncing(0);
       toast(
         r.synced ? `Back online — ${r.synced} sale${r.synced === 1 ? "" : "s"} synced and sent to myDATA${r.conflicts ? ` · ${r.conflicts} sunbed conflict${r.conflicts === 1 ? "" : "s"} to resolve` : ""}.` : "Back online.",
-        { tone: r.conflicts ? "warn" : "success", action: r.conflicts ? { label: "Resolve", onClick: () => go("cashier", "transactions") } : undefined },
+        { tone: r.conflicts ? "warn" : "success", action: r.conflicts ? { label: "Resolve", onClick: () => go(persona, "transactions") } : undefined },
       );
     }, 1500);
   };

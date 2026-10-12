@@ -4,6 +4,7 @@ import { Card, Btn, Badge, PageHead, StatCard, Modal } from "../components/ui";
 import { BarChart } from "../components/charts";
 import { RECENT_VALIDATIONS } from "../data/mock";
 import { useApp, useSpotlight } from "../app/store";
+import { openDisplay } from "../domain/display";
 
 type Validation = { id: string; sub: string; state: string };
 
@@ -73,6 +74,7 @@ export function ControllerScan() {
             <Btn variant="outline" size="sm" icon={Icon.umbrella} onClick={() => go(persona, "walkin")}>Walk-in sale — scan or tap the set</Btn>
             <Btn variant="outline" size="sm" icon={Icon.ticket} onClick={() => go(persona, "walkin")}>Add ticket (pay on site)</Btn>
             <Btn variant="outline" size="sm" icon={Icon.grid} onClick={() => go(persona, "beach")}>Beach status — sets & check-in</Btn>
+            <Btn variant="ghost" size="sm" icon={Icon.monitor} onClick={openDisplay}>Open live display</Btn>
           </div>
         </Card>
       </div>

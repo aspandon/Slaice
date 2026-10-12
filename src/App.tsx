@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { Suspense, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 import { AppCtx, DEFAULT_CRM } from "./app/store";
 import type { AppContextValue, SpotlightHint, ToastOptions } from "./app/store";
@@ -29,6 +29,8 @@ import { DEFAULT_BEACH_PRICING, DEFAULT_CALENDAR } from "./data/pricing";
 import { DEFAULT_INVENTORY, type InventoryState } from "./domain/inventory";
 import { DEFAULT_SUNBED_OPS, type SunbedOpsState } from "./domain/sunbedOps";
 import type { PayLink } from "./domain/payLink";
+import { DEFAULT_DISPLAY, type DisplayConfig } from "./domain/display";
+import { lazyWithReload } from "./lib/staleChunk";
 import { DEFAULT_CLOSED_STORES } from "./data/beach";
 import { DEFAULT_TILL } from "./data/till";
 import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "./data/beach";
@@ -86,9 +88,14 @@ const saved = loadLS() as {
   inventory?: InventoryState;
   sunbedOps?: SunbedOpsState;
   payLinks?: PayLink[];
+  display?: DisplayConfig;
 };
 // A deep link in the URL wins over the last saved location.
 const initialRoute = parseHash();
+// `#/display` is the chrome-less entrance screen (AENR-519): no shell, sign-in
+// or cookie banner; it reads the shared state and never writes it back.
+const DISPLAY = hashPath().startsWith("#/display");
+const LiveDisplay = lazyWithReload(() => import("./screens/display/LiveDisplay").then((m) => ({ default: m.LiveDisplay })));
 
 export default function App() {
   const [persona, setPersona] = useState<PersonaId>(initialRoute.persona || saved.persona || "customer");
@@ -148,19 +155,47 @@ export default function App() {
   const setSunbedOps = useCallback((u: (s: SunbedOpsState) => SunbedOpsState) => setSunbedOpsState(u), []);
   const [payLinks, setPayLinksState] = useState<PayLink[]>(saved.payLinks || []);
   const setPayLinks = useCallback((u: (s: PayLink[]) => PayLink[]) => setPayLinksState(u), []);
+  const [display, setDisplayState] = useState<DisplayConfig>({ ...DEFAULT_DISPLAY, ...(saved.display || {}) });
+  const setDisplay = useCallback((u: (s: DisplayConfig) => DisplayConfig) => setDisplayState(u), []);
+
+  // Other windows of the app (e.g. the entrance display, AENR-519) share the
+  // operational state: when one saves, the others adopt what changed. Only
+  // differing slices are set, so windows don't echo each other's writes.
+  const shared = { beachLayout, zoneLogos, zoneMap, priceRules, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, payLinks, weather, display };
+  const sharedRef = useRef(shared);
+  useEffect(() => { sharedRef.current = shared; });
+  useEffect(() => {
+    const setters: Record<keyof typeof shared, (v: never) => void> = {
+      beachLayout: setBeachLayoutState, zoneLogos: setZoneLogosState, zoneMap: setZoneMap, priceRules: setPriceRules,
+      till: setTillState, finance: setFinanceState, beachPricing: setBeachPricing, closedStores: setClosedStores,
+      calendar: setCalendar, inventory: setInventoryState, sunbedOps: setSunbedOpsState, payLinks: setPayLinksState,
+      weather: setWeather, display: setDisplayState,
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== LS_KEY || !e.newValue) return;
+      let next: Record<string, unknown>;
+      try { next = JSON.parse(e.newValue); } catch { return; }
+      for (const k of Object.keys(setters) as (keyof typeof shared)[]) {
+        if (next[k] !== undefined && JSON.stringify(next[k]) !== JSON.stringify(sharedRef.current[k])) setters[k](next[k] as never);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
   const updateStaff = useCallback((users: StaffUser[], action: string) => {
     setStaffUsers(users);
     setStaffAudit((a) => [{ at: new Date().toISOString(), by: "Manager / Admin", action }, ...a]);
   }, []);
 
   useEffect(() => {
+    if (DISPLAY) return;
     // Guard the write: Safari Private Mode and a full quota throw on setItem.
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, payLinks }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, payLinks, display }));
     } catch {
       /* storage unavailable (private mode / quota) — ignore */
     }
-  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, payLinks]);
+  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, payLinks, display]);
 
   // Keep <html lang> in sync with the chosen language (a11y / SEO correctness).
   useEffect(() => {
@@ -200,6 +235,7 @@ export default function App() {
   // ---- URL routing: mirror persona+page into the location hash. ----
   const firstRoute = useRef(true);
   useEffect(() => {
+    if (DISPLAY) return;
     const target = buildHash(persona, page);
     // Compare the path only: a page's own query (e.g. ?period=month) stays.
     if (hashPath() !== target) {
@@ -290,14 +326,23 @@ export default function App() {
 
   // Memoised so the provider value keeps a stable identity across renders.
   const ctx = useMemo<AppContextValue>(
-    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, payLinks, setPayLinks }),
-    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, payLinks, setPayLinks],
+    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, payLinks, setPayLinks, display, setDisplay }),
+    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, payLinks, setPayLinks, display, setDisplay],
   );
 
   // The booking wizard takes over the whole viewport: the beach becomes the
   // tappable surface, so the standing chrome (tenant logo, bottom tab bar) steps
   // aside and the backdrop lifts its shoreline.
   const immersive = persona === "customer" && page === "plan";
+
+  if (DISPLAY)
+    return (
+      <AppCtx.Provider value={ctx}>
+        <Suspense fallback={<div className="min-h-dvh bg-navy-900" />}>
+          <LiveDisplay />
+        </Suspense>
+      </AppCtx.Provider>
+    );
 
   return (
     <AppCtx.Provider value={ctx}>

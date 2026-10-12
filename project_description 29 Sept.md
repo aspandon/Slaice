@@ -249,6 +249,7 @@ visited **per persona** is remembered.
 | ---------------------- | ---------------------------------------------------------------- | -------------------- | -------- |
 | `#/admin/dashboard`    | Dashboard                                                        | Home                 | [MVP]    |
 | `#/admin/availability` | Beach, Availability & Pricing (old `#/admin/map` redirects here) | Beach                | [MVP]    |
+| `#/admin/display`      | Live Display (entrance screen)                                   | Display              | [MVP]    |
 | `#/admin/bookings`     | Bookings                                                         | Bookings             | [MVP]    |
 | `#/admin/manual`       | Manual / Phone Booking                                           | Manual               | [MVP]    |
 | `#/admin/users`        | Users & Segments                                                 | Users                | [MVP]    |
@@ -939,6 +940,22 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
   background); Atmosphere card.
 - **Seasonal & day rules**: the existing rule list and price preview (rules apply on top of category
   prices).
+
+#### Entrance live display (AENR-519)
+
+- **Admin › Live Display** (`#/admin/display`): zones to show and their order, rotate overview → each zone
+  (6–30 s per view), prices, QR, weather, languages (English ↔ Greek rotate), theme (dark / light / high
+  contrast) and landscape / portrait; a live preview frame; **Open on another screen** (pop-up window) and
+  **Copy display link**. Cashier (Issue Ticket) and Controller (Gate) have an _Open live display_ shortcut.
+- **`#/display`** — chrome-less and read-only (no shell, sign-in, cookie banner or guest data): headline "N
+  sunbed sets free now · from €X", clock and weather, the overview map with each zone in its position (free /
+  total, fill bar and a text level: Plenty free · Filling up · Almost full · Full · Closed today), a per-zone
+  view with every set marked Free ✓ / On hold … / Taken (hatched) / Out of service ✕ and a text legend, the
+  booking QR and today's prices. Full screen by double-click or the button (hides after 3 s); Esc exits.
+- **Live data**: today's walk-in availability from the same store as the till and the Controller. Windows of
+  the app sync through the browser `storage` event — a till sale or a status change updates the screen
+  without a reload. Footer "Updated hh:mm" with a heartbeat; offline for 2 min → "Offline — showing
+  availability from hh:mm". Sizes in `vmin` for 3–5 m reading; reduced motion → instant cuts.
 
 #### Inventory: holds, sales-channel status & stop-sell (AENR-512)
 

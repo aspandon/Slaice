@@ -16,6 +16,7 @@ import { useFinance } from "../../lib/useFinance";
 import { useTill } from "./useTill";
 import { ManagerPinModal, ReceiptModal, SaleDone } from "./TillParts";
 import { TenderModal } from "./Tender";
+import { openDisplay } from "../../domain/display";
 import { OpenShiftCard, TillStatus } from "./TillStatus";
 
 /* ============ ISSUE TICKET — the till (AENR-497) ============
@@ -31,7 +32,7 @@ const uid = (p: string) => `${p}${++uidN}`;
 const mmss = (ms: number) => `${Math.floor(ms / 60000)}:${String(Math.floor((ms % 60000) / 1000)).padStart(2, "0")}`;
 
 export function CashierIssue() {
-  const { toast, go, priceRules, beachPricing } = useApp();
+  const { toast, go, persona, priceRules, beachPricing } = useApp();
   const closure = useClosure();
   const [finance] = useFinance();
   const t = useTill();
@@ -205,7 +206,7 @@ export function CashierIssue() {
   return (
     <div className="animate-fade-up pb-20 md:pb-0">
       <PageHead title="Issue Ticket" sub="Sell entry tickets and sunbed sets in one charge — card, cash, voucher or split." badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<Btn variant="outline" icon={Icon.list} onClick={() => go("cashier", "transactions")}>Today’s transactions</Btn>} />
+        actions={<><Btn variant="ghost" icon={Icon.monitor} onClick={openDisplay}>Open live display</Btn><Btn variant="outline" icon={Icon.list} onClick={() => go(persona, "transactions")}>Today’s transactions</Btn></>} />
       <TillStatus />
       {!shiftOpen ? (
         <OpenShiftCard />

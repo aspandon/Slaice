@@ -12,6 +12,7 @@ import * as CT from "./screens/controller";
 import { ControllerBeach } from "./screens/ControllerBeach";
 import { ControllerWalkin } from "./screens/ControllerWalkin";
 import { PayLinks } from "./screens/PayLinks";
+import { AdminDisplay } from "./screens/display/AdminDisplay";
 import * as AC from "./screens/accountant";
 import { AccountantReports } from "./screens/reporting/FinanceTabs";
 import * as P from "./screens/platform";
@@ -65,6 +66,7 @@ const MAP: Record<string, () => ReactElement> = {
   "support.paylinks": () => <PayLinks />,
   "callcenter.paylinks": () => <PayLinks />,
   "admin.paylinks": () => <PayLinks />,
+  "admin.display": () => <AdminDisplay />,
   // accountant
   "accountant.invoicing": () => <AC.AccountantInvoicing />,
   "accountant.commission": () => <AC.AccountantCommission />,
