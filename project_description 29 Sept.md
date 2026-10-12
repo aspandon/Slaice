@@ -941,6 +941,22 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
 - **Seasonal & day rules**: the existing rule list and price preview (rules apply on top of category
   prices).
 
+#### Layout drafts, versions & scheduling (AENR-514)
+
+- The canvas is always a **draft** (badge "Draft · name — N changes from live, not visible to customers yet").
+  **Save draft** under a name (e.g. "Summer 2027"); open, duplicate or delete saved drafts
+  (`src/screens/beach/Versions.tsx`, rules in `src/domain/layoutVersions.ts`).
+- **Publish…** opens a dialog: version name; **what changes** per store (added / removed / moved / category
+  changed, and pricing); **affected bookings** — a removed or moved set with bookings on or after the effective
+  date is listed, and publishing stays blocked until each is resolved: _Reassign to_ the nearest free set of the
+  same category (the guest is notified — demo) or _Keep the set until_ the booking's date; **Publish now** or
+  **Schedule** from a date. Publishing runs validate → apply → notify (a demo switch makes apply fail).
+- Every map resolves the layout **by date**: before a scheduled version's date the current layout, from it the
+  new one (the workspace shows "Live layout on this date: vN"). Price changes publish immediately.
+- **Version history**: number, name, effective date, author, change summary, Live / Scheduled badges; **View**
+  (read-only, per store) and **Restore as draft**.
+- Sample advance bookings on specific sets live in `src/data/futureBookings.ts`.
+
 #### Demand pricing suggestions (AENR-513)
 
 - In **Calendar & rules**, under the calendar (`src/screens/beach/Demand.tsx`, `suggestPrice` in

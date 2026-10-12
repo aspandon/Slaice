@@ -6,6 +6,7 @@ import { applySetStatus, tillSetStatus, type SetStatus } from "../domain/till";
 import { invLabel, invStatus, type SalesChannel } from "../domain/inventory";
 import { opsKey, opsToMap } from "../domain/sunbedOps";
 import { payLinkSets } from "../domain/payLink";
+import { layoutFor } from "../domain/layoutVersions";
 import type { SunbedSlot, Zone } from "../domain/types";
 
 /** Re-render every `ms` so time-based state (holds expiring) stays current. */
@@ -29,7 +30,7 @@ export function useDemoNow(ms = 15000): number {
  *  allocations, stop-sell) for the selling channel — the one view every
  *  persona renders. For several days, a set taken on any of them counts. */
 export function useLiveSlots(channel: SalesChannel = "online"): (zone: Zone, days: readonly string[]) => SunbedSlot[] {
-  const { beachLayout, till, beachPricing, priceRules, inventory, sunbedOps, payLinks } = useApp();
+  const { beachLayout, till, beachPricing, priceRules, inventory, sunbedOps, payLinks, layouts } = useApp();
   const closure = useClosure();
   const now = useDemoNow();
   return useCallback(
@@ -40,7 +41,9 @@ export function useLiveSlots(channel: SalesChannel = "online"): (zone: Zone, day
           if (status[id] !== "sold") status[id] = s;
       }
       // Prices shown are the resolved price for the first day (category, rules, overrides).
-      const priced = (beachLayout[zone.id] ?? zoneLayout(zone)).map((s) =>
+      // The layout in force on the first day — a scheduled version takes over from its date (AENR-514).
+      const layout = layoutFor(zone, days[0] ?? todayISO(), beachLayout, layouts.versions, todayISO(), zoneLayout);
+      const priced = layout.map((s) =>
         days[0] ? { ...s, price: resolvePrice(s, zone.id, days[0], beachPricing, priceRules).price } : s,
       );
       const closedAny = days.some((d) => !!closure(zone.id, d));
@@ -74,7 +77,7 @@ export function useLiveSlots(channel: SalesChannel = "online"): (zone: Zone, day
         return s;
       });
     },
-    [beachLayout, till, now, closure, beachPricing, priceRules, inventory, channel, sunbedOps, payLinks],
+    [beachLayout, till, now, closure, beachPricing, priceRules, inventory, channel, sunbedOps, payLinks, layouts],
   );
 }
 

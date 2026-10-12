@@ -20,6 +20,7 @@ import { DEFAULT_INVENTORY, type InventoryState } from "../domain/inventory";
 import { DEFAULT_SUNBED_OPS, type SunbedOpsState } from "../domain/sunbedOps";
 import type { PayLink } from "../domain/payLink";
 import { DEFAULT_DISPLAY, type DisplayConfig } from "../domain/display";
+import { DEFAULT_LAYOUT_STATE, type LayoutState } from "../domain/layoutVersions";
 
 // Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
 // highlight the section a journey points at.
@@ -164,6 +165,9 @@ export interface AppContextValue {
   /** Entrance live-display settings (AENR-519). */
   display: DisplayConfig;
   setDisplay: (u: (s: DisplayConfig) => DisplayConfig) => void;
+  /** Layout drafts, versions and schedules (AENR-514). */
+  layouts: LayoutState;
+  setLayouts: (u: (s: LayoutState) => LayoutState) => void;
 }
 
 export const DEFAULT_CRM: CrmState = { segments: [], tagDefs: [{ name: "Wedding party", color: "#a855f7" }, { name: "Local", color: "#0D9488" }], edits: {}, regularAfter: 15, lifecycle: { atRiskDays: 14, lapsedDays: 35 }, columns: ["lifecycle", "spend"], imported: [], mergedAway: [], eraseRequests: [], profiles: {}, customFields: [{ id: "cf-birthday", label: "Birthday", type: "date" }, { id: "cf-company", label: "Company", type: "text" }] };
@@ -254,6 +258,8 @@ export const AppCtx = createContext<AppContextValue>({
   setPayLinks: () => {},
   display: DEFAULT_DISPLAY,
   setDisplay: () => {},
+  layouts: DEFAULT_LAYOUT_STATE,
+  setLayouts: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);

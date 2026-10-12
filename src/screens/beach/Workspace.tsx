@@ -5,10 +5,12 @@ import { Badge, Btn, Card, Field, Input, Modal, Select, Spinner, Table, Toggle }
 import { QR } from "../../components/charts";
 import { SunbedMap } from "../../components/SunbedMap";
 import { InventoryActions, InventoryPanel } from "./Inventory";
+import { PublishModal, VersionsPanel } from "./Versions";
+import { versionOn } from "../../domain/layoutVersions";
 import { invStatus } from "../../domain/inventory";
 import { useDemoNow } from "../../lib/useLiveSlots";
 import { useApp } from "../../app/store";
-import { ZONES, zoneLayout } from "../../data/beach";
+import { ZONES, todayISO, zoneLayout } from "../../data/beach";
 import { CATEGORY_COLORS, LANDMARK_LABEL } from "../../data/pricing";
 import { resolvePrice } from "../../domain/pricing";
 import { fileToBackgroundSrc } from "../../lib/image";
@@ -45,7 +47,7 @@ function bands(vals: number[]): number[] {
 const rowLetter = (i: number) => String.fromCharCode(65 + (i % 26));
 
 export function SunbedWorkspace() {
-  const { toast, beachLayout, setZoneLayout, beachPricing, setBeachPricing, priceRules, zoneLogos, setZoneLogo, inventory } = useApp();
+  const { toast, beachLayout, beachPricing, priceRules, zoneLogos, setZoneLogo, inventory, layouts } = useApp();
   const invNow = useDemoNow();
   const published = (): Draft => ({ layouts: Object.fromEntries(ZONES.map((z) => [z.id, beachLayout[z.id] ?? zoneLayout(z)])), pricing: beachPricing });
   const [draft, setDraft] = useState<Draft>(published);
@@ -60,8 +62,10 @@ export function SunbedWorkspace() {
   const [lmSel, setLmSel] = useState<string | null>(null);
   const [view, setView] = useState<"canvas" | "list" | "preview">("canvas");
   const [snapOn, setSnapOn] = useState(true);
-  const [publishing, setPublishing] = useState(false);
   const [labels, setLabels] = useState(false);
+  const [draftName, setDraftName] = useState("Working draft");
+  const [pubOpen, setPubOpen] = useState(false);
+  const [resync, setResync] = useState(false);
   const zone = ZONES.find((z) => z.id === zoneId) ?? ZONES[0];
   const slots = draft.layouts[zoneId] ?? [];
   const cats = draft.pricing.categories.filter((c) => c.zoneId === zoneId);
@@ -104,17 +108,15 @@ export function SunbedWorkspace() {
     return () => window.removeEventListener("keydown", k);
   });
 
-  const publish = () => {
-    setPublishing(true);
-    window.setTimeout(() => {
-      ZONES.forEach((z) => { if (JSON.stringify(draft.layouts[z.id]) !== JSON.stringify(live.layouts[z.id])) setZoneLayout(z.id, draft.layouts[z.id]); });
-      setBeachPricing(draft.pricing);
-      setPast([]);
-      setFuture([]);
-      setPublishing(false);
-      toast("Published — the booking wizard, Cashier and display now use this beach.", { tone: "success" });
-    }, 900);
-  };
+  // After a publish the working draft restarts from what's now live.
+  useEffect(() => {
+    if (!resync) return;
+    setDraft(published());
+    setPast([]);
+    setFuture([]);
+    setDraftName("Working draft");
+    setResync(false);
+  }, [resync, beachLayout, beachPricing]); // eslint-disable-line react-hooks/exhaustive-deps
   const discard = () => { setDraft(live); setPast([]); setFuture([]); setSel(new Set()); toast("Draft discarded."); };
 
   /* ---- Selection tools ---- */
@@ -225,10 +227,10 @@ export function SunbedWorkspace() {
       {changes > 0 && (
         <div role="status" className="sticky top-2 z-20 flex flex-wrap items-center gap-3 rounded-2xl bg-navy-900 text-white px-4 py-2.5 shadow-float">
           <Icon.edit size={15} />
-          <span className="text-sm"><b>Draft</b> — {changes} unsaved change{changes === 1 ? "" : "s"}, not visible to customers yet.</span>
+          <span className="text-sm"><b>Draft · {draftName}</b> — {changes} change{changes === 1 ? "" : "s"} from live, not visible to customers yet.</span>
           <div className="ml-auto flex gap-2">
-            <button type="button" onClick={discard} disabled={publishing} className="rounded-[14px] px-3 py-1.5 text-[13px] font-semibold text-white ring-1 ring-white/40 hover:bg-white/10 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300">Discard</button>
-            <Btn size="sm" variant="teal" icon={Icon.check} loading={publishing} onClick={publish}>Publish</Btn>
+            <button type="button" onClick={discard} disabled={pubOpen} className="rounded-[14px] px-3 py-1.5 text-[13px] font-semibold text-white ring-1 ring-white/40 hover:bg-white/10 disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300">Discard</button>
+            <Btn size="sm" variant="teal" icon={Icon.check} onClick={() => setPubOpen(true)}>Publish…</Btn>
           </div>
         </div>
       )}
@@ -251,6 +253,7 @@ export function SunbedWorkspace() {
             <label className="text-[12px] font-semibold text-slate-700">Prices on
               <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} className="block mt-1 rounded-lg ring-1 ring-slate-200 px-2 py-1.5 text-[13px]" />
             </label>
+            {(() => { const v = versionOn(layouts.versions, date, todayISO()); return v ? <span className="text-[11.5px] text-slate-600 pb-2">Live layout on this date: <b className="text-navy-900">v{v.no} · {v.name}</b>{v.effectiveFrom > todayISO() ? " (scheduled)" : ""}</span> : null; })()}
             <div role="radiogroup" aria-label="Tool" className="flex rounded-xl ring-1 ring-slate-200 overflow-hidden">
               {([["select", "Select & move"], ["paint", "Paint category"], ["landmark", "Add landmark"]] as [Mode, string][]).map(([m, l]) => (
                 <button key={m} type="button" role="radio" aria-checked={mode === m} onClick={() => { setMode(m); if (m === "paint" && !paintCat) setPaintCat(cats[0]?.id ?? ""); }}
@@ -475,6 +478,9 @@ export function SunbedWorkspace() {
           </Card>
         </div>
       </div>
+      <VersionsPanel zoneId={zoneId} draft={draft} draftName={draftName} setDraftName={setDraftName}
+        onLoad={(d, name) => { commit(() => d); setDraftName(name); toast(`Opened “${name}” as the working draft.`); }} />
+      {pubOpen && <PublishModal draft={draft} name={draftName} onClose={() => setPubOpen(false)} onDone={() => { setPubOpen(false); setResync(true); }} />}
     </div>
   );
 }

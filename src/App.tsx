@@ -31,6 +31,7 @@ import { DEFAULT_SUNBED_OPS, type SunbedOpsState } from "./domain/sunbedOps";
 import type { PayLink } from "./domain/payLink";
 import { DEFAULT_DISPLAY, type DisplayConfig } from "./domain/display";
 import { lazyWithReload } from "./lib/staleChunk";
+import { DEFAULT_LAYOUT_STATE, type LayoutState } from "./domain/layoutVersions";
 import { DEFAULT_CLOSED_STORES } from "./data/beach";
 import { DEFAULT_TILL } from "./data/till";
 import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "./data/beach";
@@ -89,6 +90,7 @@ const saved = loadLS() as {
   sunbedOps?: SunbedOpsState;
   payLinks?: PayLink[];
   display?: DisplayConfig;
+  layouts?: LayoutState;
 };
 // A deep link in the URL wins over the last saved location.
 const initialRoute = parseHash();
@@ -157,11 +159,13 @@ export default function App() {
   const setPayLinks = useCallback((u: (s: PayLink[]) => PayLink[]) => setPayLinksState(u), []);
   const [display, setDisplayState] = useState<DisplayConfig>({ ...DEFAULT_DISPLAY, ...(saved.display || {}) });
   const setDisplay = useCallback((u: (s: DisplayConfig) => DisplayConfig) => setDisplayState(u), []);
+  const [layouts, setLayoutsState] = useState<LayoutState>({ ...DEFAULT_LAYOUT_STATE, ...(saved.layouts || {}) });
+  const setLayouts = useCallback((u: (s: LayoutState) => LayoutState) => setLayoutsState(u), []);
 
   // Other windows of the app (e.g. the entrance display, AENR-519) share the
   // operational state: when one saves, the others adopt what changed. Only
   // differing slices are set, so windows don't echo each other's writes.
-  const shared = { beachLayout, zoneLogos, zoneMap, priceRules, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, payLinks, weather, display };
+  const shared = { beachLayout, zoneLogos, zoneMap, priceRules, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, payLinks, weather, display, layouts };
   const sharedRef = useRef(shared);
   useEffect(() => { sharedRef.current = shared; });
   useEffect(() => {
@@ -169,7 +173,7 @@ export default function App() {
       beachLayout: setBeachLayoutState, zoneLogos: setZoneLogosState, zoneMap: setZoneMap, priceRules: setPriceRules,
       till: setTillState, finance: setFinanceState, beachPricing: setBeachPricing, closedStores: setClosedStores,
       calendar: setCalendar, inventory: setInventoryState, sunbedOps: setSunbedOpsState, payLinks: setPayLinksState,
-      weather: setWeather, display: setDisplayState,
+      weather: setWeather, display: setDisplayState, layouts: setLayoutsState,
     };
     const onStorage = (e: StorageEvent) => {
       if (e.key !== LS_KEY || !e.newValue) return;
@@ -191,11 +195,11 @@ export default function App() {
     if (DISPLAY) return;
     // Guard the write: Safari Private Mode and a full quota throw on setItem.
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, payLinks, display }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, payLinks, display, layouts }));
     } catch {
       /* storage unavailable (private mode / quota) — ignore */
     }
-  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, payLinks, display]);
+  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, payLinks, display, layouts]);
 
   // Keep <html lang> in sync with the chosen language (a11y / SEO correctness).
   useEffect(() => {
@@ -326,8 +330,8 @@ export default function App() {
 
   // Memoised so the provider value keeps a stable identity across renders.
   const ctx = useMemo<AppContextValue>(
-    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, payLinks, setPayLinks, display, setDisplay }),
-    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, payLinks, setPayLinks, display, setDisplay],
+    () => ({ toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, payLinks, setPayLinks, display, setDisplay, layouts, setLayouts }),
+    [toast, go, dive, persona, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, payLinks, setPayLinks, display, setDisplay, layouts, setLayouts],
   );
 
   // The booking wizard takes over the whole viewport: the beach becomes the
