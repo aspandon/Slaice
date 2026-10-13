@@ -230,6 +230,21 @@ export function AdminReporting() {
     }
   };
   const tabLabel = (t: string) => tabs.find((x) => x[0] === t)?.[1] ?? t;
+  // The answer in one sentence (AENR-604) — the same revenue and comparison as the tiles.
+  const when = /^(today|this )/.test(noun) ? noun : `in ${noun}`;
+  const revPct = hasPrev && prev.revenue ? Math.round((now.revenue / prev.revenue - 1) * 100) : null;
+  const versus = `the ${vs.replace(/^vs\s*/, "")}`;
+  const answer = `${fmtEUR(rc.revenue)} revenue ${when}${revPct === null ? "." : revPct === 0 ? `, level with ${versus}.` : `, ${Math.abs(revPct)}% ${revPct > 0 ? "more" : "less"} than ${versus}.`}`;
+  const answerSub = `${fmtInt(rc.bookings)} bookings, the beach ${fmtPct(now.occupancy)} full on average; ${topZone.l} was the busiest zone (${topZone.v}%).`;
+  const answerTiles: { to: string; label: string; value: string; trend?: string; lowerIsBetter?: boolean }[] = [
+    { to: "revenue", label: "Revenue", value: fmtEUR(rc.revenue), trend: execKpis[0].trend },
+    { to: "bookings", label: "Bookings", value: fmtInt(rc.bookings), trend: execKpis[1].trend },
+    { to: "occupancy", label: "Occupancy", value: fmtPct(now.occupancy), trend: execKpis[2].trend },
+    { to: "refunds", label: "Refund rate", value: fmtPct(kn.refund, 1), trend: execKpis[4].trend, lowerIsBetter: true },
+  ].map((x) => (x.trend && /^[+−-]0(\.0+)?(%|pp)$/.test(x.trend) ? { ...x, trend: undefined } : x));
+  // Detail stays one tap below; the choice is remembered on this device.
+  const [showDetail, setShowDetail] = useState(() => { try { return localStorage.getItem("slaice.reports.detail") === "1"; } catch { return false; } });
+  const toggleDetail = (on: boolean) => { setShowDetail(on); try { localStorage.setItem("slaice.reports.detail", on ? "1" : "0"); } catch { /* storage unavailable */ } };
   const secSlug = section ? `-${section}` : "";
   // Every report in PDF and CSV from one definition (AENR-593).
   const exportReport = (t: string, format: "pdf" | "csv" = "csv") => {
@@ -265,10 +280,37 @@ export function AdminReporting() {
 
       {closed && <EmptyState icon={Icon.umbrella} title="The beach was closed" body={`No activity in ${label}. The season runs 1 May – 30 Sep — pick a date inside it.`} />}
 
-      {FIN_TABS.includes(tab) && !closed && <div className="mb-4"><SectionChips value={section} onChange={setSection} /></div>}
+      {FIN_TABS.includes(tab) && !closed && (tab !== "exec" || showDetail) && <div className="mb-4"><SectionChips value={section} onChange={setSection} /></div>}
       {!closed && tab === "payments" && <PaymentsTab d={fin} />}
       {!closed && tab === "invoices" && <InvoicesTab d={fin} />}
       {!closed && tab === "exec" && <>
+        {/* The answer first (AENR-604): one sentence, four tiles that open their breakdown, the rest one tap below. */}
+        <section aria-labelledby="reports-answer" className="mb-4">
+          <Card className="p-5 sm:p-6 relative overflow-hidden">
+            <span aria-hidden className="absolute left-0 top-5 bottom-5 w-1 rounded-r-full bg-teal-500" />
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">{label}</div>
+            <h2 id="reports-answer" className="mt-1.5 font-display font-bold text-[22px] sm:text-[26px] leading-tight text-navy-900 text-balance">{answer}</h2>
+            <p className="mt-2 text-[14px] text-slate-600 leading-snug">{answerSub}</p>
+          </Card>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
+            {answerTiles.map((x) => (
+              <button key={x.to} type="button" onClick={() => setTab(x.to)} aria-label={`${x.label}: ${x.value}${x.trend ? `, ${x.trend} ${vs}` : ""}. Open the ${tabLabel(x.to)} report`}
+                className="group text-left rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-soft transition hover:ring-slate-300 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 min-h-[44px]">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">{x.label}</span>
+                  {x.trend && <span className={`text-[11px] font-bold tnum rounded-full px-1.5 py-0.5 ${/^[-−]/.test(x.trend) === !x.lowerIsBetter ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"}`}>{x.trend}</span>}
+                </div>
+                <div className="mt-1.5 text-[24px] leading-none font-bold text-navy-900 tnum font-display tracking-tight">{x.value}</div>
+                <div className="mt-2 flex items-center gap-1 text-[12.5px] font-semibold text-teal-700">{tabLabel(x.to)}<Icon.chevR size={14} className="transition group-hover:translate-x-0.5" /></div>
+              </button>
+            ))}
+          </div>
+          <button type="button" aria-expanded={showDetail} aria-controls="reports-detail" onClick={() => toggleDetail(!showDetail)}
+            className="mt-3 inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-2 text-[14px] font-semibold text-navy-900 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+            <Icon.chevD size={16} className={`transition ${showDetail ? "rotate-180" : ""}`} />{showDetail ? "Hide the detail" : "Show the detail"}
+          </button>
+        </section>
+        {showDetail && <div id="reports-detail">
         <OverviewPanel d={fin} onDocs={() => setTab("invoices")} />
         <p className="text-[12.5px] text-slate-500 mb-2">
           Whole beach · all products and payment methods. Card revenue = “Captured” above{section ? " for the whole beach — the zone filter applies to the block above only" : ""}; sunbed sets = “Sunbed bookings” above.
@@ -306,6 +348,7 @@ export function AdminReporting() {
             <Btn variant="teal" size="sm" className="mt-auto self-start" icon={Icon.trend} onClick={() => go("admin", "pricing")}>Set a rule</Btn>
           </Card>
         </div>
+        </div>}
       </>}
 
       {!closed && tab === "revenue" && <>

@@ -1324,7 +1324,10 @@ with the dates in the title rows and file name. Season and Year compare with the
 shorter periods with the previous equal-length window. A period with no open days (off-season) shows
 a "beach was closed" empty state.
 
-1. **Executive** — starts with **Bookings, payments & AADE** (AENR-521, below), then Revenue · all methods,
+1. **Executive** — **the answer first** (AENR-604): one sentence (“€889.4k revenue this season, 12% more than
+   the same dates last season.”) and a second line (bookings, average occupancy, busiest zone), then four tiles
+   (Revenue · Bookings · Occupancy · Refund rate) that each open their own report. **Show the detail** (remembered
+   on the device) opens everything below: **Bookings, payments & AADE** (AENR-521, below), then Revenue · all methods,
    Bookings · all products (AENR-545: under a "Whole beach · all products and payment methods" caption, the
    Revenue tile splits into **card** — equal to "Captured" in the block above for the whole beach — and
    **cash & other**; the Bookings tile into sunbed bookings (with confirmed sets — equal to "Sunbed bookings"
@@ -1366,8 +1369,8 @@ app's own palette (`src/screens/reporting/FinanceTabs.tsx`, `src/data/finance.ts
 as **arrival (visit) dates**; a **Section** chip row (All + each store, in the URL as `?section=`) filters
 all three; **Export CSV** and **Export PDF** (a one-page PDF with the key figures and the main table).
 
-- **Overview** (top of Executive): Sunbed bookings (confirmed sets, avg/day, peak day) · Captured
-  payments & revenue (captured + service fees, number of captures) · Transmitted to AADE
+- **Overview** (top of the Executive detail): Sunbed bookings (confirmed sets, avg/day, peak day) · Card
+  payments captured (AENR-604 — renamed from “Captured payments & revenue” so it is not read as a second revenue figure; captured + service fees, number of captures) · Transmitted to AADE
   (transmitted / issued, %, pending badge, "View documents" → Invoices); confirmed sets per arrival day
   (weekday / weekend colours, average line); table by section (bookings, share, captured, transmitted).
 - **Payments**: total transactions · captured value · service fees with a per-fee breakdown (units × rate)

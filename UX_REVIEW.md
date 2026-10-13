@@ -435,3 +435,7 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-603 — staff bookings remember the last choices.** New booking keeps the agent's last zone,
   payment choice, channel and link deadline, and starts from the caller's mobile: a known number fills
   in the guest, a new one needs only a name.
+- **AENR-604 — one focused answer in Reports.** Overview opens on one sentence (revenue, change vs the
+  comparison period) and four tiles that open their own report; the full detail is one tap below. The
+  overview's card figure is now “Card payments captured”, so only one figure is called revenue.
+  AENR-628 fixed Reports › Occupancy scrolling sideways at 390px.

@@ -102,7 +102,7 @@ export function OverviewPanel({ d, onDocs }: { d: FinanceData; onDocs: () => voi
       <div className="grid md:grid-cols-3 gap-3 mb-4">
         <Kpi tone="teal" label="1 · Sunbed bookings" value={int(t.sets)} badge={<Badge tone="green">Confirmed</Badge>}
           sub={<>Sets with a confirmed booking · avg/day {open.length ? (t.sets / open.length).toFixed(1) : "—"}{peak ? ` · peak ${peak.sets} (${dm(peak.date)})` : ""}</>} />
-        <Kpi tone="indigo" label="2 · Captured payments & revenue" eur={t.captured + flow.serviceTotal}
+        <Kpi tone="indigo" label="2 · Card payments captured" eur={t.captured + flow.serviceTotal}
           sub={<>Captured {eur2(t.captured)} · service fees {eur2(flow.serviceTotal)} · {int(t.tx)} captures</>} />
         <Kpi label="3 · Transmitted to AADE" value={`${int(transmitted(t))} / ${int(docs)}`} badge={t.pending ? <Badge tone="amber">{int(t.pending)} pending</Badge> : <Badge tone="green">All sent</Badge>}
           sub={<>{pct(transmitted(t), docs)} of documents · <button type="button" onClick={onDocs} className="font-semibold text-teal-700 hover:underline">View documents</button></>} />

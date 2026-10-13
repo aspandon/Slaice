@@ -338,7 +338,7 @@ export function OccupancyTab({
         </Card>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card className="p-5">
           <div className="font-semibold text-navy-900">When the beach fills up</div>
           <div className="text-[12px] text-slate-500 mb-2">Average occupancy by hour, {noun}</div>
