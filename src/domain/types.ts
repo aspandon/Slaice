@@ -33,6 +33,8 @@ export interface StaffUser {
   lastSignIn: string | null;
   created: string; // ISO date
   suspendReason?: string;
+  /** Personal 4-digit PIN to take over a shared till (AENR-608) — cashier and support roles. */
+  tillPin?: string;
 }
 export interface StaffAuditEntry {
   at: string; // ISO timestamp

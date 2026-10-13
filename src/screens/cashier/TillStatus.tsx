@@ -2,8 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "../../lib/icons";
 import { Badge, Btn, Field, Input, Modal, Select } from "../../components/ui";
 import { useApp } from "../../app/store";
-import { DEFAULT_CASHIER, TILLS } from "../../data/till";
-import { OFFLINE_CARD_CAP, OFFLINE_CARD_TOTAL } from "../../domain/till";
+import { DEFAULT_CASHIER, MANAGER_PINS, TILLS } from "../../data/till";
+import { DEFAULT_STAFF } from "../../data/staff";
+import { OFFLINE_CARD_CAP, OFFLINE_CARD_TOTAL, eur, shiftTotals } from "../../domain/till";
 import { useTill } from "./useTill";
 
 const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
@@ -13,15 +14,25 @@ const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: 
    demo toggle or the browser losing its connection) raises the offline banner,
    which owns reconnecting (AENR-585). */
 export function TillStatus() {
-  const { toast } = useApp();
+  const { toast, viewAs } = useApp();
   const t = useTill();
+  const [switching, setSwitching] = useState(false);
   const queued = t.till.sales.filter((s) => s.offline).length;
   const shift = t.till.shift;
   return (
     <div className="flex flex-wrap items-center gap-2 mb-4 text-[12.5px]">
       {shift ? (
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-white/70 ring-1 ring-slate-200 px-3 py-1.5 text-slate-700">
-          <Icon.cash size={13} className="text-teal-600" /> <span className="whitespace-nowrap">Shift <b className="text-navy-900">{shift.id}</b></span> · {shift.cashier} · {shift.till} · <span className="whitespace-nowrap">since {hhmm(shift.openedAt)}</span>
+        <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-full bg-white/70 ring-1 ring-slate-200 pl-3 pr-1 py-1 text-slate-700">
+          <Icon.cash size={13} className="text-teal-600" /> <span className="whitespace-nowrap">Shift <b className="text-navy-900">{shift.id}</b></span> · <b className="text-navy-900">{t.cashier}</b> · {shift.till} · <span className="whitespace-nowrap">since {hhmm(shift.openedAt)}</span>
+          {!viewAs && (
+            <button
+              type="button"
+              onClick={() => setSwitching(true)}
+              className="ml-1 inline-flex items-center gap-1 rounded-full bg-navy-900 text-white px-2.5 py-1 text-[12px] font-semibold hover:bg-navy-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1"
+            >
+              <Icon.users size={12} /> Switch cashier
+            </button>
+          )}
         </span>
       ) : (
         <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 ring-1 ring-amber-600/20 px-3 py-1.5 text-amber-800"><Icon.alert size={13} /> No open shift</span>
@@ -35,7 +46,122 @@ export function TillStatus() {
           Simulate offline
         </Btn>
       )}
+      {switching && <SwitchCashierModal onClose={() => setSwitching(false)} />}
     </div>
+  );
+}
+
+/* ============ Switch cashier (AENR-608) ============
+   On a shared till the next person types their own 4-digit PIN (set in Team &
+   roles) — no signing out. Sales from then on carry their name; the shift and
+   drawer carry on, and the hand-over can record a drawer count. Five wrong
+   PINs lock the switch until a manager PIN unlocks it. */
+const MAX_TRIES = 5;
+function SwitchCashierModal({ onClose }: { onClose: () => void }) {
+  const { staffUsers, toast } = useApp();
+  const t = useTill();
+  const shift = t.till.shift;
+  // A PIN set in Team & roles wins; older saved data falls back to the demo seed.
+  const pinOf = (id: string, pin?: string) => pin ?? DEFAULT_STAFF.find((u) => u.id === id)?.tillPin;
+  const people = staffUsers.filter((u) => u.status === "active" && (u.role === "cashier" || u.role === "support") && u.name !== t.cashier);
+  const [who, setWho] = useState(people[0]?.id ?? "");
+  const [pin, setPin] = useState("");
+  const [count, setCount] = useState("");
+  const [fails, setFails] = useState(0);
+  const [mgr, setMgr] = useState("");
+  const [error, setError] = useState("");
+  if (!shift) return null;
+  const expected = shiftTotals(shift, t.till.sales).expectedCash;
+  const person = people.find((u) => u.id === who);
+  const locked = fails >= MAX_TRIES;
+  const submit = () => {
+    if (!person) return;
+    if (pinOf(person.id, person.tillPin) !== pin) {
+      const n = fails + 1;
+      setFails(n);
+      setPin("");
+      setError(n >= MAX_TRIES ? "" : `Wrong PIN — ${MAX_TRIES - n} ${MAX_TRIES - n === 1 ? "try" : "tries"} left.`);
+      return;
+    }
+    const counted = count.trim() === "" ? undefined : Number(count);
+    t.switchCashier(person.name, expected, counted);
+    const diff = counted === undefined ? null : Math.round((counted - expected) * 100) / 100;
+    toast(
+      `${person.name} is selling now${diff === null ? "" : diff === 0 ? " · drawer counted, no difference" : ` · drawer ${diff > 0 ? "over" : "short"} by ${eur(Math.abs(diff))}`}.`,
+      { tone: diff ? "warn" : "success" },
+    );
+    onClose();
+  };
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title="Switch cashier"
+      footer={
+        locked ? (
+          <Btn variant="ghost" onClick={onClose}>Close</Btn>
+        ) : (
+          <>
+            <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+            <Btn variant="primary" type="submit" form="switch-cashier" disabled={!person || pin.length !== 4}>
+              {person ? `Switch to ${person.name.split(" ")[0]}` : "Switch"}
+            </Btn>
+          </>
+        )
+      }
+    >
+      {locked ? (
+        <form
+          className="space-y-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const m = MANAGER_PINS[mgr];
+            if (m) {
+              setFails(0);
+              setMgr("");
+              setError("");
+              toast(`Unlocked by ${m}.`, { tone: "success" });
+            } else {
+              setMgr("");
+              setError("That is not a manager PIN.");
+            }
+          }}
+        >
+          <p role="alert" className="text-[13px] text-rose-700 font-medium">
+            Too many wrong PINs. A manager unlocks the switch with their PIN.
+          </p>
+          <Field label="Manager PIN" hint={error ? <span className="text-rose-700">{error}</span> : "Demo manager PINs: 1234, 5678"}>
+            <Input type="password" inputMode="numeric" maxLength={4} className="w-32 tnum tracking-[0.3em]" value={mgr} onChange={(e) => setMgr(e.target.value.replace(/\D/g, "").slice(0, 4))} autoComplete="off" />
+          </Field>
+          <Btn type="submit" variant="outline" disabled={mgr.length !== 4}>Unlock</Btn>
+        </form>
+      ) : people.length === 0 ? (
+        <p className="text-[13px] text-slate-600">No one else can take this till. Add a Cashier or Support Agent with a till PIN in Team &amp; roles.</p>
+      ) : (
+        <form id="switch-cashier" className="space-y-4" onSubmit={(e) => { e.preventDefault(); if (pin.length === 4) submit(); }}>
+          <p className="text-[13px] text-slate-600">
+            <b className="text-navy-900">{t.cashier}</b> is selling on {shift.till}. The shift and the drawer carry on; sales from now on are recorded under the next person.
+          </p>
+          <fieldset>
+            <legend className="text-[12px] font-semibold text-slate-700 mb-1.5">Who is taking over?</legend>
+            <div className="flex flex-wrap gap-2">
+              {people.map((u) => (
+                <label key={u.id} className={`inline-flex items-center gap-2 rounded-xl ring-1 px-3 py-2 cursor-pointer text-[13px] font-semibold ${who === u.id ? "ring-2 ring-teal-500 bg-teal-50/50 text-navy-900" : "ring-slate-200 text-slate-700 hover:ring-slate-300"}`}>
+                  <input type="radio" name="switch-to" className="accent-teal-600" checked={who === u.id} onChange={() => { setWho(u.id); setError(""); }} />
+                  {u.name}
+                </label>
+              ))}
+            </div>
+          </fieldset>
+          <Field label={`${person?.name.split(" ")[0] ?? "Their"}’s PIN`} hint={error ? <span className="text-rose-700" role="alert">{error}</span> : "Demo PINs: Kostas 1111 · Eleni 2222 · Dimitris 3333"}>
+            <Input type="password" inputMode="numeric" maxLength={4} className="w-32 tnum tracking-[0.3em]" value={pin} onChange={(e) => { setPin(e.target.value.replace(/\D/g, "").slice(0, 4)); setError(""); }} autoComplete="off" aria-invalid={!!error} />
+          </Field>
+          <Field label="Count the drawer for the hand-over (optional)" hint={`Expected cash now: ${eur(expected)}`}>
+            <Input type="number" inputMode="decimal" min={0} className="w-40 tnum" value={count} onChange={(e) => setCount(e.target.value)} placeholder="€" />
+          </Field>
+        </form>
+      )}
+    </Modal>
   );
 }
 

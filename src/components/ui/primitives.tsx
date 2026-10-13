@@ -86,7 +86,7 @@ export function Card({ className = "", children, hover, press, sheen, surface = 
 /* ---------- Button ----------
    Apple-style hierarchy: filled (primary/teal/dark/indigo/danger), tinted
    (tint — light-accent fill), and quiet (ghost/outline). Springy press. */
-export function Btn({ children, variant = "primary", size = "md", onClick, icon: IconC, full, disabled, loading, className = "", type = "button", title, "aria-label": ariaLabel }: {
+export function Btn({ children, variant = "primary", size = "md", onClick, icon: IconC, full, disabled, loading, className = "", type = "button", form, title, "aria-label": ariaLabel }: {
   children?: ReactNode;
   variant?: string;
   size?: "sm" | "md" | "lg";
@@ -97,6 +97,8 @@ export function Btn({ children, variant = "primary", size = "md", onClick, icon:
   loading?: boolean;
   className?: string;
   type?: "button" | "submit" | "reset";
+  /** Submits a form outside the button (e.g. a modal footer for a form in the body). */
+  form?: string;
   /** Tooltip — e.g. why the button is disabled. A View-as guard reason wins. */
   title?: string;
   /** Accessible name for icon-only buttons. */
@@ -128,7 +130,7 @@ export function Btn({ children, variant = "primary", size = "md", onClick, icon:
   const guarded = useGuardReason(textOf(children));
   const isDisabled = (disabled || !!guarded) && !loading;
   return (
-    <button type={type} disabled={disabled || loading || !!guarded} onClick={onClick} title={guarded || title} aria-label={ariaLabel}
+    <button type={type} form={form} disabled={disabled || loading || !!guarded} onClick={onClick} title={guarded || title} aria-label={ariaLabel}
       className={`${base} ${sizes[size]} ${variants[variant]} ${full ? "w-full" : ""} ${isDisabled ? off : ""} ${className}`}>
       {loading ? <Spinner size={size === "sm" ? 14 : 16} /> : IconC && <IconC size={size === "sm" ? 15 : 17} />}
       {children}

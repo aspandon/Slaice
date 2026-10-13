@@ -10,7 +10,7 @@ import {
 export function useTill() {
   const { till, setTill, viewAs } = useApp();
   const day = todayISO();
-  const cashier = viewAs?.role === "cashier" ? viewAs.name : till.shift?.cashier ?? DEFAULT_CASHIER;
+  const cashier = viewAs?.role === "cashier" ? viewAs.name : till.active ?? till.shift?.cashier ?? DEFAULT_CASHIER;
   const tillName = till.shift?.till ?? "Main entrance";
   const nowIso = () => new Date().toISOString();
 
@@ -63,16 +63,25 @@ export function useTill() {
   const openShift = (s: { cashier: string; till: string; float: number }) =>
     setTill((t) => {
       const n = Math.max(203, ...[t.shift, ...t.shifts].map((x) => Number(x?.id.slice(3)) || 0)) + 1;
-      return { ...t, shift: { id: `SH-${String(n).padStart(4, "0")}`, ...s, openedAt: nowIso(), moves: [] } };
+      return { ...t, active: s.cashier, shift: { id: `SH-${String(n).padStart(4, "0")}`, ...s, openedAt: nowIso(), moves: [] } };
     });
   const addMove = (m: Omit<DrawerMove, "id" | "at">) =>
     setTill((t) => (t.shift ? { ...t, shift: { ...t.shift, moves: [...t.shift.moves, { ...m, id: `MV-${t.shift.moves.length + 1}`, at: nowIso() }] } } : t));
   const closeShift = (c: { counted: number; note: string; blind: boolean }): TillShift | null => {
     if (!till.shift) return null;
     const closed: TillShift = { ...till.shift, ...c, closedAt: nowIso() };
-    setTill((t) => ({ ...t, shift: null, shifts: [closed, ...t.shifts] }));
+    setTill((t) => ({ ...t, shift: null, shifts: [closed, ...t.shifts], active: undefined }));
     return closed;
   };
+  /** Hand the till to another person (after their PIN); the shift and drawer carry on (AENR-608). */
+  const switchCashier = (to: string, expected: number, counted?: number) =>
+    setTill((t) => ({
+      ...t,
+      active: to,
+      shift: t.shift
+        ? { ...t.shift, handovers: [...(t.shift.handovers ?? []), { at: nowIso(), from: cashier, to, expected, counted }] }
+        : t.shift,
+    }));
 
   /* ---- Offline ---- */
   const setOffline = (offline: boolean) => setTill((t) => ({ ...t, offline }));
@@ -98,5 +107,5 @@ export function useTill() {
   const setTerminal = (id: string) => setTill((t) => ({ ...t, terminal: id }));
   const markOfflineHelpSeen = () => setTill((t) => ({ ...t, offlineHelpSeen: true }));
 
-  return { till, day, cashier, tillName, hold, release, status, completeSale, setDelivery, reprint, retryMydata, refund, openShift, addMove, closeShift, setOffline, syncOffline, moveLine, clearConflict, setFailNext, setTerminal, markOfflineHelpSeen };
+  return { till, day, cashier, tillName, hold, release, status, completeSale, setDelivery, reprint, retryMydata, refund, openShift, addMove, closeShift, switchCashier, setOffline, syncOffline, moveLine, clearConflict, setFailNext, setTerminal, markOfflineHelpSeen };
 }

@@ -111,6 +111,8 @@ export interface TillShift {
   counted?: number;
   note?: string;
   blind?: boolean;
+  /** Cashier switches on this shift (AENR-608), with the drawer count when one was taken. */
+  handovers?: { at: string; from: string; to: string; expected: number; counted?: number }[];
 }
 
 export interface TillState {
@@ -132,6 +134,8 @@ export interface TillState {
   /** Sets booked online while this till was offline (setId → day) — sync conflicts. */
   onlineSold: Record<string, string>;
   seq: number;
+  /** Who is selling on this till now — switched with a personal PIN (AENR-608). */
+  active?: string;
 }
 
 /* ---------- Money ---------- */
@@ -342,6 +346,8 @@ export interface ShiftTotals {
   extras: Record<string, number>;
   /** Card takings per POS terminal (AENR-527). */
   terminals: Record<string, number>;
+  /** Sales per cashier on a shared till (AENR-608). */
+  byCashier: Record<string, { tx: number; sales: number }>;
 }
 export function shiftTotals(shift: TillShift, sales: readonly TillSale[]): ShiftTotals {
   const t: ShiftTotals = {
@@ -363,11 +369,15 @@ export function shiftTotals(shift: TillShift, sales: readonly TillSale[]): Shift
     extras: {},
     sunbeds: {},
     terminals: {},
+    byCashier: {},
   };
   for (const s of sales) {
     if (s.shiftId === shift.id) {
       t.tx++;
       t.sales += s.total;
+      const who = (t.byCashier[s.cashier] ??= { tx: 0, sales: 0 });
+      who.tx++;
+      who.sales += s.total;
       t.discounts += basketTotals(s.lines, s.discounts).discount;
       for (const td of s.tenders) {
         t[td.kind] += td.amount;

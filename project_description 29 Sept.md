@@ -1478,6 +1478,8 @@ Roles: the tenant (beach operator) is the **controller**; Slaice is the **proces
   **Invited** (invitation simulated) → **Simulate acceptance** → **Active**.
 - **Edit**, **Suspend** (reason required) / **Reactivate**, **Delete** (confirmation). The last active
   Manager / Admin can't be suspended, deleted or given another role.
+- **Till PIN** (AENR-608): Cashier and Support Agent users have an optional personal 4-digit PIN (exactly
+  4 digits, unique across staff) used to switch in on a shared till; changes are in the audit trail.
 - **Roles → pages** come from `NAV` in `src/data/personas.ts` (one source). Platform / Slaice is not a
   tenant role.
 - **View as** a user or a role: the app shows only that role's pages, with a persistent banner and
@@ -1731,34 +1733,18 @@ Agent also works, and lockers are sold in Sell. Old links redirect — `#/cashie
   tolerance a note is required. The Z report is shown and the shift is locked; selling needs a new shift.
 - **Past shifts** with variance and their Z reports; managers also see them in Admin › Reporting ›
   Operations.
+- **Switch cashier** (AENR-608): on a shared till the shift strip shows who is selling now and a
+  **Switch cashier** button. The next person (an active Cashier or Support Agent) types their own
+  4-digit till PIN (set in Team & roles; demo: Kostas 1111, Eleni 2222, Dimitris 3333) — no signing out.
+  The shift and drawer carry on; sales from then on are recorded under the new name, and the hand-over
+  can record a drawer count (expected vs counted, shown in the toast). Five wrong PINs lock the switch
+  until a manager PIN unlocks it. The X / Z reports split net sales and transactions **by cashier** and
+  list the hand-overs (also in the PDF / CSV).
 
-### K-04 · Sell a locker [Future]
+### K-04 · Sell a locker — retired (AENR-605)
 
-```text
- Locker bank ◆ A Entrance €5 · B Pool side €5 · C North gate €5 · D Family €7 · E Premium €9
-                              (each shows free / 30)
-        │
-        ▼
- ┌─ Bank A · Entrance ──────────────────────────────────────────┐
- │ A01 A02 A03 A04 A05 A06 A07 A08 A09 A10                      │
- │ [ ] [x] [ ] [ ] [x] [ ] [*] [ ] [ ] [x]      [ ] free        │
- │ A11 A12 …                                    [x] taken       │
- │                                              [*] selected    │
- └──────────────────────────────────────────────────────────────┘
-        │
-        ▼
- [Charge €5] ─▶ ● "Locker sold · A07" + QR slip ─▶ [Print slip]
-                  └─ locker marked taken · ΑΠΥ auto-issued
-```
-
-- **Locker banks** (A Entrance, B Pool side, C North gate — €5; D Family area — €7; E Premium — €9),
-  30 lockers each, showing free/total.
-- Grid of lockers (free / taken / selected) → **Charge €X** → "Locker sold · A07" with QR slip →
-  **Print slip**. Inventory is marked taken; ΑΠΥ auto-issued.
-
----
-
-## 11. User journeys — Controller
+Lockers are sold in Sell (K-01) with tickets and sunbeds, priced and counted from Admin › Products ›
+Lockers. The separate locker-by-number page was removed; `#/cashier/locker` opens Sell.
 
 ### G-01 · Gate validation [MVP]
 

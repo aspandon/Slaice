@@ -41,8 +41,10 @@ const fmtWhen = (iso: string | null) =>
       })
     : "Never";
 
-type Draft = { id?: string; name: string; email: string; phone: string; role: StaffRole };
-const EMPTY: Draft = { name: "", email: "", phone: "", role: "cashier" };
+type Draft = { id?: string; name: string; email: string; phone: string; role: StaffRole; tillPin: string };
+const EMPTY: Draft = { name: "", email: "", phone: "", role: "cashier", tillPin: "" };
+/** Roles that sell at a shared till and switch in with a PIN (AENR-608). */
+const TILL_ROLES: StaffRole[] = ["cashier", "support"];
 
 export function AdminRbac() {
   const { staffUsers, updateStaff, staffAudit, startViewAs, toast } = useApp();
@@ -81,18 +83,27 @@ export function AdminRbac() {
           : emailTaken
             ? "Someone already uses this e-mail."
             : "",
+        tillPin:
+          !TILL_ROLES.includes(draft.role) || !draft.tillPin
+            ? ""
+            : !/^\d{4}$/.test(draft.tillPin)
+              ? "Use exactly 4 digits."
+              : staffUsers.some((u) => u.id !== draft.id && u.tillPin === draft.tillPin)
+                ? "Someone else uses this PIN — pick another."
+                : "",
       }
-    : { name: "", email: "" };
+    : { name: "", email: "", tillPin: "" };
   const editing = draft?.id ? staffUsers.find((u) => u.id === draft.id) : undefined;
   const demotingLastAdmin = !!editing && isLastAdmin(editing) && draft?.role !== "admin";
   const saveDraft = () => {
     setTouched(true);
-    if (!draft || errors.name || errors.email || demotingLastAdmin) return;
+    if (!draft || errors.name || errors.email || errors.tillPin || demotingLastAdmin) return;
     const clean = {
       name: draft.name.trim(),
       email: draft.email.trim(),
       phone: draft.phone.trim(),
       role: draft.role,
+      tillPin: TILL_ROLES.includes(draft.role) && draft.tillPin ? draft.tillPin : undefined,
     };
     if (editing) {
       const changes = [
@@ -104,6 +115,7 @@ export function AdminRbac() {
         editing.phone !== clean.phone
           ? "details"
           : "",
+        (editing.tillPin ?? "") !== (clean.tillPin ?? "") ? "till PIN" : "",
       ]
         .filter(Boolean)
         .join(", ");
@@ -319,6 +331,7 @@ export function AdminRbac() {
                               email: u.email,
                               phone: u.phone,
                               role: u.role,
+                              tillPin: u.tillPin ?? "",
                             })
                           }
                         >
@@ -521,6 +534,28 @@ export function AdminRbac() {
                 ))}
               </div>
             </fieldset>
+            {TILL_ROLES.includes(draft.role) && (
+              <Field
+                label="Till PIN (4 digits)"
+                hint={
+                  touched && errors.tillPin ? (
+                    <span className="text-rose-700">{errors.tillPin}</span>
+                  ) : (
+                    "Used to switch in on a shared till. Leave empty to set it later."
+                  )
+                }
+              >
+                <Input
+                  className="w-32 tnum tracking-[0.3em]"
+                  inputMode="numeric"
+                  maxLength={4}
+                  value={draft.tillPin}
+                  onChange={(e) => setDraft({ ...draft, tillPin: e.target.value.replace(/\D/g, "").slice(0, 4) })}
+                  aria-invalid={touched && !!errors.tillPin}
+                  autoComplete="off"
+                />
+              </Field>
+            )}
             {demotingLastAdmin && (
               <div role="alert" className="text-[12px] text-rose-700">
                 This is the only active Manager / Admin — keep the role, or make someone else an

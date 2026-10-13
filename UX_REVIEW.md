@@ -390,3 +390,7 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   Release all no-shows (Undo), Approve €X refunds with an in-place confirmation, Re-send to myDATA,
   Sync an offline till, Open for the rest; done items collect under Done today. No-show set codes
   open on demand, and a closed zone no longer counts as no-shows (Today showed 24 instead of 17).
+- **AENR-608 — switch cashier without signing out.** The till strip names who is selling and has a
+  Switch cashier button: the next person types their own PIN (set in Team & roles), optionally counts
+  the drawer, and sales carry their name. Five wrong PINs need a manager PIN. X / Z reports split
+  totals by cashier and list hand-overs. (Spec K-04 Sell a locker marked retired after AENR-605.)

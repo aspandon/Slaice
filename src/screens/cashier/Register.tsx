@@ -202,6 +202,8 @@ function ReportModal({ shift, kind, onClose }: { shift: TillShift; kind: "X" | "
         ] },
         { title: "Sales", table: { cols: ["Line", "Amount (€)"], rows: [["Gross sales", tot.sales + tot.discounts], ["Discounts", -tot.discounts], ["Net sales", tot.sales], ["Voids", -tot.voids], ["Refunds", -tot.refunds], ["Card", tot.card], ...Object.entries(tot.terminals).map(([k, v]) => [`  Card · ${k}`, v] as (string | number)[]), ["Cash", tot.cash], ["Voucher", tot.voucher]] } },
         { title: "Cash drawer", table: { cols: ["Line", "Amount (€)"], rows: [["Opening float", shift.float], ["Paid in", tot.paidIn], ["Paid out", -tot.paidOut], ["Cash refunds", -tot.refundsCash], ["Expected cash", tot.expectedCash], ...(shift.counted !== undefined ? [[`Counted${shift.blind ? " (blind)" : ""}`, shift.counted] as (string | number)[]] : []), ...(variance !== null ? [["Variance", variance] as (string | number)[]] : [])] } },
+        { title: "By cashier", table: { cols: ["Cashier", "Transactions", "Net sales (€)"], rows: Object.entries(tot.byCashier).map(([k, v]) => [k, v.tx, v.sales]) } },
+        ...(shift.handovers?.length ? [{ title: "Hand-overs", table: { cols: ["Time", "From", "To", "Expected cash (€)", "Counted (€)"], rows: shift.handovers.map((h) => [hhmm(h.at), h.from, h.to, h.expected, h.counted ?? "—"] as (string | number)[]) } }] : []),
         { title: "Items sold", table: { cols: ["Item", "Quantity"], rows: [...counts(tot.tickets).map(([k, n]) => [`Ticket · ${k}`, n]), ...counts(tot.sunbeds, zoneName).map(([k, n]) => [`Sunbed sets · ${k}`, n]), ...counts(tot.extras)] } },
         ...(shift.note ? [{ title: "Note", text: [shift.note] }] : []),
       ],
@@ -226,6 +228,12 @@ function ReportModal({ shift, kind, onClose }: { shift: TillShift; kind: "X" | "
         {Object.entries(tot.terminals).map(([k, v]) => <Row key={k} l={`  ↳ ${k}`} v={eur(v)} />)}
         <Row l="Cash" v={eur(tot.cash)} />
         <Row l="Voucher" v={eur(tot.voucher)} />
+        <div className="border-t border-dashed border-slate-300 my-2" />
+        <div className="font-bold">By cashier</div>
+        {Object.entries(tot.byCashier).map(([k, v]) => <Row key={k} l={`${k} · ${v.tx} tx`} v={eur(v.sales)} />)}
+        {shift.handovers?.map((h) => (
+          <div key={h.at} className="text-[11px]">↳ {hhmm(h.at)} {h.from.split(" ")[0]} → {h.to.split(" ")[0]}{h.counted !== undefined ? ` · counted ${eur(h.counted)} / ${eur(h.expected)}` : ""}</div>
+        ))}
         <div className="border-t border-dashed border-slate-300 my-2" />
         <div className="font-bold">Tickets</div>
         {Object.keys(tot.tickets).length ? Object.entries(tot.tickets).map(([k, n]) => <Row key={k} l={k} v={`× ${n}`} />) : <div>—</div>}
