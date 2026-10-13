@@ -415,3 +415,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-607 — offline just works.** The till no longer shows "Online" all day; the offline banner and
   chip appear only while offline, and queued sales sync on reconnect by themselves. "Simulate till
   offline" moved from the cashier's screen into the persona (demo) menu.
+- **AENR-609 — the gate scans by itself.** No Scan QR button: the camera stays live, results return to
+  scanning on their own, repeats within 5 s are ignored; "Demo arrivals" simulates the queue.

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon, type IconRenderer } from "../lib/icons";
 import { Card, Btn, Input, StatCard, Modal, Toggle } from "../components/ui";
 import { BarChart } from "../components/charts";
@@ -28,24 +28,39 @@ const RESULT_STYLE: Record<string, { wrap: string; badge: string; label: string;
 export function ControllerScan() {
   const { toast } = useApp();
   useSpotlight("controller", "scan");
-  const [scanning, setScanning] = useState(false);
   const [recent, setRecent] = useState<Validation[]>(RECENT_VALIDATIONS as Validation[]);
   const [inspect, setInspect] = useState<{ v: Validation; fresh: boolean } | null>(null);
   const [result, setResult] = useState<Validation | null>(null);
   const [n, setN] = useState(0);
   const [fb, setFb] = useGateFeedback();
 
-  const doScan = () => {
-    setScanning(true);
-    setTimeout(() => {
-      setScanning(false);
-      const v = DEMO_SCANS[n % DEMO_SCANS.length];
-      setResult(v);
-      setN((x) => x + 1);
-      // Valid admits at once and invalid is refused at once; "already entered" waits for a decision.
-      if (v.state !== "used") log(v, v.state);
-    }, 900);
+  /* Continuous scanning (AENR-609): the camera stays live and every code it reads is
+     checked at once — no button per guest. The same code seen again within 5 s (the
+     guest still holding up the phone) is ignored. Valid admits and invalid refuses at
+     once; "already entered" waits for a decision. */
+  const lastRead = useRef<{ id: string; at: number } | null>(null);
+  const read = (v: Validation) => {
+    const now = Date.now();
+    if (lastRead.current && lastRead.current.id === v.id && now - lastRead.current.at < 5000) return;
+    lastRead.current = { id: v.id, at: now };
+    setResult(v);
+    if (v.state !== "used") log(v, v.state);
   };
+  const nextDemo = () => {
+    const v = DEMO_SCANS[n % DEMO_SCANS.length];
+    setN((x) => x + 1);
+    read(v);
+  };
+  // Demo: guests keep arriving — a code every few seconds while the scanner is idle.
+  const [arrivals, setArrivals] = useState(true);
+  const [typing, setTyping] = useState(false);
+  const idle = !result && !inspect && !typing;
+  useEffect(() => {
+    if (!arrivals || !idle) return;
+    const id = window.setTimeout(nextDemo, 3500);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arrivals, idle, n]);
   const log = (v: Validation, state: ScanState) => setRecent((x) => [{ ...v, state }, ...x].slice(0, 12));
   const admit = (v: Validation) => {
     log(v, "valid");
@@ -87,17 +102,20 @@ export function ControllerScan() {
   return (
     <div className="animate-fade-up flex flex-col gap-3 min-h-[calc(100dvh-170px)] md:min-h-[calc(100dvh-140px)]">
       <div data-spotlight="scanner" className="relative flex-1 min-h-[300px] rounded-3xl bg-navy-950 text-white overflow-hidden grid place-items-center">
-        <div className={`relative w-[min(64vw,300px)] aspect-square rounded-3xl ${scanning ? "ring-4 ring-teal-400" : "ring-2 ring-white/40"}`}>
+        {/* Tapping the frame reads a code now (a guest stepping up) — the scanner never needs a button. */}
+        <button type="button" onClick={nextDemo} aria-label="Read the next guest's code now (demo)" className={`relative w-[min(64vw,300px)] aspect-square rounded-3xl focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-300 ${idle ? "ring-4 ring-teal-400/70" : "ring-2 ring-white/40"}`}>
           {["top-0 left-0 border-t-4 border-l-4 rounded-tl-3xl", "top-0 right-0 border-t-4 border-r-4 rounded-tr-3xl", "bottom-0 left-0 border-b-4 border-l-4 rounded-bl-3xl", "bottom-0 right-0 border-b-4 border-r-4 rounded-br-3xl"].map((c) => (
             <span key={c} aria-hidden className={`absolute w-10 h-10 border-teal-300 ${c}`} />
           ))}
           <Icon.scan size={72} className="absolute inset-0 m-auto text-white/25" />
-          {scanning && <div aria-hidden className="absolute left-3 right-3 h-0.5 bg-teal-300 shadow-[0_0_10px_#5eead4] motion-safe:animate-[scanline_1.1s_linear_infinite]" />}
-        </div>
-        <p className="absolute top-4 inset-x-0 text-center text-[13px] text-white/80" aria-live="polite">{scanning ? "Reading the code…" : "Point the camera at the guest’s QR code"}</p>
+          {idle && <div aria-hidden className="absolute left-3 right-3 h-0.5 bg-teal-300 shadow-[0_0_10px_#5eead4] motion-safe:animate-[scanline_1.6s_linear_infinite]" />}
+        </button>
+        <p className="absolute top-4 inset-x-0 text-center text-[13px] text-white/85" aria-live="polite">
+          <span className="inline-flex items-center gap-1.5 font-semibold"><span className="w-2 h-2 rounded-full bg-teal-300 motion-safe:animate-pulse" /> Scanning</span> — hold the guest’s QR in the frame
+        </p>
         <div className="absolute bottom-4 inset-x-4 flex flex-wrap items-center justify-center gap-3">
-          <Btn variant="teal" size="lg" icon={Icon.scan} onClick={doScan} disabled={scanning}>{scanning ? "Scanning…" : "Scan QR"}</Btn>
-          <div className="flex gap-4 rounded-xl bg-white/10 px-3 py-1.5 text-[13px] [&_*]:!text-white">
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 rounded-xl bg-white/10 px-3 py-1.5 text-[13px] [&_*]:!text-white">
+            <Toggle label="Demo arrivals" on={arrivals} onChange={setArrivals} />
             <Toggle label="Sound" on={fb.sound} onChange={(v) => setFb({ ...fb, sound: v })} />
             <Toggle label="Vibrate" on={fb.vibrate} onChange={(v) => setFb({ ...fb, vibrate: v })} />
           </div>
@@ -106,7 +124,7 @@ export function ControllerScan() {
       </div>
 
       <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); checkCode(); }}>
-        <div className="flex-1"><Input aria-label="Type a booking or ticket code" placeholder="Or type the code — e.g. BK-10436" value={code} onChange={(e) => setCode(e.target.value)} className="!min-h-[52px] text-base" /></div>
+        <div className="flex-1"><Input aria-label="Type a booking or ticket code" placeholder="Or type the code — e.g. BK-10436" value={code} onChange={(e) => setCode(e.target.value)} onFocus={() => setTyping(true)} onBlur={() => setTyping(false)} className="!min-h-[52px] text-base" /></div>
         <Btn type="submit" size="lg" variant="primary" disabled={!code.trim()}>Check</Btn>
       </form>
 

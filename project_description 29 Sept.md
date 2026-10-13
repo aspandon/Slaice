@@ -1772,7 +1772,7 @@ Lockers. The separate locker-by-number page was removed; `#/cashier/locker` open
 ```text
  ┌─ Viewfinder ──────────┐
  │   [  QR in frame  ]   │
- │ ───── scan line ───── │ ──[Scan QR]──▶ FULL-SCREEN result (demo cycle: valid, valid, entered, valid, invalid…)
+ │ ───── scan line ───── │ ──(reads by itself)──▶ FULL-SCREEN result (demo cycle: valid, valid, entered, valid, invalid…)
  │  Sound ◉  Vibrate ◉   │
  └───────────────────────┘
       ├─ ✓ VALID (green) ─────────▶ admitted + logged ─▶ back to the scanner after 2 s
@@ -1784,6 +1784,12 @@ Lockers. The separate locker-by-number page was removed; `#/cashier/locker` open
  Other actions:  [Walk-in sale] G-03 · [Add ticket (pay on site)] G-03 · [Beach status] G-02
 ```
 
+- **Continuous scanning** (AENR-609): the camera stays live — there is no Scan button. Each code is
+  checked as soon as it is read; the result fills the screen with sound and vibration, then returns to
+  scanning by itself (an "already entered" result waits for Admit / Deny). The same code read again
+  within 5 s is ignored. Demo: **Demo arrivals** (on by default) reads the next guest's code every few
+  seconds while the scanner is idle, paused while a result is up or the code field is in use; tapping
+  the frame reads one at once. Typing a code stays as the fallback.
 - **Scan QR** (camera viewfinder simulation with scan line) → the result **fills the screen**
   (AENR-586), readable from arm's length — colour plus a large icon and word, so it never relies on
   colour alone:
