@@ -8,7 +8,7 @@
 
 import type { CartItem, CustomerBooking } from "./types";
 import type { PlacedBooking } from "./account";
-import { addDays, isoFromDayMonth } from "./period";
+import { SEASON_START, addDays, isSeasonDay, isoFromDayMonth } from "./period";
 
 /* ---------- Guest policy (AENR-569 / 574 / 578) ---------- */
 export interface GuestPolicy {
@@ -281,6 +281,41 @@ export function usual(visits: readonly Visit[]): UsualBooking | null {
     lockers: latest?.lockers.length ?? 0,
     parking: latest?.parking.length ?? 0,
   };
+}
+
+/* ---------- Home follows the moment (AENR-610) ---------- */
+/** When the arrival window closes and when the beach day is over (local time). */
+export const ARRIVAL_ENDS = "11:00";
+export const DAY_ENDS = "19:00";
+export type MomentKind = "morning" | "during" | "after" | "upcoming" | "offseason" | "none";
+export type HomeMoment =
+  | { kind: "morning" | "during" | "after" | "upcoming"; v: Visit }
+  | { kind: "offseason"; opens: string }
+  | { kind: "none" };
+/** What Home leads with: the QR on the morning of a visit, extras during it, the receipt and
+ *  "Book again" after it, next season's opening off-season — otherwise the next visit.
+ *  `force` previews a moment (demo); it falls back when there is no visit to show it with. */
+export function homeMoment(visits: readonly Visit[], date: string, time: string, force?: MomentKind): HomeMoment {
+  const live = visits.filter((v) => v.status === "today" || v.status === "upcoming");
+  const today = live.find((v) => v.date === date);
+  const next = [...live].filter((v) => v.date > date).sort((a, b) => a.date.localeCompare(b.date))[0];
+  const recent = [...visits]
+    .filter((v) => v.status !== "cancelled" && v.date < date && v.date >= addDays(date, -2))
+    .sort((a, b) => b.date.localeCompare(a.date))[0];
+  const opens = () => {
+    const y = Number(date.slice(0, 4));
+    const start = `${y}-${String(SEASON_START.month).padStart(2, "0")}-${String(SEASON_START.day).padStart(2, "0")}`;
+    return date < start ? start : `${y + 1}${start.slice(4)}`;
+  };
+  if (force === "offseason") return { kind: "offseason", opens: opens() };
+  const shown = today ?? next;
+  if ((force === "morning" || force === "during" || force === "upcoming") && shown) return { kind: force, v: shown };
+  if (force === "after" && (recent ?? today ?? next)) return { kind: "after", v: (recent ?? today ?? next) as Visit };
+  if (!isSeasonDay(date) && !live.length) return { kind: "offseason", opens: opens() };
+  if (today) return { kind: time < ARRIVAL_ENDS ? "morning" : time < DAY_ENDS ? "during" : "after", v: today };
+  // Just back from the beach — unless the next visit is tomorrow, which matters more.
+  if (recent && !(next && next.date <= addDays(date, 1))) return { kind: "after", v: recent };
+  return next ? { kind: "upcoming", v: next } : { kind: "none" };
 }
 
 /** What a VIP pass would have saved the guest this season (AENR-576): discount × sunbed spend. */

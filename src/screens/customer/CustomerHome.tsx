@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
 import { Badge, Btn, NotMvpBadge } from "../../components/ui";
@@ -8,9 +8,13 @@ import { useCountUp } from "../../lib/motion";
 import { ZONES, zoneLayout, WEATHER_DEMO, TENANT, forecastFor, todayISO } from "../../data/beach";
 import { QR } from "../../components/charts";
 import { useVisits } from "../../lib/useVisits";
-import { ARRIVAL_WINDOW, nextVisit, usual, type Visit } from "../../domain/visits";
+import { ARRIVAL_ENDS, ARRIVAL_WINDOW, homeMoment, usual, type MomentKind, type UsualBooking, type Visit } from "../../domain/visits";
 import { fmtDay, fmtWeekday } from "../../domain/period";
-import { FullscreenQR, visitPass } from "./VisitTicket";
+import { FullscreenQR, receiptForVisit, visitPass } from "./VisitTicket";
+import { ExtrasDialog } from "./CustomerBookings";
+import { ReceiptModal } from "./CustomerDocs";
+import { useDemoNow } from "../../lib/useLiveSlots";
+import { readHashQuery } from "../../app/router";
 import { WalletButtons } from "../../components/WalletPass";
 import { SceneDemoPanel } from "../../components/SceneDemoPanel";
 import { SEASON_END_LABEL } from "../../data/passes";
@@ -89,8 +93,18 @@ export function CustomerHome() {
     return () => { clearTimeout(mark); ctx.revert(); };
   }, []);
 
-  // The guest's plan first (AENR-567): the next visit, then their usual, then rewards.
-  const next = nextVisit(visits);
+  // Home follows the moment (AENR-610): the QR on the morning of a visit, extras while there,
+  // the receipt and Book again afterwards, the opening date off-season — else the next visit.
+  // `?moment=` previews one (demo menu › Preview Home); it follows the link while Home is open.
+  const [force, setForce] = useState(() => readHashQuery().get("moment") ?? "");
+  useEffect(() => {
+    const on = () => setForce(readHashQuery().get("moment") ?? "");
+    window.addEventListener("hashchange", on);
+    return () => window.removeEventListener("hashchange", on);
+  }, []);
+  const clock = new Date(useDemoNow()).toTimeString().slice(0, 5);
+  const moment = homeMoment(visits, todayISO(), clock, (force || undefined) as MomentKind | undefined);
+  const next = moment.kind === "morning" || moment.kind === "upcoming" ? moment.v : null;
   const mine = usual(visits);
   const hero = (
       <button onClick={() => dive()} className="text-left group block w-full" data-home-card>
@@ -128,11 +142,16 @@ export function CustomerHome() {
 
   return (
     <div ref={scope} className="flex flex-col gap-4 max-w-6xl mx-auto w-full">
-      {next && <h1 className="sr-only">{t("Home")}</h1>}
-      {next ? <NextVisitCard v={next} /> : hero}
+      {moment.kind !== "none" && <h1 className="sr-only">{t("Home")}</h1>}
+      {next ? <NextVisitCard v={next} qrFirst={moment.kind === "morning"} />
+        : moment.kind === "during" ? <AtBeachCard v={moment.v} />
+        : moment.kind === "after" ? <AfterVisitCard v={moment.v} mine={mine} />
+        : moment.kind === "offseason" ? <OffSeasonCard opens={moment.opens} />
+        : hero}
 
       <div className="grid sm:grid-cols-2 gap-4 items-stretch">
-        {/* Rebook your usual — from the guest's own visits */}
+        {/* Rebook your usual — from the guest's own visits (the after-visit card already offers it) */}
+        {moment.kind !== "after" && <>
         {/* "Book again" opens Pay with the usual filled in (AENR-611); first-timers get the guided booking. */}
         <button onClick={() => (mine ? go("customer", "plan", { rebook: mine }) : dive())} className={`${CARD} p-5 flex flex-col gap-2.5 text-left hover:bg-white/80 transition-colors group`} data-home-card>
           <div className="flex items-center gap-3">
@@ -146,6 +165,7 @@ export function CustomerHome() {
           </div>
           <div className="self-start flex items-center gap-1 text-teal-700 text-[13px] font-semibold px-3 py-1.5 -ml-3">{mine ? t("Book again") : t("Start guided booking")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" /></div>
         </button>
+        </>}
         <div className="min-w-0">
           {!promoDismissed && (
             <div className={`${CARD} p-5 relative flex flex-col gap-2.5`} data-home-card>
@@ -176,7 +196,7 @@ export function CustomerHome() {
 
 /* The next visit, first thing on Home (AENR-567): countdown, zone and sets,
    the day's weather, the QR in one tap and directions to the entrance. */
-function NextVisitCard({ v }: { v: Visit }) {
+function NextVisitCard({ v, qrFirst = false }: { v: Visit; qrFirst?: boolean }) {
   const { go, weather } = useApp();
   const t = useT();
   const [qr, setQr] = useState(false);
@@ -190,7 +210,7 @@ function NextVisitCard({ v }: { v: Visit }) {
       <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
         <div className="min-w-0 flex-1">
           <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700">
-            <Icon.calendar size={13} /> {days <= 0 ? t("Today") : days === 1 ? t("Tomorrow") : `${t("In")} ${days} ${t("days")}`}
+            <Icon.calendar size={13} /> {days <= 0 ? (qrFirst ? `${t("Today")} · ${t("arrive by")} ${ARRIVAL_ENDS}` : t("Today")) : days === 1 ? t("Tomorrow") : `${t("In")} ${days} ${t("days")}`}
           </div>
           <h2 id="next-visit" className="mt-1.5 font-display font-bold text-[26px] sm:text-[32px] leading-tight text-navy-900">
             {fmtWeekday(v.date)} {fmtDay(v.date)}{v.zone ? ` · ${v.zone}` : ""}
@@ -218,12 +238,77 @@ function NextVisitCard({ v }: { v: Visit }) {
             <Btn variant="ghost" onClick={() => go("customer", "mybookings")}>{t("Manage booking")}</Btn>
           </div>
         </div>
-        <button type="button" onClick={() => setQr(true)} aria-label={`${t("Show QR")} ${v.refs[0]}`} className="self-center shrink-0 rounded-2xl bg-white p-2.5 ring-1 ring-slate-200 shadow-soft hover:shadow-lift transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
-          <QR size={132} seed={v.refs[0]} />
+        {/* The morning of the visit the QR leads, also on phones. */}
+        <button type="button" onClick={() => setQr(true)} aria-label={`${t("Show QR")} ${v.refs[0]}`} className={`${qrFirst ? "order-first sm:order-none" : ""} self-center shrink-0 rounded-2xl bg-white p-2.5 ring-1 ring-slate-200 shadow-soft hover:shadow-lift transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500`}>
+          <QR size={qrFirst ? 168 : 132} seed={v.refs[0]} />
           <span className="block mt-1 font-mono text-[12px] font-semibold text-navy-900">{v.refs[0]}</span>
         </button>
       </div>
       {qr && <FullscreenQR code={v.refs[0]} caption={`${fmtWeekday(v.date)} ${fmtDay(v.date)}${v.sets.length ? ` · ${v.sets.join(", ")}` : ""}`} onClose={() => setQr(false)} />}
+    </section>
+  );
+}
+
+/* At the beach (AENR-610): the day is on — extras first, the QR one tap away for re-entry. */
+function AtBeachCard({ v }: { v: Visit }) {
+  const { go } = useApp();
+  const t = useT();
+  const [qr, setQr] = useState(false);
+  const [extras, setExtras] = useState(false);
+  const has = [...v.parking.map((x) => `${t("Parking")} ${x}`), ...v.lockers.map((x) => `${t("Locker")} ${x}`)];
+  return (
+    <section aria-labelledby="at-beach" className={`${CARD} p-5 sm:p-7`} data-home-card>
+      <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700"><Icon.umbrella size={13} /> {t("You're at the beach")}{v.zone ? ` · ${v.zone}` : ""}</div>
+      <h2 id="at-beach" className="mt-1.5 font-display font-bold text-[26px] sm:text-[32px] leading-tight text-navy-900">{t("Enjoy your day")}</h2>
+      <p className="mt-1 text-[14px] text-slate-700">
+        {v.sets.length ? `${t("Sunbeds")} ${v.sets.join(", ")}` : t("Entry tickets")}{has.length ? ` · ${has.join(" · ")}` : ""}
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Btn variant="primary" icon={Icon.plus} onClick={() => setExtras(true)}>{t("Add a locker or parking")}</Btn>
+        <Btn variant="outline" icon={Icon.qr} onClick={() => setQr(true)}>{t("Show QR")}</Btn>
+        <Btn variant="ghost" onClick={() => go("customer", "mybookings")}>{t("Manage booking")}</Btn>
+      </div>
+      {extras && <ExtrasDialog v={v} onClose={() => setExtras(false)} />}
+      {qr && <FullscreenQR code={v.refs[0]} caption={`${fmtWeekday(v.date)} ${fmtDay(v.date)}${v.sets.length ? ` · ${v.sets.join(", ")}` : ""}`} onClose={() => setQr(false)} />}
+    </section>
+  );
+}
+
+/* After the visit (AENR-610): the receipt and the same day again, one tap each. */
+function AfterVisitCard({ v, mine }: { v: Visit; mine: UsualBooking | null }) {
+  const { go, dive } = useApp();
+  const t = useT();
+  const [doc, setDoc] = useState(false);
+  const today = v.date === todayISO();
+  return (
+    <section aria-labelledby="after-visit" className={`${CARD} p-5 sm:p-7`} data-home-card>
+      <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700"><Icon.checkCircle size={13} /> {t("Thanks for coming")}</div>
+      <h2 id="after-visit" className="mt-1.5 font-display font-bold text-[26px] sm:text-[32px] leading-tight text-navy-900">{today ? t("How was today?") : `${t("How was")} ${fmtWeekday(v.date)}?`}</h2>
+      <p className="mt-1 text-[14px] text-slate-700">
+        {fmtWeekday(v.date)} {fmtDay(v.date)}{v.zone ? ` · ${v.zone}` : ""} · €{v.total} {t("paid")}
+      </p>
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Btn variant="primary" icon={Icon.refresh} onClick={() => (mine ? go("customer", "plan", { rebook: mine }) : dive())}>{t("Book again")}</Btn>
+        <Btn variant="outline" icon={Icon.receipt} onClick={() => setDoc(true)}>{t("Receipt")}</Btn>
+      </div>
+      {doc && <ReceiptModal doc={receiptForVisit(v)} onClose={() => setDoc(false)} />}
+    </section>
+  );
+}
+
+/* Off-season (AENR-610): when the beach opens again, and a reminder. */
+function OffSeasonCard({ opens }: { opens: string }) {
+  const { toast } = useApp();
+  const t = useT();
+  const [asked, setAsked] = useState(false);
+  return (
+    <section aria-labelledby="off-season" className={`${CARD} p-5 sm:p-7`} data-home-card>
+      <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700"><Icon.sun size={13} /> {t("See you next summer")}</div>
+      <h2 id="off-season" className="mt-1.5 font-display font-bold text-[26px] sm:text-[32px] leading-tight text-navy-900">{t("The beach opens on")} {fmtWeekday(opens)} {fmtDay(opens)} {opens.slice(0, 4)}</h2>
+      <p className="mt-1 text-[14px] text-slate-700">{t("Bookings for the new season open a few weeks before. We can tell you the day they do.")}</p>
+      <div className="mt-4">
+        <Btn variant="primary" icon={asked ? Icon.check : Icon.bell} disabled={asked} onClick={() => { setAsked(true); toast(t("We'll e-mail you when bookings open."), { tone: "success" }); }}>{asked ? t("We'll let you know") : t("Remind me")}</Btn>
+      </div>
     </section>
   );
 }

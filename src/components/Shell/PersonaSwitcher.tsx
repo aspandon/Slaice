@@ -4,6 +4,7 @@ import { PERSONAS } from "../../data/personas";
 import { useApp, useT } from "../../app/store";
 import type { PersonaId } from "../../domain/types";
 import { SceneControls } from "../SceneDemoPanel";
+import { readHashQuery } from "../../app/router";
 
 /* ---------- Persona switcher ----------
    The "view as another persona" control, shared by two surfaces:
@@ -29,6 +30,7 @@ export function PersonaSwitcher({
   const t = useT();
   const { inventory, setInventory, sceneFx, showPreviews, setShowPreviews, till } = useApp();
   const cur = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[0];
+  const momentPreview = readHashQuery().get("moment") ?? "";
   const origin = side === "top" ? "origin-bottom-right" : "origin-top-right";
   return (
     <DropdownMenu.Root modal={false}>
@@ -93,6 +95,21 @@ export function PersonaSwitcher({
                   <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${showPreviews ? "left-[18px]" : "left-0.5"}`} />
                 </span>
               </DropdownMenu.CheckboxItem>
+            </>
+          )}
+          {/* Demo: preview Home at each moment of a beach day (AENR-610); Live follows the clock. */}
+          {persona === "customer" && (
+            <>
+              <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
+              <DropdownMenu.Label className="px-2.5 pt-1 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{t("Preview Home")}</DropdownMenu.Label>
+              <DropdownMenu.RadioGroup value={momentPreview} onValueChange={(m) => { window.location.hash = `#/customer/home${m ? `?moment=${m}` : ""}`; }}>
+                {([["", "Live (by the clock)"], ["morning", "Morning of a visit"], ["during", "At the beach"], ["after", "After the visit"], ["offseason", "Off-season"]] as const).map(([k, l]) => (
+                  <DropdownMenu.RadioItem key={k || "live"} value={k} className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100">
+                    <span aria-hidden className={`w-3.5 h-3.5 rounded-full ring-1 shrink-0 grid place-items-center ${momentPreview === k ? "ring-teal-600" : "ring-slate-300"}`}>{momentPreview === k && <span className="w-2 h-2 rounded-full bg-teal-600" />}</span>
+                    {t(l)}
+                  </DropdownMenu.RadioItem>
+                ))}
+              </DropdownMenu.RadioGroup>
             </>
           )}
           {/* Demo: the till losing its connection (AENR-607). It raises the browser's own offline /

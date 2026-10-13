@@ -242,7 +242,7 @@ function MoveDialog({ v, onClose }: { v: Visit; onClose: () => void }) {
 }
 
 /* Add tickets, parking or a locker to a booked visit — charged to the saved card. */
-function ExtrasDialog({ v, onClose }: { v: Visit; onClose: () => void }) {
+export function ExtrasDialog({ v, onClose }: { v: Visit; onClose: () => void }) {
   const t = useT();
   const { toast, account } = useApp();
   const { addExtra } = useVisits();
