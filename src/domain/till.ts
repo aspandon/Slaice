@@ -7,7 +7,7 @@ import type { TicketCategory } from "./types";
 /* ---------- Basket ---------- */
 export interface TillLine {
   id: string;
-  kind: "ticket" | "sunbed" | "locker";
+  kind: "ticket" | "sunbed" | "locker" | "parking";
   label: string;
   qty: number;
   /** Unit price before discounts. */
@@ -15,7 +15,7 @@ export interface TillLine {
   cat?: TicketCategory;
   zoneId?: string;
   setId?: string;
-  /** Locker bank and the locker codes handed out (AENR-531). */
+  /** Locker bank and the locker codes handed out (AENR-531); parking spot codes (AENR-584). */
   bank?: string;
   codes?: string[];
   /** Bundle the line came from — the basket shows the bundle as one line. */
@@ -123,6 +123,8 @@ export interface TillState {
   vouchers: Record<string, number>;
   promoUses: Record<string, number>;
   offline: boolean;
+  /** The "what still works offline" sheet was shown once (AENR-585). */
+  offlineHelpSeen?: boolean;
   /** Demo: the next myDATA transmission fails. */
   failNextMydata: boolean;
   /** Last POS terminal used at this till (AENR-527). */
@@ -135,7 +137,7 @@ export interface TillState {
 /* ---------- Money ---------- */
 export const VAT_RATE = 0.24;
 /** VAT per line kind (demo rates — the accountant confirms the tenant's real ones). */
-export const VAT_BY_KIND: Record<TillLine["kind"], number> = { sunbed: 0.24, ticket: 0.13, locker: 0.24 };
+export const VAT_BY_KIND: Record<TillLine["kind"], number> = { sunbed: 0.24, ticket: 0.13, locker: 0.24, parking: 0.24 };
 export const r2 = (n: number) => Math.round(n * 100) / 100;
 export const eur = (n: number) => `€${Number.isInteger(r2(n)) ? r2(n) : r2(n).toFixed(2)}`;
 
@@ -336,6 +338,8 @@ export interface ShiftTotals {
   expectedCash: number;
   tickets: Record<string, number>;
   sunbeds: Record<string, number>;
+  /** Lockers and parking spots sold (AENR-591). */
+  extras: Record<string, number>;
   /** Card takings per POS terminal (AENR-527). */
   terminals: Record<string, number>;
 }
@@ -356,6 +360,7 @@ export function shiftTotals(shift: TillShift, sales: readonly TillSale[]): Shift
     noSales: 0,
     expectedCash: 0,
     tickets: {},
+    extras: {},
     sunbeds: {},
     terminals: {},
   };
@@ -370,7 +375,11 @@ export function shiftTotals(shift: TillShift, sales: readonly TillSale[]): Shift
       }
       for (const l of s.lines) {
         if (l.kind === "ticket") t.tickets[l.label] = (t.tickets[l.label] ?? 0) + l.qty;
-        else t.sunbeds[l.zoneId ?? "?"] = (t.sunbeds[l.zoneId ?? "?"] ?? 0) + l.qty;
+        else if (l.kind === "sunbed") t.sunbeds[l.zoneId ?? "?"] = (t.sunbeds[l.zoneId ?? "?"] ?? 0) + l.qty;
+        else {
+          const k = l.kind === "locker" ? "Lockers" : "Parking";
+          t.extras[k] = (t.extras[k] ?? 0) + l.qty;
+        }
       }
     }
     for (const r of s.refunds) {

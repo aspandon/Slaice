@@ -1,43 +1,59 @@
 import { useState } from "react";
 import { Icon, type IconRenderer } from "../lib/icons";
-import { Card, Btn, Badge, PageHead, StatCard, Modal } from "../components/ui";
+import { Card, Btn, Badge, PageHead, StatCard, Modal, Toggle } from "../components/ui";
 import { BarChart } from "../components/charts";
 import { RECENT_VALIDATIONS } from "../data/mock";
 import { useApp, useSpotlight } from "../app/store";
 import { openDisplay } from "../domain/display";
+import { ScanResult, detailOf, useGateFeedback, type ScanState, type Validation } from "./gate/ScanResult";
 
-type Validation = { id: string; sub: string; state: string };
+/* Demo scans cycle through every outcome so each result screen can be shown. */
+const DEMO_SCANS: Validation[] = [
+  { id: "#BK-10436", sub: "Bestbuy · BE-14", state: "valid" },
+  { id: "#TK-55127", sub: "Entry · Resident ×2", state: "valid" },
+  { id: "#BK-10402", sub: "Central · CE-92", state: "used", at: "10:42", gate: "Gate 2" },
+  { id: "#TK-55133", sub: "Entry · Adult", state: "valid" },
+  { id: "#BK-09871", sub: "Macaw · MC-06", state: "invalid", reason: "Booking was refunded on 12 Jul" },
+  { id: "#XX-00000", sub: "Unknown code", state: "invalid", reason: "Not a Slaice ticket" },
+];
 
-const RESULT_STYLE: Record<string, { wrap: string; badge: string; label: string; msg: string; icon: IconRenderer }> = {
-  valid: { wrap: "bg-emerald-50 text-emerald-600 ring-emerald-600/20", badge: "green", label: "Valid", msg: "This QR is valid — admit the guest.", icon: Icon.checkCircle },
-  used: { wrap: "bg-amber-50 text-amber-600 ring-amber-600/20", badge: "amber", label: "Already used", msg: "This QR was validated earlier today. Override only if you're sure.", icon: Icon.clock },
-  invalid: { wrap: "bg-rose-50 text-rose-600 ring-rose-600/20", badge: "red", label: "Invalid", msg: "This QR is not recognised — do not admit.", icon: Icon.alert },
+const RESULT_STYLE: Record<string, { wrap: string; badge: string; label: string; icon: IconRenderer }> = {
+  valid: { wrap: "bg-emerald-50 text-emerald-600 ring-emerald-600/20", badge: "green", label: "Valid", icon: Icon.checkCircle },
+  used: { wrap: "bg-amber-50 text-amber-600 ring-amber-600/20", badge: "amber", label: "Already entered", icon: Icon.clock },
+  invalid: { wrap: "bg-rose-50 text-rose-600 ring-rose-600/20", badge: "red", label: "Invalid", icon: Icon.alert },
 };
 
 export function ControllerScan() {
   const { toast, go, persona } = useApp();
   useSpotlight("controller", "scan");
   const [scanning, setScanning] = useState(false);
-  const [recent, setRecent] = useState<Validation[]>(RECENT_VALIDATIONS);
+  const [recent, setRecent] = useState<Validation[]>(RECENT_VALIDATIONS as Validation[]);
   const [inspect, setInspect] = useState<{ v: Validation; fresh: boolean } | null>(null);
+  const [result, setResult] = useState<Validation | null>(null);
+  const [n, setN] = useState(0);
+  const [fb, setFb] = useGateFeedback();
   const stateTone: Record<string, string> = { valid: "green", used: "amber", invalid: "red" };
 
   const doScan = () => {
     setScanning(true);
     setTimeout(() => {
       setScanning(false);
-      const pool: Validation[] = [
-        { id: "#BK-" + (10430 + Math.floor(Math.random() * 50)), sub: "Bestbuy · BE-" + (10 + Math.floor(Math.random() * 20)), state: "valid" },
-        { id: "#TK-" + (55121 + Math.floor(Math.random() * 30)), sub: "Entry · Resident", state: "valid" },
-        { id: "#BK-10402", sub: "Central · CE-92", state: "used" },
-      ];
-      setInspect({ v: pool[Math.floor(Math.random() * pool.length)], fresh: true });
-    }, 1100);
+      const v = DEMO_SCANS[n % DEMO_SCANS.length];
+      setResult(v);
+      setN((x) => x + 1);
+      // Valid admits at once and invalid is refused at once; "already entered" waits for a decision.
+      if (v.state !== "used") log(v, v.state);
+    }, 900);
   };
+  const log = (v: Validation, state: ScanState) => setRecent((x) => [{ ...v, state }, ...x].slice(0, 12));
   const admit = (v: Validation) => {
-    setRecent((x) => [{ ...v, state: "valid" }, ...x].slice(0, 12));
-    setInspect(null);
-    toast("✓ Admitted — gate opened.", { tone: "success" });
+    log(v, "valid");
+    setResult(null);
+    toast(`Override — ${v.id} admitted (logged).`, { tone: "warn" });
+  };
+  const deny = (v: Validation) => {
+    log(v, v.state);
+    setResult(null);
   };
 
   return (
@@ -49,7 +65,11 @@ export function ControllerScan() {
             <Icon.scan size={60} />
             {scanning && <div className="absolute left-0 right-0 h-0.5 bg-teal-500 shadow-[0_0_8px_#14b8a6]" style={{ animation: "scanline 1.1s linear infinite" }} />}
           </div>
-          <Btn variant="teal" className="mt-4" icon={Icon.scan} onClick={doScan} disabled={scanning}>{scanning ? "Scanning…" : "Scan QR"}</Btn>
+          <Btn variant="teal" size="lg" className="mt-4" icon={Icon.scan} onClick={doScan} disabled={scanning}>{scanning ? "Scanning…" : "Scan QR"}</Btn>
+          <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2 text-[13px]">
+            <Toggle label="Sound" on={fb.sound} onChange={(v) => setFb({ ...fb, sound: v })} />
+            <Toggle label="Vibrate" on={fb.vibrate} onChange={(v) => setFb({ ...fb, vibrate: v })} />
+          </div>
           <div className="mt-4 grid grid-cols-3 gap-1.5 w-full text-[11px]">
             <div className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/15 px-2 py-1.5"><Icon.checkCircle size={12} /> valid</div>
             <div className="flex items-center justify-center gap-1.5 rounded-lg bg-amber-50 text-amber-700 ring-1 ring-amber-600/15 px-2 py-1.5"><Icon.clock size={12} /> used</div>
@@ -94,7 +114,8 @@ export function ControllerScan() {
         ]} />
       </Card>
 
-      <ScanResultModal data={inspect} onClose={() => setInspect(null)} onAdmit={admit} />
+      <ScanResultModal data={inspect} onClose={() => setInspect(null)} onAdmit={(v) => { admit(v); setInspect(null); }} />
+      {result && <ScanResult v={result} feedback={fb} onAdmit={admit} onDeny={deny} onDone={() => setResult(null)} />}
     </div>
   );
 }
@@ -113,7 +134,7 @@ function ScanResultModal({ data, onClose, onAdmit }: { data: { v: Validation; fr
         <div className="text-center py-2 space-y-2">
           <span className={`mx-auto w-14 h-14 rounded-2xl grid place-items-center ring-1 ${s.wrap}`}><SIcon size={28} /></span>
           <div className="font-display font-bold text-navy-900 text-lg">{s.label}</div>
-          <div className="text-[13px] text-slate-600 max-w-xs mx-auto">{s.msg}</div>
+          <div className="text-[13px] text-slate-600 max-w-xs mx-auto">{detailOf(v)}</div>
           <div className="mx-auto inline-flex items-center gap-2 rounded-xl bg-slate-50 ring-1 ring-slate-100 px-3 py-2 mt-1">
             <span className="font-mono text-[13px] font-semibold text-navy-900">{v.id}</span>
             <span className="text-slate-300">·</span>

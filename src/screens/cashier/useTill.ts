@@ -96,6 +96,7 @@ export function useTill() {
   const clearConflict = (saleId: string) => patchSale(saleId, (s) => ({ ...s, conflict: undefined }));
   const setFailNext = (v: boolean) => setTill((t) => ({ ...t, failNextMydata: v }));
   const setTerminal = (id: string) => setTill((t) => ({ ...t, terminal: id }));
+  const markOfflineHelpSeen = () => setTill((t) => ({ ...t, offlineHelpSeen: true }));
 
-  return { till, day, cashier, tillName, hold, release, status, completeSale, setDelivery, reprint, retryMydata, refund, openShift, addMove, closeShift, setOffline, syncOffline, moveLine, clearConflict, setFailNext, setTerminal };
+  return { till, day, cashier, tillName, hold, release, status, completeSale, setDelivery, reprint, retryMydata, refund, openShift, addMove, closeShift, setOffline, syncOffline, moveLine, clearConflict, setFailNext, setTerminal, markOfflineHelpSeen };
 }

@@ -30,11 +30,23 @@ export const ZONE_BLOCKS: ZoneBlock[] = [
 ];
 
 // Build a deterministic sunbed grid for a zone.
+// Deterministic 0–1 per key (FNV-1a + xorshift), so every persona sees the same beach.
+function unit(key: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619);
+  h ^= h << 13;
+  h ^= h >>> 17;
+  return ((h >>> 0) % 10000) / 10000;
+}
 export function makeGrid(zone: Zone, cols = 14, rows = 8): Sunbed[] {
-  const states: SunbedState[] = ["a", "a", "a", "h", "a", "u", "a", "a", "h", "a", "a", "u", "a", "a"];
+  // A realistic mix per store (AENR-592): roughly half to two-thirds booked,
+  // a few held, the rest free — front rows fill first.
+  const booked = 0.45 + (zone.total % 5) * 0.04;
   const arr: Sunbed[] = [];
   for (let i = 0; i < cols * rows; i++) {
-    const s = states[(i * 7 + zone.total) % states.length];
+    const front = Math.floor(i / cols) === 0 ? 0.15 : 0;
+    const x = unit(`${zone.id}:${i}`);
+    const s: SunbedState = x < 0.06 ? "h" : x < 0.06 + booked + front ? "u" : "a";
     arr.push({
       id: `${zone.prefix}-${String(i + 1).padStart(2, "0")}`,
       s,

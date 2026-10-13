@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Icon } from "../../lib/icons";
 import { Btn, Field, Input, Modal, Spinner } from "../../components/ui";
 import type { PosTerminal } from "../../domain/finance";
-import { eur, offlineCardCheck, paidSoFar, r2, type Tender, type TenderKind, type TillSale } from "../../domain/till";
+import { OFFLINE_CARD_CAP, OFFLINE_CARD_TOTAL, eur, offlineCardCheck, paidSoFar, r2, type Tender, type TenderKind, type TillSale } from "../../domain/till";
 
 /* ============ Tender ============
    Card (the amount is pushed from the till to the terminal — never typed on
@@ -108,6 +108,12 @@ export function TenderModal({ total, initial, offline, offlineSales, vouchers, o
             </div>
           ))}
         </div>
+        {offline && (
+          <div className="rounded-xl bg-amber-50 text-amber-900 ring-1 ring-amber-600/20 px-3 py-2 text-[12.5px] flex items-start gap-2">
+            <Icon.wifiOff size={14} className="mt-0.5 shrink-0" />
+            <span>Offline: card works up to <b>€{OFFLINE_CARD_CAP}</b> a sale (€{OFFLINE_CARD_TOTAL} in total until reconnect) — take cash or a voucher for more. The ΑΠΥ is issued on the till and sent to myDATA on reconnect.</span>
+          </div>
+        )}
         {tenders.length > 0 && (
           <ul className="text-[12.5px] space-y-1">
             {tenders.map((t, i) => (

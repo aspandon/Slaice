@@ -46,6 +46,7 @@ export function ReceiptView({ sale, copy = false }: { sale: TillSale; copy?: boo
   const sets = sale.lines.filter((l) => l.setId);
   const people = sale.lines.filter((l) => l.kind === "ticket").reduce((a, l) => a + l.qty, 0);
   const lockers = sale.lines.flatMap((l) => (l.kind === "locker" ? l.codes ?? [] : []));
+  const parking = sale.lines.flatMap((l) => (l.kind === "parking" ? l.codes ?? [] : []));
   const change = changeDue(sale.tenders);
   const status = saleStatus(sale);
   return (
@@ -93,6 +94,7 @@ export function ReceiptView({ sale, copy = false }: { sale: TillSale; copy?: boo
             <div className="font-bold">Entry pass{people > 0 ? ` · ${people} ${people === 1 ? "person" : "people"}` : ""}</div>
             <div>{people > 0 ? "One QR for everyone on this sale" : "Scan at the gate"}</div>
             {lockers.length > 0 && <div>Locker{lockers.length > 1 ? "s" : ""}: <b>{lockers.join(", ")}</b></div>}
+            {parking.length > 0 && <div>Parking spot{parking.length > 1 ? "s" : ""}: <b>{parking.join(", ")}</b></div>}
             <div className="mt-1">{sale.mydata === "sent" ? <>MARK {sale.mark}</> : <>myDATA: pending transmission</>}</div>
           </div>
         </div>

@@ -10,6 +10,11 @@ import { addDays } from "../domain/period";
 import { resolvePrice } from "../domain/pricing";
 import {
   BLOCK_REASONS,
+  EXCEPTIONS,
+  EXCEPTION_LABEL,
+  NO_SHOW_CUTOFF,
+  exceptionsOf,
+  type SetException,
   OPS_LABEL,
   TRANSITIONS,
   needsReason,
@@ -103,6 +108,7 @@ export function ControllerBeach() {
         guest: sale.customer?.name ?? "Walk-in",
         guests: sale.lines.filter((l) => l.kind === "ticket").reduce((a, l) => a + l.qty, 0) || 2,
         paid: true,
+        noShow: false,
         channel: sale.channel === "controller" ? "Controller" : sale.channel === "support" ? "Support Agent" : "Cashier",
       };
     if (s.state !== "u" || sunbedOps.status[opsKey(date, s.id)]) return null;
@@ -113,6 +119,8 @@ export function ControllerBeach() {
       guest: `${c.first} ${c.last}`,
       guests: 2 + (n % 3),
       paid: n % 5 !== 0,
+      // Sample: about one booking in seven hasn't arrived by the cut-off.
+      noShow: n % 7 === 3,
       channel: n % 4 === 0 ? "Phone" : "Online",
     };
   };
@@ -184,6 +192,14 @@ export function ControllerBeach() {
     );
   };
 
+  // Status by exception (AENR-587): which sets need action, per filter.
+  const [exF, setExF] = useState<SetException | null>(null);
+  const exOf = (s: SunbedSlot) => exceptionsOf(statusOf(s), bookingOf(s), date === today);
+  const exSets = Object.fromEntries(EXCEPTIONS.map((e) => [e, slots.filter((s) => exOf(s).includes(e))])) as Record<SetException, SunbedSlot[]>;
+  const shown = exF ? exSets[exF] : null;
+  const highlight = shown ? new Set(shown.map((s) => s.id)) : null;
+  const describe = (s: SunbedSlot) => [OPS_LABEL[statusOf(s)].toLowerCase(), ...exOf(s).map((e) => EXCEPTION_LABEL[e].toLowerCase())].join(", ");
+
   const history = sunbedOps.history.filter((h) => sel.has(h.setId)).slice(0, 12);
   const options = one
     ? TRANSITIONS[statusOf(one)]
@@ -245,6 +261,19 @@ export function ControllerBeach() {
             <SetScanner onHit={onHit} compact />
           </Card>
           <Card className="p-4">
+            <div role="radiogroup" aria-label="Show sets that need action" className="flex flex-wrap gap-1.5 mb-3">
+              {[null, ...EXCEPTIONS].map((e) => {
+                const on = exF === e;
+                const n = e ? exSets[e].length : slots.length;
+                return (
+                  <button key={e ?? "all"} type="button" role="radio" aria-checked={on} onClick={() => setExF(e)}
+                    className={`min-h-[44px] rounded-xl px-3 text-[13px] font-semibold ring-1 inline-flex items-center gap-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white/70 text-navy-900 ring-slate-200 hover:ring-slate-400"}`}>
+                    {e ? EXCEPTION_LABEL[e] : "All sets"}
+                    <span className={`min-w-[22px] rounded-full px-1.5 text-[11.5px] tnum ${on ? "bg-white/20" : e && n ? "bg-amber-100 text-amber-900" : "bg-slate-100 text-slate-600"}`}>{n}</span>
+                  </button>
+                );
+              })}
+            </div>
             <div className="flex items-center justify-between mb-2">
               <h2 className="font-display font-bold text-navy-900">
                 {zone.name} · {date === today ? "today" : date}
@@ -267,10 +296,48 @@ export function ControllerBeach() {
                 })
               }
               landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zoneId)}
+              highlight={highlight}
+              showCodes
+              describe={describe}
             />
             <div className="mt-2 text-[11.5px] text-slate-500">
-              Every set can be opened here — booked, held and out-of-service ones too.
+              {exF === "noshow"
+                ? `No-show: booked for today and not checked in by ${NO_SHOW_CUTOFF}.`
+                : "Every set can be opened here — booked, held and out-of-service ones too."}
             </div>
+            {shown && (
+              <div className="mt-3 border-t border-slate-100 pt-3">
+                <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <h3 className="font-semibold text-navy-900 text-sm">{EXCEPTION_LABEL[exF as SetException]} · {shown.length} set{shown.length === 1 ? "" : "s"}</h3>
+                  {shown.length > 1 && (
+                    <Btn size="sm" variant="ghost" onClick={() => setSel(new Set(shown.map((s) => s.id)))}>Select all {shown.length}</Btn>
+                  )}
+                </div>
+                {shown.length === 0 ? (
+                  <p className="text-[13px] text-slate-500 py-2">Nothing here — no {EXCEPTION_LABEL[exF as SetException].toLowerCase()} sets in {zone.name}.</p>
+                ) : (
+                  <ul className="divide-y divide-slate-100">
+                    {shown.map((s) => {
+                      const b = bookingOf(s);
+                      const op = sunbedOps.status[opsKey(date, s.id)];
+                      return (
+                        <li key={s.id}>
+                          <button type="button" onClick={() => setSel(new Set([s.id]))} aria-current={sel.has(s.id) || undefined}
+                            className={`w-full min-h-[48px] text-left px-2 py-2 rounded-lg flex items-center gap-3 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${sel.has(s.id) ? "bg-slate-50" : ""}`}>
+                            <span className="font-mono font-semibold text-navy-900 w-16 shrink-0">{s.id}</span>
+                            <span className="min-w-0 flex-1 text-[12.5px] text-slate-600 truncate">
+                              {b ? `${b.ref} · ${b.guest} · ${b.channel}` : op?.reason ?? OPS_LABEL[statusOf(s)]}
+                              {op?.by ? ` · ${op.by}` : ""}
+                            </span>
+                            <Badge tone={STATUS_TONE[statusOf(s)]}>{OPS_LABEL[statusOf(s)]}</Badge>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            )}
           </Card>
         </div>
 

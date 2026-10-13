@@ -67,3 +67,30 @@ export function opsStatus(
 export function opsToMap(s: OpsStatus): "a" | "h" | "u" {
   return s === "available" ? "a" : s === "hold" ? "h" : "u";
 }
+
+/* ---------- Beach status by exception (AENR-587) ----------
+   The few sets that need a controller: unpaid bookings, no-shows past the
+   arrival cut-off, sets on hold and sets out of service. */
+export type SetException = "unpaid" | "noshow" | "held" | "oos";
+export const EXCEPTIONS: SetException[] = ["unpaid", "noshow", "held", "oos"];
+export const EXCEPTION_LABEL: Record<SetException, string> = {
+  unpaid: "Unpaid",
+  noshow: "No-show",
+  held: "Held",
+  oos: "Out of service",
+};
+/** Guests arriving after this time without checking in count as no-shows. */
+export const NO_SHOW_CUTOFF = "11:00";
+
+export function exceptionsOf(
+  status: OpsStatus,
+  booking: { paid: boolean; noShow?: boolean } | null,
+  isToday: boolean,
+): SetException[] {
+  const out: SetException[] = [];
+  if (booking && !booking.paid && (status === "booked" || status === "occupied")) out.push("unpaid");
+  if (isToday && status === "booked" && booking?.noShow) out.push("noshow");
+  if (status === "hold") out.push("held");
+  if (status === "blocked") out.push("oos");
+  return out;
+}

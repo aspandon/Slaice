@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Icon } from "../../lib/icons";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { Icon, type IconRenderer } from "../../lib/icons";
 import { Badge, Btn, Card, Field, Input, Modal, PageHead, StickyActionBar, Stepper } from "../../components/ui";
 import { Sunbed } from "../../components/Beach";
 import { SunbedMap } from "../../components/SunbedMap";
@@ -7,7 +7,8 @@ import { SetScanner, type ScanHit } from "../../components/SetScanner";
 import { useApp } from "../../app/store";
 import { ZONES } from "../../data/beach";
 import { CUSTOMERS } from "../../data/mock";
-import { BUNDLES, DISCOUNT_PRESETS, PROMO_CODES, QUICK_KEYS, type Bundle, type QuickKey } from "../../data/till";
+import { BUNDLES, DISCOUNT_PRESETS, PARKING_LOT, PROMO_CODES, QUICK_KEYS, parkingSold, type Bundle, type QuickKey } from "../../data/till";
+import { PARKING_PRICE } from "../../domain/pricing";
 import { resolvePrice } from "../../domain/pricing";
 import { useExtras } from "../../lib/useExtras";
 import { useSiteStatus } from "../../lib/usePlatform";
@@ -28,6 +29,14 @@ import { OpenShiftCard, TillStatus } from "./TillStatus";
    Payment: card / cash / voucher, split as needed. Every sale → ΑΠΥ to myDATA. */
 
 type Pin = { reason: string; then: (manager: string) => void };
+type ProductTab = "quick" | "tickets" | "sunbeds" | "lockers" | "parking";
+const PRODUCT_TABS: { id: ProductTab; label: string; icon: IconRenderer }[] = [
+  { id: "quick", label: "Quick", icon: Icon.bolt },
+  { id: "tickets", label: "Tickets", icon: Icon.ticket },
+  { id: "sunbeds", label: "Sunbeds", icon: Icon.umbrella },
+  { id: "lockers", label: "Lockers", icon: Icon.lock },
+  { id: "parking", label: "Parking", icon: Icon.car },
+];
 const ZONE_NAMES = Object.fromEntries(ZONES.map((z) => [z.id, z.name]));
 let uidN = 0;
 const uid = (p: string) => `${p}${++uidN}`;
@@ -68,6 +77,7 @@ function IssueInner() {
   const [custOpen, setCustOpen] = useState(false);
   const [err, setErr] = useState("");
   const [scanOpen, setScanOpen] = useState(false);
+  const [tab, setTab] = useState<ProductTab>("quick");
 
   const zone = ZONES.find((z) => z.id === zoneId) ?? ZONES[0];
   const priceOf = (s: SunbedSlot, zId = zone.id) => resolvePrice(s, zId, t.day, beachPricing, priceRules).price;
@@ -79,6 +89,28 @@ function IssueInner() {
   const hasSets = inBasket.size > 0;
 
   const shiftOpen = !!t.till.shift;
+  // Tablet and up: catalogue and basket fill the screen below the till status,
+  // so a whole sale needs no page scroll (AENR-584). Phones keep the page flow.
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [fitH, setFitH] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const mq = window.matchMedia("(min-width: 768px)");
+    const fit = () => {
+      if (!mq.matches) return setFitH(null);
+      const r = el.getBoundingClientRect();
+      // The site footer and the page's bottom padding stay on screen too.
+      const foot = document.querySelector("body footer");
+      const fr = foot?.getBoundingClientRect();
+      const below = fr ? document.documentElement.scrollHeight - (fr.top + window.scrollY) + 24 : 40;
+      setFitH(Math.max(460, Math.floor(window.innerHeight - (r.top + window.scrollY) - below)));
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    mq.addEventListener("change", fit);
+    return () => { window.removeEventListener("resize", fit); mq.removeEventListener("change", fit); };
+  }, [shiftOpen, t.till.offline]);
   // The phone pay bar hides once the basket itself is on screen.
   const [basketInView, setBasketInView] = useState(false);
   useEffect(() => {
@@ -127,6 +159,7 @@ function IssueInner() {
     fresh();
     setErr("");
     setZoneId(h.zoneId);
+    setTab("sunbeds");
     const s = zoneSlots(h.zoneId).find((x) => x.id === h.setId);
     if (!s || inBasket.has(h.setId)) return;
     if (s.state !== "a") return setErr(`${h.setId} can't be sold now — ${s.inv ?? (s.state === "h" ? "on hold" : "already booked or out of service")}.`);
@@ -146,6 +179,32 @@ function IssueInner() {
     addSets(picked);
     return picked;
   };
+  // Parking (AENR-584): one line, spot codes continue after today's sold spots.
+  const parkingQty = lines.find((l) => l.id === "p-day")?.qty ?? 0;
+  const parkingTaken = PARKING_LOT.bookedOnline + parkingSold(t.till.sales, t.day);
+  const parkingFree = Math.max(0, PARKING_LOT.spots - parkingTaken - parkingQty);
+  const setParkingQty = (qty: number) => { fresh(); setLines((ls) => {
+    const rest = ls.filter((l) => l.id !== "p-day");
+    if (qty <= 0) return rest;
+    const line: TillLine = { id: "p-day", kind: "parking", label: "Parking · day spot", qty, unit: PARKING_PRICE, codes: Array.from({ length: qty }, (_, i) => `P${String(parkingTaken + i + 1).padStart(2, "0")}`) };
+    return ls.some((l) => l.id === "p-day") ? ls.map((l) => (l.id === "p-day" ? line : l)) : [...ls, line];
+  }); };
+  // Arrow keys / Home / End move between product tabs (WAI-ARIA tabs pattern).
+  const tabKeys = (e: KeyboardEvent) => {
+    const i = PRODUCT_TABS.findIndex((x) => x.id === tab);
+    const next = e.key === "ArrowRight" ? i + 1 : e.key === "ArrowLeft" ? i - 1 : e.key === "Home" ? 0 : e.key === "End" ? PRODUCT_TABS.length - 1 : null;
+    if (next === null) return;
+    e.preventDefault();
+    const id = PRODUCT_TABS[(next + PRODUCT_TABS.length) % PRODUCT_TABS.length].id;
+    setTab(id);
+    document.getElementById(`till-tab-${id}`)?.focus();
+  };
+  const tabCount = (id: ProductTab) =>
+    id === "tickets" ? lines.filter((l) => l.kind === "ticket").reduce((a, l) => a + l.qty, 0)
+    : id === "sunbeds" ? inBasket.size
+    : id === "lockers" ? lines.filter((l) => l.kind === "locker").reduce((a, l) => a + l.qty, 0)
+    : id === "parking" ? parkingQty
+    : 0;
   const removeLines = (ids: string[]) => {
     const gone = lines.filter((l) => ids.includes(l.id));
     t.release(gone.filter((l) => l.setId).map((l) => l.setId as string));
@@ -238,134 +297,172 @@ function IssueInner() {
       {!shiftOpen ? (
         <OpenShiftCard />
       ) : (
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-5 items-start">
-          <div className="space-y-4 min-w-0">
-            {/* Quick keys + bundles */}
-            <Card className="p-4">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Quick keys</div>
-              <div className="flex flex-wrap gap-2">
-                {QUICK_KEYS.map((q) => (
-                  <button key={q.id} type="button" onClick={() => quick(q)}
-                    className="min-h-[48px] rounded-xl bg-navy-900 text-white px-4 font-semibold text-sm shadow-sm hover:bg-navy-800 active:scale-[.97] transition disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2">
-                    {q.label}
+        <div ref={gridRef} className="grid md:grid-cols-[minmax(0,1fr)_288px] xl:grid-cols-[minmax(0,1fr)_380px] gap-4 xl:gap-5 items-start">
+          {/* Catalogue: product tabs, one panel at a time (AENR-584) — on a
+              tablet the whole sale fits the screen; only a panel scrolls. */}
+          <div className="min-w-0 flex flex-col gap-3" style={fitH ? { height: fitH } : undefined}>
+            <div role="tablist" aria-label="Products" aria-orientation="horizontal" className="shrink-0 grid grid-cols-5 gap-1 rounded-2xl glass-card p-1">
+              {PRODUCT_TABS.map((x) => {
+                const n = tabCount(x.id);
+                const on = tab === x.id;
+                const I = x.icon;
+                return (
+                  <button key={x.id} id={`till-tab-${x.id}`} type="button" role="tab" aria-selected={on} aria-controls="till-panel" tabIndex={on ? 0 : -1} onClick={() => setTab(x.id)} onKeyDown={tabKeys}
+                    className={`relative min-h-[56px] rounded-xl flex flex-col items-center justify-center gap-0.5 px-1 text-[12.5px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${on ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-600 hover:bg-white/80 hover:text-navy-900"}`}>
+                    <I size={18} />
+                    <span className="truncate max-w-full">{x.label}</span>
+                    {n > 0 && <span className={`absolute top-1 left-1/2 ml-2.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10.5px] leading-[18px] tnum ${on ? "bg-teal-400 text-navy-900" : "bg-teal-600 text-white"}`} aria-label={`${n} in basket`}>{n}</span>}
                   </button>
-                ))}
-                {BUNDLES.map((b) => (
-                  <button key={b.id} type="button" onClick={() => addBundle(b)}
-                    className="min-h-[48px] rounded-xl bg-teal-50 text-teal-800 ring-1 ring-teal-600/25 px-4 text-left text-sm hover:bg-teal-100 active:scale-[.97] transition disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
-                    <span className="font-semibold">{b.label}</span>
-                    <span className="block text-[11px] text-teal-700/80">{Object.entries(b.tickets).map(([c, n]) => `${n} ${ex.ticketLabel(c)}`).join(" + ")} + {b.sets} set{b.sets > 1 ? "s" : ""} · save €{b.saving}</span>
-                  </button>
-                ))}
-              </div>
-            </Card>
+                );
+              })}
+            </div>
 
-            {/* Step 1 · tickets */}
-            <Card className="p-4">
-              <div className="flex items-baseline justify-between mb-2">
-                <h2 className="font-display font-bold text-navy-900">1 · Entry tickets</h2>
-                <span className="text-[12px] text-slate-500">Anonymous · skip for a sunbed-only sale</span>
-              </div>
-              <div className="grid sm:grid-cols-2 gap-2">
-                {ex.tickets.map((c) => (
-                  <div key={c.id} className="flex items-center justify-between gap-2 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2">
-                    <div className="min-w-0">
-                      <div className="font-semibold text-navy-900 text-sm">{c.short}</div>
-                      <div className="text-[12px] text-slate-600">{ex.ticketPrice(c.id, t.day) === 0 ? "Free" : `€${ex.ticketPrice(c.id, t.day)} each`}{c.note ? <span className="block text-[11px] text-slate-500">{c.note}</span> : null}</div>
-                    </div>
-                    <Stepper label={`${c.short} tickets`} value={ticketQty(c.id)} onChange={(v) => setTicketQty(c.id, v)} />
-                  </div>
-                ))}
-              </div>
-            </Card>
-
-            {/* Lockers (AENR-531) — live availability from the locker provider */}
-            <Card className="p-4">
-              <div className="flex items-baseline justify-between mb-2">
-                <h2 className="font-display font-bold text-navy-900">Lockers</h2>
-                <span className="text-[12px] text-slate-500">Optional · locker-only sales are fine</span>
-              </div>
-              {ex.banks.length > 0 && ex.banks.every((b) => ex.lockerAvail(b.id, t.day) === null) ? (
-                <div role="status" className="rounded-lg bg-amber-50 text-amber-800 ring-1 ring-amber-600/20 px-3 py-2 text-[12.5px] flex items-center gap-1.5"><Icon.alert size={13} /> Locker provider offline — locker sales are paused.</div>
-              ) : (
-                <div className="grid sm:grid-cols-3 gap-2">
-                  {ex.banks.map((b) => {
-                    const avail = ex.lockerAvail(b.id, t.day) ?? 0;
-                    const q = lockerQty(b.id);
-                    return (
-                      <div key={b.id} className={`rounded-xl ring-1 px-3 py-2 ${avail === 0 && q === 0 ? "ring-slate-200 bg-slate-50 opacity-70" : "ring-slate-200 bg-white/70"}`}>
-                        <div className="font-semibold text-navy-900 text-sm">{b.name}</div>
-                        <div className="text-[12px] text-slate-600">€{ex.lockerPrice(b.id, t.day)} · {b.size} · <span className={avail === 0 ? "text-rose-700 font-semibold" : ""}>{avail === 0 ? "none free" : `${avail} free`}</span></div>
-                        <div className="mt-1.5 flex justify-end"><Stepper label={`${b.name} lockers`} value={q} onChange={(v) => setLockerQty(b.id, Math.min(v, avail))} /></div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </Card>
-
-            {/* Step 2 · store */}
-            <Card className="p-4">
-              <div className="flex items-baseline justify-between mb-2">
-                <h2 className="font-display font-bold text-navy-900">2 · Store</h2>
-                <span className="text-[12px] text-slate-500">Live availability for today</span>
-              </div>
-              <div role="radiogroup" aria-label="Store" className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {ZONES.map((z) => {
-                  const closed = closure(z.id, t.day);
-                  const free = freeIn(z.id);
-                  const from = free.length ? Math.min(...free.map((s) => priceOf(s, z.id))) : null;
-                  const off = !!closed || free.length === 0;
-                  const active = z.id === zone.id;
-                  return (
-                    <button key={z.id} type="button" role="radio" aria-checked={active} disabled={off && !active}
-                      onClick={() => { setZoneId(z.id); setErr(""); }}
-                      className={`min-h-[56px] rounded-xl px-3 py-2 text-left ring-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${active ? "bg-navy-900 text-white ring-navy-900" : off ? "bg-slate-50 ring-slate-200 text-slate-400 cursor-not-allowed" : "bg-white/70 ring-slate-200 text-navy-900 hover:bg-white"}`}>
-                      <span className="flex items-center gap-1.5 font-semibold text-sm"><i className="w-2 h-2 rounded-full" style={{ background: z.color }} />{z.name}</span>
-                      <span className={`block text-[11.5px] mt-0.5 ${active ? "text-white/75" : off ? "text-slate-400" : "text-slate-500"}`}>
-                        {closed ? closed : free.length === 0 ? "Full today" : `${free.length} free · from €${from}`}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </Card>
-
-            {/* Step 3 · sunbeds */}
-            <Card className="p-4">
-              <div className="flex flex-wrap items-center gap-2 justify-between mb-2">
-                <h2 className="font-display font-bold text-navy-900">3 · Sunbeds · {zone.name}</h2>
-                <div className="flex gap-2">
-                  <Btn size="sm" variant="outline" icon={Icon.qr} onClick={() => setScanOpen(true)}>Scan set QR</Btn>
-                  <Btn size="sm" variant="outline" icon={Icon.sparkles} disabled={!!closure(zone.id, t.day)} onClick={() => anyFree(1)}>Any free set</Btn>
-                </div>
-              </div>
-              {t.till.offline && (
-                <div className="mb-2 rounded-lg bg-amber-50 text-amber-800 ring-1 ring-amber-600/20 px-3 py-1.5 text-[12px] flex items-center gap-1.5"><Icon.alert size={13} /> Offline — this is the cached map; availability may be out of date. Conflicts are flagged when the till reconnects.</div>
-              )}
-              {closure(zone.id, t.day) ? (
-                <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 p-6 text-center text-sm text-slate-600">{zone.name}: {closure(zone.id, t.day)}. Choose another store.</div>
-              ) : (
+            <div id="till-panel" role="tabpanel" aria-labelledby={`till-tab-${tab}`} className="glass-card rounded-3xl p-4 flex-1 min-h-0 overflow-y-auto">
+              {tab === "quick" && (
                 <>
-                  <SunbedMap label={`${zone.name} sunbed map`} slots={slots} selected={inBasket} onToggle={toggleSet} priceOf={(s) => priceOf(s)}
-                    landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zone.id)} />
-                  <div className="mt-2 flex flex-wrap gap-3 text-[11.5px] text-slate-600">
-                    <span className="flex items-center gap-1"><Sunbed state="a" size={14} readOnly /> Free</span>
-                    <span className="flex items-center gap-1"><Sunbed state="h" size={14} readOnly /> On hold</span>
-                    <span className="flex items-center gap-1"><Sunbed state="u" size={14} readOnly /> Booked / blocked</span>
-                    <span className="flex items-center gap-1"><Sunbed state="a" sel size={14} readOnly /> In this basket</span>
+                  <h2 className="font-display font-bold text-navy-900 mb-2">Quick keys</h2>
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
+                    {QUICK_KEYS.map((q) => (
+                      <button key={q.id} type="button" onClick={() => quick(q)}
+                        className="min-h-[56px] rounded-xl bg-navy-900 text-white px-4 font-semibold text-sm shadow-sm hover:bg-navy-800 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2">
+                        {q.label}
+                      </button>
+                    ))}
+                  </div>
+                  <h2 className="font-display font-bold text-navy-900 mt-4 mb-2">Bundles · {zone.name}</h2>
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">
+                    {BUNDLES.map((b) => (
+                      <button key={b.id} type="button" onClick={() => addBundle(b)}
+                        className="min-h-[56px] rounded-xl bg-teal-50 text-teal-800 ring-1 ring-teal-600/25 px-4 py-2 text-left text-sm hover:bg-teal-100 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                        <span className="font-semibold">{b.label}</span>
+                        <span className="block text-[11.5px] text-teal-700/90">{Object.entries(b.tickets).map(([c, n]) => `${n} ${ex.ticketLabel(c)}`).join(" + ")} + {b.sets} set{b.sets > 1 ? "s" : ""} · save €{b.saving}</span>
+                      </button>
+                    ))}
+                  </div>
+                  <p className="mt-3 text-[12px] text-slate-500">Sets go in the store picked under <button type="button" className="font-semibold text-teal-700 hover:underline" onClick={() => setTab("sunbeds")}>Sunbeds</button> (now {zone.name}).</p>
+                </>
+              )}
+
+              {tab === "tickets" && (
+                <>
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 mb-2">
+                    <h2 className="font-display font-bold text-navy-900">Entry tickets</h2>
+                    <span className="text-[12px] text-slate-500">Anonymous · skip for a sunbed-only sale</span>
+                  </div>
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-2">
+                    {ex.tickets.map((c) => (
+                      <div key={c.id} className="flex items-center justify-between gap-2 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-navy-900 text-sm">{c.short}</div>
+                          <div className="text-[12px] text-slate-600">{ex.ticketPrice(c.id, t.day) === 0 ? "Free" : `€${ex.ticketPrice(c.id, t.day)} each`}{c.note ? <span className="block text-[11px] text-slate-500">{c.note}</span> : null}</div>
+                        </div>
+                        <Stepper size="lg" label={`${c.short} tickets`} value={ticketQty(c.id)} onChange={(v) => setTicketQty(c.id, v)} />
+                      </div>
+                    ))}
                   </div>
                 </>
               )}
-            </Card>
+
+              {tab === "sunbeds" && (
+                <>
+                  <div role="radiogroup" aria-label="Store" className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
+                    {ZONES.map((z) => {
+                      const closed = closure(z.id, t.day);
+                      const free = freeIn(z.id);
+                      const from = free.length ? Math.min(...free.map((s) => priceOf(s, z.id))) : null;
+                      const off = !!closed || free.length === 0;
+                      const active = z.id === zone.id;
+                      return (
+                        <button key={z.id} type="button" role="radio" aria-checked={active} disabled={off && !active}
+                          onClick={() => { setZoneId(z.id); setErr(""); }}
+                          className={`shrink-0 min-h-[56px] min-w-[112px] rounded-xl px-3 py-1.5 text-left ring-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${active ? "bg-navy-900 text-white ring-navy-900" : off ? "bg-slate-50 ring-slate-200 text-slate-400 cursor-not-allowed" : "bg-white/70 ring-slate-200 text-navy-900 hover:bg-white"}`}>
+                          <span className="flex items-center gap-1.5 font-semibold text-sm"><i className="w-2 h-2 rounded-full" style={{ background: z.color }} />{z.name}</span>
+                          <span className={`block text-[11.5px] mt-0.5 whitespace-nowrap ${active ? "text-white/75" : off ? "text-slate-400" : "text-slate-500"}`}>
+                            {closed ? "Closed" : free.length === 0 ? "Full today" : `${free.length} free · €${from}+`}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 justify-between my-2">
+                    <h2 className="font-display font-bold text-navy-900">Sunbeds · {zone.name}</h2>
+                    <div className="flex gap-2">
+                      <Btn size="sm" variant="outline" icon={Icon.qr} onClick={() => setScanOpen(true)}>Scan set QR</Btn>
+                      <Btn size="sm" variant="outline" icon={Icon.sparkles} disabled={!!closure(zone.id, t.day)} onClick={() => anyFree(1)}>Any free set</Btn>
+                    </div>
+                  </div>
+                  {t.till.offline && (
+                    <div className="mb-2 rounded-lg bg-amber-50 text-amber-800 ring-1 ring-amber-600/20 px-3 py-1.5 text-[12px] flex items-center gap-1.5"><Icon.alert size={13} /> Offline — this is the cached map; availability may be out of date. Conflicts are flagged when the till reconnects.</div>
+                  )}
+                  {closure(zone.id, t.day) ? (
+                    <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 p-6 text-center text-sm text-slate-600">{zone.name}: {closure(zone.id, t.day)}. Choose another store.</div>
+                  ) : (
+                    <>
+                      <SunbedMap label={`${zone.name} sunbed map`} slots={slots} selected={inBasket} onToggle={toggleSet} priceOf={(s) => priceOf(s)}
+                        landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zone.id)} />
+                      <div className="mt-2 flex flex-wrap gap-3 text-[11.5px] text-slate-600">
+                        <span className="flex items-center gap-1"><Sunbed state="a" size={14} readOnly /> Free</span>
+                        <span className="flex items-center gap-1"><Sunbed state="h" size={14} readOnly /> On hold</span>
+                        <span className="flex items-center gap-1"><Sunbed state="u" size={14} readOnly /> Booked / blocked</span>
+                        <span className="flex items-center gap-1"><Sunbed state="a" sel size={14} readOnly /> In this basket</span>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+
+              {tab === "lockers" && (
+                <>
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 mb-2">
+                    <h2 className="font-display font-bold text-navy-900">Lockers</h2>
+                    <span className="text-[12px] text-slate-500">Locker-only sales are fine</span>
+                  </div>
+                  {ex.banks.length > 0 && ex.banks.every((b) => ex.lockerAvail(b.id, t.day) === null) ? (
+                    <div role="status" className="rounded-lg bg-amber-50 text-amber-800 ring-1 ring-amber-600/20 px-3 py-2 text-[12.5px] flex items-center gap-1.5"><Icon.alert size={13} /> Locker provider offline — locker sales are paused.</div>
+                  ) : (
+                    <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-2">
+                      {ex.banks.map((b) => {
+                        const avail = ex.lockerAvail(b.id, t.day) ?? 0;
+                        const q = lockerQty(b.id);
+                        return (
+                          <div key={b.id} className={`flex items-center justify-between gap-2 rounded-xl ring-1 px-3 py-2 ${avail === 0 && q === 0 ? "ring-slate-200 bg-slate-50 opacity-70" : "ring-slate-200 bg-white/70"}`}>
+                            <div className="min-w-0">
+                              <div className="font-semibold text-navy-900 text-sm">{b.name}</div>
+                              <div className="text-[12px] text-slate-600">€{ex.lockerPrice(b.id, t.day)} · {b.size} · <span className={avail === 0 ? "text-rose-700 font-semibold" : ""}>{avail === 0 ? "none free" : `${avail} free`}</span></div>
+                            </div>
+                            <Stepper size="lg" label={`${b.name} lockers`} value={q} onChange={(v) => setLockerQty(b.id, Math.min(v, avail))} />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {tab === "parking" && (
+                <>
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 mb-2">
+                    <h2 className="font-display font-bold text-navy-900">Parking</h2>
+                    <span className="text-[12px] text-slate-500">Day spot · the code is printed on the receipt</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 max-w-md">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-navy-900 text-sm">Car park · day spot</div>
+                      <div className="text-[12px] text-slate-600">€{PARKING_PRICE} · <span className={parkingFree === 0 ? "text-rose-700 font-semibold" : ""}>{parkingFree === 0 ? "car park full" : `${parkingFree} of ${PARKING_LOT.spots} free`}</span></div>
+                    </div>
+                    <Stepper size="lg" label="parking spots" value={parkingQty} onChange={(v) => setParkingQty(Math.min(v, parkingQty + parkingFree))} />
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Basket */}
-          <div id="till-basket" className="lg:sticky lg:top-4 space-y-3 scroll-mt-4">
-            <Card className="p-4">
+          <div id="till-basket" className="flex flex-col gap-3 scroll-mt-4" style={fitH ? { height: fitH } : undefined}>
+            <Card className="p-4 flex flex-col min-h-0 flex-1 overflow-y-auto">
               {done ? (
                 <SaleDone sale={done} onNew={newSale}
-                  onDeliver={(c, to) => { t.setDelivery(done.id, c); toast(c === "email" ? `Demo — receipt e-mailed to ${to}.` : c === "sms" ? `Demo — receipt link sent by SMS to ${to}.` : c === "print" ? "Demo — printed on the receipt printer (ESC/POS)." : c === "qr" ? "Receipt QR shown — the customer scans it." : "No receipt — the ΑΠΥ is still recorded.", { tone: "success" }); }} />
+                  onDeliver={(c, to) => { t.setDelivery(done.id, c); toast(c === "email" ? (t.till.offline ? `Offline — receipt e-mail to ${to} queued, sent on reconnect.` : `Demo — receipt e-mailed to ${to}.`) : c === "sms" ? (t.till.offline ? `Offline — receipt SMS to ${to} queued, sent on reconnect.` : `Demo — receipt link sent by SMS to ${to}.`) : c === "print" ? "Demo — printed on the receipt printer (ESC/POS)." : c === "qr" ? "Receipt QR shown — the customer scans it." : "No receipt — the ΑΠΥ is still recorded.", { tone: "success" }); }} />
               ) : (
                 <>
                   <div className="flex items-center justify-between mb-2">
@@ -377,7 +474,7 @@ function IssueInner() {
                       Tap a quick key, add tickets or pick sets on the map.
                     </div>
                   ) : (
-                    <ul className="divide-y divide-slate-100">
+                    <ul className="divide-y divide-slate-100 md:flex-1 md:min-h-[72px] md:overflow-y-auto -mx-1 px-1">
                       {bundleTags.map((b) => {
                         const ls = lines.filter((l) => l.bundle === b);
                         return (
@@ -415,8 +512,8 @@ function IssueInner() {
 
                   {lines.length > 0 && (
                     <div className="mt-2 space-y-2">
-                      <form className="flex gap-2 items-start" onSubmit={(e) => { e.preventDefault(); if (promo.trim()) applyPromo(); }}>
-                        <div className="flex-1">
+                      <form className="flex flex-wrap gap-2 items-start" onSubmit={(e) => { e.preventDefault(); if (promo.trim()) applyPromo(); }}>
+                        <div className="flex-1 min-w-[150px]">
                           <Input aria-label="Promo code" placeholder="Promo code" value={promo} onChange={(e) => { setPromo(e.target.value.toUpperCase()); setPromoErr(""); }} aria-invalid={!!promoErr} />
                         </div>
                         <Btn type="submit" variant="outline" disabled={!promo.trim()}>Apply</Btn>

@@ -54,13 +54,14 @@ export function Toggle({ on, onChange, label, ariaLabel, disabled }: { on?: bool
 }
 
 /* ---------- Stepper (quantity) ---------- */
-export function Stepper({ value, onChange, min = 0, label }: { value: number; onChange: (v: number) => void; min?: number; label?: string }) {
+export function Stepper({ value, onChange, min = 0, label, size = "md" }: { value: number; onChange: (v: number) => void; min?: number; label?: string; /** "lg" = 56px targets for the tablet till. */ size?: "md" | "lg" }) {
   const what = label ? ` ${label}` : "";
+  const box = size === "lg" ? "w-14 h-14" : "w-11 h-11 sm:w-10 sm:h-10";
   return (
     <div className="flex items-center gap-3">
-      <button aria-label={`Decrease${what}`} onClick={() => onChange(Math.max(min, value - 1))} className="w-11 h-11 sm:w-10 sm:h-10 rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90 disabled:opacity-40" disabled={value <= min}><Icon.minus size={16} /></button>
+      <button aria-label={`Decrease${what}`} onClick={() => onChange(Math.max(min, value - 1))} className={`${box} rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90 disabled:opacity-40`} disabled={value <= min}><Icon.minus size={16} /></button>
       <span className="w-6 text-center font-semibold tnum tabular-nums" aria-live="polite" aria-label={label ? `${value} ${label}` : undefined}>{value}</span>
-      <button aria-label={`Increase${what}`} onClick={() => onChange(value + 1)} className="w-11 h-11 sm:w-10 sm:h-10 rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90"><Icon.plus size={16} /></button>
+      <button aria-label={`Increase${what}`} onClick={() => onChange(value + 1)} className={`${box} rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90`}><Icon.plus size={16} /></button>
     </div>
   );
 }

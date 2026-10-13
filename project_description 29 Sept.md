@@ -1584,6 +1584,16 @@ Roles: the tenant (beach operator) is the **controller**; Slaice is the **proces
    [New sale]  ─▶  last sale kept 30 s for a quick reprint
 ```
 
+- **Tablet layout without the long scroll (AENR-584):** product tabs — **Quick · Tickets · Sunbeds ·
+  Lockers · Parking** (count of each in the basket on the tab; arrow keys move between tabs) — show one
+  panel at a time next to a basket fixed on the right. From 768px the catalogue and the basket fill the
+  screen below the shift strip: only a panel or a long basket list scrolls, never the page, so a ticket +
+  sunbed + locker + parking sale completes at 820px and 1024px without scrolling. Touch targets are
+  56px (tabs, quick keys, store chips, steppers); the map is one tap away (Sunbeds tab: store chips,
+  Scan set QR, Any free set, the map). Below 1280px the Cashier sidebar folds to an icon rail (labels as
+  tooltips and accessible names) to give the till the width. Phones keep the stacked page with the
+  sticky pay bar. **Parking** is sold at the till: day spot at €15 from the 40-spot car park (23 booked
+  online today in the sample), spot codes P24… on the receipt, VAT 24%.
 - **One basket** for entry tickets (Adult / Resident / Child / Senior, prices from the shared
   `TICKET_PRICES`), sunbed sets and **bundles** (Couple day, Family day: one basket line, components on
   the receipt, saving shown as a discount). **Quick keys** make the common sale one tap; a ticket-only
@@ -1609,6 +1619,13 @@ Roles: the tenant (beach operator) is the **controller**; Slaice is the **proces
   and €200 in total; sunbeds come from the cached map with a warning; ΑΠΥ issued locally (pending).
   **Reconnect** syncs the queue ("Syncing n sales…"); a set booked online meanwhile is a conflict to
   resolve in Transactions (move to another free set, or refund it with a manager PIN).
+- **Offline you can't miss (AENR-585):** going offline — the demo toggle or the browser's own
+  connection events — raises a persistent amber banner at the top of **every Cashier page** at once:
+  "Offline — sales are saved on this till", the queued sales and their total, **What still works** and
+  **Reconnect** (which shows "Syncing n sales…" and clears the banner). The first time a till goes
+  offline the **"Offline — what still works"** sheet opens by itself (tickets, lockers, parking,
+  sunbeds from the cached map, cash and vouchers, card up to €50 / €200; e-mail and SMS receipts queue;
+  myDATA waits). The tender screen explains the card limit while offline.
 
 ### K-01a · Today's transactions [MVP]
 
@@ -1654,6 +1671,7 @@ Roles: the tenant (beach operator) is the **controller**; Slaice is the **proces
    expected cash = float + cash sales + paid in − paid out − cash refunds
    KPIs: expected cash · card · sales · refunds/voids     tender mix (card / cash / voucher)
    ledger: float · sales · refunds · voids · paid in / out · no sale
+   X / Z report: tickets by type · sunbed sets by store · lockers & parking (AENR-591)
    [Paid in] [Paid out] [No sale (manager PIN)]   [X report] (snapshot)   [Close shift (Z)]
    Z close: blind count → expected / counted / variance (note required above €2) · card batch ✓
 ```
@@ -1702,23 +1720,31 @@ Roles: the tenant (beach operator) is the **controller**; Slaice is the **proces
 ```text
  ┌─ Viewfinder ──────────┐
  │   [  QR in frame  ]   │
- │ ───── scan line ───── │ ──[Scan QR]──▶ Scan result modal ─▶ ◆ result (random [DEMO])
- │                       │
+ │ ───── scan line ───── │ ──[Scan QR]──▶ FULL-SCREEN result (demo cycle: valid, valid, entered, valid, invalid…)
+ │  Sound ◉  Vibrate ◉   │
  └───────────────────────┘
-      ├─ Valid ─────▶ "admit the guest" ─▶ [Admit guest] ─▶ ✓ Admitted — gate opened
-      ├─ Already used ▶ "validated earlier today" ─▶ [Override & admit] (only if sure)
-      └─ Invalid ───▶ "not recognised — do not admit" (no admit button)
+      ├─ ✓ VALID (green) ─────────▶ admitted + logged ─▶ back to the scanner after 2 s
+      ├─ ⚠ ALREADY ENTERED (amber) "Entered 10:42 · Gate 2" ─▶ [Deny entry] / [Override & admit]
+      └─ ✕ INVALID (red) "Booking was refunded on 12 Jul — do not admit" ─▶ back after 2 s
 
  ─▶ Recent validations (tap a row for detail): #BK-… / #TK-… · zone·set · state
  Gate analytics: scanned 1,284 · 312/hr (peak 11–13) · no-shows 2.8% · duplicates 4
  Other actions:  [Walk-in sale] G-03 · [Add ticket (pay on site)] G-03 · [Beach status] G-02
 ```
 
-- **Scan QR** (camera viewfinder simulation with scan line) → **Scan result** modal:
-  - **Valid** — "admit the guest" → **Admit guest** ("✓ Admitted — gate opened").
-  - **Already used** — "validated earlier today. Override only if you're sure" → **Override & admit**.
-  - **Invalid** — "not recognised — do not admit" (no admit button).
-  - Scan outcomes are random in the mockup **[DEMO]**.
+- **Scan QR** (camera viewfinder simulation with scan line) → the result **fills the screen**
+  (AENR-586), readable from arm's length — colour plus a large icon and word, so it never relies on
+  colour alone:
+  - **Valid** (green, ✓) — admitted and logged at once; returns to the scanner after ~2 s
+    (**Next scan** to go sooner; hovering the buttons pauses the countdown).
+  - **Already entered** (amber, ⚠) — "Entered 10:42 · Gate 2 — override only if you're sure" — waits for
+    **Deny entry** or **Override & admit** (logged with a toast).
+  - **Invalid** (red, ✕) — the reason ("Booking was refunded on 12 Jul", "Not a Slaice ticket") — refused
+    and logged; returns after ~2 s.
+  - **Sound** and **Vibrate** toggles under the scanner (remembered on this device): a short high beep,
+    two mid beeps or a low buzz, and matching vibration patterns where supported. Reduced motion drops
+    the pop-in and the countdown bar. Esc closes; focus lands on the first button.
+  - Scan outcomes cycle through every state in the mockup **[DEMO]**.
 - **Recent validations** list (tap for detail): booking/ticket id, zone·set or ticket type, state badge.
 - **Gate analytics:** Scanned today 1,284, Throughput 312/hr (peak 11:00–13:00), No-shows 2.8%,
   Duplicate scans 4; throughput by hour chart.
@@ -1743,6 +1769,14 @@ Roles: the tenant (beach operator) is the **controller**; Slaice is the **proces
   reason (Broken · Cleaning · Weather · Private event · Other + note). Several sets can be changed at once.
 - Changes apply to the chosen date and update **every map live** — the booking wizard, the Cashier till
   and the walk-in sale — and are kept in the set's history.
+- **Status by exception (AENR-587):** filter chips with counts — **All sets · Unpaid · No-show · Held ·
+  Out of service** — highlight only the matching sets on the map (amber ring; the rest fade) and list
+  them under it (code, booking or reason, status; tap to open; **Select all** for a bulk change). Set
+  codes are printed on the map. No-show = booked for today and not checked in by 11:00 (sample: about
+  one booking in seven). Rules in `exceptionsOf` (`src/domain/sunbedOps.ts`).
+- **Sample beach (AENR-592):** each store's sets are generated deterministically with a realistic mix —
+  about half to two-thirds booked (front row first), a few held, the rest free — the same for every
+  persona.
 
 ### G-03 · Walk-in sale on the beach [MVP] (AENR-528, AENR-527)
 

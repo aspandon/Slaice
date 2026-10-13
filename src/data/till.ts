@@ -131,6 +131,12 @@ export const MOVE_REASONS = {
 };
 export const TILLS = ["Main entrance", "North gate"];
 export const DEFAULT_CASHIER = "Kostas Leontis";
+/** The beach car park sold at the till (AENR-584): spots P01–P40 at the day
+ *  price; this many are already taken online for today before the till sells. */
+export const PARKING_LOT = { spots: 40, bookedOnline: 23 };
+/** Parking spots the till has sold on a day, from its own sales. */
+export const parkingSold = (sales: readonly TillSale[], day: string) =>
+  sales.filter((s) => s.day === day).reduce((a, s) => a + s.lines.filter((l) => l.kind === "parking").reduce((b, l) => b + l.qty, 0), 0);
 /** Hold time for sets sitting in a till basket. */
 export const HOLD_MS = 5 * 60 * 1000;
 

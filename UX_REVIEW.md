@@ -357,5 +357,6 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **12 Oct 2026 screen-by-screen review** — proposals were logged as Orbit epics AENR-538…544.
   Resolved so far: data credibility D1–D4 (AENR-545 Executive / Dashboard tiles reconcile with the
   finance block, AENR-546 Refunds KPIs from the listed rows, AENR-547 one demo calendar for every
-  tenant-side persona, AENR-548 lifecycle stage as the one meaning of "Regular"), and F1 / P1 / P2
-  (AENR-588, 589, 590).
+  tenant-side persona, AENR-548 lifecycle stage as the one meaning of "Regular"), F1 / P1 / P2
+  (AENR-588, 589, 590), and till & gate K1, K2, G1, G2 (AENR-584 tablet till, 585 offline banner,
+  586 full-screen scan result, 587 beach status by exception; defects AENR-591, 592 fixed on the way).

@@ -209,6 +209,8 @@ function ReportModal({ shift, kind, onClose }: { shift: TillShift; kind: "X" | "
         {Object.keys(tot.tickets).length ? Object.entries(tot.tickets).map(([k, n]) => <Row key={k} l={k} v={`× ${n}`} />) : <div>—</div>}
         <div className="font-bold mt-1">Sunbed sets by store</div>
         {Object.keys(tot.sunbeds).length ? Object.entries(tot.sunbeds).map(([k, n]) => <Row key={k} l={zoneName(k)} v={`× ${n}`} />) : <div>—</div>}
+        <div className="font-bold mt-1">Lockers &amp; parking</div>
+        {Object.keys(tot.extras).length ? Object.entries(tot.extras).map(([k, n]) => <Row key={k} l={k} v={`× ${n}`} />) : <div>—</div>}
         <div className="border-t border-dashed border-slate-300 my-2" />
         <Row l="Opening float" v={eur(shift.float)} />
         <Row l="Paid in" v={eur(tot.paidIn)} />

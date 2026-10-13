@@ -17,7 +17,16 @@ export function SunbedMap({
   className = "",
   label,
   pickAny = false,
+  highlight = null,
+  showCodes = false,
+  describe,
 }: {
+  /** Only these sets stay prominent (status filters, AENR-587); the rest fade. */
+  highlight?: Set<string> | null;
+  /** Print each set's code under it (staff maps). */
+  showCodes?: boolean;
+  /** Staff view: extra words for a set's accessible name (e.g. "unpaid"). */
+  describe?: (s: SunbedSlot) => string | undefined;
   /** Staff view: every set is tappable (booked / blocked too), its status in the name. */
   pickAny?: boolean;
   slots: SunbedSlot[];
@@ -49,7 +58,7 @@ export function SunbedMap({
       {slots.map((s) => (
         <div
           key={s.id}
-          className="absolute -translate-x-1/2 -translate-y-1/2"
+          className={`absolute -translate-x-1/2 -translate-y-1/2 transition-opacity duration-200 ${highlight ? (highlight.has(s.id) ? "z-10" : "opacity-25 saturate-0") : ""}`}
           style={{
             left: `${s.x}%`,
             top: `${s.y}%`,
@@ -70,10 +79,16 @@ export function SunbedMap({
             <button
               type="button"
               aria-pressed={!!selected?.has(s.id)}
-              aria-label={`${s.id}${s.state === "u" ? " — taken" : s.state === "h" ? " — on hold" : " — free"}${s.inv ? `, ${s.inv}` : ""}`}
+              aria-label={`${s.id}${describe?.(s) ? ` — ${describe(s)}` : s.state === "u" ? " — taken" : s.state === "h" ? " — on hold" : " — free"}${s.inv ? `, ${s.inv}` : ""}`}
               onClick={() => onToggle(s)}
               className={`absolute inset-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${selected?.has(s.id) ? "ring-2 ring-navy-900" : ""}`}
             />
+          )}
+          {highlight?.has(s.id) && <span aria-hidden className="absolute -inset-1 rounded-xl ring-[3px] ring-amber-500 pointer-events-none" />}
+          {showCodes && (
+            <span aria-hidden className="absolute left-1/2 -translate-x-1/2 top-[88%] whitespace-nowrap rounded bg-white/90 px-0.5 text-[9px] leading-tight font-semibold text-navy-900 tnum pointer-events-none">
+              {s.id}
+            </span>
           )}
           {s.inv && <span aria-hidden title={s.inv} className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-navy-900 text-white text-[8px] grid place-items-center ring-2 ring-white pointer-events-none">🔒</span>}
           {s.access && (

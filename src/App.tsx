@@ -47,6 +47,7 @@ import { DEFAULT_CLOSED_STORES } from "./data/beach";
 import { DEFAULT_TILL } from "./data/till";
 import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "./data/beach";
 import type { SceneFx, WeatherKind } from "./data/beach";
+import { OfflineBanner } from "./screens/cashier/TillStatus";
 import { migrateLegacySegments, stripLegacyTags, visitSegmentName } from "./domain/segments";
 
 interface ToastItem {
@@ -448,7 +449,7 @@ export default function App() {
               <Sidebar persona={persona} page={page} setPage={setPage} />
               {/* While Slaice staff view a tenant, the guard disables mutating / blocked controls (AENR-515). */}
               <GuardCtx.Provider value={guard}>
-                <main className="flex-1 min-w-0">{viewAs && viewAs.role !== persona ? <AccessDenied role={viewAs.role} onHome={() => go(viewAs.role, DEFAULT_PAGE[viewAs.role])} /> : routeFor(persona, page)}</main>
+                <main className="flex-1 min-w-0">{persona === "cashier" && !viewAs && <OfflineBanner />}{viewAs && viewAs.role !== persona ? <AccessDenied role={viewAs.role} onHome={() => go(viewAs.role, DEFAULT_PAGE[viewAs.role])} /> : routeFor(persona, page)}</main>
               </GuardCtx.Provider>
             </div>
           )}
