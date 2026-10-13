@@ -1090,16 +1090,25 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
 
 #### Calendar & rules (AENR-511)
 
-- **Month calendar per store** (`src/screens/beach/Calendar.tsx`): each day shows the effective price per
-  price category, expected occupancy % and badges for date restrictions; weekends in indigo; closed days
-  greyed. Click a day to see how each category's price is built (category → rules, in order) plus the
-  booking-time rules (early-bird, last-minute, multi-day) that may apply.
+- **Two tabs** (AENR-601): **Calendar** (default) for changing prices, **Advanced** for restrictions,
+  seasonal templates, the rule precedence list, demand pricing and the pricing rules with the price
+  preview. The zone and tab are kept in the URL (`?view=advanced&zone=macaw`).
+- **Month calendar per store** (`src/screens/beach/Calendar.tsx`): each day shows the lowest price
+  (**from €X**), the expected occupancy % with a tint (amber 60 %+, rose 85 %+; the % is always written),
+  and badges for date restrictions; weekends in blue; closed days greyed. On phones the month is a list
+  grouped by week (one row per day), and the editor opens under the tapped day.
+- **Tap a day, type the price, Enter** (AENR-601): the editor shows one price per category, pre-filled
+  with the current price ("Mixed" when several selected days differ). Apply adds a *set €* rule per
+  changed category for those dates; editing the same days again replaces it instead of stacking rules.
+  The toast offers **Undo**; Advanced › Price rules can clear all day prices set this way. "How this
+  price is built" (category → rules, in order, plus booking-time rules) is one tap below the editor.
 - **Select days** by drag, Shift-click, ⌘-click or the keyboard (arrows move, Space selects,
-  Shift+arrows extends, Esc clears; each day has an accessible label with prices and restrictions), then:
-  **Price change** (± %, ± € or set €, optionally limited to categories); **Restriction** (minimum stay,
-  maximum stay, booking window, same-day cut-off time, closed with a reason); a **seasonal template**
-  (Low / Mid / High / Peak, % editable per tenant); **Copy this week forward** to the same weekdays until a
-  date (copies only what was set within that week). **Undo** reverts the last change.
+  Shift+arrows extends, Esc clears; each day has an accessible label with prices and restrictions). The
+  same editor applies to all of them; **More for these days** holds the rest: **Price change** (± %, ± €
+  or set €, optionally limited to categories); **Restriction** (minimum stay, maximum stay, booking
+  window, same-day cut-off time, closed with a reason); a **seasonal template** (Low / Mid / High / Peak,
+  % editable per tenant under Advanced); **Copy this week forward** to the same weekdays until a date
+  (copies only what was set within that week). **Undo** reverts the last change.
 - **Rule types**: standard (season / weekdays / specific dates, optional category scope), early-bird
   (booked ≥ N days ahead), last-minute (same day from HH:MM), multi-day (stay ≥ N consecutive days).
   The precedence list shows rules in the order they apply; a sunbed date override wins over all.

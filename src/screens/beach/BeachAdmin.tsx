@@ -13,7 +13,7 @@ import { useUrlState } from "../../lib/useUrlState";
 import { useApp } from "../../app/store";
 import { SunbedWorkspace } from "./Workspace";
 import { LockersAdmin, TicketsAdmin } from "./Extras";
-import { PricingCalendar } from "./Calendar";
+import { PricingAdvanced, PricingCalendar } from "./Calendar";
 
 /* ============ AVAILABILITY & PRICING ============ */
 /* ---- Seasonal / day-of-week pricing helpers ---- */
@@ -190,7 +190,7 @@ function PricingRulesPanel({ rules, previewDate, setPreviewDate, onAdd, onEdit, 
 }) {
   const weekend = isWeekendISO(previewDate);
   return (
-    <div className="grid lg:grid-cols-[1fr_340px] gap-4 items-start">
+    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_340px] gap-4 items-start">
       <Card className="p-4">
         <div className="flex items-center justify-between gap-3 mb-3">
           <div className="min-w-0">
@@ -493,18 +493,26 @@ export function AdminPricing() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<PriceRule | null>(null);
   const [previewDate, setPreviewDate] = useState("2026-08-15");
+  const [view, setView] = useUrlState("view", "calendar");
+  const [zoneId, setZoneId] = useUrlState("zone", "macaw");
   const saveRule = (r: PriceRule) => {
     setPriceRules(priceRules.some((x) => x.id === r.id) ? priceRules.map((x) => (x.id === r.id ? r : x)) : [...priceRules, r]);
     toast(`Pricing rule “${r.label}” saved — live for customers and the till.`, { tone: "success" });
   };
   return (
     <div className="animate-fade-up">
-      <PageHead sub="Prices by category and date — seasonal and weekday rules, date overrides and demand suggestions. Set prices per set on the Beach layout map." />
-      <PricingCalendar onEditRule={(r) => { setEditing(r); setEditorOpen(true); }} />
-      <div className="mt-4"><PricingRulesPanel rules={priceRules} previewDate={previewDate} setPreviewDate={setPreviewDate}
-        onAdd={() => { setEditing(null); setEditorOpen(true); }} onEdit={(r) => { setEditing(r); setEditorOpen(true); }}
-        onRemove={(id) => { setPriceRules(priceRules.filter((r) => r.id !== id)); toast("Pricing rule removed."); }}
-        onToggle={(id, v) => setPriceRules(priceRules.map((r) => (r.id === id ? { ...r, enabled: v } : r)))} /></div>
+      <PageHead sub="Tap a day to change its price. Rules, seasonal templates and demand pricing are under Advanced." />
+      <div className="mb-4"><Tabs tabs={[["calendar", "Calendar"], ["advanced", "Advanced"]]} value={view} onChange={setView} /></div>
+      {view === "calendar" ? (
+        <PricingCalendar zoneId={zoneId} setZoneId={setZoneId} />
+      ) : (
+        <PricingAdvanced zoneId={zoneId} setZoneId={setZoneId} onEditRule={(r) => { setEditing(r); setEditorOpen(true); }}>
+          <PricingRulesPanel rules={priceRules} previewDate={previewDate} setPreviewDate={setPreviewDate}
+            onAdd={() => { setEditing(null); setEditorOpen(true); }} onEdit={(r) => { setEditing(r); setEditorOpen(true); }}
+            onRemove={(id) => { const prev = priceRules; setPriceRules(priceRules.filter((r) => r.id !== id)); toast("Pricing rule removed.", { action: { label: "Undo", onClick: () => setPriceRules(prev) } }); }}
+            onToggle={(id, v) => setPriceRules(priceRules.map((r) => (r.id === id ? { ...r, enabled: v } : r)))} />
+        </PricingAdvanced>
+      )}
       <RuleEditorModal open={editorOpen} rule={editing} onClose={() => setEditorOpen(false)} onSave={saveRule} />
     </div>
   );

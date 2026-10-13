@@ -382,3 +382,7 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-605 — one place to sell.** The till is Sell, Sales and Cash register. Sell Locker (which only
   pointed to Issue Ticket) and Redeem Ticket (the gate's job) left the Cashier and Support navigation;
   old links redirect (cashier → Sell, support redeem → Gate). Issue Ticket is now called Sell.
+- **AENR-601 — change a price by tapping the day.** Pricing & calendar has two tabs: Calendar (each day
+  shows one "from" price and how full it is; tap, type, Enter, with Undo in the toast) and Advanced
+  (restrictions, templates, rule order, demand pricing, pricing rules). On phones the month is a week
+  list with the editor under the tapped day. Also fixed: the pricing rules panel overflowed at 390 px.
