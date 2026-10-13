@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
 import { useCountUp } from "../../lib/motion";
 import { Card } from "./primitives";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 
 /* ---------- StatCard ----------
    Tone drives a thin left accent stripe. `instant` skips the count-up. */
@@ -108,11 +109,93 @@ export function ContextPanel({ title, items = [], footer }: {
 
 /* ---------- PageHead ---------- */
 // Title/sub/badge intentionally suppressed app-wide — only actions remain.
-export function PageHead({ actions }: { actions?: ReactNode; title?: ReactNode; sub?: ReactNode; badge?: ReactNode }) {
-  if (!actions) return null;
+/* ---------- PageHead (AENR-550) ----------
+   One header pattern on every page: the page title lives in the top bar; here
+   the page says what it is (`sub`), with an optional back link, controls that
+   shape the view (`actions` — period pickers, toggles), up to three secondary
+   actions in a "More" menu and at most ONE primary action, always last. */
+export interface PageAction {
+  label: string;
+  icon?: IconRenderer;
+  onClick: () => void;
+  disabled?: boolean;
+}
+export function PageHead({ sub, back, actions, primary, secondary = [] }: {
+  /** Kept for call sites; the title shows in the top bar. */
+  title?: ReactNode;
+  sub?: ReactNode;
+  badge?: ReactNode;
+  back?: { label: string; onClick: () => void };
+  /** Controls that shape the view (not actions). */
+  actions?: ReactNode;
+  /** The page's one primary action (a Btn). */
+  primary?: ReactNode;
+  /** Up to three secondary actions, in the overflow menu. */
+  secondary?: PageAction[];
+}) {
+  if (!sub && !back && !actions && !primary && secondary.length === 0) return null;
+  const more = secondary.slice(0, 3);
   return (
-    <div className="flex flex-wrap items-center justify-end gap-2 mb-5">
-      {actions}
+    <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2">
+      <div className="min-w-0 flex-1 basis-64">
+        {back && (
+          <button type="button" onClick={back.onClick} className="mb-0.5 inline-flex items-center gap-1 text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 rounded">
+            <Icon.chevL size={14} /> {back.label}
+          </button>
+        )}
+        {sub && <p className="text-[13px] text-slate-600 leading-snug max-w-3xl">{sub}</p>}
+      </div>
+      {(actions || primary || more.length > 0) && (
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {actions}
+          {more.length > 0 && (
+            <DropdownMenu.Root modal={false}>
+              <DropdownMenu.Trigger asChild>
+                <button type="button" className="inline-flex items-center gap-1.5 rounded-[14px] px-3.5 min-h-[44px] text-sm font-semibold text-navy-900 ring-1 ring-slate-200 bg-white hover:ring-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                  <Icon.more size={16} /> More
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Portal>
+                <DropdownMenu.Content align="end" sideOffset={6} className="z-[60] w-60 rounded-xl bg-white p-1.5 shadow-overlay ring-1 ring-slate-200 text-ink">
+                  {more.map((a) => {
+                    const I = a.icon;
+                    return (
+                      <DropdownMenu.Item key={a.label} disabled={a.disabled} onSelect={a.onClick}
+                        className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-[13.5px] outline-none cursor-pointer data-[highlighted]:bg-slate-100 data-[disabled]:opacity-40">
+                        {I && <I size={15} className="text-slate-500" />} {a.label}
+                      </DropdownMenu.Item>
+                    );
+                  })}
+                </DropdownMenu.Content>
+              </DropdownMenu.Portal>
+            </DropdownMenu.Root>
+          )}
+          {primary}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ---------- SaveBar (AENR-550) ----------
+   Pages with edits that aren't live until saved show this sticky bar — only
+   while there are unsaved changes. */
+export function SaveBar({ dirty, errors = [], onSave, onDiscard, note = "Unsaved changes — nothing changes for guests or staff until you save." }: {
+  dirty: boolean;
+  errors?: string[];
+  onSave: () => void;
+  onDiscard: () => void;
+  note?: string;
+}) {
+  if (!dirty) return null;
+  return (
+    <div role="status" className="sticky top-2 z-30 mb-4 flex flex-wrap items-center gap-3 rounded-2xl bg-navy-900 text-white px-4 py-2.5 shadow-overlay">
+      <Icon.edit size={15} />
+      <span className="text-sm">{errors.length ? <><b>Can’t save yet</b> — {errors[0]}</> : note}</span>
+      <div className="ml-auto flex gap-2">
+        <button type="button" onClick={onDiscard} className="rounded-[14px] px-3 py-1.5 text-[13px] font-semibold text-white ring-1 ring-white/40 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300">Discard</button>
+        <button type="button" onClick={onSave} disabled={errors.length > 0} className="inline-flex items-center gap-1.5 rounded-[14px] px-3.5 py-1.5 text-[13px] font-semibold bg-teal-600 text-white hover:bg-teal-500 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"><Icon.check size={14} /> Save</button>
+      </div>
     </div>
   );
 }
@@ -124,8 +207,16 @@ export function PageHead({ actions }: { actions?: ReactNode; title?: ReactNode; 
 /* `rowLink`: rows open something — a cell holds a button with the
    "row-link" class whose hit area stretches over the whole row (other
    controls in the row sit above it), so Enter on that button opens the row. */
+/* Index-table standard (AENR-551): every table follows the shared density
+   (compact by default on desktop, toggled with <DensityToggle/>), long lists
+   scroll inside a bounded region so the header stays in view, and `rowLink`
+   rows open their record (Enter on the row's button). */
 export function Table({ cols, rows, right = [], dense = false, rowLink = false }: { cols: ReactNode[]; rows: ReactNode[][]; right?: number[]; dense?: boolean; rowLink?: boolean }) {
-  const pad = dense ? "px-2.5" : "px-3.5";
+  const [density] = useDensity();
+  const compact = dense || density === "compact";
+  const pad = compact ? "px-2.5" : "px-3.5";
+  const padY = compact ? "py-2.5" : "py-3.5";
+  const long = rows.length > 12;
   return (
     <>
       {/* Mobile: stacked cards */}
@@ -133,7 +224,7 @@ export function Table({ cols, rows, right = [], dense = false, rowLink = false }
         {rows.map((r, ri) => {
           const headIdx = cols.findIndex((c) => c);
           return (
-            <div key={ri} className={`rounded-2xl ring-1 ring-slate-200 bg-white/80 p-3.5 ${rowLink ? "relative hover:ring-teal-400 transition" : ""}`}>
+            <div key={ri} className={`rounded-2xl ring-1 ring-slate-200 bg-white p-3.5 ${rowLink ? "relative hover:ring-teal-400 transition" : ""}`}>
               {headIdx > -1 && <div className="font-semibold text-navy-900 text-[15px] mb-2">{r[headIdx]}</div>}
               <div className="space-y-1.5">
                 {r.map((cell, ci) =>
@@ -151,12 +242,12 @@ export function Table({ cols, rows, right = [], dense = false, rowLink = false }
       </div>
 
       {/* sm+ : real table with a sticky frosted header */}
-      <div className="hidden sm:block overflow-x-auto">
+      <div className={`hidden sm:block overflow-auto ${long ? "max-h-[72vh] overscroll-contain" : ""}`} tabIndex={long ? 0 : undefined} role={long ? "region" : undefined} aria-label={long ? "Scrollable table" : undefined}>
         <table className="w-full text-sm border-separate border-spacing-0">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500">
               {cols.map((c, i) => (
-                <th key={i} className={`sticky top-0 z-10 bg-white/85 backdrop-blur-sm py-3 ${pad} font-semibold border-b border-slate-200/80 ${right.includes(i) ? "text-right" : ""}`}>{c}</th>
+                <th key={i} className={`sticky top-0 z-[2] bg-white py-3 ${pad} font-semibold border-b border-slate-200/80 ${right.includes(i) ? "text-right" : ""}`}>{c}</th>
               ))}
             </tr>
           </thead>
@@ -164,7 +255,7 @@ export function Table({ cols, rows, right = [], dense = false, rowLink = false }
             {rows.map((r, ri) => (
               <tr key={ri} className={`transition-colors hover:bg-slate-50/80 ${rowLink ? "relative cursor-pointer" : ""}`}>
                 {r.map((cell, ci) => (
-                  <td key={ci} className={`py-3.5 ${pad} border-b border-slate-100/80 ${right.includes(ci) ? "text-right tnum" : ""}`}>{cell}</td>
+                  <td key={ci} className={`${padY} ${pad} border-b border-slate-100/80 ${right.includes(ci) ? "text-right tnum" : ""}`}>{cell}</td>
                 ))}
               </tr>
             ))}
@@ -172,5 +263,43 @@ export function Table({ cols, rows, right = [], dense = false, rowLink = false }
         </table>
       </div>
     </>
+  );
+}
+
+/* ---------- Density (AENR-551) ----------
+   One preference for every index table, remembered on this device. */
+type Density = "compact" | "comfortable";
+const DENSITY_KEY = "slaice.density";
+const densityListeners = new Set<(d: Density) => void>();
+function readDensity(): Density {
+  try {
+    return localStorage.getItem(DENSITY_KEY) === "comfortable" ? "comfortable" : "compact";
+  } catch {
+    return "compact";
+  }
+}
+export function useDensity(): [Density, (d: Density) => void] {
+  const [d, setD] = useState<Density>(readDensity);
+  useEffect(() => {
+    densityListeners.add(setD);
+    return () => { densityListeners.delete(setD); };
+  }, []);
+  const set = (v: Density) => {
+    try { localStorage.setItem(DENSITY_KEY, v); } catch { /* per-session only */ }
+    densityListeners.forEach((f) => f(v));
+  };
+  return [d, set];
+}
+export function DensityToggle() {
+  const [d, set] = useDensity();
+  return (
+    <div role="radiogroup" aria-label="Row density" className="hidden sm:inline-flex rounded-xl ring-1 ring-slate-200 overflow-hidden">
+      {(["compact", "comfortable"] as const).map((v) => (
+        <button key={v} type="button" role="radio" aria-checked={d === v} onClick={() => set(v)} title={v === "compact" ? "Compact rows" : "Comfortable rows"}
+          className={`px-2.5 min-h-[36px] text-[12px] font-semibold ${d === v ? "bg-navy-900 text-white" : "bg-white text-slate-600 hover:text-navy-900"}`}>
+          {v === "compact" ? "Compact" : "Comfortable"}
+        </button>
+      ))}
+    </div>
   );
 }

@@ -59,13 +59,14 @@ export function StatusBadge({ status, label, className = "" }: { status?: string
    the cursor-tracking "lit glass" highlight (usePointerGlow). Sheen defaults to
    `hover`, so interactive cards light up automatically; pass sheen={false} to
    opt out, or sheen on an otherwise-static card. */
-export function Card({ className = "", children, hover, press, sheen }: { className?: string; children?: ReactNode; hover?: boolean; press?: boolean; sheen?: boolean }) {
+/** `surface="raised"`: a solid card for data — forms and lists (AENR-549); tables get it automatically. */
+export function Card({ className = "", children, hover, press, sheen, surface = "glass" }: { className?: string; children?: ReactNode; hover?: boolean; press?: boolean; sheen?: boolean; surface?: "glass" | "raised" }) {
   const showSheen = sheen ?? hover;
   const ref = usePointerGlow<HTMLDivElement>(!!showSheen);
   return (
     <div
       ref={ref}
-      className={`glass-card rounded-3xl ${hover ? "transition duration-300 ease-spring hover:-translate-y-1 hover:shadow-lift" : ""} ${press ? "pressable cursor-pointer" : ""} ${showSheen ? "relative isolate" : ""} ${className}`}>
+      className={`glass-card ${surface === "raised" ? "surface-raised" : ""} rounded-3xl ${hover ? "transition duration-300 ease-spring hover:-translate-y-1 hover:shadow-lift" : ""} ${press ? "pressable cursor-pointer" : ""} ${showSheen ? "relative isolate" : ""} ${className}`}>
       {showSheen && <span aria-hidden className="sheen" />}
       {children}
     </div>

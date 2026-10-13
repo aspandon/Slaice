@@ -14,7 +14,7 @@ export function AccountantCommission() {
   const monthly = ACCOUNTANT_PAYOUTS;
   return (
     <div>
-      <PageHead actions={<Btn variant="primary" icon={Icon.download} onClick={() => { downloadCSV("payouts.csv", ["Month", "Gross", "Stripe fee", "Slaice 5%", "Tenant net"], monthly); toast("Exported payout statement (CSV)."); }}>Export</Btn>} />
+      <PageHead primary={<Btn variant="primary" icon={Icon.download} onClick={() => { downloadCSV("payouts.csv", ["Month", "Gross", "Stripe fee", "Slaice 5%", "Tenant net"], monthly); toast("Exported payout statement (CSV)."); }}>Export</Btn>} />
       <div className="grid sm:grid-cols-4 gap-4 mb-4">
         <StatCard label="Season gross" value="€704k" tone="teal" icon={Icon.chart} />
         <StatCard label="Stripe fees" value="−€10.2k" sub="~1.5%" icon={Icon.stripe} />

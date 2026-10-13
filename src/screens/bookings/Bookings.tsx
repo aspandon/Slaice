@@ -4,6 +4,8 @@ import {
   Badge,
   Btn,
   Card,
+  PageHead,
+  DensityToggle,
   EmptyState,
   FilterBar,
   PeriodPicker,
@@ -15,7 +17,7 @@ import {
   useMockLoad,
 } from "../../components/ui";
 import type { TabEntry } from "../../components/ui";
-import { Pager, SortHeader, cmpVal, dateVal, type SortState } from "../../components/TableTools";
+import { Pager, SortHeader, cmpVal, dateVal } from "../../components/TableTools";
 import { useApp } from "../../app/store";
 import { ZONES } from "../../data/beach";
 import { usePeriod } from "../../lib/usePeriod";
@@ -33,6 +35,7 @@ import { DEMO_TODAY, inRange, rangeLabel, resolveRange } from "../../domain/peri
 import { downloadCSV } from "../../lib/download";
 import { Masked } from "../tenant/ViewAs";
 import { useBookingOps, type OpsBooking } from "../../lib/useBookingOps";
+import { useListUrl } from "../../lib/useUrlState";
 import { BookingDrawer } from "./BookingDrawer";
 
 /* ============ BOOKINGS (AENR-579) ============
@@ -130,8 +133,8 @@ export function AdminBookings() {
   const agent = persona === "callcenter";
   const ops = useBookingOps();
   const [q, setQ] = useState("");
-  const [page, setPage] = useState(0);
-  const [sort, setSort] = useState<SortState>(null);
+  // Tab, sort and page live in the URL (AENR-551).
+  const { sort, setSort, page, setPage } = useListUrl();
   const loading = useMockLoad();
   const PAGE = 30;
   const params = readHashQuery();
@@ -245,6 +248,10 @@ export function AdminBookings() {
 
   return (
     <div>
+      <PageHead
+        sub={agent ? "Find a caller’s booking, resend their QR, move them or ask a manager for a refund." : "Every booking from every channel — find it, open it, act on it."}
+        primary={agent ? undefined : <Btn variant="outline" icon={Icon.download} onClick={exportCSV}>Export</Btn>}
+      />
       <Card className="p-4">
         <div className="flex items-center gap-3 mb-3 flex-wrap">
           <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-sm flex-1 min-w-[200px] text-slate-600">
@@ -260,11 +267,7 @@ export function AdminBookings() {
               className="text-sm outline-none w-full bg-transparent text-ink"
             />
           </div>
-          {!agent && (
-            <Btn variant="outline" icon={Icon.download} onClick={exportCSV} className="ml-auto">
-              Export
-            </Btn>
-          )}
+          <span className="ml-auto"><DensityToggle /></span>
         </div>
         <Tabs
           scroll

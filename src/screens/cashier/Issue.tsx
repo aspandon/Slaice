@@ -292,7 +292,7 @@ function IssueInner() {
   return (
     <div className="animate-fade-up pb-20 md:pb-0">
       <PageHead title="Issue Ticket" sub="Sell entry tickets and sunbed sets in one charge — card, cash, voucher or split." badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<><Btn variant="ghost" icon={Icon.monitor} onClick={openDisplay}>Open live display</Btn><Btn variant="outline" icon={Icon.list} onClick={() => go(persona, "transactions")}>Today’s transactions</Btn></>} />
+        secondary={[{ label: "Today’s transactions", icon: Icon.list, onClick: () => go(persona, "transactions") }, { label: "Open live display", icon: Icon.monitor, onClick: openDisplay }]} />
       <TillStatus />
       {!shiftOpen ? (
         <OpenShiftCard />
@@ -317,7 +317,7 @@ function IssueInner() {
               })}
             </div>
 
-            <div id="till-panel" role="tabpanel" aria-labelledby={`till-tab-${tab}`} className="glass-card rounded-3xl p-4 flex-1 min-h-0 overflow-y-auto">
+            <div id="till-panel" role="tabpanel" aria-labelledby={`till-tab-${tab}`} className="glass-card surface-raised rounded-3xl p-4 flex-1 min-h-0 overflow-y-auto">
               {tab === "quick" && (
                 <>
                   <h2 className="font-display font-bold text-navy-900 mb-2">Quick keys</h2>
@@ -459,7 +459,7 @@ function IssueInner() {
 
           {/* Basket */}
           <div id="till-basket" className="flex flex-col gap-3 scroll-mt-4" style={fitH ? { height: fitH } : undefined}>
-            <Card className="p-4 flex flex-col min-h-0 flex-1 overflow-y-auto">
+            <Card surface="raised" className="p-4 flex flex-col min-h-0 flex-1 overflow-y-auto">
               {done ? (
                 <SaleDone sale={done} onNew={newSale}
                   onDeliver={(c, to) => { t.setDelivery(done.id, c); toast(c === "email" ? (t.till.offline ? `Offline — receipt e-mail to ${to} queued, sent on reconnect.` : `Demo — receipt e-mailed to ${to}.`) : c === "sms" ? (t.till.offline ? `Offline — receipt SMS to ${to} queued, sent on reconnect.` : `Demo — receipt link sent by SMS to ${to}.`) : c === "print" ? "Demo — printed on the receipt printer (ESC/POS)." : c === "qr" ? "Receipt QR shown — the customer scans it." : "No receipt — the ΑΠΥ is still recorded.", { tone: "success" }); }} />

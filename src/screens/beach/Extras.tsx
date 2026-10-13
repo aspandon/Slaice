@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Field, Input, Select, Spinner, Toggle } from "../../components/ui";
+import { Badge, Btn, Card, Field, Input, SaveBar, Select, Spinner, Toggle } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { todayISO } from "../../data/beach";
 import { addDays, fmtDay } from "../../domain/period";
@@ -78,51 +78,6 @@ function useDraft() {
     });
   };
   return { extras, draft, setDraft, dirty, errors, save, discard: () => setDraft(extras) };
-}
-
-function SaveBar({
-  dirty,
-  errors,
-  save,
-  discard,
-}: {
-  dirty: boolean;
-  errors: string[];
-  save: () => void;
-  discard: () => void;
-}) {
-  if (!dirty) return null;
-  return (
-    <div
-      role="status"
-      className="sticky top-2 z-20 flex flex-wrap items-center gap-3 rounded-2xl bg-navy-900 text-white px-4 py-2.5 shadow-float"
-    >
-      <Icon.edit size={15} />
-      <span className="text-sm">
-        {errors.length ? (
-          <>
-            <b>Can’t save yet</b> — {errors[0]}
-          </>
-        ) : (
-          <>
-            <b>Unsaved changes</b> — guests and staff still see the saved prices.
-          </>
-        )}
-      </span>
-      <div className="ml-auto flex gap-2">
-        <button
-          type="button"
-          onClick={discard}
-          className="rounded-[14px] px-3 py-1.5 text-[13px] font-semibold text-white ring-1 ring-white/40 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"
-        >
-          Discard
-        </button>
-        <Btn size="sm" variant="teal" icon={Icon.check} disabled={errors.length > 0} onClick={save}>
-          Save
-        </Btn>
-      </div>
-    </div>
-  );
 }
 
 /* Bulk price rules for tickets or lockers + an effective-price preview. */
@@ -419,7 +374,7 @@ export function TicketsAdmin() {
   };
   return (
     <div className="space-y-4">
-      <SaveBar dirty={d.dirty} errors={d.errors} save={d.save} discard={d.discard} />
+      <SaveBar dirty={d.dirty} errors={d.errors} onSave={d.save} onDiscard={d.discard} note="Unsaved changes — guests and staff still see the saved prices." />
       <Card className="p-4">
         <div className="flex items-center justify-between mb-2">
           <h2 className="font-display font-bold text-navy-900">Ticket categories</h2>
@@ -548,7 +503,7 @@ export function LockersAdmin() {
   const status = !pv.connected ? "Disconnected" : pv.outage ? "Outage" : "Connected";
   return (
     <div className="space-y-4">
-      <SaveBar dirty={d.dirty} errors={d.errors} save={d.save} discard={d.discard} />
+      <SaveBar dirty={d.dirty} errors={d.errors} onSave={d.save} onDiscard={d.discard} note="Unsaved changes — guests and staff still see the saved prices." />
       <div className="grid xl:grid-cols-[minmax(0,1fr)_380px] gap-4 items-start">
         <Card className="p-4">
           <div className="flex items-center justify-between mb-2">

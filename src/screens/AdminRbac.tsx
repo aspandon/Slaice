@@ -189,11 +189,9 @@ export function AdminRbac() {
     <div className="animate-fade-up">
       <PageHead
         title="RBAC"
-        actions={
-          <Btn variant="primary" icon={Icon.plus} onClick={() => openDraft(EMPTY)}>
+        sub="Staff accounts and what each role can see and do — invite, change roles, preview as a role." primary={<Btn variant="primary" icon={Icon.plus} onClick={() => openDraft(EMPTY)}>
             Add user
-          </Btn>
-        }
+          </Btn>}
       />
 
       <Card className="p-4">

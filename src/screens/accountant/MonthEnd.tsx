@@ -74,20 +74,21 @@ export function MonthEnd() {
   return (
     <div className="animate-fade-up space-y-4">
       <PageHead
+        sub="Close the books for a month: what reached myDATA, card charges and payouts, VAT by rate, and the exceptions to clear first."
         actions={
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="w-56">
-              <Select
-                aria-label="Export layout"
-                value={preset}
-                onChange={(e) => setPreset(e.target.value as ExportPreset)}
-                options={EXPORT_PRESETS.map((p) => ({ v: p.id, l: p.label }))}
-              />
-            </div>
-            <Btn variant="primary" icon={Icon.download} onClick={exportNow}>
-              Export month
-            </Btn>
+          <div className="w-56">
+            <Select
+              aria-label="Export layout"
+              value={preset}
+              onChange={(e) => setPreset(e.target.value as ExportPreset)}
+              options={EXPORT_PRESETS.map((p) => ({ v: p.id, l: p.label }))}
+            />
           </div>
+        }
+        primary={
+          <Btn variant="primary" icon={Icon.download} onClick={exportNow}>
+            Export month
+          </Btn>
         }
       />
       <div role="group" aria-label="Month" className="flex flex-wrap gap-1.5">

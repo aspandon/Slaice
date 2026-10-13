@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Field, Input, Modal, Select, Toggle } from "../../components/ui";
+import { Badge, Btn, Card, Field, Input, Modal, SaveBar, Select, Toggle } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { downloadCSVReport, downloadPDF } from "../../lib/download";
 import {
@@ -624,6 +624,8 @@ export function RetentionTab() {
     });
   };
   return (
+    <>
+    <SaveBar dirty={dirty} onSave={save} onDiscard={() => setRows(privacy.retention)} note="Unsaved retention changes — the current policy still applies until you save." />
     <div className="grid lg:grid-cols-[1fr_360px] gap-4">
       <Card className="p-2">
         <div className="px-3 pt-2 pb-1.5 text-[12px] text-slate-500">
@@ -731,5 +733,6 @@ export function RetentionTab() {
         </Card>
       </div>
     </div>
+    </>
   );
 }

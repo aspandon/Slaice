@@ -1,3 +1,4 @@
+import { useUrlState } from "../../lib/useUrlState";
 import { useMemo, useState } from "react";
 import { Icon } from "../../lib/icons";
 import {
@@ -73,7 +74,9 @@ const VIEWS: [View, string][] = [
 export function PlatformTenants() {
   const { go } = useApp();
   const { platform, setPlatform, today, mrr, planName, plan } = usePlatform();
-  const [view, setView] = useState<View>("all");
+  const [viewRaw, setViewRaw] = useUrlState("view", "all");
+  const view = viewRaw as View;
+  const setView = (v: View) => setViewRaw(v);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
   const [module, setModule] = useState("");
@@ -294,10 +297,11 @@ export function PlatformTenants() {
           />
         ) : (
           <Table
+            rowLink
             cols={["Tenant", "Plan", "Status", "Health", "Actions", "Stripe", "MRR", ""]}
             right={[6]}
             rows={shown.map(({ t, actions, h }) => [
-              <button type="button" className="text-left" onClick={() => openTenant(t.id)}>
+              <button type="button" className="row-link text-left" onClick={() => openTenant(t.id)} aria-label={`Open ${t.name}`}>
                 <b className="text-navy-900 hover:text-teal-700">{t.name}</b>
                 {t.env !== "live" && (
                   <Badge tone="amber" className="ml-1">

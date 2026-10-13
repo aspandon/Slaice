@@ -1,7 +1,7 @@
 import { useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, ConfirmModal, EmptyState, ErrorState, Field, Input, Modal, Table, TableSkeleton, Toggle } from "../../components/ui";
+import { Badge, Btn, Card, ConfirmModal, DensityToggle, EmptyState, ErrorState, Field, Input, Modal, PageHead, Table, TableSkeleton, Toggle } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { listCustomers } from "../../api";
 import { useAsync } from "../../lib/useAsync";
@@ -10,12 +10,13 @@ import { downloadCSV } from "../../lib/download";
 import { guestFacts, type GuestFacts } from "../../data/guests";
 import { SEGMENT_COLORS, fieldOf, segmentsFor, inSegment, ruleLabel, type Segment } from "../../domain/segments";
 import { DEMO_TODAY } from "../../domain/period";
+import { useListUrl, useUrlState } from "../../lib/useUrlState";
 import { SegmentBuilder } from "./SegmentBuilder";
 import { GuestProfile } from "./GuestProfile";
 import { ImportModal, MergeModal, duplicateOf, mergeGuests, type ImportRow } from "./GuestTools";
 import { FilterBar, Select } from "../../components/ui";
 import { activeCount, isAmount, matchAmount, type FilterDef, type FilterState } from "../../domain/filters";
-import { Pager, SortHeader, cmpVal, type SortState } from "../../components/TableTools";
+import { Pager, SortHeader, cmpVal } from "../../components/TableTools";
 import { CHANNELS_CRM } from "../../data/guests";
 import { ZONES } from "../../data/beach";
 import { RFM_TONE, SCORE_FIELDS, STAGES, STAGE_HELP, STAGE_TONE, predictedNextVisit, rfmScores, stageOf, type LifecycleSettings, type Stage } from "../../domain/lifecycle";
@@ -42,7 +43,7 @@ export function AdminUsers() {
   const { toast, passes, crm, setCrm, go, viewAs } = useApp();
   const ra = crm.regularAfter;
   const [q, setQ] = useState("");
-  const [segId, setSegId] = useState("all");
+  const [segId, setSegId] = useUrlState("segment", "all");
   const customersQ = useAsync(listCustomers);
   const [editId, setEditId] = useState<number | null>(null);
   const [profileId, setProfileId] = useState<number | null>(null);
@@ -86,8 +87,7 @@ export function AdminUsers() {
   const inActive = active ? new Set(members(active).map((g) => g.id)) : null;
   // Ad-hoc filters, sorting, paging and bulk selection (AENR-476).
   const [filters, setFiltersRaw] = useState<FilterState>({});
-  const [sort, setSort] = useState<SortState>(null);
-  const [page, setPage] = useState(0);
+  const { sort, setSort, page, setPage } = useListUrl();
   const [sel, setSel] = useState<Set<number>>(new Set());
   const [importOpen, setImportOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
@@ -224,18 +224,20 @@ export function AdminUsers() {
 
   return (
     <div className="animate-fade-up">
+      <PageHead sub="Your guests, grouped by lifecycle and segments — open a guest for the full profile."
+        primary={<Btn variant="primary" icon={Icon.plus} onClick={() => setBuilder("new")}>New segment</Btn>}
+        secondary={[
+          { label: "Import CSV", icon: Icon.upload, onClick: () => setImportOpen(true) },
+          { label: `Duplicates${dupPairs.length ? ` (${dupPairs.length})` : ""}`, icon: Icon.users, onClick: () => setMergeOpen(true) },
+          { label: "New tag", icon: Icon.tag, onClick: () => setTagModal(true) },
+        ]} />
       <Card className="p-4">
         <div className="flex items-center gap-3 mb-3 flex-wrap">
           <label className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-xs flex-1 min-w-[180px] text-slate-600">
             <Icon.search size={16} /><span className="sr-only">Search guests</span>
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search users…" className="text-sm outline-none w-full bg-transparent text-ink" />
           </label>
-          <div className="flex gap-2 ml-auto flex-wrap">
-            <Btn variant="outline" icon={Icon.upload} onClick={() => setImportOpen(true)}>Import CSV</Btn>
-            <Btn variant="outline" icon={Icon.users} onClick={() => setMergeOpen(true)}>Duplicates{dupPairs.length ? ` (${dupPairs.length})` : ""}</Btn>
-            <Btn variant="outline" icon={Icon.tag} onClick={() => setTagModal(true)}>New tag</Btn>
-            <Btn variant="primary" icon={Icon.plus} onClick={() => setBuilder("new")}>New segment</Btn>
-          </div>
+
         </div>
 
         {/* Segments: built-in + saved, with live counts. */}
@@ -276,9 +278,10 @@ export function AdminUsers() {
         </div>
         <div className="mb-3 flex flex-wrap items-center gap-2 text-[12px]">
           <button type="button" onClick={() => setLcModal(true)} className="inline-flex items-center gap-1.5 font-semibold text-slate-600 hover:text-navy-900"><Icon.cog size={13} /> Lifecycle rules: at risk after {crm.lifecycle.atRiskDays} days, lapsed after {crm.lifecycle.lapsedDays}</button>
-          <DropdownMenu.Root modal={false}>
+          <span className="ml-auto"><DensityToggle /></span>
+            <DropdownMenu.Root modal={false}>
             <DropdownMenu.Trigger asChild>
-              <button type="button" className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-semibold ring-1 ring-slate-200 bg-white hover:ring-slate-300"><Icon.layers size={13} /> Columns</button>
+              <button type="button" className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 font-semibold ring-1 ring-slate-200 bg-white hover:ring-slate-300"><Icon.layers size={13} /> Columns</button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Portal>
               <DropdownMenu.Content align="end" sideOffset={6} className="glass !bg-white/95 w-56 rounded-xl p-1.5 z-[60] shadow-float text-ink">

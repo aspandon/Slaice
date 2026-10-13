@@ -111,13 +111,9 @@ export function AdminPrivacy() {
   };
   return (
     <div className="animate-fade-up">
-      <PageHead
-        actions={
-          <Btn variant="outline" icon={Icon.download} onClick={exportAll}>
+      <PageHead sub="Data requests, consent, the record of processing, processors and breaches — with their legal deadlines." primary={<Btn variant="outline" icon={Icon.download} onClick={exportAll}>
             Export
-          </Btn>
-        }
-      />
+          </Btn>} />
       {(outdated || pendingSub.length > 0 || urgent.length > 0) && (
         <div className="space-y-2 mb-4">
           {urgent.map((b) => (

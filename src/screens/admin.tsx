@@ -28,6 +28,7 @@ import { resolveRange, comparisonRange, lastYearRange, granularityFor, rangeLabe
 import { summarize, series, buckets, fmtEUR, fmtInt, fmtPct, trendPct, trendPp, trendEUR } from "../data/analytics";
 import { Masked } from "./tenant/ViewAs";
 import { tillRefunds } from "../data/tillAdmin";
+import { useListUrl } from "../lib/useUrlState";
 import { refundHistory, refundStats } from "../data/refunds";
 import { decidedRefundRows, opsNow, useBookingOps } from "../lib/useBookingOps";
 import { slaState } from "../domain/bookingOps";
@@ -88,7 +89,7 @@ export function AdminDashboard() {
   return (
     <div className="animate-fade-up">
       <PageHead title="Dashboard" sub="Akti tou Iliou · bookings & revenue overview" badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<><PeriodPicker value={period} onChange={setPeriod} /><Btn variant="outline" icon={Icon.download} onClick={exportDashboard}>Export</Btn></>} />
+        actions={<PeriodPicker value={period} onChange={setPeriod} />} primary={<Btn variant="outline" icon={Icon.download} onClick={exportDashboard}>Export</Btn>} />
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((k) => <StatCard key={k.label} label={k.label} value={k.value} valueTitle={k.full} sub={<span>{k.detail && <span className="block">{k.detail}</span>}<span className={k.detail ? "block text-slate-500" : undefined}>{k.trend ? vs : "no comparison data"}</span></span>} tone={k.tone} trend={k.trend} />)}
       </div>
@@ -443,15 +444,11 @@ export function AdminReporting() {
 
   return (
     <div className="animate-fade-up">
-      {/* Tabs and the export action share one row; the period sits under it and
-          applies to every tab. */}
-      <div className="flex items-center gap-3 mb-3 flex-wrap">
-        <Tabs tabs={tabs} value={tab} onChange={setTab} scroll />
-        <div className="flex gap-2 ml-auto">
-          {FIN_TABS.includes(tab) && <Btn variant="outline" icon={Icon.doc} onClick={() => exportPdf(tab)}>Export PDF</Btn>}
-          <Btn variant="primary" icon={Icon.download} onClick={() => exportReport(tab)}>{FIN_TABS.includes(tab) ? "Export CSV" : "Export"}</Btn>
-        </div>
-      </div>
+      {/* One header (AENR-550): the export is the page's primary action, PDF in More. */}
+      <PageHead sub="How the beach is doing — revenue, occupancy, bookings, channels, guests and payments for any period."
+        primary={<Btn variant="primary" icon={Icon.download} onClick={() => exportReport(tab)}>{FIN_TABS.includes(tab) ? "Export CSV" : "Export"}</Btn>}
+        secondary={FIN_TABS.includes(tab) ? [{ label: "Export PDF", icon: Icon.doc, onClick: () => exportPdf(tab) }] : []} />
+      <div className="mb-3"><Tabs tabs={tabs} value={tab} onChange={setTab} scroll /></div>
       <PeriodPicker value={period} onChange={setPeriod} presets={["day", "week", "month", "year", "season"]} resetTo={{ kind: "preset", preset: "season", offset: 0 }} className="mb-4" />
 
       {closed && <EmptyState icon={Icon.umbrella} title="The beach was closed" body={`No activity in ${label}. The season runs 1 May – 30 Sep — pick a date inside it.`} />}
@@ -613,7 +610,7 @@ export function AdminRefunds() {
   const refundRate = sales ? stats.amount / sales : 0;
   const prevRate = prevStats && prevSales ? prevStats.amount / prevSales : 0;
   const REFUND_PAGE = 25;
-  const [page, setPage] = useState(0);
+  const { page, setPage } = useListUrl();
   const pageCount = Math.max(1, Math.ceil(visible.length / REFUND_PAGE));
   const safePage = Math.min(page, pageCount - 1);
   const shown = visible.slice(safePage * REFUND_PAGE, (safePage + 1) * REFUND_PAGE);
@@ -631,7 +628,7 @@ export function AdminRefunds() {
   return (
     <div className="animate-fade-up">
       <PageHead title="Refunds" sub="Decide refund requests first, then the history — full or partial via Stripe, with reason logging and an automatic credit note (myDATA)." badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<><PeriodPicker value={period} onChange={setPeriod} presets={["day", "week", "month", "season"]} allowAll resetTo={{ kind: "preset", preset: "month", offset: 0 }} /><Btn variant="outline" icon={Icon.download} onClick={exportCSV}>Export</Btn></>} />
+        actions={<PeriodPicker value={period} onChange={setPeriod} presets={["day", "week", "month", "season"]} allowAll resetTo={{ kind: "preset", preset: "month", offset: 0 }} />} primary={<Btn variant="outline" icon={Icon.download} onClick={exportCSV}>Export</Btn>} />
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <StatCard label="Needs decision" value={queue.length} sub={overdue ? `${overdue} past the 48 h SLA` : "all within the 48 h SLA"} tone={overdue ? "rose" : "amber"} />
         <StatCard label={`Refunded · ${noun}`} value={fmtEUR(stats.amount)} sub={`${fmtInt(stats.count)} refund${stats.count === 1 ? "" : "s"} in the history below`} tone="teal" trend={hasPrev ? trendPct(stats.amount, prevStats.amount) : undefined} />
@@ -1216,7 +1213,7 @@ export function AdminGamification() {
   return (
     <div className="animate-fade-up">
       <PageHead title="Gamification" sub="Achievements that earn guests a summer badge when they hit a milestone." badge={<Badge tone="future">Future</Badge>}
-        actions={<Btn variant="primary" icon={Icon.check} onClick={save}>Save badges</Btn>} />
+        primary={<Btn variant="primary" icon={Icon.check} onClick={save}>Save badges</Btn>} />
       <FutureBanner />
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {list.map((a) => {

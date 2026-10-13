@@ -8,10 +8,11 @@ import {
   Modal,
   PeriodPicker,
   Select,
-  Table,
+  Table, DensityToggle,
   Tabs,
 } from "../../components/ui";
 import { Pager } from "../../components/TableTools";
+import { useListUrl } from "../../lib/useUrlState";
 import { useApp } from "../../app/store";
 import { sectionName } from "../../data/finance";
 import {
@@ -64,7 +65,7 @@ export function DocsPayments() {
   const [status, setStatus] = useState(() => readHashQuery().get("status") ?? "");
   const [channel, setChannel] = useState("");
   const [q, setQ] = useState("");
-  const [page, setPage] = useState(0);
+  const { page, setPage } = useListUrl();
   const [view, setView] = useState<FiscalDoc | null>(null);
   const fin = useFinanceData(range, section);
   const docs = useMemo(
@@ -234,6 +235,7 @@ export function DocsPayments() {
             reset();
           }}
         />
+        <span className="ml-auto"><DensityToggle /></span>
         <Badge tone="slate">Read-only</Badge>
         <div className="ml-auto flex flex-wrap gap-2">
           {tab === "documents" && (
@@ -383,6 +385,7 @@ export function DocsPayments() {
           />
         ) : tab === "documents" ? (
           <Table
+            rowLink
             dense
             cols={[
               "Date",
@@ -436,15 +439,14 @@ export function DocsPayments() {
                 {d.mark ? `${d.mark.slice(0, 6)}…${d.mark.slice(-4)}` : "—"}
               </span>,
               <Badge tone={STATUS_TONE[d.status]}>{d.status}</Badge>,
-              <Btn
-                size="sm"
-                variant="ghost"
-                icon={Icon.eye}
+              <button
+                type="button"
+                className="row-link inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[13px] font-semibold text-navy-900 hover:text-teal-700"
                 onClick={() => setView(d)}
                 aria-label={`View ${docNo(d)}`}
               >
-                View
-              </Btn>,
+                <Icon.eye size={14} /> View
+              </button>,
             ])}
           />
         ) : (
