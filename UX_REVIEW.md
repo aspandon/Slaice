@@ -409,3 +409,6 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-617 — one obvious next step.** A shared "…" menu (destructive last, in red; long-press on
   touch). Visit cards went from eight buttons to Show QR + Wallet + "…"; the booking drawer shows Resend
   QR + "…"; Team & roles and segment menus moved onto the same component.
+- **AENR-606 — charge in one move.** The till shows one "Charge €X" button that opens on the last-used
+  tender (no more three disabled buttons on an empty basket), quick keys show their price, and
+  "Repeat last sale" rebuilds the previous basket with fresh sets — a repeat sale is Repeat → Charge.

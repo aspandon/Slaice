@@ -136,6 +136,8 @@ export interface TillState {
   seq: number;
   /** Who is selling on this till now — switched with a personal PIN (AENR-608). */
   active?: string;
+  /** The tender the last sale was paid with — Charge opens on it (AENR-606). */
+  lastTender?: TenderKind;
 }
 
 /* ---------- Money ---------- */

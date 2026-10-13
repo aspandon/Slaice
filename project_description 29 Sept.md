@@ -1638,13 +1638,15 @@ Roles: the tenant (beach operator) is the **controller**; Slaice is the **proces
 ```text
  shift strip: SH-0205 · cashier · till · since 09:00   ● Online / Offline (n queued)  [Simulate offline]
  ┌─ Quick keys ─────────────────────────────────────────────┐   ┌─ Basket ─────────────────────┐
- │ [1 Adult] [2 Adults] [Adult+Child] [2 Residents] [1 set] │   │ 2 × Adult              €20   │
+ │ [1 Adult €10] [2 Adults €20] [Adult+Child €15] [2 Res €12] [1 set from €40]   │ 2 × Adult              €20   │
+ │ [↻ Repeat last sale · 2× Normal, 1× set           €60]   │
  │ [Couple day · save €5] [Family day · save €10]           │   │ Sunbed set MC-01 · Macaw €35 │
  ├─ 1 · Entry tickets  Adult · Resident · Child · Senior ───┤   │   ⏱ held for this till 4:59  │
  ├─ 2 · Store  Akanthus 48 free · from €30 … Bolivar closed ┤   │ SUMMER10 −€2.50  [promo][Discount]
  ├─ 3 · Sunbeds  live map (free / on hold / booked)  [Any free set]  + Attach customer (optional)
  └──────────────────────────────────────────────────────────┘   │ Total €52.50 (incl. VAT)     │
-                                                                │ [Card] [Cash] [Split/voucher]│
+                                                                │ [ Charge €52.50 ]  opens on  │
+                                                                │  the tender used last        │
                                                                 └──────────────┬───────────────┘
    Tender: Card (amount pushed to the terminal; demo outcome approve / decline / time out)
            Cash (Exact · €20 · €50 · €100 · other → change due) · Voucher (balance) · any split
@@ -1665,8 +1667,10 @@ Roles: the tenant (beach operator) is the **controller**; Slaice is the **proces
   online today in the sample), spot codes P24… on the receipt, VAT 24%.
 - **One basket** for entry tickets (Adult / Resident / Child / Senior, prices from the shared
   `TICKET_PRICES`), sunbed sets and **bundles** (Couple day, Family day: one basket line, components on
-  the receipt, saving shown as a discount). **Quick keys** make the common sale one tap; a ticket-only
-  sale is three taps (quick key → Cash → Exact).
+  the receipt, saving shown as a discount). **Quick keys** make the common sale one tap and show
+  today's price ("from" for sets); a ticket-only sale is three taps (quick key → Charge → Exact).
+  **Repeat last sale** (AENR-606) rebuilds this cashier's previous basket in one tap — same tickets,
+  lockers and parking; sunbeds as the best free sets in the same zones, with a note if some are short.
 - **Store** chips show live free count and today's from-price (pricing rules applied); closed
   (`CLOSED_STORES`) or full stores are disabled with the reason. **Sunbeds**: the store's live map; only
   free sets can be picked; **Any free set** auto-assigns the best one (front row, then cheapest).
@@ -1676,6 +1680,9 @@ Roles: the tenant (beach operator) is the **controller**; Slaice is the **proces
   Late afternoon −20% on sets); an open amount needs a **manager PIN**. Promo codes are validated
   (dates, store scope, minimum spend, usage limit) with the reason shown when rejected — e.g. SUMMER10 is
   valid for Central only. Vouchers / gift cards (GIFT-20, GIFT-50) are a tender with a balance.
+- **One Charge button** (AENR-606): "Charge €X" appears once the basket has something (an empty basket
+  shows guidance, not disabled buttons) and opens the tender screen on the tender that took most of the
+  last sale; card, cash, voucher or split are switched there. The phone pay bar charges directly.
 - **Payment:** card (approved / declined with Retry · Pay cash · Cancel sale / timed out), cash with
   quick-tender buttons and change due, voucher, or any split — "Remaining" is always visible; leaving
   the tender screen keeps the basket and the holds. Nothing is recorded until fully paid.

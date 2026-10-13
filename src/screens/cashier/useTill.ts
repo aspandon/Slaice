@@ -3,7 +3,7 @@ import { todayISO } from "../../data/beach";
 import { DEFAULT_CASHIER, HOLD_MS, OFFLINE_ONLINE_BOOKED } from "../../data/till";
 import {
   apyNo, creditNo, fakeMark, receiptNo, refundedQty, tillSetStatus,
-  type DrawerMove, type ReceiptChoice, type Tender, type TillDiscount, type TillLine, type TillRefund, type TillSale, type TillShift,
+  type DrawerMove, type ReceiptChoice, type Tender, type TenderKind, type TillDiscount, type TillLine, type TillRefund, type TillSale, type TillShift,
 } from "../../domain/till";
 
 /** Till actions over the shared store. Screens call these; the pure rules live in domain/till. */
@@ -105,7 +105,8 @@ export function useTill() {
   const clearConflict = (saleId: string) => patchSale(saleId, (s) => ({ ...s, conflict: undefined }));
   const setFailNext = (v: boolean) => setTill((t) => ({ ...t, failNextMydata: v }));
   const setTerminal = (id: string) => setTill((t) => ({ ...t, terminal: id }));
+  const rememberTender = (k: TenderKind) => setTill((t) => ({ ...t, lastTender: k }));
   const markOfflineHelpSeen = () => setTill((t) => ({ ...t, offlineHelpSeen: true }));
 
-  return { till, day, cashier, tillName, hold, release, status, completeSale, setDelivery, reprint, retryMydata, refund, openShift, addMove, closeShift, switchCashier, setOffline, syncOffline, moveLine, clearConflict, setFailNext, setTerminal, markOfflineHelpSeen };
+  return { till, day, cashier, tillName, hold, release, status, completeSale, setDelivery, reprint, retryMydata, refund, openShift, addMove, closeShift, switchCashier, setOffline, syncOffline, moveLine, clearConflict, setFailNext, setTerminal, rememberTender, markOfflineHelpSeen };
 }

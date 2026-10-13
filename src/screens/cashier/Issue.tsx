@@ -215,6 +215,31 @@ function IssueInner() {
     removeLines(lines.filter((l) => l.bundle === b).map((l) => l.id));
     setDiscounts((ds) => ds.filter((d) => d.id !== `d-${b}`));
   };
+  // What a quick key costs now — tickets at today's price, sets at the best free set in this zone.
+  const quickPrice = (q: QuickKey) =>
+    Object.entries(q.tickets).reduce((a, [c, n]) => a + (n ?? 0) * ex.ticketPrice(c, t.day), 0) +
+    (q.sets ? bestFree(q.sets).reduce((a, s) => a + priceOf(s, zone.id), 0) : 0);
+  /* Repeat last sale (AENR-606): the previous basket again — same tickets, lockers and
+     parking; sunbeds as the best free sets in the same zones (the old ones are sold). */
+  const lastSale = t.till.sales.find((x) => x.shiftId === t.till.shift?.id && x.cashier === t.cashier && x.lines.length);
+  const repeatLast = () => {
+    if (!lastSale) return;
+    fresh();
+    setErr("");
+    lastSale.lines.forEach((l) => {
+      if (l.kind === "ticket" && l.cat) setTicketQty(l.cat, ticketQty(l.cat) + l.qty);
+      else if (l.kind === "locker" && l.bank) setLockerQty(l.bank, lockerQty(l.bank) + l.qty);
+      else if (l.kind === "parking") setParkingQty(parkingQty + l.qty);
+    });
+    const byZone = lastSale.lines.filter((l) => l.kind === "sunbed" && l.zoneId).reduce<Record<string, number>>((m, l) => ({ ...m, [l.zoneId as string]: (m[l.zoneId as string] ?? 0) + l.qty }), {});
+    const short: string[] = [];
+    Object.entries(byZone).forEach(([zId, n]) => {
+      const picked = [...freeIn(zId)].sort((a, b) => a.y - b.y || a.price - b.price).slice(0, n);
+      if (picked.length < n) short.push(`${n - picked.length} in ${ZONE_NAMES[zId]}`);
+      if (picked.length) addSets(picked, undefined, zId);
+    });
+    if (short.length) setErr(`Not enough free sets to repeat it all — missing ${short.join(", ")}.`);
+  };
   const quick = (q: QuickKey) => {
     setErr("");
     Object.entries(q.tickets).forEach(([c, n]) => setTicketQty(c as TicketCategory, ticketQty(c as TicketCategory) + (n ?? 0)));
@@ -267,6 +292,9 @@ function IssueInner() {
   };
   const onPaid = (tenders: Tender[]) => {
     const sale = t.completeSale({ lines, discounts, total: totals.total, tenders, customer });
+    // Charge opens on the tender that took the most this time (AENR-606).
+    const main = [...tenders].sort((a, b) => b.amount - a.amount)[0];
+    if (main) t.rememberTender(main.kind);
     lines.forEach((l) => { if (l.kind === "locker" && l.bank) ex.recordLockers(l.bank, t.day, l.qty); });
     setTender(null);
     setDone(sale);
@@ -324,11 +352,20 @@ function IssueInner() {
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
                     {QUICK_KEYS.map((q) => (
                       <button key={q.id} type="button" onClick={() => quick(q)}
-                        className="min-h-[56px] rounded-xl bg-navy-900 text-white px-4 font-semibold text-sm shadow-sm hover:bg-navy-800 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2">
-                        {q.label}
+                        className="min-h-[56px] rounded-xl bg-navy-900 text-white px-4 py-1.5 font-semibold text-sm shadow-sm hover:bg-navy-800 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2">
+                        <span className="block">{q.label}</span>
+                        <span className="block text-[12px] font-medium text-white/70 tnum">{q.sets ? "from " : ""}{eur(quickPrice(q))}</span>
                       </button>
                     ))}
                   </div>
+                  {lastSale && (
+                    <button type="button" onClick={repeatLast}
+                      className="mt-2 w-full min-h-[48px] rounded-xl ring-1 ring-slate-200 bg-white/80 px-4 flex items-center gap-2 text-left text-sm hover:ring-teal-400 active:scale-[.99] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                      <Icon.refund size={16} className="text-teal-700 shrink-0" />
+                      <span className="flex-1 min-w-0"><b className="text-navy-900">Repeat last sale</b> <span className="text-slate-600">· {lastSale.lines.map((l) => `${l.qty}× ${l.kind === "sunbed" ? "set" : l.label}`).join(", ")}</span></span>
+                      <span className="font-semibold text-navy-900 tnum">{eur(lastSale.total)}</span>
+                    </button>
+                  )}
                   <h2 className="font-display font-bold text-navy-900 mt-4 mb-2">Bundles · {zone.name}</h2>
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">
                     {BUNDLES.map((b) => (
@@ -536,11 +573,17 @@ function IssueInner() {
                     </div>
                   </div>
                   {err && <div role="alert" className="mt-2 rounded-lg bg-rose-50 text-rose-800 ring-1 ring-rose-600/20 px-3 py-2 text-[12.5px]">{err}</div>}
-                  <div className="mt-3 grid grid-cols-2 gap-2">
-                    <Btn variant="teal" size="lg" icon={Icon.card} disabled={!lines.length} onClick={() => startPay("card")}>Card</Btn>
-                    <Btn variant="primary" size="lg" icon={Icon.cash} disabled={!lines.length} onClick={() => startPay("cash")}>Cash</Btn>
-                    <Btn variant="outline" className="col-span-2" icon={Icon.layers} disabled={!lines.length} onClick={() => startPay("voucher")}>Split / voucher</Btn>
-                  </div>
+                  {/* One Charge button (AENR-606): it opens on the tender used last; card, cash, voucher or split are chosen there. */}
+                  {lines.length > 0 && (
+                    <div className="mt-3">
+                      <Btn variant="teal" size="lg" full icon={t.till.lastTender === "cash" ? Icon.cash : t.till.lastTender === "voucher" ? Icon.layers : Icon.card} onClick={() => startPay(t.till.lastTender ?? "card")}>
+                        Charge {eur(totals.total)}
+                      </Btn>
+                      <div className="mt-1.5 text-center text-[11.5px] text-slate-500">
+                        Opens on {t.till.lastTender ?? "card"} — switch to card, cash, voucher or split there.
+                      </div>
+                    </div>
+                  )}
                 </>
               )}
             </Card>
@@ -560,7 +603,7 @@ function IssueInner() {
         <StickyActionBar>
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1"><div className="text-[11.5px] text-slate-500">{lines.reduce((a, l) => a + l.qty, 0)} item{lines.reduce((a, l) => a + l.qty, 0) === 1 ? "" : "s"} in basket</div><div className="font-display text-xl font-bold text-navy-900 tnum">{eur(totals.total)}</div></div>
-            <Btn variant="teal" icon={Icon.card} onClick={() => document.getElementById("till-basket")?.scrollIntoView({ behavior: "smooth", block: "start" })}>Pay</Btn>
+            <Btn variant="teal" icon={Icon.card} onClick={() => startPay(t.till.lastTender ?? "card")}>Charge</Btn>
           </div>
         </StickyActionBar>
       )}
