@@ -10,7 +10,7 @@ import { ConsentBanner } from "./components/ConsentBanner";
 import { CustomerBackdrop } from "./components/CustomerBackdrop";
 import { routeFor } from "./routes";
 import { parseHash, buildHash, hashPath, isValidPage, resolvePage } from "./app/router";
-import { HTML_LANG, normalizeLang } from "./app/i18n";
+import { HTML_LANG, deviceLang, normalizeLang } from "./app/i18n";
 import { DEFAULT_BACKGROUND } from "./data/backgrounds";
 import { DEFAULT_PASSES, DEFAULT_PASS_PRICING, SEASON_END_LABEL, seasonValidUntil, round2 } from "./data/passes";
 import { DEFAULT_LOYALTY } from "./data/loyalty";
@@ -139,7 +139,12 @@ export default function App() {
   });
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [signedIn, setSignedIn] = useState(!!saved.signedIn);
-  const [lang, setLang] = useState<LangCode>(normalizeLang(saved.lang));
+  // The language follows the device until the guest picks one (AENR-626); only a choice is saved.
+  const [langChoice, setLangChoice] = useState<LangCode | null>(saved.lang ? normalizeLang(saved.lang) : null);
+  const lang = langChoice ?? deviceLang();
+  const setLang = useCallback((l: LangCode) => setLangChoice(l), []);
+  const setLangAuto = useCallback(() => setLangChoice(null), []);
+  const langAuto = langChoice === null;
   const [cart, setCart] = useState<CartItem[]>(saved.cart || []);
   const [consent, setConsentState] = useState<Consent>(saved.consent || DEFAULT_CONSENT);
   const [background, setBackground] = useState<BeachBackground>(saved.background || DEFAULT_BACKGROUND);
@@ -261,11 +266,11 @@ export default function App() {
     if (DISPLAY) return;
     // Guard the write: Safari Private Mode and a full quota throw on setItem.
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, showPreviews, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, bookingOps, payLinks, display, layouts, extras, account, platform, comms, privacy }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang: langChoice ?? undefined, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, showPreviews, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, bookingOps, payLinks, display, layouts, extras, account, platform, comms, privacy }));
     } catch {
       /* storage unavailable (private mode / quota) — ignore */
     }
-  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, showPreviews, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, bookingOps, payLinks, display, layouts, extras, account, platform, comms, privacy]);
+  }, [persona, pageByPersona, signedIn, langChoice, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, showPreviews, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, bookingOps, payLinks, display, layouts, extras, account, platform, comms, privacy]);
 
   // Keep <html lang> in sync with the chosen language (a11y / SEO correctness).
   useEffect(() => {
@@ -400,8 +405,8 @@ export default function App() {
 
   // Memoised so the provider value keeps a stable identity across renders.
   const ctx = useMemo<AppContextValue>(
-    () => ({ toast, go, dive, persona, page, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, showPreviews, setShowPreviews, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, bookingOps, setBookingOps, payLinks, setPayLinks, display, setDisplay, layouts, setLayouts, extras, setExtras, account, setAccount, platform, setPlatform, comms, setComms, privacy, setPrivacy }),
-    [toast, go, dive, persona, page, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, showPreviews, setShowPreviews, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, bookingOps, setBookingOps, payLinks, setPayLinks, display, setDisplay, layouts, setLayouts, extras, setExtras, account, setAccount, platform, setPlatform, comms, setComms, privacy, setPrivacy],
+    () => ({ toast, go, dive, persona, page, signedIn, setSignedIn, lang, setLang, langAuto, setLangAuto, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, showPreviews, setShowPreviews, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, bookingOps, setBookingOps, payLinks, setPayLinks, display, setDisplay, layouts, setLayouts, extras, setExtras, account, setAccount, platform, setPlatform, comms, setComms, privacy, setPrivacy }),
+    [toast, go, dive, persona, page, signedIn, setSignedIn, lang, setLang, langAuto, setLangAuto, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, showPreviews, setShowPreviews, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, bookingOps, setBookingOps, payLinks, setPayLinks, display, setDisplay, layouts, setLayouts, extras, setExtras, account, setAccount, platform, setPlatform, comms, setComms, privacy, setPrivacy],
   );
 
   // The booking wizard takes over the whole viewport: the beach becomes the

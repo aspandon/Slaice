@@ -7,6 +7,7 @@ import { Badge, Btn, EmptyState, NotMvpBadge } from "../ui";
 import { PROFILE } from "../../domain/account";
 import { PERSONAS, NAV } from "../../data/personas";
 import { LANGUAGES, useApp, useT } from "../../app/store";
+import { deviceLang } from "../../app/i18n";
 import { useInbox } from "../../lib/useInbox";
 import type { CartItem, LangCode, PersonaId } from "../../domain/types";
 import { NavSheet } from "./Nav";
@@ -321,7 +322,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
 
 /* ---------- Language picker (own globe menu) ---------- */
 function LanguageMenu() {
-  const { lang, setLang } = useApp();
+  const { lang, setLang, langAuto, setLangAuto } = useApp();
   const t = useT();
   return (
     <DropdownMenu.Root modal={false}>
@@ -333,13 +334,19 @@ function LanguageMenu() {
       <DropdownMenu.Portal>
         <DropdownMenu.Content align="end" sideOffset={8} aria-label={t("Language")} className="glass w-60 text-ink rounded-xl p-1.5 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
           <DropdownMenu.Label className="px-3 pt-1.5 pb-1.5 text-[10px] uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-1.5"><Icon.globe size={11} /> {t("Language")}</DropdownMenu.Label>
-          <DropdownMenu.RadioGroup value={lang} onValueChange={(v) => setLang(v as LangCode)} className="px-0.5 pb-0.5 grid gap-0.5">
+          <DropdownMenu.RadioGroup value={langAuto ? "auto" : lang} onValueChange={(v) => (v === "auto" ? setLangAuto() : setLang(v as LangCode))} className="px-0.5 pb-0.5 grid gap-0.5">
+            {/* Follows the device until a language is picked (AENR-626). */}
+            <DropdownMenu.RadioItem value="auto"
+              className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12px] cursor-pointer select-none outline-none ${langAuto ? "bg-slate-100 font-semibold text-navy-900" : "text-slate-700 hover:bg-slate-100 data-[highlighted]:bg-slate-100"}`}>
+              <span className="flex-1 min-w-0 truncate">{t("Automatic")} <span className="text-slate-500 font-normal">· {LANGUAGES.find((l) => l.code === deviceLang())?.native}</span></span>
+              <Icon.check size={12} className={`text-teal-600 shrink-0 ${langAuto ? "" : "invisible"}`} />
+            </DropdownMenu.RadioItem>
             {LANGUAGES.map((l) => (
               <DropdownMenu.RadioItem key={l.code} value={l.code}
-                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12px] cursor-pointer select-none outline-none ${lang === l.code ? "bg-slate-100 font-semibold text-navy-900" : "text-slate-700 hover:bg-slate-100 data-[highlighted]:bg-slate-100"}`}>
+                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12px] cursor-pointer select-none outline-none ${!langAuto && lang === l.code ? "bg-slate-100 font-semibold text-navy-900" : "text-slate-700 hover:bg-slate-100 data-[highlighted]:bg-slate-100"}`}>
                 <span className="flex-1 min-w-0 truncate"><span className="font-semibold mr-1.5 uppercase">{l.code}</span><span className="text-slate-500">{l.native}</span></span>
                 {!l.mvp && <NotMvpBadge className="!text-[10px] !px-1.5" />}
-                <Icon.check size={12} className={`text-teal-600 shrink-0 ${lang === l.code ? "" : "invisible"}`} />
+                <Icon.check size={12} className={`text-teal-600 shrink-0 ${!langAuto && lang === l.code ? "" : "invisible"}`} />
               </DropdownMenu.RadioItem>
             ))}
           </DropdownMenu.RadioGroup>

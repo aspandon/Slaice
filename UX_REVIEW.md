@@ -459,3 +459,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-625 — exports remember your choice.** After the first export a report's control is a split
   button (Export · PDF in one click, ▾ for the other format); Month-end keeps its layout.
   AENR-629 fixed staff avatar menus showing the guest's name and customer links.
+- **AENR-626 — language set automatically.** The first visit uses the browser's language when offered;
+  picking one saves it, and Automatic returns to following the device.

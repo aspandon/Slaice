@@ -427,6 +427,10 @@ Cookie Policy. The decision is stored with a timestamp and can be changed any ti
 - English is the source language. Strings are wrapped as `t("English text")`.
 - Five more languages (el, de, fr, es, it) are **machine-generated** dictionaries
   (`npm run i18n`, `src/locales/*.json`); missing strings fall back to English.
+- **Set automatically** (AENR-626): until a language is picked, the app follows the browser / device language
+  when it is one we offer (`deviceLang()` reads `navigator.languages`), else English. Only an explicit choice
+  is saved; **Automatic** (top of the globe menu and of Account › Language, showing the device's language)
+  goes back to following the device.
 - `<html lang>` follows the selected language; dates use `Intl` (`en-GB` for English).
 - Coverage: the **customer surface** is translated; **staff screens are largely English-only**.
 - MVP languages are **English and Greek**. German, French, Spanish and Italian stay selectable but carry

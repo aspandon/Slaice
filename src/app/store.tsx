@@ -71,6 +71,10 @@ export interface AppContextValue {
   setSignedIn: (v: boolean) => void;
   lang: LangCode;
   setLang: (l: LangCode) => void;
+  /** True while the language follows the device (nothing chosen yet, AENR-626). */
+  langAuto: boolean;
+  /** Go back to following the device's language. */
+  setLangAuto: () => void;
   cart: CartItem[];
   addToCart: (item: CartItem) => void;
   removeFromCart: (kind: CartKind, id: string) => void;
@@ -222,6 +226,8 @@ export const AppCtx = createContext<AppContextValue>({
   setSignedIn: () => {},
   lang: "en",
   setLang: () => {},
+  langAuto: true,
+  setLangAuto: () => {},
   cart: [],
   addToCart: () => {},
   removeFromCart: () => {},

@@ -5,6 +5,7 @@ import type { IconRenderer } from "../../lib/icons";
 import { Btn, Field, Input, Stepper, Toggle } from "../../components/ui";
 import { LANGUAGES, useApp, useT } from "../../app/store";
 import { readHashQuery } from "../../app/router";
+import { deviceLang } from "../../app/i18n";
 import { PrivacyCenter } from "../../components/PrivacyCenter";
 import { ChangePasswordModal, Enable2FAModal } from "../../components/Security";
 import { PROFILE, partyLabel } from "../../domain/account";
@@ -34,7 +35,7 @@ const open = (s: Section | "") => {
 };
 
 export function CustomerAccount() {
-  const { account, setSignedIn, toast, lang } = useApp();
+  const { account, setSignedIn, toast, lang, langAuto } = useApp();
   const t = useT();
   const ex = useExtras();
   const [section, setSection] = useState<Section | "">(() => { const s = readHashQuery().get("section"); return isSection(s) ? s : ""; });
@@ -48,7 +49,7 @@ export function CustomerAccount() {
 
   const names = Object.fromEntries(ex.tickets.map((c) => [c.id, ex.ticketLabel(c.id).toLowerCase()]));
   const card = account.savedCard ? `${account.savedCard.brand} ···· ${account.savedCard.last4}` : t("None saved");
-  const langName = LANGUAGES.find((l) => l.code === lang)?.native ?? "English";
+  const langName = `${langAuto ? `${t("Automatic")} · ` : ""}${LANGUAGES.find((l) => l.code === lang)?.native ?? "English"}`;
   const onCount = [prefs.push, prefs.email, prefs.sms].filter(Boolean).length;
 
   if (section) {
@@ -225,16 +226,22 @@ function NotificationsPage({ prefs, setPrefs }: { prefs: Record<string, boolean>
 }
 
 function LanguagePage() {
-  const { lang, setLang } = useApp();
+  const { lang, setLang, langAuto, setLangAuto } = useApp();
   const t = useT();
   return (
     <fieldset className={`${PAGE} py-1 divide-y divide-slate-200/70`}>
       <legend className="sr-only">{t("Language")}</legend>
+      {/* Automatic follows this device's language (AENR-626). */}
+      <label className="flex items-center gap-3 min-h-[52px] cursor-pointer">
+        <input type="radio" name="account-lang" className="sr-only peer" checked={langAuto} onChange={setLangAuto} />
+        <span className="flex-1 text-[14.5px] text-navy-900 rounded peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500">{t("Automatic")}<span className="block text-[12px] text-slate-500">{t("Same as this device")} · {LANGUAGES.find((l) => l.code === deviceLang())?.native}</span></span>
+        {langAuto && <Icon.check size={18} className="text-teal-600" />}
+      </label>
       {LANGUAGES.map((l) => (
         <label key={l.code} className="flex items-center gap-3 min-h-[52px] cursor-pointer">
-          <input type="radio" name="account-lang" className="sr-only peer" checked={lang === l.code} onChange={() => setLang(l.code)} />
+          <input type="radio" name="account-lang" className="sr-only peer" checked={!langAuto && lang === l.code} onChange={() => setLang(l.code)} />
           <span className="flex-1 text-[14.5px] text-navy-900 rounded peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500">{l.native}<span className="block text-[12px] text-slate-500">{l.label}{l.mvp ? "" : ` · ${t("FUTURE")}`}</span></span>
-          {lang === l.code && <Icon.check size={18} className="text-teal-600" />}
+          {!langAuto && lang === l.code && <Icon.check size={18} className="text-teal-600" />}
         </label>
       ))}
     </fieldset>

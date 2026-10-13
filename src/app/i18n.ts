@@ -56,6 +56,16 @@ export function normalizeLang(code: string | undefined): LangCode {
   return LANGUAGES.some((l) => l.code === c) ? c : "en";
 }
 
+/** The device's language when we offer it, else English (AENR-626) — like an iOS app following the phone. */
+export function deviceLang(): LangCode {
+  const prefs = typeof navigator === "undefined" ? [] : navigator.languages?.length ? navigator.languages : [navigator.language];
+  for (const p of prefs) {
+    const code = (p || "").toLowerCase().split("-")[0];
+    if (LANGUAGES.some((l) => l.code === code)) return code as LangCode;
+  }
+  return "en";
+}
+
 export function translate(lang: LangCode, text: string): string {
   if (lang === "en") return text;
   const dict = DICTS[lang];
