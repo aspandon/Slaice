@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../lib/icons";
 import { Btn, Card, Field, Input, PageHead, Select, Stepper } from "../../components/ui";
 import { DateInput } from "../../components/ui/DateInput";
@@ -60,8 +60,18 @@ export function NewBooking() {
   const today = todayISO();
   // Opened from a guest profile ("New booking"): start with that guest.
   const pre = hint?.page === "newbooking" || hint?.page === "manual" ? hint.prefill : undefined;
+  // The agent's last choices come back (AENR-603): zone, payment mode, how it's sent, deadline.
+  const PREFS_KEY = `slaice.newbooking.${persona}`;
+  const prefs = useMemo(() => {
+    try {
+      return JSON.parse(localStorage.getItem(PREFS_KEY) || "{}") as Partial<{ zoneId: string; mode: StaffPayMode; via: { sms: boolean; email: boolean }; deadline: number }>;
+    } catch {
+      return {};
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [date, setDate] = useState(today);
-  const [zoneId, setZoneId] = useState("macaw");
+  const [zoneId, setZoneId] = useState(ZONES.some((z) => z.id === prefs.zoneId) ? (prefs.zoneId as string) : "macaw");
   const [sets, setSets] = useState<{ id: string; zoneId: string }[]>([]);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [guest, setGuest] = useState({
@@ -70,9 +80,16 @@ export function NewBooking() {
     email: pre?.email ?? "",
   });
   const [channel, setChannel] = useState<StaffChannel>(CHANNEL_DEFAULT[persona] ?? "Phone");
-  const [mode, setMode] = useState<StaffPayMode>("link");
-  const [deadline, setDeadline] = useState(30);
-  const [via, setVia] = useState({ sms: true, email: false });
+  const [mode, setMode] = useState<StaffPayMode>(prefs.mode ?? "link");
+  const [deadline, setDeadline] = useState(prefs.deadline ?? 30);
+  const [via, setVia] = useState(prefs.via ?? { sms: true, email: false });
+  useEffect(() => {
+    try {
+      localStorage.setItem(PREFS_KEY, JSON.stringify({ zoneId, mode, via, deadline }));
+    } catch {
+      /* storage blocked — defaults next time */
+    }
+  }, [PREFS_KEY, zoneId, mode, via, deadline]);
   const [paying, setPaying] = useState(false);
   const [done, setDone] = useState<PayLink | null>(null);
   const [err, setErr] = useState("");
@@ -126,6 +143,13 @@ export function NewBooking() {
     setDate(d);
     setSets([]);
     setErr("");
+  };
+  // Start from the caller's number: a known guest fills in the rest (AENR-603).
+  const digits = (x: string) => x.replace(/\D/g, "").replace(/^30/, "");
+  const known = guest.phone.trim().length >= 8 ? CUSTOMERS.find((c) => digits(c.phone) === digits(guest.phone)) : undefined;
+  const onPhone = (v: string) => {
+    const c = v.trim().length >= 8 ? CUSTOMERS.find((x) => digits(x.phone) === digits(v)) : undefined;
+    setGuest((g) => (c ? { name: `${c.first} ${c.last}`, phone: v, email: c.email } : { ...g, phone: v }));
   };
   const findGuest = (v: string) => {
     const c = CUSTOMERS.find((x) => `${x.first} ${x.last}` === v || x.phone === v);
@@ -353,7 +377,21 @@ export function NewBooking() {
                 </li>
               </ul>
             )}
-            <Field label="Guest name" hint="Start typing to pick an existing guest.">
+            <Field
+              label="Caller’s mobile"
+              hint={
+                known ? (
+                  <span className="text-emerald-700 font-semibold">Known guest · {known.first} {known.last} — details filled in</span>
+                ) : phoneOk ? (
+                  "New guest — just add a name."
+                ) : (
+                  "Start with the number — a known guest fills in the rest."
+                )
+              }
+            >
+              <Input type="tel" inputMode="tel" value={guest.phone} onChange={(e) => onPhone(e.target.value)} aria-invalid={via.sms && !!guest.phone && !phoneOk} autoComplete="off" />
+            </Field>
+            <Field label="Guest name" hint={known ? undefined : "Or type a name to pick an existing guest."}>
               <Input
                 list="newbooking-guests"
                 value={guest.name}
@@ -368,16 +406,8 @@ export function NewBooking() {
                 </option>
               ))}
             </datalist>
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="Mobile">
-                <Input
-                  type="tel"
-                  value={guest.phone}
-                  onChange={(e) => setGuest((g) => ({ ...g, phone: e.target.value }))}
-                  aria-invalid={via.sms && !!guest.phone && !phoneOk}
-                />
-              </Field>
-              <Field label="E-mail">
+            <div>
+              <Field label={via.email ? "E-mail" : "E-mail (optional)"}>
                 <Input
                   type="email"
                   value={guest.email}

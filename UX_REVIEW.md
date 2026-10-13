@@ -432,3 +432,6 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-602 — pair a TV with a code.** An unpaired display shows a 4-digit code; typing it under
   Live display › Pair a screen turns that screen into the display. Paired screens can be renamed or
   removed; Auto (sunrise / sunset) is the default look for new setups.
+- **AENR-603 — staff bookings remember the last choices.** New booking keeps the agent's last zone,
+  payment choice, channel and link deadline, and starts from the caller's mobile: a known number fills
+  in the guest, a new one needs only a name.
