@@ -5,6 +5,7 @@ import { Icon } from "../../lib/icons";
 import { useT } from "../../app/store";
 import { Btn } from "./primitives";
 import { Field, Input, Select } from "./forms";
+import { Sheet } from "./overlays";
 import type { AmountFilter, AmountOp, FilterDef, FilterState } from "../../domain/filters";
 import { activeCount, amountError, amountLabel, isAmount } from "../../domain/filters";
 
@@ -24,6 +25,8 @@ export function FilterBar({
   onChange,
   count,
   children,
+  sheet = false,
+  extraChips = [],
 }: {
   defs: FilterDef[];
   value: FilterState;
@@ -32,7 +35,12 @@ export function FilterBar({
   count: ReactNode;
   /** Extra controls rendered before the filters (e.g. a date control). */
   children?: ReactNode;
+  /** One "Filters" button that opens every filter in a sheet (AENR-624); `children` go in the sheet too. */
+  sheet?: boolean;
+  /** Chips for state the page owns (e.g. the period) so they show and clear with the rest. */
+  extraChips?: { key: string; label: string; remove: () => void }[];
 }) {
+  const [open, setOpen] = useState(false);
   const t = useT();
   const set = (key: string, v: FilterState[string]) => onChange({ ...value, [key]: v });
   const chips: { key: string; label: string; remove: () => void }[] = [];
@@ -57,6 +65,48 @@ export function FilterBar({
         remove: () => set(d.key, undefined),
       });
   }
+  chips.push(...extraChips);
+  const chipRow = chips.length > 0 && (
+    <div className="flex flex-wrap items-center gap-1.5 basis-full">
+      {chips.map((c) => (
+        <span key={c.key} className="inline-flex items-center gap-1 rounded-full bg-teal-50 text-teal-800 ring-1 ring-teal-600/20 pl-2.5 pr-1 py-0.5 text-[12px] font-semibold">
+          {c.label}
+          <button type="button" onClick={c.remove} aria-label={`${t("Remove filter")} ${c.label}`} className="w-5 h-5 grid place-items-center rounded-full hover:bg-teal-100">
+            <Icon.x size={11} />
+          </button>
+        </span>
+      ))}
+      <button type="button" onClick={() => { onChange({}); extraChips.forEach((c) => c.remove()); }} className="text-[12px] font-semibold text-slate-600 hover:text-navy-900 underline underline-offset-2 ml-1">
+        {t("Clear all")}
+      </button>
+    </div>
+  );
+  if (sheet)
+    return (
+      <>
+        <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" className={trigger(chips.length > 0)}>
+          <Icon.sliders size={14} /> {t("Filters")}
+          {chips.length > 0 && <span className="tnum rounded-full bg-white/20 px-1.5 text-[11px]">{chips.length}</span>}
+        </button>
+        <span className="text-[12px] text-slate-500 tnum" aria-live="polite">{count}</span>
+        {chipRow}
+        <Sheet open={open} onClose={() => setOpen(false)} title={t("Filters")} footer={<Btn variant="primary" onClick={() => setOpen(false)}>{t("Show results")}</Btn>}>
+          <div className="space-y-4">
+            {children}
+            <div className="flex flex-wrap gap-2">
+              {defs.map((d) =>
+                d.kind === "multi" ? (
+                  <MultiFilter key={d.key} def={d} raised value={(value[d.key] as string[] | undefined) ?? []} onChange={(v) => set(d.key, v)} />
+                ) : (
+                  <AmountFilterPop key={d.key} raised label={t(d.label)} unit={d.unit ?? "€"} value={isAmount(value[d.key]) ? (value[d.key] as AmountFilter) : undefined} onChange={(v) => set(d.key, v)} />
+                ),
+              )}
+            </div>
+            <div className="text-[12.5px] text-slate-600 tnum">{count}</div>
+          </div>
+        </Sheet>
+      </>
+    );
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
@@ -118,7 +168,9 @@ function MultiFilter({
   def,
   value,
   onChange,
+  raised = false,
 }: {
+  raised?: boolean;
   def: Extract<FilterDef, { kind: "multi" }>;
   value: string[];
   onChange: (v: string[]) => void;
@@ -142,7 +194,7 @@ function MultiFilter({
         </button>
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content align="start" sideOffset={6} className={panel} aria-label={t(def.label)}>
+        <Popover.Content align="start" sideOffset={6} className={raised ? panel.replace("z-[60]", "z-[80]") : panel} aria-label={t(def.label)}>
           <fieldset>
             <legend className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">
               {t(def.label)}
@@ -180,11 +232,13 @@ function MultiFilter({
 }
 
 function AmountFilterPop({
+  raised = false,
   label,
   unit,
   value,
   onChange,
 }: {
+  raised?: boolean;
   label: string;
   unit: string;
   value?: AmountFilter;
@@ -221,7 +275,7 @@ function AmountFilterPop({
         </button>
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content align="start" sideOffset={6} className={panel} aria-label={label}>
+        <Popover.Content align="start" sideOffset={6} className={raised ? panel.replace("z-[60]", "z-[80]") : panel} aria-label={label}>
           <div className="space-y-2">
             <Field label={t("Condition")}>
               <Select

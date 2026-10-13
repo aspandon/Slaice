@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import * as Popover from "@radix-ui/react-popover";
 import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, ConfirmModal, DensityToggle, EmptyState, ErrorState, Field, Input, Modal, PageHead, Table, TableSkeleton, Toggle, ExportMenu, ActionsMenu } from "../../components/ui";
 import { useApp } from "../../app/store";
@@ -310,7 +311,19 @@ export function AdminUsers() {
           ))}
         </div>
         <div className="mb-3 flex flex-wrap items-center gap-2 text-[12px]">
-          <button type="button" onClick={() => setLcModal(true)} className="inline-flex items-center gap-1.5 font-semibold text-slate-600 hover:text-navy-900"><Icon.cog size={13} /> Lifecycle rules: at risk after {crm.lifecycle.atRiskDays} days, lapsed after {crm.lifecycle.lapsedDays}</button>
+          {/* Every filter lives in one sheet; active ones show as chips (AENR-624). */}
+          <FilterBar sheet defs={guestFilterDefs} value={filters} onChange={setFilters} count={`${sorted.length} of ${list.length} guests`} />
+          <Popover.Root>
+            <Popover.Trigger asChild>
+              <button type="button" className="inline-flex items-center gap-1.5 font-semibold text-slate-600 hover:text-navy-900 rounded px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"><Icon.info size={13} /> About stages</button>
+            </Popover.Trigger>
+            <Popover.Portal>
+              <Popover.Content align="start" sideOffset={6} className="glass !bg-white/95 text-ink rounded-2xl p-3 z-[60] shadow-float w-[300px] max-w-[calc(100vw-1.5rem)] text-[12.5px] text-slate-700 space-y-2">
+                <p>Each guest has one <b>lifecycle stage</b> — tap a stage above to see those guests. A guest is <b>Regular</b> after more than {ra} visits while they keep coming (edit the threshold from the <b>Over {ra} visits</b> segment). <b>VIP</b>, <b>Season pass</b> and custom tags are assigned on a guest; build your own with <b>New segment</b>.</p>
+                <button type="button" onClick={() => setLcModal(true)} className="inline-flex items-center gap-1.5 font-semibold text-teal-700 hover:underline"><Icon.cog size={13} /> Lifecycle rules: at risk after {crm.lifecycle.atRiskDays} days, lapsed after {crm.lifecycle.lapsedDays}</button>
+              </Popover.Content>
+            </Popover.Portal>
+          </Popover.Root>
           <span className="ml-auto"><DensityToggle /></span>
             <DropdownMenu.Root modal={false}>
             <DropdownMenu.Trigger asChild>
@@ -339,18 +352,11 @@ export function AdminUsers() {
             </span>
           </div>
         )}
-        {!active && (
-          <div className="mb-3 flex items-start gap-2 rounded-xl bg-sky-50 ring-1 ring-sky-600/20 px-3 py-2 text-[12px] text-sky-800">
-            <Icon.info size={14} className="shrink-0 mt-0.5 text-sky-700" />
-            <span>Each guest has one <b>lifecycle stage</b> — a guest is <b>Regular</b> after more than {ra} visits while they keep coming (edit the threshold from the <b>Over {ra} visits</b> segment). <b>VIP</b>, <b>Season pass</b> and custom tags are assigned on a guest. Build your own with <b>New segment</b>.</span>
-          </div>
-        )}
         <SavedViews views={myViews} active={activeView?.id ?? null}
           onApply={(v) => { setQ(v.q); setSegId(v.segId); setStageF(v.stage as Stage | null); setFilters(v.filters as FilterState); toast(`View “${v.name}” applied.`, { tone: "success" }); }}
           onSave={(name) => { const v: GuestView = { id: `view-${Date.now().toString(36)}`, name, owner: me, q, segId, stage: stageF, filters }; setCrm((c) => ({ ...c, views: [...(c.views ?? []), v] })); toast(`View “${name}” saved — only you see it.`, { tone: "success" }); }}
           onDelete={(id) => setCrm((c) => ({ ...c, views: (c.views ?? []).filter((x) => x.id !== id) }))}
           canSave={!!q || segId !== "all" || !!stageF || activeCount(filters) > 0} />
-        <div className="mb-3"><FilterBar defs={guestFilterDefs} value={filters} onChange={setFilters} count={`${sorted.length} of ${list.length} guests`} /></div>
         {sel.size > 0 && (
           <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-navy-900 text-white px-3 py-2 text-[13px]" role="region" aria-label="Bulk actions">
             <b className="tnum">{sel.size} selected</b>

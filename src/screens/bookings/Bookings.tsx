@@ -145,14 +145,30 @@ export function AdminBookings() {
   const loading = useMockLoad();
   const PAGE = 30;
   const params = readHashQuery();
-  const [tab, setTabRaw] = useState<TabKey>(
-    () => TABS.find((t) => t.k === params.get("tab"))?.k ?? "all",
-  );
+  // Lists open where the work is (AENR-624): Today by default, then the last tab used;
+  // a ?tab= link always wins.
+  const TAB_KEY = `slaice.bookings.tab.${persona}`;
+  const [tab, setTabRaw] = useState<TabKey>(() => {
+    const fromUrl = TABS.find((t) => t.k === params.get("tab"))?.k;
+    if (fromUrl) return fromUrl;
+    try {
+      const saved = TABS.find((t) => t.k === localStorage.getItem(TAB_KEY))?.k;
+      if (saved) return saved;
+    } catch {
+      /* storage blocked — fall back to Today */
+    }
+    return "today";
+  });
   const [openId, setOpenIdRaw] = useState<string | null>(() => params.get("booking"));
   const setTab = (t: TabKey) => {
     setTabRaw(t);
     setPage(0);
-    writeHashQuery(t === "all" ? {} : { tab: t }, ["tab"]);
+    writeHashQuery({ tab: t }, ["tab"]);
+    try {
+      localStorage.setItem(TAB_KEY, t);
+    } catch {
+      /* storage blocked — the URL still carries the tab */
+    }
   };
   const setOpenId = (id: string | null) => {
     setOpenIdRaw(id);
@@ -276,12 +292,28 @@ export function AdminBookings() {
               onChange={(e) => {
                 setQ(e.target.value);
                 setPage(0);
+                // A search looks through every booking, not only today's.
+                if (e.target.value.trim() && tab !== "all") setTabRaw("all");
               }}
               placeholder="Search bookings…"
               aria-label="Search bookings by ID, name, phone or item"
               className="text-sm outline-none w-full bg-transparent text-ink"
             />
           </div>
+          {/* Dates and every filter live in one sheet; active ones show as chips (AENR-624). */}
+          <FilterBar
+            sheet
+            defs={BOOKING_FILTERS}
+            value={filters}
+            onChange={setFilters}
+            extraChips={range ? [{ key: "period", label: rangeLabel(range), remove: () => setPeriod({ kind: "all" }) }] : []}
+            count={filterCount(sorted.length, ops.bookings.length, "bookings", filters, !!range || !!q || tab !== "all")}
+          >
+            <div>
+              <div className="text-[12px] font-semibold text-slate-700 mb-1.5">Dates</div>
+              <PeriodPicker value={period} onChange={setPeriod} allowAll presets={["day", "week", "month", "year", "season"]} resetTo={{ kind: "all" }} />
+            </div>
+          </FilterBar>
           <span className="ml-auto"><DensityToggle /></span>
         </div>
         <Tabs
@@ -291,28 +323,6 @@ export function AdminBookings() {
           onChange={(v) => setTab(v as TabKey)}
           className="mb-3"
         />
-        <PeriodPicker
-          value={period}
-          onChange={setPeriod}
-          allowAll
-          presets={["day", "week", "month", "year", "season"]}
-          resetTo={{ kind: "all" }}
-          className="mb-3"
-        />
-        <div className="mb-3">
-          <FilterBar
-            defs={BOOKING_FILTERS}
-            value={filters}
-            onChange={setFilters}
-            count={filterCount(
-              sorted.length,
-              ops.bookings.length,
-              "bookings",
-              filters,
-              !!range || !!q || tab !== "all",
-            )}
-          />
-        </div>
         {loading ? (
           <TableSkeleton rows={5} cols={8} />
         ) : sorted.length === 0 ? (

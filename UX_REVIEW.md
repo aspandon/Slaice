@@ -426,3 +426,6 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-623 — routine decisions run by themselves.** A refund policy approves routine requests
   (weather, closures; up to a cap) as they arrive, and no-shows go back on sale at 11:00 with a
   one-hour Undo on Today. Both are on by default and can be switched off.
+- **AENR-624 — lists open where the work is.** Bookings opens on Today (then the last tab used; a
+  search looks through everything); dates and filters sit in one Filters sheet with chips for what's
+  active. Guests lost the explanation banner (now "About stages") and its separate filter row.
