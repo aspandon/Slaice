@@ -131,12 +131,14 @@ export function LineChartMini({ data, color = "#0D9488", height = 220, label, co
           })}
         </svg>
       </div>
-      {/* Labels sit under their points (first and last aligned to the edges). */}
+      {/* Labels sit under their points (first and last aligned to the edges). On phones a long
+          series shows every other label, counted back from the latest, so they never overlap. */}
       <div className="absolute right-0 bottom-0 text-[12.5px] font-medium text-slate-600 pointer-events-none" style={{ left: PAD_LEFT, height: PAD_BOTTOM }}>
         {data.map((d, i) => {
           const x = xOf(i);
           const shift = data.length === 1 ? "-50%" : i === 0 ? "0" : i === data.length - 1 ? "-100%" : "-50%";
-          return <span key={i} className="absolute pt-1.5 whitespace-nowrap" style={{ left: `${x}%`, transform: `translateX(${shift})` }}>{d.l}</span>;
+          const thin = data.length > 7 && (data.length - 1 - i) % 2 === 1;
+          return <span key={i} className={`absolute pt-1.5 whitespace-nowrap${thin ? " max-sm:hidden" : ""}`} style={{ left: `${x}%`, transform: `translateX(${shift})` }}>{d.l}</span>;
         })}
       </div>
     </div>

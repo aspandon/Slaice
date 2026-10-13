@@ -375,3 +375,7 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   personal savings, one Wallet, Release my day; defect AENR-597 booking refs fixed on the way), and
   the live display's Day / Night / Auto look (AENR-594), and every export in PDF and CSV from one
   report definition, each downloaded and reviewed (AENR-593).
+- **13 Oct 2026 — Apple-style UX review.** Every screen walked again at 1440 and 390 px for a simpler,
+  friendlier, more Apple-like feel; 33 proposals sent to the owner to pick from (no tickets yet).
+  Defect AENR-599 fixed on the way: Month-end exceptions no longer squeeze into a one-word column on
+  phones, and long line charts (MRR) show every other month label on phones so labels never overlap.

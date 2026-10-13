@@ -220,7 +220,7 @@ export function MonthEnd() {
                         : "text-amber-600 shrink-0"
                     }
                   />
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 basis-56">
                     <div className="font-semibold text-navy-900 text-[13.5px]">{e.title}</div>
                     <div className="text-[12.5px] text-slate-600">{e.detail}</div>
                   </div>
