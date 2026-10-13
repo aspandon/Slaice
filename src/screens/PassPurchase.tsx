@@ -4,7 +4,9 @@ import { Icon } from "../lib/icons";
 import type { IconRenderer } from "../lib/icons";
 import { Card, Btn, FutureBanner } from "../components/ui";
 import { WalletButtons } from "../components/WalletPass";
-import { SlaiceLogo } from "../components/Brand";
+import { SlaiceLogo, TenantLogo } from "../components/Brand";
+import { useVisits } from "../lib/useVisits";
+import { vipSavings } from "../domain/visits";
 import { TENANT } from "../data/beach";
 import { seasonPlanLabel, seasonValidUntil, SEASON_END_LABEL, round2 } from "../data/passes";
 import { useApp, useT } from "../app/store";
@@ -44,6 +46,12 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
   const [ref] = useState(() => nextRef(kind));
 
   const price = vip ? tier : plan === "monthly" ? passPricing.seasonMonthly : passPricing.seasonSummer;
+  // Personal savings from the guest's own visits (AENR-576).
+  const { visits } = useVisits();
+  const usedVisits = visits.filter((v) => v.status !== "cancelled").length;
+  const saved = vip
+    ? vipSavings(visits, passPricing.vipDiscount)
+    : Math.round(visits.filter((v) => v.status !== "cancelled").flatMap((v) => v.lines).filter((l) => l.kind === "ticket" && l.label !== "Service fee").reduce((a, l) => a + l.amount, 0));
 
   // On a simulated successful payment, activate (or top up) the pass.
   const complete = () => {
@@ -61,7 +69,7 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
           <div className="mt-4 text-sm text-slate-500">{t("Redirecting to")} {TENANT.name}{t("'s secure Stripe Checkout…")}</div>
           <div className="mt-5 mx-auto w-10 h-10 rounded-full border-2 border-slate-200 border-t-[#635bff] animate-spin" />
           <div className="mt-5 text-[12px] text-slate-600 flex items-center justify-center gap-1.5"><Icon.lock size={12} /> {t("Secure payment on")} {TENANT.name}{t("'s account · powered by Stripe")}</div>
-          <Btn variant="indigo" full size="lg" className="mt-5" onClick={complete}>{t("Simulate successful payment")}</Btn>
+          <Btn variant="primary" full size="lg" className="mt-5" onClick={complete}>{t("Simulate successful payment")}</Btn>
         </Card>
       </div>
     );
@@ -129,8 +137,8 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
       <div className="animate-fade-up max-w-2xl mx-auto">
         <button onClick={() => setPhase("select")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-600 hover:text-navy-900 mb-3"><Icon.arrowL size={15} /> {t("Back")}</button>
         <Card className="overflow-hidden">
-          <div className={`${vip ? "grad-slaice" : "grad-sea"} text-white p-5 sm:p-6`}>
-            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/80"><Icon.shield size={12} /> {t("Please read & accept")}</div>
+          <div className={`${vip ? "bg-gradient-to-br from-gold-300 via-gold-400 to-gold-500 text-navy-900" : "grad-sea text-white"} p-5 sm:p-6`}>
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] opacity-80"><Icon.shield size={12} /> {t("Please read & accept")}</div>
             <h1 className="mt-1.5 font-display font-bold text-xl sm:text-2xl">{vip ? t("VIP Pass — terms") : t("Season Pass — terms")}</h1>
           </div>
           <div className="p-5 sm:p-6 space-y-4">
@@ -150,7 +158,7 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
             <div className="text-[12px] text-slate-500">{t("Total")} · <b className="text-navy-900 tnum">€{price.toLocaleString()}</b></div>
             <div className="flex items-center gap-2">
               <Btn variant="ghost" onClick={() => setPhase("select")}>{t("Back")}</Btn>
-              <Btn variant="indigo" icon={Icon.stripe} disabled={!agreed} onClick={() => setPhase("redirect")}>{t("Pay with Stripe")}</Btn>
+              <Btn variant="primary" icon={Icon.stripe} disabled={!agreed} onClick={() => setPhase("redirect")}>{t("Pay with Stripe")}</Btn>
             </div>
           </div>
         </Card>
@@ -166,15 +174,16 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
       <button onClick={() => go("customer", "home")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-600 hover:text-navy-900 mb-3"><Icon.arrowL size={15} /> {t("Home")}</button>
 
       <Card className={`overflow-hidden ${vip ? "" : ""}`}>
-        <div className={`${vip ? "grad-slaice" : "grad-sea"} text-white p-6 sm:p-7`}>
-          <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/80">
-            <span className="w-6 h-6 rounded-full grid place-items-center bg-white/15">{vip ? <Icon.sparkles size={12} /> : <Icon.ticket size={12} />}</span>
-            {vip ? t("VIP Pass") : t("Season Pass")}
+        {/* The beach's own brand (AENR-576): VIP in its sun gold, Season in its sea. */}
+        <div className={`${vip ? "bg-gradient-to-br from-gold-300 via-gold-400 to-gold-500 text-navy-900" : "grad-sea text-white"} p-6 sm:p-7`}>
+          <div className={`flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] ${vip ? "text-navy-900/80" : "text-white/80"}`}>
+            <TenantLogo size={26} />
+            {TENANT.name} · {vip ? t("VIP Pass") : t("Season Pass")}
           </div>
           <h1 className="mt-2 font-display font-bold text-2xl sm:text-3xl leading-tight">
             {vip ? t("Prepay credit, save on everything") : t("Free entry, all season long")}
           </h1>
-          <p className="text-[13.5px] text-white/85 mt-2 max-w-md">
+          <p className={`text-[13.5px] mt-2 max-w-md ${vip ? "text-navy-900/85" : "text-white/85"}`}>
             {vip
               ? `${t("Top up once and spend it on sunbeds, tickets, lockers or parking with")} ${discPct}% ${t("off — valid to the end of the season.")}`
               : t("Your entry ticket is covered on every visit — pick a month or the whole summer.")}
@@ -182,6 +191,12 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
         </div>
 
         <div className="p-5 sm:p-6 space-y-4">
+          {saved > 0 && (
+            <div className="rounded-2xl bg-emerald-50 ring-1 ring-emerald-600/20 px-4 py-3 text-[13.5px] text-emerald-900 flex items-start gap-2">
+              <Icon.sparkles size={16} className="shrink-0 mt-0.5" />
+              <span>{vip ? t("With VIP this season you would have saved") : t("With a Season pass this season you would have saved")} <b>€{saved}</b> — {t("based on your")} {usedVisits} {usedVisits === 1 ? t("visit") : t("visits")}.</span>
+            </div>
+          )}
           <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{vip ? t("Choose a credit pack") : t("Choose a plan")}</div>
           <div className="grid sm:grid-cols-2 gap-3">
             {vip
@@ -189,7 +204,7 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
                   <SelectCard key={amt} on={tier === amt} onClick={() => setTier(amt)}
                     title={`€${amt.toLocaleString()} ${t("credit")}`}
                     sub={`${t("Spends like")} €${round2(amt / (1 - passPricing.vipDiscount)).toLocaleString()} · ${discPct}% ${t("off")}`}
-                    foot={`${t("Valid to")} ${SEASON_END_LABEL}`} accent="slaice" />
+                    foot={`${t("Valid to")} ${SEASON_END_LABEL}`} accent="gold" />
                 ))
               : ([
                   { p: "monthly" as SeasonPlan, price: passPricing.seasonMonthly, foot: seasonValidUntil("monthly") },
@@ -208,7 +223,7 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
               <div className="font-display text-2xl font-bold text-navy-900 tnum leading-none">€{price.toLocaleString()}</div>
               <div className="text-[11px] text-slate-500 mt-1">{vip ? `${t("One-off · credit never expires before")} ${SEASON_END_LABEL}` : t("One-off · auto-applies at checkout")}</div>
             </div>
-            <Btn variant="indigo" size="lg" onClick={() => setPhase("terms")}>{t("Continue")} <Icon.arrowR size={15} /></Btn>
+            <Btn variant="primary" size="lg" onClick={() => setPhase("terms")}>{t("Continue")} <Icon.arrowR size={15} /></Btn>
           </div>
 
           <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500"><Icon.lock size={12} /> {t("Secured by Stripe · we never store card details")}</div>
@@ -225,15 +240,15 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
   );
 }
 
-function SelectCard({ on, onClick, title, sub, foot, accent }: { on: boolean; onClick: () => void; title: ReactNode; sub: ReactNode; foot: ReactNode; accent: "slaice" | "teal" }) {
-  const ring = accent === "slaice" ? "ring-navy-700" : "ring-teal-500";
+function SelectCard({ on, onClick, title, sub, foot, accent }: { on: boolean; onClick: () => void; title: ReactNode; sub: ReactNode; foot: ReactNode; accent: "gold" | "teal" }) {
+  const ring = accent === "gold" ? "ring-gold-500" : "ring-teal-500";
   return (
     <button onClick={onClick} aria-pressed={on}
       className={`relative text-left rounded-2xl p-4 ring-1 transition ${on ? `ring-2 ${ring} bg-white shadow-lift` : "ring-slate-200 bg-white/70 hover:ring-slate-300"}`}>
       <div className="font-display font-bold text-navy-900 text-lg">{title}</div>
       <div className="text-[12.5px] text-slate-600 mt-0.5">{sub}</div>
       <div className="text-[11px] text-slate-400 mt-1.5">{foot}</div>
-      {on && <span className={`absolute top-3 right-3 w-5 h-5 rounded-full text-white grid place-items-center ${accent === "slaice" ? "bg-navy-900" : "bg-teal-600"}`}><Icon.check size={12} /></span>}
+      {on && <span className={`absolute top-3 right-3 w-5 h-5 rounded-full text-white grid place-items-center ${accent === "gold" ? "bg-navy-900" : "bg-teal-600"}`}><Icon.check size={12} /></span>}
     </button>
   );
 }

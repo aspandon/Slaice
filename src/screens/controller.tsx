@@ -5,6 +5,9 @@ import { BarChart } from "../components/charts";
 import { RECENT_VALIDATIONS } from "../data/mock";
 import { useApp, useSpotlight } from "../app/store";
 import { ScanResult, detailOf, useGateFeedback, type ScanState, type Validation } from "./gate/ScanResult";
+import { useBookingOps } from "../lib/useBookingOps";
+import { DEMO_TODAY } from "../domain/period";
+import { fmtDateGB } from "../components/ui/DateInput";
 
 /* Demo scans cycle through every outcome so each result screen can be shown. */
 const DEMO_SCANS: Validation[] = [
@@ -54,13 +57,25 @@ export function ControllerScan() {
     setResult(null);
   };
 
+  // Any real booking (a guest's ticket, AENR-571) is checked against its live state.
+  const ops = useBookingOps();
+  const fromBooking = (c: string): Validation | undefined => {
+    const b = ops.bookings.find((x) => x.id.toUpperCase() === c);
+    if (!b) return undefined;
+    const sub = b.items.map((i) => i.split(" · ").slice(1).join(" · ")).join(", ");
+    if (b.status === "Cancelled" || b.status === "Refunded" || b.status === "Expired")
+      return { id: b.id, sub, state: "invalid", reason: `Booking ${b.status.toLowerCase()}` };
+    if (b.visitIso !== DEMO_TODAY) return { id: b.id, sub, state: "invalid", reason: `Valid on ${fmtDateGB(b.visitIso)}, not today` };
+    if (b.status === "Used") return { id: b.id, sub, state: "used", at: "09:58", gate: "Gate 1" };
+    return { id: b.id, sub, state: "valid" };
+  };
   // Manual code entry: a booking ref or ticket code typed from the guest's screen.
   const [code, setCode] = useState("");
   const checkCode = () => {
     const c = code.trim().toUpperCase().replace(/^([A-Z]{2})-?(\d+)$/, "#$1-$2").replace(/^(?!#)/, "#");
     if (!c || c === "#") return;
-    const known = [...DEMO_SCANS, ...recent].find((v) => v.id.toUpperCase() === c);
-    const v: Validation = known ?? { id: c, sub: "Typed code", state: "invalid", reason: "Not a Slaice ticket" };
+    const known = [...recent, ...DEMO_SCANS].find((v) => v.id.toUpperCase() === c);
+    const v: Validation = known ?? fromBooking(c) ?? { id: c, sub: "Typed code", state: "invalid", reason: "Not a Slaice ticket" };
     setResult(v);
     if (v.state !== "used") log(v, v.state);
     setCode("");

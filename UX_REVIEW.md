@@ -76,7 +76,7 @@ Numbers 1.1–7.4 are the original ones; 8.1–9.3 were numbered in this revisio
 | #   | Finding                                                 | Status            | Where it stands (29 Sep 2026)                                                                                                                                                                                           |
 | --- | ------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 3.1 | No global search / ⌘K command palette for staff         | ⏪ Regressed      | A palette and a top-bar search field shipped once; neither is in the code now. Staff navigate by sidebar (desktop) or tab bar + nav sheet (phones), and Admin has grown to 13 destinations.                             |
-| 3.2 | The persona switcher is a production boundary risk      | 🔴 Open [demo-ok] | Unchanged by design: a floating **Demo** pill on customer pages (`src/App.tsx:275`) and a persona chip in the staff top bar. In production the role must come from auth. On phones the pill also overlaps content (N9). |
+| 3.2 | The persona switcher is a production boundary risk      | 🔴 Open [demo-ok] | Unchanged by design: a floating **Demo** pill on customer pages (`src/App.tsx:275`) and a persona chip in the staff top bar. In production the role must come from auth. On phones it now docks in the top bar (N9, AENR-575). |
 | 3.3 | My Bookings / My Documents buried in the avatar menu    | ✅ Resolved (AENR-563) | Home · Plan a visit · My bookings · Wallet · Account are a top nav on desktop and the five phone tabs; receipts open from each booking and are all listed in Account (`src/components/Shell/Nav.tsx` `CustomerNav`). |
 | 3.4 | The marketing landing page renders inside the app shell | 🔴 Open [demo-ok] | `#/platform/landing` still renders inside the staff sidebar and top bar (checked at 1440×900).                                                                                                                          |
 
@@ -294,7 +294,7 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 
 ### Low priority and deferred
 
-- **N9 · The Demo pill covers content on phones [demo-ok].** The fixed pill (`src/App.tsx:275`) sits on
+- **N9 · The Demo pill covers content on phones [demo-ok].** ✅ Resolved (AENR-575): on phones the Demo menu (persona, scene clock, weather) docks in the top bar and nothing floats. The fixed pill (`src/App.tsx:275`) sits on
   the wizard's legend / guidance bar and, at the initial scroll position, on the right end of
   Checkout's **Pay** button (390×844). Hide it inside the wizard and checkout on phones, or move
   persona switching into the account menu.
@@ -367,4 +367,9 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   one palette), and navigation & IA I1–I9 (AENR-558 admin sidebar by job, 559 one New booking flow,
   560 Today, 561 beach split, 562 reports in groups, 563 customer navigation in plain sight, 564
   full-screen gate scanner, 565 support access in Privacy, 566 platform marketing apart; defects
-  AENR-595 Unpaid badge tone and AENR-596 staff top-bar title at 390 px fixed on the way).
+  AENR-595 Unpaid badge tone and AENR-596 staff top-bar title at 390 px fixed on the way), and the
+  customer journey C1–C12 (AENR-567…578: Home leads with the next visit, a map with tiers and a spot
+  sheet, all-in price and cancellation deadline, date step with weather / price / alternatives, ticket
+  confirmation, My bookings by visit with self-service, plain-language receipts and invoices, trusted
+  checkout with wallets and deposit, no overlapping header on phones, passes in the beach's brand with
+  personal savings, one Wallet, Release my day; defect AENR-597 booking refs fixed on the way).

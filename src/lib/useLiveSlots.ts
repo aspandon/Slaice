@@ -8,6 +8,7 @@ import { opsKey, opsToMap } from "../domain/sunbedOps";
 import { payLinkSets } from "../domain/payLink";
 import { layoutFor } from "../domain/layoutVersions";
 import { bookedSets } from "../domain/account";
+import { SEASON_ZONE, seasonSetIn } from "../data/passes";
 import type { SunbedSlot, Zone } from "../domain/types";
 
 /** Re-render every `ms` so time-based state (holds expiring) stays current. */
@@ -31,7 +32,7 @@ export function useDemoNow(ms = 15000): number {
  *  allocations, stop-sell) for the selling channel — the one view every
  *  persona renders. For several days, a set taken on any of them counts. */
 export function useLiveSlots(channel: SalesChannel = "online"): (zone: Zone, days: readonly string[]) => SunbedSlot[] {
-  const { beachLayout, till, beachPricing, priceRules, inventory, sunbedOps, payLinks, layouts, account } = useApp();
+  const { beachLayout, till, beachPricing, priceRules, inventory, sunbedOps, payLinks, layouts, account, passes } = useApp();
   const closure = useClosure();
   const now = useDemoNow();
   return useCallback(
@@ -68,6 +69,10 @@ export function useLiveSlots(channel: SalesChannel = "online"): (zone: Zone, day
       // Sets in bookings placed online on this device (AENR-532) are booked.
       const online = days.map((d) => bookedSets(account.bookings, d));
       for (const set of online) for (const id of set) status[id] = "sold";
+      // A season pass holds its set every day (AENR-578) — except days the holder released.
+      const seasonSet = passes.season && zone.id === SEASON_ZONE ? seasonSetIn(layout) : null;
+      if (seasonSet && days.some((d) => !account.released.some((r) => r.date === d && r.setId === seasonSet)))
+        status[seasonSet] = "sold";
       const live = applySetStatus(reserved, status, closedAny);
       // Inventory controls: held → on hold; allocated to another channel or
       // stop-sold online → unavailable here — with the reason attached.
@@ -81,7 +86,7 @@ export function useLiveSlots(channel: SalesChannel = "online"): (zone: Zone, day
         return s;
       });
     },
-    [beachLayout, till, now, closure, beachPricing, priceRules, inventory, channel, sunbedOps, payLinks, layouts, account],
+    [beachLayout, till, now, closure, beachPricing, priceRules, inventory, channel, sunbedOps, payLinks, layouts, account, passes],
   );
 }
 

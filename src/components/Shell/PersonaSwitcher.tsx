@@ -3,6 +3,7 @@ import { Icon } from "../../lib/icons";
 import { PERSONAS } from "../../data/personas";
 import { useApp, useT } from "../../app/store";
 import type { PersonaId } from "../../domain/types";
+import { SceneControls } from "../SceneDemoPanel";
 
 /* ---------- Persona switcher ----------
    The "view as another persona" control, shared by two surfaces:
@@ -16,14 +17,17 @@ export function PersonaSwitcher({
   setPersona,
   variant,
   side = "bottom",
+  compact = false,
 }: {
   persona: PersonaId;
   setPersona: (p: PersonaId) => void;
   variant: "role" | "demo";
   side?: "top" | "bottom";
+  /** Icon-only trigger for the phone top bar (AENR-575). */
+  compact?: boolean;
 }) {
   const t = useT();
-  const { inventory, setInventory } = useApp();
+  const { inventory, setInventory, sceneFx } = useApp();
   const cur = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[0];
   const origin = side === "top" ? "origin-bottom-right" : "origin-top-right";
   return (
@@ -33,11 +37,11 @@ export function PersonaSwitcher({
           <button
             title={t("Demo — view as another persona")}
             aria-label={t("Switch persona (demo)")}
-            className="flex items-center gap-1.5 glass rounded-xl px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-600 hover:text-navy-900 data-[state=open]:text-navy-900 shadow-soft transition"
+            className={compact ? "w-10 h-10 grid place-items-center rounded-xl text-slate-500 hover:text-navy-900 hover:bg-slate-100 data-[state=open]:bg-slate-100" : "flex items-center gap-1.5 glass rounded-xl px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-slate-600 hover:text-navy-900 data-[state=open]:text-navy-900 shadow-soft transition"}
           >
-            <Icon.layers size={13} />
-            <span>{t("Demo")}</span>
-            <Icon.chevD size={12} />
+            <Icon.layers size={compact ? 18 : 13} />
+            {!compact && <span>{t("Demo")}</span>}
+            {!compact && <Icon.chevD size={12} />}
           </button>
         ) : (
           <button
@@ -71,6 +75,12 @@ export function PersonaSwitcher({
               </span>
             </DropdownMenu.Item>
           ))}
+          {/* Phones: the scene demo controls live here instead of floating over content (AENR-575). */}
+          {compact && persona === "customer" && (sceneFx.weather || sceneFx.daytime) && (
+            <div className="border-t border-slate-200 mt-1 px-2.5 pt-2 pb-1.5">
+              <SceneControls />
+            </div>
+          )}
           {/* Demo clock for holds / allocation releases (AENR-561 — moved out of the Beach pages). */}
           {persona === "admin" && (
             <>

@@ -1,8 +1,10 @@
 import { useMemo } from "react";
 import { useApp } from "../app/store";
-import { ADMIN_BOOKINGS, personByFirst, type AdminBooking, type AdminRefund } from "../data/mock";
+import { ADMIN_BOOKINGS, CUSTOMER_BOOKINGS, personByFirst, type AdminBooking, type AdminRefund } from "../data/mock";
+import { PROFILE } from "../domain/account";
 import { onlineBookings, staffBookings, tillBookings } from "../data/tillAdmin";
 import { ZONES } from "../data/beach";
+import type { CancelRecord } from "../domain/visits";
 import { DEMO_TODAY, fmtDay, isoFromDayMonth } from "../domain/period";
 import { opsKey } from "../domain/sunbedOps";
 import {
@@ -38,6 +40,18 @@ const linkEventKind = (text: string): BookingEventKind =>
           ? "refund_declined"
           : "note";
 
+/* The demo guest's own bookings (My bookings) that the sample list lacks —
+   so their self-service (cancel, AENR-572) shows in the back office too. */
+const GUEST_HISTORY: AdminBooking[] = CUSTOMER_BOOKINGS.filter((r) => !ADMIN_BOOKINGS.some((a) => a.id === r.id)).map((r) => ({
+  id: r.id,
+  who: PROFILE.first,
+  items: [r.item.replace(/^Day Locker/, "Day locker")],
+  date: r.date.replace(/^\w+,\s*/, ""),
+  channel: "Online",
+  status: r.status,
+  amount: r.price,
+}));
+
 /** "Now" on the demo calendar: the demo day at the real time of day. */
 export const opsNow = () => `${DEMO_TODAY}T${new Date().toTimeString().slice(0, 5)}`;
 
@@ -62,24 +76,37 @@ export function useBookingOps() {
       ...onlineBookings(account.bookings),
       ...tillBookings(till.sales),
       ...ADMIN_BOOKINGS,
+      ...GUEST_HISTORY,
     ];
+    const guestCancelled: Record<string, CancelRecord> = {};
+    for (const c of Object.values(account.selfService.cancelled)) for (const r of c.refs ?? []) guestCancelled[r] = c;
+    for (const pb of account.bookings) {
+      const days = Object.values(pb.cancelledDates ?? {});
+      if (days.length) guestCancelled[`#${pb.ref}`] = days[0];
+    }
     return all.map((b) => {
       // A staff booking knows its guest (AENR-559); sample rows borrow a sample person.
       const g = payLinks.find((l) => `#${l.id}` === b.id)?.guest;
       const p = g
         ? { last: g.name.split(" ").slice(1).join(" "), phone: g.phone, email: g.email }
         : personByFirst(b.who);
+      const guestCancel = guestCancelled[b.id];
       return {
         ...b,
         items: applyMoves(b.items, bookingOps.moves[b.id]),
-        status: effectiveStatus(b, bookingOps),
+        // A guest's own cancellation (AENR-572) shows here at once.
+        status: guestCancel
+          ? guestCancel.refund > 0
+            ? "Refunded"
+            : "Cancelled"
+          : effectiveStatus(b, bookingOps),
         surname: p?.last ?? "",
         phone: p?.phone ?? "",
         email: p?.email ?? "",
         visitIso: isoFromDayMonth(b.date) ?? DEMO_TODAY,
       };
     });
-  }, [payLinks, inventory.clockOffset, account.bookings, till.sales, bookingOps]);
+  }, [payLinks, inventory.clockOffset, account.bookings, account.selfService, till.sales, bookingOps]);
 
   const addEvent = (id: string, kind: BookingEventKind, text: string) =>
     setBookingOps((o) => ({

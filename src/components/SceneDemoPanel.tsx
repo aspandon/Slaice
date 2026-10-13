@@ -12,7 +12,7 @@ import { NotMvpBadge } from "./ui";
    admin's Atmosphere switches and the whole pill disappears when both are off.
    ============================================================================ */
 export function SceneDemoPanel() {
-  const { weather, setWeather, dayTime, setDayTime, sceneFx } = useApp();
+  const { weather, dayTime, sceneFx } = useApp();
   const t = useT();
   const [open, setOpen] = useState(false);
   if (!sceneFx.weather && !sceneFx.daytime) return null;
@@ -20,7 +20,8 @@ export function SceneDemoPanel() {
   const WIcon = (sceneFx.weather ? Icon[wd.icon] : Icon.sun) || Icon.sun;
 
   return (
-    <div className="fixed left-3 sm:left-5 z-40 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] md:bottom-4">
+    // Phones get these controls inside the Demo menu in the top bar (AENR-575) — nothing floats over content.
+    <div className="hidden md:block fixed left-5 z-40 bottom-4">
       {/* Click-away backdrop while open. */}
       {open && <button aria-label={t("Close")} tabIndex={-1} className="fixed inset-0 cursor-default" onClick={() => setOpen(false)} />}
 
@@ -30,64 +31,8 @@ export function SceneDemoPanel() {
             <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{t("Live sea & weather")}</span>
             <NotMvpBadge />
           </div>
-          {sceneFx.daytime && (
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
-                  <Icon.clock size={12} /> {t("Time of day")}
-                </span>
-                <span className="text-[12px] font-bold text-navy-900 tnum">{fmtHour(dayTime)}</span>
-              </div>
-              <input
-                type="range"
-                min={DAY_MIN}
-                max={DAY_MAX}
-                step={0.25}
-                value={dayTime}
-                onChange={(e) => setDayTime(parseFloat(e.target.value))}
-                aria-label={t("Time of day")}
-                className="demo-range w-full"
-              />
-              <div className="flex justify-between text-[9.5px] text-slate-400 mt-0.5">
-                <span className="tnum">{fmtHour(DAY_MIN)}</span>
-                <span>{t("golden hour")} ≈ 19:30</span>
-                <span className="tnum">{fmtHour(DAY_MAX)}</span>
-              </div>
-            </div>
-          )}
+          <SceneControls />
 
-          {sceneFx.weather && (
-            <div>
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5">
-                <Icon.cloud size={12} /> {t("Weather")}
-              </div>
-              <div className="grid grid-cols-2 gap-1.5">
-                {WEATHER_KINDS.map((k) => {
-                  const P = WEATHER_DEMO[k];
-                  const PI = Icon[P.icon] || Icon.sun;
-                  const active = k === weather;
-                  return (
-                    <button
-                      key={k}
-                      onClick={() => setWeather(k)}
-                      aria-pressed={active}
-                      className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[12.5px] font-semibold ring-1 transition ${
-                        active ? "bg-navy-900 text-white ring-navy-900" : "bg-white/70 text-navy-900 ring-slate-200 hover:ring-teal-400"
-                      }`}
-                    >
-                      <PI size={14} className={active ? "" : "text-teal-600"} />
-                      <span className="flex-1 leading-tight">{t(P.label)}</span>
-                      <span className={`tnum text-[10.5px] ${active ? "text-white/70" : "text-slate-500"}`}>{P.tempC}°</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          <div className="text-[10px] text-slate-500 leading-snug border-t border-slate-200/70 pt-2">
-            {t("Demo only — drives the scene and hero, not a real forecast.")}
-          </div>
         </div>
       )}
 
@@ -101,6 +46,74 @@ export function SceneDemoPanel() {
         <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{t("Demo")}</span>
         <Icon.chevD size={13} className={`text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
+    </div>
+  );
+}
+
+/** The scene clock and weather presets — in the floating panel (desktop) and the Demo menu (phones). */
+export function SceneControls() {
+  const { weather, setWeather, dayTime, setDayTime, sceneFx } = useApp();
+  const t = useT();
+  return (
+    <div className="space-y-3">
+          {sceneFx.daytime && (
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5">
+              <Icon.clock size={12} /> {t("Time of day")}
+            </span>
+            <span className="text-[12px] font-bold text-navy-900 tnum">{fmtHour(dayTime)}</span>
+          </div>
+          <input
+            type="range"
+            min={DAY_MIN}
+            max={DAY_MAX}
+            step={0.25}
+            value={dayTime}
+            onChange={(e) => setDayTime(parseFloat(e.target.value))}
+            aria-label={t("Time of day")}
+            className="demo-range w-full"
+          />
+          <div className="flex justify-between text-[9.5px] text-slate-400 mt-0.5">
+            <span className="tnum">{fmtHour(DAY_MIN)}</span>
+            <span>{t("golden hour")} ≈ 19:30</span>
+            <span className="tnum">{fmtHour(DAY_MAX)}</span>
+          </div>
+        </div>
+      )}
+
+      {sceneFx.weather && (
+        <div>
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5">
+            <Icon.cloud size={12} /> {t("Weather")}
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            {WEATHER_KINDS.map((k) => {
+              const P = WEATHER_DEMO[k];
+              const PI = Icon[P.icon] || Icon.sun;
+              const active = k === weather;
+              return (
+                <button
+                  key={k}
+                  onClick={() => setWeather(k)}
+                  aria-pressed={active}
+                  className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[12.5px] font-semibold ring-1 transition ${
+                    active ? "bg-navy-900 text-white ring-navy-900" : "bg-white/70 text-navy-900 ring-slate-200 hover:ring-teal-400"
+                  }`}
+                >
+                  <PI size={14} className={active ? "" : "text-teal-600"} />
+                  <span className="flex-1 leading-tight">{t(P.label)}</span>
+                  <span className={`tnum text-[10.5px] ${active ? "text-white/70" : "text-slate-500"}`}>{P.tempC}°</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div className="text-[10px] text-slate-500 leading-snug border-t border-slate-200/70 pt-2">
+        {t("Demo only — drives the scene and hero, not a real forecast.")}
+      </div>
     </div>
   );
 }

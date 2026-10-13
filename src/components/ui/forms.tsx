@@ -71,8 +71,17 @@ export function Stepper({ value, onChange, min = 0, label, size = "md" }: { valu
    Date picker. `value` is an array of ISO YYYY-MM-DD strings. With `multiple`
    off (the default for single-day bookings) selecting a date replaces the
    selection; with it on, dates toggle and accumulate. */
-export function DatePickerRow({ value = [], onChange, quickDays = 7, multiple = true, maxDays, className = "", blockReason }: {
+/** What a day looks like before choosing it (AENR-570): weather, price level, spots left. */
+export interface DayInfo {
+  icon?: string;
+  temp?: number;
+  price?: number;
+  level?: "low" | "mid" | "high";
+  left?: number;
+}
+export function DatePickerRow({ value = [], onChange, quickDays = 7, multiple = true, maxDays, className = "", blockReason, dayInfo }: {
   value?: string[];
+  dayInfo?: (iso: string) => DayInfo | null;
   /** Why a date can't be booked (closed, outside the booking window…) — the day is disabled with the reason. */
   blockReason?: (iso: string) => string | null;
   onChange: (v: string[]) => void;
@@ -136,7 +145,7 @@ export function DatePickerRow({ value = [], onChange, quickDays = 7, multiple = 
           {strip.map((d) => {
             const on = value.includes(d.iso);
             const why = blockReason?.(d.iso) ?? null;
-            return <DatePill key={d.iso} on={on} disabled={(!on && atCap) || (!!why && !on)} reason={why} label={d.label} sub={d.sub} onClick={() => toggle(d.iso)} />;
+            return <DatePill key={d.iso} on={on} disabled={(!on && atCap) || (!!why && !on)} reason={why} label={d.label} sub={d.sub} info={dayInfo?.(d.iso)} onClick={() => toggle(d.iso)} />;
           })}
           {extras.map((iso) => {
             const lbl = chipLabel(iso, loc, t);
@@ -158,7 +167,12 @@ export function DatePickerRow({ value = [], onChange, quickDays = 7, multiple = 
   );
 }
 
-function DatePill({ on, label, sub, onClick, disabled = false, reason }: { on?: boolean; label: ReactNode; sub: ReactNode; onClick?: () => void; disabled?: boolean; reason?: string | null }) {
+const LEVEL = { low: "€", mid: "€€", high: "€€€" } as const;
+function DatePill({ on, label, sub, onClick, disabled = false, reason, info }: { on?: boolean; label: ReactNode; sub: ReactNode; onClick?: () => void; disabled?: boolean; reason?: string | null; info?: DayInfo | null }) {
+  const t = useT();
+  const W = info?.icon ? Icon[info.icon] : undefined;
+  const full = info?.left === 0;
+  const desc = info ? [info.temp != null ? `${info.temp}°C` : "", info.price != null ? `${t("from")} €${info.price}` : "", full ? t("full") : info.left != null ? `${info.left} ${t("left")}` : ""].filter(Boolean).join(", ") : "";
   return (
     <button type="button" onClick={onClick} aria-pressed={on} disabled={disabled} title={reason ?? undefined}
       className={`relative px-3.5 py-2.5 min-h-[64px] rounded-xl min-w-[78px] ring-1 transition shrink-0 inline-flex flex-col items-center justify-center gap-1 ${
@@ -167,6 +181,16 @@ function DatePill({ on, label, sub, onClick, disabled = false, reason }: { on?: 
       <span className="text-[13px] font-semibold leading-none">{label}</span>
       <span className={`text-[11px] leading-none ${on ? "text-white/80" : "text-slate-600"}`}>{sub}</span>
       {reason && <span className="text-[9.5px] leading-none font-semibold text-amber-700 max-w-[72px] truncate">{reason}</span>}
+      {desc && <span className="sr-only">, {desc}</span>}
+      {info && !reason && (
+        <>
+          <span className={`flex items-center gap-1 text-[11px] leading-none ${on ? "text-white/90" : "text-slate-600"}`}>
+            {W && <W size={12} />}{info.temp != null && <span className="tnum">{info.temp}°</span>}
+            {info.level && <span className={`font-semibold ${on ? "" : info.level === "low" ? "text-emerald-700" : info.level === "high" ? "text-amber-700" : ""}`}>{LEVEL[info.level]}</span>}
+          </span>
+          {info.left != null && <span className={`text-[10.5px] leading-none font-semibold ${on ? "text-white" : full ? "text-rose-700" : info.left <= 5 ? "text-amber-700" : "text-emerald-700"}`}>{full ? t("Full") : `${info.left} ${t("left")}`}</span>}
+        </>
+      )}
       {on && (
         <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center ring-2 ring-navy-900">
           <Icon.check size={10} />

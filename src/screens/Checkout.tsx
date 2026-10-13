@@ -4,28 +4,33 @@ import { Icon } from "../lib/icons";
 import { AgeCheck } from "../components/AgeCheck";
 import type { IconRenderer } from "../lib/icons";
 import { gsap, motionOK, takeFlip, Flip, EASE, burstConfetti } from "../lib/fx";
-import { Card, Btn, Badge, PageHead, EmptyState, SwipeRow, Toggle } from "../components/ui";
+import { Card, Btn, EmptyState, SwipeRow, Toggle } from "../components/ui";
 import { QR } from "../components/charts";
-import { SlaiceLogo, TenantLogo } from "../components/Brand";
-import { WalletButtons } from "../components/WalletPass";
-import { TENANT, fromISO, todayISO, toISO } from "../data/beach";
-import { downloadICS } from "../lib/download";
+import { TenantLogo } from "../components/Brand";
+import { AppleLogo, WalletButtons } from "../components/WalletPass";
+import { TENANT, ZONES, todayISO } from "../data/beach";
 import { round2 } from "../data/passes";
 import { useApp, useT } from "../app/store";
 import type { CartItem } from "../domain/types";
 import { SLAICE_FEE_RATE, STRIPE_FEE_RATE } from "../domain/pricing";
 import { PROFILE, cartKey, serviceFees, type PlacedBooking } from "../domain/account";
+import { ARRIVAL_WINDOW, cancelLine, placedVisits, usual } from "../domain/visits";
+import { fmtDay, fmtWeekday } from "../domain/period";
+import { FullscreenQR, downloadVisitIcs, shareVisit } from "./customer/VisitTicket";
+import { useVisits, guestNow } from "../lib/useVisits";
 import { useFinance } from "../lib/useFinance";
 import { useExtras } from "../lib/useExtras";
 
-// Stable booking-reference sequence — avoids the collisions/irreproducibility of
-// Math.random() and keeps the confirmation QR consistent within a session.
-let BOOKING_SEQ = 10428;
-const nextBookingRef = () => "BK-" + ++BOOKING_SEQ;
+// Online booking refs follow the account's bookings (BK-30001, BK-30002…) so they
+// never collide with sample or staff bookings, and survive a reload (AENR-597).
+const bookingRefFor = (n: number) => `BK-${30001 + n}`;
+/** The operator behind the beach — shown at checkout (AENR-574). */
+export const OPERATOR = { legal: "Akti tou Iliou AE", vat: "EL123456789", address: "Leof. Poseidonos 1, 174 55 Alimos", phone: "+30 210 980 0000", email: "help@aktitouiliou.gr" };
 
 export function Checkout() {
   const { cart, removeFromCart, addToCart, clearCart, go, toast, passes, spendVipCredit, passPricing, account, setAccount } = useApp();
   const t = useT();
+  const mine = usual(useVisits().visits);
   const [finance] = useFinance();
   const ex = useExtras();
   const [phase, setPhase] = useState<"cart" | "signin" | "redirect" | "done">("cart");
@@ -61,15 +66,33 @@ export function Checkout() {
   const vipCover = hasVip && applyVip ? Math.min(afterSeason, vipMaxCover) : 0; // order value the card settles
   const vipDebit = round2(vipCover * (1 - disc)); // charged to the balance
   const vipSaved = round2(vipCover - vipDebit); // the 20% the guest didn't pay
-  const cashDue = round2(afterSeason - vipCover); // paid via Stripe at full price
-  const passApplied = seasonCovered > 0 || vipCover > 0;
+  const afterPasses = round2(afterSeason - vipCover);
+  // Beach credit (refunds as credit, released days) is used first, automatically (AENR-577/578).
+  const creditUsed = round2(Math.min(account.credit.balance, afterPasses));
+  const fullDue = round2(afterPasses - creditUsed); // paid via Stripe at full price
+  // Pay in full, or a deposit now and the rest on site (AENR-574).
+  const policy = ex.extras.policy;
+  const [plan, setPlan] = useState<"full" | "deposit">("full");
+  const depositAmt = round2((fullDue * policy.depositPct) / 100);
+  const cashDue = plan === "deposit" && policy.depositPct > 0 ? depositAmt : fullDue;
+  const onSite = round2(fullDue - cashDue);
+  const passApplied = seasonCovered > 0 || vipCover > 0 || creditUsed > 0;
+  // The exact free-cancellation line for the earliest day in the basket (AENR-569).
+  const firstDay = cart.map((i) => i.date).filter(Boolean).sort()[0] ?? todayISO();
+  const cancelBy = t(cancelLine(firstDay, guestNow(), policy));
 
   // Settle the order: debit VIP credit (if any), save the booking (and the card
   // if asked), clear the basket and land on the confirmation.
-  const finish = (card?: { save: boolean; last4: string } | null) => {
+  const finish = (card?: { save: boolean; last4: string } | null, method: "card" | "apple" | "google" = "card") => {
     if (vipDebit > 0) spendVipCredit(vipDebit);
-    const booking: PlacedBooking = { ref: nextBookingRef(), at: new Date().toISOString(), items: [...cart], fees: sf.lines, total: cashDue, guest: PROFILE, card: card ? `Visa ···· ${card.last4}` : undefined };
-    setAccount((a) => ({ ...a, bookings: [booking, ...a.bookings], savedCard: card?.save ? { brand: "Visa", last4: card.last4, exp: "12/28" } : a.savedCard }));
+    const booking: PlacedBooking = { ref: bookingRefFor(account.bookings.length), at: new Date().toISOString(), items: [...cart], fees: sf.lines, total: fullDue, guest: PROFILE, method, deposit: onSite > 0 ? cashDue : undefined,
+      card: method === "apple" ? "Apple Pay" : method === "google" ? "Google Pay" : card ? `Visa ···· ${card.last4}` : undefined };
+    setAccount((a) => ({
+      ...a,
+      bookings: [booking, ...a.bookings],
+      savedCard: card?.save ? { brand: "Visa", last4: card.last4, exp: "12/28" } : a.savedCard,
+      credit: creditUsed > 0 ? { balance: round2(a.credit.balance - creditUsed), log: [{ at: guestNow(), text: `Used at checkout · ${booking.ref}`, amount: -creditUsed }, ...a.credit.log] } : a.credit,
+    }));
     setPlaced(booking);
     clearCart();
     setPhase("done");
@@ -79,6 +102,13 @@ export function Checkout() {
     if (account.guest) return setPhase("signin");
     if (cashDue > 0) setPhase("redirect");
     else finish(null);
+  };
+  // Apple Pay / Google Pay (simulated sheet): confirm with Face ID / fingerprint, then done.
+  const [wallet, setWallet] = useState<"apple" | "google" | null>(null);
+  const walletPay = (w: "apple" | "google") => {
+    if (account.guest) return setPhase("signin");
+    setWallet(w);
+    window.setTimeout(() => { setWallet(null); finish(null, w); }, 1300);
   };
   // Arriving from the wizard: its glass menu hands over its rect and the
   // summary panel morphs out of it while the basket rows stagger in — checkout
@@ -103,13 +133,13 @@ export function Checkout() {
 
   if (cart.length === 0 && phase !== "done") {
     return (
-      <div className="animate-fade-up max-w-xl">
-        <Card className="p-6">
+      <div className="animate-fade-up max-w-xl mx-auto min-h-[50dvh] grid place-items-center">
+        <Card surface="raised" className="p-6 w-full">
           <EmptyState
             icon={Icon.card}
-            title={t("Your cart is empty")}
-            body={t("Plan a visit to add sunbeds, tickets or extras, then check out here.")}
-            action={<Btn variant="teal" icon={Icon.sparkles} onClick={() => go("customer", "plan")}>{t("Plan my visit")}</Btn>}
+            title={t("Your basket is empty")}
+            body={mine ? `${t("Your usual is")} ${mine.zone} · ${mine.sets} ${mine.sets === 1 ? t("sunbed") : t("sunbeds")}. ${t("Book it again in a few taps.")}` : t("Plan a visit to add sunbeds, tickets or extras, then check out here.")}
+            action={<Btn variant="teal" icon={Icon.sparkles} onClick={() => go("customer", "plan")}>{mine ? t("Rebook your usual") : t("Plan a visit")}</Btn>}
           />
         </Card>
       </div>
@@ -149,7 +179,7 @@ export function Checkout() {
   return (
     <div className="animate-fade-up grid lg:grid-cols-[1fr_360px] gap-5">
       <div>
-        <PageHead title={t("Checkout")} sub={t("Review your order, then pay via Stripe (hosted, tenant-branded).")} badge={<Badge tone="mvp">{t("MVP")}</Badge>} />
+        <h1 className="sr-only">{t("Checkout")}</h1>
         <Card className="p-2">
           <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100">
             <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.card size={16} /> {t("Your basket")} · {cart.length} {cart.length === 1 ? t("item") : t("items")}</div>
@@ -172,7 +202,7 @@ export function Checkout() {
             ))}
           </div>
         </Card>
-        <div className="mt-3 text-[12px] text-slate-600 flex items-center gap-1.5"><Icon.shield size={13} /> {t("On success: booking confirmed via webhook, QR e-mailed, and an ΑΠΥ auto-issued to MyDATA.")}</div>
+        <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg glass-card-solid px-2.5 py-1 text-[12px] text-slate-700"><Icon.shield size={13} /> {t("Your ticket and receipt arrive by e-mail the moment you pay.")}</div>
       </div>
 
       <div className="lg:sticky lg:top-4 h-max" data-flip-id="checkout-panel">
@@ -183,9 +213,23 @@ export function Checkout() {
           {sf.lines.map((f) => <Row key={f.label} l={t(f.label)} v={`€${f.amount.toFixed(2)}`} />)}
           {seasonCovered > 0 && <Row l={`${t("Season pass")} · ${t("1 entry")}`} v={`−€${seasonCovered.toFixed(2)}`} discount />}
           {vipCover > 0 && <Row l={t("Paid with VIP credit")} v={`−€${vipCover.toFixed(2)}`} discount />}
+          {creditUsed > 0 && <Row l={t("Beach credit")} v={`−€${creditUsed.toFixed(2)}`} discount />}
           <div className="h-px bg-slate-100 my-2" />
-          <Row l={passApplied ? t("Pay now") : t("Total")} v={`€${cashDue.toFixed(2)}`} bold />
-          <div className="text-[11px] text-slate-500 mt-1">{t("VAT included where applicable.")}</div>
+          <Row l={passApplied ? t("To pay") : t("Total")} v={`€${fullDue.toFixed(2)}`} bold />
+          <div className="text-[11px] text-slate-500 mt-1">{t("All-in: VAT and fees included.")}</div>
+          {policy.depositPct > 0 && fullDue > 0 && (
+            <fieldset className="mt-3 space-y-1.5">
+              <legend className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1">{t("How to pay")}</legend>
+              {(["full", "deposit"] as const).map((k) => (
+                <label key={k} className={`flex items-center gap-2.5 rounded-xl ring-1 px-3 min-h-[48px] cursor-pointer text-[13.5px] ${plan === k ? "ring-navy-900 bg-slate-50" : "ring-slate-200"}`}>
+                  <input type="radio" name="pay-plan" className="accent-teal-600 w-4 h-4" checked={plan === k} onChange={() => setPlan(k)} />
+                  <span className="flex-1">{k === "full" ? t("Pay in full now") : `${t("Pay a")} ${policy.depositPct}% ${t("deposit now")}`}</span>
+                  <span className="tnum font-semibold text-navy-900">€{(k === "full" ? fullDue : depositAmt).toFixed(2)}</span>
+                </label>
+              ))}
+              {plan === "deposit" && <div className="text-[12px] text-slate-600 px-1">{t("Now")} <b className="text-navy-900">€{cashDue.toFixed(2)}</b> · {t("on site")} <b className="text-navy-900">€{onSite.toFixed(2)}</b> {t("(cash or card at the gate)")}</div>}
+            </fieldset>
+          )}
           {vipCover > 0 && (
             <div className="mt-2 rounded-xl bg-sky-50 ring-1 ring-sky-600/15 px-3 py-2 text-[11.5px] text-sky-800 leading-snug">
               <Icon.sparkles size={12} className="inline align-[-1px] mr-1" />{t("VIP credit used")} €{vipDebit.toFixed(2)} · {t("you saved")} €{vipSaved.toFixed(2)} ({Math.round(disc * 100)}%). {t("Balance")} €{vipBalance.toFixed(2)} → €{round2(vipBalance - vipDebit).toFixed(2)}.
@@ -227,9 +271,20 @@ export function Checkout() {
             </div>
           )}
 
-          <Btn variant="indigo" full size="lg" className="mt-4" icon={cashDue > 0 ? Icon.stripe : Icon.check} onClick={pay}>
-            {cashDue > 0 ? `${t("Pay")} €${cashDue.toFixed(2)}` : t("Confirm · paid with pass")}
-          </Btn>
+          {cashDue > 0 ? (
+            <div className="mt-4 space-y-2">
+              <button type="button" onClick={() => walletPay("apple")} disabled={!!wallet} className="w-full min-h-[48px] rounded-[14px] bg-black text-white font-semibold text-[15px] inline-flex items-center justify-center gap-1.5 hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 disabled:opacity-70" aria-label={`${t("Pay with Apple Pay")} €${cashDue.toFixed(2)}`}>
+                {wallet === "apple" ? t("Confirming…") : <><AppleLogo size={17} /> Pay</>}
+              </button>
+              <button type="button" onClick={() => walletPay("google")} disabled={!!wallet} className="w-full min-h-[48px] rounded-[14px] bg-white ring-1 ring-slate-300 text-navy-900 font-semibold text-[15px] inline-flex items-center justify-center gap-1.5 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:opacity-70" aria-label={`${t("Pay with Google Pay")} €${cashDue.toFixed(2)}`}>
+                {wallet === "google" ? t("Confirming…") : <><b className="text-[#4285F4]">G</b> Pay</>}
+              </button>
+              <div className="flex items-center gap-2 text-[11px] text-slate-500"><span className="h-px flex-1 bg-slate-200" />{t("or")}<span className="h-px flex-1 bg-slate-200" /></div>
+              <Btn variant="indigo" full size="lg" icon={Icon.card} onClick={pay}>{`${t("Pay by card")} · €${cashDue.toFixed(2)}`}</Btn>
+            </div>
+          ) : (
+            <Btn variant="indigo" full size="lg" className="mt-4" icon={Icon.check} onClick={pay}>{t("Confirm · nothing to pay")}</Btn>
+          )}
 
           <div className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-slate-500"><Icon.lock size={12} /> {cashDue > 0 ? t("Secured by Stripe · we never store card details") : t("Settled from your pass · no card charged")}</div>
           <div className="mt-2 flex items-center justify-center gap-1.5 opacity-90">
@@ -239,7 +294,11 @@ export function Checkout() {
           </div>
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-start gap-2 text-[11px] text-slate-500 leading-snug">
             <Icon.shield size={13} className="shrink-0 mt-0.5 text-teal-600" />
-            <span>{t("Free cancellation up to 24h before your visit.")} <button onClick={() => toast(t("Demo — cancellation & refund policy."))} className="underline hover:text-navy-900">{t("Refund policy")}</button> · <button onClick={() => toast(t("Demo — terms of service."))} className="underline hover:text-navy-900">{t("Terms")}</button></span>
+            <span><b className="text-navy-900">{cancelBy}</b>{cancelBy.startsWith(t("Free")) ? ` — ${policy.refundPct}% ${t("back, from My bookings in two taps.")}` : "."} <button onClick={() => toast(t("Demo — terms of service."))} className="underline hover:text-navy-900">{t("Terms")}</button></span>
+          </div>
+          <div className="mt-2 text-[11px] text-slate-500 leading-snug">
+            {OPERATOR.legal} · {t("VAT")} {OPERATOR.vat} · {OPERATOR.address}<br />
+            {t("Help")}: <a className="underline hover:text-navy-900" href={`tel:${OPERATOR.phone.replace(/\s/g, "")}`}>{OPERATOR.phone}</a> · <a className="underline hover:text-navy-900" href={`mailto:${OPERATOR.email}`}>{OPERATOR.email}</a>
           </div>
 
           <div className="mt-3 flex items-center justify-between">
@@ -318,18 +377,20 @@ function kindIcon(kind: string) {
   return <I size={17} />;
 }
 
-export function Confirmation({ inline, booking }: { inline?: boolean; booking?: PlacedBooking | null }) {
-  const { cart: liveCart, clearCart, go, toast } = useApp();
+export function Confirmation({ inline, booking: given }: { inline?: boolean; booking?: PlacedBooking | null }) {
+  const { clearCart, go, toast, extras, account } = useApp();
+  // Opened directly (#/customer/confirm): the guest's latest booking.
+  const booking = given ?? account.bookings[0] ?? null;
   const t = useT();
-  // The placed booking when coming from Checkout; else whatever is in the basket.
-  const cart = booking?.items ?? liveCart;
-  // Stable across re-renders so the QR and wallet pass don't change.
-  const [ref] = useState(() => booking?.ref ?? nextBookingRef());
+  const [ref] = useState(() => booking?.ref ?? "BK-30000");
+  const [full, setFull] = useState(false);
   const scope = useRef<HTMLDivElement>(null);
+  // The booking's first day as a visit — one ticket per beach day (AENR-571).
+  const visit = booking ? placedVisits([booking], (id) => ZONES.find((z) => z.id === id)?.name ?? "")[0] : undefined;
 
-  // Celebration: the check springs in and throws confetti, the QR card flips
-  // up in 3D, then the wallet/receipt rows stagger in. Elements render in
-  // their final state — under reduced motion none of this runs.
+  // Celebration: the check springs in and throws confetti, the ticket flips up
+  // in 3D, then the actions stagger in. Elements render in their final state —
+  // under reduced motion none of this runs.
   useLayoutEffect(() => {
     if (!motionOK()) return;
     const ctx = gsap.context(() => {
@@ -347,69 +408,60 @@ export function Confirmation({ inline, booking }: { inline?: boolean; booking?: 
     }, scope);
     return () => ctx.revert();
   }, []);
-  // Derive a representative wallet pass from the basket.
-  const sunbeds = cart.filter((i) => i.kind === "sunbed");
-  const total = booking?.total ?? cart.reduce((a, b) => a + b.price, 0);
-  const first = sunbeds[0] || cart[0];
-  // Sets grouped by zone (a booking can span several, AENR-524).
-  const byStore = [...new Set(sunbeds.map((s) => s.sub.split(" · ")[0]))].map((name) => ({ name, sets: [...new Set(sunbeds.filter((s) => s.sub.startsWith(name)).map((s) => s.setId ?? s.label.replace(/^\S+\s+/, "")))] }));
-  const [zone, date] = (first?.sub || "Akti tou Iliou · Today").split(" · ");
+  const date = visit?.date ?? todayISO();
+  const caption = `${fmtWeekday(date)} ${fmtDay(date)}${visit?.sets.length ? ` · ${visit.sets.join(", ")}` : ""}`;
   const pass = {
     ref,
     holder: booking ? `${booking.guest.first} ${booking.guest.last[0]}.` : "Elena M.",
-    zone: zone || "Akti tou Iliou",
-    date: date || "Today",
-    seat: sunbeds.map((s) => s.label.replace(/^Sunbed\s+/, "")).join(", ") || "—",
-    guests: sunbeds.length || cart.filter((i) => i.kind === "ticket").length || 1,
-    total: `€${total}`,
+    zone: visit?.zone || "Akti tou Iliou",
+    date: fmtDay(date),
+    seat: visit?.sets.join(", ") || "—",
+    guests: Math.max(1, (visit?.sets.length ?? 1) * 2),
+    total: `€${booking?.total ?? 0}`,
   };
-  const Wrapper = inline ? "div" : "div";
+  const onSite = booking?.deposit != null ? round2(booking.total - booking.deposit) : 0;
   return (
-    <Wrapper ref={scope} className="animate-fade-up max-w-xl mx-auto">
-      <Card className="p-6 sm:p-8 text-center">
-        <div className="w-16 h-16 mx-auto rounded-2xl bg-teal-600 text-white grid place-items-center" data-confirm-check><Icon.check size={34} /></div>
-        <h2 className="mt-4 font-display font-bold text-2xl text-navy-900" data-confirm-head>{t("Payment successful")}</h2>
-        <p className="text-sm text-slate-500 mt-1" data-confirm-head>{t("Your booking is confirmed. The QR below has been e-mailed to you, and a MyDATA receipt (ΑΠΥ) was issued.")}</p>
+    <div ref={scope} className="animate-fade-up max-w-xl mx-auto" data-inline={inline ? "" : undefined}>
+      <div className="text-center mb-4">
+        <div className="w-14 h-14 mx-auto rounded-2xl bg-teal-600 text-white grid place-items-center" data-confirm-check><Icon.check size={30} /></div>
+        <h1 className="mt-3 font-display font-bold text-2xl text-navy-900 glass-card-solid inline-block rounded-xl px-3 py-1" data-confirm-head>{t("You're booked")}</h1>
+      </div>
 
-        <div className="my-5 grid place-items-center" data-confirm-qr><QR size={180} seed={ref} /></div>
-        <div className="font-mono text-sm text-navy-900 font-semibold" data-confirm-item>#{ref}</div>
-        {byStore.length > 0 && (
-          <ul className="mt-2 text-[13px] text-slate-700 space-y-0.5" data-confirm-item>
-            {byStore.map((g) => <li key={g.name}><b className="text-navy-900">{g.name}</b> × {g.sets.length} · {g.sets.join(", ")}</li>)}
-          </ul>
-        )}
-
-        {/* Add to Apple / Google Wallet */}
-        <div data-confirm-item>
-          <WalletButtons pass={pass} className="mt-6 pt-5 border-t border-slate-100" />
+      {/* The ticket — what the guest shows at the gate */}
+      <article aria-label={t("Your beach-day ticket")} className="rounded-[28px] bg-white shadow-lift ring-1 ring-slate-200 overflow-hidden" data-confirm-qr>
+        <div className="grad-sea text-white px-6 py-5">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-100">{TENANT.name}</div>
+          <div className="mt-1 font-display font-bold text-[26px] leading-tight">{fmtWeekday(date)} {fmtDay(date)}</div>
+          <div className="text-[14px] text-white/90">{visit?.zone ? `${visit.zone} · ` : ""}{visit?.sets.length ? `${t("Sunbeds")} ${visit.sets.join(", ")}` : t("Entry")}</div>
         </div>
-
-        <div className="mt-6 grid sm:grid-cols-3 gap-2 text-[12px]" data-confirm-item>
-          <Pill icon={Icon.checkCircle} t={booking?.card ? `${t("Paid")} · ${booking.card.replace("Visa ", "")}` : t("Stripe paid")} />
-          <Pill icon={Icon.mail} t={t("Link + QR by e-mail & SMS")} />
-          <Pill icon={Icon.receipt} t={t("ΑΠΥ e-mailed · MARK")} />
+        <div className="relative px-6 py-5 text-center">
+          <span aria-hidden className="absolute -top-3 -left-3 w-6 h-6 rounded-full bg-slate-100" />
+          <span aria-hidden className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-slate-100" />
+          <button type="button" onClick={() => setFull(true)} className="mx-auto grid place-items-center rounded-2xl p-2 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500" aria-label={t("Show the QR full screen")}>
+            <QR size={208} seed={ref} />
+          </button>
+          <div className="mt-1 font-mono text-[15px] font-bold text-navy-900">{ref}</div>
+          <div className="text-[12.5px] text-slate-500">{t("Tap the code to show it full screen at the gate.")}</div>
+          <dl className="mt-4 grid grid-cols-2 gap-3 text-left text-[13px]">
+            <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-slate-500 text-[11.5px]">{t("Arrive")}</dt><dd className="font-semibold text-navy-900">{ARRIVAL_WINDOW}</dd></div>
+            <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-slate-500 text-[11.5px]">{t("Paid")}</dt><dd className="font-semibold text-navy-900">€{(booking?.deposit ?? booking?.total ?? 0).toFixed(2)}{booking?.card ? ` · ${booking.card}` : ""}</dd></div>
+            {onSite > 0 && <div className="rounded-xl bg-amber-50 px-3 py-2 col-span-2"><dt className="text-amber-800 text-[11.5px]">{t("To pay on site")}</dt><dd className="font-semibold text-amber-900">€{onSite.toFixed(2)} · {t("cash or card at the gate")}</dd></div>}
+            <div className="rounded-xl bg-slate-50 px-3 py-2 col-span-2"><dt className="text-slate-500 text-[11.5px]">{t("Entrance")}</dt><dd className="font-semibold text-navy-900 flex items-center justify-between gap-2"><span>{t("Main gate")} · {OPERATOR.address}</span>
+              <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${TENANT.name} ${TENANT.place}`)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-teal-700 hover:underline shrink-0"><Icon.map size={14} /> {t("Map")}<span className="sr-only"> ({t("opens in a new tab")})</span></a></dd></div>
+          </dl>
+          <p className="mt-3 text-[12px] text-slate-600">{t(cancelLine(date, guestNow(), extras.policy))} · {t("receipt e-mailed")}</p>
         </div>
+      </article>
 
-        <div className="mt-6 flex gap-2 justify-center flex-wrap" data-confirm-item>
-          <Btn variant="teal" icon={Icon.grid} onClick={() => { clearCart(); go("customer", "mybookings"); }}>{t("View my bookings")}</Btn>
-          <Btn variant="outline" icon={Icon.calendar} onClick={() => {
-            const start = todayISO();
-            const end = toISO(new Date(fromISO(start).getTime() + 86400000));
-            downloadICS(`beach-day-${ref}.ics`, {
-              uid: `${ref}@slaice`, title: `Beach day · ${pass.zone}`, start, end,
-              location: `${TENANT.name}, ${TENANT.place}`,
-              description: `Booking ${ref} · ${pass.seat !== "—" ? "Sunbeds " + pass.seat : "Entry"} · ${pass.total}. Show your QR at the gate.`,
-            });
-            toast(t("Calendar invite downloaded (.ics)."), { tone: "success" });
-          }}>{t("Add to calendar")}</Btn>
-          <Btn variant="outline" icon={Icon.receipt} onClick={() => { clearCart(); go("customer", "account"); }}>{t("View receipt")}</Btn>
-        </div>
-      </Card>
-      <div className="text-center mt-3 text-[11px] text-slate-600 flex items-center justify-center gap-1.5">powered by <SlaiceLogo size={18} withText /></div>
-    </Wrapper>
+      <div data-confirm-item><WalletButtons pass={pass} className="mt-5" /></div>
+      <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2" data-confirm-item>
+        <Btn variant="outline" icon={Icon.calendar} onClick={() => { if (visit) downloadVisitIcs(visit); toast(t("Calendar invite downloaded (.ics)."), { tone: "success" }); }}>{t("Calendar")}</Btn>
+        <Btn variant="outline" icon={Icon.send} onClick={async () => { if (!visit) return; const r = await shareVisit(visit); if (r === "copied") toast(t("Visit details copied — paste them to your friends."), { tone: "success" }); }}>{t("Share")}</Btn>
+        <Btn variant="outline" icon={Icon.receipt} onClick={() => { clearCart(); go("customer", "mybookings"); }}>{t("Receipt")}</Btn>
+        <Btn variant="teal" icon={Icon.grid} onClick={() => { clearCart(); go("customer", "mybookings"); }}>{t("My bookings")}</Btn>
+      </div>
+      {full && <FullscreenQR code={ref} caption={caption} onClose={() => setFull(false)} />}
+    </div>
   );
 }
 
-function Pill({ icon: IconC, t }: { icon: IconRenderer; t?: ReactNode }) {
-  return <div className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/15 py-1.5 font-semibold"><IconC size={14} /> {t}</div>;
-}

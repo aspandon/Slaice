@@ -5,7 +5,12 @@ import { Badge, Btn, NotMvpBadge } from "../../components/ui";
 import { PassCard } from "../../components/PassCard";
 import { gsap, motionOK, DUR, EASE, useMagnetic, useCardTilt } from "../../lib/fx";
 import { useCountUp } from "../../lib/motion";
-import { ZONES, zoneLayout, WEATHER_DEMO } from "../../data/beach";
+import { ZONES, zoneLayout, WEATHER_DEMO, TENANT, forecastFor, todayISO } from "../../data/beach";
+import { QR } from "../../components/charts";
+import { useVisits } from "../../lib/useVisits";
+import { ARRIVAL_WINDOW, nextVisit, usual, type Visit } from "../../domain/visits";
+import { fmtDay, fmtWeekday } from "../../domain/period";
+import { FullscreenQR } from "./VisitTicket";
 import { SceneDemoPanel } from "../../components/SceneDemoPanel";
 import { SEASON_END_LABEL } from "../../data/passes";
 import { BUILTIN_SCHEMES, makeCustomScheme, schemeProgress, HOME_LOYALTY_STATS } from "../../data/loyalty";
@@ -29,6 +34,7 @@ let homeIntroPlayed = false;
 
 export function CustomerHome() {
   const { dive, loyalty, beachLayout, weather, dayTime, sceneFx } = useApp();
+  const { visits } = useVisits();
   const t = useT();
   // The hero chip mirrors the demo scene: weather icon/label/temp plus a
   // greeting that follows the scene clock (both fall back to a sunny noon
@@ -82,13 +88,10 @@ export function CustomerHome() {
     return () => { clearTimeout(mark); ctx.revert(); };
   }, []);
 
-  return (
-    <div ref={scope} className="flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_auto] gap-4 lg:items-start">
-
-      {/* ── Left: hero + the two promos beneath it (narrower now) ──── */}
-      <div className="flex flex-col gap-4 min-w-0">
-
-      {/* ── Hero ──────────────────────────────────────────────────── */}
+  // The guest's plan first (AENR-567): the next visit, then their usual, then rewards.
+  const next = nextVisit(visits);
+  const mine = usual(visits);
+  const hero = (
       <button onClick={() => dive()} className="text-left group block w-full" data-home-card>
         <div className={`${CARD} p-6 sm:p-9 pressable cursor-pointer transition duration-300 ease-spring hover:-translate-y-1 hover:bg-white/80`}>
           <div className="relative">
@@ -120,10 +123,27 @@ export function CustomerHome() {
         </div>
       </button>
 
-      {/* ── Promos beneath the hero — icon in front of the text ────── */}
-      <div className="grid sm:grid-cols-2 gap-4 items-start">
+  );
 
-        {/* Weekend promo — column 1 */}
+  return (
+    <div ref={scope} className="flex flex-col gap-4 max-w-6xl mx-auto w-full">
+      {next && <h1 className="sr-only">{t("Home")}</h1>}
+      {next ? <NextVisitCard v={next} /> : hero}
+
+      <div className="grid sm:grid-cols-2 gap-4 items-stretch">
+        {/* Rebook your usual — from the guest's own visits */}
+        <button onClick={() => dive()} className={`${CARD} p-5 flex flex-col gap-2.5 text-left hover:bg-white/80 transition-colors group`} data-home-card>
+          <div className="flex items-center gap-3">
+            <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
+            <div className="min-w-0">
+              <div className="font-semibold text-navy-900 text-[15px] leading-tight">{next ? t("Plan another visit") : t("Rebook your usual")}</div>
+              <div className="text-[12.5px] text-slate-600 mt-0.5 leading-snug">
+                {mine ? `${mine.zone} · ${mine.sets} ${mine.sets === 1 ? t("sunbed") : t("sunbeds")} — ${t("your usual")}` : `${freeDisplay} ${t("sunbeds free today")} · ${t("from")} €${fromPrice}`}
+              </div>
+            </div>
+          </div>
+          <div className="self-start flex items-center gap-1 text-teal-700 text-[13px] font-semibold px-3 py-1.5 -ml-3">{mine ? t("Book again") : t("Start guided booking")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" /></div>
+        </button>
         <div className="min-w-0">
           {!promoDismissed && (
             <div className={`${CARD} p-5 relative flex flex-col gap-2.5`} data-home-card>
@@ -141,52 +161,92 @@ export function CustomerHome() {
           )}
         </div>
 
-        {/* Rebook + Your badges — column 2 (badges sit exactly under Rebook) */}
-        <div className="flex flex-col gap-4 min-w-0">
-          {/* transition-colors only: a broad `transition` here also transitions
-              opacity/transform and fights the GSAP entrance that animates this
-              node — which could strand the card near-invisible. */}
-          <button onClick={() => dive()} className={`${CARD} p-5 flex flex-col gap-2.5 text-left hover:bg-white/80 transition-colors group`} data-home-card>
-            <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
-              <div className="min-w-0">
-                <div className="font-semibold text-navy-900 text-[15px] leading-tight">{t("Rebook your usual")}</div>
-                <div className="text-[12.5px] text-slate-600 mt-0.5 leading-snug">Central · {t("front row — your favourite zone last season")}</div>
-              </div>
-            </div>
-            <div className="self-start flex items-center gap-1 text-teal-600 text-[13px] font-semibold px-3 py-1.5 -ml-3">{t("Book again")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" /></div>
-          </button>
-          <BadgesTile />
-        </div>
-
-      </div>
       </div>
 
-      {/* ── Right cluster: a tall "Your rewards" tile beside the cards ─ */}
-      <div className={`grid gap-4 ${rewards.length ? "sm:grid-cols-[minmax(0,1fr)_85.6mm] lg:grid-cols-[85.6mm] xl:grid-cols-[22rem_85.6mm]" : "sm:grid-cols-[85.6mm] sm:justify-center lg:justify-start"}`}>
-        {rewards.length > 0 && (
-          <div className={`${CARD} p-4 flex flex-col h-full min-w-0`} data-home-card>
-            <div className="flex items-center gap-2 mb-3 px-0.5">
-              <Icon.gift size={15} className="text-teal-600 shrink-0" />
-              <h2 className="font-display font-bold text-navy-900 text-[15px] flex-1 min-w-0">{t("Your rewards")}</h2>
-              {ready > 0 && <Badge tone="green">{ready} {t("ready")}</Badge>}
-              <NotMvpBadge />
-            </div>
-            <div className="flex-1 space-y-2.5 overflow-y-auto no-scrollbar -mr-1 pr-1">
-              {rewards.map((a) => <RewardRow key={a.id} icon={a.icon} title={a.title} state={a.state} />)}
-            </div>
-          </div>
-        )}
-        <div className="flex flex-col gap-4 w-full max-w-[85.6mm] mx-auto sm:mx-0">
-          <VipTile />
-          <SeasonTile />
-        </div>
-      </div>
+      <RewardsStrip rewards={rewards} ready={ready} />
 
       {/* Demo scene controls (time-of-day + weather), bottom-left — the
           counterpart to the persona switcher's demo pill on the right. */}
       <SceneDemoPanel />
     </div>
+  );
+}
+
+/* The next visit, first thing on Home (AENR-567): countdown, zone and sets,
+   the day's weather, the QR in one tap and directions to the entrance. */
+function NextVisitCard({ v }: { v: Visit }) {
+  const { go, weather } = useApp();
+  const t = useT();
+  const [qr, setQr] = useState(false);
+  const today = todayISO();
+  const days = Math.round((Date.parse(v.date) - Date.parse(today)) / 86400000);
+  const fc = forecastFor(v.date, today, weather);
+  const W = Icon[WEATHER_DEMO[fc.kind].icon] ?? Icon.sun;
+  const extras = [...v.tickets.map((x) => `${t("Entry")} ${x}`), ...v.parking.map((x) => `${t("Parking")} ${x}`), ...v.lockers.map((x) => `${t("Locker")} ${x}`)];
+  return (
+    <section aria-labelledby="next-visit" className={`${CARD} p-5 sm:p-7`} data-home-card>
+      <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
+        <div className="min-w-0 flex-1">
+          <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700">
+            <Icon.calendar size={13} /> {days <= 0 ? t("Today") : days === 1 ? t("Tomorrow") : `${t("In")} ${days} ${t("days")}`}
+          </div>
+          <h2 id="next-visit" className="mt-1.5 font-display font-bold text-[26px] sm:text-[32px] leading-tight text-navy-900">
+            {fmtWeekday(v.date)} {fmtDay(v.date)}{v.zone ? ` · ${v.zone}` : ""}
+          </h2>
+          <p className="mt-1 text-[14px] text-slate-700">
+            {v.sets.length ? `${t("Sunbeds")} ${v.sets.join(", ")}` : t("Entry tickets")}
+            {extras.length ? ` · ${extras.join(" · ")}` : ""}
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-slate-700">
+            <span className="inline-flex items-center gap-1.5"><W size={16} className="text-teal-700" /> {t(WEATHER_DEMO[fc.kind].label)} · {fc.tempC}°C</span>
+            <span className="inline-flex items-center gap-1.5"><Icon.clock size={15} className="text-teal-700" /> {t("Arrive")} {ARRIVAL_WINDOW}</span>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Btn variant="primary" icon={Icon.qr} onClick={() => setQr(true)}>{t("Show QR")}</Btn>
+            <a
+              href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${TENANT.name} ${TENANT.place}`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-[14px] px-4 min-h-[44px] text-sm font-semibold ring-1 ring-slate-200 bg-white/80 text-navy-900 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+            >
+              <Icon.map size={16} /> {t("Directions")}
+              <span className="sr-only">({t("opens in a new tab")})</span>
+            </a>
+            <Btn variant="ghost" onClick={() => go("customer", "mybookings")}>{t("Manage booking")}</Btn>
+          </div>
+        </div>
+        <button type="button" onClick={() => setQr(true)} aria-label={`${t("Show QR")} ${v.refs[0]}`} className="self-center shrink-0 rounded-2xl bg-white p-2.5 ring-1 ring-slate-200 shadow-soft hover:shadow-lift transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+          <QR size={132} seed={v.refs[0]} />
+          <span className="block mt-1 font-mono text-[12px] font-semibold text-navy-900">{v.refs[0]}</span>
+        </button>
+      </div>
+      {qr && <FullscreenQR code={v.refs[0]} caption={`${fmtWeekday(v.date)} ${fmtDay(v.date)}${v.sets.length ? ` · ${v.sets.join(", ")}` : ""}`} onClose={() => setQr(false)} />}
+    </section>
+  );
+}
+
+/* One rewards strip (AENR-577): progress to the next reward; everything else is in Wallet. */
+function RewardsStrip({ rewards, ready }: { rewards: ReturnType<typeof activeRewards>; ready: number }) {
+  const { go } = useApp();
+  const t = useT();
+  const top = rewards.find((r) => r.state.kind === "progress") ?? rewards[0];
+  if (!top) return null;
+  const st = top.state;
+  const pct = st.kind === "progress" ? Math.min(100, Math.round((st.current / st.target) * 100)) : 100;
+  return (
+    <button type="button" onClick={() => go("customer", "wallet")} className={`${CARD} px-5 py-4 text-left flex flex-wrap items-center gap-x-4 gap-y-2 hover:bg-white/80 transition-colors group`} data-home-card>
+      <span className="w-9 h-9 rounded-xl grid place-items-center bg-teal-600 text-white shrink-0"><Icon.gift size={17} /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-semibold text-navy-900 text-[14px]">
+          {st.kind === "progress" ? `${st.current}/${st.target} ${t(st.unit)} ${t("to")} ${st.reward}` : `${t(top.title)} · ${st.reward}`}
+        </span>
+        <span className="mt-1.5 block h-1.5 rounded-full bg-slate-200 overflow-hidden max-w-md" aria-hidden>
+          <span className="block h-full rounded-full bg-gradient-to-r from-navy-700 to-teal-500" style={{ width: `${pct}%` }} />
+        </span>
+      </span>
+      {ready > 0 && <Badge tone="green">{ready} {t("ready to claim")}</Badge>}
+      <span className="text-[13px] font-semibold text-teal-700 inline-flex items-center gap-1">{t("Wallet")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" /></span>
+    </button>
   );
 }
 
@@ -314,7 +374,7 @@ export function activeRewards(loyalty: LoyaltyState) {
 }
 
 /* One reward as a compact row inside the tall "Your rewards" tile. */
-export function RewardRow({ icon, title, state }: { icon: IconRenderer; title: string; state: RewardState }) {
+export function RewardRow({ icon, title, state, onClaim }: { icon: IconRenderer; title: string; state: RewardState; onClaim?: () => void }) {
   const { dive, toast } = useApp();
   const t = useT();
   const SIcon = icon;
@@ -339,7 +399,7 @@ export function RewardRow({ icon, title, state }: { icon: IconRenderer; title: s
       {claim && (
         <div className="mt-2 flex items-center justify-between gap-2">
           {state.note && <span className="text-[11px] text-slate-500 truncate">{state.note}</span>}
-          <Btn size="sm" variant="teal" icon={Icon.gift} onClick={() => toast(`${t("Reward ready")} — ${state.reward}. ${t("Show this at the gate to redeem.")}`, { tone: "success" })}>{t("Claim")}</Btn>
+          <Btn size="sm" variant="teal" icon={Icon.gift} onClick={() => (onClaim ? onClaim() : toast(`${t("Reward ready")} — ${state.reward}. ${t("Show this at the gate to redeem.")}`, { tone: "success" }))}>{t("Claim")}</Btn>
         </div>
       )}
       {state.kind === "perk" && (

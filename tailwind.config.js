@@ -22,7 +22,7 @@ export default {
         coral: { 600: "#e2552f", 500: "#f1683c", 400: "#fb8a63" },
         // SLAiCE platform brand — indigo + gold
         slaice: { 700: "#2f3bb3", 600: "#3a47cc", 500: "#4a57e0", 100: "#e7e9fb" },
-        gold: { 600: "#e0a800", 500: "#f2b705", 400: "#ffc933" },
+        gold: { 600: "#e0a800", 500: "#f2b705", 400: "#ffc933", 300: "#ffdc73" },
         sand: "#E9E3D5",
         ink: "#1E293B",
         // Elevation by role (AENR-549): data sits on solid surfaces; glass is for chrome.

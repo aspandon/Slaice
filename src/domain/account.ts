@@ -4,6 +4,7 @@
 
 import type { FeeLine } from "./finance";
 import type { CartItem } from "./types";
+import { DEFAULT_SELF_SERVICE, type CancelRecord, type SelfService } from "./visits";
 
 export interface SavedCard {
   brand: string;
@@ -18,14 +19,53 @@ export interface PlacedBooking {
   total: number;
   guest: { first: string; last: string; email: string; phone: string };
   card?: string;
+  /** How it was paid (AENR-574): card, Apple Pay, Google Pay; deposit = the part paid online. */
+  method?: "card" | "apple" | "google";
+  deposit?: number;
+  /** Days the guest cancelled (AENR-572) — their sets are back on sale. */
+  cancelledDates?: Record<string, CancelRecord>;
+}
+/** A day a season pass holder gave back (AENR-578). */
+export interface ReleasedDay {
+  date: string;
+  setId: string;
+  zoneId: string;
+  price: number;
+  at: string;
+  /** Set once the set sold again — the credit the guest earned. */
+  resold?: { at: string; credit: number };
+}
+/** An invoice with VAT details the guest asked for (AENR-573). */
+export interface InvoiceRequest {
+  id: string;
+  visitKey: string;
+  company: string;
+  vatNo: string;
+  address: string;
+  amount: number;
+  at: string;
 }
 export interface AccountState {
   /** Browsing without an account — checkout asks to sign in first. */
   guest: boolean;
   savedCard: SavedCard | null;
   bookings: PlacedBooking[];
+  /** The guest's changes to their visits (AENR-572). */
+  selfService: SelfService;
+  /** Beach credit — refunds taken as credit, released-day earnings (AENR-572 / 578). */
+  credit: { balance: number; log: { at: string; text: string; amount: number }[] };
+  released: ReleasedDay[];
+  invoices: InvoiceRequest[];
 }
-export const DEFAULT_ACCOUNT: AccountState = { guest: false, savedCard: null, bookings: [] };
+export const DEFAULT_ACCOUNT: AccountState = {
+  guest: false,
+  savedCard: null,
+  bookings: [],
+  selfService: DEFAULT_SELF_SERVICE,
+  credit: { balance: 0, log: [] },
+  released: [],
+  invoices: [],
+};
 /** The demo guest's profile. */
 export const PROFILE = {
   first: "Elena",
@@ -73,7 +113,7 @@ export function bookedSets(bookings: readonly PlacedBooking[], date: string): Se
   return new Set(
     bookings.flatMap((b) =>
       b.items
-        .filter((i) => i.kind === "sunbed" && i.date === date && i.setId)
+        .filter((i) => i.kind === "sunbed" && i.date === date && i.setId && !b.cancelledDates?.[date])
         .map((i) => i.setId as string),
     ),
   );

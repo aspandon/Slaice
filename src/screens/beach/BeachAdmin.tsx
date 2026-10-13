@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { GuestPolicies } from "./GuestPolicies";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Icon } from "../../lib/icons";
 import { Card, Btn, Badge, Table, Modal, Field, Input, Select, Tabs, Toggle, EmptyState, NotMvpBadge, DateInput, PageHead } from "../../components/ui";
@@ -513,8 +514,9 @@ export function AdminProducts() {
   const [tab, setTab] = useUrlState("product", "tickets");
   return (
     <div className="animate-fade-up">
-      <PageHead sub="What else guests can buy with their day at the beach — entry tickets, lockers and parking, with their prices and rules." />
-      <div className="mb-4"><Tabs scroll tabs={[["tickets", "Entry tickets"], ["lockers", "Lockers"], ["parking", "Parking"]]} value={tab} onChange={setTab} /></div>
+      <PageHead sub="What else guests can buy with their day at the beach — entry tickets, lockers and parking, with their prices and rules — and the policies guests see before paying." />
+      <div className="mb-4"><Tabs scroll tabs={[["tickets", "Entry tickets"], ["lockers", "Lockers"], ["parking", "Parking"], ["policies", "Guest policies"]]} value={tab} onChange={setTab} /></div>
+      {tab === "policies" && <GuestPolicies />}
       {tab === "tickets" && <TicketsAdmin />}
       {tab === "lockers" && <LockersAdmin />}
       {tab === "parking" && (

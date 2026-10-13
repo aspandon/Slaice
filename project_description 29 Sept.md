@@ -804,6 +804,23 @@ vignette — towels for guests, a locker cabin (×qty), the car with its plate o
 - View modal: issuer (Akti tou Iliou AE, ΑΦΜ), lines (description · net · VAT · gross), total, QR,
   **MARK**, "invoiceType 2.1 · payment 7"; Download.
 
+### C-08 · Customer journey 2.0 [MVP] (AENR-541)
+
+One model for the guest's beach days — `src/domain/visits.ts` (`historyVisits`, `placedVisits`, `resolveVisits`) read through `useVisits()` — so Home, My bookings, receipts and Wallet agree, and the guest's changes reach the back office.
+
+- **Home leads with the next visit** (AENR-567): countdown (Today / Tomorrow / In N days), date · zone, sets and extras, the day's weather (`forecastFor`), arrival window 09:00 – 11:00, **Show QR** (one tap, full screen) and **Directions**; then **Rebook your usual** (most-booked zone and set count) and one **rewards strip** (progress to the next reward → Wallet). Guests without a visit see the planning hero.
+- **A map you can choose from** (AENR-568): every free set carries its tier and price (F front row · M middle · B back, colour + letter, legend in the bottom bar); tapping opens the **spot sheet** — row, metres to the sea, sun & shade, what's included, a "view from the spot", price, Select / Remove. Accessible names read set, tier, state and price; selections are announced (`aria-live`).
+- **All-in price and a real cancellation deadline** (AENR-569): the wizard footer shows sets · date · guests, the **all-in total** including service fees (equal to checkout), an expandable breakdown and "Free cancellation until Sat 18 Jul, 09:00" — or "Non-refundable" once the window has passed. Manager setting **Products › Guest policies**: cancellation window (hours before 09:00), refund % inside / after the window, deposit %, release deadline and release credit % (`extras.policy`).
+- **Date step with price, weather and alternatives** (AENR-570): each day chip shows weather, price level (€ / €€ / €€€) and spots left; a full day offers the nearest days with room, other zones that day and **Notify me if a spot frees up** (simulated).
+- **Confirmation as a beach-day ticket** (AENR-571): ticket card with large QR (tap → full-screen white QR for the gate), date, zone and sets, arrival window, paid / due on site, entrance with a map link, Apple / Google Wallet, **Calendar (.ics)** for the visit date, **Share**. The controller's manual code check validates any real booking (valid today / other day / cancelled).
+- **My bookings by visit** (AENR-572): one card per visit (Today pinned, then Upcoming; Past; Cancelled) with Show QR, Receipt, Move date (same sets if free that day), Add extras (tickets, parking, locker — charged to the saved card), Calendar, Share and **Cancel** (refund per policy to the card or as beach credit). Cancelling updates the admin Bookings at once (Refunded / Cancelled) and frees the sets.
+- **Receipts in plain words** (AENR-573): Receipt / Invoice / Credit note (tax codes and myDATA marks stay in the PDF); no myDATA KPIs; **Request an invoice** with company, VAT number and address issues an invoice (ΤΠΥ) that replaces the visit's receipt. All receipts live in Account.
+- **Checkout that earns trust** (AENR-574): centred empty basket with "Rebook your usual"; **Apple Pay / Google Pay first** (simulated), then card; **pay in full or a deposit** (rest on site); beach credit applied automatically; the operator's legal identity and help contacts in the footer. Online refs are BK-30001… (defect AENR-597).
+- **Phones: nothing overlaps** (AENR-575): the customer top bar is part of the layout (content starts below it); the Demo menu (persona + scene clock + weather) docks in the top bar instead of floating pills.
+- **Passes in the beach's brand** (AENR-576): VIP in the sun gold, Season in the sea, tenant logo; savings line from the guest's own visits ("With VIP this season you would have saved €44").
+- **One Wallet** (AENR-577): beach credit with its history, passes (each card carries its gate QR), the season set, rewards (Claim → voucher QR), badges.
+- **Release my day** (AENR-578): a season pass reserves one Central front-row set every day (`seasonSetIn`); the holder releases a day until N hours before opening and the set is free on every channel that day; when it resells (demo: _Simulate sale_) the guest earns the policy's credit %.
+
 ### C-08 · Buy a VIP Pass (prepaid credit)
 
 ```text

@@ -2,21 +2,25 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { Icon } from "../lib/icons";
 import type { IconRenderer } from "../lib/icons";
-import { Btn, Badge, Stepper, Input, Field, DatePickerRow, Toggle, Modal } from "../components/ui";
+import { Btn, Badge, Stepper, Input, Field, DatePickerRow, Toggle, Modal, Sheet, type DayInfo } from "../components/ui";
 import { prefersReducedMotion } from "../lib/motion";
 import { gsap, Flip, motionOK, stashFlip, EASE } from "../lib/fx";
 import { Sunbed, SunbedMark } from "../components/Beach";
 import { SandScene } from "../components/SandScene";
-import { ZONES, ZONE_BLOCKS, todayISO, chipLabel } from "../data/beach";
+import { ZONES, ZONE_BLOCKS, todayISO, chipLabel, forecastFor, WEATHER_DEMO } from "../data/beach";
+import { addDays } from "../domain/period";
 import { useLiveSlots } from "../lib/useLiveSlots";
 import { checkRestrictions, dateBlock, resolvePrice } from "../domain/pricing";
 import { stopSellFor } from "../domain/inventory";
 import { LANDMARK_LABEL } from "../data/pricing";
-import type { Landmark, SunbedSlot } from "../domain/types";
+import type { CartItem, Landmark, SunbedSlot } from "../domain/types";
 import { useApp, useSpotlight, useT } from "../app/store";
 import { localeFor } from "../app/i18n";
 import { PARKING_PRICE } from "../domain/pricing";
 import { useExtras } from "../lib/useExtras";
+import { useFinance } from "../lib/useFinance";
+import { serviceFees } from "../domain/account";
+import { cancelLine } from "../domain/visits";
 import { useSiteStatus } from "../lib/usePlatform";
 
 type People = Record<string, number>;
@@ -167,7 +171,7 @@ export function CustomerWizard() {
 
 function WizardInner() {
   const tr = useT();
-  const { go, toast, addToCart, hint, lang, beachPricing, priceRules, calendar, inventory } = useApp();
+  const { go, toast, addToCart, hint, lang, beachPricing, priceRules, calendar, inventory, weather } = useApp();
   useSpotlight("customer", "plan");
 
   // Deep-link: a Home tile can open the wizard straight at a given step.
@@ -224,6 +228,7 @@ function WizardInner() {
   const zoomingRef = useRef(false);
 
   const ex = useExtras();
+  const extrasState = ex.extras;
   const firstDay = selDates[0] ?? todayISO();
   const TICKET: TicketInfo = Object.fromEntries(ex.tickets.map((t) => [t.id, { price: ex.ticketPrice(t.id, firstDay), label: t.name, sub: t.note ?? "" }]));
   const totalPeople = ex.tickets.reduce((a, t) => a + (people[t.id] ?? 0), 0);
@@ -262,6 +267,21 @@ function WizardInner() {
   const pickSlots = useMemo(() => Object.fromEntries(pickZones.map((zid) => [zid, liveSlots(ZONES.find((z) => z.id === zid) ?? zone, selDates)])), [pickZones, liveSlots, selDates, zone]);
   const stalePicks = bedSel.filter((b) => pickSlots[b.zoneId]?.find((x) => x.id === b.id)?.state !== "a");
   const avail = useMemo(() => slots.filter((s) => s.state === "a").length, [slots]);
+
+  // Each day before choosing it (AENR-570): weather, price level and spots left —
+  // for the chosen zone once inside it, for the whole beach on the zone overview.
+  const scopeZones = phase === "sets" ? [zone] : ZONES;
+  const minBase = useMemo(() => Math.min(...ZONES.map((z) => z.from)), []);
+  const dayInfo = (iso: string): DayInfo => {
+    const free = scopeZones.flatMap((z) => liveSlots(z, [iso]).filter((x) => x.state === "a").map((x) => ({ x, z })));
+    const prices = free.map(({ x, z }) => resolvePrice(x, z.id, iso, beachPricing, priceRules).price);
+    const price = prices.length ? Math.min(...prices) : undefined;
+    const fc = forecastFor(iso, todayISO(), weather);
+    const ref = phase === "sets" ? zone.from : minBase;
+    return { icon: WEATHER_DEMO[fc.kind].icon, temp: fc.tempC, price, level: price == null ? undefined : price <= ref ? "low" : price >= ref * 1.25 ? "high" : "mid", left: free.length };
+  };
+  // A full day never ends the journey: nearest days with room, other zones that day, or a notification.
+  const fullDay = !multiDate && selDates.length === 1 && dayInfo(selDates[0]).left === 0 ? selDates[0] : null;
 
   // Booking restrictions (AENR-511): closed days, booking window and same-day
   // cut-off disable a date; minimum / maximum stay rules block Continue.
@@ -341,11 +361,17 @@ function WizardInner() {
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- flip reads refs + DOM
   }, [phase]);
+  const [announce, setAnnounce] = useState("");
   const toggleBed = (slot: SunbedSlot, el?: HTMLElement | null) => {
     const adding = !bedSel.find((b) => b.id === slot.id);
     setBedSel((s) => (adding ? [...s, { id: slot.id, price: slot.price, zoneId: zone.id }] : s.filter((b) => b.id !== slot.id)));
     if (el) bedPickFx(el, slot.price, adding);
+    const n = bedSel.length + (adding ? 1 : -1);
+    setAnnounce(`${slot.id} ${adding ? tr("selected") : tr("removed")}, €${slot.price}. ${n} ${n === 1 ? tr("set") : tr("sets")} ${tr("picked")}.`);
   };
+  // Tapping a set opens its spot sheet first (AENR-568); Select there picks it.
+  const [inspect, setInspect] = useState<{ slot: SunbedSlot; el: HTMLElement | null } | null>(null);
+  const tierOfZone = useMemo(() => tierInfo(slots), [slots]);
   // Any manual change to the headcount flips off the auto pre-fill for the rest
   // of the session, so the guest's numbers are never overwritten.
   const editPeople = (v: SetStateAction<People>) => { setPeopleTouched(true); setPeople(v); };
@@ -361,29 +387,22 @@ function WizardInner() {
     setStepIdx((i) => Math.max(0, i - 1));
   };
 
-  const confirm = () => {
-    // A set taken or put on hold since it was picked must be replaced first (AENR-524 / 520).
-    if (stalePicks.length) {
-      toast(`${stalePicks.map((b) => b.id).join(", ")} ${tr("is no longer available — remove it and pick another set.")}`, { tone: "warn" });
-      setStepIdx(0);
-      return;
-    }
-    let added = 0;
+  // The basket lines this plan becomes — one per set, ticket kind, locker and spot per day.
+  const buildItems = (): CartItem[] => {
+    const items: CartItem[] = [];
     const subOf = (iso: string) => chipLabel(iso, localeFor(lang)).sub;
     // Sunbeds + tickets cover every chosen day.
     selDates.forEach((iso) => {
       const sub = subOf(iso);
       bedSel.forEach((b) => {
         const bz = ZONES.find((z) => z.id === b.zoneId) ?? zone;
-        addToCart({ kind: "sunbed", id: `${b.id}@${iso}`, label: `${tr("Sunbed")} ${b.id}`, sub: `${bz.name} · ${sub}`, price: bedPrice(b, iso), setId: b.id, zoneId: bz.id, date: iso });
-        added++;
+        items.push({ kind: "sunbed", id: `${b.id}@${iso}`, label: `${tr("Sunbed")} ${b.id}`, sub: `${bz.name} · ${sub}`, price: bedPrice(b, iso), setId: b.id, zoneId: bz.id, date: iso });
       });
       if (includeTickets) {
         ticketBreak.forEach(({ k, n, t }) => {
           if (n > 0) {
-            addToCart({ kind: "ticket", id: `${k}@${iso}`, label: `${tr(t.label)} × ${n}`, sub: `${tr("Entry ticket")} · ${sub}`, price: n * ex.ticketPrice(k, iso), qty: n, date: iso });
-            added++;
-          }
+            items.push({ kind: "ticket", id: `${k}@${iso}`, label: `${tr(t.label)} × ${n}`, sub: `${tr("Entry ticket")} · ${sub}`, price: n * ex.ticketPrice(k, iso), qty: n, date: iso });
+              }
         });
       }
     });
@@ -391,8 +410,7 @@ function WizardInner() {
     lockerDates.forEach((iso) => {
       const sub = subOf(iso);
       for (let i = 0; i < lockerQty; i++) {
-        addToCart({ kind: "locker", id: `LK-${lockerBank}${i + 1}@${iso}`, label: `${tr("Day locker")} ${i + 1}`, sub: `${ex.banks.find((b) => b.id === lockerBank)?.name ?? ""} · ${sub}`, price: ex.lockerPrice(lockerBank, iso) });
-        added++;
+        items.push({ kind: "locker", id: `LK-${lockerBank}${i + 1}@${iso}`, label: `${tr("Day locker")} ${i + 1}`, sub: `${ex.banks.find((b) => b.id === lockerBank)?.name ?? ""} · ${sub}`, price: ex.lockerPrice(lockerBank, iso) });
       }
     });
     // One cart line per spot per day; the plate comes from the per-spot list
@@ -400,16 +418,34 @@ function WizardInner() {
     parkingDates.forEach((iso) => {
       for (let i = 0; i < parkingQty; i++) {
         const plate = (parkingQty > 1 ? spotPlates[i] : plates[iso]) || "—";
-        addToCart({
+        items.push({
           kind: "parking",
           id: `P${i + 1}@${iso}`,
           label: parkingQty > 1 ? `${tr("Parking spot")} ${i + 1}` : tr("Parking spot"),
           sub: `${plate} · ${subOf(iso)}`,
           price: PARKING_PRICE,
         });
-        added++;
       }
     });
+    return items;
+  };
+  // All-in total (AENR-569): the beach prices plus the customer service fees — the same sum checkout charges.
+  const [finance] = useFinance();
+  const feeTotal = grandTotal > 0 ? serviceFees(buildItems(), finance.fees, todayISO()).total : 0;
+  const allIn = Math.round((grandTotal + feeTotal) * 100) / 100;
+  const [showBreak, setShowBreak] = useState(false);
+  const cancelText = tr(cancelLine(selDates[0] ?? todayISO(), `${todayISO()}T${nowTime}`, extrasState.policy));
+
+  const confirm = () => {
+    // A set taken or put on hold since it was picked must be replaced first (AENR-524 / 520).
+    if (stalePicks.length) {
+      toast(`${stalePicks.map((b) => b.id).join(", ")} ${tr("is no longer available — remove it and pick another set.")}`, { tone: "warn" });
+      setStepIdx(0);
+      return;
+    }
+    const items = buildItems();
+    items.forEach((it) => addToCart(it));
+    const added = items.length;
     toast(`${tr("Booking ready")} — ${added} ${added !== 1 ? tr("items") : tr("item")} ${tr("added to your basket.")}`, { tone: "success" });
     // Hand the menu card's rect to Checkout so its summary panel morphs out of
     // it — the journey's last scene instead of a hard screen swap.
@@ -428,7 +464,7 @@ function WizardInner() {
   const revealDelay = prefersReducedMotion() ? "0ms" : "420ms";
 
   return (
-    <div className="fixed inset-0 z-20 flex flex-col pointer-events-none select-none pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+    <div className="fixed inset-0 z-20 flex flex-col pointer-events-none select-none pt-[72px] md:pt-0 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
       {/* ============ Menu over the sea (top) ============
            When picking sunbeds, the min-height holds the menu band down to ~the
            shoreline so the sets always start on the sand (never the sea). The
@@ -452,7 +488,12 @@ function WizardInner() {
               Review with many lines) overflows the panel. */}
           <div key={`${step.id}-${phase}`} className="px-4 sm:px-5 pb-1 overflow-y-auto animate-fade-up">
             {step.id === "beach" && (
-              <BeachMenu blockReason={blockReason} stayReasons={[...(stopSell ? [`${zone.name}: not available online — ask at the beach (${stopSell.reason}).`] : []), ...Object.entries(stayCheck.blocked).map(([d, why]) => `${chipLabel(d, localeFor(lang)).sub}: ${why}`), ...stayCheck.reasons]}
+              <BeachMenu blockReason={blockReason} dayInfo={dayInfo} fullDay={fullDay}
+                alternatives={fullDay ? {
+                  days: [1, -1, 2, -2, 3, 4, 5, 6, 7].map((n) => addDays(fullDay, n)).filter((d) => d >= todayISO() && !blockReason(d) && (dayInfo(d).left ?? 0) > 0).slice(0, 3),
+                  zones: phase === "sets" ? ZONES.filter((z) => z.id !== zone.id).map((z) => ({ z, left: liveSlots(z, [fullDay]).filter((x) => x.state === "a").length })).filter((x) => x.left > 0).slice(0, 3) : [],
+                } : null}
+                onPickZone={(id) => { setBedSel([]); setZoneId(id); }} stayReasons={[...(stopSell ? [`${zone.name}: not available online — ask at the beach (${stopSell.reason}).`] : []), ...Object.entries(stayCheck.blocked).map(([d, why]) => `${chipLabel(d, localeFor(lang)).sub}: ${why}`), ...stayCheck.reasons]}
                 selDates={selDates} setSelDates={setSelDates}
                 multiDate={multiDate} setMultiDate={setMultiDate}
                 phase={phase} setPhase={(p) => (p === "zones" ? backToZones() : setPhase(p))}
@@ -506,12 +547,26 @@ function WizardInner() {
             )}
           </div>
 
+          {showBreak && (
+            <div className="px-4 sm:px-5 pt-2 text-[12.5px] text-slate-700 border-t border-slate-200/70 shrink-0" aria-label={tr("Price breakdown")}>
+              {[[tr("Sunbeds"), setSubtotal], [tr("Entry tickets"), ticketSubtotal], [tr("Lockers"), lockerSubtotal], [tr("Parking"), parkingSubtotal], [tr("Service fee"), feeTotal]].filter(([, v]) => (v as number) > 0).map(([l, v]) => (
+                <div key={l as string} className="flex justify-between py-0.5"><span>{l}</span><span className="tnum">€{(v as number).toFixed(2)}</span></div>
+              ))}
+              {bookingAdj !== 0 && <div className="flex justify-between py-0.5 text-teal-700"><span>{tr("incl.")} {bookingAdj < 0 ? tr("booking discount") : tr("same-day supplement")}</span><span className="tnum">{bookingAdj < 0 ? "−" : "+"}€{Math.abs(Math.round(bookingAdj * 100) / 100)}</span></div>}
+              <div className="text-[11px] text-slate-500 pb-1">{tr("VAT included. You pay exactly this at checkout.")}</div>
+            </div>
+          )}
           {/* Pinned footer — live total + nav. */}
           <div className="flex items-center justify-between gap-3 p-4 sm:p-5 pt-3 border-t border-slate-200/70 shrink-0">
-            <div className="leading-tight">
-              <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500">{tr("Total")}</div>
-              <div className="font-display text-2xl font-bold text-navy-900 tnum leading-none" data-wizard-total>€<LiveEuro value={grandTotal} /></div>
-              {bookingAdj !== 0 && <div className="text-[11px] font-semibold text-teal-700 mt-0.5">{tr("incl.")} {bookingAdj < 0 ? tr("booking discount") : tr("same-day supplement")} {bookingAdj < 0 ? "−" : "+"}€{Math.abs(Math.round(bookingAdj * 100) / 100)}</div>}
+            <div className="leading-tight min-w-0">
+              <div className="text-[11px] text-slate-600 truncate">
+                {bedSel.length ? `${bedSel.map((b) => b.id).join(", ")} · ` : ""}{selDates.length === 1 ? chipLabel(selDates[0], localeFor(lang)).sub : `${selDates.length} ${tr("days")}`}{totalPeople ? ` · ${totalPeople} ${totalPeople === 1 ? tr("guest") : tr("guests")}` : ""}
+              </div>
+              <button type="button" onClick={() => setShowBreak((v) => !v)} aria-expanded={showBreak} className="flex items-baseline gap-1.5 text-left rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                <span className="font-display text-2xl font-bold text-navy-900 tnum leading-none" data-wizard-total>€<LiveEuro value={allIn} /></span>
+                <span className="text-[11px] font-semibold text-slate-600 inline-flex items-center gap-0.5">{tr("all-in")} <Icon.chevD size={12} className={showBreak ? "rotate-180 transition" : "transition"} /></span>
+              </button>
+              {grandTotal > 0 && <div className={`text-[11px] font-semibold mt-0.5 truncate ${cancelText.startsWith(tr("Free")) ? "text-emerald-700" : "text-amber-700"}`}>{cancelText}</div>}
             </div>
             <div className="flex items-center gap-2">
               <Btn variant="ghost" icon={Icon.arrowL} onClick={back}>
@@ -520,7 +575,7 @@ function WizardInner() {
               {stepIdx < last ? (
                 <Btn variant="teal" onClick={next} disabled={step.id === "beach" && (!stayCheck.ok || !!stopSell)}>{tr("Continue")} <Icon.arrowR size={15} /></Btn>
               ) : (
-                <Btn variant="dark" icon={Icon.card} onClick={confirm} disabled={grandTotal === 0}>{tr("Confirm")} · €{grandTotal}</Btn>
+                <Btn variant="dark" icon={Icon.card} onClick={confirm} disabled={grandTotal === 0}>{tr("Confirm")} · €{allIn % 1 ? allIn.toFixed(2) : allIn}</Btn>
               )}
             </div>
           </div>
@@ -534,7 +589,7 @@ function WizardInner() {
             zone's sunbed grid stays at a comfortable reading width. */}
         <div className={`relative w-full ${showSets ? "max-w-5xl" : "max-w-[1700px]"}`}>
           {showZones && <StoreOverview days={selDates} selectedId={zoneId} onPick={pickZone} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} picked={pickedByZone} />}
-          {showSets && <SandSunbeds slots={slots} selected={selectedIds} onToggle={toggleBed} landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zone.id)} />}
+          {showSets && <SandSunbeds slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zone.id)} />}
           {showScene && (
             <SandScene
               slots={slots} picked={selectedIds} stepId={step.id}
@@ -547,6 +602,14 @@ function WizardInner() {
         </div>
       </div>
 
+      <div className="sr-only" aria-live="polite">{announce}</div>
+      {inspect && (
+        <div className="pointer-events-auto">
+          <SpotSheet slot={inspect.slot} info={tierOfZone(inspect.slot)} selected={selectedIds.has(inspect.slot.id)} priceText={`€${inspect.slot.price}`}
+            onClose={() => setInspect(null)}
+            onSelect={() => { toggleBed(inspect.slot, inspect.el); setInspect(null); }} />
+        </div>
+      )}
       {/* ============ Bottom bar — guidance + always-on Slaice credit ============ */}
       <div className="shrink-0 px-3 pb-1.5 pt-1 pointer-events-none">
         {(showZones || showSets || showScene) && (
@@ -568,7 +631,9 @@ function WizardInner() {
                 <span className="flex items-center gap-1"><Sunbed state="u" size={14} readOnly />{tr("Taken")}</span>
                 <span className="flex items-center gap-1"><Sunbed state="a" sel size={14} readOnly />{tr("Yours")}</span>
                 <span className="text-slate-500">·</span>
-                <span className="text-slate-600">{tr("Tap the umbrellas on the sand to pick your sets.")}</span>
+                {TIERS.map((ti) => <span key={ti.key} className="flex items-center gap-1"><span className="rounded px-1 text-[9px] font-bold text-white" style={{ background: ti.color }}>{ti.letter}</span>{tr(ti.name)}</span>)}
+                <span className="text-slate-500">·</span>
+                <span className="text-slate-600">{tr("Tap a set to see its view and price.")}</span>
               </div>
             )}
           </div>
@@ -656,7 +721,11 @@ function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number
 /* ============ Beach step — menu side (dates + phase controls) ============
    The map and the sunbed grid have moved onto the page background; the menu keeps
    the dates and the supporting info (zone summary, legend, picks). */
-function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setPhase, zone, bedSel, setBedSel, avail, dayCount, blockReason, stayReasons, multiStore, setMultiStore, stale }: {
+function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setPhase, zone, bedSel, setBedSel, avail, dayCount, blockReason, stayReasons, multiStore, setMultiStore, stale, dayInfo, fullDay, alternatives, onPickZone }: {
+  dayInfo: (iso: string) => DayInfo;
+  fullDay: string | null;
+  alternatives: { days: string[]; zones: { z: WizardZone; left: number }[] } | null;
+  onPickZone: (id: string) => void;
   multiStore: boolean;
   setMultiStore: (v: boolean) => void;
   /** Picks taken or put on hold since they were chosen. */
@@ -689,7 +758,8 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
       {/* Dates — apply to the whole booking. */}
       <div>
         <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.calendar size={12} /> {tr("When are you coming?")}</div>
-        <DatePickerRow value={selDates} onChange={setSelDates} multiple={multiDate} maxDays={7} blockReason={blockReason} />
+        <DatePickerRow value={selDates} onChange={setSelDates} multiple={multiDate} maxDays={7} blockReason={blockReason} dayInfo={dayInfo} />
+        {fullDay && alternatives && <FullDayHelp day={fullDay} zoneName={phase === "sets" ? zone.name : ""} alt={alternatives} onDay={(d) => setSelDates([d])} onZone={onPickZone} />}
         {stayReasons.length > 0 && <div role="alert" className="mt-2 rounded-xl bg-amber-50 ring-1 ring-amber-600/20 px-3 py-2 text-[12px] text-amber-800 space-y-0.5">{stayReasons.map((r) => <div key={r}>{r}</div>)}</div>}
         <div className="mt-2 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
           <div className="flex items-start gap-2 text-[12.5px]">
@@ -776,6 +846,28 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
           ))}
         </div>
       </Modal>
+    </div>
+  );
+}
+
+/* A sold-out day (AENR-570): the nearest days with room, other zones that day,
+   or "Notify me" (simulated SMS when a spot frees up). */
+function FullDayHelp({ day, zoneName, alt, onDay, onZone }: { day: string; zoneName: string; alt: { days: string[]; zones: { z: WizardZone; left: number }[] }; onDay: (d: string) => void; onZone: (id: string) => void }) {
+  const tr = useT();
+  const { toast, lang } = useApp();
+  const [notified, setNotified] = useState(false);
+  const loc = localeFor(lang);
+  const dayLbl = chipLabel(day, loc, tr);
+  return (
+    <div role="status" className="mt-2 rounded-xl bg-amber-50 ring-1 ring-amber-600/20 px-3 py-2.5 text-[12.5px] text-amber-900 space-y-2">
+      <div><b>{zoneName ? `${zoneName} ${tr("is full on")}` : tr("The beach is full on")} {dayLbl.label} {dayLbl.sub}.</b> {tr("Try one of these:")}</div>
+      <div className="flex flex-wrap gap-1.5">
+        {alt.days.map((d) => { const c = chipLabel(d, loc, tr); return <button key={d} type="button" onClick={() => onDay(d)} className="rounded-lg bg-white ring-1 ring-amber-300 px-2.5 min-h-[36px] font-semibold text-navy-900 hover:ring-teal-400">{c.label} {c.sub}</button>; })}
+        {alt.zones.map(({ z, left }) => <button key={z.id} type="button" onClick={() => onZone(z.id)} className="rounded-lg bg-white ring-1 ring-amber-300 px-2.5 min-h-[36px] font-semibold text-navy-900 hover:ring-teal-400">{z.name} · {left} {tr("free")}</button>)}
+      </div>
+      <button type="button" disabled={notified} onClick={() => { setNotified(true); toast(`${tr("We'll text you if a spot frees up on")} ${dayLbl.sub}.`, { tone: "success" }); }} className="inline-flex items-center gap-1.5 font-semibold text-teal-800 hover:underline disabled:no-underline disabled:text-emerald-800">
+        <Icon.bell size={13} /> {notified ? tr("You'll be notified") : tr("Notify me if a spot frees up")}
+      </button>
     </div>
   );
 }
@@ -1000,6 +1092,72 @@ function StoreCards({ days, selectedId, onPick, picked }: { days: string[]; sele
    its nearest neighbour so glyphs keep clear air and never collide. Cells carry
    data-flip-id (the zoom FLIP pairs them with the overview minis) and hand their
    element to onToggle so the pick effects can run from the tapped spot. */
+/* ---- Price tiers and the spot sheet (AENR-568) ----
+   Rows nearer the sea cost more; guests see the tier (colour + letter, never
+   colour alone) and the price on every set before tapping. Tapping opens the
+   spot sheet: row, metres to the sea, shade, what's included, the view, price. */
+export type Tier = { key: "front" | "middle" | "back"; name: string; letter: string; color: string };
+export const TIERS: Tier[] = [
+  { key: "front", name: "Front row", letter: "F", color: "#0e7490" },
+  { key: "middle", name: "Middle rows", letter: "M", color: "#b45309" },
+  { key: "back", name: "Back rows", letter: "B", color: "#475569" },
+];
+export function tierInfo(slots: readonly SunbedSlot[]) {
+  const rows = [...new Set(slots.map((s) => Math.round(s.y)))].sort((a, b) => a - b);
+  return (s: SunbedSlot) => {
+    const row = rows.indexOf(Math.round(s.y));
+    const f = rows.length > 1 ? row / (rows.length - 1) : 0;
+    const tier = row === 0 ? TIERS[0] : f < 0.67 ? TIERS[1] : TIERS[2];
+    return { tier, row: row + 1, metres: 8 + row * 5 };
+  };
+}
+
+function SpotView({ row, tier }: { row: number; tier: Tier }) {
+  // A simple "view from the spot": the closer the row, the more sea you see.
+  const sea = Math.max(18, 46 - (row - 1) * 6);
+  const rowsInFront = Math.min(3, row - 1);
+  return (
+    <svg viewBox="0 0 320 140" className="w-full h-auto rounded-xl" role="img" aria-label={`View from the ${tier.name.toLowerCase()}: ${rowsInFront ? `${rowsInFront} row${rowsInFront === 1 ? "" : "s"} of umbrellas, then the sea` : "nothing between you and the sea"}`}>
+      <rect width="320" height="140" fill="#e0f2fe" />
+      <rect y={60 - sea / 2} width="320" height={sea} fill="#38bdf8" />
+      <rect y={60 + sea / 2} width="320" height={140 - (60 + sea / 2)} fill="#f5deb3" />
+      {Array.from({ length: rowsInFront }).flatMap((_, r) =>
+        Array.from({ length: 5 }).map((__, i) => {
+          const y = 60 + sea / 2 + 10 + r * 18;
+          const x = 30 + i * 65 + (r % 2) * 30;
+          return (
+            <g key={`${r}-${i}`}>
+              <line x1={x} y1={y} x2={x} y2={y + 16} stroke="#78350f" strokeWidth="2" />
+              <path d={`M${x - 16} ${y} Q${x} ${y - 12} ${x + 16} ${y} Z`} fill={r % 2 ? "#fb923c" : "#f97316"} />
+            </g>
+          );
+        }),
+      )}
+      <circle cx="270" cy="22" r="10" fill="#fde047" />
+    </svg>
+  );
+}
+
+function SpotSheet({ slot, info, selected, priceText, onClose, onSelect }: { slot: SunbedSlot; info: ReturnType<ReturnType<typeof tierInfo>>; selected: boolean; priceText: string; onClose: () => void; onSelect: () => void }) {
+  const tr = useT();
+  const shade = info.tier.key === "front" ? tr("Full sun, sea breeze — the umbrella is yours") : info.tier.key === "middle" ? tr("Sun and umbrella shade") : tr("Calmer, more shade in the afternoon");
+  return (
+    <Sheet open onClose={onClose} title={`${tr("Set")} ${slot.id} · ${tr(info.tier.name)}`}
+      footer={<><Btn variant="ghost" onClick={onClose}>{tr("Close")}</Btn><Btn variant={selected ? "outline" : "teal"} icon={selected ? Icon.x : Icon.check} onClick={onSelect}>{selected ? tr("Remove") : `${tr("Select")} · ${priceText}`}</Btn></>}>
+      <div className="space-y-3 text-[13.5px]">
+        <SpotView row={info.row} tier={info.tier} />
+        <dl className="grid grid-cols-2 gap-2">
+          <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-[11.5px] text-slate-500">{tr("Row")}</dt><dd className="font-semibold text-navy-900">{info.row} · {tr(info.tier.name)}</dd></div>
+          <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-[11.5px] text-slate-500">{tr("To the sea")}</dt><dd className="font-semibold text-navy-900">~{info.metres} m</dd></div>
+          <div className="rounded-xl bg-slate-50 px-3 py-2 col-span-2"><dt className="text-[11.5px] text-slate-500">{tr("Sun & shade")}</dt><dd className="font-semibold text-navy-900">{shade}</dd></div>
+          <div className="rounded-xl bg-slate-50 px-3 py-2 col-span-2"><dt className="text-[11.5px] text-slate-500">{tr("Included")}</dt><dd className="font-semibold text-navy-900">{slot.cap ?? 2} {tr("sunbeds, umbrella, side table, towel service")}{slot.access ? ` · ${tr("step-free access")}` : ""}</dd></div>
+        </dl>
+        <div className="flex items-baseline justify-between"><span className="text-slate-600">{tr("Price per day")}</span><span className="font-display font-bold text-xl text-navy-900 tnum">{priceText}</span></div>
+      </div>
+    </Sheet>
+  );
+}
+
 function SandSunbeds({ slots, selected, onToggle, readOnly = false, landmarks = [] }: {
   slots: SunbedSlot[];
   landmarks?: Landmark[];
@@ -1034,6 +1192,7 @@ function SandSunbeds({ slots, selected, onToggle, readOnly = false, landmarks = 
     }
     return Math.max(26, Math.min(base, min * 0.84));
   }, [slots, box]);
+  const tierOf = useMemo(() => tierInfo(slots), [slots]);
   return (
     <div ref={ref} className="absolute inset-0">
       {slots.map((s) => (
@@ -1045,7 +1204,12 @@ function SandSunbeds({ slots, selected, onToggle, readOnly = false, landmarks = 
           className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
           style={{ left: `${s.x}%`, top: `${s.y}%`, width: size, height: size }}
         >
-          <Sunbed state={s.state} sel={selected.has(s.id)} price={s.price} label={`${s.id}${s.access ? " (step-free)" : ""}${s.inv ? ` — ${s.inv}` : ""}`} fill readOnly={readOnly} onClick={readOnly ? undefined : () => onToggle?.(s, cells.current.get(s.id) ?? null)} />
+          <Sunbed state={s.state} sel={selected.has(s.id)} price={s.price} label={`${s.id}, ${tierOf(s).tier.name}${s.access ? " (step-free)" : ""}${s.inv ? ` — ${s.inv}` : ""}`} fill readOnly={readOnly} onClick={readOnly ? undefined : () => onToggle?.(s, cells.current.get(s.id) ?? null)} />
+          {!readOnly && s.state === "a" && size >= 30 && (
+            <span aria-hidden className="absolute left-1/2 -translate-x-1/2 -bottom-2 rounded px-1 text-[9px] font-bold leading-[13px] text-white whitespace-nowrap pointer-events-none shadow-sm" style={{ background: tierOf(s).tier.color }}>
+              {tierOf(s).tier.letter} €{s.price}
+            </span>
+          )}
           {s.inv && <span aria-hidden title={s.inv} className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-navy-900 text-white text-[8px] grid place-items-center ring-2 ring-white pointer-events-none">🔒</span>}
           {s.access && <span aria-hidden className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-sky-600 text-white text-[9px] grid place-items-center ring-2 ring-white pointer-events-none">♿</span>}
         </div>
@@ -1485,5 +1649,7 @@ function humanPeople(p: People) {
 /* Renders an integer euro amount, smoothly tweened on change. */
 function LiveEuro({ value }: { value: number }) {
   const display = useAnimatedNumber(value);
-  return <span className="tnum">{Math.round(display).toLocaleString()}</span>;
+  // Cents when the total has them, so it reads exactly like checkout (AENR-569).
+  const cents = Math.round(value * 100) % 100 !== 0;
+  return <span className="tnum">{cents ? display.toFixed(2) : Math.round(display).toLocaleString()}</span>;
 }

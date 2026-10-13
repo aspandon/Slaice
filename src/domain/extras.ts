@@ -5,6 +5,7 @@
 
 import { dayMatches } from "./pricing";
 import type { PriceRuleDays } from "./types";
+import { DEFAULT_POLICY, type GuestPolicy } from "./visits";
 
 export interface TicketCat {
   id: string;
@@ -50,6 +51,8 @@ export interface LockerProvider {
   reported: Record<string, number>;
 }
 export interface ExtrasState {
+  /** Cancellation, deposit and release rules shown to guests (AENR-569 / 574 / 578). */
+  policy: GuestPolicy;
   tickets: TicketCat[];
   lockers: LockerBank[];
   rules: ExtraRule[];
@@ -59,6 +62,7 @@ export interface ExtrasState {
 }
 
 export const DEFAULT_EXTRAS: ExtrasState = {
+  policy: DEFAULT_POLICY,
   tickets: [
     {
       id: "adult",

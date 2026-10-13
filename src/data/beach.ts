@@ -234,3 +234,14 @@ export const TENANT = {
 /** Default zones closed for the day (demo seed) — the live list is the app
  *  zone's `closedStores`, edited in Beach, Availability & Pricing. */
 export const DEFAULT_CLOSED_STORES: Record<string, string> = { bolivar: "Closed today — private event" };
+
+/** A deterministic demo forecast per date (AENR-567 / 570): today follows the
+ *  demo scene's weather; other days are mostly sunny summer days. */
+export function forecastFor(iso: string, today: string, todayKind: WeatherKind): { kind: WeatherKind; tempC: number } {
+  if (iso === today) return { kind: todayKind, tempC: WEATHER_DEMO[todayKind].tempC };
+  let h = 0;
+  for (const c of iso) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const r = h % 20;
+  const kind: WeatherKind = r < 13 ? "sunny" : r < 16 ? "windy" : r < 19 ? "overcast" : "rainy";
+  return { kind, tempC: WEATHER_DEMO[kind].tempC + ((h >> 5) % 4) - 1 };
+}

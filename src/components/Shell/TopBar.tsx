@@ -126,10 +126,9 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
     <header
       className={
         persona === "customer"
-          ? // Customer: a compact action cluster pinned to the top-right corner,
-            // floating over the beach surface (the centered tenant logo sits
-            // separately in App). fixed so it stays reachable while scrolling.
-            "glass text-navy-900 rounded-2xl flex items-center z-40 shadow-soft fixed top-3 right-3 sm:right-5 px-1.5 py-1 gap-0.5"
+          ? // Customer: a compact action cluster. Phones: part of the layout (sticky,
+            // content starts below it — AENR-575); md+: pinned to the top-right corner.
+            "glass text-navy-900 rounded-2xl flex items-center z-40 shadow-soft order-first md:order-none sticky top-2 self-end w-max mb-2 md:mb-0 md:fixed md:top-3 md:right-5 px-1.5 py-1 gap-0.5"
           : "glass text-navy-900 rounded-2xl mb-4 flex items-center relative z-30 shadow-soft sticky top-2 px-1.5 sm:px-2 py-1.5 gap-1 sm:gap-2"
       }
     >
@@ -308,6 +307,10 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
         {/* While previewing a staff user (RBAC) the role is fixed — exit via the banner. */}
         {persona !== "customer" && !previewing && (
           <PersonaSwitcher persona={persona} setPersona={setPersona} variant="role" />
+        )}
+        {/* Phones: the customer's Demo menu (persona + scene) docks here instead of floating (AENR-575). */}
+        {persona === "customer" && !previewing && (
+          <span className="md:hidden"><PersonaSwitcher persona={persona} setPersona={setPersona} variant="demo" compact /></span>
         )}
       </div>
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />

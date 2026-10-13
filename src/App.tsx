@@ -195,12 +195,12 @@ export default function App() {
   const [layouts, setLayoutsState] = useState<LayoutState>({ ...DEFAULT_LAYOUT_STATE, ...(saved.layouts || {}) });
   const setLayouts = useCallback((u: (s: LayoutState) => LayoutState) => setLayoutsState(u), []);
   const [extras, setExtrasState] = useState<ExtrasState>(() => {
-    const e: ExtrasState = { ...DEFAULT_EXTRAS, ...(saved.extras || {}) };
+    const e: ExtrasState = { ...DEFAULT_EXTRAS, ...(saved.extras || {}), policy: { ...DEFAULT_EXTRAS.policy, ...(saved.extras?.policy || {}) } };
     // "AMEA" is shown as ΑμεΑ with its meaning (AENR-552).
     return { ...e, tickets: e.tickets.map((t) => (t.id === "amea" && t.short === "AMEA" ? { ...t, name: "ΑμεΑ (persons with disabilities)", short: "ΑμεΑ" } : t)) };
   });
   const setExtras = useCallback((u: (s: ExtrasState) => ExtrasState) => setExtrasState(u), []);
-  const [account, setAccountState] = useState<AccountState>({ ...DEFAULT_ACCOUNT, ...(saved.account || {}) });
+  const [account, setAccountState] = useState<AccountState>({ ...DEFAULT_ACCOUNT, ...(saved.account || {}), selfService: { ...DEFAULT_ACCOUNT.selfService, ...(saved.account?.selfService || {}) } });
   const setAccount = useCallback((u: (s: AccountState) => AccountState) => setAccountState(u), []);
   const [platform, setPlatformState] = useState<PlatformState>(() => {
     const base = emptyPlatform(DEFAULT_TENANTS);
@@ -478,7 +478,7 @@ export default function App() {
               corner on the customer surface — a quiet demo affordance, opening
               upward, lifted clear of the mobile bottom tab bar. */}
           {persona === "customer" && !viewAs && (
-            <div className="fixed right-3 sm:right-5 z-40 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] md:bottom-4">
+            <div className="hidden md:block fixed right-5 z-40 bottom-4">
               <PersonaSwitcher persona={persona} setPersona={setPersona} variant="demo" side="top" />
             </div>
           )}
