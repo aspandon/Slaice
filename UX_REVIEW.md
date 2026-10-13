@@ -454,3 +454,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-622 — sign in without forms.** Continue with Apple / Google or a passkey in one tap; e-mail
   is behind “Use e-mail instead”; the 18+ confirmation moved to the first booking; the cookie banner no
   longer covers the sign-in buttons.
+- **AENR-614 — month-end fixes what it can.** Prepare month re-sends pending documents and drafts the
+  missing credit notes; rejected documents get one review sheet; Close unlocks when nothing blocks.

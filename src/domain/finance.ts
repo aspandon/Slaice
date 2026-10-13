@@ -40,6 +40,14 @@ export interface FinanceConfig {
   settlement: "monthly" | "weekly";
   provider: EInvoiceProvider;
   providerConnected: boolean;
+  /** Month-end state per month "YYYY-MM" (AENR-614): what Prepare fixed, and when the month was closed. */
+  months?: Record<string, MonthClose>;
+}
+export interface MonthClose {
+  prepared?: { at: string; resent: number; creditNotes: number };
+  /** Rejected documents the accountant corrected and re-sent. */
+  corrected?: number;
+  closedAt?: string;
 }
 
 export const FEE_BASIS_LABEL: Record<FeeBasis, string> = {

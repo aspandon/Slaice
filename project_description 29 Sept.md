@@ -1907,6 +1907,14 @@ For a guest who isn't at the beach yet — Support Agent, Call Center and Admin 
   closed month, a check for the current one), payouts in transit, card refunds without a credit note.
   Each opens Documents & Payments filtered to those records (`?tab=…&status=…&from=…&to=…`) or the
   payouts page.
+- **Prepare month** (AENR-614): one step fixes what a machine can — re-sends the documents still waiting for
+  myDATA and drafts the missing credit notes for card refunds — and reports it (“Prepared 15:23 — 126 re-sent
+  to myDATA, 20 credit notes drafted.”). Only what needs a person stays: **rejected documents** open a
+  **Review** sheet (number, date, counterparty, amount and the reason — VAT number not in the registry,
+  credit note without the original's MARK, duplicate number) with **Corrected — re-send N**; payouts in
+  transit stay a check. When nothing blocks and the month has ended, **Close {month}** appears; a closed
+  month shows “Closed {date}” with **Reopen** (Undo in the notice). Stored per month in the tenant's finance
+  config (`months[YYYY-MM]`: prepared, corrected, closedAt).
 - **VAT summary** by rate from the document lines, and **documents by type**.
 - **Export month** in a layout for Generic CSV, Epsilon Net (Pylon), SoftOne or Entersoft (semicolon and
   decimal comma for the Greek packages, UTF-8 BOM, myDATA type codes).

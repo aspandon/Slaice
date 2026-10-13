@@ -1,15 +1,19 @@
 import { useMemo, useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, EmptyState, PageHead, Select, fmtDateGB, ExportMenu } from "../../components/ui";
+import { Badge, Btn, Card, EmptyState, Modal, PageHead, Select, fmtDateGB, ExportMenu } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { readHashQuery, writeHashQuery } from "../../app/router";
 import { documents, transactions } from "../../data/ledger";
 import { DEMO_TODAY } from "../../domain/period";
 import { downloadText, downloadReport } from "../../lib/download";
 import { useFinanceData } from "../reporting/FinanceTabs";
+import { useFinance } from "../../lib/useFinance";
 import {
   EXPORT_PRESETS,
+  applyPrepared,
   exceptions,
+  fixable,
+  rejectionReason,
   exportMonth,
   seasonMonths,
   summarize,
@@ -53,9 +57,41 @@ export function MonthEnd() {
     () => transactions(range, null, till.sales, fin.flow.stripePct),
     [range, till.sales, fin.flow.stripePct],
   );
-  const s = useMemo(() => summarize(docs, txs, fin.pay), [docs, txs, fin.pay]);
+  // Prepare month (AENR-614) fixes what it can; Close unlocks once nothing blocks.
+  const [cfg, setCfg] = useFinance();
+  const state = cfg.months?.[ref.month] ?? {};
+  const setState = (u: typeof state) => setCfg({ ...cfg, months: { ...(cfg.months ?? {}), [ref.month]: u } });
+  const raw = useMemo(() => summarize(docs, txs, fin.pay), [docs, txs, fin.pay]);
+  const s = applyPrepared(raw, state.prepared, state.corrected);
   const ex = exceptions(s, ref.open);
   const blocking = ex.filter((e) => e.severity === "blocking").length;
+  const fx = fixable(s);
+  const toFix = fx.resend + fx.creditNotes;
+  const [preparing, setPreparing] = useState(false);
+  const prepare = () => {
+    setPreparing(true);
+    window.setTimeout(() => {
+      const prev = state.prepared;
+      setState({ ...state, prepared: { at: new Date().toISOString(), resent: (prev?.resent ?? 0) + fx.resend, creditNotes: (prev?.creditNotes ?? 0) + fx.creditNotes } });
+      setPreparing(false);
+      const parts = [fx.resend ? `${fx.resend} re-sent to myDATA` : "", fx.creditNotes ? `${fx.creditNotes} credit note${fx.creditNotes > 1 ? "s" : ""} drafted` : ""].filter(Boolean);
+      toast(`${ref.label} prepared — ${parts.join(", ")}.`, { tone: "success" });
+    }, 1200);
+  };
+  // Rejected documents need a person: review them in one place, then re-send.
+  const [review, setReview] = useState(false);
+  const rejected = docs.filter((d) => d.status === "failed").slice(state.corrected ?? 0);
+  const resendCorrected = () => {
+    setState({ ...state, corrected: (state.corrected ?? 0) + rejected.length });
+    setReview(false);
+    toast(`${rejected.length} corrected document${rejected.length > 1 ? "s" : ""} re-sent — myDATA accepted them.`, { tone: "success" });
+  };
+  const canClose = !ref.open && blocking === 0 && !state.closedAt;
+  const closeMonth = () => {
+    const before = state;
+    setState({ ...state, closedAt: `${DEMO_TODAY}T${new Date().toTimeString().slice(0, 5)}` });
+    toast(`${ref.label} closed.`, { tone: "success", action: { label: "Undo", onClick: () => setState(before) } });
+  };
   const [preset, setPreset] = useState<ExportPreset>("generic");
 
   const open = (t: ExceptionTarget) => {
@@ -147,7 +183,20 @@ export function MonthEnd() {
               {EXPORT_PRESETS.find((p) => p.id === preset)?.note}
             </p>
           </div>
-          {ex.length === 0 ? (
+          {state.closedAt ? (
+            <div className="flex items-center gap-2">
+              <Badge tone="green">
+                <Icon.lock size={12} /> Closed {fmtDateGB(state.closedAt.slice(0, 10))}
+              </Badge>
+              <Btn size="sm" variant="ghost" onClick={() => setState({ ...state, closedAt: undefined })}>
+                Reopen
+              </Btn>
+            </div>
+          ) : canClose ? (
+            <Btn variant="primary" icon={Icon.lock} onClick={closeMonth}>
+              Close {ref.label}
+            </Btn>
+          ) : ex.length === 0 ? (
             <Badge tone="green">
               <Icon.checkCircle size={12} /> Ready to close
             </Badge>
@@ -196,8 +245,32 @@ export function MonthEnd() {
         <Card className="p-5">
           <h3 className="font-semibold text-navy-900 mb-1">Exceptions to clear</h3>
           <p className="text-[12.5px] text-slate-500 mb-3">
-            Blocking items stop the month from being closed; the others need a check.
+            {ref.open
+              ? "The month is still running — it can be closed once it ends."
+              : "Blocking items stop the month from being closed; the others need a check."}
           </p>
+          {/* One step fixes what a machine can; only what needs a person stays below. */}
+          {toFix > 0 && (
+            <div className="mb-3 rounded-xl ring-1 ring-teal-200 bg-teal-50/60 px-3.5 py-3 flex flex-wrap items-center gap-3">
+              <Icon.sparkles size={16} className="text-teal-700 shrink-0" />
+              <div className="min-w-0 flex-1 basis-56 text-[13px] text-navy-900">
+                <b>Prepare {ref.label}</b> —{" "}
+                {[fx.resend ? `re-send ${fx.resend} document${fx.resend > 1 ? "s" : ""} to myDATA` : "", fx.creditNotes ? `draft ${fx.creditNotes} missing credit note${fx.creditNotes > 1 ? "s" : ""}` : ""].filter(Boolean).join(" and ")}
+                . Only what needs you stays on the list.
+              </div>
+              <Btn variant="teal" size="sm" icon={Icon.sparkles} loading={preparing} onClick={prepare}>
+                Prepare month
+              </Btn>
+            </div>
+          )}
+          {state.prepared && toFix === 0 && (
+            <p role="status" className="mb-3 text-[12.5px] text-emerald-800 flex items-center gap-1.5">
+              <Icon.checkCircle size={14} /> Prepared{" "}
+              {new Date(state.prepared.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} —{" "}
+              {state.prepared.resent} re-sent to myDATA, {state.prepared.creditNotes} credit note
+              {state.prepared.creditNotes === 1 ? "" : "s"} drafted.
+            </p>
+          )}
           {ex.length === 0 ? (
             <EmptyState
               compact
@@ -227,9 +300,15 @@ export function MonthEnd() {
                   <Badge tone={e.severity === "blocking" ? "red" : "amber"}>
                     {e.severity === "blocking" ? "Blocking" : "Check"}
                   </Badge>
-                  <Btn size="sm" variant="ghost" icon={Icon.arrowR} onClick={() => open(e.target)}>
-                    {e.target.page === "commission" ? "Open payouts" : `Show ${e.count}`}
-                  </Btn>
+                  {e.id === "mydata-failed" ? (
+                    <Btn size="sm" variant="primary" onClick={() => setReview(true)}>
+                      Review {e.count}
+                    </Btn>
+                  ) : (
+                    <Btn size="sm" variant="ghost" icon={Icon.arrowR} onClick={() => open(e.target)}>
+                      {e.target.page === "commission" ? "Open payouts" : `Show ${e.count}`}
+                    </Btn>
+                  )}
                 </li>
               ))}
             </ul>
@@ -282,6 +361,42 @@ export function MonthEnd() {
           </Card>
         </div>
       </div>
+      {review && (
+        <Modal
+          open
+          onClose={() => setReview(false)}
+          title={`${rejected.length} rejected by myDATA · ${ref.label}`}
+          wide
+          footer={
+            <>
+              <Btn variant="ghost" onClick={() => setReview(false)}>
+                Later
+              </Btn>
+              <Btn variant="primary" icon={Icon.send} onClick={resendCorrected}>
+                Corrected — re-send {rejected.length}
+              </Btn>
+            </>
+          }
+        >
+          <p className="text-[13px] text-slate-600 mb-3">
+            Fix the reason on each document (in your e-invoicing provider or the guest&apos;s details), then re-send
+            them together.
+          </p>
+          <ul className="divide-y divide-slate-100 max-h-[50vh] overflow-y-auto">
+            {rejected.map((d) => (
+              <li key={d.id} className="py-2 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[13px]">
+                <span className="font-mono font-semibold text-navy-900">
+                  {d.series}-{d.number}
+                </span>
+                <span className="text-slate-600">{fmtDateGB(d.date)}</span>
+                <span className="text-slate-700 min-w-0 truncate">{d.counterparty}</span>
+                <span className="tnum ml-auto">{eur(d.total)}</span>
+                <span className="basis-full text-[12px] text-rose-700">{rejectionReason(d)}</span>
+              </li>
+            ))}
+          </ul>
+        </Modal>
+      )}
     </div>
   );
 }

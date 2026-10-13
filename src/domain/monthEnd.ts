@@ -200,6 +200,35 @@ export function exceptions(s: MonthSummary, open: boolean): MonthException[] {
   return out;
 }
 
+/* ---------- Prepare month (AENR-614) ----------
+   What a machine can fix on its own: documents still waiting for myDATA are
+   re-sent, and card refunds without a credit note get one drafted. Rejected
+   documents (they need corrected data) and payouts in transit (they need the
+   bank statement) stay for a person. */
+export function fixable(s: MonthSummary): { resend: number; creditNotes: number } {
+  return { resend: s.mydata.pending, creditNotes: Math.max(0, s.cards.refunded - s.credits) };
+}
+/** The summary after Prepare ran: re-sent documents count as sent, drafted credit notes as issued. */
+export function applyPrepared(s: MonthSummary, p?: { resent: number; creditNotes: number }, corrected = 0): MonthSummary {
+  const resent = Math.min(p?.resent ?? 0, s.mydata.pending);
+  const fixed = Math.min(corrected, s.mydata.failed);
+  return {
+    ...s,
+    mydata: {
+      ...s.mydata,
+      sent: s.mydata.sent + resent + fixed,
+      pending: s.mydata.pending - resent,
+      pendingTotal: resent === s.mydata.pending ? 0 : s.mydata.pendingTotal,
+      failed: s.mydata.failed - fixed,
+      failedTotal: fixed === s.mydata.failed ? 0 : s.mydata.failedTotal,
+    },
+    credits: s.credits + (p?.creditNotes ?? 0),
+  };
+}
+/** Why myDATA rejected a document (demo): the usual causes, from what the document carries. */
+export const rejectionReason = (d: FiscalDoc) =>
+  d.vatNo ? "VAT number not found in the AADE registry" : d.type === "ΠΑΠΥ" || d.type === "ΠΤΠΥ" ? "Credit note without the original's MARK" : "Duplicate series / number";
+
 /* ---------- Export presets ---------- */
 export type ExportPreset = "generic" | "epsilon" | "softone" | "entersoft";
 export const EXPORT_PRESETS: { id: ExportPreset; label: string; note: string }[] = [
