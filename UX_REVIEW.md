@@ -420,3 +420,6 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-615 — undo instead of "Are you sure?".** Segment delete and campaign cancel no longer ask
   first; they happen with Undo (and ⌘Z / Ctrl+Z). Live beach moves and releases and drawer moves gained
   Undo. Confirmations remain for refunds, payouts, erasure and deleting people or tenants.
+- **AENR-616 — read first, edit when you mean to.** Ticket categories, locker banks and guest policies
+  open as read-only rows; Edit opens the fields, Done validates and applies, Cancel drops the draft;
+  on/off switches apply at once. A stray keystroke can no longer change a live price.

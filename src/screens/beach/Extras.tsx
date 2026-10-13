@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Field, Input, SaveBar, Select, Spinner, Toggle, DateInput } from "../../components/ui";
+import { Badge, Btn, Card, Field, Input, Select, Spinner, Toggle, DateInput } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { todayISO } from "../../data/beach";
 import { addDays, fmtDay } from "../../domain/period";
@@ -77,7 +77,54 @@ function useDraft() {
       tone: "success",
     });
   };
-  return { extras, draft, setDraft, dirty, errors, save, discard: () => setDraft(extras) };
+  /* Read first, edit when you mean to (AENR-616): the page opens read-only; Edit opens the
+     fields on a draft, Done validates and applies, Cancel drops the draft. A single on/off
+     switch is not an edit session — it applies at once. */
+  const [editing, setEditing] = useState(false);
+  const startEdit = () => {
+    setDraft(extras);
+    setEditing(true);
+  };
+  const cancel = () => {
+    setDraft(extras);
+    setEditing(false);
+  };
+  const done = () => {
+    if (errors.length) return;
+    if (dirty) save();
+    setEditing(false);
+  };
+  const setActive = (kind: Kind, id: string, active: boolean) => {
+    const flip = (st: ExtrasState): ExtrasState =>
+      kind === "ticket"
+        ? { ...st, tickets: st.tickets.map((t) => (t.id === id ? { ...t, active } : t)) }
+        : { ...st, lockers: st.lockers.map((l) => (l.id === id ? { ...l, active } : l)) };
+    setExtras(flip);
+    setDraft(flip);
+  };
+  return { extras, draft, setDraft, dirty, errors, save, discard: () => setDraft(extras), editing, startEdit, cancel, done, setActive };
+}
+type Draft = ReturnType<typeof useDraft>;
+
+/** Edit ↔ Cancel / Done for a card header; the first blocking problem shows under it. */
+function EditControls({ d, children }: { d: Draft; children?: React.ReactNode }) {
+  return d.editing ? (
+    <div className="flex flex-wrap items-center gap-2">
+      {children}
+      <Btn size="sm" variant="ghost" onClick={d.cancel}>Cancel</Btn>
+      <Btn size="sm" variant="primary" icon={Icon.check} disabled={d.errors.length > 0} onClick={d.done}>Done</Btn>
+    </div>
+  ) : (
+    <Btn size="sm" variant="outline" icon={Icon.edit} onClick={d.startEdit}>Edit</Btn>
+  );
+}
+function EditNote({ d }: { d: Draft }) {
+  if (!d.editing) return null;
+  return (
+    <div role={d.errors.length ? "alert" : "status"} className={`mb-2 rounded-lg px-3 py-2 text-[12.5px] ${d.errors.length ? "bg-rose-50 text-rose-800 ring-1 ring-rose-600/20" : "bg-slate-50 text-slate-600 ring-1 ring-slate-200"}`}>
+      {d.errors.length ? <><b>Can’t finish yet</b> — {d.errors[0]}</> : "Editing — guests and staff keep seeing the saved prices until you tap Done."}
+    </div>
+  );
 }
 
 /* Bulk price rules for tickets or lockers + an effective-price preview. */
@@ -85,10 +132,12 @@ function RulesAndPreview({
   kind,
   draft,
   setDraft,
+  editing,
 }: {
   kind: Kind;
   draft: ExtrasState;
   setDraft: (f: (s: ExtrasState) => ExtrasState) => void;
+  editing: boolean;
 }) {
   const items =
     kind === "ticket"
@@ -159,6 +208,8 @@ function RulesAndPreview({
     <div className="grid xl:grid-cols-2 gap-4 items-start">
       <Card className="p-4 space-y-3">
         <h3 className="font-semibold text-navy-900">Prices by period — in bulk</h3>
+        {editing ? (
+        <>
         <fieldset>
           <legend className="text-[12px] font-semibold text-slate-700 mb-1">Apply to</legend>
           <div className="flex flex-wrap gap-1.5">
@@ -259,6 +310,10 @@ function RulesAndPreview({
         <Btn variant="primary" icon={Icon.plus} disabled={!valid} onClick={add}>
           Add price rule
         </Btn>
+        </>
+        ) : (
+          <p className="text-[12.5px] text-slate-600">{rules.length ? "These rules set the price for their items, period and day type; otherwise the base price applies." : "No period prices — the base prices apply every day."} Tap <b>Edit</b> to add or remove one.</p>
+        )}
         {rules.length > 0 && (
           <ol className="space-y-1.5 text-[13px]">
             {rules.map((r) => {
@@ -276,7 +331,7 @@ function RulesAndPreview({
                       </span>
                     )}
                   </span>
-                  <button
+                  {editing && <button
                     type="button"
                     aria-label={`Remove rule ${r.label}`}
                     onClick={() =>
@@ -285,7 +340,7 @@ function RulesAndPreview({
                     className="w-8 h-8 grid place-items-center rounded-lg text-slate-400 hover:text-rose-600"
                   >
                     <Icon.trash size={14} />
-                  </button>
+                  </button>}
                 </li>
               );
             })}
@@ -359,6 +414,7 @@ export function TicketsAdmin() {
   const patch = (id: string, p: Partial<TicketCat>) =>
     setDraft((s) => ({ ...s, tickets: s.tickets.map((t) => (t.id === id ? { ...t, ...p } : t)) }));
   const sorted = [...draft.tickets].sort((a, b) => a.order - b.order);
+  const saved = [...d.extras.tickets].sort((a, b) => a.order - b.order);
   const move = (id: string, dir: -1 | 1) => {
     const i = sorted.findIndex((t) => t.id === id);
     const j = i + dir;
@@ -374,10 +430,10 @@ export function TicketsAdmin() {
   };
   return (
     <div className="space-y-4">
-      <SaveBar dirty={d.dirty} errors={d.errors} onSave={d.save} onDiscard={d.discard} note="Unsaved changes — guests and staff still see the saved prices." />
       <Card className="p-4">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
           <h2 className="font-display font-bold text-navy-900">Ticket categories</h2>
+          <EditControls d={d}>
           <Btn
             size="sm"
             variant="outline"
@@ -401,7 +457,25 @@ export function TicketsAdmin() {
           >
             Add category
           </Btn>
+          </EditControls>
         </div>
+        <EditNote d={d} />
+        {!d.editing ? (
+          <ul className="space-y-2">
+            {saved.map((t) => (
+              <li key={t.id} className={`rounded-xl ring-1 ring-slate-200 px-3 py-2.5 flex items-center gap-3 ${t.active ? "" : "opacity-60"}`}>
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-navy-900 text-[14px]">
+                    {t.name} <span className="ml-1 rounded bg-slate-100 px-1.5 py-0.5 text-[11px] font-semibold text-slate-500">{t.short}</span>
+                  </div>
+                  {t.note && <div className="text-[12.5px] text-slate-600 truncate">{t.note}</div>}
+                </div>
+                <div className="font-display font-bold text-navy-900 tnum">€{t.price}</div>
+                <Toggle on={t.active} onChange={(v) => d.setActive("ticket", t.id, v)} ariaLabel={`${t.name} on sale`} />
+              </li>
+            ))}
+          </ul>
+        ) : (
         <ul className="space-y-2">
           {sorted.map((t, i) => (
             <li
@@ -466,12 +540,13 @@ export function TicketsAdmin() {
             </li>
           ))}
         </ul>
+        )}
         <p className="mt-2 text-[11.5px] text-slate-500">
           Switched-off categories disappear from the booking wizard and the till; past sales keep
           their label.
         </p>
       </Card>
-      <RulesAndPreview kind="ticket" draft={draft} setDraft={setDraft} />
+      <RulesAndPreview kind="ticket" draft={d.editing ? draft : d.extras} setDraft={setDraft} editing={d.editing} />
     </div>
   );
 }
@@ -503,11 +578,11 @@ export function LockersAdmin() {
   const status = !pv.connected ? "Disconnected" : pv.outage ? "Outage" : "Connected";
   return (
     <div className="space-y-4">
-      <SaveBar dirty={d.dirty} errors={d.errors} onSave={d.save} onDiscard={d.discard} note="Unsaved changes — guests and staff still see the saved prices." />
       <div className="grid xl:grid-cols-[minmax(0,1fr)_380px] gap-4 items-start">
         <Card className="p-4">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
             <h2 className="font-display font-bold text-navy-900">Locker banks</h2>
+            <EditControls d={d}>
             <Btn
               size="sm"
               variant="outline"
@@ -531,7 +606,23 @@ export function LockersAdmin() {
             >
               Add bank
             </Btn>
+            </EditControls>
           </div>
+          <EditNote d={d} />
+          {!d.editing ? (
+            <ul className="space-y-2">
+              {d.extras.lockers.map((l) => (
+                <li key={l.id} className={`rounded-xl ring-1 ring-slate-200 px-3 py-2.5 flex items-center gap-3 ${l.active ? "" : "opacity-60"}`}>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-navy-900 text-[14px]">{l.name}</div>
+                    <div className="text-[12.5px] text-slate-600">{l.size} · {l.total} lockers</div>
+                  </div>
+                  <div className="font-display font-bold text-navy-900 tnum">€{l.price}<span className="text-[11px] font-medium text-slate-500">/day</span></div>
+                  <Toggle on={l.active} onChange={(v) => d.setActive("locker", l.id, v)} ariaLabel={`${l.name} on sale`} />
+                </li>
+              ))}
+            </ul>
+          ) : (
           <ul className="space-y-2">
             {draft.lockers.map((l) => (
               <li
@@ -583,6 +674,7 @@ export function LockersAdmin() {
               </li>
             ))}
           </ul>
+          )}
         </Card>
 
         <Card className="p-4 space-y-3">
@@ -702,7 +794,7 @@ export function LockersAdmin() {
           </table>
         </Card>
       </div>
-      <RulesAndPreview kind="locker" draft={draft} setDraft={setDraft} />
+      <RulesAndPreview kind="locker" draft={d.editing ? draft : d.extras} setDraft={setDraft} editing={d.editing} />
     </div>
   );
 }
