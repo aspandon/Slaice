@@ -64,7 +64,7 @@ a demo affordance; in production the role comes from sign-in.
 | **Accountant**                         | `#/accountant/…`    | Month-end (exceptions, VAT summary, accounting exports) · e-Invoicing & myDATA · Commission & Payouts · Payments & Invoices reports (read-only)                                                                                                                                                                                        |
 | **Platform / Slaice** | `#/platform/…` | **MVP:** Tenants (portfolio, saved views) · per-tenant pages `#/platform/tenant/<id>/<section>` (21 sections, ⌘K switcher, View-as with consent and audit, plans & usage, suspend / offboard) · Tenant Onboarding · Compliance & DPA. **Future:** Super Admin (modules matrix, plans, webhooks, support access log) · Verticals · Landing Page |
 
-Future screens carry an orange dot in the navigation and a _"Preview · Roadmap 2027–2029"_ banner.
+Future screens are hidden from the menus until **Show roadmap previews** is switched on in the persona menu (AENR-618); then they appear under "Coming next" with an orange dot, and each carries a _"Preview · Roadmap 2027–2029"_ banner.
 Roadmap features inside MVP screens carry a purple **FUTURE** badge instead: the customer Home's
 promo, badges, rewards and pass tiles, the German/French/Spanish/Italian languages, and the live sea
 and weather controls.

@@ -17,6 +17,16 @@ export const PERSONAS: Persona[] = [
 // `short` is the label used in the compact mobile bottom-tab bar. `area: "account"`
 // marks personal destinations: shown in the mobile nav sheet + the avatar menu, but
 // kept out of the desktop inline primary nav.
+/** The navigation a persona sees (AENR-618): roadmap (Future) pages are hidden unless the demo
+ *  switch "Show roadmap previews" is on, and then they come last under "Coming next". Direct
+ *  links to a preview keep working — this only shapes the menus. */
+export function navFor(persona: PersonaId, showPreviews: boolean): NavItem[] {
+  const all = NAV[persona] ?? [];
+  const ready = all.filter((it) => it.badge !== "Future");
+  if (!showPreviews) return ready;
+  return [...ready, ...all.filter((it) => it.badge === "Future").map((it) => ({ ...it, group: "Coming next" }))];
+}
+
 export const NAV: Record<PersonaId, NavItem[]> = {
   customer: [
     { k: "home", label: "Home", short: "Home", icon: "home" },

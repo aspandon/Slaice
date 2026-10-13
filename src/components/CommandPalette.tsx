@@ -2,7 +2,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Icon, type IconRenderer } from "../lib/icons";
 import { useApp } from "../app/store";
-import { NAV } from "../data/personas";
+import { useNav } from "../lib/useNav";
 import { CUSTOMERS } from "../data/mock";
 import { ZONES, zoneLayout } from "../data/beach";
 import { useBookingOps } from "../lib/useBookingOps";
@@ -60,7 +60,10 @@ export function CommandPalette() {
   const [i, setI] = useState(0);
   const gAt = useRef(0);
   const ops = useBookingOps();
-  const nav = NAV[persona] ?? [];
+  const nav = useNav(persona);
+  // The keyboard listener reads the current menu without re-subscribing on every render.
+  const navRef = useRef(nav);
+  navRef.current = nav;
   const has = (k: string) => nav.some((n) => n.k === k);
   const readOnly = !!viewAs; // previewing a role: look, don't act
   const active = STAFF_PERSONAS.includes(persona);
@@ -92,7 +95,7 @@ export function CommandPalette() {
         return;
       }
       if (Date.now() - gAt.current < 1200 && G_KEYS[k]) {
-        const target = G_KEYS[k].find((p) => NAV[persona]?.some((n) => n.k === p));
+        const target = G_KEYS[k].find((p) => navRef.current.some((n) => n.k === p));
         gAt.current = 0;
         if (target) {
           e.preventDefault();

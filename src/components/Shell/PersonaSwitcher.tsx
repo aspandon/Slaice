@@ -27,7 +27,7 @@ export function PersonaSwitcher({
   compact?: boolean;
 }) {
   const t = useT();
-  const { inventory, setInventory, sceneFx } = useApp();
+  const { inventory, setInventory, sceneFx, showPreviews, setShowPreviews } = useApp();
   const cur = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[0];
   const origin = side === "top" ? "origin-bottom-right" : "origin-top-right";
   return (
@@ -75,6 +75,26 @@ export function PersonaSwitcher({
               </span>
             </DropdownMenu.Item>
           ))}
+          {/* Roadmap previews (AENR-618): off by default so the menus show only what works today. */}
+          {persona !== "customer" && (
+            <>
+              <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
+              <DropdownMenu.CheckboxItem
+                checked={showPreviews}
+                onCheckedChange={(v) => setShowPreviews(v === true)}
+                onSelect={(e) => e.preventDefault()}
+                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"
+              >
+                <span className="flex-1 min-w-0">
+                  <span className="block font-semibold">{t("Show roadmap previews")}</span>
+                  <span className="block text-[11px] text-slate-500 leading-tight">{t("Future pages appear under “Coming next” in the menu.")}</span>
+                </span>
+                <span aria-hidden className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${showPreviews ? "bg-teal-600" : "bg-slate-300"}`}>
+                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${showPreviews ? "left-[18px]" : "left-0.5"}`} />
+                </span>
+              </DropdownMenu.CheckboxItem>
+            </>
+          )}
           {/* Phones: the scene demo controls live here instead of floating over content (AENR-575). */}
           {compact && persona === "customer" && (sceneFx.weather || sceneFx.daytime) && (
             <div className="border-t border-slate-200 mt-1 px-2.5 pt-2 pb-1.5">

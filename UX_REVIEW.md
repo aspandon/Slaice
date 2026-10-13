@@ -398,3 +398,6 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   optional "Add a locker or parking" row on Pay (opened inline, nothing added by default); several
   days and several zones sit behind "More options"; the footer shows guidance instead of €0 before
   the first pick; the header reads "Step 1 of 3 · When & where".
+- **AENR-618 — hide what isn't ready.** Roadmap (Future) pages leave the sidebar, phone tabs, page
+  menu and ⌘K by default; "Show roadmap previews" in the persona menu brings them back under "Coming
+  next". Direct links still open a preview with its banner.

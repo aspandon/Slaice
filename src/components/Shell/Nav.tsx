@@ -4,6 +4,7 @@ import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
 import { Badge, Sheet } from "../ui";
 import { PERSONAS, NAV } from "../../data/personas";
+import { useNav } from "../../lib/useNav";
 import type { NavItem } from "../../domain/types";
 import type { NavProps } from "./types";
 import { useT } from "../../app/store";
@@ -15,7 +16,7 @@ import { TenantNav } from "../../screens/tenant/TenantNav";
    active persona with icons, active state and roadmap (Future) badges. */
 export function NavSheet({ open, onClose, persona, page, setPage }: NavProps & { open: boolean; onClose: () => void }) {
   const t = useT();
-  const all = NAV[persona] || [];
+  const all = useNav(persona);
   const items = all.filter((it) => it.area !== "account");
   const account = all.filter((it) => it.area === "account");
   const p = PERSONAS.find((x) => x.id === persona) ?? PERSONAS[0];
@@ -59,7 +60,7 @@ export function NavSheet({ open, onClose, persona, page, setPage }: NavProps & {
    tooltips, and the full sidebar returns at xl. */
 export function Sidebar({ persona, page, setPage }: NavProps) {
   const t = useT();
-  const items = NAV[persona];
+  const items = useNav(persona);
   const p = PERSONAS.find((x) => x.id === persona) ?? PERSONAS[0];
   const rail = persona === "cashier";
   const label = rail ? "sr-only xl:not-sr-only xl:flex-1 xl:text-left" : "flex-1 text-left";
@@ -101,7 +102,7 @@ export function Sidebar({ persona, page, setPage }: NavProps) {
    TopBar above doesn't read through when the user scrolls. ---------- */
 export function PageTopNav({ persona, page, setPage }: NavProps) {
   const t = useT();
-  const items = NAV[persona];
+  const items = useNav(persona);
   return (
     <div className="sticky top-[68px] z-20 glass-card-solid rounded-2xl p-1.5 mb-4 flex gap-1.5 overflow-x-auto no-scrollbar">
       {items.map((it) => {
@@ -153,7 +154,7 @@ export function CustomerNav({ page, setPage }: Pick<NavProps, "page" | "setPage"
 export function BottomTabBar({ persona, page, setPage }: NavProps) {
   const t = useT();
   const [moreOpen, setMoreOpen] = useState(false);
-  const items = NAV[persona] || [];
+  const items = useNav(persona);
   // Account destinations always live behind "More" (the nav sheet), never as a
   // fixed tab. Primary tabs are drawn from the main destinations.
   const mainItems = items.filter((it) => it.area !== "account");

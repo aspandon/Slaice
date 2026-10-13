@@ -132,6 +132,9 @@ export interface AppContextValue {
    *  and the time-of-day lighting. */
   sceneFx: SceneFx;
   setSceneFx: (patch: Partial<SceneFx>) => void;
+  /** Roadmap (Future) pages in the navigation — off by default (AENR-618). */
+  showPreviews: boolean;
+  setShowPreviews: (v: boolean) => void;
   /** Staff notes per booking id (call-centre notes, escalations) — persisted. */
   bookingNotes: Record<string, BookingNote[]>;
   addBookingNote: (bookingId: string, note: BookingNote) => void;
@@ -256,6 +259,8 @@ export const AppCtx = createContext<AppContextValue>({
   setDayTime: () => {},
   sceneFx: DEFAULT_SCENE_FX,
   setSceneFx: () => {},
+  showPreviews: false,
+  setShowPreviews: () => {},
   bookingNotes: {},
   addBookingNote: () => {},
   staffUsers: [],
