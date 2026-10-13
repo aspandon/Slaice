@@ -394,3 +394,7 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   Switch cashier button: the next person types their own PIN (set in Team & roles), optionally counts
   the drawer, and sales carry their name. Five wrong PINs need a manager PIN. X / Z reports split
   totals by cashier and list hand-overs. (Spec K-04 Sell a locker marked retired after AENR-605.)
+- **AENR-612 — booking wizard in three steps.** When & where, Who, Pay. Locker and parking are one
+  optional "Add a locker or parking" row on Pay (opened inline, nothing added by default); several
+  days and several zones sit behind "More options"; the footer shows guidance instead of €0 before
+  the first pick; the header reads "Step 1 of 3 · When & where".

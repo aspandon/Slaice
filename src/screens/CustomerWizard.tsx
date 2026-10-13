@@ -37,13 +37,14 @@ interface TicketBreakItem { k: string; n: number; t: { price: number; label: str
 type TicketInfo = Record<string, { price: number; label: string; sub: string }>;
 export interface LockerChoice { id: string; name: string; price: number; avail: number | null }
 
+// Three steps (AENR-612): locker and parking are one optional row on Pay, not steps of their own.
 const STEPS = [
-  { id: "beach",   label: "Beach",    icon: "umbrella", sub: "Pick your zone, sunbeds & days" },
-  { id: "people",  label: "Guests",   icon: "group",    sub: "Tell us who's coming" },
-  { id: "locker",  label: "Locker",   icon: "lock",     sub: "Add a day locker (optional)", optional: true },
-  { id: "parking", label: "Parking Spot", icon: "car", sub: "Reserve a spot (optional)",    optional: true },
-  { id: "review",  label: "Review",   icon: "checkCircle", sub: "Confirm & checkout" },
+  { id: "beach",  label: "When & where", icon: "umbrella",    sub: "Pick your day, zone and sets" },
+  { id: "people", label: "Who",          icon: "group",       sub: "Tell us who's coming" },
+  { id: "review", label: "Pay",          icon: "checkCircle", sub: "Check, add extras and pay" },
 ];
+/** Old deep links to the retired locker / parking steps open the extras on Pay. */
+const EXTRA_STEPS = ["locker", "parking"];
 
 type FlipStateT = ReturnType<typeof Flip.getState>;
 
@@ -175,14 +176,22 @@ function WizardInner() {
   useSpotlight("customer", "plan");
 
   // Deep-link: a Home tile can open the wizard straight at a given step.
+  const hintStep = hint && hint.persona === "customer" && hint.page === "plan" ? hint.step : undefined;
   const initialStep = useMemo(() => {
-    if (hint && hint.persona === "customer" && hint.page === "plan" && hint.step) {
-      const i = STEPS.findIndex((s) => s.id === hint.step);
+    if (hintStep) {
+      const i = STEPS.findIndex((s) => s.id === (EXTRA_STEPS.includes(hintStep) ? "review" : hintStep));
       if (i >= 0) return i;
     }
     return 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // "Add a locker or parking" on Pay — closed until asked for (or deep-linked).
+  const [extrasOpen, setExtrasOpen] = useState(() => !!hintStep && EXTRA_STEPS.includes(hintStep));
+  const extrasRef = useRef<HTMLElement>(null);
+  // Bring the locker / parking pickers into view when they open.
+  useEffect(() => {
+    if (extrasOpen) extrasRef.current?.scrollIntoView({ block: "start", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  }, [extrasOpen]);
 
   const [stepIdx, setStepIdx] = useState(initialStep);
   const [people, setPeople] = useState<People>({ adult: 0, resident: 0, child: 0, senior: 0 });
@@ -478,7 +487,7 @@ function WizardInner() {
               <button onClick={() => go("customer", "home")} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-600 hover:text-navy-900 rounded-lg px-2 py-1 hover:bg-white/60 transition">
                 <Icon.arrowL size={14} /> {tr("Leave")}
               </button>
-              <div className="text-[12px] font-semibold text-slate-500 tnum">{stepIdx + 1} / {STEPS.length}</div>
+              <div className="text-[12px] font-semibold text-slate-500 tnum">{tr("Step")} {stepIdx + 1} {tr("of")} {STEPS.length} · <span className="text-navy-900">{tr(step.label)}</span></div>
             </div>
 
             <ProgressRail stepIdx={stepIdx} onJump={(i) => setStepIdx(i)} />
@@ -512,28 +521,6 @@ function WizardInner() {
                 onPreset={(v) => editPeople(v)}
               />
             )}
-            {step.id === "locker" && (
-              <LockerStep
-                on={lockerOn} setOn={setLockerOn}
-                scope={lockerScope} setScope={setLockerScope}
-                days={lockerDays} setDays={setLockerDays}
-                qty={lockerQty} setQty={setLockerQty}
-                selDates={selDates} multiDate={multiDate}
-                banks={lockerChoices} bank={lockerBank} setBank={setLockerBank}
-              />
-            )}
-            {step.id === "parking" && (
-              <ParkingStep
-                on={parkingOn} setOn={setParkingOn}
-                qty={parkingQty} setQty={setParkingQty}
-                scope={parkingScope} setScope={setParkingScope}
-                days={parkingDays} setDays={setParkingDays}
-                plates={plates} setPlates={setPlates}
-                spotPlates={spotPlates} setSpotPlates={setSpotPlates}
-                samePlate={parkingSamePlate} setSamePlate={setParkingSamePlate}
-                selDates={selDates} multiDate={multiDate}
-              />
-            )}
             {step.id === "review" && (
               <ReviewStep
                 people={people} totalPeople={totalPeople}
@@ -542,8 +529,54 @@ function WizardInner() {
                 includeTickets={includeTickets} ticketBreak={ticketBreak}
                 lockerOn={lockerOn} lockerQty={lockerQty} lockerDates={lockerDates}
                 parkingOn={parkingOn} parkingQty={parkingQty} parkingDates={parkingDates} plates={plates} spotPlates={spotPlates}
-                onJump={(id) => { const i = STEPS.findIndex((s) => s.id === id); if (i >= 0) setStepIdx(i); }}
+                onJump={(id) => { if (EXTRA_STEPS.includes(id)) { setExtrasOpen(true); return; } const i = STEPS.findIndex((s) => s.id === id); if (i >= 0) setStepIdx(i); }}
               />
+            )}
+            {step.id === "review" && (
+              <section ref={extrasRef} aria-label={tr("Locker and parking")} className="mt-3 mb-2 scroll-mt-2">
+                {!extrasOpen && !lockerOn && !parkingOn ? (
+                  <button
+                    type="button"
+                    onClick={() => setExtrasOpen(true)}
+                    aria-expanded={false}
+                    className="w-full flex items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white/60 px-3.5 py-3 text-left hover:border-teal-400 hover:bg-white/80 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                  >
+                    <span className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 grid place-items-center shrink-0"><Icon.plus size={15} /></span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[13.5px] font-semibold text-navy-900">{tr("Add a locker or parking")}</span>
+                      <span className="block text-[12px] text-slate-600">{tr("Optional — day lockers from")} €{Math.min(...lockerChoices.map((b) => b.price))} · {tr("parking")} €{PARKING_PRICE} {tr("a day")}</span>
+                    </span>
+                    <Icon.chevR size={15} className="text-slate-400" />
+                  </button>
+                ) : (
+                  <div className="space-y-3 rounded-2xl ring-1 ring-slate-200 bg-white/60 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-[13px] font-semibold text-navy-900">{tr("Locker and parking")}</div>
+                      {!lockerOn && !parkingOn && (
+                        <button type="button" onClick={() => setExtrasOpen(false)} className="text-[12px] font-semibold text-slate-500 hover:text-navy-900 rounded px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">{tr("Not now")}</button>
+                      )}
+                    </div>
+                    <LockerStep
+                      on={lockerOn} setOn={setLockerOn}
+                      scope={lockerScope} setScope={setLockerScope}
+                      days={lockerDays} setDays={setLockerDays}
+                      qty={lockerQty} setQty={setLockerQty}
+                      selDates={selDates} multiDate={multiDate}
+                      banks={lockerChoices} bank={lockerBank} setBank={setLockerBank}
+                    />
+                    <ParkingStep
+                      on={parkingOn} setOn={setParkingOn}
+                      qty={parkingQty} setQty={setParkingQty}
+                      scope={parkingScope} setScope={setParkingScope}
+                      days={parkingDays} setDays={setParkingDays}
+                      plates={plates} setPlates={setPlates}
+                      spotPlates={spotPlates} setSpotPlates={setSpotPlates}
+                      samePlate={parkingSamePlate} setSamePlate={setParkingSamePlate}
+                      selDates={selDates} multiDate={multiDate}
+                    />
+                  </div>
+                )}
+              </section>
             )}
           </div>
 
@@ -558,6 +591,11 @@ function WizardInner() {
           )}
           {/* Pinned footer — live total + nav. */}
           <div className="flex items-center justify-between gap-3 p-4 sm:p-5 pt-3 border-t border-slate-200/70 shrink-0">
+            {grandTotal === 0 ? (
+              <div className="leading-tight min-w-0 text-[12.5px] text-slate-600">
+                {step.id === "beach" ? (phase === "zones" ? tr("Pick a zone, then your sets.") : tr("Tap a set to add it.")) : tr("Add a set or a ticket to see the price.")}
+              </div>
+            ) : (
             <div className="leading-tight min-w-0">
               <div className="text-[11px] text-slate-600 truncate">
                 {bedSel.length ? `${bedSel.map((b) => b.id).join(", ")} · ` : ""}{selDates.length === 1 ? chipLabel(selDates[0], localeFor(lang)).sub : `${selDates.length} ${tr("days")}`}{totalPeople ? ` · ${totalPeople} ${totalPeople === 1 ? tr("guest") : tr("guests")}` : ""}
@@ -566,8 +604,9 @@ function WizardInner() {
                 <span className="font-display text-2xl font-bold text-navy-900 tnum leading-none" data-wizard-total>€<LiveEuro value={allIn} /></span>
                 <span className="text-[11px] font-semibold text-slate-600 inline-flex items-center gap-0.5">{tr("all-in")} <Icon.chevD size={12} className={showBreak ? "rotate-180 transition" : "transition"} /></span>
               </button>
-              {grandTotal > 0 && <div className={`text-[11px] font-semibold mt-0.5 truncate ${cancelText.startsWith(tr("Free")) ? "text-emerald-700" : "text-amber-700"}`}>{cancelText}</div>}
+              <div className={`text-[11px] font-semibold mt-0.5 truncate ${cancelText.startsWith(tr("Free")) ? "text-emerald-700" : "text-amber-700"}`}>{cancelText}</div>
             </div>
+            )}
             <div className="flex items-center gap-2">
               <Btn variant="ghost" icon={Icon.arrowL} onClick={back}>
                 {stepIdx === 0 && phase === "zones" ? tr("Home") : tr("Back")}
@@ -656,7 +695,12 @@ function WizardInner() {
    marker precisely on each dot. No vector-effect on the strokes: Chromium
    mis-evaluates pathLength-normalised dashes under non-scaling-stroke, which
    rendered the walked line as broken dash cycles. */
-const TRAIL_D = "M 10 8.5 C 16 6, 24 10.5, 30 8 S 44 6, 50 8.2 S 64 10.5, 70 7.8 S 84 6, 90 8.5";
+// Station centres in the 0–100 viewBox for an N-column grid, and a gently wavy footpath through them.
+const CENTRES = STEPS.map((_, i) => ((i + 0.5) / STEPS.length) * 100);
+const TRAIL_D = CENTRES.slice(1).reduce(
+  (d, x, i) => `${d} Q ${(CENTRES[i] + x) / 2} ${i % 2 ? 10.5 : 6}, ${x} 8.5`,
+  `M ${CENTRES[0]} 8.5`,
+);
 function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number) => void }) {
   const tr = useT();
   const root = useRef<HTMLDivElement>(null);
@@ -682,9 +726,9 @@ function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number
       <div
         aria-hidden="true"
         className="absolute top-[7px] w-3.5 h-3.5 rounded-full bg-white ring-2 ring-teal-500 shadow -translate-x-1/2 z-[1]"
-        style={{ left: `calc(10% + ${frac} * 80%)`, transition: "left .7s cubic-bezier(.22,1,.36,1)" }}
+        style={{ left: `calc(${CENTRES[0]}% + ${frac} * ${CENTRES[CENTRES.length - 1] - CENTRES[0]}%)`, transition: "left .7s cubic-bezier(.22,1,.36,1)" }}
       />
-      <div className="relative grid grid-cols-5">
+      <div className="relative grid" style={{ gridTemplateColumns: `repeat(${STEPS.length}, minmax(0, 1fr))` }}>
         {STEPS.map((s, i) => {
           const I = Icon[s.icon];
           const done = i < stepIdx;
@@ -707,7 +751,7 @@ function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number
               >
                 {done ? <Icon.check size={13} /> : I ? <I size={12} /> : i + 1}
               </span>
-              <span className={`text-[10px] font-semibold leading-none truncate max-w-full px-0.5 ${active ? "text-navy-900" : done ? "text-teal-700" : "text-slate-400"}`}>
+              <span className={`text-[11px] font-semibold leading-none truncate max-w-full px-0.5 ${active ? "text-navy-900" : done ? "text-teal-700" : "text-slate-400"}`}>
                 {tr(s.label)}
               </span>
             </button>
@@ -748,6 +792,7 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
   const pickedSubtotal = bedSel.reduce((a, b) => a + b.price, 0);
   const groups = [...new Set(bedSel.map((b) => b.zoneId))].map((zid) => ({ zone: ZONES.find((z) => z.id === zid) ?? zone, picks: bedSel.filter((b) => b.zoneId === zid) }));
   const [keepAsk, setKeepAsk] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const turnMulti = (v: boolean) => {
     if (v) return setMultiStore(true);
     if (groups.length > 1) return setKeepAsk(true); // never drop picks silently
@@ -761,6 +806,7 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
         <DatePickerRow value={selDates} onChange={setSelDates} multiple={multiDate} maxDays={7} blockReason={blockReason} dayInfo={dayInfo} />
         {fullDay && alternatives && <FullDayHelp day={fullDay} zoneName={phase === "sets" ? zone.name : ""} alt={alternatives} onDay={(d) => setSelDates([d])} onZone={onPickZone} />}
         {stayReasons.length > 0 && <div role="alert" className="mt-2 rounded-xl bg-amber-50 ring-1 ring-amber-600/20 px-3 py-2 text-[12px] text-amber-800 space-y-0.5">{stayReasons.map((r) => <div key={r}>{r}</div>)}</div>}
+        {multiDate && (
         <div className="mt-2 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
           <div className="flex items-start gap-2 text-[12.5px]">
             <Icon.calendar size={13} className="text-slate-500 shrink-0 mt-0.5" />
@@ -770,6 +816,7 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
           </div>
           <Toggle on={multiDate} onChange={(v) => { setMultiDate(v); if (!v && selDates.length > 1) setSelDates([selDates[0]]); }} ariaLabel={tr("Book several days at once")} />
         </div>
+        )}
       </div>
 
       {/* The map and the sunbed glyphs live on the sand; here the menu keeps only
@@ -800,14 +847,31 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
         </div>
       )}
 
-      {/* Several zones in one booking (AENR-524) — off by default. */}
-      <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
-        <div className="text-[12.5px] min-w-0">
-          <div className="font-semibold text-navy-900">{tr("Book in more than one zone")}</div>
-          <div className="text-[11px] text-slate-500">{tr("e.g. 2 sets in Macaw and 1 in Central — one payment.")}</div>
+      {/* Several days / several zones (AENR-524) live behind "More options" (AENR-612). */}
+      {!multiDate && !multiStore && !moreOpen ? (
+        <button type="button" onClick={() => setMoreOpen(true)} aria-expanded={false} className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 rounded px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+          <Icon.plus size={13} /> {tr("More options")} <span className="font-normal text-slate-500">· {tr("several days or zones")}</span>
+        </button>
+      ) : (
+        <div className="space-y-2">
+          {!multiDate && (
+            <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
+              <div className="flex items-start gap-2 text-[12.5px]">
+                <Icon.calendar size={13} className="text-slate-500 shrink-0 mt-0.5" />
+                <span className="text-slate-700">{tr("Book several days at once")}</span>
+              </div>
+              <Toggle on={multiDate} onChange={(v) => setMultiDate(v)} ariaLabel={tr("Book several days at once")} />
+            </div>
+          )}
+          <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
+            <div className="text-[12.5px] min-w-0">
+              <div className="font-semibold text-navy-900">{tr("Book in more than one zone")}</div>
+              <div className="text-[11px] text-slate-500">{tr("e.g. 2 sets in Macaw and 1 in Central — one payment.")}</div>
+            </div>
+            <Toggle on={multiStore} onChange={turnMulti} ariaLabel={tr("Book in more than one zone")} />
+          </div>
         </div>
-        <Toggle on={multiStore} onChange={turnMulti} ariaLabel={tr("Book in more than one zone")} />
-      </div>
+      )}
       {multiStore && bedSel.length > 0 && (
         <section aria-label={tr("Your sets by zone")} className="rounded-xl ring-1 ring-teal-300 bg-teal-50/80 px-3 py-2.5 space-y-2">
           {groups.map((g) => (
@@ -1610,15 +1674,18 @@ function ReviewStep({ people, totalPeople, selDates, zone, bedSel = [], includeT
         body={includeTickets ? ticketBreak.filter((t) => t.n > 0).map((t) => `${t.n} × ${tr(t.t.label)}`).join(" · ") || "—" : tr("Not included")}
         onEdit={() => onJump("people")}
       />
-      <ReviewRow icon={Icon.lock} title={tr("Day locker")} body={lockerOn && lockerDates.length > 0 ? `${lockerQty} ${lockerQty !== 1 ? tr("lockers") : tr("locker")} · ${lockerDates.length} ${lockerDates.length !== 1 ? tr("days") : tr("day")}` : tr("Not added")} onEdit={() => onJump("locker")} />
-      <ReviewRow
-        icon={Icon.car}
-        title={tr("Parking Spot")}
-        body={parkingOn && parkingDates.length > 0
-          ? `${parkingQty} ${parkingQty !== 1 ? tr("spots") : tr("spot")} · ${parkingDates.length} ${parkingDates.length !== 1 ? tr("days") : tr("day")} · ${plateSummary}`
-          : tr("Not added")}
-        onEdit={() => onJump("parking")}
-      />
+      {/* Locker and parking show here once added; "Add a locker or parking" below adds them (AENR-612). */}
+      {lockerOn && lockerDates.length > 0 && (
+        <ReviewRow icon={Icon.lock} title={tr("Day locker")} body={`${lockerQty} ${lockerQty !== 1 ? tr("lockers") : tr("locker")} · ${lockerDates.length} ${lockerDates.length !== 1 ? tr("days") : tr("day")}`} onEdit={() => onJump("locker")} />
+      )}
+      {parkingOn && parkingDates.length > 0 && (
+        <ReviewRow
+          icon={Icon.car}
+          title={tr("Parking Spot")}
+          body={`${parkingQty} ${parkingQty !== 1 ? tr("spots") : tr("spot")} · ${parkingDates.length} ${parkingDates.length !== 1 ? tr("days") : tr("day")} · ${plateSummary}`}
+          onEdit={() => onJump("parking")}
+        />
+      )}
     </div>
   );
 }

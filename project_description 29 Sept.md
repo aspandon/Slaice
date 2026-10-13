@@ -535,17 +535,19 @@ Entrance motion: full choreography once per session, then a quick card stagger o
           │   (shoreline animates up — the sand fills the screen)
           ▼
  ┌─ glass menu over the sea ────────────────────────────────────────────────────┐
- │ ◀ Leave                                                              1 / 5   │
- │   (1)━━━━━━━━━━(2)┄┄┄┄┄┄┄┄┄┄(3)┄┄┄┄┄┄┄┄┄┄(4)┄┄┄┄┄┄┄┄┄┄(5)                    │
- │  Beach       Guests      Locker     Parking      Review                      │
+ │ ◀ Leave                                     Step 1 of 3 · When & where       │
+ │        (1)━━━━━━━━━━━━━━━━━━(2)┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄(3)                          │
+ │    When & where             Who                  Pay                          │
  │  reached stations jump back · forward only via Continue                      │
  ├──────────────────────────────────────────────────────────────────────────────┤
- │  Total €110 (animated)                        [◀ Back / Home]  [Continue ▶]  │
+ │  Total €110 (animated) — before a pick: "Pick a zone, then your sets."       │
+ │                                               [◀ Back / Home]  [Continue ▶]  │
  └──────────────────────────────────────────────────────────────────────────────┘
    the beach (sand) below is the tappable surface · guidance bar · powered by SLAiCE
 
- (1) BEACH ─ "Pick your zone, sunbeds & days"
-   Dates  [Today][Tomorrow][Thu 1][Fri 2]…▶ [calendar]   ◆ several days? ─▶ up to 7
+ (1) WHEN & WHERE ─ "Pick your day, zone and sets"
+   Dates  [Today][Tomorrow][Thu 1][Fri 2]…▶ [calendar]
+   + More options · several days or zones ─▶ several days (up to 7) · more than one zone
    ┌─ phase ZONES ────────────────────┐   tap   ┌─ phase SETS ─────────────────────┐
    │ ≥768×560: panoramic clusters     │ ──────▶ │ SEA / FRONT ROW                  │
    │   Akanthus  Central  Macaw …     │  zoom   │  x x o o h o o x   o available   │
@@ -556,23 +558,19 @@ Entrance motion: full choreography once per session, then a quick card stagger o
    pick fx: umbrella pops ─▶ sand ripple ─▶ "+€25" chip flies ─▶ Total pulses
    summary: "2 umbrella sets · CE-01, CE-04 · €50 × 1 day"  [Clear]
 
- (2) GUESTS ─ "Tell us who's coming"
+ (2) WHO ─ "Tell us who's coming"
    Quick picks  [Solo] [Couple] [Family · 4] [Group · 6]      [+ Add Entry tickets]
    Individual 13+  €10   [−] 4 [+]      ◀── auto: 2 adults per picked set,
    Alimos resident  €6   [−] 0 [+]          until the guest edits
    Child 6–12       €5   [−] 0 [+]
    Senior 65+       €7   [−] 0 [+]      ◆ guests > 2 × sets? ─▶ amber warning
 
- (3) LOCKER (optional)          ◆ [Yes, add lockers] / [No, skip]
-   qty [−] 1 [+] × €5/day       multi-day ─▶ ◆ [all days] / [specific days: chips]
-
- (4) PARKING SPOT (optional)    ◆ [Yes, reserve parking] / [No, skip]
-   qty [−] 1 [+] × €15/day      multi-day ─▶ ◆ [all days] / [specific days]
-   plates:  1 spot ─▶ one plate (or one per day if "Same car plate" is off)
-            N spots ─▶ one plate per spot           missing ─▶ "plate pending"
-
- (5) REVIEW ─ rows with [Edit] ─▶ jump back to that step
-   Beach · Dates · Guests · Entry tickets · Day locker · Parking Spot
+ (3) PAY ─ rows with [Edit] ─▶ jump back to that step
+   Beach · Dates · Guests · Entry tickets (+ Day locker · Parking Spot once added)
+   [+ Add a locker or parking — optional · lockers from €5 · parking €15 a day]
+     └─▶ opens inline (nothing added by default; "Not now" closes it):
+         LOCKER   ◆ [Yes, add lockers] / [No, skip] · bank · qty × €/day · multi-day: all / some days
+         PARKING  ◆ [Yes, reserve parking] / [No, skip] · qty × €15/day · plates (one, per day or per spot)
    [Confirm · €110]  (disabled while total = €0)
           │
           ▼
@@ -585,16 +583,19 @@ Entrance motion: full choreography once per session, then a quick card stagger o
 **Trigger:** hero CTA, Claim, Book again, Use it, "Plan my visit" buttons, the Plan tab.
 
 **Layout:** a glass menu panel over the sea (top) + the tappable beach (sand) below + a guidance bar
-(bottom) + "powered by SLAiCE". Header: **Leave** (back to Home), step counter "n / 5", and a
-**progress rail** drawn as a footpath across the sand with 5 stations (tap a reached station to jump
-back; forward only via Continue). Footer:
-live **Total €** (animated) + **Back/Home** + **Continue** (or **Confirm · €total** on the last step).
+(bottom) + "powered by SLAiCE". **Three steps** (AENR-612): **When & where**, **Who**, **Pay** —
+locker and parking are one optional row on Pay, not steps of their own (old deep links to the locker
+or parking step open that row). Header: **Leave** (back to Home), "Step n of 3 · <step>", and a
+**progress rail** drawn as a footpath across the sand with 3 stations (tap a reached station to jump
+back; forward only via Continue). Footer: live **Total €** (animated) + **Back/Home** + **Continue** (or
+**Confirm · €total** on the last step); before anything is picked it shows guidance instead of €0.
 
 **Step 1 — Beach** ("Pick your zone, sunbeds & days")
 
 1. **Dates** — "When are you coming?": a horizontal strip of 7 date chips (Today, Tomorrow, weekday +
-   date) with arrows and a full calendar modal. Toggle **"Book several days at once"** enables
-   multi-select up to **7 days**; turning it off keeps only the first date.
+   date) with arrows and a full calendar modal. **More options** (collapsed until asked for) holds
+   **"Book several days at once"** — multi-select up to **7 days**; turning it off keeps only the first
+   date — and **"Book in more than one zone"**.
 2. **Choose a zone** — phase _zones_:
    - Tablet/desktop (≥ 768 px wide and ≥ 560 px tall): a **panoramic beach** — each zone's real umbrella
      rows laid out as a cluster on the sand, auto-spaced so they never overlap, with name, optional
