@@ -12,6 +12,7 @@ import { useTill } from "../cashier/useTill";
 import { NO_SHOW_CUTOFF } from "../../domain/sunbedOps";
 import { fmtDateGB } from "../../components/ui/DateInput";
 
+import { useUndoToast } from "../../lib/useUndo";
 /* ============ Admin › Today (AENR-560) ============
    The manager's home: what is happening on the beach right now and what needs
    attention — occupancy per zone, arrivals and check-ins, no-shows, the gate,
@@ -43,6 +44,7 @@ export function AdminToday() {
   const tillOps = useTill();
   const inbox = useInbox("admin").filter((i) => i.kind === "action");
   const [confirming, setConfirming] = useState<string | null>(null);
+  const undo = useUndoToast();
   const [done, setDone] = useState<{ id: string; text: string }[]>([]);
   const finish = (id: string, text: string) => {
     setDone((d) => [{ id: `${id}-${d.length}`, text }, ...d]);
@@ -91,17 +93,10 @@ export function AdminToday() {
       ops.release(s.id, DEMO_TODAY, `No-show after ${NO_SHOW_CUTOFF} — released for resale`, bookingOf(s)?.booking?.id),
     );
     finish("noshow", `Released ${noShows.length} no-show set${noShows.length === 1 ? "" : "s"} for resale`);
-    toast(`${noShows.length} set${noShows.length === 1 ? "" : "s"} back on sale online, at the till and on the beach.`, {
-      tone: "success",
-      duration: 7000,
-      action: {
-        label: "Undo",
-        onClick: () => {
-          setSunbedOps(() => prev.sunbed);
-          setBookingOps(() => prev.ops);
-          setDone((d) => d.slice(1));
-        },
-      },
+    undo(`${noShows.length} set${noShows.length === 1 ? "" : "s"} back on sale online, at the till and on the beach.`, () => {
+      setSunbedOps(() => prev.sunbed);
+      setBookingOps(() => prev.ops);
+      setDone((d) => d.slice(1));
     });
   };
   const fromInbox = (i: InboxItem): Attention => {

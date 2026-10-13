@@ -14,6 +14,7 @@ import { useLiveSlots } from "../../lib/useLiveSlots";
 import { useBeachState } from "../../lib/useBeachState";
 import type { SunbedSlot } from "../../domain/types";
 
+import { useUndoToast } from "../../lib/useUndo";
 /* ============ Admin › Live beach (AENR-580) ============
    The manager runs the beach from the map: every set with its code and live
    state (free, booked, checked in, unpaid, held, out of service, no-show), a
@@ -41,7 +42,13 @@ const unit = (key: string) => {
 };
 
 export function AdminLiveBeach() {
-  const { toast } = useApp();
+  const { sunbedOps, bookingOps, setSunbedOps, setBookingOps } = useApp();
+  // Moves and releases are reversible: they happen at once with Undo (AENR-615).
+  const undo = useUndoToast();
+  const snapshot = () => {
+    const prev = { s: sunbedOps, b: bookingOps };
+    return () => { setSunbedOps(() => prev.s); setBookingOps(() => prev.b); };
+  };
   const [date, setDate] = useState(DEMO_TODAY);
   // ?zone=&set= open a zone with a set selected (deep links from ⌘K, AENR-553).
   const [zoneId, setZoneId] = useState(() => readHashQuery().get("zone") ?? "central");
@@ -112,23 +119,21 @@ export function AdminLiveBeach() {
     else ops.moveSet(date, from.id, to, "Moved on the live map");
   };
   const movePairs = () => {
+    const restore = snapshot();
     sources.forEach((s, i) => moveOne(s, targets[i].id));
-    toast(
-      `${sources.map((s, i) => `${s.id} → ${targets[i].id}`).join(", ")} — bookings and both sets updated everywhere.`,
-      { tone: "success" },
-    );
+    undo(`${sources.map((s, i) => `${s.id} → ${targets[i].id}`).join(", ")} — bookings and both sets updated everywhere.`, restore);
     setSel(new Set(targets.map((t) => t.id)));
   };
   const moveSingle = () => {
     if (!moveTo || sources.length !== 1) return;
+    const restore = snapshot();
     moveOne(sources[0], moveTo);
-    toast(`${sources[0].id} → ${moveTo} — booking and both sets updated everywhere.`, {
-      tone: "success",
-    });
+    undo(`${sources[0].id} → ${moveTo} — booking and both sets updated everywhere.`, restore);
     setSel(new Set([moveTo]));
     setMoveTo("");
   };
   const releaseNoShows = (list: SunbedSlot[]) => {
+    const restore = snapshot();
     list.forEach((s) =>
       ops.release(
         s.id,
@@ -137,10 +142,7 @@ export function AdminLiveBeach() {
         bookingOf(s)?.booking?.id,
       ),
     );
-    toast(
-      `${list.map((s) => s.id).join(", ")} released — sellable now online, at the till and on the beach.`,
-      { tone: "success" },
-    );
+    undo(`${list.map((s) => s.id).join(", ")} released — sellable now online, at the till and on the beach.`, restore);
     setSel(new Set());
   };
   const toggle = (s: SunbedSlot) =>

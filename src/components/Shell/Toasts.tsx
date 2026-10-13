@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../../lib/icons";
 
@@ -5,6 +6,22 @@ interface ToastItem { id: number; msg: ReactNode; action?: { label: string; onCl
 
 /* ---------- Toasts ---------- */
 export function Toasts({ items, onDismiss }: { items: ToastItem[]; onDismiss?: (id: number) => void }) {
+  // ⌘Z / Ctrl+Z runs the newest Undo on screen (AENR-615) — outside text fields, which keep their own undo.
+  const latest = useRef(items);
+  latest.current = items;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "z" || e.shiftKey) return;
+      if ((e.target as HTMLElement | null)?.closest("input, textarea, [contenteditable=true]")) return;
+      const t = [...latest.current].reverse().find((x) => x.action?.label === "Undo");
+      if (!t) return;
+      e.preventDefault();
+      t.action?.onClick?.();
+      onDismiss?.(t.id);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onDismiss]);
   const tones: Record<string, { ic: string; chip: string; bar: string }> = {
     success: { ic: "checkCircle", chip: "bg-teal-500/20 text-teal-300", bar: "bg-teal-400/70" },
     error: { ic: "alert", chip: "bg-rose-500/20 text-rose-300", bar: "bg-rose-400/70" },
@@ -21,7 +38,7 @@ export function Toasts({ items, onDismiss }: { items: ToastItem[]; onDismiss?: (
             <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${tn.chip}`}><IC size={15} /></span>
             <span className="flex-1 leading-snug pt-0.5">{t.msg}</span>
             {t.action && (
-              <button onClick={() => { t.action?.onClick?.(); onDismiss?.(t.id); }}
+              <button onClick={() => { t.action?.onClick?.(); onDismiss?.(t.id); }} aria-keyshortcuts={t.action.label === "Undo" ? "Control+Z Meta+Z" : undefined}
                 className="shrink-0 self-center text-[12px] font-bold text-gold-300 hover:text-gold-200 underline underline-offset-2 px-1">
                 {t.action.label}
               </button>

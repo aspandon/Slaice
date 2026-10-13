@@ -25,6 +25,7 @@ import { fmtDay } from "../../domain/period";
 import type { ReactNode } from "react";
 
 
+import { useUndoToast } from "../../lib/useUndo";
 /* ============ USERS & SEGMENTS ============
    Guests are grouped by segments: built-in ones (VIP, Season pass, and
    "Over N visits", whose threshold is editable) plus the tenant's own
@@ -56,7 +57,17 @@ export function AdminUsers() {
   }, []);
   const [builder, setBuilder] = useState<Segment | "new" | null>(null);
   const [tagModal, setTagModal] = useState(false);
-  const [deleting, setDeleting] = useState<Segment | null>(null);
+  // Deleting a saved segment is reversible, so it happens at once with Undo (AENR-615).
+  const undo = useUndoToast();
+  const deleteSegment = (sg: Segment) => {
+    const prev = { segments: crm.segments, segId };
+    setCrm((c) => ({ ...c, segments: c.segments.filter((x) => x.id !== sg.id) }));
+    if (segId === sg.id) setSegId("all");
+    undo(`Segment “${sg.name}” deleted — guests are not affected.`, () => {
+      setCrm((c) => ({ ...c, segments: prev.segments }));
+      setSegId(prev.segId);
+    });
+  };
 
   // Seed roster + persisted edits (manual tags only — New/Regular are derived).
   const list: Customer[] = customersQ.status === "success"
@@ -282,7 +293,7 @@ export function AdminUsers() {
                   { id: "pdf", label: "Export PDF", icon: Icon.doc, onSelect: () => exportSegment(sg, "pdf") },
                   { id: "csv", label: "Export CSV", icon: Icon.download, onSelect: () => exportSegment(sg, "csv") },
                   { id: "msg", label: "Message segment", icon: Icon.mail, onSelect: () => go("admin", "communicate") },
-                  !sg.system && { id: "del", label: "Delete", icon: Icon.trash, destructive: true, onSelect: () => setDeleting(sg) },
+                  !sg.system && { id: "del", label: "Delete", icon: Icon.trash, destructive: true, onSelect: () => deleteSegment(sg) },
                 ]}
               />
             </span>
@@ -406,9 +417,6 @@ export function AdminUsers() {
         onConfirm={() => { setCrm((c) => ({ ...c, eraseRequests: [...new Set([...c.eraseRequests, ...sel])] })); toast(`Erasure requested for ${sel.size} guest${sel.size === 1 ? "" : "s"} — handle them in Privacy & GDPR.`, { tone: "success" }); setEraseAsk(false); setSel(new Set()); }} />
       {lcModal && <LifecycleModal value={crm.lifecycle} onClose={() => setLcModal(false)} onSave={(v) => { setCrm((c) => ({ ...c, lifecycle: v })); setLcModal(false); toast("Lifecycle rules saved — guests re-labelled.", { tone: "success" }); }} />}
       {tagModal && <TagModal existing={tagNames} onClose={() => setTagModal(false)} onSave={(t) => { setCrm((c) => ({ ...c, tagDefs: [...c.tagDefs, t] })); setTagModal(false); toast(`Tag “${t.name}” created — assign it from a guest's Edit.`, { tone: "success" }); }} />}
-      <ConfirmModal open={deleting !== null} onClose={() => setDeleting(null)} title={deleting ? `Delete “${deleting.name}”?` : "Delete segment"} confirmLabel="Delete segment"
-        body="Guests are not affected — only the saved segment is removed."
-        onConfirm={() => { if (deleting) { setCrm((c) => ({ ...c, segments: c.segments.filter((x) => x.id !== deleting.id) })); if (segId === deleting.id) setSegId("all"); } setDeleting(null); }} />
     </div>
   );
 }

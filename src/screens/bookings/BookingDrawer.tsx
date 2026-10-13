@@ -18,6 +18,7 @@ import { DEMO_TODAY } from "../../domain/period";
 import { Masked } from "../tenant/ViewAs";
 import { LinkActions } from "./LinkActions";
 
+import { useUndoToast } from "../../lib/useUndo";
 /* ============ Booking drawer (AENR-579) ============
    Everything about one booking: guest, items, payment, gate QR and the full
    timeline (created → paid → QR sent → scanned → refunded…), with the actions
@@ -96,7 +97,8 @@ export function BookingDrawer({
 }
 
 function DrawerBody({ b, agent }: { b: OpsBooking; agent: boolean }) {
-  const { toast, addBookingNote } = useApp();
+  const { toast, addBookingNote, sunbedOps, bookingOps, setSunbedOps, setBookingOps } = useApp();
+  const undo = useUndoToast();
   const ops = useBookingOps();
   const liveSlots = useLiveSlots("walkin");
   const [send, setSend] = useState(false);
@@ -130,8 +132,13 @@ function DrawerBody({ b, agent }: { b: OpsBooking; agent: boolean }) {
 
   const doMove = () => {
     if (!moving || !moveTo) return;
+    const prev = { s: sunbedOps, o: bookingOps };
     ops.move(b, moving, moveTo, moveWhy);
-    toast(`${b.id}: ${moving} → ${moveTo}. Both sets updated on every map.`, { tone: "success" });
+    // A move is reversible: Undo puts the booking and both sets back (AENR-615).
+    undo(`${b.id}: ${moving} → ${moveTo}. Both sets updated on every map.`, () => {
+      setSunbedOps(() => prev.s);
+      setBookingOps(() => prev.o);
+    });
     setMoving(null);
     setMoveTo("");
   };

@@ -417,3 +417,6 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   offline" moved from the cashier's screen into the persona (demo) menu.
 - **AENR-609 — the gate scans by itself.** No Scan QR button: the camera stays live, results return to
   scanning on their own, repeats within 5 s are ignored; "Demo arrivals" simulates the queue.
+- **AENR-615 — undo instead of "Are you sure?".** Segment delete and campaign cancel no longer ask
+  first; they happen with Undo (and ⌘Z / Ctrl+Z). Live beach moves and releases and drawer moves gained
+  Undo. Confirmations remain for refunds, payouts, erasure and deleting people or tenants.

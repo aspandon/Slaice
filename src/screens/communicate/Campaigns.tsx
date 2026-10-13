@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, ConfirmModal, Drawer, EmptyState } from "../../components/ui";
+import { Badge, Btn, Card, Drawer, EmptyState } from "../../components/ui";
 import { useApp } from "../../app/store";
+import { useUndoToast } from "../../lib/useUndo";
 import {
   CH_LABEL,
   WEEKDAYS,
@@ -37,8 +38,13 @@ export function CampaignsTab({ onNew }: { onNew: () => void }) {
   const { comms, setComms, toast, channels } = useApp();
   const [view, setView] = useState<"list" | "calendar">("list");
   const [open, setOpen] = useState<string | null>(null);
-  const [cancel, setCancel] = useState<Campaign | null>(null);
   const [month, setMonth] = useState(comms.clock.slice(0, 7));
+  // Cancelling a scheduled campaign is reversible, so it happens at once with Undo (AENR-615).
+  const undo = useUndoToast();
+  const cancelCampaign = (c: Campaign) => {
+    patch(c.id, { cancelled: true });
+    undo(`“${c.name}” cancelled — ${c.runs.length ? "sends already made keep their results" : "it won't send"}.`, () => patch(c.id, { cancelled: false }));
+  };
   const patch = (id: string, p: Partial<Campaign>) =>
     setComms((s) => ({
       ...s,
@@ -185,7 +191,7 @@ export function CampaignsTab({ onNew }: { onNew: () => void }) {
                       </Btn>
                     )}
                     {(st === "Scheduled" || st === "Sending" || st === "Paused") && (
-                      <Btn size="sm" variant="ghost" icon={Icon.x} onClick={() => setCancel(c)}>
+                      <Btn size="sm" variant="ghost" icon={Icon.x} onClick={() => cancelCampaign(c)}>
                         Cancel
                       </Btn>
                     )}
@@ -207,25 +213,6 @@ export function CampaignsTab({ onNew }: { onNew: () => void }) {
       ) : (
         <CalendarView month={month} setMonth={setMonth} onOpen={setOpen} />
       )}
-      <ConfirmModal
-        open={!!cancel}
-        onClose={() => setCancel(null)}
-        title={`Cancel “${cancel?.name}”?`}
-        body={
-          cancel?.runs.length
-            ? "Sends already made keep their results; the remaining ones are removed from the calendar."
-            : "It's removed from the calendar and won't send."
-        }
-        confirmLabel="Cancel campaign"
-        cancelLabel="Keep it"
-        onConfirm={() => {
-          if (cancel) {
-            patch(cancel.id, { cancelled: true });
-            toast(`“${cancel.name}” cancelled.`);
-          }
-          setCancel(null);
-        }}
-      />
       {sel && (
         <ResultsDrawer
           c={sel}
