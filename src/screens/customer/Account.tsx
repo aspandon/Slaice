@@ -19,17 +19,20 @@ import { AppleLogo } from "../../components/WalletPass";
    browser's Back returns to the list). Switches apply at once — no Save. */
 
 type Section = "profile" | "companions" | "payment" | "receipts" | "notifications" | "language" | "privacy" | "security";
-const TITLES: Record<Section, string> = {
-  profile: "Profile",
-  companions: "Companions",
-  payment: "Payment methods",
-  receipts: "Receipts & invoices",
-  notifications: "Notifications",
-  language: "Language",
-  privacy: "Privacy & cookies",
-  security: "Sign-in & security",
-};
-const isSection = (s: string | null): s is Section => !!s && s in TITLES;
+// Literal t() calls so `npm run i18n` finds every title.
+const titleOf = (s: Section, t: (x: string) => string): string =>
+  ({
+    profile: t("Profile"),
+    companions: t("Companions"),
+    payment: t("Payment methods"),
+    receipts: t("Receipts & invoices"),
+    notifications: t("Notifications"),
+    language: t("Language"),
+    privacy: t("Privacy & cookies"),
+    security: t("Sign-in & security"),
+  })[s];
+const SECTIONS = ["profile", "companions", "payment", "receipts", "notifications", "language", "privacy", "security"] as const;
+const isSection = (s: string | null): s is Section => (SECTIONS as readonly string[]).includes(s ?? "");
 const open = (s: Section | "") => {
   window.location.hash = `#/customer/account${s ? `?section=${s}` : ""}`;
 };
@@ -58,7 +61,7 @@ export function CustomerAccount() {
         <button type="button" onClick={() => open("")} className="mb-2 inline-flex min-h-[44px] items-center gap-1 rounded-lg px-2 -ml-2 text-[14px] font-semibold text-teal-700 hover:bg-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
           <Icon.chevL size={18} /> {t("Account")}
         </button>
-        <h1 className="font-display font-bold text-[26px] text-navy-900 mb-4">{t(TITLES[section])}</h1>
+        <h1 className="font-display font-bold text-[26px] text-navy-900 mb-4">{titleOf(section, t)}</h1>
         {section === "profile" && <ProfilePage />}
         {section === "companions" && <CompanionsPage />}
         {section === "payment" && <PaymentPage />}
