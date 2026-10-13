@@ -1636,7 +1636,7 @@ Roles: the tenant (beach operator) is the **controller**; Slaice is the **proces
 ### K-01 · Sell — the till [MVP]
 
 ```text
- shift strip: SH-0205 · cashier · till · since 09:00   ● Online / Offline (n queued)  [Simulate offline]
+ shift strip: SH-0205 · cashier · till · since 09:00 [Switch cashier]   ● Offline (n queued) — only while offline
  ┌─ Quick keys ─────────────────────────────────────────────┐   ┌─ Basket ─────────────────────┐
  │ [1 Adult €10] [2 Adults €20] [Adult+Child €15] [2 Res €12] [1 set from €40]   │ 2 × Adult              €20   │
  │ [↻ Repeat last sale · 2× Normal, 1× set           €60]   │
@@ -1702,6 +1702,11 @@ Roles: the tenant (beach operator) is the **controller**; Slaice is the **proces
   offline the **"Offline — what still works"** sheet opens by itself (tickets, lockers, parking,
   sunbeds from the cached map, cash and vouchers, card up to €50 / €200; e-mail and SMS receipts queue;
   myDATA waits). The tender screen explains the card limit while offline.
+- **Offline just works (AENR-607):** while online the till shows no connection status at all; the
+  amber banner and an "Offline · n queued" chip appear only while offline. When the connection returns
+  (the browser's online event) queued sales sync and go to myDATA by themselves. The demo control moved
+  out of the cashier's way into the persona menu: **Simulate till offline** (Cashier) fires the
+  browser's offline / online events, so the demo behaves exactly like a real drop and return.
 
 ### K-01a · Today's transactions [MVP]
 

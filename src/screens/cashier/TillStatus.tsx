@@ -14,7 +14,7 @@ const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: 
    demo toggle or the browser losing its connection) raises the offline banner,
    which owns reconnecting (AENR-585). */
 export function TillStatus() {
-  const { toast, viewAs } = useApp();
+  const { viewAs } = useApp();
   const t = useTill();
   const [switching, setSwitching] = useState(false);
   const queued = t.till.sales.filter((s) => s.offline).length;
@@ -37,14 +37,12 @@ export function TillStatus() {
       ) : (
         <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 ring-1 ring-amber-600/20 px-3 py-1.5 text-amber-800"><Icon.alert size={13} /> No open shift</span>
       )}
-      <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 ring-1 ${t.till.offline ? "bg-amber-50 text-amber-800 ring-amber-600/20" : "bg-emerald-50 text-emerald-800 ring-emerald-600/20"}`}>
-        <span className={`w-2 h-2 rounded-full ${t.till.offline ? "bg-amber-500" : "bg-emerald-500"}`} />
-        {t.till.offline ? `Offline${queued ? ` · ${queued} queued` : ""}` : "Online"}
-      </span>
-      {!t.till.offline && (
-        <Btn size="sm" variant="ghost" icon={Icon.globe} onClick={() => { t.setOffline(true); toast("Demo — connection lost. Keep selling: see what still works in the banner.", { tone: "warn" }); }}>
-          Simulate offline
-        </Btn>
+      {/* Online is the normal state, so it isn't shown; offline gets the banner below (AENR-607). */}
+      {t.till.offline && (
+        <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 ring-1 bg-amber-50 text-amber-800 ring-amber-600/20">
+          <span className="w-2 h-2 rounded-full bg-amber-500" />
+          Offline{queued ? ` · ${queued} queued` : ""}
+        </span>
       )}
       {switching && <SwitchCashierModal onClose={() => setSwitching(false)} />}
     </div>

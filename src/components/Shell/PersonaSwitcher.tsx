@@ -27,7 +27,7 @@ export function PersonaSwitcher({
   compact?: boolean;
 }) {
   const t = useT();
-  const { inventory, setInventory, sceneFx, showPreviews, setShowPreviews } = useApp();
+  const { inventory, setInventory, sceneFx, showPreviews, setShowPreviews, till } = useApp();
   const cur = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[0];
   const origin = side === "top" ? "origin-bottom-right" : "origin-top-right";
   return (
@@ -94,6 +94,24 @@ export function PersonaSwitcher({
                 </span>
               </DropdownMenu.CheckboxItem>
             </>
+          )}
+          {/* Demo: the till losing its connection (AENR-607). It raises the browser's own offline /
+              online events, so the till reacts exactly as to a real drop: queue, then sync on return. */}
+          {persona === "cashier" && (
+            <DropdownMenu.CheckboxItem
+              checked={till.offline}
+              onCheckedChange={(v) => window.dispatchEvent(new Event(v === true ? "offline" : "online"))}
+              onSelect={(e) => e.preventDefault()}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"
+            >
+              <span className="flex-1 min-w-0">
+                <span className="block font-semibold">{t("Simulate till offline")}</span>
+                <span className="block text-[11px] text-slate-500 leading-tight">{t("Sales queue on the till and sync when you switch it back.")}</span>
+              </span>
+              <span aria-hidden className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${till.offline ? "bg-amber-500" : "bg-slate-300"}`}>
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${till.offline ? "left-[18px]" : "left-0.5"}`} />
+              </span>
+            </DropdownMenu.CheckboxItem>
           )}
           {/* Phones: the scene demo controls live here instead of floating over content (AENR-575). */}
           {compact && persona === "customer" && (sceneFx.weather || sceneFx.daytime) && (

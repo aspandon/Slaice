@@ -412,3 +412,6 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-606 — charge in one move.** The till shows one "Charge €X" button that opens on the last-used
   tender (no more three disabled buttons on an empty basket), quick keys show their price, and
   "Repeat last sale" rebuilds the previous basket with fresh sets — a repeat sale is Repeat → Charge.
+- **AENR-607 — offline just works.** The till no longer shows "Online" all day; the offline banner and
+  chip appear only while offline, and queued sales sync on reconnect by themselves. "Simulate till
+  offline" moved from the cashier's screen into the persona (demo) menu.
