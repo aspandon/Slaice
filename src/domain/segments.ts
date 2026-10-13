@@ -289,9 +289,12 @@ export const SYSTEM_SEGMENTS: Segment[] = [
     system: true,
     updatedAt: "2026-05-01",
   },
+  // A plain visit-count segment, named by its threshold. "Regular" is a
+  // lifecycle stage only (visits over the threshold *and* recent), so the
+  // segment no longer borrows the name (AENR-548).
   {
     id: "sys-regular",
-    name: "Regular",
+    name: "Over 15 visits",
     color: "#64748b",
     kind: "dynamic",
     match: "all",
@@ -299,26 +302,47 @@ export const SYSTEM_SEGMENTS: Segment[] = [
     system: true,
     updatedAt: "2026-05-01",
   },
-  {
-    id: "sys-new",
-    name: "New",
-    color: "#22c55e",
-    kind: "dynamic",
-    match: "all",
-    rules: [{ field: "visits", op: "lt", a: 16 }],
-    system: true,
-    updatedAt: "2026-05-01",
-  },
 ];
 
-/** Built-in segments with the tenant's Regular threshold, then the saved ones. */
+/** Name of the visit-threshold segment for a tenant's threshold. */
+export const visitSegmentName = (regularAfter: number) => `Over ${regularAfter} visits`;
+
+/** Built-in segments with the tenant's visit threshold, then the saved ones. */
 export function segmentsFor(custom: readonly Segment[], regularAfter: number): Segment[] {
   const system = SYSTEM_SEGMENTS.map((sg) =>
     sg.id === "sys-regular"
-      ? { ...sg, rules: [{ field: "visits", op: "gt" as const, a: regularAfter }] }
-      : sg.id === "sys-new"
-        ? { ...sg, rules: [{ field: "visits", op: "lt" as const, a: regularAfter + 1 }] }
-        : sg,
+      ? {
+          ...sg,
+          name: visitSegmentName(regularAfter),
+          rules: [{ field: "visits", op: "gt" as const, a: regularAfter }],
+        }
+      : sg,
   );
   return [...system, ...custom];
+}
+
+/* ---------- Legacy "New" / "Regular" tags (AENR-548) ----------
+   The automatic New / Regular tags are retired: the lifecycle stage is the
+   one classification. Saved segments that filtered on those tags become the
+   equivalent visit-count rule, and the tags are dropped from saved guests. */
+const LEGACY_TAGS = ["New", "Regular"];
+export const stripLegacyTags = (tags: readonly string[]) => tags.filter((t) => !LEGACY_TAGS.includes(t));
+
+export function migrateLegacyRule(r: Rule, regularAfter: number): Rule | null {
+  if (r.field !== "tags" || !r.values?.some((v) => LEGACY_TAGS.includes(v))) return r;
+  const rest = stripLegacyTags(r.values);
+  if (rest.length) return { ...r, values: rest };
+  const regular = r.values.includes("Regular");
+  const isNew = r.values.includes("New");
+  if (regular === isNew) return null; // both (or neither) → no restriction left
+  const negated = r.op === "isNot" || r.op === "hasNone";
+  const gt = regular !== negated; // "has Regular" / "has none of New" → over the threshold
+  return gt ? { field: "visits", op: "gt", a: regularAfter } : { field: "visits", op: "lt", a: regularAfter + 1 };
+}
+
+export function migrateLegacySegments(segs: readonly Segment[], regularAfter: number): Segment[] {
+  return segs.map((sg) => ({
+    ...sg,
+    rules: sg.rules.flatMap((r) => migrateLegacyRule(r, regularAfter) ?? []),
+  }));
 }

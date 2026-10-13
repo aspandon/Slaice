@@ -1,5 +1,6 @@
 // Beach zones — values match the video (Akanthus, Central, Macaw, Bestbuy, Main, Bolivar).
 import type { Sunbed, SunbedSlot, SunbedState, Zone } from "../domain/types";
+import { DEMO_TODAY } from "../domain/period";
 
 export const ZONES: Zone[] = [
   { id: "akanthus", name: "Akanthus", avail: 67, total: 100, from: 30, color: "#6366f1", prefix: "AK" },
@@ -79,7 +80,15 @@ export function fromISO(iso: string): Date {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(y, m - 1, d);
 }
+/** "Today" for every tenant-side flow — customer, call center, cashier,
+ *  controller and back office all run on the demo calendar (AENR-547), so a
+ *  booking made in the wizard lands on the same days Reporting shows. */
 export function todayISO(): string {
+  return DEMO_TODAY;
+}
+/** The real calendar date — only the Platform console runs on it (its tenant,
+ *  billing and trial seeds are dated around the real calendar). */
+export function realTodayISO(): string {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return toISO(d);
@@ -94,8 +103,7 @@ export interface DateChip {
 // translates the "Today"/"Tomorrow" tokens. Both default to English/identity so
 // non-localized callers keep working.
 export function chipLabel(iso: string, locale = "en-GB", t: (s: string) => string = (s) => s): DateChip {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = fromISO(todayISO());
   const d = fromISO(iso);
   const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
   const sub = d.toLocaleDateString(locale, { day: "numeric", month: "short" });
@@ -105,8 +113,7 @@ export function chipLabel(iso: string, locale = "en-GB", t: (s: string) => strin
 }
 // Quick strip: today + next n-1 days, each with iso + label + sub.
 export const dateStrip = (n = 7, locale = "en-GB", t: (s: string) => string = (s) => s): Array<DateChip & { iso: string }> => {
-  const base = new Date();
-  base.setHours(0, 0, 0, 0);
+  const base = fromISO(todayISO());
   return Array.from({ length: n }).map((_, i) => {
     const dt = new Date(base);
     dt.setDate(base.getDate() + i);

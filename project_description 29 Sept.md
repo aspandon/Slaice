@@ -1158,8 +1158,8 @@ no Export and no refunds.
 ### A-06 · Users & Segments [MVP]
 
 ```text
- [Search]   filter ◆ All · VIP · Season pass · Regular · New            [New tag] (demo)
- rule:  every guest starts New ──(15 visits)──▶ Regular      VIP / Season pass = by hand
+ [Search]   filter ◆ All · VIP · Season pass · Over 15 visits · saved…   [New tag] (demo)
+ stage: First visit → Active → Regular (> 15 visits, recent) → At risk → Lapsed
 
  Name · Surname · Phone · Email · Visits · Tags · [Edit] · [Profile]     ★ = important guest
                                                     │         │
@@ -1168,15 +1168,15 @@ no Export and no refunds.
  ┌─ Edit user ─────────────────────────┐    │ Overview · Bookings · Payments · Passes │
  │ first · surname · e-mail (checked)  │    │ & loyalty · Messages · Notes ·          │
  │ phone · visits this season          │    │ Preferences · Privacy                   │
- │ auto segment (read-only)            │    │ [New booking] [Message] [Resend QR]     │
+ │ visit threshold (read-only)         │    │ [New booking] [Message] [Resend QR]     │
  │ VIP [on/off] · Season pass [on/off] │    │                         [Edit details]  │
  │                       [Save]        │    └─────────────────────────────────────────┘
  └─────────────────────────────────────┘
 ```
 
 - **Segments** (`src/screens/users/`, `src/domain/segments.ts`, `src/data/guests.ts`): chips for All guests,
-  the built-in VIP, Season pass, Regular and New (the New → Regular visit threshold is editable from the
-  Regular segment) and the tenant's saved segments, each with a live count. **New segment** opens a
+  the built-in VIP, Season pass and **Over 15 visits** (a plain visit count; its threshold — the same one
+  the Regular lifecycle stage uses — is editable from that segment) and the tenant's saved segments, each with a live count. **New segment** opens a
   builder: name, colour, dynamic or static, AND / OR, conditions on visits, spend, avg spend, first /
   last visit, days since last visit, channel, favourite zone, items bought, party size, pass, loyalty
   tier, refunds, language, city, marketing consent and tags, with a live preview of who matches.
@@ -1197,11 +1197,15 @@ no Export and no refunds.
   mapping (auto-guessed), preview with row errors and duplicate warnings, merge duplicates or add as
   new. **Duplicates** lists guests sharing an e-mail or phone and merges them (visits, spend and tags
   combined).
-- Rule banner: every guest starts **New** and becomes **Regular** after **15 visits**; **VIP** and
-  **Season pass** are assigned by hand.
+- **One meaning of "Regular" (AENR-548):** the lifecycle stage is the single classification of a guest —
+  **Regular** = more than the threshold (15) visits _and_ visiting recently. The old automatic New /
+  Regular tags are retired: they no longer show in the Tags column, seed and saved guest tags drop them,
+  and saved segments that filtered on them are migrated to the equivalent visit-count rule (Regular →
+  visits > threshold, New → visits ≤ threshold). Campaigns aimed at the old "Regular" segment now read
+  "Over 15 visits". Rule banner: the stage explanation; **VIP** and **Season pass** are assigned by hand.
 - Table: Name, Surname, Phone, Email, Visits, Tags, **Edit**, **Profile**; a star marks important guests.
-- **Edit user** modal: first name, surname, e-mail (validated), phone, visits this season; automatic
-  segment shown read-only; manual segment toggles (VIP — "High-value guest perks"; Season pass —
+- **Edit user** modal: first name, surname, e-mail (validated), phone, visits this season; the visit threshold shown read-only
+  ("Over 15 visits" or "N to go"); manual segment toggles (VIP — "High-value guest perks"; Season pass —
   "Unlimited entry this season").
 - **Guest profile** (`src/screens/users/GuestProfile.tsx`): a side drawer (full screen on phones) with
   tabs — **Overview** (visits, lifetime spend, avg basket, last visit, lifecycle stage, RFM, predicted next
@@ -1237,7 +1241,13 @@ with the dates in the title rows and file name. Season and Year compare with the
 shorter periods with the previous equal-length window. A period with no open days (off-season) shows
 a "beach was closed" empty state.
 
-1. **Executive** — starts with **Bookings, payments & AADE** (AENR-521, below), then Revenue, Bookings, Avg occupancy, Online share, Refund rate, RevPATB, ADR,
+1. **Executive** — starts with **Bookings, payments & AADE** (AENR-521, below), then Revenue · all methods,
+   Bookings · all products (AENR-545: under a "Whole beach · all products and payment methods" caption, the
+   Revenue tile splits into **card** — equal to "Captured" in the block above for the whole beach — and
+   **cash & other**; the Bookings tile into sunbed bookings (with confirmed sets — equal to "Sunbed bookings"
+   above) and ticket-only. Tiles stay whole-beach when a section is picked and say so; tiles abbreviate
+   (€889.4k), the CSV and PDF exports carry the full figure and the same split. The Dashboard's Revenue and
+   Bookings tiles use the same measures and split), Avg occupancy, Online share, Refund rate, RevPATB, ADR,
    Ancillary attach, No-show; revenue over time (hours / days / weeks / months by range length),
    revenue mix, booking pace vs the same period last year; an insight computed from the period
    (weekend vs weekday fill, busiest zone) → **Set a rule** opens Availability & Pricing.
@@ -1312,8 +1322,12 @@ all three; **Export CSV** and **Export PDF** (a one-page PDF with the key figure
 
 - Period control (X-11; All dates / Day / Week / Month / Season / Custom, default Month) filters the
   KPIs, the list and the **Export** CSV.
-- KPIs: Refunded in the period (€, count, change — from the shared analytics, so it matches Reporting),
-  Pending review and Top reason (from the listed requests), Refund rate (change in pp).
+- **One list, one source (AENR-546):** the list holds requests awaiting a decision, refunds made at the
+  till, then the refund history — one row per refund, generated (`src/data/refunds.ts`) from the same day
+  figures as Reporting, with the seed refunds on their dates — 25 per page. Every KPI is computed from
+  those rows: Refunded (€ and "N refunds in the list below", change vs the previous period), Pending
+  review, Refund rate (refunded ÷ the period's sales, shown, change in pp — the same rate as Reporting ›
+  Executive) and Top reason (weather variants grouped, share of refunds). The CSV exports the same rows.
 - Table: Transaction, Date, Name, Surname, Phone, Amount (partial refunds show "−€X refunded"), Reason,
   Status (Pending / Refunded), **Refund** action.
 - **Issue refund** modal: Refund type (Full / Partial — amount between €1 and the charge, with helper
@@ -1418,7 +1432,7 @@ Roles: the tenant (beach operator) is the **controller**; Slaice is the **proces
 
 ```text
  ┌─ 1 · Channels ───────────────────┐  ┌─ 2 · Compose campaign ───────────────┐
- │ Push    ● connected (in-app)     │  │ Audience ◆ All · VIP · Regulars ·    │
+ │ Push    ● connected (in-app)     │  │ Audience ◆ All · VIP · Over 15 ·     │
  │ E-mail  ○ [Set up channel]       │  │   Season pass …  ─▶ est. reach       │
  │ Viber   ○ [Set up channel]       │  │ Channel ◆ Push · E-mail · Viber · SMS│
  │ SMS     ○ [Set up channel]       │  │   not connected? ─▶ [Set up →]       │
@@ -1437,7 +1451,7 @@ Roles: the tenant (beach operator) is the **controller**; Slaice is the **proces
   sender (from-address / sender name / sender ID) → **Connect & verify** with provider-specific steps
   (e.g. SPF + DKIM for e-mail, Viber approval, sender-ID regulations). Disconnect. Keys are never stored
   **[DEMO]**.
-- **Compose campaign:** Audience segment (All users / VIP / Regulars / Season pass…) with estimated
+- **Compose campaign:** Audience segment (All users / VIP / Over 15 visits / Season pass…) with estimated
   reach, Channel (Push / E-mail / Viber / SMS, connection dot; warning + "Set up →" if not connected),
   **Promote a loyalty offer** (pre-fills the message) or write a custom message, channel-true
   **preview** → **Review campaign** → **Send to N users** → "Campaign sent". A promoted offer's CTA can
@@ -2079,19 +2093,19 @@ Events, Retail, Compliant: Stripe + MyDATA).
 
 ## 14. Cross-persona end-to-end journeys
 
-| ID   | Journey                    | Path                                                                                                                                                                                                                                                             |
-| ---- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| X-01 | **Book → enter → account** | Customer books in the wizard (C-03) → pays (C-04) → QR + ΑΠΥ (C-05) → Controller scans QR (G-01) → booking shows in Admin Bookings (A-04) and Reporting (A-07) → ΑΠΥ with MARK in Accountant invoicing (F-01) → net payout after Stripe + 5% fee (F-02).         |
-| X-02 | **Layout publish**         | Admin designs a zone's sets and publishes (A-03) → customer wizard shows that exact arrangement and availability (C-03) → Home "N sunbeds free today" updates (C-02) → Manual booking mini-map uses it (A-05).                                                   |
-| X-03 | **Refund**                 | Admin issues a full/partial refund (A-08) → Stripe charge + application fee reversed → credit note 5.1 to myDATA (F-01 "Credit notes") → customer sees the credit note in My Documents (C-07).                                                                   |
-| X-04 | **Loyalty campaign**       | Admin configures/enables a scheme (A-11) → Promote → Communicate pre-filled (A-10) → customer sees the reward on Home "Your rewards" (C-02).                                                                                                                     |
-| X-05 | **Passes**                 | Admin sets pass pricing (A-12) → customer buys VIP/Season (C-08/C-09) → pass applied at checkout (C-04) → user gets a pass-derived tag in Users & Segments (A-06).                                                                                               |
-| X-06 | **Phone booking**          | Call agent reserves a set without payment (A-05) → QR sent by e-mail/Viber/SMS → status Unpaid in Bookings → settled on arrival.                                                                                                                                 |
-| X-07 | **Walk-in / same-day**     | Controller releases same-day sets (G-04) or books a walk-in (G-02) → channel Walk-in in reporting.                                                                                                                                                               |
-| X-08 | **Tenant go-live**         | Platform onboards a tenant with Stripe KYC (P-02) → sets capability flags (P-03) → tenant admin configures the map (A-03) → customers book.                                                                                                                      |
-| X-09 | **GDPR request**           | Customer exports data / requests erasure (§7.5) → request appears in the Admin DSAR queue (A-09) → handled with legal holds on invoices → breach/compliance oversight at platform level (P-04).                                                                  |
-| X-10 | **Atmosphere**             | Admin toggles weather effects / time-of-day lighting (A-03 Atmosphere) → every customer page renders the same scene (C-02, C-03, C-04).                                                                                                                          |
-| X-11 | **Period control**         | One `PeriodPicker` + `src/domain/period.ts` (resolve, compare, granularity, URL) + `src/data/analytics.ts` (deterministic per-day sample figures) shared by Dashboard (A-01), Reporting (A-07), Bookings (A-04) and Refunds (A-08). Demo "today" is 19 Jul 2026. |
+| ID   | Journey                    | Path                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ---- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| X-01 | **Book → enter → account** | Customer books in the wizard (C-03) → pays (C-04) → QR + ΑΠΥ (C-05) → Controller scans QR (G-01) → booking shows in Admin Bookings (A-04) and Reporting (A-07) → ΑΠΥ with MARK in Accountant invoicing (F-01) → net payout after Stripe + 5% fee (F-02).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| X-02 | **Layout publish**         | Admin designs a zone's sets and publishes (A-03) → customer wizard shows that exact arrangement and availability (C-03) → Home "N sunbeds free today" updates (C-02) → Manual booking mini-map uses it (A-05).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| X-03 | **Refund**                 | Admin issues a full/partial refund (A-08) → Stripe charge + application fee reversed → credit note 5.1 to myDATA (F-01 "Credit notes") → customer sees the credit note in My Documents (C-07).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| X-04 | **Loyalty campaign**       | Admin configures/enables a scheme (A-11) → Promote → Communicate pre-filled (A-10) → customer sees the reward on Home "Your rewards" (C-02).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| X-05 | **Passes**                 | Admin sets pass pricing (A-12) → customer buys VIP/Season (C-08/C-09) → pass applied at checkout (C-04) → user gets a pass-derived tag in Users & Segments (A-06).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| X-06 | **Phone booking**          | Call agent reserves a set without payment (A-05) → QR sent by e-mail/Viber/SMS → status Unpaid in Bookings → settled on arrival.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| X-07 | **Walk-in / same-day**     | Controller releases same-day sets (G-04) or books a walk-in (G-02) → channel Walk-in in reporting.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| X-08 | **Tenant go-live**         | Platform onboards a tenant with Stripe KYC (P-02) → sets capability flags (P-03) → tenant admin configures the map (A-03) → customers book.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| X-09 | **GDPR request**           | Customer exports data / requests erasure (§7.5) → request appears in the Admin DSAR queue (A-09) → handled with legal holds on invoices → breach/compliance oversight at platform level (P-04).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| X-10 | **Atmosphere**             | Admin toggles weather effects / time-of-day lighting (A-03 Atmosphere) → every customer page renders the same scene (C-02, C-03, C-04).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| X-11 | **Period control**         | One `PeriodPicker` + `src/domain/period.ts` (resolve, compare, granularity, URL) + `src/data/analytics.ts` (deterministic per-day sample figures) shared by Dashboard (A-01), Reporting (A-07), Bookings (A-04) and Refunds (A-08). Demo "today" is 19 Jul 2026 — for **every tenant-side persona** (AENR-547): customer wizard dates, Today / Tomorrow chips, calendars, pass validity, cashier and controller "today", pay-by-link and the back office all use `todayISO()` = `DEMO_TODAY`, so a booking made as a customer lands on the days Reporting shows. Time of day (cut-offs, holds, pay-link deadlines, audit timestamps) stays on the real clock. Only the Platform console keeps the real calendar date (`realTodayISO()`), as its tenant, billing and trial records are dated around it. |
 
 ### 14.1 Journey maps
 
@@ -2596,7 +2610,8 @@ Let `total` = basket subtotal, `entryTotal` = sum of ticket lines, `d` = VIP dis
 
 ### 17.6 Segments
 
-- Automatic: **New** by default; **Regular** when visits **> 15**.
+- Automatic: the lifecycle stage (First visit → Active → **Regular** when visits **> 15** and recent →
+  At risk → Lapsed) and the built-in **Over 15 visits** segment (AENR-548; the New / Regular tags are retired).
 - Manual: **VIP**, **Season pass** (assigned by staff). A purchased pass also shows as a pass-derived
   tag.
 
@@ -2963,7 +2978,7 @@ Fix these when recreating (the intended behaviour is stated):
       Home "free today" count.
 - [ ] Pricing rule editor validation and preview match §17.5 exactly.
 - [ ] Refund modal enforces €1…charge for partial refunds and walks the 4 steps.
-- [ ] Users: > 15 visits → Regular; VIP/Season toggles persist within the session.
+- [ ] Users: > 15 visits and recent → Regular stage; "Over 15 visits" segment; VIP/Season toggles persist within the session.
 - [ ] Every table reflows to cards on a 390 px wide screen; every control is keyboard-operable with a
       visible focus ring; motion stops under reduced motion.
 - [ ] All [DEMO] features are isolated so they can be removed without touching product code.

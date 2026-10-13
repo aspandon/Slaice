@@ -176,7 +176,7 @@ function DatePill({ on, label, sub, onClick, disabled = false, reason }: { on?: 
 
 function DateCalendarModal({ value, onChange, onClose, locale = "en-GB", t = (s) => s, multiple = true, maxDays, blockReason }: { value: string[]; onChange: (v: string[]) => void; onClose: () => void; locale?: string; t?: (s: string) => string; multiple?: boolean; maxDays?: number; blockReason?: (iso: string) => string | null }) {
   const [month, setMonth] = useState(() => {
-    const d = new Date();
+    const d = fromISO(todayISO());
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const todayIso = todayISO();

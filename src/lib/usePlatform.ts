@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useApp } from "../app/store";
 import { subPath } from "../app/router";
-import { todayISO } from "../data/beach";
+import { realTodayISO } from "../data/beach";
 import { addDays } from "../domain/period";
 import { planVersion } from "../domain/plans";
 import type { AuditEntry, TenantRecord } from "../domain/tenants";
@@ -10,7 +10,7 @@ let seq = 0;
 /** Platform helpers: the demo-clock date, tenant lookup and audited updates. */
 export function usePlatform() {
   const { platform, setPlatform, toast } = useApp();
-  const today = addDays(todayISO(), platform.clockDays);
+  const today = addDays(realTodayISO(), platform.clockDays);
   const actor = platform.viewAs ? platform.viewAs.by : "Sofia Antoniou";
   /** Change a tenant and write one audit entry (actor type follows the View-as session). */
   const updateTenant = useCallback(

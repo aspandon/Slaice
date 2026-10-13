@@ -224,7 +224,7 @@ export const DEFAULT_CAMPAIGNS: Campaign[] = [
     messageId: "msg-lastminute",
     channel: "push",
     segmentId: "sys-regular",
-    segmentName: "Regular",
+    segmentName: "Over 15 visits",
     schedule: { kind: "weekly", weekday: 5, time: "10:00", from: "2026-06-01", to: "2026-09-30" },
     reachAtSchedule: 9,
     runs: [

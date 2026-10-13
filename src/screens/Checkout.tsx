@@ -8,7 +8,7 @@ import { Card, Btn, Badge, PageHead, EmptyState, SwipeRow, Toggle } from "../com
 import { QR } from "../components/charts";
 import { SlaiceLogo, TenantLogo } from "../components/Brand";
 import { WalletButtons } from "../components/WalletPass";
-import { TENANT, todayISO, toISO } from "../data/beach";
+import { TENANT, fromISO, todayISO, toISO } from "../data/beach";
 import { downloadICS } from "../lib/download";
 import { round2 } from "../data/passes";
 import { useApp, useT } from "../app/store";
@@ -394,7 +394,7 @@ export function Confirmation({ inline, booking }: { inline?: boolean; booking?: 
           <Btn variant="teal" icon={Icon.grid} onClick={() => { clearCart(); go("customer", "mybookings"); }}>{t("View my bookings")}</Btn>
           <Btn variant="outline" icon={Icon.calendar} onClick={() => {
             const start = todayISO();
-            const end = toISO(new Date(Date.now() + 86400000));
+            const end = toISO(new Date(fromISO(start).getTime() + 86400000));
             downloadICS(`beach-day-${ref}.ics`, {
               uid: `${ref}@slaice`, title: `Beach day · ${pass.zone}`, start, end,
               location: `${TENANT.name}, ${TENANT.place}`,

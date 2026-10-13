@@ -15,7 +15,7 @@ import { BADGE_COLORS, BADGE_COLOR_KEYS, BADGE_ICONS, GAME_METRICS } from "../da
 import type { Achievement, GameMetric } from "../data/gamification";
 import type { SunbedSlot, PassDesign, CardText } from "../domain/types";
 import { CardFace, ScaledCard, WalletRendition, TEXT_KEYS, TEXT_LABELS, type DragKey } from "../components/PassDesigner";
-import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, personByFirst, CUSTOMERS, type AdminBooking } from "../data/mock";
+import { ADMIN_BOOKINGS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, personByFirst, CUSTOMERS, type AdminBooking } from "../data/mock";
 import { useApp } from "../app/store";
 import { downloadCSV, downloadCSVReport, downloadPDF, type CsvSection } from "../lib/download";
 import { usePeriod } from "../lib/usePeriod";
@@ -23,16 +23,22 @@ import { OccupancyTab, occupancyCsv, useOccupancy } from "./reporting/OccupancyT
 import { ChannelsTab, channelsCsv, useChannels } from "./reporting/ChannelsTab";
 import { readHashQuery, writeHashQuery } from "../app/router";
 import { activeCount, filtersFromParams, filtersToParams, isAmount, matchAmount, type FilterDef, type FilterState } from "../domain/filters";
-import { resolveRange, comparisonRange, lastYearRange, granularityFor, rangeLabel, periodNoun, comparisonLabel, isoFromDayMonth, inRange, fmtWeekday as fmtWeekdayP } from "../domain/period";
+import { resolveRange, comparisonRange, lastYearRange, granularityFor, rangeLabel, periodNoun, comparisonLabel, isoFromDayMonth, inRange, fmtWeekday as fmtWeekdayP, DEMO_TODAY } from "../domain/period";
 import { summarize, series, buckets, fmtEUR, fmtInt, fmtPct, trendPct, trendPp, trendEUR } from "../data/analytics";
 import { Masked } from "./tenant/ViewAs";
 import { onlineBookings, payLinkBookings, tillBookings, tillRefunds } from "../data/tillAdmin";
+import { PENDING_REFUNDS, REFUND_REASONS, refundHistory, refundStats } from "../data/refunds";
 import { InvoicesTab, OverviewPanel, PaymentsTab, SectionChips, financeCsv, financePdf, useFinanceData, useSection } from "./reporting/FinanceTabs";
+import { financeReport } from "../data/finance";
+import { reconcile } from "../domain/reconcile";
 import { VARIANCE_TOLERANCE, eur as eurTill, shiftTotals } from "../domain/till";
+
+/** Full euro amount for exports and tables; tiles use the abbreviated fmtEUR. */
+const eurFull = (n: number) => `€${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 /* ============ DASHBOARD ============ */
 export function AdminDashboard() {
-  const { toast } = useApp();
+  const { toast, till } = useApp();
   // One period drives every tile, delta, chart and the export (AENR-466).
   const [period, setPeriod] = usePeriod({ kind: "preset", preset: "week", offset: 0 });
   const range = resolveRange(period) ?? resolveRange({ kind: "preset", preset: "week", offset: 0 })!;
@@ -54,18 +60,20 @@ export function AdminDashboard() {
   const occByZone = ZONES.map((z) => ({ l: z.name, v: Math.round((now.occupancyByZone[z.id] ?? 0) * 100) }));
   const peak = Math.max(...occByZone.map((z) => z.v));
   const occSeries = occByZone.map((z) => (z.v === peak && peak > 0 ? { ...z, hi: 1 } : z));
-  const kpis = [
-    { label: `Revenue · ${noun}`, value: fmtEUR(now.revenue), trend: hasPrev ? trendPct(now.revenue, prev.revenue) : undefined, tone: "teal" },
-    { label: `Bookings · ${noun}`, value: fmtInt(now.bookings), trend: hasPrev ? trendPct(now.bookings, prev.bookings) : undefined, tone: "navy" },
-    { label: "Occupancy", value: fmtPct(now.occupancy), trend: trendPp(now.occupancy, prev.occupancy, hasPrev), tone: "navy" },
-    { label: "Avg basket", value: fmtEUR(now.avgBasket), trend: trendEUR(now.avgBasket, prev.avgBasket, hasPrev), tone: "navy" },
+  // Same measures and the same split as Reporting › Executive (AENR-545).
+  const rc = reconcile(now, financeReport(range, null, till.sales));
+  const kpis: { label: string; value: string; full: string; detail?: string; trend?: string; tone: string }[] = [
+    { label: `Revenue · ${noun}`, value: fmtEUR(rc.revenue), full: eurFull(rc.revenue), detail: `card ${fmtEUR(rc.card)} · cash & other ${fmtEUR(rc.other)}`, trend: hasPrev ? trendPct(now.revenue, prev.revenue) : undefined, tone: "teal" },
+    { label: `Bookings · ${noun}`, value: fmtInt(rc.bookings), full: fmtInt(rc.bookings), detail: `${fmtInt(rc.sunbedBookings)} sunbed (${fmtInt(rc.sets)} sets) · ${fmtInt(rc.ticketOnly)} ticket-only`, trend: hasPrev ? trendPct(now.bookings, prev.bookings) : undefined, tone: "navy" },
+    { label: "Occupancy", value: fmtPct(now.occupancy), full: fmtPct(now.occupancy, 1), trend: trendPp(now.occupancy, prev.occupancy, hasPrev), tone: "navy" },
+    { label: "Avg basket", value: fmtEUR(now.avgBasket), full: eurFull(now.avgBasket), trend: trendEUR(now.avgBasket, prev.avgBasket, hasPrev), tone: "navy" },
   ];
   const label = rangeLabel(range);
   // Export the whole dashboard — KPIs *and* the data behind every visual — as
   // one columnar CSV for the selected period.
   const exportDashboard = () => {
     downloadCSVReport(`dashboard-${range.from}_${range.to}.csv`, [
-      { title: `Key metrics · ${label}`, header: ["Metric", "Value", "Change", "Compared"], rows: kpis.map((k) => [k.label, k.value, k.trend ?? "—", vs]) },
+      { title: `Key metrics · ${label}`, header: ["Metric", "Value", "Detail", "Change", "Compared"], rows: kpis.map((k) => [k.label, k.full, k.detail ?? "", k.trend ?? "—", vs]) },
       { title: `Revenue · ${label}`, header: [axis, "Revenue (€)"], rows: rev.map((d) => [d.l, d.v]) },
       { title: "Revenue by capability", header: ["Capability", "Share %"], rows: mix.map((m) => [m.l, m.v]) },
       { title: `Occupancy by zone · ${label}`, header: ["Zone", "Occupancy %"], rows: occByZone.map((z) => [z.l, z.v]) },
@@ -78,7 +86,7 @@ export function AdminDashboard() {
       <PageHead title="Dashboard" sub="Akti tou Iliou · bookings & revenue overview" badge={<Badge tone="mvp">MVP</Badge>}
         actions={<><PeriodPicker value={period} onChange={setPeriod} /><Btn variant="outline" icon={Icon.download} onClick={exportDashboard}>Export</Btn></>} />
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((k) => <StatCard key={k.label} label={k.label} value={k.value} sub={k.trend ? vs : "no comparison data"} tone={k.tone} trend={k.trend} />)}
+        {kpis.map((k) => <StatCard key={k.label} label={k.label} value={k.value} sub={<span>{k.detail && <span className="block">{k.detail}</span>}<span className={k.detail ? "block text-slate-500" : undefined}>{k.trend ? vs : "no comparison data"}</span></span>} tone={k.tone} trend={k.trend} />)}
       </div>
       {closed && (
         <div className="mt-4"><EmptyState icon={Icon.umbrella} title="The beach was closed" body={`No bookings or revenue in ${label}. The season runs 1 May – 30 Sep.`} /></div>
@@ -450,7 +458,7 @@ export function AdminManual() {
   const [sendOpen, setSendOpen] = useState(false);
   const [sentVia, setSentVia] = useState<SendChannel>("Email");
   const [sentTo, setSentTo] = useState("");
-  const today = new Date().toISOString().slice(0, 10);
+  const today = DEMO_TODAY;
   const zone = ZONES.find((z) => z.name === zoneName) ?? ZONES[0];
   const slots = beachLayout[zone.id] ?? zoneLayout(zone);
   const reserve = () => {
@@ -510,7 +518,7 @@ export function AdminManual() {
 /* ============ REPORTING & ANALYTICS ============ */
 const FIN_TABS = ["exec", "payments", "invoices"];
 export function AdminReporting() {
-  const { toast, go } = useApp();
+  const { toast, go, till } = useApp();
   const [tab, setTab] = useState("exec");
   const tabs: TabEntry[] = [
     ["exec", "Executive", Icon.chart],
@@ -539,6 +547,8 @@ export function AdminReporting() {
   const g = granularityFor(range);
   const axis = { hour: "Hour", day: "Day", week: "Week of", month: "Month" }[g];
   const closed = now.openDays === 0;
+  // Whole-beach finance figures, whatever section the block above is filtered to.
+  const finWhole = useMemo(() => financeReport(range, null, till.sales), [range, till.sales]);
 
   /* ---- Figures, computed once and shared by the screen and the CSV ---- */
   const ratio = (a: number, b: number) => (b ? a / b : 0);
@@ -560,9 +570,13 @@ export function AdminReporting() {
   });
   const kn = k(now), kp = k(prev);
   const pp = (a: number, b: number, digits = 0) => (hasPrev ? `${a - b >= 0 ? "+" : "−"}${Math.abs((a - b) * 100).toFixed(digits)}pp` : undefined);
-  const execKpis: { label: string; value: string; sub: string; trend?: string; tone?: string }[] = [
-    { label: "Revenue", value: fmtEUR(now.revenue), sub: vs, trend: hasPrev ? trendPct(now.revenue, prev.revenue) : undefined, tone: "teal" },
-    { label: "Bookings", value: fmtInt(now.bookings), sub: vs, trend: hasPrev ? trendPct(now.bookings, prev.bookings) : undefined },
+  // The Revenue / Bookings tiles count every product and payment method; the
+  // block above counts card captures and confirmed sets. Split the tiles into
+  // those parts so the two reconcile (AENR-545).
+  const rc = reconcile(now, finWhole);
+  const execKpis: { label: string; value: string; sub: string; full?: string; detail?: string; trend?: string; tone?: string }[] = [
+    { label: "Revenue · all methods", value: fmtEUR(rc.revenue), full: eurFull(rc.revenue), detail: `card ${fmtEUR(rc.card)} · cash & other ${fmtEUR(rc.other)}`, sub: vs, trend: hasPrev ? trendPct(now.revenue, prev.revenue) : undefined, tone: "teal" },
+    { label: "Bookings · all products", value: fmtInt(rc.bookings), detail: `${fmtInt(rc.sunbedBookings)} sunbed (${fmtInt(rc.sets)} sets) · ${fmtInt(rc.ticketOnly)} ticket-only`, sub: vs, trend: hasPrev ? trendPct(now.bookings, prev.bookings) : undefined },
     { label: "Avg occupancy", value: fmtPct(now.occupancy), sub: "across zones", trend: trendPp(now.occupancy, prev.occupancy, hasPrev) },
     { label: "Online share", value: fmtPct(kn.online), sub: "of bookings", trend: pp(kn.online, kp.online) },
     { label: "Refund rate", value: fmtPct(kn.refund, 1), sub: "of revenue", trend: pp(kn.refund, kp.refund, 1), tone: "teal" },
@@ -619,7 +633,7 @@ export function AdminReporting() {
     switch (t) {
       case "exec":
         return [
-          { title: `Executive · key metrics ${head}`, header: ["Metric", "Value", "Detail", "Change"], rows: execKpis.map((x) => [x.label, x.value, x.sub, x.trend ?? "—"]) },
+          { title: `Executive · key metrics ${head}`, header: ["Metric", "Value", "Detail", "Change"], rows: execKpis.map((x) => [x.label, x.full ?? x.value, x.detail ? `${x.detail} · ${x.sub}` : x.sub, x.trend ?? "—"]) },
           { title: `Revenue by ${axis.toLowerCase()} (€)`, header: [axis, "Revenue"], rows: revSeries.map((d) => [d.l, d.v]) },
           { title: "Revenue mix", header: ["Category", "Share %"], rows: mix.map((m) => [m.l, m.v]) },
           { title: `Booking pace (vs same period last year ${paceVsLy ?? "—"})`, header: [axis, "Bookings"], rows: bookSeries.map((d) => [d.l, d.v]) },
@@ -674,7 +688,10 @@ export function AdminReporting() {
   const exportReport = (t: string) => { downloadCSVReport(`reporting-${t}-${range.from}_${range.to}${FIN_TABS.includes(t) ? secSlug : ""}.csv`, buildReport(t)); toast(`Exported the ${tabLabel(t)} report (${label}, CSV).`, { tone: "success" }); };
   const exportPdf = (t: string) => {
     const kind = t === "exec" ? "overview" : (t as "payments" | "invoices");
-    downloadPDF(`reporting-${t}-${range.from}_${range.to}${secSlug}.pdf`, financePdf(kind, fin, label, TENANT.name));
+    const doc = financePdf(kind, fin, label, TENANT.name);
+    // The Executive PDF carries the same reconciled headline tiles as the screen.
+    if (t === "exec") doc.meta = [...execKpis.slice(0, 2).map((x) => `${x.label}: ${x.full ?? x.value} (${x.detail})`), ...(doc.meta ?? [])];
+    downloadPDF(`reporting-${t}-${range.from}_${range.to}${secSlug}.pdf`, doc);
     toast(`Exported the ${tabLabel(t)} report (${label}, PDF).`, { tone: "success" });
   };
 
@@ -698,8 +715,11 @@ export function AdminReporting() {
       {!closed && tab === "invoices" && <InvoicesTab d={fin} />}
       {!closed && tab === "exec" && <>
         <OverviewPanel d={fin} onDocs={() => setTab("invoices")} />
+        <p className="text-[12.5px] text-slate-500 mb-2">
+          Whole beach · all products and payment methods. Card revenue = “Captured” above{section ? " for the whole beach — the section filter applies to the block above only" : ""}; sunbed sets = “Sunbed bookings” above.
+        </p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {execKpis.slice(0, 5).map((x, i) => <StatCard instant key={x.label} label={x.label} value={x.value} sub={x.sub} tone={x.tone} trend={x.trend}
+          {execKpis.slice(0, 5).map((x, i) => <StatCard instant key={x.label} label={x.label} value={x.value} sub={x.detail ? <span><span className="block">{x.detail}</span><span className="block text-slate-500">{x.sub}</span></span> : x.sub} tone={x.tone} trend={x.trend}
             sparkline={i === 0 ? <Sparkline data={revSeries.map((d) => d.v)} /> : i === 1 ? <Sparkline data={bookSeries.map((d) => d.v)} color="#0ea5e9" /> : undefined} />)}
         </div>
         {/* Leisure-industry KPIs (RevPATB ≈ RevPAR for sunbeds). */}
@@ -863,10 +883,10 @@ export function AdminRefunds() {
   const [modal, setModal] = useState<number | null>(null);
   // The shared period filters the KPIs, the list and the export (AENR-466).
   const [period, setPeriod] = usePeriod({ kind: "preset", preset: "month", offset: 0 });
-  const [rows, setRows] = useState(ADMIN_REFUNDS);
+  const [rows, setRows] = useState(PENDING_REFUNDS);
   const [stage, setStage] = useState<"form" | "processing" | "done">("form");
   const [step, setStep] = useState(0);
-  const [reason, setReason] = useState("Weather");
+  const [reason, setReason] = useState<string>("Weather");
   const [rtype, setRtype] = useState("Full refund");
   // Partial-refund amount the operator types; `committed` freezes it at submit
   // so the processing/done stages and the row update agree on one figure.
@@ -875,19 +895,30 @@ export function AdminRefunds() {
   const range = resolveRange(period);
   const label = range ? rangeLabel(range) : "All dates";
   const noun = periodNoun(period);
-  // Rows keep their index into `rows` so the Refund action targets the right one.
-  // Till refunds and voids (already processed at the till) come first; index −1 = read-only.
-  const visible = [...tillRefunds(till.sales).map((r) => ({ r, i: -1 })), ...rows.map((r, i) => ({ r, i }))].filter(({ r }) => inRange(isoFromDayMonth(r.date), range));
-  // Totals come from the shared analytics so they match Reporting for the same dates.
-  const now = range ? summarize(range) : null;
-  const prevS = range ? summarize(comparisonRange(period, range)) : null;
-  const hasPrev = !!prevS && prevS.openDays > 0;
-  const refundRate = now && now.revenue ? now.refunds.amount / now.revenue : 0;
-  const prevRate = prevS && prevS.revenue ? prevS.refunds.amount / prevS.revenue : 0;
+  // One list drives the table, the KPIs and the export (AENR-546): requests
+  // awaiting a decision, refunds made at the till, then the refund history —
+  // generated from the same day figures as Reporting. Rows keep their index
+  // into `rows` so the Refund action targets the right one; −1 = read-only.
+  const visible = [
+    ...rows.map((r, i) => ({ r, i })),
+    ...tillRefunds(till.sales).map((r) => ({ r, i: -1 })),
+  ].filter(({ r }) => inRange(isoFromDayMonth(r.date), range))
+    .concat(refundHistory(range).map((r) => ({ r, i: -1 })));
+  const stats = refundStats(visible.map(({ r }) => r));
+  const prevRange = range ? comparisonRange(period, range) : null;
+  const prevStats = prevRange ? refundStats(refundHistory(prevRange)) : null;
+  const salesRange = range ?? { from: "2026-05-01", to: DEMO_TODAY };
+  const sales = summarize(salesRange).revenue;
+  const prevSales = prevRange ? summarize(prevRange).revenue : 0;
+  const hasPrev = !!prevStats && prevSales > 0;
+  const refundRate = sales ? stats.amount / sales : 0;
+  const prevRate = prevStats && prevSales ? prevStats.amount / prevSales : 0;
   const pending = visible.filter(({ r }) => !r.status).length;
-  const reasons = visible.filter(({ r }) => r.reason).reduce<Record<string, number>>((a, { r }) => ({ ...a, [r.reason]: (a[r.reason] ?? 0) + 1 }), {});
-  const topReason = Object.entries(reasons).sort((a, b) => b[1] - a[1])[0];
-  const reasonTotal = Object.values(reasons).reduce((a, b) => a + b, 0);
+  const REFUND_PAGE = 25;
+  const [page, setPage] = useState(0);
+  const pageCount = Math.max(1, Math.ceil(visible.length / REFUND_PAGE));
+  const safePage = Math.min(page, pageCount - 1);
+  const shown = visible.slice(safePage * REFUND_PAGE, (safePage + 1) * REFUND_PAGE);
   const active = modal !== null ? rows[modal] : null;
   const activeLast = active ? personByFirst(active.who)?.last ?? "" : "";
   const total = active?.amount ?? 0;
@@ -929,15 +960,15 @@ export function AdminRefunds() {
       <PageHead title="Refunds" sub="Partial or full refunds via Stripe, with reason logging and auto credit-note (MyDATA)." badge={<Badge tone="mvp">MVP</Badge>}
         actions={<><PeriodPicker value={period} onChange={setPeriod} presets={["day", "week", "month", "season"]} allowAll resetTo={{ kind: "preset", preset: "month", offset: 0 }} /><Btn variant="outline" icon={Icon.download} onClick={exportCSV}>Export</Btn></>} />
       <div className="grid sm:grid-cols-4 gap-4 mb-4">
-        <StatCard label={`Refunded · ${noun}`} value={now ? fmtEUR(now.refunds.amount) : "—"} sub={now ? `${fmtInt(now.refunds.count)} transactions` : "pick a period"} tone="teal" trend={now && hasPrev ? trendPct(now.refunds.amount, prevS.refunds.amount) : undefined} />
+        <StatCard label={`Refunded · ${noun}`} value={fmtEUR(stats.amount)} sub={`${fmtInt(stats.count)} refund${stats.count === 1 ? "" : "s"} in the list below`} tone="teal" trend={hasPrev ? trendPct(stats.amount, prevStats.amount) : undefined} />
         <StatCard label="Pending review" value={pending} sub="awaiting decision" />
-        <StatCard label="Refund rate" value={now ? fmtPct(refundRate, 1) : "—"} sub="of total sales" trend={now && hasPrev ? `${refundRate - prevRate >= 0 ? "+" : "−"}${Math.abs((refundRate - prevRate) * 100).toFixed(1)}pp` : undefined} />
-        <StatCard label="Top reason" value={topReason ? topReason[0] : "—"} sub={topReason ? `${Math.round((topReason[1] / reasonTotal) * 100)}% of refunds` : "no refunds yet"} tone="indigo" />
+        <StatCard label="Refund rate" value={fmtPct(refundRate, 1)} sub={`of ${fmtEUR(sales)} sales`} trend={hasPrev ? `${refundRate - prevRate >= 0 ? "+" : "−"}${Math.abs((refundRate - prevRate) * 100).toFixed(1)}pp` : undefined} />
+        <StatCard label="Top reason" value={stats.top ? stats.top.reason : "—"} sub={stats.top ? `${Math.round(stats.top.share * 100)}% of refunds` : "no refunds yet"} tone="indigo" />
       </div>
       <Card className="p-2">
         {visible.length === 0 ? <EmptyState compact icon={Icon.refund} title="No refunds in this period" body={`Nothing was requested in ${label}.`} action={<Btn size="sm" variant="outline" onClick={() => setPeriod({ kind: "all" })}>Show all dates</Btn>} /> :
         <Table cols={["Transaction", "Date", "Name", "Surname", "Phone", "Amount", "Reason", "Status", ""]} right={[5]}
-          rows={visible.map(({ r, i }) => {
+          rows={shown.map(({ r, i }) => {
             const p = personByFirst(r.who);
             return [r.channel ? <span className="inline-flex items-center gap-1.5 whitespace-nowrap">{r.tx}<Badge tone="green">{r.channel}</Badge></span> : r.tx, r.date || "—", r.who, p?.last || "—", p?.phone ? <span className="tnum whitespace-nowrap"><Masked value={p.phone} /></span> : "—",
               r.refundAmount != null && r.refundAmount < r.amount
@@ -947,6 +978,7 @@ export function AdminRefunds() {
               r.status ? <Badge tone={r.status === "Voided" ? "slate" : "green"}>{r.status}</Badge> : <Badge tone="amber">Pending</Badge>,
               r.status ? <span className="text-slate-500 text-sm">done</span> : <Btn size="sm" variant="outline" icon={Icon.refund} onClick={() => openRefund(i)}>Refund</Btn>];
           })} />}
+        {pageCount > 1 && <Pager page={safePage} pageCount={pageCount} total={visible.length} pageSize={REFUND_PAGE} onPage={setPage} />}
       </Card>
       <Modal open={modal !== null} onClose={() => setModal(null)} title={stage === "done" ? "Refund complete" : "Issue refund"}
         footer={
@@ -975,7 +1007,7 @@ export function AdminRefunds() {
                     )}
                   </Field>
                 )}
-                <Field label="Reason"><Select value={reason} onChange={(e) => setReason(e.target.value)} options={["Weather", "Double booking", "Customer request", "Service issue"]} /></Field>
+                <Field label="Reason"><Select value={reason} onChange={(e) => setReason(e.target.value)} options={[...REFUND_REASONS]} /></Field>
                 <div className="text-[12px] text-slate-600 flex items-center gap-1.5"><Icon.shield size={13} /> Reverses the application fee and auto-issues a credit note to MyDATA.</div>
               </>
             )}

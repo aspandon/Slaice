@@ -47,6 +47,7 @@ import { DEFAULT_CLOSED_STORES } from "./data/beach";
 import { DEFAULT_TILL } from "./data/till";
 import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "./data/beach";
 import type { SceneFx, WeatherKind } from "./data/beach";
+import { migrateLegacySegments, stripLegacyTags, visitSegmentName } from "./domain/segments";
 
 interface ToastItem {
   id: number;
@@ -158,7 +159,15 @@ export default function App() {
   );
   const [staffAudit, setStaffAudit] = useState<StaffAuditEntry[]>(saved.staffAudit || DEFAULT_STAFF_AUDIT);
   const [viewAsId, setViewAsId] = useState<string | null>(saved.viewAsId ?? null);
-  const [crm, setCrmState] = useState<CrmState>({ ...DEFAULT_CRM, ...(saved.crm || {}) });
+  const [crm, setCrmState] = useState<CrmState>(() => {
+    const c: CrmState = { ...DEFAULT_CRM, ...(saved.crm || {}) };
+    // Retired New / Regular tags (AENR-548): rules become visit counts, tags are dropped.
+    return {
+      ...c,
+      segments: migrateLegacySegments(c.segments, c.regularAfter),
+      edits: Object.fromEntries(Object.entries(c.edits).map(([id, e]) => [id, e.tags ? { ...e, tags: stripLegacyTags(e.tags) } : e])),
+    };
+  });
   const setCrm = useCallback((u: (c: CrmState) => CrmState) => setCrmState(u), []);
   const [till, setTillState] = useState<TillState>({ ...DEFAULT_TILL, ...(saved.till || {}) });
   const setTill = useCallback((u: (t: TillState) => TillState) => setTillState(u), []);
@@ -194,7 +203,12 @@ export default function App() {
     return { ...base, ...sp, tenants: [...seeded, ...DEFAULT_TENANTS.filter((d) => !sp.tenants.some((t) => t.id === d.id))] };
   });
   const setPlatform = useCallback((u: (s: PlatformState) => PlatformState) => setPlatformState(u), []);
-  const [comms, setCommsState] = useState<CommsState>(() => ({ ...DEFAULT_COMMS, ...(saved.comms || {}), settings: { ...DEFAULT_COMMS.settings, ...(saved.comms?.settings || {}) } }));
+  const [comms, setCommsState] = useState<CommsState>(() => {
+    const c: CommsState = { ...DEFAULT_COMMS, ...(saved.comms || {}), settings: { ...DEFAULT_COMMS.settings, ...(saved.comms?.settings || {}) } };
+    // The visit-threshold segment is no longer called "Regular" (AENR-548).
+    const ra = saved.crm?.regularAfter ?? DEFAULT_CRM.regularAfter;
+    return { ...c, campaigns: c.campaigns.map((x) => (x.segmentId === "sys-regular" && x.segmentName === "Regular" ? { ...x, segmentName: visitSegmentName(ra) } : x)) };
+  });
   const setComms = useCallback((u: (s: CommsState) => CommsState) => setCommsState(u), []);
   const [privacy, setPrivacyState] = useState<PrivacyState>(() => ({ ...DEFAULT_PRIVACY, ...(saved.privacy || {}) }));
   const setPrivacy = useCallback((u: (s: PrivacyState) => PrivacyState) => setPrivacyState(u), []);

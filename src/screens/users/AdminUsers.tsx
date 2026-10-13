@@ -24,17 +24,17 @@ import type { ReactNode } from "react";
 
 
 /* ============ USERS & SEGMENTS ============
-   Guests are grouped by segments: built-in ones (VIP, Season pass, and the
-   automatic New → Regular rule, whose threshold is editable) plus the tenant's
-   own rule-based segments (AENR-474). Manual tags (VIP, Season pass, custom
-   tags) live on the guest; New / Regular are always derived from visits. */
+   Guests are grouped by segments: built-in ones (VIP, Season pass, and
+   "Over N visits", whose threshold is editable) plus the tenant's own
+   rule-based segments (AENR-474). Manual tags (VIP, Season pass, custom tags)
+   live on the guest. The lifecycle stage (First visit → Active → Regular →
+   At risk → Lapsed) is the one classification of a guest — the old automatic
+   New / Regular tags are retired and stripped from saved tags (AENR-548). */
 const AUTO = ["New", "Regular"];
 // "Elena V." stands in for the signed-in customer, so a pass she buys shows here.
 const DEMO_CUSTOMER_ID = 3;
-const autoSegment = (visits: number, after: number): "New" | "Regular" => (visits > after ? "Regular" : "New");
 const manualOf = (tags: string[]) => tags.filter((t) => !AUTO.includes(t));
-const displayTags = (u: Customer, after: number) => [autoSegment(u.bookings, after), ...manualOf(u.tags)];
-const tagTone = (t: string) => ({ VIP: "amber", "Season pass": "blue", Regular: "slate", New: "green" }[t] || "indigo");
+const tagTone = (t: string) => ({ VIP: "amber", "Season pass": "blue" }[t] || "indigo");
 
 type Guest = GuestFacts & { name: string; customer: Customer };
 
@@ -58,7 +58,7 @@ export function AdminUsers() {
   // (marked with a wallet glyph so it reads as pass-derived, not hand-assigned).
   const passTags = [passes.vip ? "VIP" : null, passes.season ? "Season pass" : null].filter(Boolean) as string[];
   const tagsFor = (u: Customer): { t: string; pass: boolean }[] => {
-    const base = displayTags(u, ra).map((t) => ({ t, pass: false }));
+    const base = manualOf(u.tags).map((t) => ({ t, pass: false }));
     if (u.id !== DEMO_CUSTOMER_ID || passTags.length === 0) return base;
     passTags.forEach((pt) => {
       const hit = base.find((b) => b.t === pt);
@@ -195,7 +195,6 @@ export function AdminUsers() {
       // Built-in: only the New → Regular threshold is editable.
       const r = sg.rules.find((x) => x.field === "visits");
       if (builder.id === "sys-regular" && r) setCrm((c) => ({ ...c, regularAfter: Math.max(1, Number(r.a)) }));
-      if (builder.id === "sys-new" && r) setCrm((c) => ({ ...c, regularAfter: Math.max(1, Number(r.a) - 1) }));
       toast("Rule updated — guests re-segmented.", { tone: "success" });
     } else {
       setCrm((c) => ({ ...c, segments: c.segments.some((x) => x.id === sg.id) ? c.segments.map((x) => (x.id === sg.id ? sg : x)) : [...c.segments, sg] }));
@@ -250,7 +249,7 @@ export function AdminUsers() {
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Portal>
                   <DropdownMenu.Content align="start" sideOffset={6} className="glass !bg-white/95 w-52 rounded-xl p-1.5 z-[60] shadow-float text-ink">
-                    {(!sg.system || sg.id === "sys-regular" || sg.id === "sys-new") && <DropdownMenu.Item className={menuItem} onSelect={() => setBuilder(sg)}><Icon.edit size={14} /> {sg.system ? "Edit rule" : "Edit"}</DropdownMenu.Item>}
+                    {(!sg.system || sg.id === "sys-regular") && <DropdownMenu.Item className={menuItem} onSelect={() => setBuilder(sg)}><Icon.edit size={14} /> {sg.system ? "Edit rule" : "Edit"}</DropdownMenu.Item>}
                     <DropdownMenu.Item className={menuItem} onSelect={() => duplicate(sg)}><Icon.layers size={14} /> Duplicate</DropdownMenu.Item>
                     <DropdownMenu.Item className={menuItem} onSelect={() => exportSegment(sg)}><Icon.download size={14} /> Export CSV</DropdownMenu.Item>
                     <DropdownMenu.Item className={menuItem} onSelect={() => go("admin", "communicate")}><Icon.mail size={14} /> Message segment</DropdownMenu.Item>
@@ -304,7 +303,7 @@ export function AdminUsers() {
         {!active && (
           <div className="mb-3 flex items-start gap-2 rounded-xl bg-slaice-100 ring-1 ring-slaice-600/20 px-3 py-2 text-[12px] text-slaice-700">
             <Icon.info size={14} className="shrink-0 mt-0.5 text-slaice-600" />
-            <span>Segments update automatically: every guest starts <b>New</b> and becomes <b>Regular</b> after {ra} visits (edit the rule from the Regular segment). <b>VIP</b>, <b>Season pass</b> and custom tags are assigned on a guest. Build your own with <b>New segment</b>.</span>
+            <span>Each guest has one <b>lifecycle stage</b> — a guest is <b>Regular</b> after more than {ra} visits while they keep coming (edit the threshold from the <b>Over {ra} visits</b> segment). <b>VIP</b>, <b>Season pass</b> and custom tags are assigned on a guest. Build your own with <b>New segment</b>.</span>
           </div>
         )}
         <div className="mb-3"><FilterBar defs={guestFilterDefs} value={filters} onChange={setFilters} count={`${sorted.length} of ${list.length} guests`} /></div>
@@ -444,7 +443,7 @@ function TagModal({ existing, onClose, onSave }: { existing: string[]; onClose: 
 }
 
 /* ---- Edit a user: contact details, visit count and the manual segment badges.
-   Editing visits re-derives New/Regular live, demonstrating the auto-rule. ---- */
+   Editing visits shows live whether the guest passes the visit threshold. ---- */
 function UserEditModal({ user, tagNames, onClose, onSave }: { user: Customer; tagNames: string[]; onClose: () => void; onSave: (u: Customer) => void }) {
   const REGULAR_AFTER = useApp().crm.regularAfter;
   const [custom, setCustom] = useState<string[]>(user.tags.filter((t) => t !== "VIP" && t !== "Season pass" && !AUTO.includes(t)));
@@ -459,7 +458,7 @@ function UserEditModal({ user, tagNames, onClose, onSave }: { user: Customer; ta
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
   const nameOk = first.trim().length > 0 && last.trim().length > 0;
   const valid = emailOk && nameOk;
-  const seg = autoSegment(visits, REGULAR_AFTER);
+  const over = visits > REGULAR_AFTER;
 
   const save = () => {
     const f = first.trim(), l = last.trim();
@@ -489,10 +488,10 @@ function UserEditModal({ user, tagNames, onClose, onSave }: { user: Customer; ta
             </div>
           </Field>
           <div>
-            <div className="text-[12px] font-semibold text-slate-700 mb-1">Segment (automatic)</div>
+            <div className="text-[12px] font-semibold text-slate-700 mb-1">Visit threshold (automatic)</div>
             <div className="rounded-xl ring-1 ring-slate-200 bg-slate-50 px-3 py-2.5 flex items-center gap-2">
-              <Badge tone={tagTone(seg)}>{seg}</Badge>
-              <span className="text-[11px] text-slate-500">{seg === "New" ? `${REGULAR_AFTER + 1 - visits} more visit${REGULAR_AFTER + 1 - visits !== 1 ? "s" : ""} → Regular` : `Over ${REGULAR_AFTER} visits`}</span>
+              <Badge tone={over ? "slate" : "green"}>{over ? `Over ${REGULAR_AFTER} visits` : `${REGULAR_AFTER + 1 - visits} to go`}</Badge>
+              <span className="text-[11px] text-slate-500">{over ? "Counts as Regular while they keep visiting" : `more visit${REGULAR_AFTER + 1 - visits !== 1 ? "s" : ""} to reach the Regular stage`}</span>
             </div>
           </div>
         </div>
