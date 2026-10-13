@@ -386,3 +386,7 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   shows one "from" price and how full it is; tap, type, Enter, with Undo in the toast) and Advanced
   (restrictions, templates, rule order, demand pricing, pricing rules). On phones the month is a week
   list with the editor under the tapped day. Also fixed: the pricing rules panel overflowed at 390 px.
+- **AENR-600 — Today is a to-do list you can finish.** Each Needs attention item has its own action:
+  Release all no-shows (Undo), Approve €X refunds with an in-place confirmation, Re-send to myDATA,
+  Sync an offline till, Open for the rest; done items collect under Done today. No-show set codes
+  open on demand, and a closed zone no longer counts as no-shows (Today showed 24 instead of 17).

@@ -1,28 +1,53 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Card, PageHead, StatCard } from "../../components/ui";
+import { Badge, Btn, Card, PageHead, StatCard } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { TENANT, WEATHER_DEMO, ZONES } from "../../data/beach";
 import { DEMO_TODAY } from "../../domain/period";
 import { useLiveSlots } from "../../lib/useLiveSlots";
 import { useBeachState } from "../../lib/useBeachState";
-import { useInbox } from "../../lib/useInbox";
+import { useInbox, type InboxItem } from "../../lib/useInbox";
+import { useBookingOps } from "../../lib/useBookingOps";
+import { useTill } from "../cashier/useTill";
+import { NO_SHOW_CUTOFF } from "../../domain/sunbedOps";
 import { fmtDateGB } from "../../components/ui/DateInput";
 
 /* ============ Admin › Today (AENR-560) ============
    The manager's home: what is happening on the beach right now and what needs
    attention — occupancy per zone, arrivals and check-ins, no-shows, the gate,
    weather and closures, and the inbox's Needs action items. Every figure comes
-   from the same state as the other screens; every alert opens its record.
-   Revenue charts live in Reports › Overview. */
+   from the same state as the other screens. Each attention item carries its
+   own action (AENR-600) — release no-shows, approve a refund, re-send to
+   myDATA — so the list can be finished here; done items collect under "Done
+   today". Revenue charts live in Reports › Overview. */
+
+interface Attention {
+  id: string;
+  icon: string;
+  tone: "red" | "amber";
+  title: string;
+  body: string;
+  /** Long lists (set codes) open on demand instead of filling the card. */
+  details?: string[];
+  primary?: { label: string; run?: () => void; href?: string; confirm?: string };
+  secondary?: { label: string; href: string };
+}
 
 const WEEKDAY = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export function AdminToday() {
-  const { sunbedOps, weather, closedStores } = useApp();
+  const { sunbedOps, weather, closedStores, toast, setSunbedOps, setBookingOps, bookingOps } = useApp();
   const liveSlots = useLiveSlots("walkin");
-  const { statusOf, exOf, ops } = useBeachState(DEMO_TODAY);
+  const { statusOf, exOf, bookingOf, ops } = useBeachState(DEMO_TODAY);
+  const { decideRefund } = useBookingOps();
+  const tillOps = useTill();
   const inbox = useInbox("admin").filter((i) => i.kind === "action");
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [done, setDone] = useState<{ id: string; text: string }[]>([]);
+  const finish = (id: string, text: string) => {
+    setDone((d) => [{ id: `${id}-${d.length}`, text }, ...d]);
+    setConfirming(null);
+  };
 
   const zones = useMemo(
     () =>
@@ -32,7 +57,8 @@ export function AdminToday() {
           ["booked", "occupied", "hold", "blocked"].includes(statusOf(s)),
         ).length;
         const occupied = slots.filter((s) => statusOf(s) === "occupied").length;
-        const noShows = slots.filter((s) => exOf(s).includes("noshow"));
+        // A closed zone has no arrivals to wait for, so its sets are not no-shows.
+        const noShows = closedStores[z.id] ? [] : slots.filter((s) => exOf(s).includes("noshow"));
         const unpaid = slots.filter((s) => exOf(s).includes("unpaid")).length;
         return {
           z,
@@ -57,6 +83,92 @@ export function AdminToday() {
     ([k, v]) => k.startsWith(`${DEMO_TODAY}|`) && v.status === "occupied",
   ).length;
   const w = WEATHER_DEMO[weather];
+
+  /* ---- Attention items, each with one action ---- */
+  const releaseNoShows = () => {
+    const prev = { sunbed: sunbedOps, ops: bookingOps };
+    noShows.forEach(({ s }) =>
+      ops.release(s.id, DEMO_TODAY, `No-show after ${NO_SHOW_CUTOFF} — released for resale`, bookingOf(s)?.booking?.id),
+    );
+    finish("noshow", `Released ${noShows.length} no-show set${noShows.length === 1 ? "" : "s"} for resale`);
+    toast(`${noShows.length} set${noShows.length === 1 ? "" : "s"} back on sale online, at the till and on the beach.`, {
+      tone: "success",
+      duration: 7000,
+      action: {
+        label: "Undo",
+        onClick: () => {
+          setSunbedOps(() => prev.sunbed);
+          setBookingOps(() => prev.ops);
+          setDone((d) => d.slice(1));
+        },
+      },
+    });
+  };
+  const fromInbox = (i: InboxItem): Attention => {
+    const base = { id: i.id, icon: i.icon, tone: i.tone === "red" ? ("red" as const) : ("amber" as const), title: i.title, body: i.body };
+    if (i.id.startsWith("refund-")) {
+      const r = bookingOps.refunds.find((x) => `refund-${x.id}` === i.id);
+      if (r)
+        return {
+          ...base,
+          primary: {
+            label: `Approve €${r.amount}`,
+            confirm: `Refund €${r.amount} to ${r.who}?`,
+            run: () => {
+              decideRefund(r.id, { approve: r.amount });
+              finish(i.id, `Approved €${r.amount} refund · ${r.who}`);
+              toast(`Refund of €${r.amount} approved — ${r.who} is notified.`, { tone: "success" });
+            },
+          },
+          secondary: { label: "Decline…", href: `#/admin/refunds` },
+        };
+    }
+    if (i.id.startsWith("mydata-")) {
+      const failed = tillOps.till.sales.filter((x) => x.mydata === "failed");
+      return {
+        ...base,
+        primary: {
+          label: "Re-send",
+          run: () => {
+            failed.forEach((x) => tillOps.retryMydata(x.id));
+            finish(i.id, `Re-sent ${failed.length} receipt${failed.length === 1 ? "" : "s"} to myDATA`);
+            toast("Re-sent to myDATA — accepted, MARK assigned.", { tone: "success" });
+          },
+        },
+      };
+    }
+    if (i.id === "till-offline")
+      return {
+        ...base,
+        primary: {
+          label: "Sync now",
+          run: () => {
+            const r = tillOps.syncOffline();
+            finish(i.id, `Till synced · ${r.synced} queued sale${r.synced === 1 ? "" : "s"} sent`);
+            toast(`Till back online — ${r.synced} sale${r.synced === 1 ? "" : "s"} synced.`, { tone: "success" });
+          },
+        },
+      };
+    return { ...base, primary: i.href ? { label: "Open", href: i.href } : undefined };
+  };
+  const zonesWithNoShows = zones.filter((x) => x.noShows.length);
+  const attention: Attention[] = [
+    ...(noShows.length
+      ? [
+          {
+            id: "noshow",
+            icon: "clock",
+            tone: "amber" as const,
+            title: `${noShows.length} no-show${noShows.length === 1 ? "" : "s"} in ${zonesWithNoShows.length} zone${zonesWithNoShows.length === 1 ? "" : "s"}`,
+            body: `Booked for today, not checked in by ${NO_SHOW_CUTOFF}.`,
+            details: zonesWithNoShows.map((x) => `${x.z.name}: ${x.noShows.map((s) => s.id).join(", ")}`),
+            primary: { label: "Release all", run: releaseNoShows },
+            secondary: { label: "Open live beach", href: `#/admin/live?zone=${zonesWithNoShows[0].z.id}` },
+          },
+        ]
+      : []),
+    ...inbox.map(fromInbox),
+  ];
   const d = new Date(`${DEMO_TODAY}T12:00:00`);
 
   return (
@@ -75,7 +187,7 @@ export function AdminToday() {
         />
         <StatCard
           instant
-          label="Arrivals today"
+          label="Bookings for today"
           value={String(arrivals.length)}
           sub={`${checkedIn} set${checkedIn === 1 ? "" : "s"} checked in so far`}
         />
@@ -85,7 +197,7 @@ export function AdminToday() {
           value={String(noShows.length)}
           sub={
             noShows.length
-              ? "not checked in by 11:00 — release to resell"
+              ? `booked sets not checked in by ${NO_SHOW_CUTOFF}`
               : "everyone expected has arrived"
           }
           tone={noShows.length ? "amber" : "navy"}
@@ -158,64 +270,95 @@ export function AdminToday() {
         <div className="space-y-4">
           <Card className="p-5">
             <h2 className="font-display font-bold text-navy-900 mb-2">
-              Needs attention{" "}
-              <span className="text-slate-400 tnum">{inbox.length + (noShows.length ? 1 : 0)}</span>
+              Needs attention <span className="text-slate-400 tnum">{attention.length}</span>
             </h2>
-            {inbox.length === 0 && noShows.length === 0 ? (
+            {attention.length === 0 ? (
               <p className="text-[13px] text-slate-600 flex items-center gap-1.5">
-                <Icon.checkCircle size={15} className="text-emerald-600" /> Nothing needs you right
-                now.
+                <Icon.checkCircle size={15} className="text-emerald-600" /> All clear — nothing needs you right now.
               </p>
             ) : (
-              <ul className="divide-y divide-slate-100">
-                {noShows.length > 0 && (
-                  <li>
-                    <a
-                      href={`#/admin/live?zone=${noShows[0].z.id}`}
-                      className="flex items-start gap-2.5 py-2.5 hover:bg-slate-50 rounded-lg px-1 -mx-1"
-                    >
-                      <Icon.clock size={16} className="text-amber-600 mt-0.5 shrink-0" />
-                      <span className="text-[13.5px]">
-                        <b className="text-navy-900">
-                          {noShows.length} no-show{noShows.length === 1 ? "" : "s"}
-                        </b>{" "}
-                        <span className="text-slate-600">
-                          — {noShows.map((x) => x.s.id).join(", ")}. Release them for resale.
-                        </span>
-                      </span>
-                    </a>
-                  </li>
-                )}
-                {inbox.map((i) => {
-                  const I = Icon[i.icon] ?? Icon.bell;
-                  const body = (
-                    <>
-                      <I
-                        size={16}
-                        className={`${i.tone === "red" ? "text-rose-600" : "text-amber-600"} mt-0.5 shrink-0`}
-                      />
-                      <span className="text-[13.5px] min-w-0">
-                        <b className="text-navy-900">{i.title}</b>{" "}
-                        <span className="text-slate-600">— {i.body}</span>
-                      </span>
-                    </>
-                  );
+              <ul className="divide-y divide-slate-100" aria-live="polite">
+                {attention.map((a) => {
+                  const I = Icon[a.icon] ?? Icon.bell;
+                  const asking = confirming === a.id;
                   return (
-                    <li key={i.id}>
-                      {i.href ? (
-                        <a
-                          href={i.href}
-                          className="flex items-start gap-2.5 py-2.5 hover:bg-slate-50 rounded-lg px-1 -mx-1"
-                        >
-                          {body}
-                        </a>
-                      ) : (
-                        <div className="flex items-start gap-2.5 py-2.5">{body}</div>
-                      )}
+                    <li key={a.id} className="py-3 flex items-start gap-2.5">
+                      <I size={16} className={`${a.tone === "red" ? "text-rose-600" : "text-amber-600"} mt-0.5 shrink-0`} />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13.5px] font-semibold text-navy-900">{a.title}</div>
+                        <div className="text-[12.5px] text-slate-600">{a.body}</div>
+                        {a.details && (
+                          <details className="mt-1 text-[12px] text-slate-600">
+                            <summary className="cursor-pointer font-semibold text-slate-700 hover:text-navy-900 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                              Show sets
+                            </summary>
+                            <ul className="mt-1 space-y-0.5 tnum">
+                              {a.details.map((t) => (
+                                <li key={t}>{t}</li>
+                              ))}
+                            </ul>
+                          </details>
+                        )}
+                        {asking && a.primary?.confirm ? (
+                          <div className="mt-2 flex flex-wrap items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-2">
+                            <span className="text-[12.5px] text-navy-900 font-medium">{a.primary.confirm}</span>
+                            <Btn size="sm" variant="primary" onClick={a.primary.run}>
+                              Approve
+                            </Btn>
+                            <Btn size="sm" variant="ghost" onClick={() => setConfirming(null)}>
+                              Cancel
+                            </Btn>
+                          </div>
+                        ) : (
+                          (a.primary || a.secondary) && (
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              {a.primary &&
+                                (a.primary.href ? (
+                                  <a
+                                    href={a.primary.href}
+                                    className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold bg-white ring-1 ring-slate-200 text-navy-900 hover:ring-teal-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                                  >
+                                    {a.primary.label} <Icon.chevR size={13} />
+                                  </a>
+                                ) : (
+                                  <Btn
+                                    size="sm"
+                                    variant="teal"
+                                    onClick={() => (a.primary?.confirm ? setConfirming(a.id) : a.primary?.run?.())}
+                                  >
+                                    {a.primary.label}
+                                  </Btn>
+                                ))}
+                              {a.secondary && (
+                                <a
+                                  href={a.secondary.href}
+                                  className="text-[12.5px] font-semibold text-teal-700 hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                                >
+                                  {a.secondary.label}
+                                </a>
+                              )}
+                            </div>
+                          )
+                        )}
+                      </div>
                     </li>
                   );
                 })}
               </ul>
+            )}
+            {done.length > 0 && (
+              <details className="mt-3 border-t border-slate-100 pt-2 text-[12.5px] text-slate-600">
+                <summary className="cursor-pointer font-semibold text-slate-700 hover:text-navy-900 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                  Done today <span className="tnum text-slate-400">{done.length}</span>
+                </summary>
+                <ul className="mt-1.5 space-y-1">
+                  {done.map((d) => (
+                    <li key={d.id} className="flex items-center gap-1.5">
+                      <Icon.checkCircle size={13} className="text-emerald-600 shrink-0" /> {d.text}
+                    </li>
+                  ))}
+                </ul>
+              </details>
             )}
           </Card>
           <Card className="p-5">
