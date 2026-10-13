@@ -71,6 +71,10 @@ const FEEDS: Record<string, FeedItem[]> = {
 export function TopBar({ persona, setPersona, page, setPage, previewing = false }: NavProps & { setPersona: (p: PersonaId) => void; previewing?: boolean }) {
   const { setSignedIn, go, toast, cart, removeFromCart, addToCart, clearCart } = useApp();
   const t = useT();
+  // Who is signed in: the guest on the customer side, the demo staff member elsewhere.
+  const me = persona === "customer"
+    ? { initials: `${PROFILE.first[0]}${PROFILE.last[0]}`, name: `${PROFILE.first} ${PROFILE.last}`, email: PROFILE.email }
+    : { initials: "EM", name: "Elena M.", email: "elena@example.com" };
   const cartCount = (cart || []).length;
   const cartTotal = (cart || []).reduce((a, b) => a + b.price, 0);
   // Basket + notifications are controlled Popovers so their in-panel CTAs can
@@ -276,18 +280,20 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
         <DropdownMenu.Root modal={false}>
           <DropdownMenu.Trigger asChild>
             <button aria-label={t("Account menu")} className="flex items-center gap-1.5 bg-slate-100/80 hover:bg-slate-200/80 data-[state=open]:bg-slate-200/80 rounded-xl p-1 sm:pr-1.5 transition">
-              <span className="w-7 h-7 rounded-lg grid place-items-center text-white text-xs font-bold" style={{ background: "linear-gradient(135deg,#f7b535,#e8920e)" }}>{PROFILE.first[0]}{PROFILE.last[0]}</span>
+              <span className="w-7 h-7 rounded-lg grid place-items-center text-white text-xs font-bold" style={{ background: "linear-gradient(135deg,#f7b535,#e8920e)" }}>{me.initials}</span>
               <Icon.chevD size={14} className="text-slate-500 hidden sm:block" />
             </button>
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content align="end" sideOffset={8} className="glass w-60 text-ink rounded-xl p-1.5 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
               <div className="px-3 py-2 border-b border-slate-100 mb-1">
-                <div className="font-semibold text-sm text-navy-900">{PROFILE.first} {PROFILE.last}</div>
-                <div className="text-[12px] text-slate-500">{PROFILE.email}</div>
+                <div className="font-semibold text-sm text-navy-900">{me.name}</div>
+                <div className="text-[12px] text-slate-500">{me.email}</div>
               </div>
+              {persona === "customer" && <>
               <DropdownMenu.Item onSelect={() => go("customer", "mybookings")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.grid size={15} /> {t("My bookings")}</DropdownMenu.Item>
               <DropdownMenu.Item onSelect={() => go("customer", "account")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.cog size={15} /> {t("Account")}</DropdownMenu.Item>
+              </>}
               <div className="border-t border-slate-100 mt-1 pt-1">
                 <DropdownMenu.Item onSelect={() => { setSignedIn(false); toast(t("Signed out (demo).")); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-rose-600 cursor-pointer select-none outline-none hover:bg-rose-50 data-[highlighted]:bg-rose-50"><Icon.arrowL size={15} /> {t("Sign out")}</DropdownMenu.Item>
               </div>

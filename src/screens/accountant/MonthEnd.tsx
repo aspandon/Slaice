@@ -92,7 +92,23 @@ export function MonthEnd() {
     setState({ ...state, closedAt: `${DEMO_TODAY}T${new Date().toTimeString().slice(0, 5)}` });
     toast(`${ref.label} closed.`, { tone: "success", action: { label: "Undo", onClick: () => setState(before) } });
   };
-  const [preset, setPreset] = useState<ExportPreset>("generic");
+  // The accounting-package layout is remembered on this device (AENR-625), so Export is one click.
+  const [preset, setPresetRaw] = useState<ExportPreset>(() => {
+    try {
+      const v = localStorage.getItem("slaice.monthend.preset");
+      return EXPORT_PRESETS.some((p) => p.id === v) ? (v as ExportPreset) : "generic";
+    } catch {
+      return "generic";
+    }
+  });
+  const setPreset = (v: ExportPreset) => {
+    setPresetRaw(v);
+    try {
+      localStorage.setItem("slaice.monthend.preset", v);
+    } catch {
+      /* storage blocked */
+    }
+  };
 
   const open = (t: ExceptionTarget) => {
     if (t.page === "commission") return go("accountant", "commission");

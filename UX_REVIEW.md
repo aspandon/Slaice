@@ -456,3 +456,6 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   longer covers the sign-in buttons.
 - **AENR-614 — month-end fixes what it can.** Prepare month re-sends pending documents and drafts the
   missing credit notes; rejected documents get one review sheet; Close unlocks when nothing blocks.
+- **AENR-625 — exports remember your choice.** After the first export a report's control is a split
+  button (Export · PDF in one click, ▾ for the other format); Month-end keeps its layout.
+  AENR-629 fixed staff avatar menus showing the guest's name and customer links.
