@@ -24,7 +24,7 @@ export async function createTop(p, { title, type, priority }) {
 }
 async function keysNoNav(p) { return new Set((await p.locator('main').innerText()).match(/AENR-\d+/g) || []); }
 async function newKey(p, before) {
-  for (let i = 0; i < 4; i++) { const after = await keys(p); const n = [...after].filter(k => !before.has(k)); if (n.length === 1) return n[0]; if (n.length > 1) throw new Error('many new keys ' + n); await p.waitForTimeout(2000); }
+  for (let i = 0; i < 4; i++) { const after = await keys(p); const n = [...after].filter(k => !before.has(k)); if (n.length === 1) return n[0]; if (n.length > 1) { /* Orbit keys are sequential: the item just created has the highest number. */ return n.sort((a, b) => Number(b.split('-')[1]) - Number(a.split('-')[1]))[0]; } await p.waitForTimeout(2000); }
   throw new Error('item was not created');
 }
 export async function addChild(p, parentTitle, { title, type, priority }) {
