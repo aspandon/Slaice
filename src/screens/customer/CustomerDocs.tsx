@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Icon } from "../../lib/icons";
-import { Card, Btn, Table, EmptyState, ErrorState, TableSkeleton, Tabs, Modal } from "../../components/ui";
-import { downloadPDF, downloadZIP, buildPDFBytes } from "../../lib/download";
+import { Card, Btn, Table, EmptyState, ErrorState, TableSkeleton, Tabs, Modal, ExportMenu } from "../../components/ui";
+import { downloadPDF, downloadZIP, buildPDFBytes, downloadReport, docToReport } from "../../lib/download";
 import { listCustomerDocuments } from "../../api";
 import { useAsync } from "../../lib/useAsync";
 import type { CustomerDocument } from "../../domain/types";
@@ -40,7 +40,18 @@ export function CustomerDocs() {
     <Card surface="raised" className="p-4">
       <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
         <Tabs tabs={[["all", t("All")], ["Receipt", t("Receipts")], ["Invoice", t("Invoices")], ["Credit note", t("Credit notes")]]} value={filter} onChange={setFilter} />
-        <Btn size="sm" variant="outline" icon={Icon.download} onClick={downloadAll}>{t("Download all (ZIP)")}</Btn>
+        <div className="flex flex-wrap gap-2">
+          <ExportMenu size="sm" label={t("List")} what={t("receipts list")} onExport={(f) => {
+            downloadReport("receipts", {
+              title: t("Receipts"),
+              subtitle: `${filtered.length} ${t("documents")}`,
+              meta: ["Akti tou Iliou AE · VAT EL123456789 · Leof. Poseidonos 1, 174 55 Alimos"],
+              sections: [{ table: { cols: [t("Document"), t("Number"), t("For"), t("Date"), t("Amount")], rows: filtered.map((d) => [t(docKind(d.id)), d.id, d.for, d.date, d.amt]) } }],
+            }, f);
+            toast(`${t("Downloaded")} receipts.${f}`, { tone: "success" });
+          }} />
+          <Btn size="sm" variant="outline" icon={Icon.download} onClick={downloadAll}>{t("All PDFs (ZIP)")}</Btn>
+        </div>
       </div>
       {docsQ.status === "loading" ? (
         <TableSkeleton rows={3} cols={5} />
@@ -67,13 +78,12 @@ export function CustomerDocs() {
 export function ReceiptModal({ doc: view, onClose, extra }: { doc: CustomerDocument | null; onClose: () => void; extra?: ReactNode }) {
   const { toast } = useApp();
   const t = useT();
-  const download = (d: CustomerDocument) => { downloadPDF(`${d.id}.pdf`, customerReceiptDoc(d)); toast(`${t("Downloaded")} ${d.id}.pdf`, { tone: "success" }); };
   return (
     <Modal open={!!view} onClose={onClose} title={view ? t(docKind(view.id)) : t("Document")}
       footer={<>
         <Btn variant="ghost" onClick={onClose}>{t("Close")}</Btn>
         {extra}
-        <Btn variant="primary" icon={Icon.download} onClick={() => { if (!view) return; download(view); onClose(); }}>{t("Download PDF")}</Btn>
+        {view && <ExportMenu variant="primary" label={t("Download")} what={view.id} onExport={(f) => { downloadReport(view.id, docToReport(customerReceiptDoc(view)), f); toast(`${t("Downloaded")} ${view.id}.${f}`, { tone: "success" }); }} />}
       </>}>
       {view && (
         <div className="text-sm">
@@ -100,27 +110,21 @@ export function ReceiptModal({ doc: view, onClose, extra }: { doc: CustomerDocum
 }
 
 function customerReceiptDoc(d: CustomerDocument) {
-  const kind = d.id.startsWith("ΑΠΥ") ? "Retail receipt (ΑΠΥ)"
-            : d.id.startsWith("ΤΠΥ") ? "Invoice (ΤΠΥ)"
-            : "Credit note";
+  const kind = d.id.startsWith("ΑΠΥ") ? "Receipt" : d.id.startsWith("ΤΠΥ") ? "Invoice" : "Credit note";
+  // myDATA document type: retail receipt 11.1, service invoice 2.1, credit 11.4.
+  const type = d.id.startsWith("ΑΠΥ") ? "11.1" : d.id.startsWith("ΤΠΥ") ? "2.1" : "11.4";
   return {
-    title: "AKTI TOU ILIOU AE",
-    subtitle: `${kind} · ${d.id}`,
-    meta: [
-      `ΑΦΜ 123456789 · GR · payment 7 (Stripe online)`,
-      `Issued ${d.date} · for ${d.for}`,
-      `MARK ${d.mark}`,
-    ],
+    brand: "Akti tou Iliou AE · VAT EL123456789 · Leof. Poseidonos 1, 174 55 Alimos",
+    title: `${kind} ${d.id}`,
+    subtitle: `${d.for} · ${d.date}`,
+    meta: [`Issued ${d.date} · paid by card online (Stripe)`, `myDATA MARK ${d.mark} · document type ${type}`],
     table: {
-      cols: ["Item", "Qty", "Net", "VAT", "Total"],
-      rightCols: [1, 2, 3, 4],
-      rows: d.lines.map(([l, n, v, t]) => [l, n, v, t]),
+      cols: ["Item", "Net", "VAT", "Total"],
+      rightCols: [1, 2, 3],
+      rows: d.lines.map(([l, net, vat, gross]) => [l, net, vat, gross]),
     },
-    totals: [["Total gross", d.amt]],
-    footer: [
-      "Transmitted to AADE · MyDATA — invoiceType 2.1",
-      "Slaice POS · cashier 7 · register 1",
-    ],
+    totals: [["Total paid", d.amt]],
+    footer: ["Prices include VAT. Transmitted to the Greek tax authority (AADE · myDATA)."],
   };
 }
 function buildReceiptBytes(d: CustomerDocument) { return buildPDFBytes(customerReceiptDoc(d)); }

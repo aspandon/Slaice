@@ -97,7 +97,7 @@ export interface DataExport {
   id: string;
   at: string;
   status: "Queued" | "Preparing" | "Ready" | "Expired";
-  format: "CSV" | "JSON";
+  format: "CSV" | "JSON" | "PDF";
   by: string;
 }
 export interface Suspension {

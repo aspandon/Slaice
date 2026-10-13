@@ -9,11 +9,10 @@ import {
   Field,
   Input,
   Modal,
-  Select,
-} from "../../components/ui";
+  Select, ExportMenu } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { readHashQuery } from "../../app/router";
-import { downloadCSV } from "../../lib/download";
+import { downloadReport } from "../../lib/download";
 import { CUSTOMERS } from "../../data/mock";
 import {
   DSAR_ARTICLE,
@@ -37,6 +36,7 @@ import {
 import { CHANNEL_PURPOSES } from "../../domain/gdpr";
 import { STAFF_NAME, usePrivacy } from "./usePrivacy";
 
+import { TENANT } from "../../data/beach";
 /* ============ Data-subject requests (AENR-484) ============
    One queue for requests from the Privacy Centre and those staff log from
    e-mail, phone or in person. Each request moves through one status machine;
@@ -404,12 +404,14 @@ function RequestDrawer({
       { tone: "success" },
     );
   };
-  const exportAudit = () =>
-    downloadCSV(
-      `${r.id}-audit.csv`,
-      ["When", "By", "What"],
-      r.audit.map((a) => [a.at, a.by, a.what]),
-    );
+  // The request's audit trail — evidence of how it was handled (AENR-593).
+  const exportAudit = (format: "pdf" | "csv") =>
+    downloadReport(`${r.id}-audit`, {
+      title: `${r.id} · ${r.type} request`,
+      subtitle: `${r.first} ${r.last} · ${r.email} · received ${r.received} · due ${dueDate(r)} · ${r.status}`,
+      meta: [`${TENANT.name} · controller · GDPR Art. 12 and 15–21`],
+      sections: [{ title: "Audit trail", table: { cols: ["When", "By", "What"], rows: r.audit.map((a) => [a.at, a.by, a.what]) } }],
+    }, format);
   const flow: DsarStatus[] = [
     "Received",
     "Verifying identity",
@@ -435,9 +437,7 @@ function RequestDrawer({
       }
       footer={
         <div className="flex flex-wrap gap-2 justify-between w-full">
-          <Btn variant="ghost" icon={Icon.download} onClick={exportAudit}>
-            Export audit trail
-          </Btn>
+          <ExportMenu variant="ghost" label="Audit trail" what={`for ${r.id}`} onExport={exportAudit} />
           {isOpen(r) && !refuse && (
             <Btn
               variant="ghost"

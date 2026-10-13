@@ -102,7 +102,7 @@ const MAP: Record<string, () => ReactElement> = {
 // localStorage entry pointing at a since-removed page).
 const FALLBACK: Record<PersonaId, () => ReactElement> = {
   customer: () => <C.CustomerHome />,
-  admin: () => <A.AdminDashboard />,
+  admin: () => <AdminToday />,
   callcenter: () => <NewBooking />,
   cashier: () => <CA.CashierIssue />,
   controller: () => <CT.ControllerScan />,

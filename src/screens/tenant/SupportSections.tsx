@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, EmptyState, Field, Input, Select, Table, DateInput } from "../../components/ui";
+import { Badge, Btn, Card, EmptyState, Field, Input, Select, Table, DateInput, ExportMenu } from "../../components/ui";
 import { Sparkline } from "../../components/charts";
 import { usePlatform } from "../../lib/usePlatform";
-import { downloadCSV } from "../../lib/download";
+import { downloadReport } from "../../lib/download";
 import { addDays } from "../../domain/period";
 import { HEALTH_WEIGHTS, healthScore, type ActorType, type Note } from "../../domain/tenants";
 import { SectionFrame, type SectionProps } from "./kit";
@@ -274,28 +274,17 @@ export function Audit({ t }: SectionProps) {
       title="Audit log"
       sub="Every change to this tenant — who, when, what, old → new and why. Kept for the life of the tenant + retention."
       actions={
-        <Btn
-          variant="outline"
-          icon={Icon.download}
-          onClick={() =>
-            downloadCSV(
-              `audit_${t.id}.csv`,
-              ["When", "Actor", "Actor type", "Section", "Change", "From", "To", "Reason"],
-              rows.map((a) => [
-                a.at,
-                a.actor,
-                a.actorType,
-                a.section,
-                a.change,
-                a.from ?? "",
-                a.to ?? "",
-                a.reason ?? "",
-              ]),
-            )
+        <ExportMenu
+          what={`the ${t.name} audit log`}
+          onExport={(f) =>
+            downloadReport(`audit_${t.id}`, {
+              brand: "Slaice · platform",
+              title: `Audit log · ${t.name}`,
+              subtitle: `${rows.length} change${rows.length === 1 ? "" : "s"}${actor || section || from ? " · filtered" : ""}`,
+              sections: [{ table: { cols: ["When", "Actor", "Actor type", "Section", "Change", "From", "To", "Reason"], rows: rows.map((a) => [a.at.slice(0, 16).replace("T", " "), a.actor, a.actorType, a.section, a.change, a.from ?? "", a.to ?? "", a.reason ?? ""]) } }],
+            }, f)
           }
-        >
-          CSV
-        </Btn>
+        />
       }
     >
       <div className="flex flex-wrap gap-2 items-end">
@@ -368,7 +357,7 @@ export function Audit({ t }: SectionProps) {
 /* ---------- Data export ---------- */
 export function DataExport({ t }: SectionProps) {
   const { updateTenant, actor, today } = usePlatform();
-  const [format, setFormat] = useState<"CSV" | "JSON">("JSON");
+  const [format, setFormat] = useState<"CSV" | "JSON" | "PDF">("JSON");
   // Advance queued exports: Queued → Preparing → Ready (demo timers).
   useEffect(() => {
     const pending = t.exports.filter((e) => e.status === "Queued" || e.status === "Preparing");
@@ -407,7 +396,7 @@ export function DataExport({ t }: SectionProps) {
       }),
       { section: "Data export", change: `Export requested (${format})` },
     );
-  const download = (fmt: "CSV" | "JSON") => {
+  const download = (fmt: "CSV" | "JSON" | "PDF") => {
     const data = {
       tenant: { id: t.id, name: t.name, legalName: t.legalName, vatNo: t.vatNo },
       settings: { plan: t.plan, languages: t.languages, locations: t.locations },
@@ -415,12 +404,19 @@ export function DataExport({ t }: SectionProps) {
       invoices: t.invoices,
       exportedAt: new Date().toISOString(),
     };
-    if (fmt === "CSV")
-      return downloadCSV(
-        `${t.id}-export.csv`,
-        ["Key", "Value"],
-        Object.entries(data).map(([k, v]) => [k, JSON.stringify(v)]),
-      );
+    // CSV and PDF read like a report (AENR-593); JSON stays the machine-readable copy.
+    if (fmt !== "JSON")
+      return downloadReport(`${t.id}-export`, {
+        brand: "Slaice · platform",
+        title: `Tenant data export · ${t.name}`,
+        subtitle: `${t.legalName} · VAT ${t.vatNo}`,
+        meta: [`Exported ${data.exportedAt.slice(0, 16).replace("T", " ")} · internal notes excluded`],
+        sections: [
+          { title: "Tenant", table: { cols: ["Field", "Value"], rows: [["ID", t.id], ["Name", t.name], ["Legal name", t.legalName], ["VAT no.", t.vatNo], ["Plan", `${t.plan.id} v${t.plan.version}`], ["Languages", t.languages.join(", ")], ["Locations", String(t.locations)]] } },
+          { title: "Activity", kpis: [{ label: "Bookings", value: t.kpi.bookings.toLocaleString("en-GB") }, { label: "Invoices", value: String(t.invoices.length) }] },
+          { title: "Invoices", table: { cols: ["Invoice", "Period", "Amount (€)", "Status", "Due"], rows: t.invoices.map((i) => [i.no, i.period, i.amount, i.status, i.due]) } },
+        ],
+      }, fmt === "PDF" ? "pdf" : "csv");
     const url = URL.createObjectURL(
       new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }),
     );
@@ -442,8 +438,8 @@ export function DataExport({ t }: SectionProps) {
           <Field label="Format">
             <Select
               value={format}
-              onChange={(e) => setFormat(e.target.value as "CSV" | "JSON")}
-              options={["JSON", "CSV"]}
+              onChange={(e) => setFormat(e.target.value as "CSV" | "JSON" | "PDF")}
+              options={["JSON", "CSV", "PDF"]}
             />
           </Field>
         </div>

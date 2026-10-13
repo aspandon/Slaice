@@ -12,13 +12,12 @@ import {
   StatCard,
   Table,
   Tabs,
-  Toggle,
-} from "../../components/ui";
+  Toggle, ExportMenu } from "../../components/ui";
 import { Funnel, LineChartMini } from "../../components/charts";
 import { useApp } from "../../app/store";
 import { readHashQuery } from "../../app/router";
 import { usePlatform } from "../../lib/usePlatform";
-import { downloadCSV } from "../../lib/download";
+import { downloadReport } from "../../lib/download";
 import { makeTenant } from "../../data/tenants";
 import { mrrSeries } from "../../domain/platform";
 import { addDays, fmtDay } from "../../domain/period";
@@ -137,39 +136,29 @@ export function PlatformTenants() {
           label="Include sandbox / demo tenants"
         />
         <div className="ml-auto flex gap-2">
-          <Btn
-            variant="outline"
-            icon={Icon.download}
-            onClick={() =>
-              downloadCSV(
-                `tenants_${view}.csv`,
-                [
-                  "Tenant",
-                  "ID",
-                  "Plan",
-                  "Status",
-                  "Health",
-                  "Actions required",
-                  "Stripe",
-                  "MRR",
-                  "Environment",
+          <ExportMenu
+            what="tenants"
+            onExport={(f) =>
+              downloadReport(`tenants_${view}`, {
+                brand: "Slaice · platform",
+                title: "Tenants",
+                subtitle: `${shown.length} tenant${shown.length === 1 ? "" : "s"} · view: ${view}${platform.includeSandbox ? " · incl. sandbox" : ""}`,
+                sections: [
+                  { kpis: [
+                    { label: "Tenants", value: String(shown.length) },
+                    { label: "Live", value: String(shown.filter((r) => r.t.lifecycle === "live").length) },
+                    { label: "MRR", value: `€${shown.reduce((a, r) => a + mrr(r.t), 0).toLocaleString("en-GB")}` },
+                    { label: "Actions required", value: String(shown.reduce((a, r) => a + r.actions.length, 0)) },
+                  ] },
+                  { title: "Tenants", table: {
+                    cols: ["Tenant", "ID", "Plan", "Status", "Health", "Actions required", "Stripe", "MRR (€)", "Environment"],
+                    rows: shown.map((r) => [r.t.name, r.t.id, planName(r.t), LIFECYCLE_LABEL[r.t.lifecycle], r.h.score, r.actions.length, r.t.stripe.charges && r.t.stripe.payouts ? "enabled" : "restricted", mrr(r.t), r.t.env]),
+                    total: ["Total", "", "", "", "", shown.reduce((a, r) => a + r.actions.length, 0), "", shown.reduce((a, r) => a + mrr(r.t), 0), ""],
+                  } },
                 ],
-                shown.map((r) => [
-                  r.t.name,
-                  r.t.id,
-                  planName(r.t),
-                  LIFECYCLE_LABEL[r.t.lifecycle],
-                  r.h.score,
-                  r.actions.length,
-                  r.t.stripe.charges && r.t.stripe.payouts ? "enabled" : "restricted",
-                  mrr(r.t),
-                  r.t.env,
-                ]),
-              )
+              }, f)
             }
-          >
-            CSV
-          </Btn>
+          />
           <Btn variant="indigo" icon={Icon.bolt} onClick={() => go("platform", "onboarding")}>
             Onboard tenant
           </Btn>

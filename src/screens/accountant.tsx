@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 import { Icon } from "../lib/icons";
-import { Card, Btn, PageHead, Table, StatCard } from "../components/ui";
+import { Card, PageHead, Table, StatCard, ExportMenu } from "../components/ui";
 import { Donut } from "../components/charts";
 import { ACCOUNTANT_PAYOUTS } from "../data/mock";
 import { useApp } from "../app/store";
-import { downloadCSV } from "../lib/download";
+import { downloadReport } from "../lib/download";
 
+import { TENANT } from "../data/beach";
 const neg = (v: ReactNode) => <span className="text-rose-600 font-medium tnum">{v}</span>;
 const negBold = (v: ReactNode) => <b className="text-rose-600 tnum">{v}</b>;
 
@@ -14,7 +15,23 @@ export function AccountantCommission() {
   const monthly = ACCOUNTANT_PAYOUTS;
   return (
     <div>
-      <PageHead primary={<Btn variant="primary" icon={Icon.download} onClick={() => { downloadCSV("payouts.csv", ["Month", "Gross", "Stripe fee", "Slaice 5%", "Tenant net"], monthly); toast("Exported payout statement (CSV)."); }}>Export</Btn>} />
+      <PageHead primary={<ExportMenu variant="primary" what="payout statement" onExport={(f) => {
+        const num = (v: string) => Number(v.replace(/[^0-9-−]/g, "").replace("−", "-"));
+        downloadReport("payouts", {
+          title: "Commission & payouts",
+          subtitle: "Season 2026 · by month",
+          meta: [`${TENANT.name} · Stripe Connect direct charges with the Slaice application fee (5%)`],
+          sections: [
+            { kpis: [{ label: "Season gross", value: "€704k" }, { label: "Stripe fees", value: "−€10.2k", sub: "~1.5%" }, { label: "Slaice 5%", value: "−€35.2k", sub: "application fee" }, { label: "Tenant net", value: "€658.6k" }] },
+            { title: "Payout statement", table: {
+              cols: ["Month", "Gross (€)", "Stripe fee (€)", "Slaice 5% (€)", "Tenant net (€)"],
+              rows: monthly.map((r) => [r[0], num(r[1]), num(r[2]), num(r[3]), num(r[4])]),
+              total: ["Total", ...[1, 2, 3, 4].map((i) => monthly.reduce((a, r) => a + num(r[i]), 0))],
+            } },
+          ],
+        }, f);
+        toast(`Exported payout statement (${f.toUpperCase()}).`);
+      }} />} />
       <div className="grid sm:grid-cols-4 gap-4 mb-4">
         <StatCard label="Season gross" value="€704k" tone="teal" icon={Icon.chart} />
         <StatCard label="Stripe fees" value="−€10.2k" sub="~1.5%" icon={Icon.stripe} />

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Field, Input, Modal, SaveBar, Select, Toggle, DateInput } from "../../components/ui";
+import { Badge, Btn, Card, Field, Input, Modal, SaveBar, Select, Toggle, DateInput, ExportMenu } from "../../components/ui";
 import { useApp } from "../../app/store";
-import { downloadCSVReport, downloadPDF } from "../../lib/download";
+import { downloadReport, csvSectionsToReport, type CsvSection } from "../../lib/download";
 import {
   ART30_FIELDS,
   BASES,
@@ -54,8 +54,9 @@ export function RegisterTab() {
   const [showArchived, setShowArchived] = useState(false);
   const acts = privacy.activities.filter((a) => !!a.archived === showArchived);
   const controller = "Akti tou Iliou AE · Poseidonos Ave 32, Alimos";
-  const exportCsv = () => {
-    downloadCSVReport("record-of-processing.csv", [
+  // One register, PDF or CSV — the same columns in both (AENR-593).
+  const exportRegister = (format: "pdf" | "csv") => {
+    const secs: CsvSection[] = [
       {
         title: `Record of processing activities (GDPR Art. 30) · ${controller} · DPO ${privacy.dpo.email}`,
         header: [
@@ -100,36 +101,14 @@ export function RegisterTab() {
           d.review,
         ]),
       },
-    ]);
-    toast("Register exported (CSV).", { tone: "success" });
-  };
-  const exportPdf = () => {
-    downloadPDF("record-of-processing.pdf", {
+    ];
+    secs[0] = { ...secs[0], title: "Processing activities" };
+    downloadReport("record-of-processing", csvSectionsToReport({
       title: "Record of processing activities",
       subtitle: "GDPR Art. 30(1) · for the Hellenic Data Protection Authority",
-      meta: [
-        `Controller: ${controller}`,
-        `DPO: ${privacy.dpo.name} · ${privacy.dpo.email}`,
-        `Generated ${new Date().toLocaleString("en-GB")}`,
-      ],
-      table: {
-        cols: ["Activity", "Basis", "Data subjects", "Retention", "Transfers"],
-        rows: privacy.activities
-          .filter((a) => !a.archived)
-          .map((a) => [
-            a.name,
-            a.basis,
-            a.subjects,
-            a.retention,
-            a.transfers === "None" ? "None" : `${a.transfers} (${a.safeguard})`,
-          ]),
-      },
-      footer: [
-        "Full purposes, recipients and security measures are in the CSV export.",
-        "Kept under Art. 30(4) — available to the authority on request.",
-      ],
-    });
-    toast("Register exported (PDF).", { tone: "success" });
+      meta: [`Controller: ${controller}`, `DPO: ${privacy.dpo.name} · ${privacy.dpo.email}`, "Kept under Art. 30(4) — available to the authority on request."],
+    }, secs), format);
+    toast(`Register exported (${format.toUpperCase()}).`, { tone: "success" });
   };
   const save = (a: Activity) => {
     setPrivacy((s) => ({
@@ -156,12 +135,7 @@ export function RegisterTab() {
               : `Archived · ${privacy.activities.filter((a) => a.archived).length}`}
           </button>
           <div className="ml-auto flex flex-wrap gap-1.5">
-            <Btn size="sm" variant="ghost" icon={Icon.download} onClick={exportCsv}>
-              CSV
-            </Btn>
-            <Btn size="sm" variant="ghost" icon={Icon.download} onClick={exportPdf}>
-              PDF
-            </Btn>
+            <ExportMenu size="sm" variant="ghost" what="the record of processing" onExport={exportRegister} />
             <Btn
               size="sm"
               variant="primary"

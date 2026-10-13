@@ -1,18 +1,18 @@
 import { useState } from "react";
 import { Icon, type IconRenderer } from "../../lib/icons";
-import { Badge, Btn, Drawer, Field, Input, Select, Table, Tabs, Toggle } from "../../components/ui";
+import { Badge, Btn, Drawer, Field, Input, Select, Table, Tabs, Toggle, ExportMenu } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { ADMIN_BOOKINGS, ADMIN_REFUNDS } from "../../data/mock";
-import { ZONES } from "../../data/beach";
+import { ZONES, TENANT } from "../../data/beach";
 import type { GuestFacts } from "../../data/guests";
 import type { Customer, GuestProfileData } from "../../domain/types";
 import { RFM_TONE, STAGE_TONE, predictedNextVisit, type Rfm, type Stage } from "../../domain/lifecycle";
 import { fmtDay } from "../../domain/period";
 import type { Segment } from "../../domain/segments";
-import { downloadCSV } from "../../lib/download";
 import { CH_LABEL, fmtAt } from "../../domain/comms";
 import { latest, type ConsentPurpose } from "../../domain/gdpr";
 import { usePrivacy } from "../privacy/usePrivacy";
+import { downloadReport } from "../../lib/download";
 
 /* ============ 360° guest profile (AENR-477) ============
    One drawer per guest with tabs: Overview · Bookings · Payments & refunds ·
@@ -65,14 +65,21 @@ export function GuestProfile({ guest, customer, rfm, segments, tags, onClose, on
     recordConsent(customer.id, { [k]: on }, "Staff", `${CHANNEL_LABEL[k]} ${on ? "recorded" : "withdrawn"} by staff`);
     toast(`${CHANNEL_LABEL[k]} marketing consent ${on ? "recorded" : "withdrawn"} for ${customer.first}.`, { tone: "success" });
   };
-  const exportData = () => {
-    downloadCSV(`guest-${customer.id}-data.csv`, ["Field", "Value"], [
+  // The guest's data (access / portability request), in PDF or CSV (AENR-593).
+  const exportData = (format: "pdf" | "csv") => {
+    const fields: [string, string | number][] = [
       ["Name", name], ["E-mail", customer.email], ["Phone", customer.phone], ["Visits", guest.visits], ["Lifetime spend (€)", guest.spend],
       ["First visit", guest.firstVisit], ["Last visit", guest.lastVisit], ["Language", guest.language], ["City", guest.city],
       ...Object.keys(CHANNEL_LABEL).map((k) => [`${CHANNEL_LABEL[k]} consent`, consent(k).on ? "Yes" : "No"] as [string, string]),
       ...(prof.notes ?? []).map((n) => [`Note (${n.at.slice(0, 10)})`, n.text] as [string, string]),
-    ]);
-    toast("Guest data exported (access / portability request).", { tone: "success" });
+    ];
+    downloadReport(`guest-${customer.id}-data`, {
+      title: `Personal data · ${name}`,
+      subtitle: "Access / portability request (GDPR Art. 15 / 20)",
+      meta: [`${TENANT.name} · controller · exported by Manager / Admin`],
+      sections: [{ title: "Data we hold", table: { cols: ["Field", "Value"], rows: fields } }],
+    }, format);
+    toast(`Guest data exported (${format.toUpperCase()}) — access / portability request.`, { tone: "success" });
   };
   const sent = comms.log.filter((e) => e.guestId === customer.id && e.at <= comms.clock).sort((a, b) => b.at.localeCompare(a.at));
   const messages = [
@@ -227,7 +234,7 @@ export function GuestProfile({ guest, customer, rfm, segments, tags, onClose, on
             );
           })}
           <div className="flex flex-wrap gap-2 pt-1">
-            <Btn size="sm" variant="outline" icon={Icon.download} onClick={exportData}>Export guest data</Btn>
+            <ExportMenu size="sm" label="Export guest data" onExport={exportData} />
             <Btn size="sm" variant="outline" icon={Icon.shield} onClick={() => { setCrm((c) => ({ ...c, eraseRequests: [...new Set([...c.eraseRequests, customer.id])] })); toast(`Erasure request raised for ${customer.first} — handle it in Privacy & GDPR.`, { tone: "success" }); }}>Request erasure</Btn>
             <Btn size="sm" variant="ghost" icon={Icon.arrowR} onClick={() => go("admin", "privacy")}>Privacy & GDPR</Btn>
           </div>

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Pager, moneyVal } from "../components/TableTools";
 import { Icon, type IconRenderer } from "../lib/icons";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, EmptyState, FutureBanner, Spinner, PeriodPicker } from "../components/ui";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, EmptyState, FutureBanner, Spinner, PeriodPicker, ExportMenu } from "../components/ui";
 import type { TabEntry } from "../components/ui";
 import { BarChart, HBarChart, LineChartMini, Donut, Sparkline } from "../components/charts";
 
@@ -17,14 +17,14 @@ import { CardFace, ScaledCard, WalletRendition, TEXT_KEYS, TEXT_LABELS, type Dra
 import { TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, personByFirst, CUSTOMERS } from "../data/mock";
 import { SendModal } from "../components/SendModal";
 import { useApp } from "../app/store";
-import { downloadCSV, downloadCSVReport, downloadPDF, type CsvSection } from "../lib/download";
+import { downloadReport, csvSectionsToReport, type CsvSection } from "../lib/download";
 import { usePeriod } from "../lib/usePeriod";
 import { OccupancyTab, occupancyCsv, useOccupancy } from "./reporting/OccupancyTab";
 import { ChannelsTab, channelsCsv, useChannels } from "./reporting/ChannelsTab";
 
 
 import { resolveRange, comparisonRange, lastYearRange, granularityFor, rangeLabel, periodNoun, comparisonLabel, isoFromDayMonth, inRange, fmtWeekday as fmtWeekdayP, DEMO_TODAY } from "../domain/period";
-import { summarize, series, buckets, fmtEUR, fmtInt, fmtPct, trendPct, trendPp, trendEUR } from "../data/analytics";
+import { summarize, series, buckets, fmtEUR, fmtInt, fmtPct, trendPct, trendPp } from "../data/analytics";
 import { Masked } from "./tenant/ViewAs";
 import { tillRefunds } from "../data/tillAdmin";
 import { useListUrl, useUrlState } from "../lib/useUrlState";
@@ -33,7 +33,7 @@ import { refundHistory, refundStats } from "../data/refunds";
 import { decidedRefundRows, opsNow, useBookingOps } from "../lib/useBookingOps";
 import { slaState } from "../domain/bookingOps";
 import { PendingRefund } from "./bookings/BookingDrawer";
-import { InvoicesTab, OverviewPanel, PaymentsTab, SectionChips, financeCsv, financePdf, useFinanceData, useSection } from "./reporting/FinanceTabs";
+import { InvoicesTab, OverviewPanel, PaymentsTab, SectionChips, financeCsv, useFinanceData, useSection } from "./reporting/FinanceTabs";
 import { financeReport } from "../data/finance";
 import { reconcile } from "../domain/reconcile";
 import { VARIANCE_TOLERANCE, eur as eurTill, shiftTotals } from "../domain/till";
@@ -41,86 +41,6 @@ import { VARIANCE_TOLERANCE, eur as eurTill, shiftTotals } from "../domain/till"
 /** Full euro amount for exports and tables; tiles use the abbreviated fmtEUR. */
 const eurFull = (n: number) => `€${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-/* ============ DASHBOARD ============ */
-export function AdminDashboard() {
-  const { toast, till } = useApp();
-  // One period drives every tile, delta, chart and the export (AENR-466).
-  const [period, setPeriod] = usePeriod({ kind: "preset", preset: "week", offset: 0 });
-  const range = resolveRange(period) ?? resolveRange({ kind: "preset", preset: "week", offset: 0 })!;
-  const now = summarize(range);
-  const prev = summarize(comparisonRange(period, range));
-  const hasPrev = prev.openDays > 0;
-  const noun = periodNoun(period);
-  const vs = comparisonLabel(period);
-  const g = granularityFor(range);
-  const axis = { hour: "Hour", day: "Day", week: "Week of", month: "Month" }[g];
-  const rev = series(range, (x) => x.revenue, g);
-  const other = now.byCapability.Lockers + now.byCapability.Parking;
-  const share = (v: number) => (now.revenue ? Math.round((v / now.revenue) * 100) : 0);
-  const mix = [
-    { l: "Sunbeds", v: share(now.byCapability.Sunbeds), amt: now.byCapability.Sunbeds, c: "#0D9488", cls: "bg-teal-600" },
-    { l: "Tickets", v: share(now.byCapability.Tickets), amt: now.byCapability.Tickets, c: "#0ea5e9", cls: "bg-sky-500" },
-    { l: "Lockers & parking", v: share(other), amt: other, c: "#f59e0b", cls: "bg-amber-500" },
-  ];
-  const occByZone = ZONES.map((z) => ({ l: z.name, v: Math.round((now.occupancyByZone[z.id] ?? 0) * 100) }));
-  const peak = Math.max(...occByZone.map((z) => z.v));
-  const occSeries = occByZone.map((z) => (z.v === peak && peak > 0 ? { ...z, hi: 1 } : z));
-  // Same measures and the same split as Reporting › Executive (AENR-545).
-  const rc = reconcile(now, financeReport(range, null, till.sales));
-  const kpis: { label: string; value: string; full: string; detail?: string; trend?: string; tone: string }[] = [
-    { label: `Revenue · ${noun}`, value: fmtEUR(rc.revenue), full: eurFull(rc.revenue), detail: `card ${fmtEUR(rc.card)} · cash & other ${fmtEUR(rc.other)}`, trend: hasPrev ? trendPct(now.revenue, prev.revenue) : undefined, tone: "teal" },
-    { label: `Bookings · ${noun}`, value: fmtInt(rc.bookings), full: fmtInt(rc.bookings), detail: `${fmtInt(rc.sunbedBookings)} sunbed (${fmtInt(rc.sets)} sets) · ${fmtInt(rc.ticketOnly)} ticket-only`, trend: hasPrev ? trendPct(now.bookings, prev.bookings) : undefined, tone: "navy" },
-    { label: "Occupancy", value: fmtPct(now.occupancy), full: fmtPct(now.occupancy, 1), trend: trendPp(now.occupancy, prev.occupancy, hasPrev), tone: "navy" },
-    { label: "Avg basket", value: fmtEUR(now.avgBasket), full: eurFull(now.avgBasket), trend: trendEUR(now.avgBasket, prev.avgBasket, hasPrev), tone: "navy" },
-  ];
-  const label = rangeLabel(range);
-  // Export the whole dashboard — KPIs *and* the data behind every visual — as
-  // one columnar CSV for the selected period.
-  const exportDashboard = () => {
-    downloadCSVReport(`dashboard-${range.from}_${range.to}.csv`, [
-      { title: `Key metrics · ${label}`, header: ["Metric", "Value", "Detail", "Change", "Compared"], rows: kpis.map((k) => [k.label, k.full, k.detail ?? "", k.trend ?? "—", vs]) },
-      { title: `Revenue · ${label}`, header: [axis, "Revenue (€)"], rows: rev.map((d) => [d.l, d.v]) },
-      { title: "Revenue mix", header: ["Product", "Share %"], rows: mix.map((m) => [m.l, m.v]) },
-      { title: `Occupancy by zone · ${label}`, header: ["Zone", "Occupancy %"], rows: occByZone.map((z) => [z.l, z.v]) },
-    ]);
-    toast(`Exported the dashboard (${label}) to CSV.`, { tone: "success" });
-  };
-  const closed = now.openDays === 0;
-  return (
-    <div className="animate-fade-up">
-      <PageHead title="Dashboard" sub="Akti tou Iliou · bookings & revenue overview" badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<PeriodPicker value={period} onChange={setPeriod} />} primary={<Btn variant="outline" icon={Icon.download} onClick={exportDashboard}>Export</Btn>} />
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((k) => <StatCard key={k.label} label={k.label} value={k.value} valueTitle={k.full} sub={<span>{k.detail && <span className="block">{k.detail}</span>}<span className={k.detail ? "block text-slate-500" : undefined}>{k.trend ? vs : "no comparison data"}</span></span>} tone={k.tone} trend={k.trend} />)}
-      </div>
-      {closed && (
-        <div className="mt-4"><EmptyState icon={Icon.umbrella} title="The beach was closed" body={`No bookings or revenue in ${label}. The season runs 1 May – 30 Sep.`} /></div>
-      )}
-      {!closed && <>
-      <div className="grid lg:grid-cols-3 gap-4 mt-4">
-        <Card className="p-5 lg:col-span-2">
-          <div className="flex items-center justify-between gap-2"><div className="font-semibold text-navy-900">Revenue · {noun}</div>{kpis[0].trend && <Badge tone={kpis[0].trend.startsWith("+") ? "green" : "red"}><Icon.trend size={11} className={kpis[0].trend.startsWith("+") ? "" : "-scale-y-100"} /> {kpis[0].trend}</Badge>}</div>
-          <BarChart data={rev} label={`Revenue by ${axis.toLowerCase()}, ${label}`} />
-        </Card>
-        <Card className="p-5">
-          <div className="font-semibold text-navy-900 mb-2">Revenue mix</div>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-5">
-            <Donut segments={mix.map((m) => ({ v: m.v, c: m.c }))} size={180} total={fmtEUR(now.revenue)} totalLabel="revenue" label={`Revenue mix, ${fmtEUR(now.revenue)}: ${mix.map((m) => `${m.l} ${fmtEUR(m.amt)} (${m.v}%)`).join(", ")}`} />
-            <div className="text-sm space-y-2">
-              {mix.map((m) => <Leg key={m.l} c={m.cls} t={`${m.l} · ${fmtEUR(m.amt)} · ${m.v}%`} />)}
-            </div>
-          </div>
-        </Card>
-      </div>
-      {/* Individual bookings live on the Bookings page; the dashboard stays aggregate (AENR-463). */}
-      <Card className="p-5 mt-4">
-        <div className="font-semibold text-navy-900 mb-1">Occupancy by zone · {noun}</div>
-        <HBarChart color="#0ea5e9" unit="%" max={100} data={occSeries} label={`Occupancy by zone, ${label}`} />
-      </Card>
-      </>}
-    </div>
-  );
-}
 const Leg = ({ c, t }: { c: string; t: ReactNode }) => <div className="flex items-center gap-2"><i className={`w-3 h-3 rounded-sm ${c} inline-block`} />{t}</div>;
 
 export { AdminBookings } from "./bookings/Bookings";
@@ -290,19 +210,19 @@ export function AdminReporting() {
           { title: `Customers · key metrics ${head}`, header: ["Metric", "Value", "Detail"], rows: [
             ["New vs returning", `${Math.round(ratio(now.newGuests, now.bookings) * 100)} / ${Math.round(ratio(now.returningGuests, now.bookings) * 100)}`, "% of bookings"], ["VIP segment rev", fmtEUR(vipRev), "17% of total"], ["Season-pass holders", "412", "active"],
           ] },
-          { title: "Top customers", header: ["Customer", "Segment", "Visits", "Spend"], rows: topCustomers.map((c) => [c.name, c.segment.label, c.visits, eur(c.spendN)]) },
+          { title: "Top customers", header: ["Customer", "Segment", "Visits", "Spend (€)"], rows: topCustomers.map((c) => [c.name, c.segment.label, c.visits, c.spendN]) },
         ];
       case "tickets":
         return [{ title: `Ticket history ${head}`, header: ["Ticket", "Category", "Issuer", "Date", "Customer type", "Revenue", "Status"], rows: tickets.map((r) => [r[0], r[1], r[2], r[3], r[4], r[5], r[6].label]) }];
       case "ops":
         return [
-          { title: `Operations ${head}`, header: ["Capability", "Count", "Gross", "Refunds", "Net"], rows: [
-            ...ops.map((o) => [o.l, o.n, eur(o.g), `−${eur(o.rf)}`, eur(o.net)] as (string | number)[]),
-            ["Total", opsTotal.n, eur(opsTotal.g), `−${eur(opsTotal.rf)}`, eur(opsTotal.net)],
+          { title: `Operations ${head}`, header: ["Capability", "Count", "Gross (€)", "Refunds (€)", "Net (€)"], rows: [
+            ...ops.map((o) => [o.l, o.n, o.g, -o.rf, o.net] as (string | number)[]),
+            ["Total", opsTotal.n, opsTotal.g, -opsTotal.rf, opsTotal.net],
           ] },
           { title: "Documents issued", header: ["Type", "Count"], rows: [["ΑΠΥ", finDocs.apy], ["ΤΠΥ", finDocs.tpy], ["ΠΑΠΥ", finDocs.papy], ["ΠΤΠΥ", finDocs.ptpy], ["Pending transmission", fin.rep.total.pending]] },
-          ...(opsByDay && opsRows.length > 1 ? [{ title: `Operations by ${opsG}`, header: [opsG === "day" ? "Day" : opsG === "week" ? "Week of" : "Month", "Sunbed bookings", "Entry tickets", "Lockers", "Parking", "Gross", "Refunds", "Net"],
-            rows: opsRows.map((r) => [r.l, r.x.sunbedBookings, r.x.units.Tickets, r.x.units.Lockers, r.x.units.Parking, eur(r.x.revenue), `−${eur(r.x.refunds.amount)}`, eur(r.x.revenue - r.x.refunds.amount)]) }] : []),
+          ...(opsByDay && opsRows.length > 1 ? [{ title: `Operations by ${opsG}`, header: [opsG === "day" ? "Day" : opsG === "week" ? "Week of" : "Month", "Sunbed bookings", "Entry tickets", "Lockers", "Parking", "Gross (€)", "Refunds (€)", "Net (€)"],
+            rows: opsRows.map((r) => [r.l, r.x.sunbedBookings, r.x.units.Tickets, r.x.units.Lockers, r.x.units.Parking, r.x.revenue, -r.x.refunds.amount, r.x.revenue - r.x.refunds.amount]) }] : []),
         ];
       default:
         return [];
@@ -310,22 +230,22 @@ export function AdminReporting() {
   };
   const tabLabel = (t: string) => tabs.find((x) => x[0] === t)?.[1] ?? t;
   const secSlug = section ? `-${section}` : "";
-  const exportReport = (t: string) => { downloadCSVReport(`reporting-${t}-${range.from}_${range.to}${FIN_TABS.includes(t) ? secSlug : ""}.csv`, buildReport(t)); toast(`Exported the ${tabLabel(t)} report (${label}, CSV).`, { tone: "success" }); };
-  const exportPdf = (t: string) => {
-    const kind = t === "exec" ? "overview" : (t as "payments" | "invoices");
-    const doc = financePdf(kind, fin, label, TENANT.name);
-    // The Executive PDF carries the same reconciled headline tiles as the screen.
-    if (t === "exec") doc.meta = [...execKpis.slice(0, 2).map((x) => `${x.label}: ${x.full ?? x.value} (${x.detail})`), ...(doc.meta ?? [])];
-    downloadPDF(`reporting-${t}-${range.from}_${range.to}${secSlug}.pdf`, doc);
-    toast(`Exported the ${tabLabel(t)} report (${label}, PDF).`, { tone: "success" });
+  // Every report in PDF and CSV from one definition (AENR-593).
+  const exportReport = (t: string, format: "pdf" | "csv" = "csv") => {
+    const fin2 = FIN_TABS.includes(t) && section ? ` · ${ZONES.find((z) => z.id === section)?.name ?? section}` : "";
+    downloadReport(
+      `reporting-${t}-${range.from}_${range.to}${FIN_TABS.includes(t) ? secSlug : ""}`,
+      csvSectionsToReport({ title: `${tabLabel(t)} report`, subtitle: `${label}${fin2}`, meta: [`${TENANT.name} · compared with ${vs.replace(/^vs\s*/, "")}`] }, buildReport(t)),
+      format,
+    );
+    toast(`Exported the ${tabLabel(t)} report (${label}, ${format.toUpperCase()}).`, { tone: "success" });
   };
 
   return (
     <div className="animate-fade-up">
       {/* One header (AENR-550): the export is the page's primary action, PDF in More. */}
       <PageHead sub="How the beach is doing — revenue, occupancy, bookings, channels, guests and payments for any period."
-        primary={<Btn variant="primary" icon={Icon.download} onClick={() => exportReport(tab)}>{FIN_TABS.includes(tab) ? "Export CSV" : "Export"}</Btn>}
-        secondary={FIN_TABS.includes(tab) ? [{ label: "Export PDF", icon: Icon.doc, onClick: () => exportPdf(tab) }] : []} />
+        primary={<ExportMenu variant="primary" onExport={(f) => exportReport(tab, f)} what={`the ${tabLabel(tab)} report`} />} />
       <div className="mb-2"><Tabs tabs={GROUPS.map((g): TabEntry => [g.k, g.l, g.icon])} value={group.k} onChange={(k) => setTab(GROUPS.find((g) => g.k === k)!.views[0])} scroll /></div>
       {group.views.length > 1 && (
         <div role="radiogroup" aria-label={`${group.l} reports`} className="mb-3 flex flex-wrap gap-1.5">
@@ -447,7 +367,7 @@ export function AdminReporting() {
       {!closed && tab === "ops" && <Card className="p-5"><div className="flex items-center justify-between gap-2 mb-2 flex-wrap"><div className="font-semibold text-navy-900">Operations · {label}</div>
           <div className="flex items-center gap-2">
             {opsRows.length > 1 && <Toggle on={opsByDay} onChange={setOpsByDay} label={`By ${opsG}`} />}
-            <Btn size="sm" variant="outline" icon={Icon.download} onClick={() => exportReport("ops")}>Export</Btn>
+            <ExportMenu size="sm" onExport={(f) => exportReport("ops", f)} what="operations" />
           </div></div>
         <Table cols={["Capability", "Count", "Gross", "Refunds", "Net"]} right={[1, 2, 3, 4]} rows={[
           ...ops.map((o) => [o.l, fmtInt(o.n), eur(o.g), o.rf ? <span className="text-rose-600 font-medium tnum">−{eur(o.rf)}</span> : "€0", eur(o.net)]),
@@ -522,20 +442,37 @@ export function AdminRefunds() {
   const safePage = Math.min(page, pageCount - 1);
   const shown = visible.slice(safePage * REFUND_PAGE, (safePage + 1) * REFUND_PAGE);
 
-  const exportCSV = () => {
+  // Refund history and the open queue, in PDF or CSV (AENR-593).
+  const exportRefunds = (format: "pdf" | "csv") => {
     const data = visible.map((r) => {
       const p = personByFirst(r.who);
       const refunded = r.status === "Refunded" ? (r.refundAmount ?? r.amount) : "";
-      return [r.tx, r.date || "—", r.who, p?.last || "—", p?.phone || "—", r.amount, refunded, r.reason || "—", r.status || "Pending"];
+      return [r.tx, r.date || "—", `${r.who} ${p?.last ?? ""}`.trim(), p?.phone || "—", r.amount, refunded, r.reason || "—", r.status || "Pending", r.approver || "—"];
     });
-    downloadCSV(range ? `refunds-${range.from}_${range.to}.csv` : "refunds.csv", ["Transaction", "Date", "Name", "Surname", "Phone", "Charge (€)", "Refunded (€)", "Reason", "Status"], data);
-    toast(`Exported ${visible.length} refunds (${label}) to CSV.`, { tone: "success" });
+    const refundedSum = visible.reduce((a, r) => a + (r.status === "Refunded" ? (r.refundAmount ?? r.amount) : 0), 0);
+    const pend = ops.refunds.filter((x) => x.status === "pending");
+    downloadReport(range ? `refunds-${range.from}_${range.to}` : "refunds", {
+      title: "Refunds",
+      subtitle: label,
+      meta: [`${TENANT.name} · Stripe refunds with credit notes to myDATA`],
+      sections: [
+        { kpis: [
+          { label: "Refunded", value: `€${refundedSum.toLocaleString("en-GB")}`, sub: `${visible.filter((r) => r.status === "Refunded").length} refunds` },
+          { label: "Declined", value: String(visible.filter((r) => r.status === "Declined").length) },
+          { label: "Needs decision", value: String(pend.length), sub: pend.length ? `€${pend.reduce((a, x) => a + x.amount, 0)} requested` : "queue clear" },
+          { label: "Rows", value: String(visible.length) },
+        ] },
+        ...(pend.length ? [{ title: "Needs decision", table: { cols: ["Request", "Booking", "Guest", "Amount (€)", "Reason", "Requested", "By"], rows: pend.map((x) => [x.id, x.bookingId ?? "—", x.who, x.amount, x.reason, x.requestedAt.replace("T", " "), x.requestedBy]) } }] : []),
+        { title: "History", table: { cols: ["Transaction", "Date", "Guest", "Phone", "Charge (€)", "Refunded (€)", "Reason", "Status", "Approved by"], rows: data, total: ["Total", "", "", "", visible.reduce((a, r) => a + r.amount, 0), refundedSum, "", "", ""] } },
+      ],
+    }, format);
+    toast(`Exported ${visible.length} refunds (${label}, ${format.toUpperCase()}).`, { tone: "success" });
   };
 
   return (
     <div className="animate-fade-up">
       <PageHead title="Refunds" sub="Decide refund requests first, then the history — full or partial via Stripe, with reason logging and an automatic credit note (myDATA)." badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<PeriodPicker value={period} onChange={setPeriod} presets={["day", "week", "month", "season"]} allowAll resetTo={{ kind: "preset", preset: "month", offset: 0 }} />} primary={<Btn variant="outline" icon={Icon.download} onClick={exportCSV}>Export</Btn>} />
+        actions={<PeriodPicker value={period} onChange={setPeriod} presets={["day", "week", "month", "season"]} allowAll resetTo={{ kind: "preset", preset: "month", offset: 0 }} />} primary={<ExportMenu onExport={exportRefunds} what="refunds" />} />
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <StatCard label="Needs decision" value={queue.length} sub={overdue ? `${overdue} past the 48 h SLA` : "all within the 48 h SLA"} tone={overdue ? "rose" : "amber"} />
         <StatCard label={`Refunded · ${noun}`} value={fmtEUR(stats.amount)} sub={`${fmtInt(stats.count)} refund${stats.count === 1 ? "" : "s"} in the history below`} tone="teal" trend={hasPrev ? trendPct(stats.amount, prevStats.amount) : undefined} compare={prevRange ? `vs ${rangeLabel(prevRange)}` : undefined} />

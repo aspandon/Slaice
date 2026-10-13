@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, ConfirmModal, DensityToggle, EmptyState, ErrorState, Field, Input, Modal, PageHead, Table, TableSkeleton, Toggle } from "../../components/ui";
+import { Badge, Btn, Card, ConfirmModal, DensityToggle, EmptyState, ErrorState, Field, Input, Modal, PageHead, Table, TableSkeleton, Toggle, ExportMenu } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { readHashQuery } from "../../app/router";
 import { listCustomers } from "../../api";
 import { useAsync } from "../../lib/useAsync";
 import type { Customer, GuestView } from "../../domain/types";
-import { downloadCSV } from "../../lib/download";
+import { downloadReport } from "../../lib/download";
 import { guestFacts, type GuestFacts } from "../../data/guests";
 import { SEGMENT_COLORS, fieldOf, segmentsFor, inSegment, ruleLabel, type Segment } from "../../domain/segments";
 import { DEMO_TODAY } from "../../domain/period";
@@ -19,7 +19,7 @@ import { FilterBar, Select } from "../../components/ui";
 import { activeCount, isAmount, matchAmount, type FilterDef, type FilterState } from "../../domain/filters";
 import { Pager, SortHeader, cmpVal } from "../../components/TableTools";
 import { CHANNELS_CRM } from "../../data/guests";
-import { ZONES } from "../../data/beach";
+import { ZONES, TENANT } from "../../data/beach";
 import { RFM_TONE, SCORE_FIELDS, STAGES, STAGE_HELP, STAGE_TONE, predictedNextVisit, rfmScores, stageOf, type LifecycleSettings, type Stage } from "../../domain/lifecycle";
 import { fmtDay } from "../../domain/period";
 import type { ReactNode } from "react";
@@ -219,12 +219,26 @@ export function AdminUsers() {
     setCrm((c) => ({ ...c, segments: [...c.segments, copy] }));
     setSegId(copy.id);
   };
-  const exportSegment = (sg: Segment | null) => {
-    const ms = sg ? members(sg) : guests;
-    downloadCSV(`guests-${(sg?.name ?? "all").toLowerCase().replace(/\W+/g, "-")}.csv`, ["Name", "Surname", "Email", "Phone", "Visits", "Spend (€)", "Last visit", "Tags"],
-      ms.map((g) => [g.customer.first, g.customer.last, g.customer.email, g.customer.phone, g.visits, g.spend, g.lastVisit, tagsFor(g.customer).map((x) => x.t).join(" · ")]));
-    toast(`Exported ${ms.length} guests.`, { tone: "success" });
+  // A segment (or the selection) as a guest list, in PDF or CSV (AENR-593).
+  const exportGuests = (rows: typeof guests, name: string, format: "pdf" | "csv") => {
+    const spend = rows.reduce((a, g) => a + g.spend, 0);
+    downloadReport(`guests-${name.toLowerCase().replace(/\W+/g, "-")}`, {
+      title: `Guests · ${name}`,
+      subtitle: `${rows.length} guest${rows.length === 1 ? "" : "s"}`,
+      meta: [`${TENANT.name} · personal data — handle under the GDPR (do not forward)`],
+      sections: [
+        { kpis: [
+          { label: "Guests", value: String(rows.length) },
+          { label: "Lifetime spend", value: `€${spend.toLocaleString("en-GB")}` },
+          { label: "Avg visits", value: rows.length ? (rows.reduce((a, g) => a + g.visits, 0) / rows.length).toFixed(1) : "0" },
+          { label: "With marketing consent", value: String(rows.filter((g) => g.consent.length > 0).length) },
+        ] },
+        { title: "Guests", table: { cols: ["Name", "Surname", "E-mail", "Phone", "Visits", "Spend (€)", "Last visit", "Tags"], rows: rows.map((g) => [g.customer.first, g.customer.last, g.customer.email, g.customer.phone, g.visits, g.spend, g.lastVisit, tagsFor(g.customer).map((x) => x.t).join(" · ")]) } },
+      ],
+    }, format);
+    toast(`Exported ${rows.length} guests (${format.toUpperCase()}).`, { tone: "success" });
   };
+  const exportSegment = (sg: Segment | null, format: "pdf" | "csv" = "csv") => exportGuests(sg ? members(sg) : guests, sg?.name ?? "All guests", format);
 
   const chip = (on: boolean) => `inline-flex items-center gap-1.5 pl-2.5 pr-2 py-1.5 rounded-lg text-[12px] font-semibold ring-1 transition ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 text-slate-700 hover:ring-slate-300"}`;
   const menuItem = "flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none data-[highlighted]:bg-slate-100";
@@ -232,6 +246,7 @@ export function AdminUsers() {
   return (
     <div className="animate-fade-up">
       <PageHead sub="Your guests, grouped by lifecycle and segments — open a guest for the full profile."
+        actions={<ExportMenu what={active?.name ?? "all guests"} onExport={(f) => exportSegment(active, f)} />}
         primary={<Btn variant="primary" icon={Icon.plus} onClick={() => setBuilder("new")}>New segment</Btn>}
         secondary={[
           { label: "Import CSV", icon: Icon.upload, onClick: () => setImportOpen(true) },
@@ -264,7 +279,8 @@ export function AdminUsers() {
                   <DropdownMenu.Content align="start" sideOffset={6} className="glass !bg-white/95 w-52 rounded-xl p-1.5 z-[60] shadow-float text-ink">
                     {(!sg.system || sg.id === "sys-regular") && <DropdownMenu.Item className={menuItem} onSelect={() => setBuilder(sg)}><Icon.edit size={14} /> {sg.system ? "Edit rule" : "Edit"}</DropdownMenu.Item>}
                     <DropdownMenu.Item className={menuItem} onSelect={() => duplicate(sg)}><Icon.layers size={14} /> Duplicate</DropdownMenu.Item>
-                    <DropdownMenu.Item className={menuItem} onSelect={() => exportSegment(sg)}><Icon.download size={14} /> Export CSV</DropdownMenu.Item>
+                    <DropdownMenu.Item className={menuItem} onSelect={() => exportSegment(sg, "pdf")}><Icon.doc size={14} /> Export PDF</DropdownMenu.Item>
+                    <DropdownMenu.Item className={menuItem} onSelect={() => exportSegment(sg, "csv")}><Icon.download size={14} /> Export CSV</DropdownMenu.Item>
                     <DropdownMenu.Item className={menuItem} onSelect={() => go("admin", "communicate")}><Icon.mail size={14} /> Message segment</DropdownMenu.Item>
                     {!sg.system && <><DropdownMenu.Separator className="my-1 h-px bg-slate-200" /><DropdownMenu.Item className={`${menuItem} text-rose-700`} onSelect={() => setDeleting(sg)}><Icon.trash size={14} /> Delete</DropdownMenu.Item></>}
                   </DropdownMenu.Content>
@@ -309,7 +325,6 @@ export function AdminUsers() {
             <b className="text-navy-900">{active.name}</b>
             <span>{active.kind === "static" ? `Fixed list of ${active.members?.length ?? 0} guests` : active.rules.map((r) => ruleLabel(r, fieldOf(r.field, SCORE_FIELDS))).join(active.match === "all" ? " AND " : " OR ")}</span>
             <span className="ml-auto flex gap-1.5">
-              <Btn size="sm" variant="ghost" icon={Icon.download} onClick={() => exportSegment(active)}>Export</Btn>
               <Btn size="sm" variant="ghost" icon={Icon.mail} onClick={() => go("admin", "communicate")}>Message</Btn>
             </span>
           </div>
@@ -347,7 +362,8 @@ export function AdminUsers() {
               </DropdownMenu.Content></DropdownMenu.Portal>
             </DropdownMenu.Root>
             <button type="button" onClick={() => setBulkMsg(true)} className="rounded-lg bg-white/15 hover:bg-white/25 px-2.5 py-1.5 font-semibold inline-flex items-center gap-1.5"><Icon.mail size={13} /> Message</button>
-            <button type="button" onClick={() => { downloadCSV(`guests-selection-${selected.length}.csv`, ["Name", "Surname", "Email", "Phone", "Visits", "Spend (€)"], selected.map((u) => [u.first, u.last, u.email, u.phone, u.bookings, byId.get(u.id)?.spend ?? 0])); toast(`Exported ${selected.length} guests.`, { tone: "success" }); }} className="rounded-lg bg-white/15 hover:bg-white/25 px-2.5 py-1.5 font-semibold inline-flex items-center gap-1.5"><Icon.download size={13} /> Export</button>
+            <button type="button" onClick={() => exportGuests(guests.filter((g) => selected.some((u) => u.id === g.customer.id)), `selection of ${selected.length}`, "pdf")} className="rounded-lg bg-white/15 hover:bg-white/25 px-2.5 py-1.5 font-semibold inline-flex items-center gap-1.5"><Icon.doc size={13} /> PDF</button>
+            <button type="button" onClick={() => exportGuests(guests.filter((g) => selected.some((u) => u.id === g.customer.id)), `selection of ${selected.length}`, "csv")} className="rounded-lg bg-white/15 hover:bg-white/25 px-2.5 py-1.5 font-semibold inline-flex items-center gap-1.5"><Icon.download size={13} /> CSV</button>
             <button type="button" onClick={() => setEraseAsk(true)} className="rounded-lg bg-white/15 hover:bg-rose-500/40 px-2.5 py-1.5 font-semibold inline-flex items-center gap-1.5"><Icon.shield size={13} /> Erasure request</button>
             <button type="button" onClick={() => setSel(new Set())} aria-label="Clear selection" className="w-8 h-8 grid place-items-center rounded-lg hover:bg-white/15"><Icon.x size={14} /></button>
           </div>

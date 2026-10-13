@@ -1,7 +1,7 @@
 import { Icon } from "../lib/icons";
-import { Badge, Btn, Card, EmptyState, PageHead, Table } from "../components/ui";
+import { Badge, Btn, Card, EmptyState, PageHead, Table, ExportMenu } from "../components/ui";
 import { usePlatform } from "../lib/usePlatform";
-import { downloadPDF } from "../lib/download";
+import { downloadReport, slaiceInvoice } from "../lib/download";
 import { fmtDay } from "../domain/period";
 
 /* ============ Billing & plan (AENR-558) ============
@@ -132,26 +132,13 @@ export function AdminBilling() {
               >
                 {i.status}
               </Badge>,
-              <Btn
+              <ExportMenu
                 size="sm"
                 variant="ghost"
-                icon={Icon.download}
-                aria-label={`Download ${i.no} as PDF`}
-                onClick={() =>
-                  downloadPDF(`${i.no}.pdf`, {
-                    title: `Slaice invoice ${i.no}`,
-                    subtitle: `${t.legalName} · ${t.vatNo}`,
-                    table: {
-                      cols: ["Item", "Amount"],
-                      rows: [[`${planName(t)} · ${i.period}`, `€${i.amount}`]],
-                      rightCols: [1],
-                    },
-                    totals: [["Total", `€${i.amount}`]],
-                  })
-                }
-              >
-                PDF
-              </Btn>,
+                label="Download"
+                what={i.no}
+                onExport={(f) => downloadReport(i.no, slaiceInvoice(i, t, planName(t)), f)}
+              />,
             ])}
           />
         )}

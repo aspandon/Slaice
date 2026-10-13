@@ -487,3 +487,31 @@ export function authorityDraft(
     { field: "Became aware", value: new Date(b.awareAt).toLocaleString("en-GB") },
   ];
 }
+
+/** A transfer impact assessment for a sub-processor outside the EU (AENR-593) — the
+ *  standard EDPB steps, filled from the register entry. */
+export function tiaReport(s: { name: string; purpose: string; location: string; safeguard: string; tia?: string }) {
+  return {
+    brand: "Slaice · processor",
+    title: `Transfer impact assessment · ${s.name}`,
+    subtitle: `${s.tia?.replace(/\.pdf$/, "") ?? "TIA"} · EDPB Recommendations 01/2020`,
+    meta: [`Purpose: ${s.purpose} · data location: ${s.location}`],
+    sections: [
+      {
+        title: "Assessment",
+        table: {
+          cols: ["Step", "Finding"],
+          rows: [
+            ["1 · Know the transfer", `${s.name} processes guest contact and transaction data for: ${s.purpose}.`],
+            ["2 · Transfer tool", s.safeguard],
+            ["3 · Law and practice in the destination", "Covered by the EU-US Data Privacy Framework adequacy decision (10 Jul 2023); certification checked."],
+            ["4 · Supplementary measures", "Encryption in transit and at rest, data minimisation, pseudonymised identifiers where possible."],
+            ["5 · Procedural steps", "DPA with SCCs as fallback; sub-processor notice 30 days before changes."],
+            ["6 · Re-evaluation", "Yearly, or when the framework or the provider's certification changes."],
+          ],
+        },
+      },
+    ],
+    footer: ["Conclusion: the transfer may proceed with the measures above."],
+  };
+}

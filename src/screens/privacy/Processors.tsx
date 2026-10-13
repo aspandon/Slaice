@@ -1,10 +1,10 @@
 import { SupportAccessCard } from "../tenant/ViewAs";
 import { useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Field, Input } from "../../components/ui";
+import { Badge, Btn, Card, Field, Input, ExportMenu } from "../../components/ui";
 import { useApp } from "../../app/store";
-import { downloadPDF } from "../../lib/download";
-import { fmtDate, inWindow, isEu } from "../../domain/gdpr";
+import { downloadReport } from "../../lib/download";
+import { fmtDate, inWindow, isEu, tiaReport } from "../../domain/gdpr";
 import { usePrivacy } from "./usePrivacy";
 
 /* ============ Processors & DPO (AENR-487) ============
@@ -20,21 +20,16 @@ export function ProcessorsTab() {
   const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(dpo.email);
   const dirty = JSON.stringify(dpo) !== JSON.stringify(privacy.dpo);
   const outdated = privacy.dpa.signedVersion !== privacy.dpa.current;
-  const dpaPdf = () => {
-    downloadPDF(`slaice-dpa-v${privacy.dpa.current}.pdf`, {
+  // The DPA with its sub-processor list — PDF to sign / file, CSV of the list (AENR-593).
+  const dpaExport = (format: "pdf" | "csv") =>
+    downloadReport(`slaice-dpa-v${privacy.dpa.current}`, {
+      brand: "Slaice · processor",
       title: `Data Processing Agreement v${privacy.dpa.current}`,
       subtitle: "Slaice (processor) · Akti tou Iliou AE (controller) · GDPR Art. 28",
-      meta: [
-        `Signed version: v${privacy.dpa.signedVersion} on ${fmtDate(privacy.dpa.signedAt)}`,
-        `Generated ${new Date().toLocaleString("en-GB")}`,
-      ],
-      table: {
-        cols: ["Sub-processor", "Location", "Safeguard"],
-        rows: privacy.subprocessors.map((s) => [s.name, s.location, s.safeguard]),
-      },
+      meta: [`Signed version: v${privacy.dpa.signedVersion} on ${fmtDate(privacy.dpa.signedAt)}`],
+      sections: [{ title: "Sub-processors", table: { cols: ["Sub-processor", "Purpose", "Location", "Safeguard"], rows: privacy.subprocessors.map((s) => [s.name, (s as { purpose?: string }).purpose ?? "—", s.location, s.safeguard]) } }],
       footer: ["Annex III — technical and organisational measures available on request."],
-    });
-  };
+    }, format);
   return (
     <div className="space-y-4">
       <div className="grid lg:grid-cols-2 gap-4">
@@ -111,9 +106,7 @@ export function ProcessorsTab() {
             </dd>
           </dl>
           <div className="flex flex-wrap gap-2">
-            <Btn variant="ghost" icon={Icon.download} onClick={dpaPdf}>
-              Download DPA (PDF)
-            </Btn>
+            <ExportMenu variant="ghost" label="Download DPA" onExport={dpaExport} />
             {outdated && (
               <Btn
                 variant="primary"
@@ -165,7 +158,7 @@ export function ProcessorsTab() {
                       {s.tia && (
                         <button
                           type="button"
-                          onClick={() => toast(`Demo — downloaded ${s.tia}.`)}
+                          onClick={() => { downloadReport(s.tia!.replace(/\.pdf$/, ""), tiaReport(s), "pdf"); toast(`Downloaded ${s.tia}.`); }}
                           className="block text-[11.5px] font-semibold text-teal-700 hover:underline mt-0.5"
                         >
                           Transfer impact assessment

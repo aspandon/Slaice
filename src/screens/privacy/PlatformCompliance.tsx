@@ -20,10 +20,10 @@ import {
   isEu,
   type Breach,
   type Safeguard,
-  type SubProcessor,
-} from "../../domain/gdpr";
+  type SubProcessor, tiaReport } from "../../domain/gdpr";
 import { TenantPostureTable } from "../tenant/PlatformOverviews";
 
+import { downloadReport } from "../../lib/download";
 /* ============ Platform · Compliance & DPA (AENR-487 / 488) ============
    Slaice is the processor. It keeps the sub-processor list (with transfer
    safeguards and TIAs) and versions the DPA; adding a sub-processor notifies
@@ -148,7 +148,7 @@ export function PlatformCompliance() {
                       <button
                         type="button"
                         className="text-[12px] font-semibold text-teal-700 hover:underline"
-                        onClick={() => toast(`Demo — downloaded ${s.tia}.`)}
+                        onClick={() => { downloadReport(s.tia!.replace(/\.pdf$/, ""), tiaReport(s), "pdf"); toast(`Downloaded ${s.tia}.`); }}
                       >
                         {s.tia}
                       </button>

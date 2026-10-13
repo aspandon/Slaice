@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, EmptyState, PageHead, Select, fmtDateGB } from "../../components/ui";
+import { Badge, Btn, Card, EmptyState, PageHead, Select, fmtDateGB, ExportMenu } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { readHashQuery, writeHashQuery } from "../../app/router";
 import { documents, transactions } from "../../data/ledger";
 import { DEMO_TODAY } from "../../domain/period";
-import { downloadText } from "../../lib/download";
+import { downloadText, downloadReport } from "../../lib/download";
 import { useFinanceData } from "../reporting/FinanceTabs";
 import {
   EXPORT_PRESETS,
@@ -17,6 +17,7 @@ import {
   type ExportPreset,
 } from "../../domain/monthEnd";
 
+import { TENANT } from "../../data/beach";
 /* ============ Accountant › Month-end (AENR-588) ============
    One month at a glance: documents issued, what reached myDATA, card charges
    and fees, payouts paid / in transit / scheduled, and the VAT summary by
@@ -62,6 +63,28 @@ export function MonthEnd() {
     const q = new URLSearchParams({ tab: t.page, status: t.status, from: ref.from, to: ref.to });
     window.location.hash = `#/accountant/documents?${q.toString()}`;
   };
+  const money = (n: number) => n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  // The month-end pack as a readable report — PDF to file, CSV to work in (AENR-593).
+  const exportSummary = (format: "pdf" | "csv") => {
+    downloadReport(`month-end_${ref.month}`, {
+      title: `Month-end · ${ref.label}`,
+      subtitle: ref.open ? "Month still open — figures can change" : "Closed month",
+      meta: [`${TENANT.name} · documents by issue date, card charges and Stripe payouts`],
+      sections: [
+        { title: "Summary", kpis: [
+          { label: "Documents", value: s.docs.count.toLocaleString("en-GB"), sub: `€${money(s.docs.total)} gross` },
+          { label: "VAT", value: `€${money(s.docs.vat)}`, sub: `net €${money(s.docs.net)}` },
+          { label: "myDATA", value: `${s.mydata.sent.toLocaleString("en-GB")} sent`, sub: `${s.mydata.pending} pending · ${s.mydata.failed} rejected` },
+          { label: "Card charges", value: `€${money(s.cards.amount)}`, sub: `${s.cards.count} · fees €${money(s.cards.fees)}` },
+        ] },
+        { title: "Exceptions to clear", text: ex.length ? ex.map((e) => `${e.severity === "blocking" ? "BLOCKING · " : ""}${e.title} — ${e.detail}`) : ["None — the month is ready to close."] },
+        { title: "VAT by rate", table: { cols: ["Rate", "Net (€)", "VAT (€)", "Gross (€)"], rows: s.vat.map((v) => [`${Math.round(v.rate * 100)}%`, v.net, v.vat, v.net + v.vat]), total: ["Total", s.docs.net, s.docs.vat, s.docs.total] } },
+        { title: "Documents by type", table: { cols: ["Type", "Count", "Total (€)"], rows: s.docs.byType.map((x) => [x.type, x.count, x.total]) } },
+        { title: "Payouts", table: { cols: ["Status", "Count", "Amount (€)"], rows: [["Paid", s.payouts.paid, s.payouts.paidAmount], ["In transit", s.payouts.inTransit, s.payouts.inTransitAmount], ["Scheduled", s.payouts.scheduled, s.payouts.scheduledAmount]] } },
+      ],
+    }, format);
+    toast(`Month-end summary for ${ref.label} (${format.toUpperCase()}).`, { tone: "success" });
+  };
   const exportNow = () => {
     const out = exportMonth(docs, preset);
     downloadText(`documents_${ref.month}_${preset}.${out.ext}`, out.text, out.mime);
@@ -86,9 +109,12 @@ export function MonthEnd() {
           </div>
         }
         primary={
-          <Btn variant="primary" icon={Icon.download} onClick={exportNow}>
-            Export month
-          </Btn>
+          <div className="flex flex-wrap gap-2">
+            <ExportMenu label="Summary" what={`the ${ref.label} month-end summary`} onExport={exportSummary} />
+            <Btn variant="primary" icon={Icon.download} onClick={exportNow}>
+              Export documents
+            </Btn>
+          </div>
         }
       />
       <div role="group" aria-label="Month" className="flex flex-wrap gap-1.5">

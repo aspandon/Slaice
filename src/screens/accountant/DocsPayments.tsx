@@ -9,8 +9,7 @@ import {
   PeriodPicker,
   Select,
   Table, DensityToggle,
-  Tabs,
-} from "../../components/ui";
+  Tabs, ExportMenu } from "../../components/ui";
 import { Pager } from "../../components/TableTools";
 import { useListUrl } from "../../lib/useUrlState";
 import { useApp } from "../../app/store";
@@ -26,9 +25,10 @@ import {
 import { fmtDay, rangeLabel, resolveRange } from "../../domain/period";
 import { usePeriod } from "../../lib/usePeriod";
 import { readHashQuery } from "../../app/router";
-import { downloadCSV, downloadPDF } from "../../lib/download";
+import { downloadCSV, downloadReport } from "../../lib/download";
 import { SectionChips, useFinanceData, useSection } from "../reporting/FinanceTabs";
 
+import { TENANT } from "../../data/beach";
 /* ============ Accountant › Documents & Payments (AENR-526) ============
    Every fiscal document (ΑΠΥ, ΤΠΥ, ΠΑΠΥ, ΠΤΠΥ, cancellations — credits linked
    to their originals) and every card transaction for the period, with the
@@ -111,6 +111,54 @@ export function DocsPayments() {
   const sum = (xs: number[]) => xs.reduce((a, x) => a + x, 0);
   const txTotal = sum(txRows.map((t) => t.amount));
   const byId = new Map(docs.map((d) => [docNo(d), d]));
+
+  // A readable PDF of the list in view (AENR-593); the CSVs keep the full accounting layout.
+  const exportPdf = () => {
+    const filt = [type && `type ${DOC_CODE[type as DocType]}`, status && `status ${status}`, channel && `channel ${channel}`, q && `search “${q}”`].filter(Boolean).join(" · ");
+    const sub = `${label} · zone: ${section ? sectionName(section) : "all"}${filt ? ` · ${filt}` : ""}`;
+    if (tab === "documents") {
+      const net = sum(docRows.map((d) => d.net));
+      const vat = sum(docRows.map((d) => d.vat));
+      downloadReport(slug, {
+        title: "Fiscal documents",
+        subtitle: sub,
+        meta: [`${TENANT.name} · issued via the e-invoicing provider, transmitted to myDATA (AADE)`],
+        sections: [
+          { kpis: [
+            { label: "Documents", value: String(docRows.length) },
+            { label: "Net", value: `€${net.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+            { label: "VAT", value: `€${vat.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+            { label: "Not transmitted", value: String(docRows.filter((d) => d.status !== "sent").length), sub: "pending or failed" },
+          ] },
+          { title: "Documents", table: {
+            cols: ["Date", "Document", "Type", "Counterparty", "Net (€)", "VAT (€)", "Total (€)", "Method", "MARK", "myDATA"],
+            rows: docRows.map((d) => [`${d.date} ${d.time}`, docNo(d), DOC_CODE[d.type], d.counterparty, d.net, d.vat, d.total, d.method, d.mark || "—", d.status]),
+            total: ["Total", "", "", "", net, vat, sum(docRows.map((d) => d.total)), "", "", ""],
+          } },
+        ],
+      }, "pdf");
+    } else {
+      downloadReport(slug, {
+        title: "Payments",
+        subtitle: sub,
+        meta: [`${TENANT.name} · card captures and Stripe payouts`],
+        sections: [
+          { kpis: [
+            { label: "Transactions", value: String(txRows.length) },
+            { label: "Captured", value: `€${txTotal.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+            { label: "Fees", value: `€${sum(txRows.map((t) => t.fee)).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+            { label: "Net", value: `€${sum(txRows.map((t) => t.net)).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` },
+          ] },
+          { title: "Transactions", table: {
+            cols: ["Date", "Transaction", "Booking / receipt", "Zone", "Channel", "Method", "Amount (€)", "Fee (€)", "Net (€)", "Payout", "Status"],
+            rows: txRows.map((t) => [`${t.date} ${t.time}`, t.id, t.ref, sectionName(t.section), t.channel, t.method, t.amount, t.fee, t.net, t.payout, t.status]),
+            total: ["Total", "", "", "", "", "", txTotal, sum(txRows.map((t) => t.fee)), sum(txRows.map((t) => t.net)), "", ""],
+          } },
+        ],
+      }, "pdf");
+    }
+    toast(`Exported ${rows.length} ${tab} · ${label} (PDF).`, { tone: "success" });
+  };
 
   const exportCsv = (perLine = false) => {
     if (tab === "documents") {
@@ -243,9 +291,7 @@ export function DocsPayments() {
               CSV per line
             </Btn>
           )}
-          <Btn variant="primary" icon={Icon.download} onClick={() => exportCsv()}>
-            Accounting CSV
-          </Btn>
+          <ExportMenu variant="primary" what={tab} onExport={(f) => (f === "pdf" ? exportPdf() : exportCsv())} />
         </div>
       </div>
       <div className="flex items-start gap-2.5 rounded-2xl bg-amber-50/70 ring-1 ring-amber-600/15 px-3.5 py-2.5 text-[12px] text-amber-800">
@@ -515,37 +561,28 @@ export function DocsPayments() {
               <Btn variant="ghost" onClick={() => setView(null)}>
                 Close
               </Btn>
-              <Btn
+              <ExportMenu
                 variant="primary"
-                icon={Icon.download}
-                onClick={() => {
-                  downloadPDF(`${docNo(view)}.pdf`, {
+                label="Download"
+                what={docNo(view)}
+                onExport={(f) => {
+                  downloadReport(docNo(view), {
+                    brand: "Akti tou Iliou AE · VAT EL123456789 · Leof. Poseidonos 1, 174 55 Alimos",
                     title: `${view.type} ${docNo(view)}`,
-                    subtitle: `${fmtDay(view.date)} ${view.time} · ${view.counterparty}${view.vatNo ? ` · ${view.vatNo}` : ""}`,
-                    table: {
-                      cols: ["Line", "Net", "VAT rate", "VAT", "Total"],
-                      rows: view.lines.map((l) => [
-                        l.label,
-                        eur(l.net),
-                        `${Math.round(l.rate * 100)}%`,
-                        eur(l.vat),
-                        eur(l.net + l.vat),
-                      ]),
-                      rightCols: [1, 2, 3, 4],
-                    },
-                    totals: [
-                      ["Net", eur(view.net)],
-                      ["VAT", eur(view.vat)],
-                      ["Total", eur(view.total)],
-                      ["MARK", view.mark || "pending"],
-                      ...(view.original ? [["Corrects", view.original]] : []),
-                    ],
-                  });
-                  toast(`Downloaded ${docNo(view)}.pdf`);
+                    subtitle: `${fmtDay(view.date)} ${view.time} · ${view.counterparty}${view.vatNo ? ` · VAT ${view.vatNo}` : ""}`,
+                    meta: [`Payment: ${view.method} · Zone: ${sectionName(view.section)} · Channel: ${view.channel}`, `myDATA MARK: ${view.mark || "pending"} · invoiceType ${DOC_CODE[view.type]}${view.original ? ` · corrects ${view.original}` : ""}`],
+                    sections: [{
+                      table: {
+                        cols: ["Line", "Net (€)", "VAT rate", "VAT (€)", "Total (€)"],
+                        rows: view.lines.map((l) => [l.label, l.net, `${Math.round(l.rate * 100)}%`, l.vat, l.net + l.vat]),
+                        total: ["Total", view.net, "", view.vat, view.total],
+                      },
+                    }],
+                    footer: ["Issued through the certified e-invoicing provider and transmitted to AADE myDATA."],
+                  }, f);
+                  toast(`Downloaded ${docNo(view)}.${f}`);
                 }}
-              >
-                PDF
-              </Btn>
+              />
             </>
           }
         >

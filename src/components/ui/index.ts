@@ -11,3 +11,4 @@ export { PeriodPicker } from "./PeriodPicker";
 export { FilterBar, filterCount } from "./FilterBar";
 export { GuardCtx, useGuard, textOf } from "./guard";
 export { DateInput, fmtDateGB } from "./DateInput";
+export { ExportMenu } from "./ExportMenu";

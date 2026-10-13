@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, FutureBanner, Field, Input, Modal, PageHead, Select, StatCard, Table, Toggle } from "../../components/ui";
+import { Badge, Btn, Card, FutureBanner, Field, Input, Modal, PageHead, Select, StatCard, Table, Toggle, ExportMenu } from "../../components/ui";
 import { StackedBar } from "../../components/charts";
 import { useApp } from "../../app/store";
-import { ZONES } from "../../data/beach";
+import { ZONES, TENANT } from "../../data/beach";
 import { MOVE_REASONS } from "../../data/till";
 import { CASHIER_PAST_SESSIONS } from "../../data/mock";
 import { VARIANCE_TOLERANCE, eur, r2, shiftTotals, type DrawerMove, type ShiftTotals, type TillSale, type TillShift } from "../../domain/till";
@@ -11,6 +11,7 @@ import { useTill } from "./useTill";
 import { ManagerPinModal } from "./TillParts";
 import { OpenShiftCard, TillStatus } from "./TillStatus";
 
+import { downloadReport } from "../../lib/download";
 /* ============ CASH REGISTER — shift & drawer (AENR-507) ============
    Open with a float → every sale, refund and drawer movement lands on the
    shift → X report any time (read-only) → Z close with a counted amount
@@ -185,9 +186,30 @@ function ReportModal({ shift, kind, onClose }: { shift: TillShift; kind: "X" | "
   const tot = shiftTotals(shift, t.till.sales);
   const variance = shift.counted !== undefined ? r2(shift.counted - tot.expectedCash) : null;
   const Row = ({ l, v, strong }: { l: string; v: string; strong?: boolean }) => <div className={`flex justify-between ${strong ? "font-bold" : ""}`}><span>{l}</span><span className="tnum">{v}</span></div>;
+  // The shift report as a file for the accountant (AENR-593): PDF to keep, CSV to reconcile.
+  const exportReport = (f: "pdf" | "csv") => {
+    const counts = (o: Record<string, number>, name = (k: string) => k) => Object.entries(o).map(([k, n]) => [name(k), n] as (string | number)[]);
+    downloadReport(`${kind}-report_${shift.id}`, {
+      title: `${kind} report · ${shift.id}`,
+      subtitle: `${shift.till} · ${shift.cashier} · ${hhmm(shift.openedAt)} → ${shift.closedAt ? hhmm(shift.closedAt) : "now"}${kind === "X" ? " · snapshot, shift still open" : " · shift closed"}`,
+      meta: [`${TENANT.name} · ΑΠΥ issued: ${t.till.sales.filter((x) => x.shiftId === shift.id).length} · myDATA totals match`],
+      sections: [
+        { kpis: [
+          { label: "Net sales", value: eur(tot.sales), sub: `${tot.tx} transactions` },
+          { label: "Card", value: eur(tot.card) },
+          { label: "Cash", value: eur(tot.cash) },
+          { label: "Expected cash", value: eur(tot.expectedCash), sub: variance !== null ? `variance ${variance > 0 ? "+" : variance < 0 ? "−" : ""}${eur(Math.abs(variance))}` : undefined },
+        ] },
+        { title: "Sales", table: { cols: ["Line", "Amount (€)"], rows: [["Gross sales", tot.sales + tot.discounts], ["Discounts", -tot.discounts], ["Net sales", tot.sales], ["Voids", -tot.voids], ["Refunds", -tot.refunds], ["Card", tot.card], ...Object.entries(tot.terminals).map(([k, v]) => [`  Card · ${k}`, v] as (string | number)[]), ["Cash", tot.cash], ["Voucher", tot.voucher]] } },
+        { title: "Cash drawer", table: { cols: ["Line", "Amount (€)"], rows: [["Opening float", shift.float], ["Paid in", tot.paidIn], ["Paid out", -tot.paidOut], ["Cash refunds", -tot.refundsCash], ["Expected cash", tot.expectedCash], ...(shift.counted !== undefined ? [[`Counted${shift.blind ? " (blind)" : ""}`, shift.counted] as (string | number)[]] : []), ...(variance !== null ? [["Variance", variance] as (string | number)[]] : [])] } },
+        { title: "Items sold", table: { cols: ["Item", "Quantity"], rows: [...counts(tot.tickets).map(([k, n]) => [`Ticket · ${k}`, n]), ...counts(tot.sunbeds, zoneName).map(([k, n]) => [`Sunbed sets · ${k}`, n]), ...counts(tot.extras)] } },
+        ...(shift.note ? [{ title: "Note", text: [shift.note] }] : []),
+      ],
+    }, f);
+  };
   return (
     <Modal open onClose={onClose} title={`${kind} report · ${shift.id}`}
-      footer={<><Btn variant="outline" icon={Icon.print} onClick={() => toast(`Demo — ${kind} report printed.`)}>Print</Btn><Btn variant="primary" onClick={onClose}>Done</Btn></>}>
+      footer={<><Btn variant="outline" icon={Icon.print} onClick={() => toast(`Demo — ${kind} report printed.`)}>Print</Btn><ExportMenu label="Download" what={`the ${kind} report`} onExport={exportReport} /><Btn variant="primary" onClick={onClose}>Done</Btn></>}>
       <div className="mx-auto max-w-[360px] bg-white rounded-lg ring-1 ring-slate-200 px-5 py-4 font-mono text-[12px] text-navy-900 space-y-0.5">
         <div className="text-center font-bold">{kind === "X" ? "X REPORT — SNAPSHOT" : "Z REPORT — SHIFT CLOSED"}</div>
         <div className="text-center">{shift.till} · {shift.cashier}</div>

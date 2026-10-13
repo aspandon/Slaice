@@ -14,12 +14,13 @@ import {
   TableSkeleton,
   Tabs,
   filterCount,
+  ExportMenu,
   useMockLoad,
 } from "../../components/ui";
 import type { TabEntry } from "../../components/ui";
 import { Pager, SortHeader, cmpVal, dateVal } from "../../components/TableTools";
 import { useApp } from "../../app/store";
-import { ZONES } from "../../data/beach";
+import { TENANT, ZONES } from "../../data/beach";
 import { usePeriod } from "../../lib/usePeriod";
 import { readHashQuery, writeHashQuery } from "../../app/router";
 import {
@@ -32,7 +33,7 @@ import {
   type FilterState,
 } from "../../domain/filters";
 import { DEMO_TODAY, inRange, rangeLabel, resolveRange } from "../../domain/period";
-import { downloadCSV } from "../../lib/download";
+import { downloadReport } from "../../lib/download";
 import { Masked } from "../tenant/ViewAs";
 import { useBookingOps, type OpsBooking } from "../../lib/useBookingOps";
 import { useListUrl } from "../../lib/useUrlState";
@@ -222,39 +223,40 @@ export function AdminBookings() {
   };
   const open = ops.bookings.find((b) => b.id === openId) ?? null;
 
-  const exportCSV = () => {
-    // One row per booking item; the booking total sits on its first row only.
-    const header = [
-      "Booking",
-      "Name",
-      "Surname",
-      "Phone",
-      "Item",
-      "Date",
-      "Channel",
-      "Status",
-      "Amount (€)",
-    ];
-    const rows: (string | number)[][] = [];
-    sorted.forEach((b) =>
-      (b.items.length ? b.items : ["—"]).forEach((it, i) =>
-        rows.push([
-          b.id,
-          b.who,
-          b.surname || "—",
-          b.phone || "—",
-          it,
-          b.date,
-          b.channel,
-          b.status,
-          i === 0 ? b.amount : "",
-        ]),
-      ),
+  // One report, PDF or CSV (AENR-593): the bookings in view, with their headline numbers.
+  const exportBookings = (format: "pdf" | "csv") => {
+    const tabLabel = TABS.find((t) => t.k === tab)!.l;
+    const nf = Object.values(filters).filter((v) => (Array.isArray(v) ? v.length > 0 : !!v)).length;
+    const revenue = sorted.filter((b) => b.status !== "Cancelled" && b.status !== "Refunded" && b.status !== "Expired").reduce((a, b) => a + b.amount, 0);
+    const byStatus = [...new Set(sorted.map((b) => b.status))].map((st) => `${st} ${sorted.filter((b) => b.status === st).length}`).join(" · ");
+    downloadReport(
+      range ? `bookings-${range.from}_${range.to}` : "bookings",
+      {
+        title: "Bookings",
+        subtitle: `${range ? rangeLabel(range) : "All dates"} · ${tabLabel}${nf ? ` · ${nf} filter${nf === 1 ? "" : "s"}` : ""}${q ? ` · search “${q}”` : ""}`,
+        meta: [`${TENANT.name} · exported by ${persona === "callcenter" ? "Call Center" : "Manager / Admin"}`],
+        sections: [
+          {
+            kpis: [
+              { label: "Bookings", value: String(sorted.length) },
+              { label: "Booked value", value: `€${revenue.toLocaleString("en-GB")}`, sub: "excl. cancelled / refunded" },
+              { label: "Items", value: String(sorted.reduce((a, b) => a + b.items.length, 0)) },
+              { label: "Confirmed", value: String(sorted.filter((b) => b.status === "Confirmed").length), sub: byStatus },
+            ],
+          },
+          {
+            title: "Bookings",
+            table: {
+              cols: ["Booking", "Guest", "Phone", "Items", "Visit", "Channel", "Status", "Amount (€)"],
+              rows: sorted.map((b) => [b.id, `${b.who} ${b.surname}`.trim(), b.phone || "—", b.items.join(" · ") || "—", b.date, b.channel, b.status, b.amount]),
+              total: ["Total", "", "", "", "", "", "", sorted.reduce((a, b) => a + b.amount, 0)],
+            },
+          },
+        ],
+      },
+      format,
     );
-    downloadCSV(range ? `bookings-${range.from}_${range.to}.csv` : "bookings.csv", header, rows);
-    toast(`Exported ${sorted.length} bookings · ${rows.length} item rows to CSV.`, {
-      tone: "success",
-    });
+    toast(`Exported ${sorted.length} bookings (${format.toUpperCase()}).`, { tone: "success" });
   };
   const tabs: TabEntry[] = TABS.map((t) => [t.k, `${t.l} ${counts[t.k]}`]);
 
@@ -263,7 +265,7 @@ export function AdminBookings() {
       <PageHead
         sub={agent ? "Find a caller’s booking, resend their QR, move them or ask a manager for a refund." : "Every booking from every channel — find it, open it, act on it."}
         primary={<Btn variant="primary" icon={Icon.plus} onClick={() => go(persona, "newbooking")}>New booking</Btn>}
-        secondary={agent ? [] : [{ label: "Export CSV", icon: Icon.download, onClick: exportCSV }]}
+        actions={agent ? undefined : <ExportMenu onExport={exportBookings} what="bookings" />}
       />
       <Card className="p-4">
         <div className="flex items-center gap-3 mb-3 flex-wrap">

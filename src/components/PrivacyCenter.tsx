@@ -8,7 +8,7 @@ import { PROCESSORS, DATA_RIGHTS } from "../data/gdpr";
 import { currentPolicy, latest, retentionLabel, type ConsentPurpose, type DsarType } from "../domain/gdpr";
 import { CUSTOMER_GUEST_ID, usePrivacy } from "../screens/privacy/usePrivacy";
 import { PolicyModal } from "../screens/privacy/Consent";
-import { downloadZIP, buildPDFBytes } from "../lib/download";
+import { downloadZIP, buildPDFBytes, csvText } from "../lib/download";
 import { CUSTOMER_BOOKINGS, CUSTOMER_DOCS } from "../data/mock";
 
 /* Customer Privacy Centre (P4.2) — access/portability, consent management,
@@ -50,28 +50,29 @@ export function PrivacyCenter({ open, onClose }: { open?: boolean; onClose: () =
       processors: PROCESSORS,
     }, null, 2);
     const summary = buildPDFBytes({
-      title: "Your personal data export",
-      subtitle: "Akti tou Iliou · data subject access request",
-      meta: [`Subject: ${profile.name} · ${profile.email}`, `Generated ${new Date().toLocaleString("en-GB")}`, "Format: JSON (full) + this PDF summary"],
-      table: {
-        cols: ["Category", "Records"],
-        rightCols: [1],
-        rows: [
-          ["Profile fields", "5"],
-          ["Bookings", String(CUSTOMER_BOOKINGS.length)],
-          ["Documents (ΑΠΥ/ΤΠΥ)", String(CUSTOMER_DOCS.length)],
-          ["Marketing consent", consent.marketing ? "Granted" : "Not granted"],
-        ],
-      },
-      footer: ["Provided under GDPR Art. 15 & 20.", "Questions? privacy@aktitouiliou.example"],
+      title: "Your personal data",
+      subtitle: "Akti tou Iliou · access and portability request (GDPR Art. 15 & 20)",
+      meta: [`${profile.name} · ${profile.email} · ${profile.phone}`, "This ZIP: my-data.json (everything), bookings.csv, receipts.csv and this summary"],
+      sections: [
+        { kpis: [{ label: "Bookings", value: String(CUSTOMER_BOOKINGS.length) }, { label: "Receipts", value: String(CUSTOMER_DOCS.length) }, { label: "Marketing consent", value: consent.marketing ? "Granted" : "Not granted" }, { label: "Analytics consent", value: consent.analytics ? "Granted" : "Not granted" }] },
+        { title: "Profile", table: { cols: ["Field", "Value"], rows: Object.entries(profile).map(([k, v]) => [k[0].toUpperCase() + k.slice(1), v]) } },
+        { title: "Bookings", table: { cols: ["Booking", "Item", "Date", "Status", "Price (€)"], rows: CUSTOMER_BOOKINGS.map((b) => [b.id, b.item, b.date, b.status, b.price]) } },
+        { title: "Receipts", table: { cols: ["Document", "For", "Date", "Amount"], rows: CUSTOMER_DOCS.map((d) => [d.id, d.for, d.date, d.amt]) } },
+        { title: "Who processes your data", table: { cols: ["Processor", "Purpose"], rows: PROCESSORS.map((x) => [String((x as { name?: string }).name ?? x), String((x as { purpose?: string }).purpose ?? "")]) } },
+      ],
+      footer: ["Questions or corrections: privacy@aktitouiliou.gr"],
     });
+    const bookingsCsv = csvText(["Booking", "Item", "Date", "Status", "Price (€)"], CUSTOMER_BOOKINGS.map((b) => [b.id, b.item, b.date, b.status, b.price]));
+    const receiptsCsv = csvText(["Document", "For", "Date", "Amount", "MARK"], CUSTOMER_DOCS.map((d) => [d.id, d.for, d.date, d.amt, d.mark]));
     setTimeout(() => {
       downloadZIP(`my-data-${new Date().toISOString().slice(0, 10)}.zip`, [
         { name: "my-data.json", content: json },
+        { name: "bookings.csv", content: bookingsCsv },
+        { name: "receipts.csv", content: receiptsCsv },
         { name: "summary.pdf", content: summary },
       ]);
       setExporting(false);
-      toast("Your data export is ready (ZIP: JSON + PDF).", { tone: "success" });
+      toast("Your data export is ready (ZIP: JSON, CSV and PDF).", { tone: "success" });
     }, 600);
   };
 

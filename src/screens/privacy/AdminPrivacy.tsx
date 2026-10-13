@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Btn, PageHead, StatCard, Tabs } from "../../components/ui";
+import { PageHead, StatCard, Tabs, ExportMenu } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { readHashQuery, writeHashQuery } from "../../app/router";
-import { downloadCSVReport } from "../../lib/download";
+import { downloadReport, csvSectionsToReport, type CsvSection } from "../../lib/download";
 import { useNow } from "../../lib/useLiveSlots";
 import { dsarKpis, dueDate, hoursLeft, inWindow, retentionLabel } from "../../domain/gdpr";
 import { usePrivacy } from "./usePrivacy";
@@ -13,6 +13,7 @@ import { RegisterTab, RetentionTab } from "./Register";
 import { ProcessorsTab } from "./Processors";
 import { BreachesTab, TENANT_ID } from "./Breaches";
 
+import { TENANT } from "../../data/beach";
 /* ============ Privacy & GDPR (A-09) — the controller's workspace ============
    AENR-484…489: requests, consent, policies & cookies, the Art. 30 register
    with DPIAs, retention, processors & DPO, and breaches. KPIs come from the
@@ -48,8 +49,9 @@ export function AdminPrivacy() {
   const pendingSub = privacy.subprocessors.filter(
     (s) => inWindow(s, today) && !privacy.objections.includes(s.name),
   );
-  const exportAll = () => {
-    downloadCSVReport("privacy-gdpr.csv", [
+  // The accountability file (Art. 5(2)) in PDF or CSV (AENR-593).
+  const exportAll = (format: "pdf" | "csv") => {
+    const secs: CsvSection[] = [
       {
         title: "Data-subject requests (Art. 12, 15–21)",
         header: [
@@ -106,14 +108,17 @@ export function AdminPrivacy() {
           b.closedAt ?? "",
         ]),
       },
-    ]);
-    toast("Exported the privacy log (CSV).", { tone: "success" });
+    ];
+    downloadReport("privacy-gdpr", csvSectionsToReport({
+      title: "Privacy & GDPR log",
+      subtitle: `Requests, consent, retention and breaches · as of ${today}`,
+      meta: [`${TENANT.name} · controller`],
+    }, secs), format);
+    toast(`Exported the privacy log (${format.toUpperCase()}).`, { tone: "success" });
   };
   return (
     <div className="animate-fade-up">
-      <PageHead sub="Data requests, consent, the record of processing, processors and breaches — with their legal deadlines." primary={<Btn variant="outline" icon={Icon.download} onClick={exportAll}>
-            Export
-          </Btn>} />
+      <PageHead sub="Data requests, consent, the record of processing, processors and breaches — with their legal deadlines." primary={<ExportMenu what="the privacy log" onExport={exportAll} />} />
       {(outdated || pendingSub.length > 0 || urgent.length > 0) && (
         <div className="space-y-2 mb-4">
           {urgent.map((b) => (

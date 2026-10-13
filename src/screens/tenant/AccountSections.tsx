@@ -10,11 +10,10 @@ import {
   Modal,
   Select,
   Table,
-  DateInput,
-} from "../../components/ui";
+  DateInput, ExportMenu } from "../../components/ui";
 import { Sparkline } from "../../components/charts";
 import { usePlatform } from "../../lib/usePlatform";
-import { downloadPDF } from "../../lib/download";
+import { downloadReport, slaiceInvoice } from "../../lib/download";
 import { addDays, fmtDay } from "../../domain/period";
 import {
   LIMIT_LABEL,
@@ -532,25 +531,13 @@ export function Billing({ t, go }: SectionProps) {
                 {i.status}
               </Badge>,
               <span className="flex gap-1 justify-end">
-                <Btn
-                  size="sm"
-                  variant="ghost"
-                  icon={Icon.download}
-                  onClick={() => {
-                    downloadPDF(`${i.no}.pdf`, {
-                      title: `Slaice invoice ${i.no}`,
-                      subtitle: `${t.legalName} · ${t.vatNo}`,
-                      table: {
-                        cols: ["Item", "Amount"],
-                        rows: [[`${planName(t)} · ${i.period}`, `€${i.amount}`]],
-                        rightCols: [1],
-                      },
-                      totals: [["Total", `€${i.amount}`]],
-                    });
-                  }}
-                >
-                  PDF
-                </Btn>
+                <ExportMenu
+                size="sm"
+                variant="ghost"
+                label="Download"
+                what={i.no}
+                onExport={(f) => downloadReport(i.no, slaiceInvoice(i, t, planName(t)), f)}
+              />
                 {i.status !== "Paid" && i.status !== "Void" && (
                   <>
                     <Btn size="sm" variant="tint" onClick={() => pay(i.no, true)}>
