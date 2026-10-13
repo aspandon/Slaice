@@ -20,7 +20,36 @@ export interface DisplayConfig {
   sunrise: string;
   sunset: string;
   orientation: "landscape" | "portrait";
+  /** Screens paired with a code (AENR-602); a window that isn't one shows its pairing code. */
+  screens?: PairedScreen[];
 }
+/** Codes shown on unpaired screens, waiting for the manager to type one. A display window
+ *  never writes the app state, so the codes live under their own storage key. */
+export interface PendingCode { code: string; device: string; at: number }
+const PENDING_KEY = "slaice.display.pending";
+export function readPending(): PendingCode[] {
+  try {
+    const all = JSON.parse(localStorage.getItem(PENDING_KEY) || "[]") as PendingCode[];
+    return all.filter((x) => Date.now() - x.at < PAIR_CODE_TTL);
+  } catch {
+    return [];
+  }
+}
+export function writePending(list: PendingCode[]) {
+  try {
+    localStorage.setItem(PENDING_KEY, JSON.stringify(list));
+  } catch {
+    /* storage blocked — pairing needs it */
+  }
+}
+export interface PairedScreen {
+  device: string;
+  name: string;
+  pairedAt: string;
+}
+/** Codes older than this are ignored (the screen shows a fresh one). */
+export const PAIR_CODE_TTL = 10 * 60 * 1000;
+export const newPairCode = () => String(Math.floor(1000 + Math.random() * 9000));
 export const DEFAULT_DISPLAY: DisplayConfig = {
   zones: [],
   rotate: true,
@@ -29,7 +58,8 @@ export const DEFAULT_DISPLAY: DisplayConfig = {
   showQr: true,
   showWeather: true,
   langs: ["en", "el"],
-  theme: "dark",
+  // Auto follows sunrise / sunset — the default for new screens (AENR-602).
+  theme: "auto",
   sunrise: "07:00",
   sunset: "20:30",
   orientation: "landscape",

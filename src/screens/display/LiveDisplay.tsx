@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../lib/icons";
 import { QR } from "../../components/charts";
 import { useApp } from "../../app/store";
 import { readHashQuery } from "../../app/router";
 import { TENANT, WEATHER_DEMO, ZONES, todayISO } from "../../data/beach";
-import { DISPLAY_TEXT, availLevel, effectiveTheme, type AvailLevel, type DisplayTheme } from "../../domain/display";
+import { DISPLAY_TEXT, PAIR_CODE_TTL, newPairCode, readPending, writePending, type PendingCode, availLevel, effectiveTheme, type AvailLevel, type DisplayTheme } from "../../domain/display";
 import type { SunbedSlot, Zone } from "../../domain/types";
 import { useClosure, useLiveSlots, useNow } from "../../lib/useLiveSlots";
 
@@ -73,7 +73,7 @@ type ZoneStat = {
 const setKind = (s: SunbedSlot): "a" | "h" | "u" | "b" =>
   s.state === "u" && s.inv?.startsWith("Out of service") ? "b" : s.state;
 
-export function LiveDisplay() {
+function DisplayBoard() {
   const {
     display: cfg,
     zoneMap,
@@ -450,6 +450,61 @@ function ZoneView({ s, th, T }: { s: ZoneStat; th: Th; T: Txt }) {
             {T.legend[k]}
           </span>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/* ============ Pair a screen with a code (AENR-602) ============
+   A TV or signage PC that isn't paired shows a 4-digit code; the manager types
+   it under Live display › Pair a screen and this window becomes the display.
+   Each window is its own device (sessionStorage). The admin preview skips it. */
+function deviceId() {
+  try {
+    let id = sessionStorage.getItem("slaice.display.device");
+    if (!id) {
+      id = `scr-${Math.random().toString(36).slice(2, 8)}`;
+      sessionStorage.setItem("slaice.display.device", id);
+    }
+    return id;
+  } catch {
+    return "scr-local";
+  }
+}
+
+export function LiveDisplay() {
+  const { display: cfg } = useApp();
+  const preview = readHashQuery().get("preview") === "1";
+  const device = useMemo(deviceId, []);
+  const paired = (cfg.screens ?? []).some((x) => x.device === device);
+  if (preview || paired) return <DisplayBoard />;
+  return <PairingScreen device={device} />;
+}
+
+function PairingScreen({ device }: { device: string }) {
+  const now = useNow(30000);
+  const [mine, setMine] = useState<PendingCode | null>(null);
+  // Post a fresh code when there is none or it expired (every 10 minutes).
+  useEffect(() => {
+    if (mine && now - mine.at < PAIR_CODE_TTL) return;
+    const others = readPending().filter((x) => x.device !== device);
+    let code = newPairCode();
+    while (others.some((x) => x.code === code)) code = newPairCode();
+    const next = { code, device, at: Date.now() };
+    writePending([...others, next]);
+    setMine(next);
+  }, [mine, now, device]);
+  return (
+    <div className="min-h-dvh bg-navy-950 text-white grid place-items-center p-8 text-center">
+      <div>
+        <div className="text-[2.4vmin] uppercase tracking-[0.3em] text-teal-300 font-semibold">{TENANT.name} · Live display</div>
+        <h1 className="mt-[3vmin] font-display font-bold text-[5vmin]">Pair this screen</h1>
+        <div aria-live="polite" aria-label={mine ? `Pairing code ${mine.code.split("").join(" ")}` : "Getting a code"} className="mt-[4vmin] font-mono font-bold tracking-[0.25em] text-[16vmin] leading-none tnum">
+          {mine ? mine.code : "····"}
+        </div>
+        <p className="mt-[4vmin] text-[2.8vmin] text-white/80 max-w-[70vmin] mx-auto">
+          In Slaice, open <b>Live display</b> and type this code under <b>Pair a screen</b>. The code changes every 10 minutes.
+        </p>
       </div>
     </div>
   );

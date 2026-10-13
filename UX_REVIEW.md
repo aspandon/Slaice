@@ -429,3 +429,6 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-624 — lists open where the work is.** Bookings opens on Today (then the last tab used; a
   search looks through everything); dates and filters sit in one Filters sheet with chips for what's
   active. Guests lost the explanation banner (now "About stages") and its separate filter row.
+- **AENR-602 — pair a TV with a code.** An unpaired display shows a 4-digit code; typing it under
+  Live display › Pair a screen turns that screen into the display. Paired screens can be renamed or
+  removed; Auto (sunrise / sunset) is the default look for new setups.

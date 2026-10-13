@@ -1067,6 +1067,12 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
   time, Night from sunset — default 07:00 / 20:30; open displays flip on the clock without a reload) or High
   contrast (AENR-594) — and landscape / portrait; a live preview frame; **Open on another screen** (pop-up window) and
   **Copy display link**. Cashier (Sell) and Controller (Gate) have an _Open live display_ shortcut.
+- **Pair a screen** (AENR-602): a display window that isn't paired shows a big 4-digit code (fresh
+  every 10 minutes; each window is its own device). The manager types it under Live display ›
+  **Pair a screen** and that screen becomes the live display at once, following the settings here.
+  Paired screens are listed with a name (editable) and can be removed (Undo); a removed screen shows a
+  code again. The admin preview never needs pairing. New setups use the **Auto** look (sunrise /
+  sunset). Codes live under their own storage key because a display window never writes app state.
 - **`#/display`** — chrome-less and read-only (no shell, sign-in, cookie banner or guest data): headline "N
   sunbed sets free now · from €X", clock and weather, the overview map with each zone in its position (free /
   total, fill bar and a text level: Plenty free · Filling up · Almost full · Full · Closed today), a per-zone

@@ -2,7 +2,9 @@ import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, Field, Input, Select, Toggle } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { ZONES } from "../../data/beach";
-import { DEFAULT_DISPLAY, THEME_LABEL, displayUrl, effectiveTheme, openDisplay, type DisplayConfig } from "../../domain/display";
+import { DEFAULT_DISPLAY, THEME_LABEL, readPending, writePending, displayUrl, effectiveTheme, openDisplay, type DisplayConfig } from "../../domain/display";
+import { useState } from "react";
+import { useUndoToast } from "../../lib/useUndo";
 import { useNow } from "../../lib/useLiveSlots";
 
 /* ============ Admin › Live display (AENR-519) ============
@@ -57,6 +59,7 @@ export function AdminDisplay() {
           In the display: double-click or the Full screen button; Esc exits.
         </span>
       </div>
+      <PairScreens />
 
       <div className="grid xl:grid-cols-[360px_minmax(0,1fr)] gap-4 items-start">
         <Card className="p-4 space-y-4">
@@ -235,5 +238,82 @@ export function AdminDisplay() {
         </Card>
       </div>
     </div>
+  );
+}
+
+/* ============ Pair a screen (AENR-602) ============
+   A TV or signage PC shows a 4-digit code until it's paired; type it here.
+   Paired screens follow these settings and can be renamed or removed (a
+   removed screen goes back to showing a code). */
+function PairScreens() {
+  const { display: cfg, setDisplay, toast } = useApp();
+  const undo = useUndoToast();
+  const [code, setCode] = useState("");
+  const [err, setErr] = useState("");
+  const screens = cfg.screens ?? [];
+  const pair = () => {
+    const hit = readPending().find((x) => x.code === code);
+    if (!hit) return setErr("No screen shows that code — check the TV, or wait for a fresh code.");
+    const name = `Screen ${screens.length + 1}`;
+    setDisplay((c) => ({
+      ...c,
+      screens: [...(c.screens ?? []).filter((x) => x.device !== hit.device), { device: hit.device, name, pairedAt: new Date().toISOString() }],
+    }));
+    writePending(readPending().filter((x) => x.device !== hit.device));
+    setCode("");
+    setErr("");
+    toast(`${name} paired — it shows the live display now.`, { tone: "success" });
+  };
+  const rename = (device: string, name: string) =>
+    setDisplay((c) => ({ ...c, screens: (c.screens ?? []).map((x) => (x.device === device ? { ...x, name } : x)) }));
+  const remove = (device: string) => {
+    const prev = cfg.screens ?? [];
+    const gone = prev.find((x) => x.device === device);
+    setDisplay((c) => ({ ...c, screens: (c.screens ?? []).filter((x) => x.device !== device) }));
+    undo(`${gone?.name ?? "Screen"} removed — it shows a pairing code again.`, () => setDisplay((c) => ({ ...c, screens: prev })));
+  };
+  return (
+    <Card className="p-4">
+      <div className="flex flex-wrap items-start gap-4">
+        <form
+          className="min-w-0 flex-1 basis-64"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (code.length === 4) pair();
+          }}
+        >
+          <h2 className="font-semibold text-navy-900">Pair a screen</h2>
+          <p className="text-[12.5px] text-slate-600 mb-2">Open the display on the TV (or use Open on another screen); it shows a 4-digit code. Type it here.</p>
+          <div className="flex items-start gap-2">
+            <div className="w-32">
+              <Input inputMode="numeric" maxLength={4} aria-label="Pairing code shown on the screen" placeholder="0000" className="tnum tracking-[0.3em] text-center" value={code}
+                onChange={(e) => { setCode(e.target.value.replace(/\D/g, "").slice(0, 4)); setErr(""); }} aria-invalid={!!err} />
+            </div>
+            <Btn type="submit" variant="primary" disabled={code.length !== 4}>Pair</Btn>
+          </div>
+          {err && <div role="alert" className="mt-1.5 text-[12px] text-rose-700">{err}</div>}
+        </form>
+        <div className="min-w-0 flex-1 basis-64">
+          <h3 className="text-[13px] font-semibold text-navy-900 mb-1.5">Paired screens <span className="text-slate-400 tnum">{screens.length}</span></h3>
+          {screens.length === 0 ? (
+            <p className="text-[12.5px] text-slate-500">None yet — paired screens appear here and follow the settings below.</p>
+          ) : (
+            <ul className="space-y-1.5">
+              {screens.map((x) => (
+                <li key={x.device} className="flex items-center gap-2 rounded-lg ring-1 ring-slate-200 px-2 py-1.5">
+                  <Icon.monitor size={15} className="text-teal-700 shrink-0" />
+                  <input aria-label={`Name of ${x.name}`} value={x.name} onChange={(e) => rename(x.device, e.target.value)}
+                    className="min-w-0 flex-1 bg-transparent text-[13px] font-semibold text-navy-900 rounded px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500" />
+                  <span className="text-[11.5px] text-slate-500 whitespace-nowrap">since {new Date(x.pairedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
+                  <button type="button" aria-label={`Remove ${x.name}`} onClick={() => remove(x.device)} className="w-8 h-8 grid place-items-center rounded-lg text-slate-400 hover:text-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                    <Icon.trash size={14} />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </Card>
   );
 }
