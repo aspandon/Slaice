@@ -335,8 +335,12 @@ Reservations; phone-first like the Controller. Staff get the role in Admin › R
 2. **Product sign-in** — tenant-branded split screen. Left (desktop only): beach illustration with the
    tenant logo, subdomain, headline _"Relax. Reserve. Repeat."_, three benefits (pick your exact spot
    on a live beach map · instant QR straight to the gate · digital receipts automatically) and
-   "powered by SLAiCE". Right: **e-mail magic link** (Zod-validated e-mail; "Check your inbox" state;
-   "Continue (demo)") or **SSO**: Google, Microsoft, Apple, Facebook. Any input signs in **[DEMO]**.
+   "powered by SLAiCE". Right (AENR-622): **one tap** — **Continue with Apple**, **Continue with Google**,
+   **Sign in with a passkey** (Face ID / Touch ID, simulated) — “No password. You stay signed in on this
+   device.”; **Use e-mail instead** opens the magic link (Zod-validated e-mail; "Check your inbox" state;
+   "Continue (demo)"). No 18+ checkbox here — it is asked once, at the first booking. Microsoft and
+   Facebook were dropped (fewer, more familiar choices). Any input signs in **[DEMO]**. While the cookie
+   banner is up the panel leaves room below it, so the sign-in buttons are never covered.
 3. **Cookie consent banner** — shown until a decision is recorded (see §7.6).
 
 ### 7.2 Customer shell
@@ -448,8 +452,8 @@ Each journey: **ID · name**, trigger, steps, outcome, rules and states.
    unlock remembered                                 ◆ how?
    per device                     ┌──────────────────┴──────────────────┐
                                   ▼                                     ▼
-                     E-mail ─▶ [Send magic link]          SSO ─▶ Google · Microsoft
-                       │  ✗ invalid ─▶ inline error              Apple · Facebook
+        "Use e-mail instead" ─▶ [Send magic link]     One tap ─▶ Apple · Google
+                       │  ✗ invalid ─▶ inline error              · passkey (AENR-622)
                        ▼        (role="alert")                        │
                   "Check your inbox" ─▶ [Continue (demo)]             │
                                   │                                   │
@@ -461,7 +465,7 @@ Each journey: **ID · name**, trigger, steps, outcome, rules and states.
 
 - **Trigger:** first visit or after sign-out.
 - **Steps:** (site gate [DEMO]) → enter e-mail → "Send magic link" → "Check your inbox" → "Continue";
-  or tap an SSO provider (Google / Microsoft / Apple / Facebook).
+  or — the default — one tap: Apple, Google or a passkey (AENR-622).
 - **Validation:** e-mail required and must be valid (inline error, `role="alert"`).
 - **Outcome:** signed in, lands on the last customer page (default Home). Consent banner appears if
   undecided.
@@ -1478,8 +1482,8 @@ Roles: the tenant (beach operator) is the **controller**; Slaice is the **proces
 - **Customer side:** Privacy Centre with per-channel marketing consent (e-mail, SMS, Viber, push),
   requests for access, rectification, restriction, objection and erasure (they land in the queue),
   open requests, the DPO contact and policy links, and a children's-data section. Accounts need an
-  **18+ confirmation** at sign-in and at checkout sign-in (AENR-489); child tickets record only type
-  and count.
+  **18+ confirmation** (AENR-489), asked once at the **first booking** in checkout (AENR-622 moved it
+  from sign-in; `account.adultConfirmed`); child tickets record only type and count.
 - **Platform › Compliance & DPA:** Slaice adds sub-processors (TIA required outside the EU; every
   tenant is notified), publishes DPA versions, and reports incidents to the affected tenants, which
   then appear in each tenant's breach register.
@@ -2376,7 +2380,7 @@ Events, Retail, Compliant: Stripe + MyDATA).
 
 | #   | Capability                                                                       | Persona(s)                      | Status              | Where            |
 | --- | -------------------------------------------------------------------------------- | ------------------------------- | ------------------- | ---------------- |
-| 1   | Magic-link + SSO sign-in (Google, Microsoft, Apple, Facebook)                    | Customer                        | MVP                 | §7.1             |
+| 1   | One-tap sign-in (Apple, Google, passkey) + magic link (AENR-622)                 | Customer                        | MVP                 | §7.1             |
 | 2   | Tenant-branded customer site (logo, background, per-zone logos)                  | Customer / Admin                | MVP                 | §4, A-03         |
 | 3   | Live availability on Home                                                        | Customer                        | MVP                 | C-02             |
 | 4   | Guided booking wizard (dates, zone, exact sets, guests, locker, parking, review) | Customer                        | MVP                 | C-03             |

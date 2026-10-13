@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Icon } from "../lib/icons";
 import { Btn, Input } from "../components/ui";
-import { AgeCheck } from "../components/AgeCheck";
+import { QuickSignIn } from "../components/QuickSignIn";
 import { SlaiceLogo, TenantLogo } from "../components/Brand";
 import { BeachBackdrop } from "../components/Beach";
 import { TENANT } from "../data/beach";
@@ -17,20 +17,18 @@ const signInSchema = z.object({
 });
 
 export function AuthGate() {
-  const { setSignedIn, toast, setAccount, go } = useApp();
+  const { setSignedIn, toast, setAccount, go, consent } = useApp();
   // Browse and fill a basket without an account; checkout asks to sign in (AENR-532).
   const browseAsGuest = () => {
     setAccount((a) => ({ ...a, guest: true }));
     setSignedIn(true);
     go("customer", "home");
   };
-  const [adult, setAdult] = useState(false);
-  const [ageTried, setAgeTried] = useState(false);
-  // Every way into an account needs the 18+ confirmation (AENR-489).
-  const needAge = () => { setAgeTried(true); return !adult; };
-  const signInAs = () => { if (needAge()) return; setAccount((a) => ({ ...a, guest: false })); setSignedIn(true); };
+  // One tap in (AENR-622); the 18+ confirmation moved to the first booking (AENR-489 still holds there).
+  const signInAs = () => { setAccount((a) => ({ ...a, guest: false })); setSignedIn(true); };
   const t = useT();
   const [sent, setSent] = useState(false);
+  const [useEmail, setUseEmail] = useState(false);
   const {
     register,
     handleSubmit,
@@ -38,21 +36,14 @@ export function AuthGate() {
     formState: { errors },
   } = useForm({
     resolver: zodResolver(signInSchema),
-    defaultValues: { email: "elena@example.com" },
+    defaultValues: { email: "elena.vlachos@example.com" },
     mode: "onSubmit",
   });
   const email = watch("email");
 
   const onValid = () => {
-    if (needAge()) return;
     setSent(true);
     toast(t("Demo — magic link 'sent'. Click continue."));
-  };
-
-  const sso = (p: string) => {
-    if (needAge()) return;
-    toast(`${t("Demo —")} ${p} ${t("SSO. Signing you in…")}`);
-    setTimeout(signInAs, 500);
   };
 
   return (
@@ -86,17 +77,27 @@ export function AuthGate() {
       </div>
 
       {/* right: sign-in */}
-      <div className="grid place-items-center p-6 sm:p-10 bg-slate-50">
+      {/* While the cookie banner is up, room below so nothing stays hidden under it (AENR-622). */}
+      <div className={`grid place-items-center p-6 sm:p-10 bg-slate-50 ${consent.decided ? "" : "pb-80 lg:pb-52"}`}>
         <div className="w-full max-w-sm">
           <div className="lg:hidden flex items-center gap-3 mb-8">
             <TenantLogo size={40} />
             <div className="font-display font-bold text-navy-900 text-lg">{TENANT.name}</div>
           </div>
           <h2 className="font-display font-bold text-2xl text-navy-900">{t("Sign in")}</h2>
-          <p className="text-sm text-slate-500 mt-1">{t("Use a magic link or single sign-on. This is a demo — any input signs you in.")}</p>
+          <p className="text-sm text-slate-500 mt-1">{t("One tap with Apple, Google or a passkey. This is a demo — nothing is checked.")}</p>
 
-          {!sent ? (
-            <form className="mt-6 space-y-3" onSubmit={handleSubmit(onValid)} noValidate>
+          <div className="mt-6">
+            <QuickSignIn onSignedIn={(how) => { toast(`${t("Signed in with")} ${how === "passkey" ? t("a passkey") : how}.`, { tone: "success" }); signInAs(); }} />
+          </div>
+
+          {/* E-mail stays for those who want it, out of the way. */}
+          {!useEmail ? (
+            <button type="button" onClick={() => setUseEmail(true)} aria-expanded={false} className="mt-3 w-full min-h-[44px] rounded-xl text-[13.5px] font-semibold text-teal-700 hover:bg-white/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+              {t("Use e-mail instead")}
+            </button>
+          ) : !sent ? (
+            <form className="mt-4 space-y-3" onSubmit={handleSubmit(onValid)} noValidate>
               <label className="block">
                 <span className="text-[12px] font-semibold text-slate-500">{t("Email")}</span>
                 <Input
@@ -113,41 +114,16 @@ export function AuthGate() {
                   <Icon.alert size={13} /> {errors.email.message}
                 </div>
               )}
-              <AgeCheck checked={adult} onChange={setAdult} invalid={ageTried && !adult} />
               <Btn type="submit" variant="teal" full size="lg" icon={Icon.mail}>{t("Send magic link")}</Btn>
             </form>
           ) : (
-            <div className="mt-6 rounded-2xl ring-1 ring-teal-600/20 bg-teal-50 p-5 text-center">
+            <div className="mt-4 rounded-2xl ring-1 ring-teal-600/20 bg-teal-50 p-5 text-center">
               <div className="w-12 h-12 mx-auto rounded-xl bg-teal-600 text-white grid place-items-center"><Icon.mail size={22} /></div>
               <div className="mt-2 font-semibold text-navy-900">{t("Check your inbox")}</div>
               <div className="text-[13px] text-slate-500">{t("We sent a sign-in link to")} <b>{email}</b>.</div>
               <Btn variant="teal" full size="lg" className="mt-4" icon={Icon.arrowR} onClick={signInAs}>{t("Continue (demo)")}</Btn>
             </div>
           )}
-
-          <div className="flex items-center gap-3 my-6 text-[12px] text-slate-600">
-            <div className="h-px bg-slate-200 flex-1" /> {t("or continue with")} <div className="h-px bg-slate-200 flex-1" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Btn variant="outline" onClick={() => sso("Google")}>
-              <span className="font-bold text-[15px]"><span className="text-[#4285F4]">G</span><span className="text-[#EA4335]">o</span><span className="text-[#FBBC05]">o</span><span className="text-[#4285F4]">g</span><span className="text-[#34A853]">l</span><span className="text-[#EA4335]">e</span></span>
-            </Btn>
-            <Btn variant="outline" onClick={() => sso("Microsoft")}>
-              <span className="grid grid-cols-2 gap-0.5 w-3.5 h-3.5"><i className="bg-[#F25022]" /><i className="bg-[#7FBA00]" /><i className="bg-[#00A4EF]" /><i className="bg-[#FFB900]" /></span> Microsoft
-            </Btn>
-            <Btn variant="outline" onClick={() => sso("Apple")}>
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="w-4 h-4 text-navy-900">
-                <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.08zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-              </svg>
-              Apple
-            </Btn>
-            <Btn variant="outline" onClick={() => sso("Facebook")}>
-              <svg viewBox="0 0 24 24" fill="#1877F2" aria-hidden="true" className="w-4 h-4">
-                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-              </svg>
-              Facebook
-            </Btn>
-          </div>
 
           <button type="button" onClick={browseAsGuest} className="mt-5 w-full rounded-xl min-h-[44px] text-[13.5px] font-semibold text-navy-900 ring-1 ring-slate-200 hover:ring-teal-400 hover:bg-white/70 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
             {t("Browse as a guest")} <span className="font-normal text-slate-500">· {t("sign in at checkout")}</span>

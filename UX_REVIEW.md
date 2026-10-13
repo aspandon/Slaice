@@ -451,3 +451,6 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-621 — everything about the account in one list.** Account is a settings list (Companions,
   Payment methods, Receipts, Notifications, Language, Privacy, Sign-in & security, Sign out); each row
   opens one page. The settings dialogs are gone and the demo profile is the same everywhere.
+- **AENR-622 — sign in without forms.** Continue with Apple / Google or a passkey in one tap; e-mail
+  is behind “Use e-mail instead”; the 18+ confirmation moved to the first booking; the cookie banner no
+  longer covers the sign-in buttons.

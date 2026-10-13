@@ -62,6 +62,8 @@ export interface AccountState {
   party: Record<string, number> | null;
   /** Single-use rewards already taken off a booking (AENR-619), by scheme id. */
   rewardsUsed: string[];
+  /** The 18+ confirmation, asked once at the first booking (AENR-489 / 622). */
+  adultConfirmed: boolean;
 }
 export type WalletKind = "apple" | "google";
 export const DEFAULT_ACCOUNT: AccountState = {
@@ -75,6 +77,7 @@ export const DEFAULT_ACCOUNT: AccountState = {
   wallet: {},
   party: null,
   rewardsUsed: [],
+  adultConfirmed: false,
 };
 /** "You + 1 adult + 2 children" — the party in words (the guest is the first adult). */
 export function partyLabel(party: Record<string, number>, names: Record<string, string> = {}, t: (s: string) => string = (s) => s): string {

@@ -49,7 +49,7 @@ export function ConsentBanner() {
             <div className="flex-1 min-w-0">
               <div className="font-display font-bold text-navy-900">{outdated ? t("We've updated our privacy policy") : t("We value your privacy")}</div>
               <p className="text-[13px] text-slate-600 leading-snug mt-0.5">
-                {outdated ? <>{t("Please review what changed and confirm your choices.")} </> : null}{t("We use strictly-necessary cookies to run the site, and — with your consent — analytics and marketing cookies. You can change this anytime in")} <b>{t("Account → Privacy & data")}</b>. <button type="button" className="underline font-semibold hover:text-navy-900" onClick={() => open("privacy")}>{t("Privacy Policy")}</button> · <button type="button" className="underline font-semibold hover:text-navy-900" onClick={() => open("cookie")}>{t("Cookie Policy")}</button>
+                {outdated ? <>{t("Please review what changed and confirm your choices.")} </> : null}{t("We use strictly-necessary cookies to run the site, and — with your consent — analytics and marketing cookies. You can change this anytime in")} <b>{t("Account › Privacy & cookies")}</b>. <button type="button" className="underline font-semibold hover:text-navy-900" onClick={() => open("privacy")}>{t("Privacy Policy")}</button> · <button type="button" className="underline font-semibold hover:text-navy-900" onClick={() => open("cookie")}>{t("Cookie Policy")}</button>
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap shrink-0">

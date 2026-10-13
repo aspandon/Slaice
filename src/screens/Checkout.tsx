@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../lib/icons";
 import { AgeCheck } from "../components/AgeCheck";
+import { QuickSignIn } from "../components/QuickSignIn";
 import type { IconRenderer } from "../lib/icons";
 import { gsap, motionOK, takeFlip, Flip, EASE, burstConfetti } from "../lib/fx";
 import { Card, Btn, EmptyState, SwipeRow, Toggle } from "../components/ui";
@@ -96,6 +97,7 @@ export function Checkout() {
     setAccount((a) => ({
       ...a,
       bookings: [booking, ...a.bookings],
+      adultConfirmed: true,
       savedCard: card?.save ? { brand: "Visa", last4: card.last4, exp: "12/28" } : a.savedCard,
       rewardsUsed: rewardOff > 0 && best && !best.reward.reusable ? [...(a.rewardsUsed ?? []), best.reward.id] : a.rewardsUsed ?? [],
       credit: creditUsed > 0 ? { balance: round2(a.credit.balance - creditUsed), log: [{ at: guestNow(), text: `Used at checkout · ${booking.ref}`, amount: -creditUsed }, ...a.credit.log] } : a.credit,
@@ -105,8 +107,11 @@ export function Checkout() {
     setPhase("done");
   };
   // Guests browsing without an account sign in first; the basket stays as it is.
+  // The 18+ confirmation is asked once, at the first booking (AENR-622) — not at sign-in.
+  const needAge = () => { if (account.adultConfirmed || adult) return false; setAgeTried(true); return true; };
   const pay = () => {
     if (account.guest) return setPhase("signin");
+    if (needAge()) return;
     if (cashDue > 0) setPhase("redirect");
     else finish(null);
   };
@@ -114,6 +119,7 @@ export function Checkout() {
   const [wallet, setWallet] = useState<"apple" | "google" | null>(null);
   const walletPay = (w: "apple" | "google") => {
     if (account.guest) return setPhase("signin");
+    if (needAge()) return;
     setWallet(w);
     window.setTimeout(() => { setWallet(null); finish(null, w); }, 1300);
   };
@@ -155,8 +161,6 @@ export function Checkout() {
 
   if (phase === "signin") {
     const signIn = (how: string) => {
-      setAgeTried(true);
-      if (!adult) return;
       setAccount((a) => ({ ...a, guest: false }));
       toast(`${t("Signed in")} (${how}) — ${t("your basket is right where you left it.")}`, { tone: "success" });
       setPhase("cart");
@@ -168,10 +172,8 @@ export function Checkout() {
           <h2 className="mt-3 font-display font-bold text-xl text-navy-900">{t("Sign in to finish your booking")}</h2>
           <p className="mt-1 text-sm text-slate-600">{t("Your basket is saved —")} {cart.length} {cart.length === 1 ? t("item") : t("items")} · €{total.toFixed(2)}. {t("We need an account to send your QR and receipt.")}</p>
           <div className="mt-5 grid gap-2">
-            <AgeCheck checked={adult} onChange={setAdult} invalid={ageTried && !adult} />
-            <Btn variant="teal" full size="lg" icon={Icon.mail} onClick={() => signIn("e-mail link")}>{t("Sign in with an e-mail link")}</Btn>
-            <Btn variant="outline" full onClick={() => signIn("Google")}>{t("Continue with Google")}</Btn>
-            <Btn variant="ghost" full onClick={() => signIn("new account")}>{t("Create an account")}</Btn>
+            <QuickSignIn onSignedIn={(how) => signIn(how === "passkey" ? t("passkey") : how)} />
+            <Btn variant="ghost" full icon={Icon.mail} onClick={() => signIn(t("e-mail link"))}>{t("Use e-mail instead")}</Btn>
           </div>
           <button type="button" onClick={() => setPhase("cart")} className="mt-4 text-[12px] text-slate-600 hover:text-navy-900">← {t("Back to the basket")}</button>
         </Card>
@@ -288,6 +290,7 @@ export function Checkout() {
             </div>
           )}
 
+          {!account.adultConfirmed && <div className="mt-4"><AgeCheck checked={adult} onChange={(v) => { setAdult(v); if (v) setAgeTried(false); }} invalid={ageTried && !adult} /></div>}
           {cashDue > 0 ? (
             <div className="mt-4 space-y-2">
               <button type="button" onClick={() => walletPay("apple")} disabled={!!wallet} className="w-full min-h-[48px] rounded-[14px] bg-black text-white font-semibold text-[15px] inline-flex items-center justify-center gap-1.5 hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 disabled:opacity-70" aria-label={`${t("Pay with Apple Pay")} €${cashDue.toFixed(2)}`}>
