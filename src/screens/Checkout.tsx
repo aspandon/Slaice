@@ -20,6 +20,8 @@ import { FullscreenQR, downloadVisitIcs, shareVisit } from "./customer/VisitTick
 import { useVisits, guestNow } from "../lib/useVisits";
 import { useFinance } from "../lib/useFinance";
 import { useExtras } from "../lib/useExtras";
+import { bestReward, usableRewards } from "../domain/rewards";
+import { activeRewards } from "./customer/CustomerHome";
 
 // Online booking refs follow the account's bookings (BK-30001, BK-30002…) so they
 // never collide with sample or staff bookings, and survive a reload (AENR-597).
@@ -28,7 +30,7 @@ const bookingRefFor = (n: number) => `BK-${30001 + n}`;
 export const OPERATOR = { legal: "Akti tou Iliou AE", vat: "EL123456789", address: "Leof. Poseidonos 1, 174 55 Alimos", phone: "+30 210 980 0000", email: "help@aktitouiliou.gr" };
 
 export function Checkout() {
-  const { cart, removeFromCart, addToCart, clearCart, go, toast, passes, spendVipCredit, passPricing, account, setAccount } = useApp();
+  const { cart, removeFromCart, addToCart, clearCart, go, toast, passes, spendVipCredit, passPricing, account, setAccount, loyalty } = useApp();
   const t = useT();
   const mine = usual(useVisits().visits);
   const [finance] = useFinance();
@@ -44,6 +46,10 @@ export function Checkout() {
   const goods = round2(cart.reduce((a, b) => a + b.price, 0));
   const sf = serviceFees(cart, finance.fees, todayISO());
   const total = round2(goods + sf.total);
+  // The best reward the guest has earned comes off by itself (AENR-619) — removable, nothing to claim.
+  const best = bestReward(usableRewards(activeRewards(loyalty), account.rewardsUsed ?? []), cart);
+  const [skipReward, setSkipReward] = useState(false);
+  const rewardOff = best && !skipReward ? Math.min(best.amount, total) : 0;
   const fee = +(total * SLAICE_FEE_RATE).toFixed(2);
   const stripeFee = +(total * STRIPE_FEE_RATE).toFixed(2);
 
@@ -59,7 +65,7 @@ export function Checkout() {
   const entryTotal = cart.filter((i) => i.kind === "ticket").reduce((a, b) => a + b.price, 0);
   // Season pass: one entry covered per visit (the holder's), valued at a standard adult entry.
   const seasonCovered = hasSeason && applySeason && entryTotal > 0 ? Math.min(ex.ticketPrice("adult", todayISO()), entryTotal) : 0;
-  const afterSeason = round2(total - seasonCovered);
+  const afterSeason = round2(Math.max(0, total - rewardOff - seasonCovered));
   const vipBalance = passes.vip?.balance ?? 0;
   // €B of credit, at a `disc` discount, settles B/(1−disc) of the order.
   const vipMaxCover = round2(vipBalance / (1 - disc));
@@ -76,7 +82,7 @@ export function Checkout() {
   const depositAmt = round2((fullDue * policy.depositPct) / 100);
   const cashDue = plan === "deposit" && policy.depositPct > 0 ? depositAmt : fullDue;
   const onSite = round2(fullDue - cashDue);
-  const passApplied = seasonCovered > 0 || vipCover > 0 || creditUsed > 0;
+  const passApplied = rewardOff > 0 || seasonCovered > 0 || vipCover > 0 || creditUsed > 0;
   // The exact free-cancellation line for the earliest day in the basket (AENR-569).
   const firstDay = cart.map((i) => i.date).filter(Boolean).sort()[0] ?? todayISO();
   const cancelBy = t(cancelLine(firstDay, guestNow(), policy));
@@ -91,6 +97,7 @@ export function Checkout() {
       ...a,
       bookings: [booking, ...a.bookings],
       savedCard: card?.save ? { brand: "Visa", last4: card.last4, exp: "12/28" } : a.savedCard,
+      rewardsUsed: rewardOff > 0 && best && !best.reward.reusable ? [...(a.rewardsUsed ?? []), best.reward.id] : a.rewardsUsed ?? [],
       credit: creditUsed > 0 ? { balance: round2(a.credit.balance - creditUsed), log: [{ at: guestNow(), text: `Used at checkout · ${booking.ref}`, amount: -creditUsed }, ...a.credit.log] } : a.credit,
     }));
     setPlaced(booking);
@@ -211,6 +218,16 @@ export function Checkout() {
           {/* Customer-facing summary: subtotal, any pass deductions, then what's due now. */}
           <Row l={t("Subtotal")} v={`€${goods.toFixed(2)}`} />
           {sf.lines.map((f) => <Row key={f.label} l={t(f.label)} v={`€${f.amount.toFixed(2)}`} />)}
+          {best && (rewardOff > 0 ? (
+            <div className="flex items-center justify-between gap-2 text-sm py-0.5 text-teal-700 font-medium">
+              <span className="min-w-0"><Icon.gift size={13} className="inline align-[-2px] mr-1" />{t(best.reward.title)} · {best.reward.reward} <button type="button" aria-label={t("Remove reward")} onClick={() => setSkipReward(true)} className="ml-1 text-[12px] font-semibold text-slate-500 underline-offset-2 hover:underline hover:text-navy-900 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">{t("Remove")}</button></span>
+              <span className="tnum shrink-0">−€{rewardOff.toFixed(2)}</span>
+            </div>
+          ) : (
+            <button type="button" onClick={() => setSkipReward(false)} className="block text-left text-[12.5px] font-semibold text-teal-700 hover:underline py-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+              <Icon.gift size={13} className="inline align-[-2px] mr-1" />{t("Use your reward")} · {best.reward.reward} (−€{Math.min(best.amount, total).toFixed(2)})
+            </button>
+          ))}
           {seasonCovered > 0 && <Row l={`${t("Season pass")} · ${t("1 entry")}`} v={`−€${seasonCovered.toFixed(2)}`} discount />}
           {vipCover > 0 && <Row l={t("Paid with VIP credit")} v={`−€${vipCover.toFixed(2)}`} discount />}
           {creditUsed > 0 && <Row l={t("Beach credit")} v={`−€${creditUsed.toFixed(2)}`} discount />}

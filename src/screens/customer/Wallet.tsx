@@ -1,7 +1,5 @@
-import { useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, EmptyState, Modal } from "../../components/ui";
-import { QR } from "../../components/charts";
+import { Badge, Btn, EmptyState } from "../../components/ui";
 import { useApp, useT } from "../../app/store";
 import { ZONES, todayISO, zoneLayout } from "../../data/beach";
 import { SEASON_ZONE, seasonSetIn } from "../../data/passes";
@@ -14,8 +12,8 @@ import { BadgesTile, RewardRow, SeasonTile, VipTile, activeRewards } from "./Cus
 
 /* ============ Wallet (AENR-577 / 578) ============
    Everything the guest holds in one place: beach credit, passes (each card
-   carries its gate QR), the season set with "Release my day", rewards to
-   claim or use, and badges. Home keeps one rewards strip that links here. */
+   carries its gate QR), the season set with "Release my day", rewards (applied by
+   themselves, AENR-619) and badges. Home keeps one rewards strip that links here. */
 
 const pill =
   "inline-flex items-center gap-2 mb-2 rounded-xl glass-card-solid px-3 py-1.5 font-display font-bold text-navy-900";
@@ -25,7 +23,6 @@ export function CustomerWallet() {
   const t = useT();
   const rewards = activeRewards(loyalty);
   const ready = rewards.filter((a) => a.state.kind === "claim").length;
-  const [voucher, setVoucher] = useState<{ title: string; reward: string } | null>(null);
   return (
     <div className="animate-fade-up space-y-5 max-w-5xl mx-auto">
       <h1 className="sr-only">{t("Wallet")}</h1>
@@ -98,7 +95,7 @@ export function CustomerWallet() {
                   icon={a.icon}
                   title={a.title}
                   state={a.state}
-                  onClaim={() => setVoucher({ title: a.title, reward: a.state.reward })}
+                  used={a.id !== "tiers" && (account.rewardsUsed ?? []).includes(a.id)}
                 />
               ))}
             </div>
@@ -119,20 +116,6 @@ export function CustomerWallet() {
         <BadgesTile />
       </div>
 
-      {voucher && (
-        <Modal open onClose={() => setVoucher(null)} title={t("Your reward")}>
-          <div className="text-center space-y-2">
-            <div className="font-display font-bold text-navy-900 text-lg">{voucher.reward}</div>
-            <div className="text-[13px] text-slate-600">{t(voucher.title)}</div>
-            <div className="grid place-items-center py-2">
-              <QR size={180} seed={`RW-${voucher.title}`} />
-            </div>
-            <div className="text-[13px] text-slate-600">
-              {t("Show this code at the gate or the bar to redeem it.")}
-            </div>
-          </div>
-        </Modal>
-      )}
     </div>
   );
 }

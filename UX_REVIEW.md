@@ -446,3 +446,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-610 — Home shows what matters right now.** QR first on the morning of a visit, extras while at
   the beach, receipt and Book again afterwards, the opening date off-season. Previewable from the
   persona menu.
+- **AENR-619 — rewards apply themselves.** Checkout takes the best earned reward off as a removable
+  line; Claim buttons and the reward voucher are gone from Home and Wallet.

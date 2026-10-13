@@ -14,6 +14,7 @@ import { FullscreenQR, receiptForVisit, visitPass } from "./VisitTicket";
 import { ExtrasDialog } from "./CustomerBookings";
 import { ReceiptModal } from "./CustomerDocs";
 import { useDemoNow } from "../../lib/useLiveSlots";
+import { appliesAtCheckout } from "../../domain/rewards";
 import { readHashQuery } from "../../app/router";
 import { WalletButtons } from "../../components/WalletPass";
 import { SceneDemoPanel } from "../../components/SceneDemoPanel";
@@ -178,7 +179,7 @@ export function CustomerHome() {
                 </div>
                 <NotMvpBadge className="ml-auto self-start" />
               </div>
-              <button onClick={() => dive()} className="self-start text-[13px] font-semibold text-teal-700 hover:text-teal-800 rounded-lg px-3 py-1.5 hover:bg-white/50 transition -ml-3">{t("Claim")} →</button>
+              <button onClick={() => dive()} className="self-start text-[13px] font-semibold text-teal-700 hover:text-teal-800 rounded-lg px-3 py-1.5 hover:bg-white/50 transition -ml-3">{t("Book this weekend")} →</button>
             </div>
           )}
         </div>
@@ -332,7 +333,7 @@ function RewardsStrip({ rewards, ready }: { rewards: ReturnType<typeof activeRew
           <span className="block h-full rounded-full bg-gradient-to-r from-navy-700 to-teal-500" style={{ width: `${pct}%` }} />
         </span>
       </span>
-      {ready > 0 && <Badge tone="green">{ready} {t("ready to claim")}</Badge>}
+      {ready > 0 && <Badge tone="green">{ready} {t("ready · applied for you")}</Badge>}
       <span className="text-[13px] font-semibold text-teal-700 inline-flex items-center gap-1">{t("Wallet")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" /></span>
     </button>
   );
@@ -462,17 +463,18 @@ export function activeRewards(loyalty: LoyaltyState) {
 }
 
 /* One reward as a compact row inside the tall "Your rewards" tile. */
-export function RewardRow({ icon, title, state, onClaim }: { icon: IconRenderer; title: string; state: RewardState; onClaim?: () => void }) {
-  const { dive, toast } = useApp();
+export function RewardRow({ icon, title, state, used = false }: { icon: IconRenderer; title: string; state: RewardState; used?: boolean }) {
+  const { dive } = useApp();
   const t = useT();
   const SIcon = icon;
-  const claim = state.kind === "claim";
+  const claim = state.kind === "claim" && !used;
   return (
     <div className={`rounded-xl p-3 ring-1 transition ${claim ? "ring-teal-300 bg-teal-50/60" : "ring-slate-200 bg-white/60"}`}>
       <div className="flex items-center gap-2.5">
         <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${claim ? "bg-teal-600 text-white" : "bg-sky-50 text-sky-800"}`}><SIcon size={15} /></span>
         <div className="font-semibold text-navy-900 text-[13.5px] flex-1 min-w-0 truncate">{t(title)}</div>
         {claim && <Badge tone="green"><Icon.checkCircle size={10} /> {t("Ready")}</Badge>}
+        {used && <Badge tone="neutral">{t("Used")}</Badge>}
       </div>
       <div className="text-[12.5px] text-navy-900 mt-1.5 leading-snug">{state.reward}</div>
       {state.kind === "progress" && (
@@ -484,10 +486,11 @@ export function RewardRow({ icon, title, state, onClaim }: { icon: IconRenderer;
           <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-navy-700 to-teal-500" style={{ width: `${Math.min(100, Math.round((state.current / state.target) * 100))}%` }} /></div>
         </div>
       )}
+      {/* Nothing to claim (AENR-619): discounts come off at checkout, treats ride on the visit's QR. */}
       {claim && (
-        <div className="mt-2 flex items-center justify-between gap-2">
-          {state.note && <span className="text-[11px] text-slate-500 truncate">{state.note}</span>}
-          <Btn size="sm" variant="teal" icon={Icon.gift} onClick={() => (onClaim ? onClaim() : toast(`${t("Reward ready")} — ${state.reward}. ${t("Show this at the gate to redeem.")}`, { tone: "success" }))}>{t("Claim")}</Btn>
+        <div className="mt-2 text-[11.5px] text-teal-800 leading-snug">
+          {appliesAtCheckout(state.reward) ? t("Comes off your next booking automatically.") : t("On your next visit's QR — just ask at the bar.")}
+          {state.note && <span className="block text-slate-500">{state.note}</span>}
         </div>
       )}
       {state.kind === "perk" && (

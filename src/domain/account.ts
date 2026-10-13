@@ -60,6 +60,8 @@ export interface AccountState {
   wallet: Record<string, WalletKind>;
   /** Who usually comes (AENR-613): the last party booked, by entry-ticket category; null until the first booking. */
   party: Record<string, number> | null;
+  /** Single-use rewards already taken off a booking (AENR-619), by scheme id. */
+  rewardsUsed: string[];
 }
 export type WalletKind = "apple" | "google";
 export const DEFAULT_ACCOUNT: AccountState = {
@@ -72,6 +74,7 @@ export const DEFAULT_ACCOUNT: AccountState = {
   invoices: [],
   wallet: {},
   party: null,
+  rewardsUsed: [],
 };
 /** "You + 1 adult + 2 children" — the party in words (the guest is the first adult). */
 export function partyLabel(party: Record<string, number>, names: Record<string, string> = {}, t: (s: string) => string = (s) => s): string {
