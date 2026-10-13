@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, ConfirmModal, DensityToggle, EmptyState, ErrorState, Field, Input, Modal, PageHead, Table, TableSkeleton, Toggle, ExportMenu } from "../../components/ui";
+import { Badge, Btn, Card, ConfirmModal, DensityToggle, EmptyState, ErrorState, Field, Input, Modal, PageHead, Table, TableSkeleton, Toggle, ExportMenu, ActionsMenu } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { readHashQuery } from "../../app/router";
 import { listCustomers } from "../../api";
@@ -271,21 +271,20 @@ export function AdminUsers() {
                 <i className="w-2 h-2 rounded-full" style={{ background: sg.color }} />{sg.name}<span className="tnum opacity-70">{members(sg).length}</span>
                 {sg.kind === "static" && <span className="text-[10px] uppercase opacity-70">static</span>}
               </button>
-              <DropdownMenu.Root modal={false}>
-                <DropdownMenu.Trigger asChild>
-                  <button type="button" aria-label={`Actions for segment ${sg.name}`} className="w-7 h-7 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100"><Icon.more size={14} /></button>
-                </DropdownMenu.Trigger>
-                <DropdownMenu.Portal>
-                  <DropdownMenu.Content align="start" sideOffset={6} className="glass !bg-white/95 w-52 rounded-xl p-1.5 z-[60] shadow-float text-ink">
-                    {(!sg.system || sg.id === "sys-regular") && <DropdownMenu.Item className={menuItem} onSelect={() => setBuilder(sg)}><Icon.edit size={14} /> {sg.system ? "Edit rule" : "Edit"}</DropdownMenu.Item>}
-                    <DropdownMenu.Item className={menuItem} onSelect={() => duplicate(sg)}><Icon.layers size={14} /> Duplicate</DropdownMenu.Item>
-                    <DropdownMenu.Item className={menuItem} onSelect={() => exportSegment(sg, "pdf")}><Icon.doc size={14} /> Export PDF</DropdownMenu.Item>
-                    <DropdownMenu.Item className={menuItem} onSelect={() => exportSegment(sg, "csv")}><Icon.download size={14} /> Export CSV</DropdownMenu.Item>
-                    <DropdownMenu.Item className={menuItem} onSelect={() => go("admin", "communicate")}><Icon.mail size={14} /> Message segment</DropdownMenu.Item>
-                    {!sg.system && <><DropdownMenu.Separator className="my-1 h-px bg-slate-200" /><DropdownMenu.Item className={`${menuItem} text-rose-700`} onSelect={() => setDeleting(sg)}><Icon.trash size={14} /> Delete</DropdownMenu.Item></>}
-                  </DropdownMenu.Content>
-                </DropdownMenu.Portal>
-              </DropdownMenu.Root>
+              <ActionsMenu
+                size="sm"
+                align="start"
+                className="!w-7 !h-7"
+                label={`Actions for segment ${sg.name}`}
+                actions={[
+                  (!sg.system || sg.id === "sys-regular") && { id: "edit", label: sg.system ? "Edit rule" : "Edit", icon: Icon.edit, onSelect: () => setBuilder(sg) },
+                  { id: "dup", label: "Duplicate", icon: Icon.layers, onSelect: () => duplicate(sg) },
+                  { id: "pdf", label: "Export PDF", icon: Icon.doc, onSelect: () => exportSegment(sg, "pdf") },
+                  { id: "csv", label: "Export CSV", icon: Icon.download, onSelect: () => exportSegment(sg, "csv") },
+                  { id: "msg", label: "Message segment", icon: Icon.mail, onSelect: () => go("admin", "communicate") },
+                  !sg.system && { id: "del", label: "Delete", icon: Icon.trash, destructive: true, onSelect: () => setDeleting(sg) },
+                ]}
+              />
             </span>
           ))}
         </div>

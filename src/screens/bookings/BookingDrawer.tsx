@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Icon, type IconRenderer } from "../../lib/icons";
-import { Badge, Btn, Drawer, Field, Input, Select, StatusBadge } from "../../components/ui";
+import { Badge, Btn, Drawer, Field, Input, Select, StatusBadge, ActionsMenu } from "../../components/ui";
 import { QR } from "../../components/charts";
 import { SendModal } from "../../components/SendModal";
 import { useApp } from "../../app/store";
@@ -166,47 +166,50 @@ function DrawerBody({ b, agent }: { b: OpsBooking; agent: boolean }) {
   return (
     <div className="space-y-5">
       <LinkActions bookingId={b.id} />
-      {/* Actions */}
-      <div className="flex flex-wrap gap-2">
-        {paid && (
-          <Btn size="sm" variant="outline" icon={Icon.send} onClick={() => setSend(true)}>
+      {/* Actions — one primary, the rest in "…" (AENR-617). */}
+      <div className="flex flex-wrap items-center gap-2">
+        {paid ? (
+          <Btn size="sm" variant="primary" icon={Icon.send} onClick={() => setSend(true)}>
             Resend QR
           </Btn>
-        )}
-        {live && sets.length > 0 && (
-          <Btn
-            size="sm"
-            variant="outline"
-            icon={Icon.arrowR}
-            onClick={() => {
-              setMoving(sets[0].split(" · ")[2]);
-              setMoveTo("");
-            }}
-          >
-            Move set
+        ) : (
+          <Btn size="sm" variant="outline" icon={Icon.doc} onClick={() => document.getElementById("bk-note")?.focus()}>
+            Add note
           </Btn>
         )}
-        {paid && !pending && (
-          <Btn
-            size="sm"
-            variant="outline"
-            icon={Icon.refund}
-            onClick={() => {
-              setRefunding(true);
-              setRAmount(b.amount);
-            }}
-          >
-            {agent ? "Request refund" : "Refund"}
-          </Btn>
-        )}
-        <Btn
+        <ActionsMenu
           size="sm"
-          variant="ghost"
-          icon={Icon.doc}
-          onClick={() => document.getElementById("bk-note")?.focus()}
-        >
-          Add note
-        </Btn>
+          label={`More actions for ${b.id}`}
+          actions={[
+            live && sets.length > 0 && {
+              id: "move",
+              label: "Move set",
+              icon: Icon.arrowR,
+              onSelect: () => {
+                setMoving(sets[0].split(" · ")[2]);
+                setMoveTo("");
+              },
+            },
+            paid && {
+              id: "note",
+              label: "Add note",
+              icon: Icon.doc,
+              onSelect: () => window.setTimeout(() => document.getElementById("bk-note")?.focus(), 0),
+            },
+            paid &&
+              !pending && {
+                id: "refund",
+                label: agent ? "Request refund" : "Refund",
+                icon: Icon.refund,
+                destructive: true,
+                hint: agent ? "A manager approves it" : `Up to €${b.amount}`,
+                onSelect: () => {
+                  setRefunding(true);
+                  setRAmount(b.amount);
+                },
+              },
+          ]}
+        />
       </div>
 
       {pending && <PendingRefund r={pending} agent={agent} onDecide={ops.decideRefund} />}

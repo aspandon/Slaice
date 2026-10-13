@@ -406,3 +406,6 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   are remembered: "In Apple Wallet ✓", with the pass following a move and voided on cancel. (The
   review said the visit lived only inside the site — the confirmation and QR dialog already had the
   badges; the gaps were memory, placement and move / cancel.) Defect AENR-627: ##BK ref fixed.
+- **AENR-617 — one obvious next step.** A shared "…" menu (destructive last, in red; long-press on
+  touch). Visit cards went from eight buttons to Show QR + Wallet + "…"; the booking drawer shows Resend
+  QR + "…"; Team & roles and segment menus moved onto the same component.

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon } from "../lib/icons";
 import {
   Badge,
@@ -13,6 +12,7 @@ import {
   PageHead,
   Select,
   Table,
+  ActionsMenu,
 } from "../components/ui";
 import { useApp } from "../app/store";
 import { NAV } from "../data/personas";
@@ -193,9 +193,6 @@ export function AdminRbac() {
     startViewAs(u.id);
   };
 
-  const menuItem =
-    "flex items-center gap-2 px-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none data-[highlighted]:bg-slate-100 data-[disabled]:opacity-40 data-[disabled]:cursor-not-allowed";
-
   return (
     <div className="animate-fade-up">
       <PageHead
@@ -306,70 +303,41 @@ export function AdminRbac() {
                     <Icon.eye size={15} className="text-slate-500" />
                     View as
                   </button>
-                  <DropdownMenu.Root modal={false}>
-                    <DropdownMenu.Trigger asChild>
-                      <button
-                        type="button"
-                        aria-label={`More actions for ${u.name}`}
-                        className="w-9 h-9 grid place-items-center rounded-xl text-slate-500 hover:bg-slate-100 hover:text-navy-900 transition"
-                      >
-                        <Icon.more size={16} />
-                      </button>
-                    </DropdownMenu.Trigger>
-                    <DropdownMenu.Portal>
-                      <DropdownMenu.Content
-                        align="end"
-                        sideOffset={6}
-                        className="glass !bg-white/95 w-52 rounded-xl p-1.5 z-[60] shadow-float text-ink"
-                      >
-                        <DropdownMenu.Item
-                          className={menuItem}
-                          onSelect={() =>
-                            openDraft({
-                              id: u.id,
-                              name: u.name,
-                              email: u.email,
-                              phone: u.phone,
-                              role: u.role,
-                              tillPin: u.tillPin ?? "",
-                            })
-                          }
-                        >
-                          <Icon.edit size={14} /> Edit details & role
-                        </DropdownMenu.Item>
-                        {u.status === "invited" && (
-                          <DropdownMenu.Item className={menuItem} onSelect={() => accept(u)}>
-                            <Icon.check size={14} /> Simulate acceptance
-                          </DropdownMenu.Item>
-                        )}
-                        {u.status === "active" && (
-                          <DropdownMenu.Item
-                            className={menuItem}
-                            disabled={isLastAdmin(u)}
-                            onSelect={() => {
-                              setReason("");
-                              setSuspending(u);
-                            }}
-                          >
-                            <Icon.lock size={14} /> Suspend{isLastAdmin(u) ? " (last admin)" : ""}
-                          </DropdownMenu.Item>
-                        )}
-                        {u.status === "suspended" && (
-                          <DropdownMenu.Item className={menuItem} onSelect={() => reactivate(u)}>
-                            <Icon.refund size={14} /> Reactivate
-                          </DropdownMenu.Item>
-                        )}
-                        <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
-                        <DropdownMenu.Item
-                          className={`${menuItem} text-rose-700`}
-                          disabled={isLastAdmin(u)}
-                          onSelect={() => setDeleting(u)}
-                        >
-                          <Icon.trash size={14} /> Delete{isLastAdmin(u) ? " (last admin)" : ""}
-                        </DropdownMenu.Item>
-                      </DropdownMenu.Content>
-                    </DropdownMenu.Portal>
-                  </DropdownMenu.Root>
+                  <ActionsMenu
+                    size="sm"
+                    label={`More actions for ${u.name}`}
+                    actions={[
+                      {
+                        id: "edit",
+                        label: "Edit details & role",
+                        icon: Icon.edit,
+                        onSelect: () =>
+                          openDraft({ id: u.id, name: u.name, email: u.email, phone: u.phone, role: u.role, tillPin: u.tillPin ?? "" }),
+                      },
+                      u.status === "invited" && { id: "accept", label: "Simulate acceptance", icon: Icon.check, onSelect: () => accept(u) },
+                      u.status === "active" && {
+                        id: "suspend",
+                        label: "Suspend",
+                        icon: Icon.lock,
+                        disabled: isLastAdmin(u),
+                        hint: isLastAdmin(u) ? "The last active admin" : undefined,
+                        onSelect: () => {
+                          setReason("");
+                          setSuspending(u);
+                        },
+                      },
+                      u.status === "suspended" && { id: "reactivate", label: "Reactivate", icon: Icon.refund, onSelect: () => reactivate(u) },
+                      {
+                        id: "delete",
+                        label: "Delete",
+                        icon: Icon.trash,
+                        destructive: true,
+                        disabled: isLastAdmin(u),
+                        hint: isLastAdmin(u) ? "The last active admin" : undefined,
+                        onSelect: () => setDeleting(u),
+                      },
+                    ]}
+                  />
                 </div>,
               ];
             })}

@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, EmptyState, ErrorState, Field, Input, Modal, Stepper, Tabs, CardGridSkeleton } from "../../components/ui";
+import { Badge, Btn, Card, EmptyState, ErrorState, Field, Input, Modal, Stepper, Tabs, CardGridSkeleton, ActionsMenu, useLongPress, type MenuAction } from "../../components/ui";
 import { DateInput } from "../../components/ui/DateInput";
 import { WalletButtons } from "../../components/WalletPass";
 import { QR, Sparkline } from "../../components/charts";
@@ -147,6 +147,18 @@ function VisitCard({ v, deadline, onOpen }: { v: Visit; deadline: string; onOpen
   const inWindow = guestNow() < deadline;
   const chip = CHIP[v.status];
   const invoice = account.invoices.find((i) => i.visitKey === v.key);
+  // One primary action on the card (Show QR, or the receipt once the day is over); the rest in "…" (AENR-617).
+  const [menu, setMenu] = useState(false);
+  const press = useLongPress(() => setMenu(true));
+  const openDoc = () => onOpen({ kind: "receipt", v, doc: invoice ? invoiceForVisit(v, invoice) : receiptForVisit(v) });
+  const actions: MenuAction[] = [
+    ...(live ? [{ id: "doc", label: invoice ? t("Invoice") : t("Receipt"), icon: Icon.receipt, onSelect: openDoc }] : []),
+    ...(live && inWindow ? [{ id: "move", label: t("Move date"), icon: Icon.calendar, onSelect: () => onOpen({ kind: "move", v }) }] : []),
+    ...(live ? [{ id: "extras", label: t("Add extras"), icon: Icon.plus, onSelect: () => onOpen({ kind: "extras", v }) }] : []),
+    ...(live ? [{ id: "ics", label: t("Add to calendar"), icon: Icon.calendar, onSelect: () => { downloadVisitIcs(v); toast(t("Calendar invite downloaded (.ics)."), { tone: "success" }); } }] : []),
+    ...(live ? [{ id: "share", label: t("Share"), icon: Icon.send, onSelect: async () => { const r = await shareVisit(v); if (r === "copied") toast(t("Visit details copied — paste them to your friends."), { tone: "success" }); } }] : []),
+    ...(live ? [{ id: "cancel", label: t("Cancel visit"), icon: Icon.x, destructive: true, hint: inWindow ? t("Free until") + " " + fmtDeadline(deadline) : t("No refund now"), onSelect: () => onOpen({ kind: "cancel", v }) }] : []),
+  ];
   const what = [
     v.sets.length ? `${t("Sunbeds")} ${v.sets.join(", ")}` : "",
     ...v.tickets.map((x) => `${t("Entry")} ${x}`),
@@ -154,6 +166,8 @@ function VisitCard({ v, deadline, onOpen }: { v: Visit; deadline: string; onOpen
     ...v.lockers.map((x) => `${t("Locker")} ${x}`),
   ].filter(Boolean);
   return (
+    // Long-press anywhere on the card (touch) opens the same "…" menu.
+    <div {...press} className="select-none sm:select-auto">
     <Card surface="raised" className={`p-4 sm:p-5 ${v.status === "today" ? "ring-2 ring-teal-500" : ""}`}>
       <div className="flex items-start gap-3">
         <div className="w-14 shrink-0 rounded-xl bg-slate-50 ring-1 ring-slate-200 text-center py-1.5" aria-hidden>
@@ -185,17 +199,17 @@ function VisitCard({ v, deadline, onOpen }: { v: Visit; deadline: string; onOpen
           {invoice && <div className="text-[11px] text-slate-500">{t("Invoice issued")}</div>}
         </div>
       </div>
-      <div className="mt-3 flex flex-wrap gap-1.5 sm:pl-[68px]">
-        {live && <Btn size="sm" variant="primary" icon={Icon.qr} onClick={() => onOpen({ kind: "qr", v })}>{t("Show QR")}</Btn>}
-        <WalletButtons compact pass={visitPass(v)} className={live ? "" : "order-last"} />
-        <Btn size="sm" variant="outline" icon={Icon.receipt} onClick={() => onOpen({ kind: "receipt", v, doc: invoice ? invoiceForVisit(v, invoice) : receiptForVisit(v) })}>{invoice ? t("Invoice") : t("Receipt")}</Btn>
-        {live && inWindow && <Btn size="sm" variant="outline" icon={Icon.calendar} onClick={() => onOpen({ kind: "move", v })}>{t("Move date")}</Btn>}
-        {live && <Btn size="sm" variant="outline" icon={Icon.plus} onClick={() => onOpen({ kind: "extras", v })}>{t("Add extras")}</Btn>}
-        {live && <Btn size="sm" variant="ghost" icon={Icon.calendar} onClick={() => { downloadVisitIcs(v); toast(t("Calendar invite downloaded (.ics)."), { tone: "success" }); }}>{t("Calendar")}</Btn>}
-        {live && <Btn size="sm" variant="ghost" icon={Icon.send} onClick={async () => { const r = await shareVisit(v); if (r === "copied") toast(t("Visit details copied — paste them to your friends."), { tone: "success" }); }}>{t("Share")}</Btn>}
-        {live && <Btn size="sm" variant="ghost" className="text-rose-700" icon={Icon.x} onClick={() => onOpen({ kind: "cancel", v })}>{t("Cancel")}</Btn>}
+      <div className="mt-3 flex flex-wrap items-center gap-1.5 sm:pl-[68px]">
+        {live ? (
+          <Btn size="sm" variant="primary" icon={Icon.qr} onClick={() => onOpen({ kind: "qr", v })}>{t("Show QR")}</Btn>
+        ) : (
+          <Btn size="sm" variant="outline" icon={Icon.receipt} onClick={openDoc}>{invoice ? t("Invoice") : t("Receipt")}</Btn>
+        )}
+        <WalletButtons compact pass={visitPass(v)} />
+        <ActionsMenu size="sm" className="ml-auto" open={menu} onOpenChange={setMenu} label={`${t("More actions for")} ${fmtWeekday(v.date)} ${fmtDay(v.date)}`} actions={actions} />
       </div>
     </Card>
+    </div>
   );
 }
 
