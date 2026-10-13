@@ -423,3 +423,6 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-616 — read first, edit when you mean to.** Ticket categories, locker banks and guest policies
   open as read-only rows; Edit opens the fields, Done validates and applies, Cancel drops the draft;
   on/off switches apply at once. A stray keystroke can no longer change a live price.
+- **AENR-623 — routine decisions run by themselves.** A refund policy approves routine requests
+  (weather, closures; up to a cap) as they arrive, and no-shows go back on sale at 11:00 with a
+  one-hour Undo on Today. Both are on by default and can be switched off.

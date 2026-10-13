@@ -13,6 +13,7 @@ import { NO_SHOW_CUTOFF } from "../../domain/sunbedOps";
 import { fmtDateGB } from "../../components/ui/DateInput";
 
 import { useUndoToast } from "../../lib/useUndo";
+import { useNoShowRelease } from "../../lib/useAutomations";
 /* ============ Admin › Today (AENR-560) ============
    The manager's home: what is happening on the beach right now and what needs
    attention — occupancy per zone, arrivals and check-ins, no-shows, the gate,
@@ -45,6 +46,10 @@ export function AdminToday() {
   const inbox = useInbox("admin").filter((i) => i.kind === "action");
   const [confirming, setConfirming] = useState<string | null>(null);
   const undo = useUndoToast();
+  // The scheduled no-show release (AENR-623): its summary, undoable for an hour.
+  const autoRelease = useNoShowRelease();
+  const autoLast = autoRelease.rules.noShow.last?.date === DEMO_TODAY ? autoRelease.rules.noShow.last : undefined;
+  const canUndoAuto = !!autoLast && Date.now() - new Date(autoLast.at).getTime() < 3600000;
   const [done, setDone] = useState<{ id: string; text: string }[]>([]);
   const finish = (id: string, text: string) => {
     setDone((d) => [{ id: `${id}-${d.length}`, text }, ...d]);
@@ -172,6 +177,17 @@ export function AdminToday() {
         sub={`${WEEKDAY[d.getDay()]} ${fmtDateGB(DEMO_TODAY)} · ${TENANT.name} — what is happening now and what needs you.`}
       />
 
+      {autoLast && (
+        <div role="status" className="flex flex-wrap items-center gap-3 rounded-2xl bg-teal-50 ring-1 ring-teal-600/20 px-4 py-3 text-[13px] text-teal-900">
+          <Icon.bolt size={16} className="text-teal-700 shrink-0" />
+          <span className="flex-1 min-w-0">
+            At <b>{new Date(autoLast.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</b>, {autoLast.sets.length} no-show set{autoLast.sets.length === 1 ? "" : "s"} went back on sale automatically ({autoLast.sets.slice(0, 6).join(", ")}{autoLast.sets.length > 6 ? "…" : ""}).
+          </span>
+          {canUndoAuto && (
+            <Btn size="sm" variant="outline" onClick={() => { autoRelease.undoLast(); toast("Release undone — those sets are booked again.", { tone: "success" }); }}>Undo</Btn>
+          )}
+        </div>
+      )}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           instant

@@ -3,7 +3,7 @@
 // afterwards (decisions, moves, resent QRs) is demo state in the app store.
 
 import { DEMO_TODAY } from "../domain/period";
-import type { BookingOpsState, RefundRequest } from "../domain/bookingOps";
+import { DEFAULT_RULES, type BookingOpsState, type RefundRequest } from "../domain/bookingOps";
 
 /** The back office's "now" — the demo day, late morning. */
 export const DEMO_NOW = `${DEMO_TODAY}T11:00`;
@@ -57,4 +57,5 @@ export const DEFAULT_BOOKING_OPS: BookingOpsState = {
   moves: {},
   refunds: SEED_REFUNDS,
   seq: 1041,
+  rules: DEFAULT_RULES,
 };

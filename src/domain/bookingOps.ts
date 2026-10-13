@@ -51,6 +51,42 @@ export interface BookingOpsState {
   moves: Record<string, Record<string, string>>;
   refunds: RefundRequest[];
   seq: number;
+  /** Routine decisions that run by themselves (AENR-623). */
+  rules?: OpsRules;
+}
+
+/* ---------- Automatic decisions (AENR-623) ----------
+   Rules approve the routine refunds and release no-shows at a set time, so
+   people only see the exceptions. Both can be switched off. */
+export interface RefundPolicy {
+  on: boolean;
+  /** Reasons that start with any of these are covered (e.g. "Weather (wind)"). */
+  reasons: string[];
+  /** Covered only up to this amount (€). */
+  cap: number;
+}
+export interface NoShowRule {
+  on: boolean;
+  /** HH:mm — at or after this time today's no-shows go back on sale. */
+  time: string;
+  /** Business day the release last ran (it runs once a day). */
+  lastRun?: string;
+  /** The last automatic release, for the summary and its one-hour Undo. */
+  last?: { at: string; date: string; sets: string[] };
+}
+export interface OpsRules {
+  refunds: RefundPolicy;
+  noShow: NoShowRule;
+}
+export const POLICY_REASONS = ["Weather", "Beach closure", "Double booking"];
+export const DEFAULT_RULES: OpsRules = {
+  refunds: { on: true, reasons: ["Weather", "Beach closure"], cap: 50 },
+  noShow: { on: true, time: "11:00" },
+};
+export const POLICY_BY = "Refund policy";
+/** A pending request the policy approves without a person. */
+export function policyCovers(p: RefundPolicy, r: Pick<RefundRequest, "amount" | "reason" | "status">): boolean {
+  return p.on && r.status === "pending" && r.amount <= p.cap && p.reasons.some((x) => r.reason.toLowerCase().startsWith(x.toLowerCase()));
 }
 
 /* ---------- Refund SLA ---------- */

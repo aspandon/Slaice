@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Field, PageHead, PeriodPicker, Select } from "../../components/ui";
+import { Badge, Btn, Card, Field, PageHead, PeriodPicker, Select, Toggle } from "../../components/ui";
 import { SunbedMap } from "../../components/SunbedMap";
 import { Sunbed } from "../../components/Beach";
 import { useApp } from "../../app/store";
@@ -15,6 +15,7 @@ import { useBeachState } from "../../lib/useBeachState";
 import type { SunbedSlot } from "../../domain/types";
 
 import { useUndoToast } from "../../lib/useUndo";
+import { DEFAULT_RULES } from "../../domain/bookingOps";
 /* ============ Admin › Live beach (AENR-580) ============
    The manager runs the beach from the map: every set with its code and live
    state (free, booked, checked in, unpaid, held, out of service, no-show), a
@@ -324,6 +325,7 @@ export function AdminLiveBeach() {
               </Btn>
             </Card>
           )}
+          {date === DEMO_TODAY && <AutoReleaseCard />}
           <Card className="p-4 space-y-3">
             {selList.length === 0 ? (
               <p className="text-[13px] text-slate-600">
@@ -410,5 +412,41 @@ export function AdminLiveBeach() {
         </div>
       </div>
     </div>
+  );
+}
+
+/* No-shows go back on sale by themselves at the set time (AENR-623). */
+function AutoReleaseCard() {
+  const { bookingOps, setBookingOps } = useApp();
+  const rules = bookingOps.rules ?? DEFAULT_RULES;
+  const nr = rules.noShow;
+  const set = (p: Partial<typeof nr>) => setBookingOps((o) => ({ ...o, rules: { ...(o.rules ?? DEFAULT_RULES), noShow: { ...(o.rules ?? DEFAULT_RULES).noShow, ...p } } }));
+  const ran = nr.lastRun === DEMO_TODAY;
+  return (
+    <Card className="p-4 space-y-2">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-semibold text-navy-900">Release no-shows automatically</div>
+          <div className="text-[12.5px] text-slate-600">
+            {!nr.on
+              ? "Off — release them by hand above."
+              : ran
+                ? nr.last
+                  ? `Done today at ${new Date(nr.last.at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} — ${nr.last.sets.length} set${nr.last.sets.length === 1 ? "" : "s"} back on sale.`
+                  : "Done today."
+                : `Today at ${nr.time}; Today shows a summary you can undo for an hour.`}
+          </div>
+        </div>
+        <Toggle label={nr.on ? "On" : "Off"} on={nr.on} onChange={(v) => set({ on: v })} />
+      </div>
+      {nr.on && (
+        <label className="flex items-center gap-2 text-[12.5px] text-slate-700">
+          At
+          <input type="time" value={nr.time} onChange={(e) => set({ time: e.target.value || "11:00" })}
+            className="rounded-lg ring-1 ring-slate-200 px-2 py-1 tnum focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500" aria-label="Release time" />
+          every day
+        </label>
+      )}
+    </Card>
   );
 }

@@ -38,6 +38,7 @@ import { financeReport } from "../data/finance";
 import { reconcile } from "../domain/reconcile";
 import { VARIANCE_TOLERANCE, eur as eurTill, shiftTotals } from "../domain/till";
 
+import { DEFAULT_RULES, POLICY_BY, POLICY_REASONS } from "../domain/bookingOps";
 /** Full euro amount for exports and tables; tiles use the abbreviated fmtEUR. */
 const eurFull = (n: number) => `€${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -409,6 +410,48 @@ function TillShiftsCard() {
 }
 
 /* ============ REFUNDS (AENR-583 decision queue) ============ */
+/* Automatic decisions (AENR-623): routine refunds are approved by the policy as they
+   arrive, so the queue below holds only the exceptions. */
+function RefundPolicyCard() {
+  const { bookingOps, setBookingOps } = useApp();
+  const rules = bookingOps.rules ?? DEFAULT_RULES;
+  const pol = rules.refunds;
+  const setPol = (p: Partial<typeof pol>) => setBookingOps((o) => ({ ...o, rules: { ...(o.rules ?? DEFAULT_RULES), refunds: { ...(o.rules ?? DEFAULT_RULES).refunds, ...p } } }));
+  const byPolicy = bookingOps.refunds.filter((r) => r.decidedBy === POLICY_BY);
+  return (
+    <Card className="p-4 mb-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="font-display font-bold text-navy-900">Approve routine refunds automatically</h2>
+          <p className="text-[12.5px] text-slate-600">
+            Requests for these reasons, up to the amount, are approved as they arrive and logged as <b>{POLICY_BY}</b> — only the rest wait here.
+            {byPolicy.length > 0 && <> {byPolicy.length} approved by the policy so far (€{byPolicy.reduce((a, r) => a + (r.refundAmount ?? r.amount), 0)}).</>}
+          </p>
+        </div>
+        <Toggle label={pol.on ? "On" : "Off"} on={pol.on} onChange={(v) => setPol({ on: v })} />
+      </div>
+      {pol.on && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {POLICY_REASONS.map((r) => {
+            const on = pol.reasons.includes(r);
+            return (
+              <button key={r} type="button" aria-pressed={on} onClick={() => setPol({ reasons: on ? pol.reasons.filter((x) => x !== r) : [...pol.reasons, r] })}
+                className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold ring-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${on ? "bg-teal-600 text-white ring-teal-600" : "bg-white text-slate-700 ring-slate-200 hover:ring-teal-400"}`}>
+                {on && "✓ "}{r}
+              </button>
+            );
+          })}
+          <label className="ml-auto inline-flex items-center gap-2 text-[12.5px] text-slate-700">
+            up to €
+            <input type="number" min={0} value={pol.cap} onChange={(e) => setPol({ cap: Math.max(0, Number(e.target.value) || 0) })}
+              className="w-20 rounded-lg ring-1 ring-slate-200 px-2 py-1.5 tnum focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500" aria-label="Maximum amount approved automatically" />
+          </label>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export function AdminRefunds() {
   const { toast, till, persona } = useApp();
   const agent = persona === "callcenter";
@@ -480,6 +523,7 @@ export function AdminRefunds() {
         <StatCard label="Top reason" value={stats.top ? stats.top.reason : "—"} sub={stats.top ? `${Math.round(stats.top.share * 100)}% of refunds` : "no refunds yet"} tone="indigo" />
       </div>
 
+      {!agent && <RefundPolicyCard />}
       <Card className="p-4 mb-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
           <h2 className="font-display font-bold text-navy-900 text-lg">Needs decision <span className="text-slate-400 tnum">{queue.length}</span></h2>

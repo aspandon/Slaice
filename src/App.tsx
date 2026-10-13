@@ -53,6 +53,7 @@ import { OfflineBanner } from "./screens/cashier/TillStatus";
 import { CommandPalette } from "./components/CommandPalette";
 import { migrateLegacySegments, stripLegacyTags, visitSegmentName } from "./domain/segments";
 
+import { Automations } from "./lib/useAutomations";
 interface ToastItem {
   id: number;
   msg: ReactNode;
@@ -447,6 +448,8 @@ export default function App() {
           <CommsJanitor />
           {persona === "platform" && <TenantSwitcher />}
           <CommandPalette />
+          {/* Routine decisions that run by themselves — refund policy, no-show release (AENR-623). */}
+          <Automations />
           {persona !== "platform" && platform.siteTenant !== "akti" && (
             <div role="status" className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl bg-slaice-600 text-white px-4 py-2 text-[13px]">
               <Icon.eye size={15} /> Previewing <b>{platform.tenants.find((x) => x.id === platform.siteTenant)?.name}</b>'s site and till
