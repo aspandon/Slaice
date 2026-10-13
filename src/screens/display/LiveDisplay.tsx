@@ -4,7 +4,7 @@ import { QR } from "../../components/charts";
 import { useApp } from "../../app/store";
 import { readHashQuery } from "../../app/router";
 import { TENANT, WEATHER_DEMO, ZONES, todayISO } from "../../data/beach";
-import { DISPLAY_TEXT, availLevel, type AvailLevel, type DisplayTheme } from "../../domain/display";
+import { DISPLAY_TEXT, availLevel, effectiveTheme, type AvailLevel, type DisplayTheme } from "../../domain/display";
 import type { SunbedSlot, Zone } from "../../domain/types";
 import { useClosure, useLiveSlots, useNow } from "../../lib/useLiveSlots";
 
@@ -16,8 +16,8 @@ import { useClosure, useLiveSlots, useNow } from "../../lib/useLiveSlots";
    vmin so it scales from the admin preview to a TV read from 3–5 m. */
 
 const THEME: Record<
-  DisplayTheme,
-  { root: string; card: string; muted: string; beach: string; ring: string; accent: string }
+  Exclude<DisplayTheme, "auto">,
+  { root: string; card: string; muted: string; beach: string; ring: string; accent: string; track: string; sea: string }
 > = {
   dark: {
     root: "bg-navy-900 text-white",
@@ -26,14 +26,20 @@ const THEME: Record<
     beach: "bg-gradient-to-b from-sky-800/70 via-navy-900 to-amber-900/40",
     ring: "ring-white/20",
     accent: "text-teal-300",
+    track: "bg-white/20",
+    sea: "bg-sky-400/30",
   },
+  // Day (AENR-594): readable in direct sun — near-black text on white cards (≥ 7:1),
+  // muted text slate-700 (≥ 7:1 on white), accent teal-800.
   light: {
-    root: "bg-sky-50 text-navy-900",
-    card: "bg-white ring-1 ring-slate-200 shadow-sm",
-    muted: "text-slate-600",
-    beach: "bg-gradient-to-b from-sky-200 via-amber-50 to-amber-100",
-    ring: "ring-slate-300",
-    accent: "text-teal-700",
+    root: "bg-sky-50 text-navy-950",
+    card: "bg-white ring-1 ring-slate-300 shadow-sm",
+    muted: "text-slate-700",
+    beach: "bg-gradient-to-b from-sky-100 via-amber-50 to-amber-100",
+    ring: "ring-slate-400",
+    accent: "text-teal-800",
+    track: "bg-slate-200",
+    sea: "bg-sky-300/60",
   },
   contrast: {
     root: "bg-black text-white",
@@ -42,6 +48,8 @@ const THEME: Record<
     beach: "bg-black ring-2 ring-white",
     ring: "ring-white",
     accent: "text-yellow-300",
+    track: "bg-white/30",
+    sea: "bg-white/20",
   },
 };
 const LEVEL: Record<AvailLevel, string> = {
@@ -83,7 +91,8 @@ export function LiveDisplay() {
   const closure = useClosure();
   const now = useNow(1000);
   const day = todayISO();
-  const th = THEME[cfg.theme];
+  // Auto follows the clock, so an open display flips at sunrise / sunset without a reload.
+  const th = THEME[effectiveTheme(cfg, hhmm(now))];
 
   const zones = cfg.zones.length
     ? cfg.zones.flatMap((id) => ZONES.filter((z) => z.id === id))
@@ -336,7 +345,7 @@ function Overview({
       role="img"
       aria-label={`${title}: ${stats.map((s) => `${s.zone.name} ${s.free} ${T.free}`).join(", ")}`}
     >
-      <div className="absolute inset-x-0 top-0 h-[12%] bg-sky-400/30" aria-hidden />
+      <div className={`absolute inset-x-0 top-0 h-[12%] ${th.sea}`} aria-hidden />
       <div className="landscape:contents portrait:grid portrait:grid-cols-2 portrait:gap-[1.6vmin] portrait:p-[2vmin] portrait:pt-[8vmin]">
         {stats.map((s, i) => {
           const pos = zoneMap.find((z) => z.id === s.zone.id) ?? {
@@ -372,7 +381,7 @@ function Overview({
                 </span>
               </div>
               <div
-                className={`mt-[0.8vmin] h-[1.2vmin] rounded-full overflow-hidden bg-white/20 ring-1 ${th.ring}`}
+                className={`mt-[0.8vmin] h-[1.2vmin] rounded-full overflow-hidden ${th.track} ring-1 ${th.ring}`}
               >
                 <div
                   className={`h-full ${LEVEL[s.level]}`}
@@ -412,7 +421,7 @@ function ZoneView({ s, th, T }: { s: ZoneStat; th: Th; T: Txt }) {
         aria-label={`${s.zone.name}: ${s.free} ${T.free}`}
       >
         <div
-          className="absolute inset-x-0 top-0 h-[8%] bg-sky-400/30 rounded-t-[2vmin]"
+          className={`absolute inset-x-0 top-0 h-[8%] ${th.sea} rounded-t-[2vmin]`}
           aria-hidden
         />
         {s.slots.map((x) => {

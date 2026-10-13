@@ -1,7 +1,9 @@
 // Live availability display for the entrance screen (AENR-519): what the
 // manager configures, and the pure helpers the display renders from.
 
-export type DisplayTheme = "dark" | "light" | "contrast";
+/** Night = the dark theme, Day = light; Auto follows the tenant's sunrise / sunset (AENR-594). */
+export type DisplayTheme = "dark" | "light" | "auto" | "contrast";
+export const THEME_LABEL: Record<DisplayTheme, string> = { light: "Day", dark: "Night", auto: "Auto", contrast: "High contrast" };
 export interface DisplayConfig {
   /** Zones to show, in order; empty = every zone in the default order. */
   zones: string[];
@@ -14,6 +16,9 @@ export interface DisplayConfig {
   /** Languages to rotate through (en / el). */
   langs: ("en" | "el")[];
   theme: DisplayTheme;
+  /** Auto switches to Day at sunrise and to Night at sunset (HH:mm, local). */
+  sunrise: string;
+  sunset: string;
   orientation: "landscape" | "portrait";
 }
 export const DEFAULT_DISPLAY: DisplayConfig = {
@@ -25,8 +30,16 @@ export const DEFAULT_DISPLAY: DisplayConfig = {
   showWeather: true,
   langs: ["en", "el"],
   theme: "dark",
+  sunrise: "07:00",
+  sunset: "20:30",
   orientation: "landscape",
 };
+
+/** The theme a display shows right now: Auto resolves to Day or Night from the clock. */
+export function effectiveTheme(cfg: Pick<DisplayConfig, "theme" | "sunrise" | "sunset">, hhmm: string): Exclude<DisplayTheme, "auto"> {
+  if (cfg.theme !== "auto") return cfg.theme;
+  return hhmm >= cfg.sunrise && hhmm < cfg.sunset ? "light" : "dark";
+}
 
 export type AvailLevel = "plenty" | "filling" | "almost" | "full" | "closed";
 /** How full a zone is, from its free / total sets — shown with a text label, never colour alone. */

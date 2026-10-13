@@ -1,8 +1,9 @@
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Field, Select, Toggle } from "../../components/ui";
+import { Badge, Btn, Card, Field, Input, Select, Toggle } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { ZONES } from "../../data/beach";
-import { DEFAULT_DISPLAY, displayUrl, openDisplay, type DisplayConfig } from "../../domain/display";
+import { DEFAULT_DISPLAY, THEME_LABEL, displayUrl, effectiveTheme, openDisplay, type DisplayConfig } from "../../domain/display";
+import { useNow } from "../../lib/useLiveSlots";
 
 /* ============ Admin › Live display (AENR-519) ============
    Configure the entrance screen and launch it on another monitor. The
@@ -11,6 +12,7 @@ import { DEFAULT_DISPLAY, displayUrl, openDisplay, type DisplayConfig } from "..
 
 export function AdminDisplay() {
   const { display: cfg, setDisplay, toast } = useApp();
+  const nowHHMM = new Date(useNow(30000)).toTimeString().slice(0, 5);
   const set = (p: Partial<DisplayConfig>) => setDisplay((c) => ({ ...c, ...p }));
   // An empty list means "all zones in the default order"; edits work on the explicit list.
   const order = cfg.zones.length ? cfg.zones : ZONES.map((z) => z.id);
@@ -158,18 +160,42 @@ export function AdminDisplay() {
               />
             </Field>
           </section>
+          {/* Day / Night / Auto (AENR-594): applies to every open display window at once. */}
+          <fieldset>
+            <legend className="text-[12px] font-semibold text-slate-700 mb-1.5">Look</legend>
+            <div role="radiogroup" aria-label="Display look" className="grid grid-cols-2 gap-1.5">
+              {(["light", "dark", "auto", "contrast"] as const).map((k) => {
+                const on = cfg.theme === k;
+                const I = k === "light" ? Icon.sun : k === "dark" ? Icon.moon : k === "auto" ? Icon.clock : Icon.eye;
+                return (
+                  <button key={k} type="button" role="radio" aria-checked={on} onClick={() => set({ theme: k })}
+                    className={`flex items-center justify-center gap-1.5 rounded-xl min-h-[44px] px-2 text-[13px] font-semibold ring-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white text-navy-900 ring-slate-200 hover:ring-slate-300"}`}>
+                    <I size={15} /> {THEME_LABEL[k]}
+                  </button>
+                );
+              })}
+            </div>
+            {cfg.theme === "auto" && (
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <Field label="Day from (sunrise)">
+                  <Input type="time" lang="en-GB" value={cfg.sunrise} onChange={(e) => e.target.value && set({ sunrise: e.target.value })} />
+                </Field>
+                <Field label="Night from (sunset)">
+                  <Input type="time" lang="en-GB" value={cfg.sunset} onChange={(e) => e.target.value && set({ sunset: e.target.value })} />
+                </Field>
+              </div>
+            )}
+            <p className="mt-1.5 text-[12px] text-slate-600">
+              {cfg.theme === "auto"
+                ? `Showing ${effectiveTheme(cfg, nowHHMM) === "light" ? "Day" : "Night"} now — switches at ${cfg.sunrise} and ${cfg.sunset}.`
+                : cfg.theme === "light"
+                  ? "Day: dark text on white — best in bright sunlight."
+                  : cfg.theme === "dark"
+                    ? "Night: light text on navy — best at dusk and indoors."
+                    : "High contrast: white and yellow on black."}
+            </p>
+          </fieldset>
           <section className="grid grid-cols-2 gap-2">
-            <Field label="Theme">
-              <Select
-                value={cfg.theme}
-                onChange={(e) => set({ theme: e.target.value as DisplayConfig["theme"] })}
-                options={[
-                  { v: "dark", l: "Dark" },
-                  { v: "light", l: "Light" },
-                  { v: "contrast", l: "High contrast" },
-                ]}
-              />
-            </Field>
             <Field label="Screen">
               <Select
                 value={cfg.orientation}

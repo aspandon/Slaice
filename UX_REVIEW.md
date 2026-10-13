@@ -372,4 +372,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   sheet, all-in price and cancellation deadline, date step with weather / price / alternatives, ticket
   confirmation, My bookings by visit with self-service, plain-language receipts and invoices, trusted
   checkout with wallets and deposit, no overlapping header on phones, passes in the beach's brand with
-  personal savings, one Wallet, Release my day; defect AENR-597 booking refs fixed on the way).
+  personal savings, one Wallet, Release my day; defect AENR-597 booking refs fixed on the way), and
+  the live display's Day / Night / Auto look (AENR-594).
