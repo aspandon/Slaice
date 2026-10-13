@@ -10,7 +10,8 @@ import { QR } from "../../components/charts";
 import { useVisits } from "../../lib/useVisits";
 import { ARRIVAL_WINDOW, nextVisit, usual, type Visit } from "../../domain/visits";
 import { fmtDay, fmtWeekday } from "../../domain/period";
-import { FullscreenQR } from "./VisitTicket";
+import { FullscreenQR, visitPass } from "./VisitTicket";
+import { WalletButtons } from "../../components/WalletPass";
 import { SceneDemoPanel } from "../../components/SceneDemoPanel";
 import { SEASON_END_LABEL } from "../../data/passes";
 import { BUILTIN_SCHEMES, makeCustomScheme, schemeProgress, HOME_LOYALTY_STATS } from "../../data/loyalty";
@@ -203,6 +204,7 @@ function NextVisitCard({ v }: { v: Visit }) {
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <Btn variant="primary" icon={Icon.qr} onClick={() => setQr(true)}>{t("Show QR")}</Btn>
+            <WalletButtons compact pass={visitPass(v)} />
             <a
               href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${TENANT.name} ${TENANT.place}`)}`}
               target="_blank"

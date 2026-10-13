@@ -741,11 +741,19 @@ vignette — towels for guests, a locker cabin (×qty), the car with its plate o
 ```
 
 - Animated check (confetti), "Payment successful", booking reference **#BK-NNNNN** (sequential), a
-  **QR code** (flips in), **Add to Apple Wallet / Google Wallet** (platform-detected order),
+  **QR code** (flips in), **Add to Apple Wallet / Google Wallet** (the badge matching the device —
+  iPhone Apple, Android Google, desktop both; AENR-620),
   status pills (Stripe paid · QR e-mailed · ΑΠΥ → MyDATA ✓).
 - Actions: **View my bookings**, **Add to calendar** (downloads a real `.ics`), **View receipt** (→ My
   Documents). The first and last clear the basket. **[GAP]** the basket is not cleared if the guest
   leaves another way.
+- **Wallet passes per visit** (AENR-620): the same badges sit on the Home next-visit card and on each
+  upcoming visit in My bookings (compact). Adding one is remembered with the account
+  (`account.wallet`, visit key → wallet) and the badge becomes **In Apple Wallet ✓** / **In Google
+  Wallet ✓**, opening the pass with **Remove pass**. The pass is built from the visit (`visitPass`): a
+  moved visit shows the new day ("Updated — moved from …"), a cancelled one shows **Pass voided**.
+  The sheet explains the lock-screen reminder at arrival time. The pass shows the ref once (#BK-…) and
+  the file is `slaice-BK-….pkpass` (defect AENR-627).
 - Wallet: Apple produces a structurally valid, **unsigned** `.pkpass` ZIP (pass.json, manifest,
   icons); Google copies/opens a "Save to Wallet" link with EventTicket claims. Signing is server-side in
   production.

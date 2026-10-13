@@ -15,7 +15,7 @@ import { useVisits, guestNow } from "../../lib/useVisits";
 import { useExtras } from "../../lib/useExtras";
 import { useLiveSlots } from "../../lib/useLiveSlots";
 import { ReceiptModal } from "./CustomerDocs";
-import { FullscreenQR, downloadVisitIcs, invoiceForVisit, receiptForVisit, shareVisit } from "./VisitTicket";
+import { FullscreenQR, downloadVisitIcs, invoiceForVisit, receiptForVisit, shareVisit, visitPass } from "./VisitTicket";
 
 /* ============ MY BOOKINGS (AENR-572) ============
    One card per visit — date, zone, sets, tickets, parking, locker, total —
@@ -119,7 +119,7 @@ export function CustomerBookings() {
               <QR size={200} seed={dlg.v.refs[0]} />
             </button>
             <div className="mt-2 text-[12px] text-slate-600">{t("Tap the code to show it full screen at the gate.")}</div>
-            <WalletButtons className="mt-4 pt-4 border-t border-slate-100" pass={{ ref: dlg.v.refs[0], holder: "Elena M.", zone: dlg.v.zone || "Akti tou Iliou", date: fmtDay(dlg.v.date), seat: dlg.v.sets.join(", ") || "—", guests: Math.max(1, dlg.v.sets.length * 2), total: `€${dlg.v.total}` }} />
+            <WalletButtons className="mt-4 pt-4 border-t border-slate-100" pass={visitPass(dlg.v)} />
             <Btn variant="outline" full className="mt-4" icon={Icon.mail} onClick={() => toast(t("QR re-sent to your e-mail."), { tone: "success" })}>{t("Resend by e-mail")}</Btn>
           </div>
         </Modal>
@@ -187,6 +187,7 @@ function VisitCard({ v, deadline, onOpen }: { v: Visit; deadline: string; onOpen
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5 sm:pl-[68px]">
         {live && <Btn size="sm" variant="primary" icon={Icon.qr} onClick={() => onOpen({ kind: "qr", v })}>{t("Show QR")}</Btn>}
+        <WalletButtons compact pass={visitPass(v)} className={live ? "" : "order-last"} />
         <Btn size="sm" variant="outline" icon={Icon.receipt} onClick={() => onOpen({ kind: "receipt", v, doc: invoice ? invoiceForVisit(v, invoice) : receiptForVisit(v) })}>{invoice ? t("Invoice") : t("Receipt")}</Btn>
         {live && inWindow && <Btn size="sm" variant="outline" icon={Icon.calendar} onClick={() => onOpen({ kind: "move", v })}>{t("Move date")}</Btn>}
         {live && <Btn size="sm" variant="outline" icon={Icon.plus} onClick={() => onOpen({ kind: "extras", v })}>{t("Add extras")}</Btn>}

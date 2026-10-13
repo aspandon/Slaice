@@ -56,7 +56,10 @@ export interface AccountState {
   credit: { balance: number; log: { at: string; text: string; amount: number }[] };
   released: ReleasedDay[];
   invoices: InvoiceRequest[];
+  /** Visits added to a phone wallet (AENR-620): visit key → which wallet. */
+  wallet: Record<string, WalletKind>;
 }
+export type WalletKind = "apple" | "google";
 export const DEFAULT_ACCOUNT: AccountState = {
   guest: false,
   savedCard: null,
@@ -65,6 +68,7 @@ export const DEFAULT_ACCOUNT: AccountState = {
   credit: { balance: 0, log: [] },
   released: [],
   invoices: [],
+  wallet: {},
 };
 /** The demo guest's profile. */
 export const PROFILE = {

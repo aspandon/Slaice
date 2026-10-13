@@ -418,6 +418,8 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
     seat: visit?.sets.join(", ") || "—",
     guests: Math.max(1, (visit?.sets.length ?? 1) * 2),
     total: `€${booking?.total ?? 0}`,
+    // Remembered as "In Wallet" on My bookings and Home too (AENR-620).
+    visitKey: visit?.key,
   };
   const onSite = booking?.deposit != null ? round2(booking.total - booking.deposit) : 0;
   return (

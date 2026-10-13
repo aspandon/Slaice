@@ -8,6 +8,7 @@ import { downloadICS } from "../../lib/download";
 import { ARRIVAL_WINDOW, type Visit } from "../../domain/visits";
 import type { CustomerDocument } from "../../domain/types";
 import type { InvoiceRequest } from "../../domain/account";
+import type { WalletPassData } from "../../components/WalletPass";
 
 /* The guest's ticket for a visit (AENR-571 / 572 / 573): the gate QR full
    screen, the calendar file, sharing, and the visit's receipt or invoice. */
@@ -67,6 +68,23 @@ export function FullscreenQR({
       </div>
     </div>
   );
+}
+
+/** The visit as a wallet pass (AENR-620): built from the visit itself, so a moved date
+ *  shows the new day and a cancelled visit's pass shows as voided. */
+export function visitPass(v: Visit, holder = "Elena M."): WalletPassData {
+  return {
+    ref: v.refs[0],
+    holder,
+    zone: v.zone || TENANT.name,
+    date: fmtDay(v.date),
+    seat: v.sets.join(", ") || "—",
+    guests: Math.max(1, v.sets.length * 2),
+    total: `€${v.total}`,
+    visitKey: v.key,
+    voided: v.status === "cancelled",
+    movedFrom: v.movedFrom ? fmtDay(v.movedFrom) : undefined,
+  };
 }
 
 /** A calendar event for the visit (all day, with the arrival window and the booking ref). */

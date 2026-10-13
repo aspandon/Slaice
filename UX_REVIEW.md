@@ -401,3 +401,8 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-618 — hide what isn't ready.** Roadmap (Future) pages leave the sidebar, phone tabs, page
   menu and ⌘K by default; "Show roadmap previews" in the persona menu brings them back under "Coming
   next". Direct links still open a preview with its banner.
+- **AENR-620 — the visit in Apple / Google Wallet.** The existing wallet badges now also sit on the
+  Home next-visit card and every upcoming visit, show only the device's wallet (both on desktop), and
+  are remembered: "In Apple Wallet ✓", with the pass following a move and voided on cancel. (The
+  review said the visit lived only inside the site — the confirmation and QR dialog already had the
+  badges; the gaps were memory, placement and move / cancel.) Defect AENR-627: ##BK ref fixed.

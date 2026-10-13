@@ -176,7 +176,7 @@ export function buildPkpassBytes(pass: PassData) {
 
 export function downloadPkpass(pass: PassData) {
   const bytes = buildPkpassBytes(pass);
-  downloadBlob(new Blob([bytes as BlobPart], { type: "application/vnd.apple.pkpass" }), `slaice-${pass.ref}.pkpass`);
+  downloadBlob(new Blob([bytes as BlobPart], { type: "application/vnd.apple.pkpass" }), `slaice-${pass.ref.replace(/^#/, "")}.pkpass`);
 }
 
 /* ---------- Google Wallet (Save link) ---------- */
