@@ -6,6 +6,7 @@ import { AdminRbac } from "./screens/AdminRbac";
 import { AdminUsers } from "./screens/users/AdminUsers";
 import { AdminCommunicate } from "./screens/communicate/Communicate";
 import { AdminPrivacy } from "./screens/privacy/AdminPrivacy";
+import { MonthEnd } from "./screens/accountant/MonthEnd";
 import * as CO from "./screens/Checkout";
 import * as PP from "./screens/PassPurchase";
 import * as A from "./screens/admin";
@@ -73,6 +74,7 @@ const MAP: Record<string, () => ReactElement> = {
   "admin.paylinks": () => <PayLinks />,
   "admin.display": () => <AdminDisplay />,
   // accountant
+  "accountant.monthend": () => <MonthEnd />,
   "accountant.documents": () => <DocsPayments />,
   "accountant.commission": () => <AC.AccountantCommission />,
   "accountant.reports": () => <AccountantReports />,

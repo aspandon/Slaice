@@ -19,6 +19,7 @@ import { readHashQuery } from "../../app/router";
 import { usePlatform } from "../../lib/usePlatform";
 import { downloadCSV } from "../../lib/download";
 import { makeTenant } from "../../data/tenants";
+import { mrrSeries } from "../../domain/platform";
 import { addDays, fmtDay } from "../../domain/period";
 import {
   LIMIT_LABEL,
@@ -198,17 +199,17 @@ export function PlatformTenants() {
       </div>
       <div className="grid lg:grid-cols-3 gap-4">
         <Card className="p-5 lg:col-span-2">
-          <div className="font-semibold text-navy-900 mb-1">MRR (€k)</div>
+          <div className="flex flex-wrap items-baseline justify-between gap-2 mb-1">
+            <div className="font-semibold text-navy-900">MRR · last 12 months (€)</div>
+            <div className="text-[12px] text-slate-500 tnum">
+              {eurK(totalMrr)} now · ARR {eurK(totalMrr * 12)} · dashed = month to date
+            </div>
+          </div>
           <LineChartMini
             color="#3a47cc"
-            data={[
-              { l: "May", v: 5.2 },
-              { l: "Jun", v: 5.9 },
-              { l: "Jul", v: 6.4 },
-              { l: "Aug", v: 6.4 },
-              { l: "Sep", v: 6.5 },
-              { l: "Now", v: Math.round(totalMrr / 100) / 10 },
-            ]}
+            partialLast
+            label="Monthly recurring revenue, last 12 months"
+            data={mrrSeries(scoped, mrr, today).map((m) => ({ l: m.label, v: m.v }))}
           />
         </Card>
         <Card className="p-5">

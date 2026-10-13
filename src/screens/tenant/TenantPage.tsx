@@ -217,6 +217,17 @@ export function TenantPage() {
   const [viewAs, setViewAs] = useState(false);
   const [demoError, setDemoError] = useState(false);
   const menuBtn = useRef<HTMLButtonElement>(null);
+  // No tenant in the URL (#/platform/tenant): open the last tenant viewed, or the
+  // Tenants list — never a dead end (AENR-590). Replace, so Back still works.
+  const fallback = !id
+    ? platform.recent.find((r) => platform.tenants.some((x) => x.id === r))
+    : undefined;
+  useEffect(() => {
+    if (id) return;
+    window.location.replace(
+      fallback ? `#/platform/tenant/${fallback}/overview` : "#/platform/tenants",
+    );
+  }, [id, fallback]);
   // Remember recent tenants; return focus to ⋯ after a View-as session ends.
   useEffect(() => {
     if (!t) return;
@@ -260,6 +271,7 @@ export function TenantPage() {
       }));
     }
   }, [t, today, setPlatform]);
+  if (!id) return null; // redirecting (see above)
   if (!t)
     return (
       <Card className="p-6 max-w-lg">

@@ -1768,7 +1768,21 @@ For a guest who isn't at the beach yet — Support Agent, Call Center and Admin 
 
 ## 12. User journeys — Accountant
 
-### F-00 · Documents & Payments [MVP] (AENR-526) — the Accountant's landing page
+### F-0M · Month-end [MVP] (AENR-588) — the Accountant's landing page
+
+- `#/accountant/monthend` (`?month=YYYY-MM` keeps the choice). Month chips for the season up to today; the
+  default is the last complete month, the current month is marked **in progress**.
+- Month card: documents issued (gross, VAT), sent to myDATA (pending / rejected), card charges (count,
+  fees), payouts (paid, in transit, scheduled) — all from the same ledger as Documents & Payments.
+- **Exceptions to clear:** documents rejected by myDATA (blocking), not yet transmitted (blocking for a
+  closed month, a check for the current one), payouts in transit, card refunds without a credit note.
+  Each opens Documents & Payments filtered to those records (`?tab=…&status=…&from=…&to=…`) or the
+  payouts page.
+- **VAT summary** by rate from the document lines, and **documents by type**.
+- **Export month** in a layout for Generic CSV, Epsilon Net (Pylon), SoftOne or Entersoft (semicolon and
+  decimal comma for the Greek packages, UTF-8 BOM, myDATA type codes).
+
+### F-00 · Documents & Payments [MVP] (AENR-526)
 
 - `#/accountant/documents` (old `#/accountant/invoicing` links redirect), read-only, two tabs, with the shared
   period control, section chips, filters (type, myDATA status, channel) and search (number, MARK, receipt,
@@ -1921,8 +1935,11 @@ For a guest who isn't at the beach yet — Support Agent, Call Center and Admin 
 - KPIs: Active tenants (Live), Pipeline (Setup + Lead), Platform GMV €704k, Slaice fees €35.2k; SaaS
   metrics: MRR €18.6k (ARR €223k, sparkline), Net revenue retention 112%, Logo churn 1.1%/mo, ARPA
   €1,062.
-- **MRR growth** line chart; **Onboarding funnel** (Leads 48 → Trials 22 → KYC passed 14 → Live 11; avg
-  time-to-activate 6.5 days).
+- **MRR · last 12 months** line chart (AENR-589): built from each tenant's go-live date and current plan
+  - add-ons, so it only rises when a tenant goes live; the current month is dashed (month to date) and
+    the caption shows MRR now and ARR. `#/platform/tenant` without an id opens the last tenant viewed, or
+    the Tenants list (AENR-590). **Onboarding funnel** (Leads 48 → Trials 22 → KYC passed 14 → Live 11; avg
+    time-to-activate 6.5 days).
 - Tenants table: name, subdomain, Stripe status, modules, MRR, status, **Edit** (modal: name,
   subdomain, Stripe status, status, MRR, modules Booking/Ticket/Invoice/Pay).
 - **Fees** (AENR-521, `src/screens/PlatformFinance.tsx`): the tenant's fee lines — name, charged

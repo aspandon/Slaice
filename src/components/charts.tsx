@@ -88,14 +88,20 @@ export function HBarChart({ data, color = "#0D9488", unit = "", max, label }: { 
 }
 
 // `compare` draws a dashed reference series (e.g. last year) on the same scale.
-export function LineChartMini({ data, color = "#0D9488", height = 220, label, compare, compareColor = "#94a3b8" }: { data: SeriesPoint[]; color?: string; height?: number; label?: string; compare?: SeriesPoint[]; compareColor?: string }) {
+// `partialLast`: the last point is a period still in progress (e.g. this month) —
+// its segment is dashed and its dot hollow, so a lower value doesn't read as a drop.
+export function LineChartMini({ data, color = "#0D9488", height = 220, label, compare, compareColor = "#94a3b8", partialLast = false }: { data: SeriesPoint[]; color?: string; height?: number; label?: string; compare?: SeriesPoint[]; compareColor?: string; partialLast?: boolean }) {
   const all = [...data, ...(compare ?? [])];
   const max = Math.max(...all.map((d) => d.v)) * 1.1 || 1;
   const min = Math.min(...all.map((d) => d.v)) * 0.9;
   const xOf = (i: number) => (data.length > 1 ? (i / (data.length - 1)) * 100 : 50);
   const span = max - min || 1;
   const ticks = [1, 0.66, 0.33, 0];
-  const pts = data.map((d, i) => `${xOf(i)},${60 - ((d.v - min) / span) * 60}`).join(" ");
+  const yOf = (v: number) => 60 - ((v - min) / span) * 60;
+  const pts = data.map((d, i) => `${xOf(i)},${yOf(d.v)}`).join(" ");
+  const solid = partialLast && data.length > 1 ? data.slice(0, -1) : data;
+  const solidPts = solid.map((d, i) => `${xOf(i)},${yOf(d.v)}`).join(" ");
+  const tail = partialLast && data.length > 1 ? `${xOf(data.length - 2)},${yOf(data[data.length - 2].v)} ${xOf(data.length - 1)},${yOf(data[data.length - 1].v)}` : "";
   const cmpPts = compare?.map((d, i) => `${xOf(i)},${60 - ((d.v - min) / span) * 60}`).join(" ");
   const area = `0,60 ${pts} 100,60`;
   const gid = `g${color.replace("#", "")}`;
@@ -117,16 +123,21 @@ export function LineChartMini({ data, color = "#0D9488", height = 220, label, co
           ))}
           <polygon points={area} fill={`url(#${gid})`} />
           {cmpPts && <polyline points={cmpPts} fill="none" stroke={compareColor} strokeWidth="0.8" strokeDasharray="2 1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />}
-          <polyline points={pts} fill="none" stroke={color} strokeWidth="0.8" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          <polyline points={solidPts} fill="none" stroke={color} strokeWidth="0.8" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          {tail && <polyline points={tail} fill="none" stroke={color} strokeWidth="0.8" strokeDasharray="2 1.5" vectorEffect="non-scaling-stroke" />}
           {data.map((d, i) => {
-            const x = xOf(i);
-            const y = 60 - ((d.v - min) / span) * 60;
-            return <circle key={i} cx={x} cy={y} r="0.8" fill={color} />;
+            const open = partialLast && i === data.length - 1;
+            return <circle key={i} cx={xOf(i)} cy={yOf(d.v)} r="0.8" fill={open ? "white" : color} stroke={open ? color : undefined} strokeWidth={open ? 0.4 : undefined} />;
           })}
         </svg>
       </div>
-      <div className="absolute right-0 bottom-0 grid text-[12.5px] font-medium text-slate-600 pointer-events-none" style={{ left: PAD_LEFT, height: PAD_BOTTOM, gridTemplateColumns: `repeat(${data.length}, 1fr)` }}>
-        {data.map((d, i) => <span key={i} className="text-center pt-1.5 truncate">{d.l}</span>)}
+      {/* Labels sit under their points (first and last aligned to the edges). */}
+      <div className="absolute right-0 bottom-0 text-[12.5px] font-medium text-slate-600 pointer-events-none" style={{ left: PAD_LEFT, height: PAD_BOTTOM }}>
+        {data.map((d, i) => {
+          const x = xOf(i);
+          const shift = data.length === 1 ? "-50%" : i === 0 ? "0" : i === data.length - 1 ? "-100%" : "-50%";
+          return <span key={i} className="absolute pt-1.5 whitespace-nowrap" style={{ left: `${x}%`, transform: `translateX(${shift})` }}>{d.l}</span>;
+        })}
       </div>
     </div>
   );

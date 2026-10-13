@@ -69,10 +69,13 @@ interface Seed {
   bookings: number;
   gmv: number;
   renewal: string;
+  /** Go-live date — drives the platform MRR history (AENR-589). */
+  goLive?: string;
 }
 const SEEDS: Seed[] = [
   {
     id: "akti",
+    goLive: "2025-05-01",
     name: "Akti tou Iliou",
     sub: "aktitouiliou",
     lifecycle: "live",
@@ -86,6 +89,7 @@ const SEEDS: Seed[] = [
   },
   {
     id: "kavouri",
+    goLive: "2025-06-16",
     name: "Kavouri Coast",
     sub: "kavouri",
     lifecycle: "live",
@@ -99,6 +103,7 @@ const SEEDS: Seed[] = [
   },
   {
     id: "paros",
+    goLive: "2026-03-09",
     name: "Sun & Sea Paros",
     sub: "sunseaparos",
     lifecycle: "live",
@@ -111,6 +116,7 @@ const SEEDS: Seed[] = [
   },
   {
     id: "bluelagoon",
+    goLive: "2026-04-20",
     name: "Blue Lagoon Beach",
     sub: "bluelagoon",
     lifecycle: "live",
@@ -124,6 +130,7 @@ const SEEDS: Seed[] = [
   },
   {
     id: "naxos",
+    goLive: "2026-06-02",
     name: "Naxos Sands",
     sub: "naxossands",
     lifecycle: "live",
@@ -238,12 +245,12 @@ export const DEFAULT_TENANTS: TenantRecord[] = SEEDS.map((s) => {
             to: "live",
             reason: "Go live",
             actor: "Slaice onboarding",
-            at: "2026-04-20T10:00:00",
+            at: `${s.goLive ?? "2026-04-20"}T10:00:00`,
           },
         ]
       : [],
     onboardingStep: s.step,
-    goLive: live ? "2026-04-20" : undefined,
+    goLive: live ? (s.goLive ?? "2026-04-20") : undefined,
     brand: ["#0D9488", "#0ea5e9", "#f59e0b", "#a855f7", "#ef4444"][Math.floor(r("b") * 5)],
     plan: { id: s.plan, version: 1 },
     billingCycle: "monthly",

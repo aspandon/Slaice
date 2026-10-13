@@ -186,7 +186,12 @@ export default function App() {
     const sp = saved.platform;
     if (!sp) return base;
     // Tenants seeded in later releases join a saved list.
-    return { ...base, ...sp, tenants: [...sp.tenants, ...DEFAULT_TENANTS.filter((d) => !sp.tenants.some((t) => t.id === d.id))] };
+    // Saved seed tenants pick up later seed facts they never had (staggered go-live, AENR-589).
+    const seeded = sp.tenants.map((t) => {
+      const d = DEFAULT_TENANTS.find((x) => x.id === t.id);
+      return d?.goLive && t.goLive === "2026-04-20" ? { ...t, goLive: d.goLive } : t;
+    });
+    return { ...base, ...sp, tenants: [...seeded, ...DEFAULT_TENANTS.filter((d) => !sp.tenants.some((t) => t.id === d.id))] };
   });
   const setPlatform = useCallback((u: (s: PlatformState) => PlatformState) => setPlatformState(u), []);
   const [comms, setCommsState] = useState<CommsState>(() => ({ ...DEFAULT_COMMS, ...(saved.comms || {}), settings: { ...DEFAULT_COMMS.settings, ...(saved.comms?.settings || {}) } }));

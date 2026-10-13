@@ -24,6 +24,7 @@ import {
 } from "../../data/ledger";
 import { fmtDay, rangeLabel, resolveRange } from "../../domain/period";
 import { usePeriod } from "../../lib/usePeriod";
+import { readHashQuery } from "../../app/router";
 import { downloadCSV, downloadPDF } from "../../lib/download";
 import { SectionChips, useFinanceData, useSection } from "../reporting/FinanceTabs";
 
@@ -49,7 +50,10 @@ const docNo = (d: FiscalDoc) => `${d.series}-${d.number}`;
 
 export function DocsPayments() {
   const { toast, till, account, payLinks } = useApp();
-  const [tab, setTab] = useState<"documents" | "payments">("documents");
+  // Month-end exceptions deep-link here with ?tab=…&status=… (AENR-588).
+  const [tab, setTab] = useState<"documents" | "payments">(() =>
+    readHashQuery().get("tab") === "payments" ? "payments" : "documents",
+  );
   const [period, setPeriod] = usePeriod({ kind: "preset", preset: "week", offset: 0 });
   const range = useMemo(
     () => resolveRange(period) ?? resolveRange({ kind: "preset", preset: "week", offset: 0 })!,
@@ -57,7 +61,7 @@ export function DocsPayments() {
   );
   const [section, setSection] = useSection();
   const [type, setType] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(() => readHashQuery().get("status") ?? "");
   const [channel, setChannel] = useState("");
   const [q, setQ] = useState("");
   const [page, setPage] = useState(0);

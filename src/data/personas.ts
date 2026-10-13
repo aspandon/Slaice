@@ -71,6 +71,7 @@ export const NAV: Record<PersonaId, NavItem[]> = {
     { k: "paylinks", label: "Pay-by-link", short: "Links", icon: "link", badge: "MVP", group: "Reservations" },
   ],
   accountant: [
+    { k: "monthend", label: "Month-end", short: "Month", icon: "calendar", badge: "MVP" },
     { k: "documents", label: "Documents & Payments", short: "Docs", icon: "receipt", badge: "MVP" },
     { k: "commission", label: "Commission & Payouts", short: "Payouts", icon: "trend", badge: "MVP" },
     { k: "reports", label: "Payments & Invoices", short: "Reports", icon: "chart", badge: "MVP" },
@@ -92,6 +93,6 @@ export const DEFAULT_PAGE: Record<PersonaId, string> = {
   cashier: "issue",
   controller: "scan",
   support: "scan",
-  accountant: "documents",
+  accountant: "monthend",
   platform: "tenants",
 };
