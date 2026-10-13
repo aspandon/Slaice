@@ -48,7 +48,7 @@ export function CashierTransactions() {
           <Input aria-label="Search transactions" placeholder="Search receipt no., last 4 card digits, amount or phone" value={q} onChange={(e) => setQ(e.target.value)} />
         </div>
         {rows.length === 0 ? (
-          <EmptyState icon={Icon.receipt} title={today.length ? "No sale matches" : "No sales yet today"} body={today.length ? "Try the receipt number (R-1004), the last 4 card digits or the amount." : "Sales from Issue Ticket appear here as they happen."} />
+          <EmptyState icon={Icon.receipt} title={today.length ? "No sale matches" : "No sales yet today"} body={today.length ? "Try the receipt number (R-1004), the last 4 card digits or the amount." : "Sales from Sell appear here as they happen."} />
         ) : (
           <Table dense cols={["Time", "Receipt", "Items", "Total", "Tender", "Receipt sent", "Status", "myDATA", ""]} right={[3]}
             rows={rows.map((s) => [

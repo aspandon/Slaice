@@ -268,12 +268,3 @@ export const CASHIER_PAST_SESSIONS = [
   { id: "#CS-196", cashier: "Eleni S.",  date: "Wed",        duration: "8h 02m", cash: "€1,760", card: "€5,610", tx: 296, status: "Closed" },
 ];
 
-// Locker banks for the "Sell locker" view — each bank has 30 cells; the
-// `taken` set lets us render which are unavailable today.
-export const CASHIER_LOCKER_BANKS = [
-  { id: "A", label: "Bank A · Entrance",       size: 30, taken: [1,2,5,6,9,12,14,18,21,22,25,28], price: 5 },
-  { id: "B", label: "Bank B · Pool side",      size: 30, taken: [3,4,7,8,11,15,16,19,20,23,27,29,30], price: 5 },
-  { id: "C", label: "Bank C · North gate",     size: 30, taken: [1,2,4,8,10,13,17,19,22,24,26], price: 5 },
-  { id: "D", label: "Bank D · Family area",    size: 30, taken: [2,5,7,10,11,14,15,18,21,24,27,29], price: 7 },
-  { id: "E", label: "Bank E · Premium",        size: 30, taken: [4,5,9,12,13,16,20,23,26], price: 9 },
-];

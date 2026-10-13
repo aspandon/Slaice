@@ -65,9 +65,7 @@ const MAP: Record<string, () => ReactElement> = {
   // cashier
   "cashier.issue": () => <CA.CashierIssue />,
   "cashier.transactions": () => <CA.CashierTransactions />,
-  "cashier.redeem": () => <CA.CashierRedeem />,
   "cashier.register": () => <CA.CashierRegister />,
-  "cashier.locker": () => <CA.CashierLocker />,
   // controller
   "controller.scan": () => <CT.ControllerScan />,
   "controller.beach": () => <ControllerBeach />,
@@ -79,8 +77,6 @@ const MAP: Record<string, () => ReactElement> = {
   "support.issue": () => <CA.CashierIssue />,
   "support.transactions": () => <CA.CashierTransactions />,
   "support.register": () => <CA.CashierRegister />,
-  "support.redeem": () => <CA.CashierRedeem />,
-  "support.locker": () => <CA.CashierLocker />,
   "support.newbooking": () => <NewBooking />,
   "support.bookings": () => <A.AdminBookings />,
   "admin.display": () => <AdminDisplay />,

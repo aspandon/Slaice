@@ -272,13 +272,15 @@ visited **per persona** is remembered.
 
 ### Cashier
 
+Three pages (AENR-605): **Sell**, **Sales** and **Cash register**. Lockers are sold in Sell with
+everything else and tickets are redeemed at the gate, so the old `#/cashier/redeem` and
+`#/cashier/locker` links open Sell.
+
 | Route                    | Screen        | Tag      |
 | ------------------------ | ------------- | -------- |
-| `#/cashier/issue`        | Issue Ticket  | [MVP]    |
-| `#/cashier/transactions` | Transactions  | [MVP]    |
-| `#/cashier/redeem`       | Redeem Ticket | [Future] |
-| `#/cashier/register`     | Cash Register | [Future] |
-| `#/cashier/locker`       | Sell Locker   | [Future] |
+| `#/cashier/issue`        | Sell          | [MVP]    |
+| `#/cashier/transactions` | Sales         | [MVP]    |
+| `#/cashier/register`     | Cash register | [Future] |
 
 ### Controller
 
@@ -298,11 +300,9 @@ Reservations; phone-first like the Controller. Staff get the role in Admin › R
 | `#/support/scan`         | Gate Validation                       | [MVP]    |
 | `#/support/beach`        | Beach Status                          | [MVP]    |
 | `#/support/walkin`       | Walk-in Sale (channel Support)        | [MVP]    |
-| `#/support/issue`        | Issue Ticket                          | [MVP]    |
-| `#/support/transactions` | Transactions                          | [MVP]    |
-| `#/support/register`     | Cash Register                         | [Future] |
-| `#/support/redeem`       | Redeem Ticket                         | [Future] |
-| `#/support/locker`       | Sell Locker                           | [Future] |
+| `#/support/issue`        | Sell                                  | [MVP]    |
+| `#/support/transactions` | Sales                                 | [MVP]    |
+| `#/support/register`     | Cash register                         | [Future] |
 | `#/support/paylinks`     | Pay-by-link reservations (also Admin) | [MVP]    |
 
 ### Accountant
@@ -992,13 +992,13 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
 
 #### Till: categories, lockers, VAT and one entry ticket (AENR-531)
 
-- Issue Ticket lists the tenant's ticket categories with today's price and the eligibility note (e.g. AMEA),
+- Sell (the till; Issue Ticket before AENR-605) lists the tenant's ticket categories with today's price and the eligibility note (e.g. AMEA),
   and a **Lockers** card per bank with today's price and live availability — ticket-only, locker-only and mixed
   sales are allowed; locker codes (e.g. A-07) are handed out with the sale.
 - The basket shows each line, the subtotal, **net + VAT per rate** (demo rates: sunbeds and lockers 24%,
   entry tickets 13% — confirmed by the accountant) and the total.
 - The receipt carries **one entry QR for everyone on the sale** ("Entry pass · 3 people"), the locker codes,
-  the VAT per rate and the ΑΠΥ with its MARK. The _Sell Locker_ roadmap page points to Issue Ticket.
+  the VAT per rate and the ΑΠΥ with its MARK. Lockers have no separate page; they are sold here (AENR-605).
 
 #### Entry tickets & lockers (AENR-529, AENR-530)
 
@@ -1057,7 +1057,7 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
   white, for bright sunlight; text ≥ 7:1), Night (the dark theme), **Auto** (Day from the tenant's sunrise
   time, Night from sunset — default 07:00 / 20:30; open displays flip on the clock without a reload) or High
   contrast (AENR-594) — and landscape / portrait; a live preview frame; **Open on another screen** (pop-up window) and
-  **Copy display link**. Cashier (Issue Ticket) and Controller (Gate) have an _Open live display_ shortcut.
+  **Copy display link**. Cashier (Sell) and Controller (Gate) have an _Open live display_ shortcut.
 - **`#/display`** — chrome-less and read-only (no shell, sign-in, cookie banner or guest data): headline "N
   sunbed sets free now · from €X", clock and weather, the overview map with each zone in its position (free /
   total, fill bar and a text level: Plenty free · Filling up · Almost full · Full · Closed today), a per-zone
@@ -1613,7 +1613,7 @@ Roles: the tenant (beach operator) is the **controller**; Slaice is the **proces
 
 ## 10. User journeys — Cashier
 
-### K-01 · Issue on-site ticket — the till [MVP]
+### K-01 · Sell — the till [MVP]
 
 ```text
  shift strip: SH-0205 · cashier · till · since 09:00   ● Online / Offline (n queued)  [Simulate offline]
@@ -1693,24 +1693,11 @@ Roles: the tenant (beach operator) is the **controller**; Slaice is the **proces
     reason and approver; the shift's expected cash drops for cash refunds.
 - Demo switch: **fail next myDATA transmission**.
 
-### K-02 · Redeem ticket [Future]
+### K-02 · Redeem ticket — retired (AENR-605)
 
-```text
- ┌─ Ticket code ─────────┐
- │ TK-55119              │ ──[Redeem ticket]──▶ ◆ already used?
- └───────────────────────┘                       ├─ no  ─▶ ✓ Valid — admitted
-                                                 └─ yes ─▶ ✗ Already used — cannot reuse
-                                                              (mock: code contains "used")
- ─▶ Recent redemptions list
- online QR tickets are scanned by the Controller instead (G-01)
-```
-
-- Enter a ticket code/number (e.g. `TK-55119`) → **Redeem ticket** → "Valid — admitted ✓" or "Already
-  used — cannot reuse" (mock rule: codes containing "used" are already used).
-- Recent redemptions list. QR scanning is not required for cashier-issued tickets; online QR tickets
-  are scanned by the Controller.
-- Roadmap preview: Future badge, the roadmap banner under the header and a Future dot in the nav, like
-  Cash Register and Sell Locker.
+The till no longer has its own Redeem page: tickets are checked at the gate (G-01), where the Support
+Agent also works, and lockers are sold in Sell. Old links redirect — `#/cashier/redeem` and
+`#/cashier/locker` to Sell, `#/support/redeem` to the gate, `#/support/locker` to Sell.
 
 ### K-03 · Cash register — shift & drawer [Future]
 
@@ -1725,7 +1712,7 @@ Roles: the tenant (beach operator) is the **controller**; Slaice is the **proces
    Z close: blind count → expected / counted / variance (note required above €2) · card batch ✓
 ```
 
-- Roadmap preview (Future badge and banner) but fully working, because Issue Ticket needs an open
+- Roadmap preview (Future badge and banner) but fully working, because Sell needs an open
   shift. **Open shift** with cashier, till and opening float. During the shift: live totals by tender,
   sales, refunds / voids and discounts; **Paid in / Paid out** with reason; **No sale** drawer opens need
   a manager PIN and are logged.

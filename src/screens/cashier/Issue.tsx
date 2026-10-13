@@ -291,7 +291,7 @@ function IssueInner() {
 
   return (
     <div className="animate-fade-up pb-20 md:pb-0">
-      <PageHead title="Issue Ticket" sub="Sell entry tickets and sunbed sets in one charge — card, cash, voucher or split." badge={<Badge tone="mvp">MVP</Badge>}
+      <PageHead title="Sell" sub="Sell entry tickets, sunbed sets, lockers and parking in one charge — card, cash, voucher or split." badge={<Badge tone="mvp">MVP</Badge>}
         secondary={[{ label: "Today’s transactions", icon: Icon.list, onClick: () => go(persona, "transactions") }, { label: "Open live display", icon: Icon.monitor, onClick: openDisplay }]} />
       <TillStatus />
       {!shiftOpen ? (

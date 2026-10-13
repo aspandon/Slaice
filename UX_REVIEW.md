@@ -379,3 +379,6 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   friendlier, more Apple-like feel; 33 proposals sent to the owner to pick from (no tickets yet).
   Defect AENR-599 fixed on the way: Month-end exceptions no longer squeeze into a one-word column on
   phones, and long line charts (MRR) show every other month label on phones so labels never overlap.
+- **AENR-605 — one place to sell.** The till is Sell, Sales and Cash register. Sell Locker (which only
+  pointed to Issue Ticket) and Redeem Ticket (the gate's job) left the Cashier and Support navigation;
+  old links redirect (cashier → Sell, support redeem → Gate). Issue Ticket is now called Sell.

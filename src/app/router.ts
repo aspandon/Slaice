@@ -28,7 +28,9 @@ const PAGE_ALIASES: Partial<Record<PersonaId, Record<string, string>>> = {
   // AENR-558 regrouped the sidebar: Dashboard → Today, Beach → Beach layout.
   admin: { map: "layout", availability: "layout", dashboard: "today", manual: "newbooking", paylinks: "newbooking" },
   callcenter: { manual: "newbooking", paylinks: "newbooking" },
-  support: { paylinks: "newbooking" },
+  support: { paylinks: "newbooking", redeem: "scan", locker: "issue" },
+  // Sell Locker and Redeem Ticket left the till (AENR-605): lockers sell in Sell.
+  cashier: { redeem: "issue", locker: "issue" },
   platform: { onboarding: "tenants" },
   customer: { mydocs: "account" }, // receipts moved into Account (AENR-563) // onboarding is a tenant state: Tenants › In onboarding (AENR-566)
   accountant: { invoicing: "documents" }, // e-Invoicing & MyDATA merged into Documents & Payments (AENR-526)

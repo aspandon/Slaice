@@ -136,7 +136,7 @@ export function CommandPalette() {
       {
         id: "a-issue",
         group: "Actions",
-        label: "Issue ticket",
+        label: "Sell at the till",
         icon: Icon.ticket,
         need: "issue",
         mutates: true,
