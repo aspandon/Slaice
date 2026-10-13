@@ -62,6 +62,17 @@ export interface CrmState {
   profiles: Record<number, GuestProfileData>;
   /** Tenant-defined guest fields. */
   customFields: { id: string; label: string; type: "text" | "number" | "date" | "select"; options?: string[] }[];
+  /** Saved guest-list views, per staff member (AENR-581). */
+  views?: GuestView[];
+}
+export interface GuestView {
+  id: string;
+  name: string;
+  owner: string;
+  q: string;
+  segId: string;
+  stage: string | null;
+  filters: Record<string, unknown>;
 }
 export interface GuestProfileData {
   prefs?: { zone?: string; sunbed?: string; party?: string; arrival?: string; needs?: string; contact?: string };

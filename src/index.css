@@ -113,6 +113,10 @@ html[data-persona="customer"]::-webkit-scrollbar {
 }
 
 @layer utilities {
+  /* Table rowLink: the row's main button covers the whole row (Table rowLink). */
+  .row-link::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+  .row-link:focus-visible { outline: none; }
+  .row-link:focus-visible::after { box-shadow: inset 0 0 0 2px theme("colors.teal.500"); border-radius: 12px; }
   .tnum {
     font-variant-numeric: tabular-nums;
   }

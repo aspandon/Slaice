@@ -5,7 +5,6 @@ import { SunbedMap } from "../components/SunbedMap";
 import { SetScanner, type ScanHit } from "../components/SetScanner";
 import { useApp, useSpotlight } from "../app/store";
 import { ZONES, todayISO } from "../data/beach";
-import { CUSTOMERS } from "../data/mock";
 import { addDays } from "../domain/period";
 import { resolvePrice } from "../domain/pricing";
 import {
@@ -13,7 +12,6 @@ import {
   EXCEPTIONS,
   EXCEPTION_LABEL,
   NO_SHOW_CUTOFF,
-  exceptionsOf,
   type SetException,
   OPS_LABEL,
   TRANSITIONS,
@@ -22,6 +20,7 @@ import {
   type OpsStatus,
 } from "../domain/sunbedOps";
 import { useLiveSlots } from "../lib/useLiveSlots";
+import { useBeachState } from "../lib/useBeachState";
 import type { SunbedSlot } from "../domain/types";
 
 /* ============ Controller › Beach (AENR-499) ============
@@ -62,7 +61,6 @@ export function ControllerBeach() {
     persona,
     sunbedOps,
     setSunbedOps,
-    till,
     viewAs,
     beachPricing,
     priceRules,
@@ -96,34 +94,8 @@ export function ControllerBeach() {
     }
   }, [hint]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** Effective status of a set on the chosen date. */
-  const statusOf = (s: SunbedSlot): OpsStatus =>
-    sunbedOps.status[opsKey(date, s.id)]?.status ??
-    (s.state === "u" ? "booked" : s.state === "h" ? "hold" : "available");
-  const bookingOf = (s: SunbedSlot) => {
-    const sale = till.sales.find((x) => x.day === date && x.lines.some((l) => l.setId === s.id));
-    if (sale)
-      return {
-        ref: sale.id,
-        guest: sale.customer?.name ?? "Walk-in",
-        guests: sale.lines.filter((l) => l.kind === "ticket").reduce((a, l) => a + l.qty, 0) || 2,
-        paid: true,
-        noShow: false,
-        channel: sale.channel === "controller" ? "Controller" : sale.channel === "support" ? "Support Agent" : "Cashier",
-      };
-    if (s.state !== "u" || sunbedOps.status[opsKey(date, s.id)]) return null;
-    const n = parseInt(s.id.replace(/\D/g, ""), 10) || 1;
-    const c = CUSTOMERS[n % CUSTOMERS.length];
-    return {
-      ref: `#BK-${10300 + n * 3}`,
-      guest: `${c.first} ${c.last}`,
-      guests: 2 + (n % 3),
-      paid: n % 5 !== 0,
-      // Sample: about one booking in seven hasn't arrived by the cut-off.
-      noShow: n % 7 === 3,
-      channel: n % 4 === 0 ? "Phone" : "Online",
-    };
-  };
+  // Status and booking of a set on the date — shared with the Manager's live map.
+  const { statusOf, bookingOf, exOf } = useBeachState(date);
   function openSet(setId: string) {
     const z = ZONES.find((x) => setId.startsWith(x.prefix + "-"));
     if (z) setZoneId(z.id);
@@ -194,7 +166,6 @@ export function ControllerBeach() {
 
   // Status by exception (AENR-587): which sets need action, per filter.
   const [exF, setExF] = useState<SetException | null>(null);
-  const exOf = (s: SunbedSlot) => exceptionsOf(statusOf(s), bookingOf(s), date === today);
   const exSets = Object.fromEntries(EXCEPTIONS.map((e) => [e, slots.filter((s) => exOf(s).includes(e))])) as Record<SetException, SunbedSlot[]>;
   const shown = exF ? exSets[exF] : null;
   const highlight = shown ? new Set(shown.map((s) => s.id)) : null;

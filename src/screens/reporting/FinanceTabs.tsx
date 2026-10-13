@@ -1,3 +1,4 @@
+import { fmtEUR } from "../../data/analytics";
 import { useMemo, useState } from "react";
 import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, PeriodPicker, StatCard, Table, Tabs } from "../../components/ui";
@@ -61,8 +62,11 @@ export function useFinanceData(range: DateRange, section: string | null): Financ
 }
 
 /** KPI tile = the app's StatCard (accent stripe, count-up), with an optional badge. */
-const Kpi = ({ label, value, sub, badge, tone }: { label: string; value: string; sub?: React.ReactNode; badge?: React.ReactNode; tone?: string }) => (
-  <StatCard instant tone={tone} label={badge ? <span className="flex items-center justify-between gap-2">{label}{badge}</span> : label} value={value} sub={sub} />
+/** Money tiles (`eur`) abbreviate like every other report tile and show the
+ *  full figure on hover; tables and exports keep full values (AENR-582). */
+const Kpi = ({ label, value, eur, sub, badge, tone }: { label: string; value?: string; eur?: number; sub?: React.ReactNode; badge?: React.ReactNode; tone?: string }) => (
+  <StatCard instant tone={tone} label={badge ? <span className="flex items-center justify-between gap-2">{label}{badge}</span> : label}
+    value={eur !== undefined ? fmtEUR(eur) : value ?? ""} valueTitle={eur !== undefined ? eur2(eur) : undefined} sub={sub} />
 );
 
 /** Daily bars, weekdays and weekends coloured apart; long ranges are thinned. */
@@ -98,7 +102,7 @@ export function OverviewPanel({ d, onDocs }: { d: FinanceData; onDocs: () => voi
       <div className="grid md:grid-cols-3 gap-3 mb-4">
         <Kpi tone="teal" label="1 · Sunbed bookings" value={int(t.sets)} badge={<Badge tone="green">Confirmed</Badge>}
           sub={<>Sets with a confirmed booking · avg/day {open.length ? (t.sets / open.length).toFixed(1) : "—"}{peak ? ` · peak ${peak.sets} (${dm(peak.date)})` : ""}</>} />
-        <Kpi tone="indigo" label="2 · Captured payments & revenue" value={eur2(t.captured + flow.serviceTotal)}
+        <Kpi tone="indigo" label="2 · Captured payments & revenue" eur={t.captured + flow.serviceTotal}
           sub={<>Captured {eur2(t.captured)} · service fees {eur2(flow.serviceTotal)} · {int(t.tx)} captures</>} />
         <Kpi label="3 · Transmitted to AADE" value={`${int(transmitted(t))} / ${int(docs)}`} badge={t.pending ? <Badge tone="amber">{int(t.pending)} pending</Badge> : <Badge tone="green">All sent</Badge>}
           sub={<>{pct(transmitted(t), docs)} of documents · <button type="button" onClick={onDocs} className="font-semibold text-teal-700 hover:underline">View documents</button></>} />
@@ -127,16 +131,16 @@ export function PaymentsTab({ d }: { d: FinanceData }) {
     <div className="space-y-4">
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <Kpi tone="teal" label="Total transactions" value={int(t.tx)} sub="Successful charges in the period" />
-        <Kpi tone="teal" label="Total captured value" value={eur2(t.captured)} sub="Beach turnover paid by card" />
-        <Kpi label="Total service fees" tone="indigo" value={eur2(flow.serviceTotal)} sub={
+        <Kpi tone="teal" label="Total captured value" eur={t.captured} sub="Beach turnover paid by card" />
+        <Kpi label="Total service fees" tone="indigo" eur={flow.serviceTotal} sub={
           <ul className="mt-0.5 space-y-0.5 text-[11.5px] text-slate-600">
             {flow.serviceFees.map((f) => <li key={f.id} className="flex justify-between gap-2"><span>{f.name}{f.units !== null ? ` · ${int(f.units)} × ${f.rate}` : ` · ${f.rate}`}</span><b className="tnum text-navy-900">{eur2(f.amount)}</b></li>)}
             {flow.serviceFees.length === 0 && <li>No customer fees configured</li>}
           </ul>} />
-        <Kpi label="Total platform fees" value={eur2(flow.platformFees)} sub={platform ? `${feeLabel(platform)} · before VAT` : "None configured"} />
-        <Kpi label="VAT on platform fees" value={eur2(flow.platformVat)} badge={<Badge tone="amber">{cfg.settlement === "monthly" ? "Monthly" : "Weekly"}</Badge>} sub={`${platform ? Math.round(platform.vat * 100) : 24}% on ${eur2(flow.platformFees)} · settled ${cfg.settlement}`} />
-        <Kpi label="Stripe / bank fees" value={eur2(flow.stripeFees)} sub={`≈ ${(flow.stripePct * 100).toFixed(2)}% of captured value`} />
-        <Kpi tone="indigo" label="Stripe payouts" value={eur2(paid)} sub={`Paid to the bank · ${eur2(inTransit)} in transit`} />
+        <Kpi label="Total platform fees" eur={flow.platformFees} sub={platform ? `${feeLabel(platform)} · before VAT` : "None configured"} />
+        <Kpi label="VAT on platform fees" eur={flow.platformVat} badge={<Badge tone="amber">{cfg.settlement === "monthly" ? "Monthly" : "Weekly"}</Badge>} sub={`${platform ? Math.round(platform.vat * 100) : 24}% on ${eur2(flow.platformFees)} · settled ${cfg.settlement}`} />
+        <Kpi label="Stripe / bank fees" eur={flow.stripeFees} sub={`≈ ${(flow.stripePct * 100).toFixed(2)}% of captured value`} />
+        <Kpi tone="indigo" label="Stripe payouts" eur={paid} sub={`Paid to the bank · ${eur2(inTransit)} in transit`} />
         <Kpi label="Saved cards usage" value={`${(savedPct * 100).toFixed(1)}%`} sub={`${int(t.saved)} of ${int(t.tx)} transactions`} />
       </div>
       <div className="grid lg:grid-cols-2 gap-4">

@@ -1090,37 +1090,67 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
 ### A-04 · Bookings [MVP]
 
 ```text
- [Search: ID · name · surname · phone · items]      [Export] ─▶ CSV, one row per item
-        │
-        ▼
- Booking ▲▼ │ Name ▲▼ │ Surname ▲▼ │ Phone │ Items │ Date ▲▼ │ Channel │ Status │ € ▲▼
-                                           │                   │
-            2 sets + parking + locker ─────┘   Online · Walk-in · Phone · Cashier
-            = "4 items · one booking"
-
- ◀ 1 2 3 ▶  30 rows per page              row ─▶ [Resend QR]
-                                                    │
-                                                    ▼
-                                            ┌─ Resend QR ────────────────┐
-                                            │ ◆ Email · Viber · SMS      │
-                                            │    (shows the destination) │
-                                            │ [Resend via …] ─▶ toast    │
-                                            └────────────────────────────┘
+ [Search: ID · name · surname · phone · items]                         [Export] ─▶ CSV, one row per item
+ All 74 · Today 19 · Upcoming 4 · Unpaid 4 · Awaiting payment 0 · Refunded 1 · Used 41   (tabs, counts)
+ ‹ period ›   filters: Channel · Amount · Item type · Zone
+ Booking ▲▼ │ Guest ▲▼ (name + phone) │ Items │ Date ▲▼ │ Channel │ Status (+ Refund pending / Escalated) │ € ▲▼
+     │ the whole row opens (Enter on the booking id too)
+     ▼
+ ┌─ Booking drawer ─────────────────────────────────────────────────────┐
+ │ #BK-10419 ✓ Confirmed · 19 Jul · Online · €30                        │
+ │ [Resend QR] [Move set] [Refund | Request refund] [Add note]          │
+ │ Refund requested · €30 (Within SLA) [Approve €30] [Decline…]         │
+ │ Guest · Payment · Items (Move per set) · Gate QR                     │
+ │ Timeline: booked → paid → QR sent → (moved) → scanned → refunded …   │
+ │ Add a note (☐ escalate)                                              │
+ └──────────────────────────────────────────────────────────────────────┘
 ```
 
-- Visit-date filter: the shared period control (X-11), default **All dates**.
-- **Filters** (shared `FilterBar`, `src/domain/filters.ts`): Channel, Status, Amount (more than / less
-  than / between, validated), Item type (sunbed / entry ticket / locker / parking) and Zone. AND across
-  filters, OR within one; they combine with search, sorting and pagination (page resets). Active
-  filters show as removable chips with **Clear all** and a count ("5 of 68 bookings"); they persist in
-  the URL (`?channel=Online&amount=gt:40`), and **Export** writes exactly the filtered rows.
-- Search (ID, name, surname, phone, items), **sortable** columns (Booking, Name, Surname, Date,
-  Amount), pagination (30 per page), **Export** CSV (one row per booking _item_; total on the first
-  item row).
-- Columns: Booking, Name, Surname, Phone, Items (a booking can hold several sets + parking + locker +
-  tickets, stacked with "N items · one booking"), Date, Channel badge (Online / Walk-in / Phone /
-  Cashier), Status, Amount, **Resend QR**.
-- **Resend QR** modal: choose **Email / Viber / SMS** (shows the destination) → "Resend via …".
+- **Status tabs (AENR-579)** with counts on top of the period, filters and search: All, Today,
+  Upcoming (after the demo day, confirmed or unpaid), Unpaid, Awaiting payment (pay-by-link
+  reservations not yet paid), Refunded, Used. The tab is kept in the URL (`?tab=unpaid`), and so is an
+  open booking (`?booking=%23BK-10419`).
+- **One Guest column** (name and surname, masked phone under it). The whole row opens the booking
+  drawer; the booking id is the row's button, so Enter opens it from the keyboard.
+- **Drawer:** guest, payment (method from the channel), items, gate QR, and the **timeline** — booked,
+  link sent, paid, QR sent, QR re-sent, moved, released, scanned, notes, refund requested / refunded /
+  declined — each with time and who. Actions: **Resend QR** (Email · Viber · SMS), **Move set** (to a
+  free set in the same store on the visit day — the booking and both sets change on every map: wizard,
+  till, controller, live beach), **Refund** (manager: refunded at once via Stripe; Call Center: **Request
+  refund**, which goes to Refunds › Needs decision), a pending refund decided right there (same result
+  as the queue), **Add note** (optionally escalated).
+- Booking actions live in the app store (`bookingOps`: timeline events, moves, refund requests —
+  `src/domain/bookingOps.ts`, `src/lib/useBookingOps.ts`).
+- Visit-date filter: the shared period control (X-11), default **All dates**. **Filters** (shared
+  `FilterBar`): Channel, Amount, Item type and Zone (status moved to the tabs); in the URL; **Export**
+  writes exactly the shown rows (one CSV row per booking item; total on the first item row). Search,
+  sortable Booking / Guest / Date / Amount, 30 per page.
+
+### A-04a · Live beach [MVP] (AENR-580)
+
+```text
+ [Today | Tomorrow]  Store ◆   [Live state | Heatmap]
+ Legend: Free 19 · Booked 21 · ✓ Checked in · € Unpaid · N No-show · H Held · ✕ Out of service (counts)
+ Map: every set with its code and a lettered state badge · tap to select (several at once)
+ Side: N no-shows in Central [Release all for resale]
+       Selection: CE-04 booked · Dimitris  +  CE-01 free  ─▶ [Move 1 guest: CE-04 → CE-01]
+                  CE-03 no-show ─▶ [Release 1 no-show for resale]
+ Heatmap: Occupancy | Revenue · ‹ Week | Month | Season | Custom › · low → high tint per set
+```
+
+- The manager's operations map (Admin › **Live beach**): live state per set read the same way as the
+  Controller's Beach status (`src/lib/useBeachState.ts` — staff status, then real bookings, then the
+  sample beach), set codes printed, a legend with counts where each state has a letter badge (never
+  colour alone).
+- **Move guests:** select booked sets and the same number of free sets → "Move N guests: A → X, B → Y";
+  one booked set alone offers a "Move to" list of free sets. Real bookings change (timeline "Moved
+  from … to …") and both sets' status updates everywhere; a sample guest keeps who they are on the new
+  set.
+- **Release no-show:** booked for today and not checked in by 11:00 → **Release** (per selection or
+  **Release all**) makes the set free at once — sellable online, at the till and on the beach — logged
+  in the set's history (and the booking's timeline when there is one).
+- **Heatmap:** occupancy or revenue per set for a chosen period (the store's occupancy from Reporting,
+  shaped by row: front rows fill first).
 
 ### A-05 · Manual / Phone Booking [MVP]
 
@@ -1188,6 +1218,10 @@ no Export and no refunds.
   Needs attention, At risk, Hibernating). A stage strip shows counts and % and filters on click. Optional
   columns (**Columns** menu, remembered): Lifecycle, RFM, Lifetime spend, Last visit, Next visit
   (predicted from the guest's average gap). Stage and RFM label are also segment-builder fields.
+- **Faster lookup (AENR-581):** the whole guest row opens the profile drawer (Enter on the name does
+  too); **Edit** is inside the profile, so the row's Edit / Profile buttons are gone. **Saved views:**
+  "Save view" names the current search + segment + lifecycle stage + filters; views appear as chips per
+  staff member (persisted in the CRM state) and re-apply in one tap; × deletes.
 - **Power tools** (`src/screens/users/GuestTools.tsx`, `src/lib/csv.ts`): ad-hoc filters (visits, spend,
   days since last visit, lifecycle, channel, zone, pass, consent, tag) in the shared filter bar; sortable
   Name / Surname / Visits / Spend / Last visit; 25 per page with a count; checkbox selection with select
@@ -1250,7 +1284,11 @@ a "beach was closed" empty state.
    Bookings tiles use the same measures and split), Avg occupancy, Online share, Refund rate, RevPATB, ADR,
    Ancillary attach, No-show; revenue over time (hours / days / weeks / months by range length),
    revenue mix, booking pace vs the same period last year; an insight computed from the period
-   (weekend vs weekday fill, busiest zone) → **Set a rule** opens Availability & Pricing.
+   (weekend vs weekday fill, busiest zone) → **Set a rule** opens Availability & Pricing. **One look
+   (AENR-582):** the Insight is a regular card with a teal accent and the period it covers ("Insight ·
+   1 May – 19 Jul 2026") instead of a purple block; money tiles everywhere in Reports (and the
+   Dashboard) abbreviate the same way (€762.3k) with the full figure on hover, while tables and the
+   CSV / PDF exports keep full values.
 2. **Revenue** — by capability, sunbed revenue by zone, latest transactions.
 3. **Occupancy** (`src/screens/reporting/OccupancyTab.tsx`, `src/data/occupancy.ts`) — filters:
    capacity (sunbed sets / day lockers / parking), days (all / weekdays / weekends), zone, sunbed type
@@ -1300,41 +1338,27 @@ all three; **Export CSV** and **Export PDF** (a one-page PDF with the key figure
 ### A-08 · Refunds [MVP]
 
 ```text
- ‹ [All dates] [Day] [Week] [Month] [Season] [Custom] ›   KPIs: refunded · pending · rate · top reason   [Export]
- #TX-88210 · date · name · amount · reason · Pending ──▶ [Refund]
-                                                            │
-        ┌───────────────────────────────────────────────────┘
-        ▼
- ┌─ Issue refund ─────────────────────────────────┐
- │ Refund type ◆ Full  │  Partial (€1 … charge)   │
- │ Reason ◆ Weather · Double booking ·            │
- │          Customer request · Service issue      │
- │ note: reverses the fee, issues a credit note   │
- │              [Refund €X via Stripe]            │
- └────────────────────────────────────────────────┘
-        │
-        ▼
- Authorizing ─▶ Reversing charge ─▶ MyDATA credit ─▶ E-mailing ─▶ ✓ Refund complete
- with Stripe    + application fee   note (5.1)        customer      re_3PqA2k…f4d
-
- row becomes Refunded (partial: "−€X refunded") ─▶ credit note in F-01 and C-07
+ ‹ period ›   KPIs: Needs decision (n past SLA) · Refunded · Refund rate · Top reason   [Export]
+ ┌─ Needs decision 4 ─ oldest first · decide within 48 h ────────────────────────┐
+ │ Marina Georgiou · #TX-87601            Refund requested · €15 · Double booking │
+ │   by Call Center · 3 days ago   [Past 48 h SLA]   [€15] [Approve €15] [Decline…] │
+ │ Anna Mavridi · #TX-88216 · #BK-10419   … 9 min ago  [Within SLA] …             │
+ └────────────────────────────────────────────────────────────────────────────────┘
+ History · 1 – 19 Jul 2026:  Transaction · Date · Guest · Amount · Reason (decided by) · Refunded / Declined
 ```
 
-- Period control (X-11; All dates / Day / Week / Month / Season / Custom, default Month) filters the
-  KPIs, the list and the **Export** CSV.
-- **One list, one source (AENR-546):** the list holds requests awaiting a decision, refunds made at the
-  till, then the refund history — one row per refund, generated (`src/data/refunds.ts`) from the same day
-  figures as Reporting, with the seed refunds on their dates — 25 per page. Every KPI is computed from
-  those rows: Refunded (€ and "N refunds in the list below", change vs the previous period), Pending
-  review, Refund rate (refunded ÷ the period's sales, shown, change in pp — the same rate as Reporting ›
-  Executive) and Top reason (weather variants grouped, share of refunds). The CSV exports the same rows.
-- Table: Transaction, Date, Name, Surname, Phone, Amount (partial refunds show "−€X refunded"), Reason,
-  Status (Pending / Refunded), **Refund** action.
-- **Issue refund** modal: Refund type (Full / Partial — amount between €1 and the charge, with helper
-  text), Reason (Weather / Double booking / Customer request / Service issue), note "Reverses the
-  application fee and auto-issues a credit note to MyDATA" → **Refund €X via Stripe** → animated steps:
-  Authorizing with Stripe → Reversing the charge & application fee → Issuing MyDATA credit note (5.1) →
-  E-mailing the customer → **Refund complete** (Stripe refund id).
+- **Decision queue (AENR-583):** every pending request, oldest first, whatever the period, with its
+  age and the **48 h SLA** (Within SLA / SLA due soon / Past 48 h SLA). **Approve** (full or a lower
+  amount) issues the Stripe refund and credit note; **Decline…** needs a reason told to the guest
+  (Outside the cancellation policy · Already used · Duplicate request · Offered a date change instead ·
+  Other). The same decision component sits in the booking drawer (A-04): deciding in either place gives
+  the same result — the request leaves the queue, the booking turns Refunded (or the decline is on its
+  timeline) and the row joins the history. Requests come from guests, the call centre (Request refund
+  in the drawer) and the seed.
+- **History (AENR-546):** refunds made at the till, decided requests (Refunded / Declined, with who
+  decided), then the refund history generated from the Reporting day figures — 25 per page; the KPIs
+  (Refunded, Refund rate, Top reason) and the CSV are computed from these same rows. Period control
+  (X-11) filters the history, the KPIs and the export (default Month).
 
 ### A-09 · Privacy & GDPR [MVP]
 

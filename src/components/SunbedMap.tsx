@@ -20,7 +20,13 @@ export function SunbedMap({
   highlight = null,
   showCodes = false,
   describe,
+  marker,
+  heat,
 }: {
+  /** A small state badge on a set — a letter plus colour, never colour alone (AENR-580). */
+  marker?: (s: SunbedSlot) => { text: string; cls: string } | undefined;
+  /** Heatmap: 0–1 per set, drawn as a tint behind it (AENR-580). */
+  heat?: (s: SunbedSlot) => number;
   /** Only these sets stay prominent (status filters, AENR-587); the rest fade. */
   highlight?: Set<string> | null;
   /** Print each set's code under it (staff maps). */
@@ -84,6 +90,14 @@ export function SunbedMap({
               className={`absolute inset-0 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${selected?.has(s.id) ? "ring-2 ring-navy-900" : ""}`}
             />
           )}
+          {heat && (() => {
+            const h = Math.max(0, Math.min(1, heat(s)));
+            return <span aria-hidden className="absolute -inset-1.5 -z-10 rounded-xl pointer-events-none" style={{ background: `rgba(${Math.round(20 + 220 * h)}, ${Math.round(184 - 120 * h)}, ${Math.round(166 - 120 * h)}, ${0.25 + h * 0.5})` }} />;
+          })()}
+          {(() => {
+            const m = marker?.(s);
+            return m ? <span aria-hidden className={`absolute -top-1.5 -left-1.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold leading-[18px] text-center ring-2 ring-white pointer-events-none z-[1] ${m.cls}`}>{m.text}</span> : null;
+          })()}
           {highlight?.has(s.id) && <span aria-hidden className="absolute -inset-1 rounded-xl ring-[3px] ring-amber-500 pointer-events-none" />}
           {showCodes && (
             <span aria-hidden className="absolute left-1/2 -translate-x-1/2 top-[88%] whitespace-nowrap rounded bg-white/90 px-0.5 text-[9px] leading-tight font-semibold text-navy-900 tnum pointer-events-none">

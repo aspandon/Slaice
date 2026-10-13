@@ -28,6 +28,8 @@ import type { BeachPricing, CalendarState } from "./domain/types";
 import { DEFAULT_BEACH_PRICING, DEFAULT_CALENDAR } from "./data/pricing";
 import { DEFAULT_INVENTORY, type InventoryState } from "./domain/inventory";
 import { DEFAULT_SUNBED_OPS, type SunbedOpsState } from "./domain/sunbedOps";
+import { DEFAULT_BOOKING_OPS } from "./data/bookingOps";
+import type { BookingOpsState } from "./domain/bookingOps";
 import type { PayLink } from "./domain/payLink";
 import { DEFAULT_DISPLAY, type DisplayConfig } from "./domain/display";
 import { lazyWithReload } from "./lib/staleChunk";
@@ -101,6 +103,7 @@ const saved = loadLS() as {
   calendar?: CalendarState;
   inventory?: InventoryState;
   sunbedOps?: SunbedOpsState;
+  bookingOps?: BookingOpsState;
   payLinks?: PayLink[];
   display?: DisplayConfig;
   layouts?: LayoutState;
@@ -181,6 +184,8 @@ export default function App() {
   const setInventory = useCallback((u: (i: InventoryState) => InventoryState) => setInventoryState(u), []);
   const [sunbedOps, setSunbedOpsState] = useState<SunbedOpsState>({ ...DEFAULT_SUNBED_OPS, ...(saved.sunbedOps || {}) });
   const setSunbedOps = useCallback((u: (s: SunbedOpsState) => SunbedOpsState) => setSunbedOpsState(u), []);
+  const [bookingOps, setBookingOpsState] = useState<BookingOpsState>({ ...DEFAULT_BOOKING_OPS, ...(saved.bookingOps || {}) });
+  const setBookingOps = useCallback((u: (s: BookingOpsState) => BookingOpsState) => setBookingOpsState(u), []);
   const [payLinks, setPayLinksState] = useState<PayLink[]>(saved.payLinks || []);
   const setPayLinks = useCallback((u: (s: PayLink[]) => PayLink[]) => setPayLinksState(u), []);
   const [display, setDisplayState] = useState<DisplayConfig>({ ...DEFAULT_DISPLAY, ...(saved.display || {}) });
@@ -217,14 +222,14 @@ export default function App() {
   // Other windows of the app (e.g. the entrance display, AENR-519) share the
   // operational state: when one saves, the others adopt what changed. Only
   // differing slices are set, so windows don't echo each other's writes.
-  const shared = { beachLayout, zoneLogos, zoneMap, priceRules, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, payLinks, weather, display, layouts, extras, account, platform, comms, privacy };
+  const shared = { beachLayout, zoneLogos, zoneMap, priceRules, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, bookingOps, payLinks, weather, display, layouts, extras, account, platform, comms, privacy };
   const sharedRef = useRef(shared);
   useEffect(() => { sharedRef.current = shared; });
   useEffect(() => {
     const setters: Record<keyof typeof shared, (v: never) => void> = {
       beachLayout: setBeachLayoutState, zoneLogos: setZoneLogosState, zoneMap: setZoneMap, priceRules: setPriceRules,
       till: setTillState, finance: setFinanceState, beachPricing: setBeachPricing, closedStores: setClosedStores,
-      calendar: setCalendar, inventory: setInventoryState, sunbedOps: setSunbedOpsState, payLinks: setPayLinksState,
+      calendar: setCalendar, inventory: setInventoryState, sunbedOps: setSunbedOpsState, bookingOps: setBookingOpsState, payLinks: setPayLinksState,
       weather: setWeather, display: setDisplayState, layouts: setLayoutsState, extras: setExtrasState, account: setAccountState, platform: setPlatformState, comms: setCommsState, privacy: setPrivacyState,
     };
     const onStorage = (e: StorageEvent) => {
@@ -247,11 +252,11 @@ export default function App() {
     if (DISPLAY) return;
     // Guard the write: Safari Private Mode and a full quota throw on setItem.
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, payLinks, display, layouts, extras, account, platform, comms, privacy }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, bookingOps, payLinks, display, layouts, extras, account, platform, comms, privacy }));
     } catch {
       /* storage unavailable (private mode / quota) — ignore */
     }
-  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, payLinks, display, layouts, extras, account, platform, comms, privacy]);
+  }, [persona, pageByPersona, signedIn, lang, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, bookingOps, payLinks, display, layouts, extras, account, platform, comms, privacy]);
 
   // Keep <html lang> in sync with the chosen language (a11y / SEO correctness).
   useEffect(() => {
@@ -384,8 +389,8 @@ export default function App() {
 
   // Memoised so the provider value keeps a stable identity across renders.
   const ctx = useMemo<AppContextValue>(
-    () => ({ toast, go, dive, persona, page, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, payLinks, setPayLinks, display, setDisplay, layouts, setLayouts, extras, setExtras, account, setAccount, platform, setPlatform, comms, setComms, privacy, setPrivacy }),
-    [toast, go, dive, persona, page, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, payLinks, setPayLinks, display, setDisplay, layouts, setLayouts, extras, setExtras, account, setAccount, platform, setPlatform, comms, setComms, privacy, setPrivacy],
+    () => ({ toast, go, dive, persona, page, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, bookingOps, setBookingOps, payLinks, setPayLinks, display, setDisplay, layouts, setLayouts, extras, setExtras, account, setAccount, platform, setPlatform, comms, setComms, privacy, setPrivacy }),
+    [toast, go, dive, persona, page, signedIn, setSignedIn, lang, setLang, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, bookingOps, setBookingOps, payLinks, setPayLinks, display, setDisplay, layouts, setLayouts, extras, setExtras, account, setAccount, platform, setPlatform, comms, setComms, privacy, setPrivacy],
   );
 
   // The booking wizard takes over the whole viewport: the beach becomes the

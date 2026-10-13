@@ -5,7 +5,7 @@ import { Badge, Btn, Card, ConfirmModal, EmptyState, ErrorState, Field, Input, M
 import { useApp } from "../../app/store";
 import { listCustomers } from "../../api";
 import { useAsync } from "../../lib/useAsync";
-import type { Customer } from "../../domain/types";
+import type { Customer, GuestView } from "../../domain/types";
 import { downloadCSV } from "../../lib/download";
 import { guestFacts, type GuestFacts } from "../../data/guests";
 import { SEGMENT_COLORS, fieldOf, segmentsFor, inSegment, ruleLabel, type Segment } from "../../domain/segments";
@@ -14,7 +14,7 @@ import { SegmentBuilder } from "./SegmentBuilder";
 import { GuestProfile } from "./GuestProfile";
 import { ImportModal, MergeModal, duplicateOf, mergeGuests, type ImportRow } from "./GuestTools";
 import { FilterBar, Select } from "../../components/ui";
-import { isAmount, matchAmount, type FilterDef, type FilterState } from "../../domain/filters";
+import { activeCount, isAmount, matchAmount, type FilterDef, type FilterState } from "../../domain/filters";
 import { Pager, SortHeader, cmpVal, type SortState } from "../../components/TableTools";
 import { CHANNELS_CRM } from "../../data/guests";
 import { ZONES } from "../../data/beach";
@@ -39,7 +39,7 @@ const tagTone = (t: string) => ({ VIP: "amber", "Season pass": "blue" }[t] || "i
 type Guest = GuestFacts & { name: string; customer: Customer };
 
 export function AdminUsers() {
-  const { toast, passes, crm, setCrm, go } = useApp();
+  const { toast, passes, crm, setCrm, go, viewAs } = useApp();
   const ra = crm.regularAfter;
   const [q, setQ] = useState("");
   const [segId, setSegId] = useState("all");
@@ -94,6 +94,10 @@ export function AdminUsers() {
   const [bulkMsg, setBulkMsg] = useState(false);
   const [eraseAsk, setEraseAsk] = useState(false);
   const setFilters = (f: FilterState) => { setFiltersRaw(f); setPage(0); };
+  // Saved views (AENR-581): per staff member, persisted with the CRM state.
+  const me = viewAs?.name ?? "Manager / Admin";
+  const myViews = (crm.views ?? []).filter((v) => v.owner === me);
+  const activeView = myViews.find((v) => v.q === q && v.segId === segId && v.stage === stageF && JSON.stringify(v.filters) === JSON.stringify(filters));
   const guestFilterDefs: FilterDef[] = [
     { key: "visits", label: "Visits", kind: "amount", unit: "" },
     { key: "spend", label: "Spend", kind: "amount" },
@@ -306,6 +310,11 @@ export function AdminUsers() {
             <span>Each guest has one <b>lifecycle stage</b> — a guest is <b>Regular</b> after more than {ra} visits while they keep coming (edit the threshold from the <b>Over {ra} visits</b> segment). <b>VIP</b>, <b>Season pass</b> and custom tags are assigned on a guest. Build your own with <b>New segment</b>.</span>
           </div>
         )}
+        <SavedViews views={myViews} active={activeView?.id ?? null}
+          onApply={(v) => { setQ(v.q); setSegId(v.segId); setStageF(v.stage as Stage | null); setFilters(v.filters as FilterState); toast(`View “${v.name}” applied.`, { tone: "success" }); }}
+          onSave={(name) => { const v: GuestView = { id: `view-${Date.now().toString(36)}`, name, owner: me, q, segId, stage: stageF, filters }; setCrm((c) => ({ ...c, views: [...(c.views ?? []), v] })); toast(`View “${name}” saved — only you see it.`, { tone: "success" }); }}
+          onDelete={(id) => setCrm((c) => ({ ...c, views: (c.views ?? []).filter((x) => x.id !== id) }))}
+          canSave={!!q || segId !== "all" || !!stageF || activeCount(filters) > 0} />
         <div className="mb-3"><FilterBar defs={guestFilterDefs} value={filters} onChange={setFilters} count={`${sorted.length} of ${list.length} guests`} /></div>
         {sel.size > 0 && (
           <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-navy-900 text-white px-3 py-2 text-[13px]" role="region" aria-label="Bulk actions">
@@ -342,18 +351,15 @@ export function AdminUsers() {
             action={<Btn size="sm" variant="outline" onClick={() => { setQ(""); setFilters({}); setStageF(null); setSegId("all"); }}>Clear filters</Btn>} />
         ) : (
           <>
-          <Table dense={shownOptional.length > 1}
+          <Table rowLink dense={shownOptional.length > 1}
             cols={[<input type="checkbox" aria-label="Select all shown guests" checked={allShownSelected} onChange={(e) => setSel(e.target.checked ? new Set(sorted.map((u) => u.id)) : new Set())} className="w-4 h-4 accent-teal-600" />,
               <SortHeader label="Name" k="name" sort={sort} onSort={onSort} />, <SortHeader label="Surname" k="surname" sort={sort} onSort={onSort} />, "Phone", "Email",
               <SortHeader label="Visits" k="visits" sort={sort} onSort={onSort} align="right" />, ...shownOptional.map((c) => (c.k === "spend" ? <SortHeader key={c.k} label={c.l} k="spend" sort={sort} onSort={onSort} align="right" /> : c.k === "lastVisit" ? <SortHeader key={c.k} label={c.l} k="last" sort={sort} onSort={onSort} /> : c.l)), "Tags", ""]}
             right={[5, ...shownOptional.map((c, i) => (c.right ? 6 + i : -1)).filter((i) => i >= 0)]}
-            rows={rows.map((u) => [<input type="checkbox" aria-label={`Select ${u.first} ${u.last}`} checked={sel.has(u.id)} onChange={() => toggleSel(u.id)} className="w-4 h-4 accent-teal-600" />,
-              <span className="inline-flex items-center gap-1.5">{crm.profiles[u.id]?.important && <Icon.star size={12} className="text-amber-500" aria-label="Important guest" />}{u.first}{crm.eraseRequests.includes(u.id) && <Badge tone="red">Erasure requested</Badge>}{u.id >= 1000 && <Badge tone="slate">Imported</Badge>}</span>, u.last, <span className="tnum whitespace-nowrap">{u.phone}</span>, u.email, u.bookings, ...shownOptional.map((c) => c.cell(byId.get(u.id)!)),
+            rows={rows.map((u) => [<input type="checkbox" aria-label={`Select ${u.first} ${u.last}`} checked={sel.has(u.id)} onChange={() => toggleSel(u.id)} className="relative z-[1] w-4 h-4 accent-teal-600" />,
+              <span className="inline-flex items-center gap-1.5">{crm.profiles[u.id]?.important && <Icon.star size={12} className="text-amber-500" aria-label="Important guest" />}<button type="button" className="row-link font-semibold text-navy-900 hover:text-teal-700 text-left" onClick={() => setProfileId(u.id)} aria-label={`Open profile of ${u.first} ${u.last}`}>{u.first}</button>{crm.eraseRequests.includes(u.id) && <Badge tone="red">Erasure requested</Badge>}{u.id >= 1000 && <Badge tone="slate">Imported</Badge>}</span>, u.last, <span className="tnum whitespace-nowrap">{u.phone}</span>, u.email, u.bookings, ...shownOptional.map((c) => c.cell(byId.get(u.id)!)),
               <span className="flex gap-1 flex-wrap">{tagsFor(u).map(({ t, pass }) => <Badge key={t} tone={tagTone(t)} className="whitespace-nowrap">{pass && <Icon.wallet size={9} />}{t}</Badge>)}</span>,
-              <div className="flex items-center justify-end gap-1">
-                <Btn size="sm" variant="ghost" icon={Icon.edit} onClick={() => setEditId(u.id)}>Edit</Btn>
-                <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => setProfileId(u.id)}>Profile</Btn>
-              </div>])} />
+              <Icon.chevR size={16} className="text-slate-400" aria-hidden />])} />
           {pageCount > 1 && <Pager page={safePage} pageCount={pageCount} total={sorted.length} pageSize={PAGE} onPage={setPage} />}
           </>
         )}
@@ -525,3 +531,31 @@ function UserEditModal({ user, tagNames, onClose, onSave }: { user: Customer; ta
   );
 }
 
+
+/* Saved views (AENR-581): one tap re-applies a search, segment, lifecycle
+   stage and filters; each staff member sees their own. */
+function SavedViews({ views, active, onApply, onSave, onDelete, canSave }: { views: GuestView[]; active: string | null; onApply: (v: GuestView) => void; onSave: (name: string) => void; onDelete: (id: string) => void; canSave: boolean }) {
+  const [naming, setNaming] = useState(false);
+  const [name, setName] = useState("");
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-1.5" role="group" aria-label="Saved views">
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mr-1">Views</span>
+      {views.length === 0 && !naming && <span className="text-[12.5px] text-slate-500">Filter the list, then save it as a view.</span>}
+      {views.map((v) => (
+        <span key={v.id} className={`inline-flex items-center rounded-lg ring-1 ${active === v.id ? "bg-navy-900 text-white ring-navy-900" : "bg-white/70 ring-slate-200 text-navy-900"}`}>
+          <button type="button" aria-pressed={active === v.id} onClick={() => onApply(v)} className="px-2.5 min-h-[36px] text-[12.5px] font-semibold">{v.name}</button>
+          <button type="button" aria-label={`Delete view ${v.name}`} onClick={() => onDelete(v.id)} className="w-7 h-7 grid place-items-center rounded-md opacity-70 hover:opacity-100"><Icon.x size={12} /></button>
+        </span>
+      ))}
+      {naming ? (
+        <form className="inline-flex items-center gap-1.5" onSubmit={(e) => { e.preventDefault(); if (name.trim()) { onSave(name.trim()); setName(""); setNaming(false); } }}>
+          <Input aria-label="View name" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Lapsed VIPs" className="!py-1.5 w-44" />
+          <Btn size="sm" type="submit" variant="primary" disabled={!name.trim()}>Save</Btn>
+          <Btn size="sm" variant="ghost" onClick={() => setNaming(false)}>Cancel</Btn>
+        </form>
+      ) : (
+        <Btn size="sm" variant="ghost" icon={Icon.plus} disabled={!canSave} onClick={() => setNaming(true)} title={canSave ? undefined : "Search or filter first"}>Save view</Btn>
+      )}
+    </div>
+  );
+}

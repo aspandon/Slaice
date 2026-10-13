@@ -1,3 +1,4 @@
+import { AdminLiveBeach } from "./screens/beach/LiveBeach";
 import type { ReactElement } from "react";
 import type { PersonaId } from "./domain/types";
 import * as C from "./screens/customer";
@@ -37,6 +38,7 @@ const MAP: Record<string, () => ReactElement> = {
   "admin.dashboard": () => <A.AdminDashboard />,
   "admin.availability": () => <A.AdminAvailability />,
   "admin.bookings": () => <A.AdminBookings />,
+  "admin.live": () => <AdminLiveBeach />,
   "admin.manual": () => <A.AdminManual />,
   "admin.users": () => <AdminUsers />,
   "admin.reporting": () => <A.AdminReporting />,

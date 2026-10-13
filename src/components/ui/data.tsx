@@ -7,9 +7,11 @@ import { Card } from "./primitives";
 
 /* ---------- StatCard ----------
    Tone drives a thin left accent stripe. `instant` skips the count-up. */
-export function StatCard({ label, value, sub, tone = "navy", delta, trend, sparkline, instant = false }: {
+export function StatCard({ label, value, valueTitle, sub, tone = "navy", delta, trend, sparkline, instant = false }: {
   label?: ReactNode;
   value: string | number;
+  /** The full figure behind an abbreviated value (€733.4k → €733,422.00), on hover (AENR-582). */
+  valueTitle?: string;
   sub?: ReactNode;
   tone?: string;
   delta?: ReactNode;
@@ -46,7 +48,7 @@ export function StatCard({ label, value, sub, tone = "navy", delta, trend, spark
           </span>
         )}
       </div>
-      <div ref={ref as RefObject<HTMLDivElement>} className="mt-1.5 text-[26px] leading-none font-bold text-navy-900 tnum font-display tracking-tight">
+      <div ref={ref as RefObject<HTMLDivElement>} title={valueTitle} className="mt-1.5 text-[26px] leading-none font-bold text-navy-900 tnum font-display tracking-tight">
         {parsed ? display : value}
       </div>
       {sparkline && <div className="mt-2 -mb-1">{sparkline}</div>}
@@ -119,7 +121,10 @@ export function PageHead({ actions }: { actions?: ReactNode; title?: ReactNode; 
    Airier rows, hairline dividers and a sticky frosted header on `sm`+; reflows
    into stacked label:value cards under `sm`. */
 // `dense` tightens cell padding for wide tables (many columns).
-export function Table({ cols, rows, right = [], dense = false }: { cols: ReactNode[]; rows: ReactNode[][]; right?: number[]; dense?: boolean }) {
+/* `rowLink`: rows open something — a cell holds a button with the
+   "row-link" class whose hit area stretches over the whole row (other
+   controls in the row sit above it), so Enter on that button opens the row. */
+export function Table({ cols, rows, right = [], dense = false, rowLink = false }: { cols: ReactNode[]; rows: ReactNode[][]; right?: number[]; dense?: boolean; rowLink?: boolean }) {
   const pad = dense ? "px-2.5" : "px-3.5";
   return (
     <>
@@ -128,7 +133,7 @@ export function Table({ cols, rows, right = [], dense = false }: { cols: ReactNo
         {rows.map((r, ri) => {
           const headIdx = cols.findIndex((c) => c);
           return (
-            <div key={ri} className="rounded-2xl ring-1 ring-slate-200 bg-white/80 p-3.5">
+            <div key={ri} className={`rounded-2xl ring-1 ring-slate-200 bg-white/80 p-3.5 ${rowLink ? "relative hover:ring-teal-400 transition" : ""}`}>
               {headIdx > -1 && <div className="font-semibold text-navy-900 text-[15px] mb-2">{r[headIdx]}</div>}
               <div className="space-y-1.5">
                 {r.map((cell, ci) =>
@@ -157,7 +162,7 @@ export function Table({ cols, rows, right = [], dense = false }: { cols: ReactNo
           </thead>
           <tbody>
             {rows.map((r, ri) => (
-              <tr key={ri} className="transition-colors hover:bg-slate-50/80">
+              <tr key={ri} className={`transition-colors hover:bg-slate-50/80 ${rowLink ? "relative cursor-pointer" : ""}`}>
                 {r.map((cell, ci) => (
                   <td key={ci} className={`py-3.5 ${pad} border-b border-slate-100/80 ${right.includes(ci) ? "text-right tnum" : ""}`}>{cell}</td>
                 ))}

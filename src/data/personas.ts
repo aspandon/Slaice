@@ -28,6 +28,7 @@ export const NAV: Record<PersonaId, NavItem[]> = {
     { k: "dashboard", label: "Dashboard", short: "Home", icon: "chart", badge: "MVP" },
     { k: "availability", label: "Beach, Availability & Pricing", short: "Beach", icon: "umbrella", badge: "MVP" },
     { k: "bookings", label: "Bookings", short: "Bookings", icon: "grid", badge: "MVP" },
+    { k: "live", label: "Live beach", short: "Live", icon: "map", badge: "MVP" },
     { k: "display", label: "Live Display", short: "Display", icon: "monitor", badge: "MVP" },
     { k: "manual", label: "Manual / Phone Booking", short: "Manual", icon: "phone", badge: "MVP" },
     { k: "paylinks", label: "Pay-by-link", short: "Links", icon: "link", badge: "MVP" },

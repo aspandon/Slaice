@@ -1,0 +1,398 @@
+import { useState } from "react";
+import { Icon } from "../../lib/icons";
+import {
+  Badge,
+  Btn,
+  Card,
+  EmptyState,
+  FilterBar,
+  PeriodPicker,
+  StatusBadge,
+  Table,
+  TableSkeleton,
+  Tabs,
+  filterCount,
+  useMockLoad,
+} from "../../components/ui";
+import type { TabEntry } from "../../components/ui";
+import { Pager, SortHeader, cmpVal, dateVal, type SortState } from "../../components/TableTools";
+import { useApp } from "../../app/store";
+import { ZONES } from "../../data/beach";
+import { usePeriod } from "../../lib/usePeriod";
+import { readHashQuery, writeHashQuery } from "../../app/router";
+import {
+  activeCount,
+  filtersFromParams,
+  filtersToParams,
+  isAmount,
+  matchAmount,
+  type FilterDef,
+  type FilterState,
+} from "../../domain/filters";
+import { DEMO_TODAY, inRange, rangeLabel, resolveRange } from "../../domain/period";
+import { downloadCSV } from "../../lib/download";
+import { Masked } from "../tenant/ViewAs";
+import { useBookingOps, type OpsBooking } from "../../lib/useBookingOps";
+import { BookingDrawer } from "./BookingDrawer";
+
+/* ============ BOOKINGS (AENR-579) ============
+   Status tabs with counts on top of the period and filters; one Guest column;
+   each row opens a drawer with items, payment, QR, the full timeline and the
+   actions (resend QR, move set, refund, note). Shared by Manager / Admin and
+   Call Center — agents request refunds, a manager decides. */
+
+type TabKey = "all" | "today" | "upcoming" | "unpaid" | "awaiting" | "refunded" | "used";
+const TABS: { k: TabKey; l: string; test: (b: OpsBooking) => boolean }[] = [
+  { k: "all", l: "All", test: () => true },
+  {
+    k: "today",
+    l: "Today",
+    test: (b) => b.visitIso === DEMO_TODAY && b.status !== "Cancelled" && b.status !== "Refunded",
+  },
+  {
+    k: "upcoming",
+    l: "Upcoming",
+    test: (b) => b.visitIso > DEMO_TODAY && (b.status === "Confirmed" || b.status === "Unpaid"),
+  },
+  { k: "unpaid", l: "Unpaid", test: (b) => b.status === "Unpaid" },
+  { k: "awaiting", l: "Awaiting payment", test: (b) => b.status === "Awaiting payment" },
+  { k: "refunded", l: "Refunded", test: (b) => b.status === "Refunded" },
+  { k: "used", l: "Used", test: (b) => b.status === "Used" },
+];
+
+/* Structured filters (AENR-471); the date filter is the shared period control. */
+const BOOKING_ITEM_TYPES = [
+  { v: "Sunbed", l: "Sunbed" },
+  { v: "Entry", l: "Entry ticket" },
+  { v: "Day locker", l: "Locker" },
+  { v: "Parking", l: "Parking" },
+];
+const BOOKING_FILTERS: FilterDef[] = [
+  {
+    key: "channel",
+    label: "Channel",
+    kind: "multi",
+    options: ["Online", "Walk-in", "Phone", "Cashier", "Pay-by-link"].map((v) => ({ v, l: v })),
+  },
+  { key: "amount", label: "Amount", kind: "amount" },
+  { key: "item", label: "Item type", kind: "multi", options: BOOKING_ITEM_TYPES },
+  {
+    key: "zone",
+    label: "Zone",
+    kind: "multi",
+    options: ZONES.map((z) => ({ v: z.name, l: z.name })),
+  },
+];
+const itemKind = (item: string) => item.split(" · ")[0];
+const itemZone = (item: string) => (itemKind(item) === "Sunbed" ? item.split(" · ")[1] : null);
+function matchFilters(b: OpsBooking, f: FilterState): boolean {
+  const has = (k: string) => Array.isArray(f[k]) && (f[k] as string[]).length > 0;
+  const inList = (k: string, v: string) => (f[k] as string[]).includes(v);
+  if (has("channel") && !inList("channel", b.channel)) return false;
+  if (isAmount(f.amount) && !matchAmount(b.amount, f.amount)) return false;
+  if (has("item") && !b.items.some((i) => inList("item", itemKind(i)))) return false;
+  if (
+    has("zone") &&
+    !b.items.some((i) => {
+      const z = itemZone(i);
+      return !!z && inList("zone", z);
+    })
+  )
+    return false;
+  return true;
+}
+const chan = (c: string) =>
+  ({
+    Online: "blue",
+    "Walk-in": "amber",
+    Phone: "indigo",
+    Cashier: "green",
+    "Pay-by-link": "coral",
+  })[c] || "slate";
+
+/* Items of one booking, stacked under the booking. */
+function BookingItems({ items }: { items: string[] }) {
+  if (items.length <= 1) return <span className="whitespace-nowrap">{items[0] ?? "—"}</span>;
+  return (
+    <div className="space-y-0.5 min-w-[170px]">
+      {items.map((it, i) => (
+        <div key={i} className="flex items-center gap-1.5 whitespace-nowrap">
+          <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
+          <span>{it}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function AdminBookings() {
+  const { toast, persona, bookingNotes } = useApp();
+  const agent = persona === "callcenter";
+  const ops = useBookingOps();
+  const [q, setQ] = useState("");
+  const [page, setPage] = useState(0);
+  const [sort, setSort] = useState<SortState>(null);
+  const loading = useMockLoad();
+  const PAGE = 30;
+  const params = readHashQuery();
+  const [tab, setTabRaw] = useState<TabKey>(
+    () => TABS.find((t) => t.k === params.get("tab"))?.k ?? "all",
+  );
+  const [openId, setOpenIdRaw] = useState<string | null>(() => params.get("booking"));
+  const setTab = (t: TabKey) => {
+    setTabRaw(t);
+    setPage(0);
+    writeHashQuery(t === "all" ? {} : { tab: t }, ["tab"]);
+  };
+  const setOpenId = (id: string | null) => {
+    setOpenIdRaw(id);
+    writeHashQuery(id ? { booking: id } : {}, ["booking"]);
+  };
+  const [period, setPeriodRaw] = usePeriod({ kind: "all" });
+  const setPeriod = (p: Parameters<typeof setPeriodRaw>[0]) => {
+    setPeriodRaw(p);
+    setPage(0);
+  };
+  const range = resolveRange(period);
+  const [filters, setFiltersRaw] = useState<FilterState>(() =>
+    filtersFromParams(BOOKING_FILTERS, params),
+  );
+  const setFilters = (f: FilterState) => {
+    setFiltersRaw(f);
+    setPage(0);
+    writeHashQuery(
+      filtersToParams(BOOKING_FILTERS, f),
+      BOOKING_FILTERS.map((d) => d.key),
+    );
+  };
+
+  // Period + filters + search first; the tabs then split that set by status (with counts).
+  const base = ops.bookings.filter(
+    (b) =>
+      inRange(b.visitIso, range) &&
+      matchFilters(b, filters) &&
+      `${b.id} ${b.who} ${b.surname} ${b.phone} ${b.items.join(" ")}`
+        .toLowerCase()
+        .includes(q.toLowerCase()),
+  );
+  const counts = Object.fromEntries(TABS.map((t) => [t.k, base.filter(t.test).length])) as Record<
+    TabKey,
+    number
+  >;
+  const filtered = base.filter(TABS.find((t) => t.k === tab)!.test);
+  const anyFilter = !!range || !!q || activeCount(filters) > 0 || tab !== "all";
+  const sortVal = (b: OpsBooking): string | number => {
+    switch (sort?.key) {
+      case "id":
+        return b.id;
+      case "guest":
+        return `${b.who} ${b.surname}`;
+      case "amount":
+        return b.amount;
+      case "date":
+        return dateVal(b.date);
+      default:
+        return 0;
+    }
+  };
+  const sorted = sort
+    ? [...filtered].sort((a, b) => cmpVal(sortVal(a), sortVal(b)) * sort.dir)
+    : filtered;
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE));
+  const safePage = Math.min(page, pageCount - 1);
+  const pageRows = sorted.slice(safePage * PAGE, safePage * PAGE + PAGE);
+  const onSort = (k: string) => {
+    setSort((s) => (s?.key === k ? { key: k, dir: s.dir === 1 ? -1 : 1 } : { key: k, dir: 1 }));
+    setPage(0);
+  };
+  const open = ops.bookings.find((b) => b.id === openId) ?? null;
+
+  const exportCSV = () => {
+    // One row per booking item; the booking total sits on its first row only.
+    const header = [
+      "Booking",
+      "Name",
+      "Surname",
+      "Phone",
+      "Item",
+      "Date",
+      "Channel",
+      "Status",
+      "Amount (€)",
+    ];
+    const rows: (string | number)[][] = [];
+    sorted.forEach((b) =>
+      (b.items.length ? b.items : ["—"]).forEach((it, i) =>
+        rows.push([
+          b.id,
+          b.who,
+          b.surname || "—",
+          b.phone || "—",
+          it,
+          b.date,
+          b.channel,
+          b.status,
+          i === 0 ? b.amount : "",
+        ]),
+      ),
+    );
+    downloadCSV(range ? `bookings-${range.from}_${range.to}.csv` : "bookings.csv", header, rows);
+    toast(`Exported ${sorted.length} bookings · ${rows.length} item rows to CSV.`, {
+      tone: "success",
+    });
+  };
+  const tabs: TabEntry[] = TABS.map((t) => [t.k, `${t.l} ${counts[t.k]}`]);
+
+  return (
+    <div>
+      <Card className="p-4">
+        <div className="flex items-center gap-3 mb-3 flex-wrap">
+          <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-sm flex-1 min-w-[200px] text-slate-600">
+            <Icon.search size={16} />
+            <input
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPage(0);
+              }}
+              placeholder="Search bookings…"
+              aria-label="Search bookings by ID, name, phone or item"
+              className="text-sm outline-none w-full bg-transparent text-ink"
+            />
+          </div>
+          {!agent && (
+            <Btn variant="outline" icon={Icon.download} onClick={exportCSV} className="ml-auto">
+              Export
+            </Btn>
+          )}
+        </div>
+        <Tabs
+          scroll
+          tabs={tabs}
+          value={tab}
+          onChange={(v) => setTab(v as TabKey)}
+          className="mb-3"
+        />
+        <PeriodPicker
+          value={period}
+          onChange={setPeriod}
+          allowAll
+          presets={["day", "week", "month", "year", "season"]}
+          resetTo={{ kind: "all" }}
+          className="mb-3"
+        />
+        <div className="mb-3">
+          <FilterBar
+            defs={BOOKING_FILTERS}
+            value={filters}
+            onChange={setFilters}
+            count={filterCount(
+              sorted.length,
+              ops.bookings.length,
+              "bookings",
+              filters,
+              !!range || !!q || tab !== "all",
+            )}
+          />
+        </div>
+        {loading ? (
+          <TableSkeleton rows={5} cols={8} />
+        ) : sorted.length === 0 ? (
+          <EmptyState
+            icon={Icon.search}
+            title="No matching bookings"
+            body={
+              q
+                ? `Nothing matches “${q}”${range ? ` in ${rangeLabel(range)}` : ""}. Try a different name, sunbed code or booking ID.`
+                : `No ${tab === "all" ? "" : TABS.find((t) => t.k === tab)!.l.toLowerCase() + " "}bookings${range ? ` in ${rangeLabel(range)}` : ""} with these filters.`
+            }
+            action={
+              anyFilter ? (
+                <Btn
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setQ("");
+                    setFilters({});
+                    setPeriod({ kind: "all" });
+                    setTab("all");
+                  }}
+                >
+                  Clear filters
+                </Btn>
+              ) : undefined
+            }
+          />
+        ) : (
+          <>
+            <Table
+              rowLink
+              dense
+              right={[6]}
+              cols={[
+                <SortHeader label="Booking" k="id" sort={sort} onSort={onSort} />,
+                <SortHeader label="Guest" k="guest" sort={sort} onSort={onSort} />,
+                "Items",
+                <SortHeader label="Date" k="date" sort={sort} onSort={onSort} />,
+                "Channel",
+                "Status",
+                <SortHeader label="Amount" k="amount" sort={sort} onSort={onSort} align="right" />,
+              ]}
+              rows={pageRows.map((b) => {
+                const pending = ops.pendingRefund(b.id);
+                const escalated = bookingNotes[b.id]?.some((n) => n.escalated);
+                return [
+                  <button
+                    type="button"
+                    className="row-link whitespace-nowrap font-semibold text-navy-900 hover:text-teal-700"
+                    onClick={() => setOpenId(b.id)}
+                    aria-label={`Open booking ${b.id} · ${b.who} ${b.surname}`}
+                  >
+                    {b.id}
+                  </button>,
+                  <div className="leading-tight">
+                    <div className="font-medium text-navy-900 whitespace-nowrap">
+                      {b.who} {b.surname}
+                    </div>
+                    {b.phone && (
+                      <div className="text-[11.5px] text-slate-500 tnum whitespace-nowrap">
+                        <Masked value={b.phone} />
+                      </div>
+                    )}
+                  </div>,
+                  <BookingItems items={b.items} />,
+                  <span className="whitespace-nowrap">{b.date}</span>,
+                  <Badge tone={chan(b.channel)}>{b.channel}</Badge>,
+                  <div className="flex flex-col items-start gap-1">
+                    <StatusBadge status={b.status} />
+                    {pending && (
+                      <Badge tone="amber">
+                        <Icon.refund size={10} /> Refund pending
+                      </Badge>
+                    )}
+                    {escalated && (
+                      <Badge tone="red">
+                        <Icon.bell size={10} /> Escalated
+                      </Badge>
+                    )}
+                  </div>,
+                  `€${b.amount}`,
+                ];
+              })}
+            />
+            {pageCount > 1 && (
+              <Pager
+                page={safePage}
+                pageCount={pageCount}
+                total={sorted.length}
+                pageSize={PAGE}
+                onPage={setPage}
+              />
+            )}
+          </>
+        )}
+      </Card>
+      <BookingDrawer booking={open} onClose={() => setOpenId(null)} agent={agent} />
+    </div>
+  );
+}

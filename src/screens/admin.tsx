@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { SortHeader, Pager, dateVal, cmpVal, moneyVal, type SortState } from "../components/TableTools";
-import { Icon, type IconRenderer } from "../lib/icons";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, useMockLoad, FutureBanner, ContextPanel, Spinner, PeriodPicker, FilterBar, filterCount } from "../components/ui";
+import { Pager, moneyVal } from "../components/TableTools";
+import { Icon } from "../lib/icons";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, EmptyState, FutureBanner, ContextPanel, Spinner, PeriodPicker } from "../components/ui";
 import type { TabEntry } from "../components/ui";
 import { BarChart, HBarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts";
 import { SunbedMark } from "../components/Beach";
@@ -15,19 +15,23 @@ import { BADGE_COLORS, BADGE_COLOR_KEYS, BADGE_ICONS, GAME_METRICS } from "../da
 import type { Achievement, GameMetric } from "../data/gamification";
 import type { SunbedSlot, PassDesign, CardText } from "../domain/types";
 import { CardFace, ScaledCard, WalletRendition, TEXT_KEYS, TEXT_LABELS, type DragKey } from "../components/PassDesigner";
-import { ADMIN_BOOKINGS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, personByFirst, CUSTOMERS, type AdminBooking } from "../data/mock";
+import { TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, personByFirst, CUSTOMERS } from "../data/mock";
+import { SendModal, type SendChannel } from "../components/SendModal";
 import { useApp } from "../app/store";
 import { downloadCSV, downloadCSVReport, downloadPDF, type CsvSection } from "../lib/download";
 import { usePeriod } from "../lib/usePeriod";
 import { OccupancyTab, occupancyCsv, useOccupancy } from "./reporting/OccupancyTab";
 import { ChannelsTab, channelsCsv, useChannels } from "./reporting/ChannelsTab";
-import { readHashQuery, writeHashQuery } from "../app/router";
-import { activeCount, filtersFromParams, filtersToParams, isAmount, matchAmount, type FilterDef, type FilterState } from "../domain/filters";
+
+
 import { resolveRange, comparisonRange, lastYearRange, granularityFor, rangeLabel, periodNoun, comparisonLabel, isoFromDayMonth, inRange, fmtWeekday as fmtWeekdayP, DEMO_TODAY } from "../domain/period";
 import { summarize, series, buckets, fmtEUR, fmtInt, fmtPct, trendPct, trendPp, trendEUR } from "../data/analytics";
 import { Masked } from "./tenant/ViewAs";
-import { onlineBookings, payLinkBookings, tillBookings, tillRefunds } from "../data/tillAdmin";
-import { PENDING_REFUNDS, REFUND_REASONS, refundHistory, refundStats } from "../data/refunds";
+import { tillRefunds } from "../data/tillAdmin";
+import { refundHistory, refundStats } from "../data/refunds";
+import { decidedRefundRows, opsNow, useBookingOps } from "../lib/useBookingOps";
+import { slaState } from "../domain/bookingOps";
+import { PendingRefund } from "./bookings/BookingDrawer";
 import { InvoicesTab, OverviewPanel, PaymentsTab, SectionChips, financeCsv, financePdf, useFinanceData, useSection } from "./reporting/FinanceTabs";
 import { financeReport } from "../data/finance";
 import { reconcile } from "../domain/reconcile";
@@ -86,7 +90,7 @@ export function AdminDashboard() {
       <PageHead title="Dashboard" sub="Akti tou Iliou · bookings & revenue overview" badge={<Badge tone="mvp">MVP</Badge>}
         actions={<><PeriodPicker value={period} onChange={setPeriod} /><Btn variant="outline" icon={Icon.download} onClick={exportDashboard}>Export</Btn></>} />
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((k) => <StatCard key={k.label} label={k.label} value={k.value} sub={<span>{k.detail && <span className="block">{k.detail}</span>}<span className={k.detail ? "block text-slate-500" : undefined}>{k.trend ? vs : "no comparison data"}</span></span>} tone={k.tone} trend={k.trend} />)}
+        {kpis.map((k) => <StatCard key={k.label} label={k.label} value={k.value} valueTitle={k.full} sub={<span>{k.detail && <span className="block">{k.detail}</span>}<span className={k.detail ? "block text-slate-500" : undefined}>{k.trend ? vs : "no comparison data"}</span></span>} tone={k.tone} trend={k.trend} />)}
       </div>
       {closed && (
         <div className="mt-4"><EmptyState icon={Icon.umbrella} title="The beach was closed" body={`No bookings or revenue in ${label}. The season runs 1 May – 30 Sep.`} /></div>
@@ -119,267 +123,9 @@ export function AdminDashboard() {
 const Leg = ({ c, t }: { c: string; t: ReactNode }) => <div className="flex items-center gap-2"><i className={`w-3 h-3 rounded-sm ${c} inline-block`} />{t}</div>;
 
 export { AdminAvailability } from "./beach/BeachAdmin";
+export { AdminBookings } from "./bookings/Bookings";
 
 /* ============ BOOKINGS LIST ============ */
-/* ---- Shared send-channel picker — QR / offers via Email · Viber · SMS ---- */
-type SendChannel = "Email" | "Viber" | "SMS";
-const SEND_CHANNELS: { key: SendChannel; icon: IconRenderer; color: string }[] = [
-  { key: "Email", icon: Icon.mail, color: "#0d9488" },
-  { key: "Viber", icon: Icon.chat, color: "#7360f2" },
-  { key: "SMS", icon: Icon.phone, color: "#16a34a" },
-];
-
-function SendModal({ open, onClose, title, intro, email, phone, sendLabel = "Send", onSend }: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  intro?: string;
-  email?: string;
-  phone?: string;
-  sendLabel?: string;
-  onSend: (channel: SendChannel, dest: string) => void;
-}) {
-  const [channel, setChannel] = useState<SendChannel>("Email");
-  useEffect(() => { if (open) setChannel("Email"); }, [open]);
-  const destOf = (c: SendChannel) => (c === "Email" ? email : phone) || "—";
-  return (
-    <Modal open={open} onClose={onClose} title={title}
-      footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-        <Btn variant="primary" icon={Icon.check} onClick={() => { onSend(channel, destOf(channel)); onClose(); }}>{sendLabel} via {channel}</Btn></>}>
-      <div className="space-y-3">
-        {intro && <p className="text-[13px] text-slate-600 -mt-1">{intro}</p>}
-        <div className="grid grid-cols-3 gap-2">
-          {SEND_CHANNELS.map((c) => {
-            const CIcon = c.icon;
-            const on = channel === c.key;
-            return (
-              <button key={c.key} type="button" onClick={() => setChannel(c.key)} aria-pressed={on}
-                className={`rounded-xl p-3 text-center ring-1 transition ${on ? "ring-2 ring-teal-500 bg-teal-50/50" : "ring-slate-200 bg-white hover:ring-teal-400"}`}>
-                <span className="mx-auto mb-1.5 w-10 h-10 rounded-xl grid place-items-center text-white shadow-sm" style={{ background: c.color }}><CIcon size={18} /></span>
-                <div className="text-[13px] font-semibold text-navy-900">{c.key}</div>
-                <div className="text-[10.5px] text-slate-500 truncate">{destOf(c.key)}</div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-/* Items of one booking, stacked — a customer who reserved several sunbeds plus
-   parking / a locker / tickets sees them all together under their booking id. */
-function BookingItems({ items }: { items: string[] }) {
-  if (items.length <= 1) return <span className="whitespace-nowrap">{items[0] ?? "—"}</span>;
-  return (
-    <div className="space-y-0.5 min-w-[170px]">
-      {items.map((it, i) => (
-        <div key={i} className="flex items-center gap-1.5 whitespace-nowrap">
-          <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
-          <span>{it}</span>
-        </div>
-      ))}
-      <div className="text-[11px] text-slate-400 pt-0.5">{items.length} items · one booking</div>
-    </div>
-  );
-}
-
-type EnrichedBooking = AdminBooking & { surname: string; phone: string; email: string };
-
-/* Structured filters for the bookings list (AENR-471). Values come from the
-   booking data; the date filter is the shared period control. */
-const BOOKING_ITEM_TYPES = [{ v: "Sunbed", l: "Sunbed" }, { v: "Entry", l: "Entry ticket" }, { v: "Day locker", l: "Locker" }, { v: "Parking", l: "Parking" }];
-const BOOKING_FILTERS: FilterDef[] = [
-  { key: "channel", label: "Channel", kind: "multi", options: ["Online", "Walk-in", "Phone", "Cashier", "Pay-by-link"].map((v) => ({ v, l: v })) },
-  { key: "status", label: "Status", kind: "multi", options: ["Confirmed", "Used", "Unpaid", "Refunded", "Cancelled"].map((v) => ({ v, l: v })) },
-  { key: "amount", label: "Amount", kind: "amount" },
-  { key: "item", label: "Item type", kind: "multi", options: BOOKING_ITEM_TYPES },
-  { key: "zone", label: "Zone", kind: "multi", options: ZONES.map((z) => ({ v: z.name, l: z.name })) },
-];
-const itemKind = (item: string) => item.split(" · ")[0];
-const itemZone = (item: string) => (itemKind(item) === "Sunbed" ? item.split(" · ")[1] : null);
-function matchBookingFilters(b: { channel: string; status: string; amount: number; items: string[] }, f: FilterState): boolean {
-  const has = (k: string) => Array.isArray(f[k]) && (f[k] as string[]).length > 0;
-  const inList = (k: string, v: string) => (f[k] as string[]).includes(v);
-  if (has("channel") && !inList("channel", b.channel)) return false;
-  if (has("status") && !inList("status", b.status)) return false;
-  if (isAmount(f.amount) && !matchAmount(b.amount, f.amount)) return false;
-  if (has("item") && !b.items.some((i) => inList("item", itemKind(i)))) return false;
-  if (has("zone") && !b.items.some((i) => { const z = itemZone(i); return !!z && inList("zone", z); })) return false;
-  return true;
-}
-
-/* Staff notes on a booking. Call-centre agents can escalate to a manager
-   (e.g. a refund or date change they can't action themselves). */
-function BookingNotesModal({ booking, onClose, agent }: { booking: EnrichedBooking | null; onClose: () => void; agent: boolean }) {
-  const { bookingNotes, addBookingNote, toast } = useApp();
-  const [text, setText] = useState("");
-  const [escalate, setEscalate] = useState(false);
-  const notes = booking ? bookingNotes[booking.id] ?? [] : [];
-  const close = () => { setText(""); setEscalate(false); onClose(); };
-  const save = () => {
-    if (!booking || !text.trim()) return;
-    addBookingNote(booking.id, { text: text.trim(), at: new Date().toISOString(), by: agent ? "Call Center" : "Manager / Admin", escalated: escalate });
-    toast(escalate ? `Note added to ${booking.id} and escalated to a manager.` : `Note added to ${booking.id}.`, { tone: "success" });
-    close();
-  };
-  return (
-    <Modal open={booking !== null} onClose={close} title={booking ? `Notes · ${booking.id}` : "Notes"}
-      footer={<><Btn variant="ghost" onClick={close}>Cancel</Btn><Btn variant="primary" icon={Icon.check} disabled={!text.trim()} onClick={save}>{escalate ? "Add & escalate" : "Add note"}</Btn></>}>
-      {booking && (
-        <div className="space-y-3">
-          <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm flex justify-between gap-2"><span className="text-slate-600">{booking.who} {booking.surname} · {booking.date}</span><b className="tnum">€{booking.amount}</b></div>
-          {notes.length > 0 ? (
-            <ul className="space-y-2">
-              {notes.map((n, i) => (
-                <li key={i} className="rounded-xl ring-1 ring-slate-200 bg-white px-3 py-2">
-                  <div className="text-[11px] text-slate-500 flex items-center gap-2">{n.by} · {new Date(n.at).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}{n.escalated && <Badge tone="red">Escalated</Badge>}</div>
-                  <div className="text-sm text-navy-900 mt-0.5 whitespace-pre-wrap">{n.text}</div>
-                </li>
-              ))}
-            </ul>
-          ) : <div className="text-[12px] text-slate-500">No notes yet.</div>}
-          <Field label="New note"><textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} placeholder="e.g. Caller asked to move the booking to Saturday." className="glass-input w-full rounded-xl px-3.5 py-2.5 text-sm outline-none focus:ring-2 focus:ring-teal-500/70" /></Field>
-          <label className="flex items-start gap-2.5 text-sm cursor-pointer">
-            <input type="checkbox" checked={escalate} onChange={(e) => setEscalate(e.target.checked)} className="mt-0.5 w-4 h-4 accent-teal-600" />
-            <span className="font-semibold text-navy-900">Escalate to a manager<span className="block font-normal text-[12px] text-slate-500">{agent ? "Refunds and changes you can't make are handled by a manager." : "Flags the booking as needing a manager's decision."}</span></span>
-          </label>
-        </div>
-      )}
-    </Modal>
-  );
-}
-
-export function AdminBookings() {
-  const { toast, persona, bookingNotes, till, payLinks, account } = useApp();
-  // Shared by Manager/Admin and Call Center; agents look up and help callers
-  // but don't export or refund — they escalate to a manager (AENR-472).
-  const agent = persona === "callcenter";
-  const [noteFor, setNoteFor] = useState<EnrichedBooking | null>(null);
-  const [q, setQ] = useState("");
-  const [page, setPage] = useState(0);
-  const [sort, setSort] = useState<SortState>(null);
-  const [sendFor, setSendFor] = useState<EnrichedBooking | null>(null);
-  const loading = useMockLoad();
-  const PAGE = 30;
-  const chan = (c: string) => ({ Online: "blue", "Walk-in": "amber", Phone: "indigo", Cashier: "green", "Pay-by-link": "coral" }[c] || "slate");
-  // Sunbed sales from the Cashier till appear alongside (channel Cashier).
-  const enriched: EnrichedBooking[] = [...onlineBookings(account.bookings), ...payLinkBookings(payLinks), ...tillBookings(till.sales), ...ADMIN_BOOKINGS].map((b) => {
-    const p = personByFirst(b.who);
-    return { ...b, surname: p?.last ?? "", phone: p?.phone ?? "", email: p?.email ?? "" };
-  });
-  // Visit-date filter from the shared period control (AENR-466); all dates by default.
-  const [period, setPeriodRaw] = usePeriod({ kind: "all" });
-  const setPeriod = (p: Parameters<typeof setPeriodRaw>[0]) => { setPeriodRaw(p); setPage(0); };
-  const range = resolveRange(period);
-  // Channel / status / amount / item / zone filters, kept in the URL.
-  const [filters, setFiltersRaw] = useState<FilterState>(() => filtersFromParams(BOOKING_FILTERS, readHashQuery()));
-  const setFilters = (f: FilterState) => { setFiltersRaw(f); setPage(0); writeHashQuery(filtersToParams(BOOKING_FILTERS, f), BOOKING_FILTERS.map((d) => d.key)); };
-  const filtered = enriched.filter((b) => inRange(isoFromDayMonth(b.date), range) && matchBookingFilters(b, filters) && (b.id + b.who + b.surname + b.phone + b.items.join(" ")).toLowerCase().includes(q.toLowerCase()));
-  const anyFilter = !!range || !!q || activeCount(filters) > 0;
-  const sortVal = (b: EnrichedBooking): string | number => {
-    switch (sort?.key) {
-      case "id": return b.id;
-      case "name": return b.who;
-      case "surname": return b.surname;
-      case "amount": return b.amount;
-      case "date": return dateVal(b.date);
-      default: return 0;
-    }
-  };
-  const sorted = sort ? [...filtered].sort((a, b) => cmpVal(sortVal(a), sortVal(b)) * sort.dir) : filtered;
-  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE));
-  const safePage = Math.min(page, pageCount - 1);
-  const pageRows = sorted.slice(safePage * PAGE, safePage * PAGE + PAGE);
-  const onSort = (k: string) => { setSort((s) => (s?.key === k ? { key: k, dir: s.dir === 1 ? -1 : 1 } : { key: k, dir: 1 })); setPage(0); };
-  const exportCSV = () => {
-    // One row per booking *item*, so each sunbed / parking / locker / ticket
-    // lands in its own cell instead of being crammed into one column. Booking
-    // identifiers repeat on each row (so any column is sortable/filterable); the
-    // booking total sits once on its first item row, so summing Amount is correct.
-    const header = ["Booking", "Name", "Surname", "Phone", "Item", "Date", "Channel", "Status", "Amount (€)"];
-    const rows: (string | number)[][] = [];
-    sorted.forEach((b) => {
-      const items = b.items.length ? b.items : ["—"];
-      items.forEach((it, i) => rows.push([b.id, b.who, b.surname || "—", b.phone || "—", it, b.date, b.channel, b.status, i === 0 ? b.amount : ""]));
-    });
-    downloadCSV(range ? `bookings-${range.from}_${range.to}.csv` : "bookings.csv", header, rows);
-    toast(`Exported ${sorted.length} bookings · ${rows.length} item rows to CSV.`, { tone: "success" });
-  };
-  return (
-    <div>
-      <Card className="p-4">
-        {/* Search + Export sit on the same row inside the card so the header
-            doesn't add a separate strip above. Export hugs the right edge. */}
-        <div className="flex items-center gap-3 mb-3 flex-wrap">
-          <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-sm flex-1 min-w-[200px] text-slate-600">
-            <Icon.search size={16} /><input value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="Search bookings…" aria-label="Search bookings by ID, name, phone or item" className="text-sm outline-none w-full bg-transparent text-ink" />
-          </div>
-          {!agent && <Btn variant="outline" icon={Icon.download} onClick={exportCSV} className="ml-auto">Export</Btn>}
-        </div>
-        <PeriodPicker value={period} onChange={setPeriod} allowAll presets={["day", "week", "month", "year", "season"]} resetTo={{ kind: "all" }} className="mb-3" />
-        <div className="mb-3"><FilterBar defs={BOOKING_FILTERS} value={filters} onChange={setFilters} count={filterCount(sorted.length, enriched.length, "bookings", filters, !!range || !!q)} /></div>
-        {loading ? (
-          <TableSkeleton rows={5} cols={9} />
-        ) : sorted.length === 0 ? (
-          <EmptyState icon={Icon.search} title="No matching bookings"
-            body={q ? `Nothing matches “${q}”${range ? ` in ${rangeLabel(range)}` : ""} with these filters. Try a different name, sunbed code or booking ID.` : `No bookings match these filters${range ? ` in ${rangeLabel(range)}` : ""}.`}
-            action={anyFilter ? <Btn size="sm" variant="outline" onClick={() => { setQ(""); setFilters({}); setPeriod({ kind: "all" }); }}>Clear filters</Btn> : undefined} />
-        ) : (
-          <>
-            <Table cols={[
-              <SortHeader label="Booking" k="id" sort={sort} onSort={onSort} />,
-              <SortHeader label="Name" k="name" sort={sort} onSort={onSort} />,
-              <SortHeader label="Surname" k="surname" sort={sort} onSort={onSort} />,
-              "Phone", "Items",
-              <SortHeader label="Date" k="date" sort={sort} onSort={onSort} />,
-              "Channel", "Status",
-              <SortHeader label="Amount" k="amount" sort={sort} onSort={onSort} align="right" />,
-              "",
-            ]} right={[8]} dense
-              rows={pageRows.map((b) => [
-                <span className="whitespace-nowrap">{b.id}</span>,
-                b.who,
-                b.surname || <span className="text-slate-400">—</span>,
-                b.phone ? <span className="tnum whitespace-nowrap"><Masked value={b.phone} /></span> : <span className="text-slate-400">—</span>,
-                <BookingItems items={b.items} />,
-                b.date,
-                <Badge tone={chan(b.channel)}>{b.channel}</Badge>,
-                <div className="flex flex-col items-start gap-1">
-                  <StatusBadge status={b.status} />
-                  {bookingNotes[b.id]?.some((n) => n.escalated) && <Badge tone="red"><Icon.bell size={10} /> Escalated</Badge>}
-                </div>,
-                `€${b.amount}`,
-                <div className="flex items-center">
-                  <button type="button" onClick={() => setSendFor(b)} aria-label={`Resend QR for ${b.id}`} title="Resend QR"
-                    className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-2 h-9 text-[12.5px] font-semibold text-navy-900 hover:bg-slate-100 transition">
-                    <Icon.mail size={15} className="text-slate-500" />QR
-                  </button>
-                  <button type="button" onClick={() => setNoteFor(b)} aria-label={`Notes for ${b.id}${bookingNotes[b.id]?.length ? ` (${bookingNotes[b.id].length})` : ""}`} title="Notes"
-                    className="relative inline-flex items-center gap-1 whitespace-nowrap rounded-xl px-2 h-9 text-[12.5px] font-semibold text-navy-900 hover:bg-slate-100 transition">
-                    <Icon.doc size={15} className="text-slate-500" />{bookingNotes[b.id]?.length ? <span className="tnum">{bookingNotes[b.id].length}</span> : null}
-                  </button>
-                </div>,
-              ])} />
-            {pageCount > 1 && <Pager page={safePage} pageCount={pageCount} total={sorted.length} pageSize={PAGE} onPage={setPage} />}
-          </>
-        )}
-      </Card>
-      <BookingNotesModal booking={noteFor} onClose={() => setNoteFor(null)} agent={agent} />
-      <SendModal
-        open={sendFor !== null}
-        onClose={() => setSendFor(null)}
-        title="Resend QR"
-        intro={sendFor ? `Send the gate QR for ${sendFor.id} (${sendFor.who}${sendFor.surname ? " " + sendFor.surname : ""}) again.` : undefined}
-        email={sendFor?.email}
-        phone={sendFor?.phone}
-        sendLabel="Resend"
-        onSend={(ch, dest) => toast(`QR for ${sendFor?.id} re-sent via ${ch} to ${dest}.`, { tone: "success" })}
-      />
-    </div>
-  );
-}
-
 /* Compact live beach coverage for the manual booking — the same umbrella sets the
    customer sees, scaled into the form. Available sets are tappable (fill the
    code); taken sets are dimmed. */
@@ -719,7 +465,7 @@ export function AdminReporting() {
           Whole beach · all products and payment methods. Card revenue = “Captured” above{section ? " for the whole beach — the section filter applies to the block above only" : ""}; sunbed sets = “Sunbed bookings” above.
         </p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          {execKpis.slice(0, 5).map((x, i) => <StatCard instant key={x.label} label={x.label} value={x.value} sub={x.detail ? <span><span className="block">{x.detail}</span><span className="block text-slate-500">{x.sub}</span></span> : x.sub} tone={x.tone} trend={x.trend}
+          {execKpis.slice(0, 5).map((x, i) => <StatCard instant key={x.label} label={x.label} value={x.value} valueTitle={x.full} sub={x.detail ? <span><span className="block">{x.detail}</span><span className="block text-slate-500">{x.sub}</span></span> : x.sub} tone={x.tone} trend={x.trend}
             sparkline={i === 0 ? <Sparkline data={revSeries.map((d) => d.v)} /> : i === 1 ? <Sparkline data={bookSeries.map((d) => d.v)} color="#0ea5e9" /> : undefined} />)}
         </div>
         {/* Leisure-industry KPIs (RevPATB ≈ RevPAR for sunbeds). */}
@@ -742,12 +488,14 @@ export function AdminReporting() {
             </div>
             <BarChart color="#3a47cc" data={bookSeries} label={`Bookings by ${axis.toLowerCase()}, ${label}`} />
           </Card>
-          <div className="rounded-3xl bg-gradient-to-br from-slaice-600 to-slaice-500 text-white p-5 shadow-lift flex flex-col">
-            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-white/80"><Icon.sparkles size={14} /> Insight</div>
-            <div className="mt-2 font-display font-bold text-lg leading-snug">{weekendLift > 0 ? `Weekends run ${weekendLift}% fuller than weekdays.` : "Demand is even across the week."}</div>
-            <p className="text-[13px] text-white/85 mt-1 leading-snug">{topZone.l} averages {topZone.v}% occupancy {noun}. Consider dynamic weekend pricing on front-row sets to lift RevPATB.</p>
-            <Btn variant="light" size="sm" className="mt-auto self-start" icon={Icon.trend} onClick={() => go("admin", "availability")}>Set a rule</Btn>
-          </div>
+          {/* Insight in the brand system (AENR-582): a card like the others, teal accent, with the period it covers. */}
+          <Card className="p-5 flex flex-col relative overflow-hidden">
+            <span aria-hidden className="absolute left-0 top-4 bottom-4 w-1 rounded-r-full bg-teal-500" />
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-teal-700"><Icon.sparkles size={14} /> Insight · {label}</div>
+            <div className="mt-2 font-display font-bold text-lg leading-snug text-navy-900">{weekendLift > 0 ? `Weekends run ${weekendLift}% fuller than weekdays.` : "Demand is even across the week."}</div>
+            <p className="text-[13px] text-slate-600 mt-1 leading-snug">{topZone.l} averages {topZone.v}% occupancy {noun}. Consider dynamic weekend pricing on front-row sets to lift RevPATB.</p>
+            <Btn variant="teal" size="sm" className="mt-auto self-start" icon={Icon.trend} onClick={() => go("admin", "availability")}>Set a rule</Btn>
+          </Card>
         </div>
       </>}
 
@@ -836,75 +584,26 @@ function TillShiftsCard() {
   );
 }
 
-/* ============ REFUNDS ============ */
-// Stripe refund demo steps — shown one-by-one after "Refund via Stripe".
-const STRIPE_STEPS: { label: string; icon: IconRenderer }[] = [
-  { label: "Authorizing with Stripe", icon: Icon.lock },
-  { label: "Reversing the charge & application fee", icon: Icon.refund },
-  { label: "Issuing MyDATA credit note (5.1)", icon: Icon.shield },
-  { label: "E-mailing the customer", icon: Icon.mail },
-];
-
-function StripeProgress({ step }: { step: number }) {
-  return (
-    <div className="py-1 space-y-2.5">
-      <div className="flex items-center gap-2 text-[13px] font-semibold text-navy-900"><Spinner size={14} /> Processing refund via Stripe…</div>
-      <div className="space-y-1.5">
-        {STRIPE_STEPS.map((s, i) => {
-          const state = i < step ? "done" : i === step ? "active" : "todo";
-          const StepIcon = s.icon;
-          return (
-            <div key={i} className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 ring-1 transition ${state === "done" ? "ring-teal-200 bg-teal-50/60" : state === "active" ? "ring-slate-200 bg-white shadow-soft" : "ring-slate-100 bg-slate-50/50 opacity-55"}`}>
-              <span className={`w-6 h-6 rounded-full grid place-items-center shrink-0 ${state === "done" ? "bg-teal-600 text-white" : state === "active" ? "bg-navy-900 text-white" : "bg-slate-200 text-slate-400"}`}>
-                {state === "done" ? <Icon.check size={13} /> : state === "active" ? <Spinner size={12} /> : <StepIcon size={12} />}
-              </span>
-              <span className={`text-[13px] ${state === "todo" ? "text-slate-400" : "text-navy-900"}`}>{s.label}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function RefundDone({ amount, type, reason, tx }: { amount: number; type: string; reason: string; tx: string }) {
-  return (
-    <div className="py-2 text-center space-y-2 animate-pop">
-      <span className="mx-auto w-12 h-12 rounded-full bg-teal-600 text-white grid place-items-center shadow"><Icon.check size={22} /></span>
-      <div className="font-semibold text-navy-900">Refunded €{amount}</div>
-      <div className="text-[13px] text-slate-600 max-w-xs mx-auto">{type} · {reason}. Stripe charge reversed, credit note (5.1) filed with MyDATA, and a confirmation e-mailed to the customer.</div>
-      <div className="text-[11px] text-slate-400 tnum">{tx} · re_3PqA2k…f4d</div>
-    </div>
-  );
-}
-
+/* ============ REFUNDS (AENR-583 decision queue) ============ */
 export function AdminRefunds() {
-  const { toast, till } = useApp();
-  const [modal, setModal] = useState<number | null>(null);
-  // The shared period filters the KPIs, the list and the export (AENR-466).
+  const { toast, till, persona } = useApp();
+  const agent = persona === "callcenter";
+  const ops = useBookingOps();
+  // The shared period filters the KPIs, the history and the export (AENR-466).
   const [period, setPeriod] = usePeriod({ kind: "preset", preset: "month", offset: 0 });
-  const [rows, setRows] = useState(PENDING_REFUNDS);
-  const [stage, setStage] = useState<"form" | "processing" | "done">("form");
-  const [step, setStep] = useState(0);
-  const [reason, setReason] = useState<string>("Weather");
-  const [rtype, setRtype] = useState("Full refund");
-  // Partial-refund amount the operator types; `committed` freezes it at submit
-  // so the processing/done stages and the row update agree on one figure.
-  const [amount, setAmount] = useState(0);
-  const [committed, setCommitted] = useState(0);
   const range = resolveRange(period);
   const label = range ? rangeLabel(range) : "All dates";
   const noun = periodNoun(period);
-  // One list drives the table, the KPIs and the export (AENR-546): requests
-  // awaiting a decision, refunds made at the till, then the refund history —
-  // generated from the same day figures as Reporting. Rows keep their index
-  // into `rows` so the Refund action targets the right one; −1 = read-only.
-  const visible = [
-    ...rows.map((r, i) => ({ r, i })),
-    ...tillRefunds(till.sales).map((r) => ({ r, i: -1 })),
-  ].filter(({ r }) => inRange(isoFromDayMonth(r.date), range))
-    .concat(refundHistory(range).map((r) => ({ r, i: -1 })));
-  const stats = refundStats(visible.map(({ r }) => r));
+  // Needs decision (AENR-583): every pending request, oldest first, whatever the period.
+  const queue = ops.refunds.filter((r) => r.status === "pending").sort((a, b) => a.requestedAt.localeCompare(b.requestedAt));
+  const overdue = queue.filter((r) => slaState(r.requestedAt, opsNow()) === "overdue").length;
+  // History (AENR-546): refunds made at the till, decided requests, then the
+  // refund history generated from the Reporting day figures — one list for the
+  // table, the KPIs and the export.
+  const visible = [...tillRefunds(till.sales), ...decidedRefundRows(ops.refunds)]
+    .filter((r) => inRange(isoFromDayMonth(r.date), range))
+    .concat(refundHistory(range));
+  const stats = refundStats(visible);
   const prevRange = range ? comparisonRange(period, range) : null;
   const prevStats = prevRange ? refundStats(refundHistory(prevRange)) : null;
   const salesRange = range ?? { from: "2026-05-01", to: DEMO_TODAY };
@@ -913,25 +612,14 @@ export function AdminRefunds() {
   const hasPrev = !!prevStats && prevSales > 0;
   const refundRate = sales ? stats.amount / sales : 0;
   const prevRate = prevStats && prevSales ? prevStats.amount / prevSales : 0;
-  const pending = visible.filter(({ r }) => !r.status).length;
   const REFUND_PAGE = 25;
   const [page, setPage] = useState(0);
   const pageCount = Math.max(1, Math.ceil(visible.length / REFUND_PAGE));
   const safePage = Math.min(page, pageCount - 1);
   const shown = visible.slice(safePage * REFUND_PAGE, (safePage + 1) * REFUND_PAGE);
-  const active = modal !== null ? rows[modal] : null;
-  const activeLast = active ? personByFirst(active.who)?.last ?? "" : "";
-  const total = active?.amount ?? 0;
-  const partial = rtype === "Partial refund";
-  // A partial refund must be a positive amount no larger than the charge.
-  const validAmount = !partial || (amount > 0 && amount <= total);
 
-  const openRefund = (i: number) => { setStage("form"); setStep(0); setReason("Weather"); setRtype("Full refund"); setAmount(rows[i].amount); setModal(i); };
-
-  // Functional CSV export — each field in its own column, mirroring the table
-  // (matches the itemised Bookings export). Refunded amount only set once issued.
   const exportCSV = () => {
-    const data = visible.map(({ r }) => {
+    const data = visible.map((r) => {
       const p = personByFirst(r.who);
       const refunded = r.status === "Refunded" ? (r.refundAmount ?? r.amount) : "";
       return [r.tx, r.date || "—", r.who, p?.last || "—", p?.phone || "—", r.amount, refunded, r.reason || "—", r.status || "Pending"];
@@ -940,82 +628,55 @@ export function AdminRefunds() {
     toast(`Exported ${visible.length} refunds (${label}) to CSV.`, { tone: "success" });
   };
 
-  // Walk through the Stripe steps once processing starts, then mark refunded.
-  useEffect(() => {
-    if (stage !== "processing") return;
-    if (step < STRIPE_STEPS.length) {
-      const t = setTimeout(() => setStep((s) => s + 1), 850);
-      return () => clearTimeout(t);
-    }
-    const t = setTimeout(() => {
-      setRows((r) => r.map((x, i) => (i === modal ? { ...x, status: "Refunded", reason: x.reason || reason, refundAmount: committed } : x)));
-      setStage("done");
-      toast(`Stripe refund of €${committed} issued · credit note (5.1) sent to MyDATA · customer e-mailed.`, { tone: "success" });
-    }, 600);
-    return () => clearTimeout(t);
-  }, [stage, step, modal, reason, committed, toast]);
-
   return (
     <div className="animate-fade-up">
-      <PageHead title="Refunds" sub="Partial or full refunds via Stripe, with reason logging and auto credit-note (MyDATA)." badge={<Badge tone="mvp">MVP</Badge>}
+      <PageHead title="Refunds" sub="Decide refund requests first, then the history — full or partial via Stripe, with reason logging and an automatic credit note (myDATA)." badge={<Badge tone="mvp">MVP</Badge>}
         actions={<><PeriodPicker value={period} onChange={setPeriod} presets={["day", "week", "month", "season"]} allowAll resetTo={{ kind: "preset", preset: "month", offset: 0 }} /><Btn variant="outline" icon={Icon.download} onClick={exportCSV}>Export</Btn></>} />
-      <div className="grid sm:grid-cols-4 gap-4 mb-4">
-        <StatCard label={`Refunded · ${noun}`} value={fmtEUR(stats.amount)} sub={`${fmtInt(stats.count)} refund${stats.count === 1 ? "" : "s"} in the list below`} tone="teal" trend={hasPrev ? trendPct(stats.amount, prevStats.amount) : undefined} />
-        <StatCard label="Pending review" value={pending} sub="awaiting decision" />
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <StatCard label="Needs decision" value={queue.length} sub={overdue ? `${overdue} past the 48 h SLA` : "all within the 48 h SLA"} tone={overdue ? "rose" : "amber"} />
+        <StatCard label={`Refunded · ${noun}`} value={fmtEUR(stats.amount)} sub={`${fmtInt(stats.count)} refund${stats.count === 1 ? "" : "s"} in the history below`} tone="teal" trend={hasPrev ? trendPct(stats.amount, prevStats.amount) : undefined} />
         <StatCard label="Refund rate" value={fmtPct(refundRate, 1)} sub={`of ${fmtEUR(sales)} sales`} trend={hasPrev ? `${refundRate - prevRate >= 0 ? "+" : "−"}${Math.abs((refundRate - prevRate) * 100).toFixed(1)}pp` : undefined} />
         <StatCard label="Top reason" value={stats.top ? stats.top.reason : "—"} sub={stats.top ? `${Math.round(stats.top.share * 100)}% of refunds` : "no refunds yet"} tone="indigo" />
       </div>
+
+      <Card className="p-4 mb-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+          <h2 className="font-display font-bold text-navy-900 text-lg">Needs decision <span className="text-slate-400 tnum">{queue.length}</span></h2>
+          <span className="text-[12px] text-slate-500">Oldest first · decide within 48 h · the same decision is available in the booking</span>
+        </div>
+        {queue.length === 0 ? (
+          <EmptyState compact icon={Icon.checkCircle} title="Nothing to decide" body="Every refund request has an answer. New requests from guests and the call centre land here." />
+        ) : (
+          <ul className="space-y-3">
+            {queue.map((r) => (
+              <li key={r.id}>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-1.5 text-[13px] text-slate-600">
+                  <b className="text-navy-900">{r.who} {personByFirst(r.who)?.last ?? ""}</b> · {r.tx}
+                  {r.bookingId && <> · <a className="font-semibold text-teal-700 hover:underline" href={`#/admin/bookings?booking=${encodeURIComponent(r.bookingId)}`}>{r.bookingId}</a></>}
+                </div>
+                <PendingRefund r={r} agent={agent} onDecide={ops.decideRefund} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
       <Card className="p-2">
-        {visible.length === 0 ? <EmptyState compact icon={Icon.refund} title="No refunds in this period" body={`Nothing was requested in ${label}.`} action={<Btn size="sm" variant="outline" onClick={() => setPeriod({ kind: "all" })}>Show all dates</Btn>} /> :
-        <Table cols={["Transaction", "Date", "Name", "Surname", "Phone", "Amount", "Reason", "Status", ""]} right={[5]}
-          rows={shown.map(({ r, i }) => {
+        <h2 className="font-display font-bold text-navy-900 px-2 pt-2 pb-1">History · {label}</h2>
+        {visible.length === 0 ? <EmptyState compact icon={Icon.refund} title="No refunds in this period" body={`Nothing was refunded in ${label}.`} action={<Btn size="sm" variant="outline" onClick={() => setPeriod({ kind: "all" })}>Show all dates</Btn>} /> :
+        <Table cols={["Transaction", "Date", "Guest", "Amount", "Reason", "Status"]} right={[3]}
+          rows={shown.map((r) => {
             const p = personByFirst(r.who);
-            return [r.channel ? <span className="inline-flex items-center gap-1.5 whitespace-nowrap">{r.tx}<Badge tone="green">{r.channel}</Badge></span> : r.tx, r.date || "—", r.who, p?.last || "—", p?.phone ? <span className="tnum whitespace-nowrap"><Masked value={p.phone} /></span> : "—",
+            return [r.channel ? <span className="inline-flex items-center gap-1.5 whitespace-nowrap">{r.tx}<Badge tone="green">{r.channel}</Badge></span> : r.tx, r.date || "—",
+              <div className="leading-tight"><div className="whitespace-nowrap">{r.who} {p?.last ?? ""}</div>{p?.phone && <div className="text-[11.5px] text-slate-500 tnum whitespace-nowrap"><Masked value={p.phone} /></div>}</div>,
               r.refundAmount != null && r.refundAmount < r.amount
                 ? <div className="leading-tight"><span className="tnum">€{r.amount}</span><div className="text-[11px] text-rose-600 tnum">−€{r.refundAmount} refunded</div></div>
                 : `€${r.amount}`,
-              r.approver ? <div className="leading-tight">{r.reason}<div className="text-[11px] text-slate-500">approved by {r.approver}</div></div> : r.reason || "—",
-              r.status ? <Badge tone={r.status === "Voided" ? "slate" : "green"}>{r.status}</Badge> : <Badge tone="amber">Pending</Badge>,
-              r.status ? <span className="text-slate-500 text-sm">done</span> : <Btn size="sm" variant="outline" icon={Icon.refund} onClick={() => openRefund(i)}>Refund</Btn>];
+              r.approver ? <div className="leading-tight">{r.reason}<div className="text-[11px] text-slate-500">decided by {r.approver}</div></div> : r.reason || "—",
+              <Badge tone={r.status === "Refunded" ? "green" : "slate"}>{r.status}</Badge>];
           })} />}
         {pageCount > 1 && <Pager page={safePage} pageCount={pageCount} total={visible.length} pageSize={REFUND_PAGE} onPage={setPage} />}
       </Card>
-      <Modal open={modal !== null} onClose={() => setModal(null)} title={stage === "done" ? "Refund complete" : "Issue refund"}
-        footer={
-          stage === "form" ? (<><Btn variant="ghost" onClick={() => setModal(null)}>Cancel</Btn>
-            <Btn variant="danger" icon={Icon.refund} disabled={!validAmount} onClick={() => { setCommitted(partial ? amount : total); setStep(0); setStage("processing"); }}>Refund €{partial ? (validAmount ? amount : 0) : total} via Stripe</Btn></>)
-          : stage === "done" ? (<Btn variant="primary" icon={Icon.check} onClick={() => setModal(null)}>Done</Btn>)
-          : undefined
-        }>
-        {active && (
-          <div className="space-y-3">
-            <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm flex justify-between"><span className="text-slate-500">{active.tx} · {active.who} {activeLast}</span><b className="tnum">€{active.amount}</b></div>
-            {stage === "form" && (
-              <>
-                <Field label="Refund type"><Select value={rtype} onChange={(e) => setRtype(e.target.value)} options={["Full refund", "Partial refund"]} /></Field>
-                {partial && (
-                  <Field label="Refund amount (€)">
-                    <Input type="number" min={1} max={total} step={1} value={amount}
-                      onChange={(e) => setAmount(Math.max(0, Math.min(total, Math.round(+e.target.value) || 0)))}
-                      className={!validAmount ? "ring-2 ring-rose-400 focus:ring-rose-400" : ""} />
-                    {!validAmount ? (
-                      <div className="text-[11px] text-rose-600 mt-1">Enter an amount between €1 and €{total}.</div>
-                    ) : amount < total ? (
-                      <div className="text-[11px] text-slate-500 mt-1 tnum">Up to €{total} · €{amount} returned, €{total - amount} stays charged.</div>
-                    ) : (
-                      <div className="text-[11px] text-slate-500 mt-1 tnum">Refunding the full €{total} — switch to “Full refund” if intended.</div>
-                    )}
-                  </Field>
-                )}
-                <Field label="Reason"><Select value={reason} onChange={(e) => setReason(e.target.value)} options={[...REFUND_REASONS]} /></Field>
-                <div className="text-[12px] text-slate-600 flex items-center gap-1.5"><Icon.shield size={13} /> Reverses the application fee and auto-issues a credit note to MyDATA.</div>
-              </>
-            )}
-            {stage === "processing" && <StripeProgress step={step} />}
-            {stage === "done" && <RefundDone amount={committed} type={rtype} reason={reason} tx={active.tx} />}
-          </div>
-        )}
-      </Modal>
     </div>
   );
 }

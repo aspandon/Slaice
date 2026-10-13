@@ -70,6 +70,21 @@ export function payLinkBookings(links: readonly PayLink[]): AdminBooking[] {
     }));
 }
 
+/** Pay-by-link reservations still waiting for payment (AENR-579) — "Awaiting payment". */
+export function awaitingLinkBookings(links: readonly PayLink[], now: number): AdminBooking[] {
+  return links
+    .filter((l) => !l.closed && new Date(l.deadline).getTime() > now)
+    .map((l) => ({
+      id: `#${l.id}`,
+      who: l.guest.name.split(" ")[0],
+      items: l.lines.map((x) => (x.setId ? `Sunbed · ${zoneName(x.zoneId)} · ${x.setId}` : `Entry · ${x.label} ×${x.qty}`)),
+      date: fmtDay(l.date),
+      channel: "Pay-by-link",
+      status: "Awaiting payment",
+      amount: l.total,
+    }));
+}
+
 /** Bookings placed online in the customer wizard on this device (AENR-532/524) — one row, every store's sets. */
 export function onlineBookings(list: readonly PlacedBooking[]): AdminBooking[] {
   return list.map((b) => {

@@ -18,6 +18,8 @@ import type { TillState } from "../domain/till";
 import type { FinanceConfig } from "../domain/finance";
 import { DEFAULT_INVENTORY, type InventoryState } from "../domain/inventory";
 import { DEFAULT_SUNBED_OPS, type SunbedOpsState } from "../domain/sunbedOps";
+import { DEFAULT_BOOKING_OPS } from "../data/bookingOps";
+import type { BookingOpsState } from "../domain/bookingOps";
 import type { PayLink } from "../domain/payLink";
 import { DEFAULT_DISPLAY, type DisplayConfig } from "../domain/display";
 import { DEFAULT_LAYOUT_STATE, type LayoutState } from "../domain/layoutVersions";
@@ -166,6 +168,9 @@ export interface AppContextValue {
   /** Staff-set sunbed status per date with history (AENR-499) — persisted. */
   sunbedOps: SunbedOpsState;
   setSunbedOps: (u: (s: SunbedOpsState) => SunbedOpsState) => void;
+  /** Booking timelines, set moves and refund requests (AENR-579, 583). */
+  bookingOps: BookingOpsState;
+  setBookingOps: (u: (s: BookingOpsState) => BookingOpsState) => void;
   /** Pay-by-link reservations (AENR-534). */
   payLinks: PayLink[];
   setPayLinks: (u: (s: PayLink[]) => PayLink[]) => void;
@@ -275,6 +280,8 @@ export const AppCtx = createContext<AppContextValue>({
   setInventory: () => {},
   sunbedOps: DEFAULT_SUNBED_OPS,
   setSunbedOps: () => {},
+  bookingOps: DEFAULT_BOOKING_OPS,
+  setBookingOps: () => {},
   payLinks: [],
   setPayLinks: () => {},
   display: DEFAULT_DISPLAY,

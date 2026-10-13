@@ -359,4 +359,6 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   finance block, AENR-546 Refunds KPIs from the listed rows, AENR-547 one demo calendar for every
   tenant-side persona, AENR-548 lifecycle stage as the one meaning of "Regular"), F1 / P1 / P2
   (AENR-588, 589, 590), and till & gate K1, K2, G1, G2 (AENR-584 tablet till, 585 offline banner,
-  586 full-screen scan result, 587 beach status by exception; defects AENR-591, 592 fixed on the way).
+  586 full-screen scan result, 587 beach status by exception; defects AENR-591, 592 fixed on the way),
+  and back-office operations A1–A5 (AENR-579 booking tabs + drawer + timeline, 580 live beach map,
+  581 guest row → profile + saved views, 582 reports in the brand system, 583 refund decision queue).
