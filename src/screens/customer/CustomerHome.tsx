@@ -34,7 +34,7 @@ const CARD = "glass-flat rounded-3xl overflow-hidden relative";
 let homeIntroPlayed = false;
 
 export function CustomerHome() {
-  const { dive, loyalty, beachLayout, weather, dayTime, sceneFx } = useApp();
+  const { dive, go, loyalty, beachLayout, weather, dayTime, sceneFx } = useApp();
   const { visits } = useVisits();
   const t = useT();
   // The hero chip mirrors the demo scene: weather icon/label/temp plus a
@@ -133,7 +133,8 @@ export function CustomerHome() {
 
       <div className="grid sm:grid-cols-2 gap-4 items-stretch">
         {/* Rebook your usual — from the guest's own visits */}
-        <button onClick={() => dive()} className={`${CARD} p-5 flex flex-col gap-2.5 text-left hover:bg-white/80 transition-colors group`} data-home-card>
+        {/* "Book again" opens Pay with the usual filled in (AENR-611); first-timers get the guided booking. */}
+        <button onClick={() => (mine ? go("customer", "plan", { rebook: mine }) : dive())} className={`${CARD} p-5 flex flex-col gap-2.5 text-left hover:bg-white/80 transition-colors group`} data-home-card>
           <div className="flex items-center gap-3">
             <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
             <div className="min-w-0">

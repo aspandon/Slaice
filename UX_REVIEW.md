@@ -439,3 +439,7 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   comparison period) and four tiles that open their own report; the full detail is one tap below. The
   overview's card figure is now “Card payments captured”, so only one figure is called revenue.
   AENR-628 fixed Reports › Occupancy scrolling sideways at 390px.
+- **AENR-611 — “Book again” in one tap.** Home's Book again opens Pay with the usual zone, sets, party
+  and extras on the next day they're free; Edit on any row changes it.
+- **AENR-613 — it remembers who's coming.** The last party is saved on the account and pre-selected
+  next time as “Your usual”.

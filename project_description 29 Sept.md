@@ -488,7 +488,7 @@ Each journey: **ID · name**, trigger, steps, outcome, rules and states.
  WHERE EACH TILE LEADS
  1 Hero ─────────────┐
  2 Promo · Claim ────┤                            [GAP] promo discount not applied;
- 3 Book again ───────┼──▶ Plan my visit (C-03)          nothing is pre-selected
+ 3 Book again ───────┼──▶ Plan my visit (C-03)          opens on Pay with the usual filled in (AENR-611)
  5 Perk · Use it ────┘
  5 Claim ────────────────▶ toast "Reward ready — show this at the gate"  [GAP] not tracked
  6 VIP tile ─────────────▶ #/customer/vip     (C-08)
@@ -511,7 +511,12 @@ and Season pass pages they open show the roadmap banner.
 2. **Weekend promo** (dismissible): "20% off front-row sunbeds — This weekend only · gates open
    09:00–20:00" → **Claim** opens the wizard. **[GAP]** the discount is not applied.
 3. **Rebook your usual:** "Central · front row — your favourite zone last season" → **Book again**
-   opens the wizard. **[GAP]** nothing is pre-selected.
+   (AENR-611) opens the wizard **on Pay** with the usual filled in: the most-booked zone, the usual number
+   of sets (the same set ids as the latest visit there when they're free, otherwise the next free ones),
+   the last party and the locker / parking spots of that visit, on the **first day in the next three weeks**
+   where the zone is open, sold online and has enough free sets. A note says “Your usual, ready for Today,
+   19 Jul. Change anything with Edit, or pay now.”; each row's Edit goes back to its step. No usual yet →
+   the guided booking.
 4. **Your badges:** gamification achievements, earned in colour, locked greyed with a lock and progress
    tooltip; counter "3/6".
 5. **Your rewards** (tall tile): active loyalty schemes sorted _claimable → in progress → perk_;
@@ -615,7 +620,10 @@ back; forward only via Continue). Footer: live **Total €** (animated) + **Back
 
 - Categories with steppers: **Individual (13+)** €10 · **Alimos resident** €6 (proof required at gate)
   · **Child (6–12)** €5 (under 6 free) · **Senior 65+** €7 (ID required).
-- **Auto-fill:** until the guest edits the numbers, headcount = **2 adults per picked set** ("We
+- **Remembers who's coming** (AENR-613): every booking saves the party on the account (`account.party`);
+  the next booking starts with it, offered first as the **Your usual** quick pick (“You + 1 adult + 2
+  children”) with “Same people as last time. Change the headcount below if someone else is coming.”
+- **Auto-fill** (first booking only): until the guest edits the numbers, headcount = **2 adults per picked set** ("We
   pre-filled 2 per set. Change the headcount below if you need to.").
 - **Quick picks:** Solo (1 adult), Couple (2 adults), Family · 4 (2 adults + 2 kids), Group · 6
   (6 adults, "Friends day").

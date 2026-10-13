@@ -58,6 +58,8 @@ export interface AccountState {
   invoices: InvoiceRequest[];
   /** Visits added to a phone wallet (AENR-620): visit key → which wallet. */
   wallet: Record<string, WalletKind>;
+  /** Who usually comes (AENR-613): the last party booked, by entry-ticket category; null until the first booking. */
+  party: Record<string, number> | null;
 }
 export type WalletKind = "apple" | "google";
 export const DEFAULT_ACCOUNT: AccountState = {
@@ -69,7 +71,22 @@ export const DEFAULT_ACCOUNT: AccountState = {
   released: [],
   invoices: [],
   wallet: {},
+  party: null,
 };
+/** "You + 1 adult + 2 children" — the party in words (the guest is the first adult). */
+export function partyLabel(party: Record<string, number>, names: Record<string, string> = {}, t: (s: string) => string = (s) => s): string {
+  const NOUN: Record<string, [string, string]> = { adult: ["adult", "adults"], child: ["child", "children"], resident: ["resident", "residents"], senior: ["senior", "seniors"] };
+  const parts: string[] = [];
+  const adults = party.adult ?? 0;
+  if (adults > 0) parts.push(t("You"));
+  for (const [k, n0] of Object.entries(party)) {
+    const n = k === "adult" ? n0 - 1 : n0;
+    if (n <= 0) continue;
+    const [one, many] = NOUN[k] ?? [names[k] ?? k, names[k] ?? k];
+    parts.push(`${n} ${t(n === 1 ? one : many)}`);
+  }
+  return parts.join(" + ") || t("Nobody yet");
+}
 /** The demo guest's profile. */
 export const PROFILE = {
   first: "Elena",

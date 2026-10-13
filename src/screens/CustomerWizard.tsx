@@ -19,7 +19,7 @@ import { localeFor } from "../app/i18n";
 import { PARKING_PRICE } from "../domain/pricing";
 import { useExtras } from "../lib/useExtras";
 import { useFinance } from "../lib/useFinance";
-import { serviceFees } from "../domain/account";
+import { partyLabel, serviceFees } from "../domain/account";
 import { cancelLine } from "../domain/visits";
 import { useSiteStatus } from "../lib/usePlatform";
 
@@ -172,12 +172,33 @@ export function CustomerWizard() {
 
 function WizardInner() {
   const tr = useT();
-  const { go, toast, addToCart, hint, lang, beachPricing, priceRules, calendar, inventory, weather } = useApp();
+  const { go, toast, addToCart, hint, lang, beachPricing, priceRules, calendar, inventory, weather, account, setAccount } = useApp();
   useSpotlight("customer", "plan");
+  const liveSlots = useLiveSlots();
+
+  // "Book again" (AENR-611): the guest's usual — zone, sets, party, locker / parking — on the
+  // next day it is free, worked out once when the wizard opens and shown on Pay.
+  const [plan] = useState(() => {
+    const u = hint?.persona === "customer" && hint.page === "plan" ? hint.rebook : undefined;
+    const z = u && ZONES.find((x) => x.name === u.zone || x.id === u.zone);
+    if (!u || !z) return null;
+    const time = new Date().toTimeString().slice(0, 5);
+    for (let i = 0; i < 21; i++) {
+      const iso = addDays(todayISO(), i);
+      if (dateBlock(z.id, iso, calendar.restrictions, todayISO(), time) || stopSellFor(inventory, z.id, [iso])) continue;
+      const free = liveSlots(z, [iso]).filter((x) => x.state === "a");
+      if (free.length < u.sets) continue;
+      // The sets they had last time when they're free, then the next free ones.
+      const picks = [...free.filter((x) => u.setIds.includes(x.id)), ...free.filter((x) => !u.setIds.includes(x.id))].slice(0, u.sets);
+      return { zoneId: z.id, date: iso, picks: picks.map((x): BedPick => ({ id: x.id, price: x.price, zoneId: z.id })), lockers: u.lockers, parking: u.parking };
+    }
+    return null;
+  });
 
   // Deep-link: a Home tile can open the wizard straight at a given step.
   const hintStep = hint && hint.persona === "customer" && hint.page === "plan" ? hint.step : undefined;
   const initialStep = useMemo(() => {
+    if (plan) return STEPS.findIndex((s) => s.id === "review");
     if (hintStep) {
       const i = STEPS.findIndex((s) => s.id === (EXTRA_STEPS.includes(hintStep) ? "review" : hintStep));
       if (i >= 0) return i;
@@ -194,28 +215,29 @@ function WizardInner() {
   }, [extrasOpen]);
 
   const [stepIdx, setStepIdx] = useState(initialStep);
-  const [people, setPeople] = useState<People>({ adult: 0, resident: 0, child: 0, senior: 0 });
+  // The party starts as the one they brought last time (AENR-613); first-timers get 2 per set.
+  const [people, setPeople] = useState<People>(() => account.party ?? (plan ? { adult: plan.picks.length * 2, resident: 0, child: 0, senior: 0 } : { adult: 0, resident: 0, child: 0, senior: 0 }));
   const [includeTickets, setIncludeTickets] = useState(true);
   // Track whether the guest has hand-edited the headcount. Until they do, we
   // pre-fill it from the chosen sets (2 entry tickets per set — see below).
-  const [peopleTouched, setPeopleTouched] = useState(false);
-  const [selDates, setSelDates] = useState([todayISO()]);
+  const [peopleTouched, setPeopleTouched] = useState(!!account.party || !!plan);
+  const [selDates, setSelDates] = useState([plan?.date ?? todayISO()]);
   const [multiDate, setMultiDate] = useState(false);
-  const [zoneId, setZoneId] = useState("central");
+  const [zoneId, setZoneId] = useState(plan?.zoneId ?? "central");
   // Explicit umbrella-set picks — the single source of truth for sunbeds
   // (zone-scoped; cleared when the zone changes).
-  const [bedSel, setBedSel] = useState<BedPick[]>([]);
+  const [bedSel, setBedSel] = useState<BedPick[]>(plan?.picks ?? []);
   // Opt-in: combine sets from several zones in one booking (AENR-524).
   const [multiStore, setMultiStore] = useState(false);
   const multiStoreRef = useRef(false);
   useEffect(() => { multiStoreRef.current = multiStore; }, [multiStore]);
-  const [lockerOn, setLockerOn] = useState(false);
-  const [lockerQty, setLockerQty] = useState(1);
+  const [lockerOn, setLockerOn] = useState(!!plan?.lockers);
+  const [lockerQty, setLockerQty] = useState(plan?.lockers || 1);
   const [lockerScope, setLockerScope] = useState<DayScope>("all");
   const [lockerDays, setLockerDays] = useState<string[]>([]);
   const [lockerBank, setLockerBank] = useState("A");
-  const [parkingOn, setParkingOn] = useState(false);
-  const [parkingQty, setParkingQty] = useState(1);
+  const [parkingOn, setParkingOn] = useState(!!plan?.parking);
+  const [parkingQty, setParkingQty] = useState(plan?.parking || 1);
   const [parkingScope, setParkingScope] = useState<DayScope>("all");
   const [parkingDays, setParkingDays] = useState<string[]>([]);
   // Vehicle plate per ISO date (multi-day trips can use a different plate each
@@ -226,7 +248,7 @@ function WizardInner() {
   // Most guests park the same car all week — default to one shared plate.
   const [parkingSamePlate, setParkingSamePlate] = useState(true);
   // Within the Beach step: choosing a zone vs. tapping its sets.
-  const [phase, setPhase] = useState<BeachPhase>("zones");
+  const [phase, setPhase] = useState<BeachPhase>(plan ? "sets" : "zones");
   // Desktop overview = clusters on open sand (FLIP-zoomable); phones = cards.
   const richOverview = useMediaQuery("(min-width: 768px) and (min-height: 560px)");
   // Camera-zoom plumbing: the captured FLIP state riding across the phase
@@ -246,7 +268,12 @@ function WizardInner() {
 
   // Bed IDs are zone-scoped — switching zone clears any picked beds.
   // …unless the guest opted into several zones, then picks are kept per zone.
-  useEffect(() => { if (!multiStoreRef.current) setBedSel([]); }, [zoneId]);
+  const shownZone = useRef(zoneId);
+  useEffect(() => {
+    if (shownZone.current === zoneId) return; // not on mount — "Book again" opens with its sets picked
+    shownZone.current = zoneId;
+    if (!multiStoreRef.current) setBedSel([]);
+  }, [zoneId]);
 
   // A set seats two, so default the headcount to 2 entry tickets per chosen set.
   // We stop auto-filling the moment the guest adjusts the numbers themselves.
@@ -268,7 +295,6 @@ function WizardInner() {
   // The admin-authored layout for this zone, if any — otherwise the default grid.
   // …with the live status for the chosen dates applied: sets sold at the till
   // or held in a till basket aren't bookable online (AENR-520).
-  const liveSlots = useLiveSlots();
   const slots = useMemo(() => liveSlots(zone, selDates), [liveSlots, zone, selDates]);
   const selectedIds = useMemo(() => new Set(bedSel.filter((b) => b.zoneId === zone.id).map((b) => b.id)), [bedSel, zone.id]);
   // Live sets of every zone with a pick — prices and the stale check before checkout.
@@ -454,6 +480,8 @@ function WizardInner() {
     }
     const items = buildItems();
     items.forEach((it) => addToCart(it));
+    // Remember who came (AENR-613) — next time the party is already filled in.
+    if (totalPeople > 0) setAccount((a) => ({ ...a, party: Object.fromEntries(Object.entries(people).filter(([, n]) => n > 0)) }));
     const added = items.length;
     toast(`${tr("Booking ready")} — ${added} ${added !== 1 ? tr("items") : tr("item")} ${tr("added to your basket.")}`, { tone: "success" });
     // Hand the menu card's rect to Checkout so its summary panel morphs out of
@@ -519,7 +547,14 @@ function WizardInner() {
                 pickedSets={bedSel.length}
                 autoFilled={!peopleTouched}
                 onPreset={(v) => editPeople(v)}
+                usualParty={account.party}
               />
+            )}
+            {step.id === "review" && plan && (
+              <div role="status" className="mb-3 rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2 flex items-start gap-2 text-[12.5px] text-navy-900">
+                <Icon.sparkles size={14} className="text-teal-600 shrink-0 mt-0.5" />
+                <span><b>{tr("Your usual, ready for")} {((c) => `${c.label}, ${c.sub}`)(chipLabel(plan.date, localeFor(lang), tr))}.</b> {tr("Change anything with Edit, or pay now.")}</span>
+              </div>
             )}
             {step.id === "review" && (
               <ReviewStep
@@ -1290,7 +1325,7 @@ function SandSunbeds({ slots, selected, onToggle, readOnly = false, landmarks = 
 }
 
 /* ============ Guests ============ */
-function PeopleStep({ tickets: TICKET, people, setPeople, includeTickets, setIncludeTickets, pickedSets, autoFilled, onPreset }: {
+function PeopleStep({ tickets: TICKET, people, setPeople, includeTickets, setIncludeTickets, pickedSets, autoFilled, onPreset, usualParty }: {
   tickets: TicketInfo;
   people: People;
   setPeople: Dispatch<SetStateAction<People>>;
@@ -1300,10 +1335,15 @@ function PeopleStep({ tickets: TICKET, people, setPeople, includeTickets, setInc
   /** True while the headcount is still the auto pre-fill (untouched by the guest). */
   autoFilled: boolean;
   onPreset: (v: People) => void;
+  /** The party from their last booking (AENR-613), offered first. */
+  usualParty: People | null;
 }) {
   const tr = useT();
   const totalPeople = Object.values(people).reduce((a, b) => a + b, 0);
+  const same = (a: People, b: People) => Object.keys({ ...a, ...b }).every((k) => (a[k] ?? 0) === (b[k] ?? 0));
+  const isUsual = !!usualParty && same(people, usualParty);
   const presets = [
+    ...(usualParty ? [{ id: "usual", label: tr("Your usual"), sub: partyLabel(usualParty, Object.fromEntries(Object.entries(TICKET).map(([k, t]) => [k, t.label.toLowerCase()])), tr), v: usualParty }] : []),
     { id: "solo",   label: tr("Solo"),       sub: tr("1 person"),     v: { adult: 1, resident: 0, child: 0, senior: 0 } },
     { id: "couple", label: tr("Couple"),     sub: tr("2 people"),     v: { adult: 2, resident: 0, child: 0, senior: 0 } },
     { id: "family", label: tr("Family · 4"), sub: tr("2 adults + 2 kids"), v: { adult: 2, resident: 0, child: 2, senior: 0 } },
@@ -1315,7 +1355,7 @@ function PeopleStep({ tickets: TICKET, people, setPeople, includeTickets, setInc
         <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{tr("Quick picks")}</div>
         <div className="flex flex-wrap gap-1.5">
           {presets.map((p) => {
-            const match = JSON.stringify(p.v) === JSON.stringify(people);
+            const match = p.id === "usual" ? isUsual : !(isUsual && usualParty && same(p.v, usualParty)) && same(p.v, people);
             return (
               <button key={p.id} onClick={() => onPreset(p.v)}
                 className={`text-left rounded-xl px-3 py-2 ring-1 transition ${match ? "bg-navy-900 text-white ring-navy-900" : "bg-white/70 ring-slate-200 hover:ring-teal-400"}`}>
@@ -1336,6 +1376,12 @@ function PeopleStep({ tickets: TICKET, people, setPeople, includeTickets, setInc
         </div>
       </div>
 
+      {isUsual && (
+        <div className="rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2 flex items-start gap-2 text-[12.5px] text-navy-900 animate-fade-up">
+          <Icon.group size={14} className="text-teal-600 shrink-0 mt-0.5" />
+          <span>{tr("Same people as last time.")} {tr("Change the headcount below if someone else is coming.")}</span>
+        </div>
+      )}
       {autoFilled && pickedSets > 0 && (
         <div className="rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2 flex items-start gap-2 text-[12.5px] text-navy-900 animate-fade-up">
           <Icon.ticket size={14} className="text-teal-600 shrink-0 mt-0.5" />

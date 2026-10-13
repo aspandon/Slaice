@@ -260,17 +260,27 @@ export const nextVisit = (visits: readonly Visit[]) =>
   visits.find((v) => v.status === "today" || v.status === "upcoming") ?? null;
 
 /** Their usual: the zone they booked most and its most-booked set. */
-export function usual(visits: readonly Visit[]): { zone: string; sets: number } | null {
+/** The guest's usual booking (AENR-611): their most-booked zone, the usual number of sets, and — from the
+ *  latest visit there — the set ids and how many lockers / parking spots came along. */
+export interface UsualBooking { zone: string; sets: number; setIds: string[]; lockers: number; parking: number }
+export function usual(visits: readonly Visit[]): UsualBooking | null {
   const counts = new Map<string, number>();
   for (const v of visits)
     if (v.zone && v.status !== "cancelled") counts.set(v.zone, (counts.get(v.zone) ?? 0) + 1);
   const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
   if (!top) return null;
-  const withZone = visits.filter((v) => v.zone === top[0] && v.sets.length);
+  const withZone = visits.filter((v) => v.zone === top[0] && v.sets.length && v.status !== "cancelled");
   const sets = Math.round(
     withZone.reduce((a, v) => a + v.sets.length, 0) / Math.max(1, withZone.length),
   );
-  return { zone: top[0], sets: Math.max(1, sets) };
+  const latest = [...withZone].sort((a, b) => b.date.localeCompare(a.date))[0];
+  return {
+    zone: top[0],
+    sets: Math.max(1, sets),
+    setIds: latest?.sets ?? [],
+    lockers: latest?.lockers.length ?? 0,
+    parking: latest?.parking.length ?? 0,
+  };
 }
 
 /** What a VIP pass would have saved the guest this season (AENR-576): discount × sunbed spend. */
