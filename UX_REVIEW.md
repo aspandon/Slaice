@@ -448,3 +448,6 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   persona menu.
 - **AENR-619 — rewards apply themselves.** Checkout takes the best earned reward off as a removable
   line; Claim buttons and the reward voucher are gone from Home and Wallet.
+- **AENR-621 — everything about the account in one list.** Account is a settings list (Companions,
+  Payment methods, Receipts, Notifications, Language, Privacy, Sign-in & security, Sign out); each row
+  opens one page. The settings dialogs are gone and the demo profile is the same everywhere.

@@ -1,12 +1,10 @@
 import { useMemo, useState } from "react";
-import type { ReactNode } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
-import { Badge, Btn, Modal, Field, Input, Select, Toggle, EmptyState, NotMvpBadge } from "../ui";
-import { PrivacyCenter } from "../PrivacyCenter";
-import { ChangePasswordModal, Enable2FAModal } from "../Security";
+import { Badge, Btn, EmptyState, NotMvpBadge } from "../ui";
+import { PROFILE } from "../../domain/account";
 import { PERSONAS, NAV } from "../../data/personas";
 import { LANGUAGES, useApp, useT } from "../../app/store";
 import { useInbox } from "../../lib/useInbox";
@@ -81,8 +79,6 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
   const [basketOpen, setBasketOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false); // mobile page-nav sheet
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [notifSettingsOpen, setNotifSettingsOpen] = useState(false);
   const cur = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[0];
   const baseFeed = FEEDS[persona] || FEEDS.customer;
   // Inbox (AENR-554): live "Needs action" items first, then the FYI feed; read
@@ -267,7 +263,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
               </div>
               <div className="px-2 py-1.5 border-t border-slate-200/70 mt-1 text-[11px] text-slate-500 flex items-center justify-between">
                 <span>{t("Showing")} {feed.length} {t("for")} {t(cur.label)}</span>
-                <button onClick={() => { setNotifOpen(false); setNotifSettingsOpen(true); }} className="hover:text-navy-900 inline-flex items-center gap-1"><Icon.cog size={12} /> {t("Settings")}</button>
+                <button onClick={() => { setNotifOpen(false); window.location.hash = "#/customer/account?section=notifications"; }} className="hover:text-navy-900 inline-flex items-center gap-1"><Icon.cog size={12} /> {t("Settings")}</button>
               </div>
             </Popover.Content>
           </Popover.Portal>
@@ -280,19 +276,18 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
         <DropdownMenu.Root modal={false}>
           <DropdownMenu.Trigger asChild>
             <button aria-label={t("Account menu")} className="flex items-center gap-1.5 bg-slate-100/80 hover:bg-slate-200/80 data-[state=open]:bg-slate-200/80 rounded-xl p-1 sm:pr-1.5 transition">
-              <span className="w-7 h-7 rounded-lg grid place-items-center text-white text-xs font-bold" style={{ background: "linear-gradient(135deg,#f7b535,#e8920e)" }}>EM</span>
+              <span className="w-7 h-7 rounded-lg grid place-items-center text-white text-xs font-bold" style={{ background: "linear-gradient(135deg,#f7b535,#e8920e)" }}>{PROFILE.first[0]}{PROFILE.last[0]}</span>
               <Icon.chevD size={14} className="text-slate-500 hidden sm:block" />
             </button>
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content align="end" sideOffset={8} className="glass w-60 text-ink rounded-xl p-1.5 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
               <div className="px-3 py-2 border-b border-slate-100 mb-1">
-                <div className="font-semibold text-sm text-navy-900">Elena M.</div>
-                <div className="text-[12px] text-slate-500">elena@example.com</div>
+                <div className="font-semibold text-sm text-navy-900">{PROFILE.first} {PROFILE.last}</div>
+                <div className="text-[12px] text-slate-500">{PROFILE.email}</div>
               </div>
               <DropdownMenu.Item onSelect={() => go("customer", "mybookings")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.grid size={15} /> {t("My bookings")}</DropdownMenu.Item>
-              <DropdownMenu.Item onSelect={() => go("customer", "account")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.users size={15} /> {t("Account & receipts")}</DropdownMenu.Item>
-              <DropdownMenu.Item onSelect={() => setSettingsOpen(true)} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.cog size={15} /> {t("Account settings")}</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => go("customer", "account")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.cog size={15} /> {t("Account")}</DropdownMenu.Item>
               <div className="border-t border-slate-100 mt-1 pt-1">
                 <DropdownMenu.Item onSelect={() => { setSignedIn(false); toast(t("Signed out (demo).")); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-rose-600 cursor-pointer select-none outline-none hover:bg-rose-50 data-[highlighted]:bg-rose-50"><Icon.arrowL size={15} /> {t("Sign out")}</DropdownMenu.Item>
               </div>
@@ -313,8 +308,6 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
           <span className="md:hidden"><PersonaSwitcher persona={persona} setPersona={setPersona} variant="demo" compact /></span>
         )}
       </div>
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      <NotificationSettingsModal open={notifSettingsOpen} onClose={() => setNotifSettingsOpen(false)} />
       <NavSheet open={navOpen} onClose={() => setNavOpen(false)} persona={persona} page={page} setPage={setPage} />
     </header>
   );
@@ -362,135 +355,3 @@ function toneBg(tone: string) {
 }
 
 /* ---------- Account Settings (modal) ---------- */
-function NotificationSettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { toast } = useApp();
-  const t = useT();
-  const [chan, setChan] = useState({ push: true, email: true, sms: false });
-  const [cats, setCats] = useState({ bookings: true, weather: true, offers: true, receipts: true });
-  const done = () => { onClose(); toast(t("Notification preferences saved."), { tone: "success" }); };
-  return (
-    <Modal open={open} onClose={onClose} title={t("Notification settings")}
-      footer={<Btn variant="primary" icon={Icon.check} onClick={done}>{t("Done")}</Btn>}>
-      <div className="space-y-5">
-        <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">{t("Channels")}</div>
-          <div className="space-y-2">
-            <PrefRow label={t("Push")} sub={t("In-app and device alerts.")} on={chan.push} set={(v) => setChan((c) => ({ ...c, push: v }))} />
-            <PrefRow label={t("E-mail")} sub={t("A copy to elena@example.com.")} on={chan.email} set={(v) => setChan((c) => ({ ...c, email: v }))} />
-            <PrefRow label={t("SMS")} sub={t("Critical alerts only.")} on={chan.sms} set={(v) => setChan((c) => ({ ...c, sms: v }))} />
-          </div>
-        </section>
-        <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">{t("What to notify me about")}</div>
-          <div className="space-y-2">
-            <PrefRow label={t("Booking updates")} sub={t("Confirmations, gate scans, refunds.")} on={cats.bookings} set={(v) => setCats((c) => ({ ...c, bookings: v }))} />
-            <PrefRow label={t("Weather alerts")} sub={t("Wind or conditions affecting your visit.")} on={cats.weather} set={(v) => setCats((c) => ({ ...c, weather: v }))} />
-            <PrefRow label={t("Offers & promotions")} sub={t("Weekend deals and seasonal perks.")} on={cats.offers} set={(v) => setCats((c) => ({ ...c, offers: v }))} />
-            <PrefRow label={t("Receipts & documents")} sub={t("myDATA receipts and invoices.")} on={cats.receipts} set={(v) => setCats((c) => ({ ...c, receipts: v }))} />
-          </div>
-        </section>
-      </div>
-    </Modal>
-  );
-}
-
-export function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { toast, lang, setLang } = useApp();
-  const t = useT();
-  const [name, setName] = useState("Elena Manoli");
-  const [email, setEmail] = useState("elena@example.com");
-  const [phone, setPhone] = useState("+30 694 000 0000");
-  const [prefs, setPrefs] = useState({ push: true, email: true, sms: false, offers: true });
-  const [cards, setCards] = useState<{ brand: string; last4: string; exp: string }[]>([
-    { brand: "Visa", last4: "4242", exp: "08/27" },
-    { brand: "Mastercard", last4: "5210", exp: "11/26" },
-  ]);
-  const [privacy, setPrivacy] = useState(false);
-  const [changePw, setChangePw] = useState(false);
-  const [twoFA, setTwoFA] = useState(false);
-  const save = () => { onClose(); toast(t("Account settings saved."), { tone: "success" }); };
-  const removeCard = (card: { brand: string; last4: string; exp: string }) => {
-    setCards((cs) => cs.filter((c) => c.last4 !== card.last4));
-    toast(`${t("Removed card ending")} ${card.last4}.`, { action: { label: t("Undo"), onClick: () => setCards((cs) => (cs.find((c) => c.last4 === card.last4) ? cs : [...cs, card])) } });
-  };
-  return (
-    <Modal open={open} onClose={onClose} title={t("Account settings")} wide
-      footer={<><Btn variant="ghost" onClick={onClose}>{t("Cancel")}</Btn><Btn variant="primary" icon={Icon.check} onClick={save}>{t("Save changes")}</Btn></>}>
-      <div className="space-y-5">
-        <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">{t("Profile")}</div>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Field label={t("Full name")}><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
-            <Field label={t("E-mail")}><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
-            <Field label={t("Phone")}><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
-            <Field label={t("Language")}>
-              <Select value={lang} onChange={(e) => setLang(e.target.value as LangCode)} options={LANGUAGES.map((l) => ({ v: l.code, l: `${l.code.toUpperCase()} — ${l.native}${l.mvp ? "" : ` · ${t("FUTURE")}`}` }))} />
-            </Field>
-          </div>
-        </section>
-
-        <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">{t("Notifications")}</div>
-          <div className="space-y-2">
-            <PrefRow label={t("Push notifications")} sub={t("Booking updates, gate scans, refunds.")} on={prefs.push} set={(v) => setPrefs((p) => ({ ...p, push: v }))} />
-            <PrefRow label={t("E-mail")} sub={t("Receipts, invoices, weekly summaries.")} on={prefs.email} set={(v) => setPrefs((p) => ({ ...p, email: v }))} />
-            <PrefRow label={t("SMS")} sub={t("Critical alerts only.")} on={prefs.sms} set={(v) => setPrefs((p) => ({ ...p, sms: v }))} />
-            <PrefRow label={t("Marketing offers")} sub={t("Weekend deals & seasonal promotions.")} on={prefs.offers} set={(v) => setPrefs((p) => ({ ...p, offers: v }))} />
-          </div>
-        </section>
-
-        <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center justify-between">
-            <span>{t("Saved payment methods")}</span>
-            <button onClick={() => toast(t("Demo — Stripe SetupIntent flow."))} className="text-teal-700 text-[12px] font-semibold normal-case tracking-normal inline-flex items-center gap-1"><Icon.plus size={12} /> {t("Add card")}</button>
-          </div>
-          <div className="space-y-2">
-            {cards.length === 0 ? (
-              <div className="text-[13px] text-slate-500 rounded-xl bg-slate-50 px-3 py-4 text-center">{t("No saved cards. Add one for faster checkout.")}</div>
-            ) : cards.map((c) => (
-              <div key={c.last4} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
-                <div className="flex items-center gap-3">
-                  <span className="w-9 h-7 rounded-md bg-gradient-to-br from-navy-800 to-navy-950 text-white text-[10px] font-bold grid place-items-center">{c.brand.slice(0, 4).toUpperCase()}</span>
-                  <div><div className="font-semibold text-sm text-navy-900">•••• {c.last4}</div><div className="text-[11px] text-slate-500">{t("Exp")} {c.exp}</div></div>
-                </div>
-                <button aria-label={`${t("Remove card ending")} ${c.last4}`} onClick={() => removeCard(c)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={15} /></button>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">{t("Privacy & data")}</div>
-          <button onClick={() => setPrivacy(true)} className="w-full text-left flex items-center gap-3 rounded-2xl ring-1 ring-slate-200 bg-white/70 px-3.5 py-3 hover:ring-teal-400 hover:bg-slate-50 transition group">
-            <span className="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 grid place-items-center shrink-0"><Icon.shieldCheck size={20} /></span>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-sm text-navy-900">{t("Privacy Centre")}</div>
-              <div className="text-[12px] text-slate-600 leading-snug">{t("Export your data, manage consents, see who processes it, or delete your account.")}</div>
-            </div>
-            <Icon.chevR size={18} className="text-slate-300 group-hover:text-teal-600 group-hover:translate-x-0.5 transition" />
-          </button>
-        </section>
-
-        <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">{t("Security")}</div>
-          <div className="flex gap-2 flex-wrap">
-            <Btn variant="outline" size="sm" icon={Icon.lock} onClick={() => setChangePw(true)}>{t("Change password")}</Btn>
-            <Btn variant="outline" size="sm" icon={Icon.phone} onClick={() => setTwoFA(true)}>{t("Enable 2FA")}</Btn>
-          </div>
-        </section>
-      </div>
-      <PrivacyCenter open={privacy} onClose={() => setPrivacy(false)} />
-      <ChangePasswordModal open={changePw} onClose={() => setChangePw(false)} />
-      <Enable2FAModal open={twoFA} onClose={() => setTwoFA(false)} />
-    </Modal>
-  );
-}
-
-function PrefRow({ label, sub, on, set }: { label: string; sub: ReactNode; on: boolean; set: (v: boolean) => void }) {
-  return (
-    <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
-      <div><div className="font-semibold text-sm text-navy-900">{label}</div><div className="text-[11px] text-slate-500">{sub}</div></div>
-      <Toggle on={on} onChange={set} ariaLabel={label} />
-    </div>
-  );
-}
