@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../lib/icons";
-import { Badge, Btn, Field, Input, Modal, Select, Toggle } from "../components/ui";
+import { Badge, Btn, Field, Input, Modal, Select, Toggle, DateInput } from "../components/ui";
 import { useApp } from "../app/store";
 import { DEFAULT_FINANCE, E_INVOICE_PROVIDERS, FEE_BASIS_LABEL, basisOption, type EInvoiceProvider, type FeeBasis, type FeeLine, type FeePayer, type FinanceConfig } from "../domain/finance";
 import { useFinance } from "../lib/useFinance";
@@ -59,7 +59,7 @@ export function FinanceSettingsModal({ tenant, subdomain, onClose }: { tenant: s
                   <button type="button" aria-label={`Remove ${f.name}`} onClick={() => setCfg((c) => ({ ...c, fees: c.fees.filter((x) => x.id !== f.id) }))} className="w-8 h-8 rounded-lg grid place-items-center text-slate-400 hover:text-rose-600 hover:bg-rose-50"><Icon.trash size={14} /></button>
                 </div>
                 <div className="sm:col-span-12 text-[11.5px] text-slate-500 flex flex-wrap gap-3 items-center">
-                  <label className="inline-flex items-center gap-1.5">Active from <input type="date" value={f.from} onChange={(e) => patchFee(f.id, { from: e.target.value })} className="rounded-md ring-1 ring-slate-200 px-1.5 py-0.5 text-[12px]" /></label>
+                  <div className="inline-flex items-center gap-1.5">Active from <DateInput aria-label="Active from" value={f.from} onChange={(v) => patchFee(f.id, { from: v })} className="rounded-md ring-1 ring-slate-200 px-1.5 py-0.5 text-[12px]" /></div>
                   {f.basis === "pctBooking" && f.amount > 100 && <span role="alert" className="text-rose-700">A rate can’t exceed 100%.</span>}
                   {!f.name.trim() && <span role="alert" className="text-rose-700">Name the fee.</span>}
                 </div>

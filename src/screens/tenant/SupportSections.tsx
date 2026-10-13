@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, EmptyState, Field, Input, Select, Table } from "../../components/ui";
+import { Badge, Btn, Card, EmptyState, Field, Input, Select, Table, DateInput } from "../../components/ui";
 import { Sparkline } from "../../components/charts";
 import { usePlatform } from "../../lib/usePlatform";
 import { downloadCSV } from "../../lib/download";
@@ -325,15 +325,15 @@ export function Audit({ t }: SectionProps) {
             options={[{ v: "", l: "All sections" }, ...sections.map((v) => ({ v, l: v }))]}
           />
         </div>
-        <label className="text-[12px] font-semibold text-slate-700">
+        <div className="text-[12px] font-semibold text-slate-700">
           From
-          <input
-            type="date"
+          <DateInput aria-label="From"
+            
             value={from}
-            onChange={(e) => setFrom(e.target.value)}
+            onChange={(v) => setFrom(v)}
             className="block mt-1 rounded-lg ring-1 ring-slate-200 px-2 py-1.5 text-[13px]"
           />
-        </label>
+        </div>
       </div>
       <Card className="p-2">
         {rows.length === 0 ? (

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Input, Toggle } from "../../components/ui";
+import { Badge, Btn, Card, Input, Toggle, DateInput } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { ZONES, zoneLayout } from "../../data/beach";
 import { dayStats } from "../../data/analytics";
@@ -179,15 +179,15 @@ export function DemandPanel({ zoneId }: { zoneId: string }) {
       <div className="flex flex-wrap items-center gap-2">
         <h2 className="font-display font-bold text-navy-900">Demand pricing · {zone.name}</h2>
         <Badge tone="slate">Suggestions only — you approve</Badge>
-        <label className="ml-auto text-[12px] font-semibold text-slate-700 flex items-center gap-2">
+        <div className="ml-auto text-[12px] font-semibold text-slate-700 flex items-center gap-2">
           From
-          <input
-            type="date"
+          <DateInput aria-label="From"
+            
             value={start}
-            onChange={(e) => e.target.value && setStart(e.target.value)}
+            onChange={(v) => v && setStart(v)}
             className="rounded-lg ring-1 ring-slate-200 px-2 py-1.5 text-[13px]"
           />
-        </label>
+        </div>
       </div>
 
       {/* Bands per category */}

@@ -10,6 +10,7 @@ import {
   Modal,
   Select,
   Table,
+  DateInput,
 } from "../../components/ui";
 import { Sparkline } from "../../components/charts";
 import { usePlatform } from "../../lib/usePlatform";
@@ -393,10 +394,10 @@ export function Contract({ t, go }: SectionProps) {
         </div>
         <div className="space-y-2 pt-2 sm:pt-0">
           <Field label="Renewal date">
-            <Input
-              type="date"
+            <DateInput
+              
               value={d.draft.renewal}
-              onChange={(e) => d.set("renewal", e.target.value)}
+              onChange={(v) => d.set("renewal", v)}
             />
           </Field>
           <Field label="Account manager">

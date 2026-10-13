@@ -8,7 +8,7 @@ import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 
 /* ---------- StatCard ----------
    Tone drives a thin left accent stripe. `instant` skips the count-up. */
-export function StatCard({ label, value, valueTitle, sub, tone = "navy", delta, trend, sparkline, instant = false }: {
+export function StatCard({ label, value, valueTitle, sub, tone = "navy", delta, trend, compare, sparkline, instant = false }: {
   label?: ReactNode;
   value: string | number;
   /** The full figure behind an abbreviated value (€733.4k → €733,422.00), on hover (AENR-582). */
@@ -17,6 +17,8 @@ export function StatCard({ label, value, valueTitle, sub, tone = "navy", delta, 
   tone?: string;
   delta?: ReactNode;
   trend?: string;
+  /** What a `trend` compares to ("vs previous week") — every delta says so (AENR-555). */
+  compare?: string;
   sparkline?: ReactNode;
   instant?: boolean;
   /** Accepted for call-site compatibility; the current design omits the icon. */
@@ -45,7 +47,7 @@ export function StatCard({ label, value, valueTitle, sub, tone = "navy", delta, 
         <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">{label}</div>
         {trend && (
           <span className={`inline-flex items-center gap-0.5 text-[11px] font-bold tnum rounded-full px-1.5 py-0.5 ${trendUp ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}>
-            <Icon.trend size={11} className={trendUp ? "" : "-scale-y-100"} />{trend}
+            <Icon.trend size={11} className={trendUp ? "" : "-scale-y-100"} />{trend}{compare && <span className="sr-only"> {compare}</span>}
           </span>
         )}
       </div>
@@ -54,6 +56,7 @@ export function StatCard({ label, value, valueTitle, sub, tone = "navy", delta, 
       </div>
       {sparkline && <div className="mt-2 -mb-1">{sparkline}</div>}
       {sub && <div className="mt-1.5 text-[12px] text-slate-600 flex items-center gap-1">{delta}{sub}</div>}
+      {trend && compare && compare !== sub && <div className="mt-0.5 text-[11.5px] text-slate-500">{compare}</div>}
     </Card>
   );
 }

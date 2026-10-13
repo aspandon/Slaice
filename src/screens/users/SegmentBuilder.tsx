@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Field, Input, Modal, Select } from "../../components/ui";
+import { Badge, Btn, Field, Input, Modal, Select, DateInput } from "../../components/ui";
 import type { GuestFacts } from "../../data/guests";
 import type { FieldDef, Op, Rule, Segment } from "../../domain/segments";
 import {
@@ -236,11 +236,11 @@ export function SegmentBuilder({
                     )}
                     {f.type === "date" && r.op !== "withinDays" && (
                       <div className="w-44">
-                        <Input
-                          type="date"
+                        <DateInput
+                          
                           aria-label={`Condition ${i + 1} date`}
                           value={String(r.a ?? "")}
-                          onChange={(e) => setRule(i, { a: e.target.value })}
+                          onChange={(v) => setRule(i, { a: v })}
                         />
                       </div>
                     )}

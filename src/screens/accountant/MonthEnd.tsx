@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, EmptyState, PageHead, Select } from "../../components/ui";
+import { Badge, Btn, Card, EmptyState, PageHead, Select, fmtDateGB } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { readHashQuery, writeHashQuery } from "../../app/router";
 import { documents, transactions } from "../../data/ledger";
@@ -117,7 +117,7 @@ export function MonthEnd() {
           <div>
             <h2 className="font-display font-bold text-navy-900 text-xl">{ref.label}</h2>
             <p className="text-[13px] text-slate-500">
-              {ref.open ? `Month to date · up to ${ref.to}` : "Complete month"} ·{" "}
+              {ref.open ? `Month to date · up to ${fmtDateGB(ref.to)}` : "Complete month"} ·{" "}
               {EXPORT_PRESETS.find((p) => p.id === preset)?.note}
             </p>
           </div>

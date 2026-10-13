@@ -315,8 +315,8 @@ export function AdminUsers() {
           </div>
         )}
         {!active && (
-          <div className="mb-3 flex items-start gap-2 rounded-xl bg-slaice-100 ring-1 ring-slaice-600/20 px-3 py-2 text-[12px] text-slaice-700">
-            <Icon.info size={14} className="shrink-0 mt-0.5 text-slaice-600" />
+          <div className="mb-3 flex items-start gap-2 rounded-xl bg-sky-50 ring-1 ring-sky-600/20 px-3 py-2 text-[12px] text-sky-800">
+            <Icon.info size={14} className="shrink-0 mt-0.5 text-sky-700" />
             <span>Each guest has one <b>lifecycle stage</b> — a guest is <b>Regular</b> after more than {ra} visits while they keep coming (edit the threshold from the <b>Over {ra} visits</b> segment). <b>VIP</b>, <b>Season pass</b> and custom tags are assigned on a guest. Build your own with <b>New segment</b>.</span>
           </div>
         )}

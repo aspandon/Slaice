@@ -89,7 +89,7 @@ export function GuestProfile({ guest, customer, rfm, segments, tags, onClose, on
     <Drawer open onClose={onClose} label={`Guest profile · ${name}`}
       title={
         <div className="flex items-center gap-3">
-          <span className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slaice-600 to-teal-600 text-white grid place-items-center font-display font-bold text-lg shrink-0">{customer.first.charAt(0)}{customer.last.charAt(0)}</span>
+          <span className="w-12 h-12 rounded-2xl bg-gradient-to-br from-navy-800 to-teal-600 text-white grid place-items-center font-display font-bold text-lg shrink-0">{customer.first.charAt(0)}{customer.last.charAt(0)}</span>
           <div className="min-w-0">
             <div className="font-display font-bold text-navy-900 text-lg truncate flex items-center gap-2">{name}{prof.important && <Badge tone="amber"><Icon.star size={10} /> Important</Badge>}{prof.restricted && <Badge tone="red"><Icon.lock size={10} /> Processing restricted</Badge>}</div>
             <div className="text-[12px] text-slate-500 truncate">{customer.email} · <span className="tnum">{customer.phone}</span></div>

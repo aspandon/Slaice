@@ -1,9 +1,10 @@
+import { DateInput } from "./DateInput";
 import { useState } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { Icon } from "../../lib/icons";
 import { useT } from "../../app/store";
 import { Btn } from "./primitives";
-import { Field, Input } from "./forms";
+import { Field } from "./forms";
 import { Tabs } from "./Tabs";
 import type { Period, PeriodPreset } from "../../domain/period";
 import {
@@ -163,24 +164,10 @@ export function PeriodPicker({
             </div>
             <div className="grid grid-cols-2 gap-2">
               <Field label={t("From")}>
-                <Input
-                  type="date"
-                  value={from}
-                  min={RANGE_MIN}
-                  max={DEMO_TODAY}
-                  onChange={(e) => setFrom(e.target.value)}
-                  aria-invalid={touched && !!error}
-                />
+                <DateInput aria-label={t("From")} value={from} min={RANGE_MIN} max={DEMO_TODAY} onChange={setFrom} required />
               </Field>
               <Field label={t("To")}>
-                <Input
-                  type="date"
-                  value={to}
-                  min={RANGE_MIN}
-                  max={DEMO_TODAY}
-                  onChange={(e) => setTo(e.target.value)}
-                  aria-invalid={touched && !!error}
-                />
+                <DateInput aria-label={t("To")} value={to} min={RANGE_MIN} max={DEMO_TODAY} onChange={setTo} required />
               </Field>
             </div>
             <div role="alert" className="min-h-[1.25rem] mt-1.5 text-[12px] text-rose-700">

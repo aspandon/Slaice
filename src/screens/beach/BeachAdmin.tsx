@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Icon } from "../../lib/icons";
-import { Card, Btn, Badge, Table, Modal, Field, Input, Select, Tabs, Toggle, EmptyState, NotMvpBadge } from "../../components/ui";
+import { Card, Btn, Badge, Table, Modal, Field, Input, Select, Tabs, Toggle, EmptyState, NotMvpBadge, DateInput } from "../../components/ui";
 import { BeachBackdrop } from "../../components/Beach";
 import { BackgroundPicker } from "../../components/BackgroundPicker";
 import { ZONES, WEATHER_KINDS, WEATHER_DEMO, DAY_MIN, DAY_MAX, fmtHour } from "../../data/beach";
@@ -130,9 +130,9 @@ function RuleEditorModal({ open, rule, onClose, onSave }: {
         </div>
         <Field label="Period">
           <div className="flex flex-wrap items-center gap-2">
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-auto" />
+            <DateInput value={from} onChange={(v) => setFrom(v)} className="w-auto" />
             <span className="text-slate-400">→</span>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-auto" />
+            <DateInput value={to} onChange={(v) => setTo(v)} className="w-auto" />
           </div>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {MONTH_PRESETS.map((p) => (
@@ -205,7 +205,7 @@ function PricingRulesPanel({ rules, previewDate, setPreviewDate, onAdd, onEdit, 
       <Card className="p-4 h-max">
         <div className="font-semibold text-navy-900 mb-0.5">Price preview</div>
         <div className="text-[12.5px] text-slate-500 mb-3">Effective price per zone on a chosen day.</div>
-        <Field label="Date"><Input type="date" value={previewDate} onChange={(e) => setPreviewDate(e.target.value)} /></Field>
+        <Field label="Date"><DateInput value={previewDate} onChange={(v) => setPreviewDate(v)} /></Field>
         <div className="mt-1.5 mb-3 flex items-center gap-2 text-[12px] text-slate-600">
           <span className="flex items-center gap-1.5"><Icon.calendar size={12} className="text-slate-400" /> {fmtFullDate(previewDate)}</span>
           <Badge tone={weekend ? "amber" : "slate"}>{weekend ? "Weekend" : "Weekday"}</Badge>
@@ -286,8 +286,8 @@ function ZoneArrangeEditor() {
         <Btn variant="outline" icon={Icon.image} onClick={() => setPickerOpen(true)}>Background</Btn>
         <Btn variant="primary" icon={Icon.check} onClick={save}>Save layout</Btn>
       </div>
-      <div className="lg:hidden mb-3 flex items-start gap-2 rounded-xl bg-slaice-100 ring-1 ring-slaice-600/20 px-3 py-2 text-[12px] text-slaice-700">
-        <Icon.info size={14} className="shrink-0 mt-0.5 text-slaice-600" /> The map editor is best on a larger screen — drag-to-position zones is easier with a mouse.
+      <div className="lg:hidden mb-3 flex items-start gap-2 rounded-xl bg-sky-50 ring-1 ring-sky-600/20 px-3 py-2 text-[12px] text-sky-800">
+        <Icon.info size={14} className="shrink-0 mt-0.5 text-sky-700" /> The map editor is best on a larger screen — drag-to-position zones is easier with a mouse.
       </div>
       <div className="grid lg:grid-cols-[1fr_320px] gap-4">
         <Card className="p-5">

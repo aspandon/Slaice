@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Input, Modal, Select, Spinner } from "../../components/ui";
+import { Badge, Btn, Card, Input, Modal, Select, Spinner, DateInput } from "../../components/ui";
 import { SunbedMap } from "../../components/SunbedMap";
 import { useApp } from "../../app/store";
 import { ZONES, todayISO, zoneLayout } from "../../data/beach";
@@ -269,19 +269,19 @@ export function PublishModal({
           </div>
         </div>
         {when === "date" && (
-          <label className="block text-[12px] font-semibold text-slate-700">
+          <div className="block text-[12px] font-semibold text-slate-700">
             Effective from
-            <input
-              type="date"
+            <DateInput aria-label="Effective from"
+              
               min={addDays(today, 1)}
               value={from}
-              onChange={(e) => e.target.value && setFrom(e.target.value)}
+              onChange={(v) => v && setFrom(v)}
               className="block mt-1 rounded-lg ring-1 ring-slate-200 px-2 py-1.5 text-[13px]"
             />
             <span className="block mt-1 font-normal text-slate-500">
               Until then guests and staff keep today’s layout; price changes publish now.
             </span>
-          </label>
+          </div>
         )}
 
         <section>

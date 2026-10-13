@@ -16,7 +16,14 @@ export function Badge({ tone = "slate", children, className = "" }: { tone?: str
     blue: "bg-sky-50 text-sky-700 ring-sky-600/20",
     amber: "bg-amber-50 text-amber-700 ring-amber-600/20",
     red: "bg-rose-50 text-rose-700 ring-rose-600/20",
-    indigo: "bg-indigo-50 text-indigo-700 ring-indigo-600/20",
+    // Semantic status tones (AENR-557): the same meaning gets the same tone in every module.
+    success: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
+    warning: "bg-amber-50 text-amber-700 ring-amber-600/20",
+    critical: "bg-rose-50 text-rose-700 ring-rose-600/20",
+    info: "bg-sky-50 text-sky-700 ring-sky-600/20",
+    neutral: "bg-slate-100 text-slate-600 ring-slate-400/20",
+    // Legacy alias — indigo was off-brand; it now reads as info.
+    indigo: "bg-sky-50 text-sky-700 ring-sky-600/20",
     coral: "bg-orange-100 text-coral-600 ring-coral-500/20",
   };
   return (
@@ -30,20 +37,20 @@ export function Badge({ tone = "slate", children, className = "" }: { tone?: str
    Status conveyed by colour AND an icon + text, so meaning never relies on
    colour alone (WCAG 1.4.1 Use of Color). Pass a known status or any label. */
 const STATUS_MAP: Record<string, { tone: string; icon: IconRenderer }> = {
-  confirmed: { tone: "green", icon: Icon.checkCircle },
-  paid: { tone: "green", icon: Icon.checkCircle },
-  active: { tone: "green", icon: Icon.checkCircle },
-  live: { tone: "green", icon: Icon.checkCircle },
-  ok: { tone: "green", icon: Icon.checkCircle },
-  used: { tone: "slate", icon: Icon.check },
-  unpaid: { tone: "amber", icon: Icon.clock },
-  pending: { tone: "amber", icon: Icon.clock },
-  awaiting: { tone: "amber", icon: Icon.clock },
-  issued: { tone: "blue", icon: Icon.doc },
-  refunded: { tone: "red", icon: Icon.refund },
-  cancelled: { tone: "red", icon: Icon.x },
-  canceled: { tone: "red", icon: Icon.x },
-  failed: { tone: "red", icon: Icon.alert },
+  confirmed: { tone: "success", icon: Icon.checkCircle },
+  paid: { tone: "success", icon: Icon.checkCircle },
+  active: { tone: "success", icon: Icon.checkCircle },
+  live: { tone: "success", icon: Icon.checkCircle },
+  ok: { tone: "success", icon: Icon.checkCircle },
+  used: { tone: "neutral", icon: Icon.check },
+  unpaid: { tone: "warning", icon: Icon.clock },
+  pending: { tone: "warning", icon: Icon.clock },
+  awaiting: { tone: "warning", icon: Icon.clock },
+  issued: { tone: "info", icon: Icon.doc },
+  refunded: { tone: "critical", icon: Icon.refund },
+  cancelled: { tone: "critical", icon: Icon.x },
+  canceled: { tone: "critical", icon: Icon.x },
+  failed: { tone: "critical", icon: Icon.alert },
 };
 export function StatusBadge({ status, label, className = "" }: { status?: string; label?: ReactNode; className?: string }) {
   const text = label ?? status;
@@ -105,7 +112,8 @@ export function Btn({ children, variant = "primary", size = "md", onClick, icon:
     teal: "bg-teal-600 text-white hover:bg-teal-500 shadow-btn-teal hover:shadow-lift",
     coral: "bg-coral-600 text-white hover:bg-coral-500 shadow-lift",
     dark: "bg-navy-950 text-white hover:bg-navy-900 shadow-btn-primary hover:shadow-lift",
-    indigo: "bg-slaice-600 text-white hover:bg-slaice-500 shadow-lift",
+    // One palette across personas (AENR-557): the old indigo primary is brand navy now.
+    indigo: "bg-navy-900 text-white hover:bg-navy-800 shadow-btn-primary hover:shadow-lift",
     // Tinted secondary — Apple's light-accent button.
     tint: "bg-teal-50 text-teal-700 hover:bg-teal-100 ring-1 ring-teal-600/15",
     ghost: "bg-slate-100/80 text-navy-900 hover:bg-slate-200/90",

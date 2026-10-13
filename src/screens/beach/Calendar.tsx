@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Field, Input, Select, Toggle } from "../../components/ui";
+import { Badge, Btn, Card, Field, Input, Select, Toggle, DateInput } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { ZONES, zoneLayout } from "../../data/beach";
 import { dayStats } from "../../data/analytics";
@@ -398,7 +398,7 @@ export function PricingCalendar({ onEditRule }: { onEditRule: (r: PriceRule) => 
               >
                 <div className="flex items-center justify-between">
                   <span
-                    className={`text-[12px] font-bold ${dow(d) === 0 || dow(d) === 6 ? "text-slaice-600" : "text-navy-900"}`}
+                    className={`text-[12px] font-bold ${dow(d) === 0 || dow(d) === 6 ? "text-sky-700" : "text-navy-900"}`}
                   >
                     {Number(d.slice(8))}
                   </span>
@@ -606,10 +606,10 @@ export function PricingCalendar({ onEditRule }: { onEditRule: (r: PriceRule) => 
               <div className="flex gap-2 items-end">
                 <div className="flex-1">
                   <Field label="Until">
-                    <Input
-                      type="date"
+                    <DateInput
+                      
                       value={copyUntil}
-                      onChange={(e) => setCopyUntil(e.target.value)}
+                      onChange={(v) => setCopyUntil(v)}
                     />
                   </Field>
                 </div>

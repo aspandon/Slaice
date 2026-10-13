@@ -20,7 +20,8 @@ export function Field({ label, children, hint }: { label?: ReactNode; children?:
 // text-base on mobile (16px) prevents iOS Safari's focus-zoom.
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   function Input({ className = "", ...props }, ref) {
-    return <input ref={ref} {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-base sm:text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none placeholder:text-slate-400 ${className}`} />;
+    // Times show 24-hour (en-GB) everywhere (AENR-556).
+    return <input ref={ref} lang={props.type === "time" ? "en-GB" : undefined} {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-base sm:text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none placeholder:text-slate-400 ${className}`} />;
   },
 );
 type SelectOption = string | { v: string; l: string };

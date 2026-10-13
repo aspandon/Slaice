@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Field, Input, SaveBar, Select, Spinner, Toggle } from "../../components/ui";
+import { Badge, Btn, Card, Field, Input, SaveBar, Select, Spinner, Toggle, DateInput } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { todayISO } from "../../data/beach";
 import { addDays, fmtDay } from "../../domain/period";
@@ -205,17 +205,17 @@ function RulesAndPreview({
           {form.mode === "range" && (
             <>
               <Field label="From">
-                <Input
-                  type="date"
+                <DateInput
+                  
                   value={form.from}
-                  onChange={(e) => setForm((f) => ({ ...f, from: e.target.value }))}
+                  onChange={(v) => setForm((f) => ({ ...f, from: v }))}
                 />
               </Field>
               <Field label="To">
-                <Input
-                  type="date"
+                <DateInput
+                  
                   value={form.to}
-                  onChange={(e) => setForm((f) => ({ ...f, to: e.target.value }))}
+                  onChange={(v) => setForm((f) => ({ ...f, to: v }))}
                   aria-invalid={form.to < form.from}
                 />
               </Field>
@@ -296,15 +296,15 @@ function RulesAndPreview({
       <Card className="p-4">
         <div className="flex flex-wrap items-end justify-between gap-2 mb-2">
           <h3 className="font-semibold text-navy-900">Effective prices</h3>
-          <label className="text-[12px] font-semibold text-slate-700">
+          <div className="text-[12px] font-semibold text-slate-700">
             Week from
-            <input
-              type="date"
+            <DateInput aria-label="Week from"
+              
               value={start}
-              onChange={(e) => e.target.value && setStart(e.target.value)}
+              onChange={(v) => v && setStart(v)}
               className="block mt-1 rounded-lg ring-1 ring-slate-200 px-2 py-1.5 text-[13px]"
             />
-          </label>
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-[13px] tnum">
@@ -639,15 +639,15 @@ export function LockersAdmin() {
               Locker sales are paused in the wizard and the till until {pv.name} is back.
             </div>
           )}
-          <label className="block text-[12px] font-semibold text-slate-700">
+          <div className="block text-[12px] font-semibold text-slate-700">
             Availability on
-            <input
-              type="date"
+            <DateInput aria-label="Availability on"
+              
               value={date}
-              onChange={(e) => e.target.value && setDate(e.target.value)}
+              onChange={(v) => v && setDate(v)}
               className="block mt-1 rounded-lg ring-1 ring-slate-200 px-2 py-1.5 text-[13px]"
             />
-          </label>
+          </div>
           <table className="w-full text-[13px] tnum">
             <caption className="sr-only">Locker availability on {fmtDay(date)}</caption>
             <thead>

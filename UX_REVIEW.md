@@ -361,4 +361,7 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   (AENR-588, 589, 590), and till & gate K1, K2, G1, G2 (AENR-584 tablet till, 585 offline banner,
   586 full-screen scan result, 587 beach status by exception; defects AENR-591, 592 fixed on the way),
   and back-office operations A1–A5 (AENR-579 booking tabs + drawer + timeline, 580 live beach map,
-  581 guest row → profile + saved views, 582 reports in the brand system, 583 refund decision queue).
+  581 guest row → profile + saved views, 582 reports in the brand system, 583 refund decision queue),
+  and the design system & app shell X1–X10 (AENR-549…557: solid data surfaces, one page header,
+  index-table standard, one vocabulary, ⌘K palette, notification inbox, KPI context, date picker,
+  one palette).

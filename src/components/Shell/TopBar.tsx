@@ -9,6 +9,7 @@ import { PrivacyCenter } from "../PrivacyCenter";
 import { ChangePasswordModal, Enable2FAModal } from "../Security";
 import { PERSONAS, NAV } from "../../data/personas";
 import { LANGUAGES, useApp, useT } from "../../app/store";
+import { useInbox } from "../../lib/useInbox";
 import type { CartItem, LangCode, PersonaId } from "../../domain/types";
 import { NavSheet } from "./Nav";
 import { PersonaSwitcher } from "./PersonaSwitcher";
@@ -84,10 +85,23 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
   const [notifSettingsOpen, setNotifSettingsOpen] = useState(false);
   const cur = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[0];
   const baseFeed = FEEDS[persona] || FEEDS.customer;
-  const [readIds, setReadIds] = useState<Set<string>>(new Set());
-  const feed = useMemo(() => baseFeed.map((n, i) => ({ ...n, id: `${persona}-${i}`, read: readIds.has(`${persona}-${i}`) })), [baseFeed, persona, readIds]);
+  // Inbox (AENR-554): live "Needs action" items first, then the FYI feed; read
+  // state is remembered on this device.
+  const live = useInbox(persona);
+  const [readIds, setReadIdsRaw] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("slaice.inbox.read") ?? "[]")); } catch { return new Set(); }
+  });
+  const setReadIds = (f: (s: Set<string>) => Set<string>) => setReadIdsRaw((s) => {
+    const n = f(s);
+    try { localStorage.setItem("slaice.inbox.read", JSON.stringify([...n])); } catch { /* not remembered */ }
+    return n;
+  });
+  const feed = useMemo(() => [
+    ...live.map((n) => ({ ic: n.icon, tone: n.tone, t: n.title, b: n.body, time: n.time, id: n.id, kind: n.kind, href: n.href, read: readIds.has(n.id) })),
+    ...baseFeed.map((n, i) => ({ ...n, id: `${persona}-${i}`, kind: "fyi" as const, href: undefined as string | undefined, read: readIds.has(`${persona}-${i}`) })),
+  ], [live, baseFeed, persona, readIds]);
   const unread = feed.filter((n) => !n.read).length;
-  const markAll = () => setReadIds(new Set(feed.map((n) => n.id)));
+  const markAll = () => setReadIds(() => new Set([...readIds, ...feed.map((n) => n.id)]));
   const removeBasketItem = (it: CartItem) => {
     if (!removeFromCart) return;
     removeFromCart(it.kind, it.id);
@@ -218,21 +232,36 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
                 </div>
                 <button onClick={markAll} className="text-[11px] font-semibold text-teal-700 hover:text-teal-800 disabled:text-slate-300" disabled={unread === 0}>{t("Mark all read")}</button>
               </div>
-              <div className="max-h-[420px] overflow-y-auto space-y-1 pr-0.5">
-                {feed.map((n) => {
-                  const IC = Icon[n.ic] || Icon.bell;
+              <div className="max-h-[420px] overflow-y-auto pr-0.5">
+                {(["action", "fyi"] as const).map((k) => {
+                  const list = feed.filter((n) => n.kind === k);
+                  if (!list.length) return k === "action" && persona !== "customer" ? (
+                    <div key={k} className="px-2 py-2 text-[12px] text-slate-500 flex items-center gap-1.5"><Icon.checkCircle size={13} className="text-emerald-600" /> {t("Nothing needs action")}</div>
+                  ) : null;
                   return (
-                    <button key={n.id} onClick={() => setReadIds((s) => new Set([...s, n.id]))} className={`w-full text-left flex gap-2.5 px-2 py-2 rounded-lg hover:bg-slate-100 transition ${n.read ? "opacity-60" : ""}`}>
-                      <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 mt-0.5 ${toneBg(n.tone)}`}><IC size={15} /></span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="font-semibold text-[13px] text-navy-900 truncate">{n.t}</span>
-                          <span className="text-[10px] text-slate-500 shrink-0">{n.time}</span>
-                        </span>
-                        <span className="block text-[12px] text-slate-500 leading-snug mt-0.5">{n.b}</span>
-                      </span>
-                      {!n.read && <span className="w-2 h-2 rounded-full bg-teal-500 mt-2 shrink-0" />}
-                    </button>
+                    <section key={k} aria-label={k === "action" ? t("Needs action") : "FYI"} className="mb-1">
+                      {persona !== "customer" && <div className="px-2 pt-1.5 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-slate-500">{k === "action" ? `${t("Needs action")} · ${list.length}` : "FYI"}</div>}
+                      <div className="space-y-1">
+                        {list.map((n) => {
+                          const IC = Icon[n.ic] || Icon.bell;
+                          return (
+                            <button key={n.id} onClick={() => { setReadIds((s) => new Set([...s, n.id])); if (n.href) { setNotifOpen(false); window.location.hash = n.href; } }}
+                              className={`w-full text-left flex gap-2.5 px-2 py-2 rounded-lg hover:bg-slate-100 transition ${n.read ? "opacity-60" : ""}`}>
+                              <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 mt-0.5 ${toneBg(n.tone)}`}><IC size={15} /></span>
+                              <span className="min-w-0 flex-1">
+                                <span className="flex items-center justify-between gap-2">
+                                  <span className="font-semibold text-[13px] text-navy-900 truncate">{n.t}</span>
+                                  <span className="text-[10px] text-slate-500 shrink-0">{n.time}</span>
+                                </span>
+                                <span className="block text-[12px] text-slate-500 leading-snug mt-0.5">{n.b}</span>
+                                {n.href && <span className="block text-[11px] font-semibold text-teal-700 mt-0.5">{t("Open")} →</span>}
+                              </span>
+                              {!n.read && <span className="w-2 h-2 rounded-full bg-teal-500 mt-2 shrink-0" aria-label={t("Unread")} />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
                   );
                 })}
               </div>
@@ -321,6 +350,7 @@ function toneBg(tone: string) {
   return {
     green: "bg-teal-100 text-teal-700 ring-1 ring-teal-200",
     amber: "bg-amber-100 text-amber-700 ring-1 ring-amber-200",
+    red: "bg-rose-100 text-rose-700 ring-1 ring-rose-200",
     indigo: "bg-slaice-100 text-slaice-700 ring-1 ring-slaice-100",
     slate: "bg-slate-200 text-slate-700 ring-1 ring-slate-300",
     blue: "bg-sky-100 text-sky-700 ring-1 ring-sky-200",

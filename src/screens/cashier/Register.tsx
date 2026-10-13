@@ -81,11 +81,11 @@ function TenderMix({ tot }: { tot: ShiftTotals }) {
   const total = tot.cash + tot.card + tot.voucher;
   return (
     <div className="mb-4">
-      <StackedBar segments={[{ l: "Card", v: tot.card || 0.0001, c: "#0ea5e9" }, { l: "Cash", v: tot.cash || 0.0001, c: "#f59e0b" }, { l: "Voucher", v: tot.voucher || 0.0001, c: "#a855f7" }]} height={10} />
+      <StackedBar segments={[{ l: "Card", v: tot.card || 0.0001, c: "#0ea5e9" }, { l: "Cash", v: tot.cash || 0.0001, c: "#f59e0b" }, { l: "Voucher", v: tot.voucher || 0.0001, c: "#13315c" }]} height={10} />
       <div className="flex flex-wrap gap-4 text-[12px] mt-2 text-slate-600">
         <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-sky-500" /> Card {eur(tot.card)}</span>
         <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-amber-500" /> Cash {eur(tot.cash)}</span>
-        <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-purple-500" /> Voucher {eur(tot.voucher)}</span>
+        <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-navy-800" /> Voucher {eur(tot.voucher)}</span>
         <span className="ml-auto">{total ? "" : "No takings yet"}</span>
       </div>
     </div>

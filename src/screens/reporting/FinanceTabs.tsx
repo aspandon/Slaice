@@ -80,10 +80,10 @@ function DailyBars({ rep, pick, title, label }: { rep: FinanceReport; pick: (d: 
         <div className="text-[12px] text-slate-500">{title}</div>
         <div className="flex gap-3 text-[12px] text-slate-600">
           <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-teal-600" /> Weekday</span>
-          <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-slaice-600" /> Weekend</span>
+          <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-navy-800" /> Weekend</span>
         </div>
       </div>
-      <BarChart label={label} height={230} data={days.map((d) => ({ l: dm(d.date), v: pick(d) }))} colors={days.map((d) => (isWeekend(d.date) ? "#3a47cc" : "#0D9488"))}
+      <BarChart label={label} height={230} data={days.map((d) => ({ l: dm(d.date), v: pick(d) }))} colors={days.map((d) => (isWeekend(d.date) ? "#13315c" : "#0D9488"))}
         avg={{ v: avg, label: `Avg ${avg.toFixed(1)}` }} labelEvery={Math.max(1, Math.ceil(days.length / 12))} />
     </>
   );

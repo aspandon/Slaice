@@ -10,6 +10,7 @@ import {
   Select,
   Spinner,
   Toggle,
+  DateInput,
 } from "../../components/ui";
 import { usePlatform } from "../../lib/usePlatform";
 import { addDays, fmtDay } from "../../domain/period";
@@ -612,7 +613,7 @@ function OffboardWizard({
                         <Input value={reason} onChange={(e) => setReason(e.target.value)} />
                       </Field>
                       <Field label="Effective date">
-                        <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+                        <DateInput value={date} onChange={(v) => setDate(v)} />
                       </Field>
                     </div>
                   )}

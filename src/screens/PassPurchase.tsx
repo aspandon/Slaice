@@ -82,7 +82,7 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
     return (
       <div className="animate-fade-up max-w-xl mx-auto">
         <Card className="p-6 sm:p-8 text-center">
-          <div className={`w-16 h-16 mx-auto rounded-2xl text-white grid place-items-center animate-pop ${vip ? "bg-slaice-600" : "bg-teal-600"}`}><Icon.check size={34} /></div>
+          <div className={`w-16 h-16 mx-auto rounded-2xl text-white grid place-items-center animate-pop ${vip ? "bg-navy-900" : "bg-teal-600"}`}><Icon.check size={34} /></div>
           <h2 className="mt-4 font-display font-bold text-2xl text-navy-900">{t("Payment successful")}</h2>
           <p className="text-sm text-slate-500 mt-1">
             {vip
@@ -226,14 +226,14 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
 }
 
 function SelectCard({ on, onClick, title, sub, foot, accent }: { on: boolean; onClick: () => void; title: ReactNode; sub: ReactNode; foot: ReactNode; accent: "slaice" | "teal" }) {
-  const ring = accent === "slaice" ? "ring-slaice-500" : "ring-teal-500";
+  const ring = accent === "slaice" ? "ring-navy-700" : "ring-teal-500";
   return (
     <button onClick={onClick} aria-pressed={on}
       className={`relative text-left rounded-2xl p-4 ring-1 transition ${on ? `ring-2 ${ring} bg-white shadow-lift` : "ring-slate-200 bg-white/70 hover:ring-slate-300"}`}>
       <div className="font-display font-bold text-navy-900 text-lg">{title}</div>
       <div className="text-[12.5px] text-slate-600 mt-0.5">{sub}</div>
       <div className="text-[11px] text-slate-400 mt-1.5">{foot}</div>
-      {on && <span className={`absolute top-3 right-3 w-5 h-5 rounded-full text-white grid place-items-center ${accent === "slaice" ? "bg-slaice-600" : "bg-teal-600"}`}><Icon.check size={12} /></span>}
+      {on && <span className={`absolute top-3 right-3 w-5 h-5 rounded-full text-white grid place-items-center ${accent === "slaice" ? "bg-navy-900" : "bg-teal-600"}`}><Icon.check size={12} /></span>}
     </button>
   );
 }

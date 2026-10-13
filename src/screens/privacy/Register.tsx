@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Field, Input, Modal, SaveBar, Select, Toggle } from "../../components/ui";
+import { Badge, Btn, Card, Field, Input, Modal, SaveBar, Select, Toggle, DateInput } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { downloadCSVReport, downloadPDF } from "../../lib/download";
 import {
@@ -412,10 +412,10 @@ export function RegisterTab() {
                 />
               </Field>
               <Field label="Review date">
-                <Input
-                  type="date"
+                <DateInput
+                  
                   value={dpia.review}
-                  onChange={(e) => setDpia({ ...dpia, review: e.target.value })}
+                  onChange={(v) => setDpia({ ...dpia, review: v })}
                 />
               </Field>
             </div>
@@ -571,10 +571,10 @@ function ActivityModal({
                 />
               </Field>
               <Field label="Review date *">
-                <Input
-                  type="date"
+                <DateInput
+                  
                   value={lia.review}
-                  onChange={(e) => setLia({ review: e.target.value })}
+                  onChange={(v) => setLia({ review: v })}
                 />
               </Field>
             </div>

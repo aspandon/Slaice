@@ -187,7 +187,7 @@ export function Checkout() {
           <Row l={passApplied ? t("Pay now") : t("Total")} v={`€${cashDue.toFixed(2)}`} bold />
           <div className="text-[11px] text-slate-500 mt-1">{t("VAT included where applicable.")}</div>
           {vipCover > 0 && (
-            <div className="mt-2 rounded-xl bg-slaice-50 ring-1 ring-slaice-600/15 px-3 py-2 text-[11.5px] text-slaice-700 leading-snug">
+            <div className="mt-2 rounded-xl bg-sky-50 ring-1 ring-sky-600/15 px-3 py-2 text-[11.5px] text-sky-800 leading-snug">
               <Icon.sparkles size={12} className="inline align-[-1px] mr-1" />{t("VIP credit used")} €{vipDebit.toFixed(2)} · {t("you saved")} €{vipSaved.toFixed(2)} ({Math.round(disc * 100)}%). {t("Balance")} €{vipBalance.toFixed(2)} → €{round2(vipBalance - vipDebit).toFixed(2)}.
             </div>
           )}
@@ -199,7 +199,7 @@ export function Checkout() {
               {hasVip && (
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-[13px] font-semibold text-navy-900 flex items-center gap-1.5"><Icon.sparkles size={13} className="text-slaice-600" /> {t("VIP credit")}</div>
+                    <div className="text-[13px] font-semibold text-navy-900 flex items-center gap-1.5"><Icon.sparkles size={13} className="text-sky-700" /> {t("VIP credit")}</div>
                     <div className="text-[11px] text-slate-500 tnum">{t("Balance")} €{vipBalance.toFixed(2)} · {Math.round(disc * 100)}% {t("off")}</div>
                   </div>
                   <Toggle on={applyVip} onChange={setApplyVip} ariaLabel={t("VIP credit")} />

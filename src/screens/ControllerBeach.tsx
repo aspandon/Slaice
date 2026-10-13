@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../lib/icons";
-import { Badge, Btn, Card, Field, Input, Select, PageHead } from "../components/ui";
+import { Badge, Btn, Card, Field, Input, Select, PageHead, DateInput, fmtDateGB } from "../components/ui";
 import { SunbedMap } from "../components/SunbedMap";
 import { SetScanner, type ScanHit } from "../components/SetScanner";
 import { useApp, useSpotlight } from "../app/store";
@@ -141,7 +141,7 @@ export function ControllerBeach() {
       return { status, history: history.slice(0, 300) };
     });
     toast(
-      `${targets.map((s) => s.id).join(", ")} → ${OPS_LABEL[to]}${date !== today ? ` on ${date}` : ""}.`,
+      `${targets.map((s) => s.id).join(", ")} → ${OPS_LABEL[to]}${date !== today ? ` on ${fmtDateGB(date)}` : ""}.`,
       { tone: "success" },
     );
     setNote("");
@@ -205,15 +205,15 @@ export function ControllerBeach() {
             </button>
           ))}
         </div>
-        <label className="text-[12px] font-semibold text-slate-700">
+        <div className="text-[12px] font-semibold text-slate-700">
           Date
-          <input
-            type="date"
+          <DateInput aria-label="Date"
+            
             value={date}
-            onChange={(e) => e.target.value && setDate(e.target.value)}
+            onChange={(v) => v && setDate(v)}
             className="block mt-1 rounded-lg ring-1 ring-slate-200 px-2 py-2 text-[13px]"
           />
-        </label>
+        </div>
         <div className="w-40">
           <Select
             aria-label="Zone"
@@ -247,7 +247,7 @@ export function ControllerBeach() {
             </div>
             <div className="flex items-center justify-between mb-2">
               <h2 className="font-display font-bold text-navy-900">
-                {zone.name} · {date === today ? "today" : date}
+                {zone.name} · {date === today ? "today" : fmtDateGB(date)}
               </h2>
               <span className="text-[12px] text-slate-500">
                 {sel.size ? `${sel.size} selected` : "Tap sets — tap again to add more"}
@@ -330,7 +330,7 @@ export function ControllerBeach() {
                     {zone.name} · {(one.kind ?? "standard").replace(/^./, (c) => c.toUpperCase())}
                     {one.access ? " · step-free" : ""} · €
                     {resolvePrice(one, zoneId, date, beachPricing, priceRules).price} on{" "}
-                    {date === today ? "today" : date}
+                    {date === today ? "today" : fmtDateGB(date)}
                   </div>
                   {one.inv && <div className="mt-1 text-[12px] text-amber-700">{one.inv}</div>}
                   {(() => {
@@ -466,7 +466,7 @@ export function ControllerBeach() {
                         <span className="tnum text-slate-400">{hhmm(h.at)}</span> · {h.setId}{" "}
                         {OPS_LABEL[h.from]} → <b className="text-navy-900">{OPS_LABEL[h.to]}</b>
                         {h.reason ? ` (${h.reason})` : ""}
-                        {h.date !== today ? ` · for ${h.date}` : ""} · {h.by}
+                        {h.date !== today ? ` · for ${fmtDateGB(h.date)}` : ""} · {h.by}
                       </li>
                     ))}
                   </ul>

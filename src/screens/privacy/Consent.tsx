@@ -10,6 +10,7 @@ import {
   Select,
   StatCard,
   Toggle,
+  DateInput,
 } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { CUSTOMERS } from "../../data/mock";
@@ -360,10 +361,10 @@ export function PoliciesTab() {
                 />
               </Field>
               <Field label="Effective from">
-                <Input
-                  type="date"
+                <DateInput
+                  
                   value={edit.effective}
-                  onChange={(e) => setEdit({ ...edit, effective: e.target.value })}
+                  onChange={(v) => setEdit({ ...edit, effective: v })}
                 />
               </Field>
             </div>

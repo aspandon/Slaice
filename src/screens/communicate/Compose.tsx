@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Field, Input, Modal, Select } from "../../components/ui";
+import { Badge, Btn, Card, Field, Input, Modal, Select, DateInput } from "../../components/ui";
 import { useApp } from "../../app/store";
 import {
   CH_LABEL,
@@ -28,7 +28,7 @@ import { reachOf, segName, useCommsEngine } from "./engine";
 
 type When = "now" | "once" | "weekly";
 const CH_COLOR: Record<Ch, string> = {
-  push: "#3a47cc",
+  push: "#13315c",
   email: "#0d9488",
   viber: "#7360f2",
   sms: "#16a34a",
@@ -255,7 +255,7 @@ export function ComposeTab({
               <button
                 type="button"
                 onClick={() => go("admin", "loyalty")}
-                className="text-[12px] font-semibold text-slaice-600 hover:text-slaice-700 inline-flex items-center gap-1"
+                className="text-[12px] font-semibold text-sky-700 hover:text-sky-800 inline-flex items-center gap-1"
               >
                 <Icon.gift size={12} /> Set up loyalty schemes →
               </button>
@@ -347,11 +347,11 @@ export function ComposeTab({
           {when === "once" && (
             <div className="grid grid-cols-2 gap-2 max-w-sm">
               <Field label="Date">
-                <Input
-                  type="date"
+                <DateInput
+                  
                   value={onceDate}
                   min={today}
-                  onChange={(e) => setOnceDate(e.target.value)}
+                  onChange={(v) => setOnceDate(v)}
                 />
               </Field>
               <Field label="Time (Europe/Athens)">
@@ -376,17 +376,17 @@ export function ComposeTab({
                 />
               </Field>
               <Field label="From">
-                <Input
-                  type="date"
+                <DateInput
+                  
                   value={wk.from}
-                  onChange={(e) => setWk({ ...wk, from: e.target.value })}
+                  onChange={(v) => setWk({ ...wk, from: v })}
                 />
               </Field>
               <Field label="Until">
-                <Input
-                  type="date"
+                <DateInput
+                  
                   value={wk.to}
-                  onChange={(e) => setWk({ ...wk, to: e.target.value })}
+                  onChange={(v) => setWk({ ...wk, to: v })}
                 />
               </Field>
             </div>

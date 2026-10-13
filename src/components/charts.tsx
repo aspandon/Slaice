@@ -143,7 +143,9 @@ export function LineChartMini({ data, color = "#0D9488", height = 220, label, co
   );
 }
 
-export function Donut({ segments, size = 120, label, className }: { segments: DonutSegment[]; size?: number; label?: string; className?: string }) {
+/* The centre shows the real total (AENR-555) — e.g. "€889k" over "revenue" —
+   never the sum of the percentages. */
+export function Donut({ segments, size = 120, label, className, total: centre, totalLabel }: { segments: DonutSegment[]; size?: number; label?: string; className?: string; total?: string; totalLabel?: string }) {
   const total = segments.reduce((a, s) => a + s.v, 0);
   let acc = 0;
   const r = 42, c = 2 * Math.PI * r;
@@ -157,8 +159,8 @@ export function Donut({ segments, size = 120, label, className }: { segments: Do
         return <circle key={i} cx="50" cy="50" r={r} fill="none" stroke={s.c} strokeWidth="12"
           strokeDasharray={`${dash} ${c - dash}`} strokeDashoffset={-off} transform="rotate(-90 50 50)" strokeLinecap="butt" />;
       })}
-      <text x="50" y="48" textAnchor="middle" fontSize="11" fontWeight="700" fill="#0B2545">{total}</text>
-      <text x="50" y="60" textAnchor="middle" fontSize="6" fill="#64748b">total</text>
+      {centre && <text x="50" y={totalLabel ? 50 : 54} textAnchor="middle" fontSize={centre.length > 6 ? 10 : 12} fontWeight="700" fill="#0B2545">{centre}</text>}
+      {centre && totalLabel && <text x="50" y="61" textAnchor="middle" fontSize="6" fill="#475569">{totalLabel}</text>}
     </svg>
   );
 }
@@ -192,7 +194,7 @@ export function StackedBar({ segments, height = 10, className = "" }: { segments
 }
 
 // Conversion funnel — each step a shrinking bar with a count + drop-off.
-export function Funnel({ steps, color = "#3a47cc" }: { steps: FunnelStep[]; color?: string }) {
+export function Funnel({ steps, color = "#13315c" }: { steps: FunnelStep[]; color?: string }) {
   const top = steps[0]?.v || 1;
   return (
     <div className="space-y-1.5">

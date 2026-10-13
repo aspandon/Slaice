@@ -245,7 +245,9 @@ export function ChannelsTab({
                 v: Math.round(s.share * 100),
                 c: CHANNEL_COLORS[s.channel],
               }))}
-              label={`Revenue share: ${ch.now.map((s) => `${s.channel} ${Math.round(s.share * 100)}%`).join(", ")}`}
+              total={fmtEUR(ch.now.reduce((a, s) => a + s.revenue, 0))}
+              totalLabel="revenue"
+              label={`Revenue by channel, ${fmtEUR(ch.now.reduce((a, s) => a + s.revenue, 0))}: ${ch.now.map((s) => `${s.channel} ${fmtEUR(s.revenue)} (${Math.round(s.share * 100)}%)`).join(", ")}`}
             />
             <div className="text-[13px] space-y-1.5">
               {ch.now.map((s) => (
@@ -254,7 +256,7 @@ export function ChannelsTab({
                     className="w-3 h-3 rounded-sm inline-block"
                     style={{ background: CHANNEL_COLORS[s.channel] }}
                   />
-                  {s.channel} {Math.round(s.share * 100)}%
+                  {s.channel} · {fmtEUR(s.revenue)} · {Math.round(s.share * 100)}%
                 </div>
               ))}
             </div>
@@ -282,7 +284,7 @@ export function ChannelsTab({
                       key={m.l}
                       style={{
                         width: `${m.v}%`,
-                        background: ["#0D9488", "#0ea5e9", "#a855f7", "#f59e0b"][i],
+                        background: ["#0D9488", "#0ea5e9", "#13315c", "#f59e0b"][i],
                       }}
                     />
                   ))}
@@ -295,7 +297,7 @@ export function ChannelsTab({
               <span key={l} className="inline-flex items-center gap-1.5">
                 <i
                   className="w-3 h-3 rounded-sm inline-block"
-                  style={{ background: ["#0D9488", "#0ea5e9", "#a855f7", "#f59e0b"][i] }}
+                  style={{ background: ["#0D9488", "#0ea5e9", "#13315c", "#f59e0b"][i] }}
                 />
                 {l}
               </span>

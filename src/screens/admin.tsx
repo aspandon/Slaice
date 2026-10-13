@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Pager, moneyVal } from "../components/TableTools";
 import { Icon } from "../lib/icons";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, EmptyState, FutureBanner, ContextPanel, Spinner, PeriodPicker } from "../components/ui";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, EmptyState, FutureBanner, ContextPanel, Spinner, PeriodPicker, DateInput } from "../components/ui";
 import type { TabEntry } from "../components/ui";
 import { BarChart, HBarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts";
 import { SunbedMark } from "../components/Beach";
@@ -58,9 +58,9 @@ export function AdminDashboard() {
   const other = now.byCapability.Lockers + now.byCapability.Parking;
   const share = (v: number) => (now.revenue ? Math.round((v / now.revenue) * 100) : 0);
   const mix = [
-    { l: "Sunbeds", v: share(now.byCapability.Sunbeds), c: "#0D9488", cls: "bg-teal-600" },
-    { l: "Tickets", v: share(now.byCapability.Tickets), c: "#0ea5e9", cls: "bg-sky-500" },
-    { l: "Other", v: share(other), c: "#f59e0b", cls: "bg-amber-500" },
+    { l: "Sunbeds", v: share(now.byCapability.Sunbeds), amt: now.byCapability.Sunbeds, c: "#0D9488", cls: "bg-teal-600" },
+    { l: "Tickets", v: share(now.byCapability.Tickets), amt: now.byCapability.Tickets, c: "#0ea5e9", cls: "bg-sky-500" },
+    { l: "Lockers & parking", v: share(other), amt: other, c: "#f59e0b", cls: "bg-amber-500" },
   ];
   const occByZone = ZONES.map((z) => ({ l: z.name, v: Math.round((now.occupancyByZone[z.id] ?? 0) * 100) }));
   const peak = Math.max(...occByZone.map((z) => z.v));
@@ -105,9 +105,9 @@ export function AdminDashboard() {
         <Card className="p-5">
           <div className="font-semibold text-navy-900 mb-2">Revenue mix</div>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-5">
-            <Donut segments={mix.map((m) => ({ v: m.v, c: m.c }))} size={180} label={`Revenue mix: ${mix.map((m) => `${m.l} ${m.v}%`).join(", ")}`} />
+            <Donut segments={mix.map((m) => ({ v: m.v, c: m.c }))} size={180} total={fmtEUR(now.revenue)} totalLabel="revenue" label={`Revenue mix, ${fmtEUR(now.revenue)}: ${mix.map((m) => `${m.l} ${fmtEUR(m.amt)} (${m.v}%)`).join(", ")}`} />
             <div className="text-sm space-y-2">
-              {mix.map((m) => <Leg key={m.l} c={m.cls} t={`${m.l} ${m.v}%`} />)}
+              {mix.map((m) => <Leg key={m.l} c={m.cls} t={`${m.l} · ${fmtEUR(m.amt)} · ${m.v}%`} />)}
             </div>
           </div>
         </Card>
@@ -206,6 +206,7 @@ export function AdminManual() {
   const [sentVia, setSentVia] = useState<SendChannel>("Email");
   const [sentTo, setSentTo] = useState("");
   const today = DEMO_TODAY;
+  const [bookDate, setBookDate] = useState<string>(DEMO_TODAY);
   const zone = ZONES.find((z) => z.name === zoneName) ?? ZONES[0];
   const slots = beachLayout[zone.id] ?? zoneLayout(zone);
   const reserve = () => {
@@ -224,7 +225,7 @@ export function AdminManual() {
               <Field label="Customer phone"><Input placeholder="+30 694 …" value={mphone} onChange={(e) => setMphone(e.target.value)} /></Field>
               <Field label="Zone"><Select value={zoneName} onChange={(e) => { setZoneName(e.target.value); setCode(""); }} options={ZONES.map((z) => z.name)} /></Field>
               <Field label="Sunbed code"><Input placeholder="CE-92" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} /></Field>
-              <Field label="Date"><Input type="date" defaultValue={today} /></Field>
+              <Field label="Date"><DateInput value={bookDate} onChange={setBookDate} min={today} required /></Field>
               <Field label="Mark as"><Select options={["Unpaid (manual)", "Comp / VIP", "Pay later"]} /></Field>
             </div>
             <ManualCoverage zone={zone} slots={slots} selectedCode={code} onPick={(id) => setCode(id)} />
@@ -301,9 +302,9 @@ export function AdminReporting() {
   const ratio = (a: number, b: number) => (b ? a / b : 0);
   const otherRev = now.byCapability.Lockers + now.byCapability.Parking;
   const mix = [
-    { l: "Sunbeds", v: Math.round(ratio(now.byCapability.Sunbeds, now.revenue) * 100), c: "#0D9488", cls: "bg-teal-600" },
-    { l: "Tickets", v: Math.round(ratio(now.byCapability.Tickets, now.revenue) * 100), c: "#0ea5e9", cls: "bg-sky-500" },
-    { l: "Other", v: Math.round(ratio(otherRev, now.revenue) * 100), c: "#f59e0b", cls: "bg-amber-500" },
+    { l: "Sunbeds", v: Math.round(ratio(now.byCapability.Sunbeds, now.revenue) * 100), amt: now.byCapability.Sunbeds, c: "#0D9488", cls: "bg-teal-600" },
+    { l: "Tickets", v: Math.round(ratio(now.byCapability.Tickets, now.revenue) * 100), amt: now.byCapability.Tickets, c: "#0ea5e9", cls: "bg-sky-500" },
+    { l: "Lockers & parking", v: Math.round(ratio(otherRev, now.revenue) * 100), amt: otherRev, c: "#f59e0b", cls: "bg-amber-500" },
   ];
   const k = (s: typeof now) => ({
     online: ratio(s.byChannel.Online.bookings, s.bookings),
@@ -467,13 +468,13 @@ export function AdminReporting() {
         </div>
         {/* Leisure-industry KPIs (RevPATB ≈ RevPAR for sunbeds). */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-          {execKpis.slice(5).map((x) => <StatCard instant key={x.label} label={x.label} value={x.value} sub={x.sub} tone={x.tone} trend={x.trend} />)}
+          {execKpis.slice(5).map((x) => <StatCard instant key={x.label} label={x.label} value={x.value} sub={x.sub} tone={x.tone} trend={x.trend} compare={vs} />)}
         </div>
         <div className="grid lg:grid-cols-3 gap-4 mt-4">
           <Card className="p-5 lg:col-span-2"><div className="font-semibold text-navy-900 mb-1">Revenue by {axis.toLowerCase()} (€) · {noun}</div><LineChartMini data={revSeries} label={`Revenue by ${axis.toLowerCase()}, ${label}`} /></Card>
           <Card className="p-5"><div className="font-semibold text-navy-900 mb-2">Revenue mix</div>
-            <div className="flex items-center gap-4"><Donut segments={mix.map((m) => ({ v: m.v, c: m.c }))} label={`Revenue mix: ${mix.map((m) => `${m.l} ${m.v}%`).join(", ")}`} />
-              <div className="text-sm space-y-1.5">{mix.map((m) => <Leg key={m.l} c={m.cls} t={`${m.l} ${m.v}%`} />)}</div></div>
+            <div className="flex items-center gap-4"><Donut segments={mix.map((m) => ({ v: m.v, c: m.c }))} total={fmtEUR(now.revenue)} totalLabel="revenue" label={`Revenue mix, ${fmtEUR(now.revenue)}: ${mix.map((m) => `${m.l} ${fmtEUR(m.amt)} (${m.v}%)`).join(", ")}`} />
+              <div className="text-sm space-y-1.5">{mix.map((m) => <Leg key={m.l} c={m.cls} t={`${m.l} · ${fmtEUR(m.amt)} · ${m.v}%`} />)}</div></div>
           </Card>
         </div>
         {/* Pace + an actionable insight callout derived from the period. */}
@@ -483,7 +484,7 @@ export function AdminReporting() {
               <div className="font-semibold text-navy-900">Booking pace · {noun}</div>
               {paceVsLy && <Badge tone={paceVsLy.startsWith("+") ? "green" : "red"}>{paceVsLy} vs same period last year</Badge>}
             </div>
-            <BarChart color="#3a47cc" data={bookSeries} label={`Bookings by ${axis.toLowerCase()}, ${label}`} />
+            <BarChart color="#13315c" data={bookSeries} label={`Bookings by ${axis.toLowerCase()}, ${label}`} />
           </Card>
           {/* Insight in the brand system (AENR-582): a card like the others, teal accent, with the period it covers. */}
           <Card className="p-5 flex flex-col relative overflow-hidden">
@@ -631,8 +632,8 @@ export function AdminRefunds() {
         actions={<PeriodPicker value={period} onChange={setPeriod} presets={["day", "week", "month", "season"]} allowAll resetTo={{ kind: "preset", preset: "month", offset: 0 }} />} primary={<Btn variant="outline" icon={Icon.download} onClick={exportCSV}>Export</Btn>} />
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <StatCard label="Needs decision" value={queue.length} sub={overdue ? `${overdue} past the 48 h SLA` : "all within the 48 h SLA"} tone={overdue ? "rose" : "amber"} />
-        <StatCard label={`Refunded · ${noun}`} value={fmtEUR(stats.amount)} sub={`${fmtInt(stats.count)} refund${stats.count === 1 ? "" : "s"} in the history below`} tone="teal" trend={hasPrev ? trendPct(stats.amount, prevStats.amount) : undefined} />
-        <StatCard label="Refund rate" value={fmtPct(refundRate, 1)} sub={`of ${fmtEUR(sales)} sales`} trend={hasPrev ? `${refundRate - prevRate >= 0 ? "+" : "−"}${Math.abs((refundRate - prevRate) * 100).toFixed(1)}pp` : undefined} />
+        <StatCard label={`Refunded · ${noun}`} value={fmtEUR(stats.amount)} sub={`${fmtInt(stats.count)} refund${stats.count === 1 ? "" : "s"} in the history below`} tone="teal" trend={hasPrev ? trendPct(stats.amount, prevStats.amount) : undefined} compare={prevRange ? `vs ${rangeLabel(prevRange)}` : undefined} />
+        <StatCard label="Refund rate" value={fmtPct(refundRate, 1)} sub={`of ${fmtEUR(sales)} sales`} compare={prevRange ? `vs ${rangeLabel(prevRange)}` : undefined} trend={hasPrev ? `${refundRate - prevRate >= 0 ? "+" : "−"}${Math.abs((refundRate - prevRate) * 100).toFixed(1)}pp` : undefined} />
         <StatCard label="Top reason" value={stats.top ? stats.top.reason : "—"} sub={stats.top ? `${Math.round(stats.top.share * 100)}% of refunds` : "no refunds yet"} tone="indigo" />
       </div>
 
@@ -714,7 +715,7 @@ function SchemeConfigModal({ scheme, initial, configured, onSave, onClose }: {
   const heading = scheme.custom ? String(values.title || "Custom scheme") : scheme.title;
   return (
     <Modal open onClose={onClose} wide
-      title={<span className="inline-flex items-center gap-2"><SIcon size={18} className="text-slaice-600" /> Configure · {heading}</span>}
+      title={<span className="inline-flex items-center gap-2"><SIcon size={18} className="text-sky-700" /> Configure · {heading}</span>}
       footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn>
         <Btn variant="primary" icon={Icon.check} onClick={() => onSave(values)}>{configured ? "Save changes" : "Save & activate"}</Btn></>}>
       <div className="space-y-3">
@@ -810,7 +811,7 @@ export function AdminLoyalty() {
             return (
               <Card key={s.id} className={`p-4 flex flex-col gap-2 transition ${on ? "ring-2 ring-teal-500" : ""}`}>
                 <div className="flex items-center gap-2.5">
-                  <span className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${on ? "bg-teal-600 text-white" : "bg-slaice-100 text-slaice-700"}`}><SIcon size={18} /></span>
+                  <span className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${on ? "bg-teal-600 text-white" : "bg-sky-50 text-sky-800"}`}><SIcon size={18} /></span>
                   <div className="font-semibold text-navy-900 flex-1 min-w-0 truncate">{title}</div>
                   {configured && <Toggle on={on} onChange={() => toggleEnabled(s.id)} ariaLabel={`Enable ${title}`} />}
                 </div>
@@ -886,7 +887,7 @@ export function AdminLoyalty() {
           <div className="space-y-2">
             {tiers.map((t) => (
               <div key={t.min} className="flex items-center gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
-                <span className="w-10 h-10 rounded-lg bg-slaice-100 text-slaice-700 grid place-items-center font-bold tnum text-[13px] shrink-0">{t.min}+</span>
+                <span className="w-10 h-10 rounded-lg bg-sky-50 text-sky-800 grid place-items-center font-bold tnum text-[13px] shrink-0">{t.min}+</span>
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-semibold text-navy-900 flex items-center gap-1.5 flex-wrap">Visited {t.min}+ times → <Badge tone={t.tone}>{t.off}</Badge></div>
                   <div className="text-[11px] text-slate-500"><b className="tnum">{tier(t.min)}</b> guests qualify this season</div>
@@ -971,7 +972,7 @@ function PassPricingPanel() {
       <div className="flex justify-end mb-3"><Btn variant="primary" icon={Icon.check} onClick={save}>Save pricing</Btn></div>
       <div className="grid lg:grid-cols-2 gap-5">
         <Card className="p-5 space-y-3">
-          <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.sparkles size={16} className="text-slaice-600" /> VIP credit</div>
+          <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.sparkles size={16} className="text-sky-700" /> VIP credit</div>
           <div className="text-[12.5px] text-slate-600 -mt-1">Prepaid credit guests spend at checkout — the discount applies to whatever the credit pays for.</div>
           <Field label="Spend discount">
             <div className="flex items-center gap-2 max-w-[10rem]">
@@ -994,7 +995,7 @@ function PassPricingPanel() {
             </div>
             <Btn variant="ghost" size="sm" icon={Icon.plus} className="mt-2" onClick={addTier}>Add pack</Btn>
           </div>
-          <div className="rounded-xl bg-slaice-50 ring-1 ring-slaice-600/15 px-3 py-2 text-[12px] text-slaice-700">Valid to the end of the season · spent on any service · the {disc}% applies to the card-paid share.</div>
+          <div className="rounded-xl bg-sky-50 ring-1 ring-sky-600/15 px-3 py-2 text-[12px] text-sky-800">Valid to the end of the season · spent on any service · the {disc}% applies to the card-paid share.</div>
         </Card>
         <Card className="p-5 space-y-3">
           <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.ticket size={16} className="text-teal-600" /> Season pass</div>

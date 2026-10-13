@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { lazyWithReload } from "../../lib/staleChunk";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Field, Input, Modal, Select, Spinner, Table, Toggle } from "../../components/ui";
+import { Badge, Btn, Card, Field, Input, Modal, Select, Spinner, Table, Toggle, DateInput } from "../../components/ui";
 import { QR } from "../../components/charts";
 import { SunbedMap } from "../../components/SunbedMap";
 import { InventoryActions, InventoryPanel } from "./Inventory";
@@ -234,8 +234,8 @@ export function SunbedWorkspace() {
           </div>
         </div>
       )}
-      <div className="lg:hidden flex items-start gap-2 rounded-xl bg-slaice-100 ring-1 ring-slaice-600/20 px-3 py-2 text-[12px] text-slaice-700">
-        <Icon.info size={14} className="shrink-0 mt-0.5 text-slaice-600" /> Best on a larger screen. On phones, use the List view to select and edit sets.
+      <div className="lg:hidden flex items-start gap-2 rounded-xl bg-sky-50 ring-1 ring-sky-600/20 px-3 py-2 text-[12px] text-sky-800">
+        <Icon.info size={14} className="shrink-0 mt-0.5 text-sky-700" /> Best on a larger screen. On phones, use the List view to select and edit sets.
       </div>
 
       <div className="grid xl:grid-cols-[minmax(0,1fr)_340px] gap-4 items-start">
@@ -250,9 +250,9 @@ export function SunbedWorkspace() {
             ))}
           </div>
           <div className="flex flex-wrap items-end gap-3 mb-3">
-            <label className="text-[12px] font-semibold text-slate-700">Prices on
-              <input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} className="block mt-1 rounded-lg ring-1 ring-slate-200 px-2 py-1.5 text-[13px]" />
-            </label>
+            <div className="text-[12px] font-semibold text-slate-700">Prices on
+              <DateInput aria-label="Prices on" value={date} onChange={(v) => v && setDate(v)} className="block mt-1 rounded-lg ring-1 ring-slate-200 px-2 py-1.5 text-[13px]" />
+            </div>
             {(() => { const v = versionOn(layouts.versions, date, todayISO()); return v ? <span className="text-[11.5px] text-slate-600 pb-2">Live layout on this date: <b className="text-navy-900">v{v.no} · {v.name}</b>{v.effectiveFrom > todayISO() ? " (scheduled)" : ""}</span> : null; })()}
             <div role="radiogroup" aria-label="Tool" className="flex rounded-xl ring-1 ring-slate-200 overflow-hidden">
               {([["select", "Select & move"], ["paint", "Paint category"], ["landmark", "Add landmark"]] as [Mode, string][]).map(([m, l]) => (
@@ -393,8 +393,8 @@ export function SunbedWorkspace() {
               <form className="rounded-xl ring-1 ring-slate-200 p-3 space-y-2" onSubmit={(e) => { e.preventDefault(); if (ov.price && !ovErr) applyOverride(); }}>
                 <div className="text-[12.5px] font-semibold text-navy-900">Price for dates</div>
                 <div className="grid grid-cols-2 gap-2">
-                  <Field label="From"><Input type="date" value={ov.from} onChange={(e) => setOv((x) => ({ ...x, from: e.target.value }))} /></Field>
-                  <Field label="To"><Input type="date" value={ov.to} onChange={(e) => setOv((x) => ({ ...x, to: e.target.value }))} /></Field>
+                  <Field label="From"><DateInput value={ov.from} onChange={(v) => setOv((x) => ({ ...x, from: v }))} /></Field>
+                  <Field label="To"><DateInput value={ov.to} onChange={(v) => setOv((x) => ({ ...x, to: v }))} /></Field>
                   <Field label="Days"><Select value={ov.days} onChange={(e) => setOv((x) => ({ ...x, days: e.target.value as PriceRuleDays }))} options={DAYS.map((d) => ({ v: d.v, l: d.l }))} /></Field>
                   <Field label="€ / day"><Input type="number" min={1} value={ov.price} onChange={(e) => setOv((x) => ({ ...x, price: e.target.value }))} /></Field>
                 </div>

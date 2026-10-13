@@ -207,7 +207,7 @@ function VipTile() {
         <PassCard kind="vip" holder="ELENA M." subtitle={vip ? `€${vip.balance.toLocaleString()} CREDIT` : `MEMBER · ${disc}% OFF`} validUntil={SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
       </button>
       <div className="mt-auto flex items-center justify-between gap-2 px-4 py-3">
-        <button onClick={() => go("customer", "vip")} className="inline-flex items-center gap-1 text-slaice-600 hover:text-slaice-700 text-[13px] font-semibold">
+        <button onClick={() => go("customer", "vip")} className="inline-flex items-center gap-1 text-sky-700 hover:text-sky-800 text-[13px] font-semibold">
           {t("Get VIP pass")} — {t("from")} €{from.toLocaleString()} <Icon.chevR size={14} />
         </button>
         <div className="flex items-center gap-2 shrink-0">
@@ -322,7 +322,7 @@ function RewardRow({ icon, title, state }: { icon: IconRenderer; title: string; 
   return (
     <div className={`rounded-xl p-3 ring-1 transition ${claim ? "ring-teal-300 bg-teal-50/60" : "ring-slate-200 bg-white/60"}`}>
       <div className="flex items-center gap-2.5">
-        <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${claim ? "bg-teal-600 text-white" : "bg-slaice-100 text-slaice-700"}`}><SIcon size={15} /></span>
+        <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${claim ? "bg-teal-600 text-white" : "bg-sky-50 text-sky-800"}`}><SIcon size={15} /></span>
         <div className="font-semibold text-navy-900 text-[13.5px] flex-1 min-w-0 truncate">{t(title)}</div>
         {claim && <Badge tone="green"><Icon.checkCircle size={10} /> {t("Ready")}</Badge>}
       </div>
@@ -333,7 +333,7 @@ function RewardRow({ icon, title, state }: { icon: IconRenderer; title: string; 
             <span className="tnum shrink-0">{state.current}/{state.target} {t(state.unit)}</span>
             {state.note && <span className="truncate">{state.note}</span>}
           </div>
-          <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-slaice-500 to-teal-500" style={{ width: `${Math.min(100, Math.round((state.current / state.target) * 100))}%` }} /></div>
+          <div className="h-1.5 rounded-full bg-slate-200 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-navy-700 to-teal-500" style={{ width: `${Math.min(100, Math.round((state.current / state.target) * 100))}%` }} /></div>
         </div>
       )}
       {claim && (

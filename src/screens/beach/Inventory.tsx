@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Field, Input, Select, Toggle } from "../../components/ui";
+import { Badge, Btn, Card, Field, Input, Select, Toggle, DateInput } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { ZONES } from "../../data/beach";
 import { addDays } from "../../domain/period";
@@ -54,15 +54,15 @@ export function InventoryActions({ zoneId, sel, date }: { zoneId: string; sel: S
     <div className="space-y-3 border-t border-slate-100 pt-3">
       <div className="text-[12.5px] font-semibold text-navy-900">Inventory · {ids.length} set{ids.length === 1 ? "" : "s"}</div>
       <div className="grid grid-cols-2 gap-2">
-        <Field label="From"><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
-        <Field label="To"><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} /></Field>
+        <Field label="From"><DateInput value={from} onChange={(v) => setFrom(v)} /></Field>
+        <Field label="To"><DateInput value={to} onChange={(v) => setTo(v)} /></Field>
       </div>
       {!dates.length && <div role="alert" className="text-[12px] text-rose-700">End date must be on or after the start.</div>}
       <form className="rounded-xl ring-1 ring-slate-200 p-3 space-y-2" onSubmit={(e) => { e.preventDefault(); if (dates.length) hold(); }}>
         <div className="text-[12px] font-semibold text-navy-900 flex items-center gap-1.5"><Icon.lock size={12} /> Hold</div>
         <div className="grid grid-cols-2 gap-2">
           <Field label="Reason"><Select value={reason} onChange={(e) => setReason(e.target.value)} options={HOLD_REASONS.map((r) => ({ v: r, l: r }))} /></Field>
-          <Field label="Release at (optional)"><Input type="datetime-local" value={until} onChange={(e) => setUntil(e.target.value)} /></Field>
+          <Field label="Release at (optional)"><div className="flex gap-2"><DateInput aria-label="Release date" value={until.slice(0, 10)} onChange={(v) => setUntil(v ? `${v}T${until.slice(11, 16) || "18:00"}` : "")} /><Input type="time" lang="en-GB" aria-label="Release time" className="w-28" value={until.slice(11, 16)} disabled={!until} onChange={(e) => setUntil(`${until.slice(0, 10)}T${e.target.value}`)} /></div></Field>
         </div>
         <Field label={reason === "Other" ? "Note (required)" : "Note (optional)"}><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Wedding party, row repairs" /></Field>
         <Btn type="submit" size="sm" variant="outline" icon={Icon.lock} disabled={!dates.length || (reason === "Other" && !note.trim())}>Hold</Btn>
@@ -123,8 +123,8 @@ export function InventoryPanel({ zoneId, slots, date }: { zoneId: string; slots:
       <form className="rounded-xl ring-1 ring-slate-200 p-3 space-y-2" onSubmit={(e) => { e.preventDefault(); if (!ss.reason.trim() || ss.to < ss.from) return; update((i) => ({ ...i, stopSells: [...i.stopSells, { id: uid("stop"), zoneId, catId: ss.cat || undefined, from: ss.from, to: ss.to, reason: ss.reason.trim(), active: true }] }), `Stop-sell online ${zone.name}${ss.cat ? ` (${cats.find((c) => c.id === ss.cat)?.code})` : ""} ${ss.from} → ${ss.to}`); setSs((x) => ({ ...x, reason: "" })); toast(`Online sales stopped for ${zone.name}.`, { tone: "success" }); }}>
         <div className="text-[12px] font-semibold text-navy-900">Stop-sell online</div>
         <div className="grid grid-cols-2 gap-2">
-          <Field label="From"><Input type="date" value={ss.from} onChange={(e) => setSs((x) => ({ ...x, from: e.target.value }))} /></Field>
-          <Field label="To"><Input type="date" value={ss.to} onChange={(e) => setSs((x) => ({ ...x, to: e.target.value }))} /></Field>
+          <Field label="From"><DateInput value={ss.from} onChange={(v) => setSs((x) => ({ ...x, from: v }))} /></Field>
+          <Field label="To"><DateInput value={ss.to} onChange={(v) => setSs((x) => ({ ...x, to: v }))} /></Field>
         </div>
         <div className="grid grid-cols-2 gap-2">
           <Field label="Scope"><Select value={ss.cat} onChange={(e) => setSs((x) => ({ ...x, cat: e.target.value }))} options={[{ v: "", l: "Whole zone" }, ...cats.map((c) => ({ v: c.id, l: `${c.code} · ${c.name}` }))]} /></Field>

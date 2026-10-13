@@ -10,6 +10,7 @@ import {
   Input,
   Modal,
   Select,
+  DateInput,
 } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { ZONES } from "../../data/beach";
@@ -636,17 +637,17 @@ function AutomationBuilder({
           <Step n={5} title="Active window">
             <div className="grid grid-cols-2 gap-2.5 max-w-sm">
               <Field label="From">
-                <Input
-                  type="date"
+                <DateInput
+                  
                   value={a.window.from}
-                  onChange={(e) => setA({ ...a, window: { ...a.window, from: e.target.value } })}
+                  onChange={(v) => setA({ ...a, window: { ...a.window, from: v } })}
                 />
               </Field>
               <Field label="Until">
-                <Input
-                  type="date"
+                <DateInput
+                  
                   value={a.window.to}
-                  onChange={(e) => setA({ ...a, window: { ...a.window, to: e.target.value } })}
+                  onChange={(v) => setA({ ...a, window: { ...a.window, to: v } })}
                 />
               </Field>
             </div>

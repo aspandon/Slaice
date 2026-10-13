@@ -209,7 +209,7 @@ export function PlatformTenants() {
             </div>
           </div>
           <LineChartMini
-            color="#3a47cc"
+            color="#13315c"
             partialLast
             label="Monthly recurring revenue, last 12 months"
             data={mrrSeries(scoped, mrr, today).map((m) => ({ l: m.label, v: m.v }))}
@@ -455,7 +455,7 @@ export function PlatformOnboarding() {
             aria-current={i === step ? "step" : undefined}
           >
             <span
-              className={`w-9 h-9 rounded-full grid place-items-center text-sm font-bold ${i < step ? "bg-teal-600 text-white" : i === step ? "bg-slaice-600 text-white" : "bg-white text-slate-500 ring-1 ring-slate-200"}`}
+              className={`w-9 h-9 rounded-full grid place-items-center text-sm font-bold ${i < step ? "bg-teal-600 text-white" : i === step ? "bg-navy-900 text-white" : "bg-white text-slate-500 ring-1 ring-slate-200"}`}
             >
               {i < step ? <Icon.check size={16} /> : i + 1}
             </span>

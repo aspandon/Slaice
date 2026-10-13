@@ -12,6 +12,7 @@ import {
   Select,
 } from "../../components/ui";
 import { useApp } from "../../app/store";
+import { readHashQuery } from "../../app/router";
 import { downloadCSV } from "../../lib/download";
 import { CUSTOMERS } from "../../data/mock";
 import {
@@ -64,7 +65,7 @@ export function RequestsTab() {
   const { privacy, setPrivacy, today, submitRequest } = usePrivacy();
   const { toast } = useApp();
   const [view, setView] = useState<"open" | "closed" | "all">("open");
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(() => readHashQuery().get("request")); // inbox deep link (AENR-554)
   const [logging, setLogging] = useState(false);
   const rs = privacy.requests;
   const overdue = rs.filter((r) => isOpen(r) && daysLeft(r, today) < 0);

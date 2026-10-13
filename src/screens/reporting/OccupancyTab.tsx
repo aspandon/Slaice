@@ -254,6 +254,7 @@ export function OccupancyTab({
           value={fmtPct(r.avg)}
           sub={vs}
           trend={pp(r.avg, p.avg)}
+          compare={vs}
           tone="teal"
         />
         <StatCard
@@ -267,6 +268,7 @@ export function OccupancyTab({
           label="Sold-out days"
           value={String(r.soldOutDays)}
           sub="a zone ≥ 95%"
+          compare={vs}
           trend={
             hasPrev
               ? `${r.soldOutDays - p.soldOutDays >= 0 ? "+" : "−"}${Math.abs(r.soldOutDays - p.soldOutDays)}`
@@ -279,6 +281,7 @@ export function OccupancyTab({
           value={`€${r.revpatb.toFixed(1)}`}
           sub="per available unit"
           trend={pct(r.revpatb, p.revpatb)}
+          compare={vs}
           tone="indigo"
         />
         <StatCard
@@ -287,6 +290,7 @@ export function OccupancyTab({
           value={`€${r.adr.toFixed(1)}`}
           sub="per unit sold"
           trend={pct(r.adr, p.adr)}
+          compare={vs}
         />
         <StatCard
           instant
@@ -294,6 +298,7 @@ export function OccupancyTab({
           value={fmtPct(r.noShowRate, 1)}
           sub="booked, not checked in"
           trend={pp(r.noShowRate, p.noShowRate, 1)}
+          compare={vs}
         />
       </div>
 
@@ -339,7 +344,7 @@ export function OccupancyTab({
           <div className="text-[12px] text-slate-500 mb-2">Average occupancy by hour, {noun}</div>
           <LineChartMini
             data={r.byHour}
-            color="#3a47cc"
+            color="#13315c"
             height={180}
             label={`Occupancy by hour, ${label}`}
           />
