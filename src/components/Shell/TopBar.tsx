@@ -194,6 +194,12 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
         </Popover.Root>
         )}
 
+        {["admin", "callcenter", "cashier", "controller", "accountant", "support"].includes(persona) && (
+          <button type="button" onClick={() => window.dispatchEvent(new Event("slaice:command"))} aria-label="Search and commands (⌘K)" title="Search and commands (⌘K)"
+            className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 transition">
+            <Icon.search size={18} />
+          </button>
+        )}
         <Popover.Root open={notifOpen} onOpenChange={setNotifOpen}>
           <Popover.Trigger asChild>
             <button className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 data-[state=open]:bg-slate-100 data-[state=open]:text-navy-900 relative transition" aria-label={t("Notifications")}>

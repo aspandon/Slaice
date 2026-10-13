@@ -24,7 +24,7 @@ export function CustomerBookings() {
   const [qrFor, setQrFor] = useState<CustomerBooking | null>(null);
   const [filter, setFilter] = useState("all");
   const bookings = useAsync(listCustomerBookings);
-  // Bookings placed on this device first (several stores grouped), then the account's history.
+  // Bookings placed on this device first (several zones grouped), then the account's history.
   const placed: Row[] = account.bookings.map((b) => {
     const sun = b.items.filter((i) => i.kind === "sunbed");
     const stores = [...new Set(sun.map((i) => i.sub.split(" · ")[0]))];
@@ -84,7 +84,7 @@ export function CustomerBookings() {
         ) : filtered.length === 0 ? (
           <EmptyState icon={Icon.grid} title={filter === "active" ? t("No active bookings") : t("No past bookings yet")} body={filter === "active" ? t("Plan a visit for this weekend — Central front-row spots are 20% off.") : t("Once a visit is over, it will move here.")} action={<Btn variant="teal" icon={Icon.sparkles} onClick={() => go("customer", "plan")}>{t("Plan my visit")}</Btn>} />
         ) : (
-          <Table cols={[t("Booking"), t("Sunbeds"), t("Section"), t("Date"), t("Guest"), t("Status"), t("Price"), "QR"]} right={[6]}
+          <Table cols={[t("Booking"), t("Sunbeds"), t("Zone"), t("Date"), t("Guest"), t("Status"), t("Price"), "QR"]} right={[6]}
             rows={filtered.map((r) => [<span className="font-mono font-semibold text-navy-900">{r.id}</span>, r.sets, r.section, r.date, r.guest, <StatusBadge status={r.status} />, `€${r.price}`, <Btn size="sm" variant="ghost" icon={Icon.qr} onClick={() => setQrFor(r)} aria-label={`QR ${r.id}`}>QR</Btn>])} />
         )}
       </Card>

@@ -22,7 +22,7 @@ import {
 import type { BeachPricing, SunbedSlot } from "../../domain/types";
 
 /* ============ Layout drafts, versions & scheduling (AENR-514) ============
-   Publishing a draft shows what changed per store, blocks on bookings that a
+   Publishing a draft shows what changed per zone, blocks on bookings that a
    removed or moved set would break (reassign each to a similar set — the
    guest is notified — or keep the set until the booking's date), then
    publishes now or from a date through validate → apply → notify. Every
@@ -593,7 +593,7 @@ function VersionView({
       <div className="flex items-center gap-2 mb-2">
         <div className="w-44">
           <Select
-            aria-label="Store"
+            aria-label="Zone"
             value={zid}
             onChange={(e) => setZid(e.target.value)}
             options={ZONES.map((z) => ({ v: z.id, l: z.name }))}

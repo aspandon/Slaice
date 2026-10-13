@@ -114,7 +114,7 @@ function DrawerBody({ b, agent }: { b: OpsBooking; agent: boolean }) {
     (b.status === "Confirmed" || b.status === "Unpaid" || b.status === "Awaiting payment");
   const sets = b.items.filter((i) => i.startsWith("Sunbed · "));
 
-  // Free sets in the moving set's store on the visit day.
+  // Free sets in the moving set's zone on the visit day.
   const freeSets = useMemo(() => {
     if (!moving) return [];
     const zName = sets.find((i) => i.endsWith(` · ${moving}`))?.split(" · ")[1] ?? "";

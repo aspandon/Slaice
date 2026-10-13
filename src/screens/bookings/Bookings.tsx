@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon } from "../../lib/icons";
 import {
   Badge,
@@ -151,6 +151,12 @@ export function AdminBookings() {
     setOpenIdRaw(id);
     writeHashQuery(id ? { booking: id } : {}, ["booking"]);
   };
+  // A deep link while already on this page (⌘K) opens that booking.
+  useEffect(() => {
+    const on = () => { const id = readHashQuery().get("booking"); if (id) setOpenIdRaw(id); };
+    window.addEventListener("hashchange", on);
+    return () => window.removeEventListener("hashchange", on);
+  }, []);
   const [period, setPeriodRaw] = usePeriod({ kind: "all" });
   const setPeriod = (p: Parameters<typeof setPeriodRaw>[0]) => {
     setPeriodRaw(p);

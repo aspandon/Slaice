@@ -143,7 +143,7 @@ export function ControllerWalkin({
               <h2 className="font-display font-bold text-navy-900">Or tap a free set</h2>
               <div className="w-40">
                 <Select
-                  aria-label="Store"
+                  aria-label="Zone"
                   value={zoneId}
                   onChange={(e) => setZoneId(e.target.value)}
                   options={ZONES.map((z) => ({ v: z.id, l: z.name }))}

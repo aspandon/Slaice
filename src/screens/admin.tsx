@@ -80,7 +80,7 @@ export function AdminDashboard() {
     downloadCSVReport(`dashboard-${range.from}_${range.to}.csv`, [
       { title: `Key metrics · ${label}`, header: ["Metric", "Value", "Detail", "Change", "Compared"], rows: kpis.map((k) => [k.label, k.full, k.detail ?? "", k.trend ?? "—", vs]) },
       { title: `Revenue · ${label}`, header: [axis, "Revenue (€)"], rows: rev.map((d) => [d.l, d.v]) },
-      { title: "Revenue by capability", header: ["Capability", "Share %"], rows: mix.map((m) => [m.l, m.v]) },
+      { title: "Revenue mix", header: ["Product", "Share %"], rows: mix.map((m) => [m.l, m.v]) },
       { title: `Occupancy by zone · ${label}`, header: ["Zone", "Occupancy %"], rows: occByZone.map((z) => [z.l, z.v]) },
     ]);
     toast(`Exported the dashboard (${label}) to CSV.`, { tone: "success" });
@@ -103,9 +103,9 @@ export function AdminDashboard() {
           <BarChart data={rev} label={`Revenue by ${axis.toLowerCase()}, ${label}`} />
         </Card>
         <Card className="p-5">
-          <div className="font-semibold text-navy-900 mb-2">Revenue by capability</div>
+          <div className="font-semibold text-navy-900 mb-2">Revenue mix</div>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-5">
-            <Donut segments={mix.map((m) => ({ v: m.v, c: m.c }))} size={180} label={`Revenue by capability: ${mix.map((m) => `${m.l} ${m.v}%`).join(", ")}`} />
+            <Donut segments={mix.map((m) => ({ v: m.v, c: m.c }))} size={180} label={`Revenue mix: ${mix.map((m) => `${m.l} ${m.v}%`).join(", ")}`} />
             <div className="text-sm space-y-2">
               {mix.map((m) => <Leg key={m.l} c={m.cls} t={`${m.l} ${m.v}%`} />)}
             </div>
@@ -392,7 +392,7 @@ export function AdminReporting() {
         return financeCsv("invoices", fin, label);
       case "revenue":
         return [
-          { title: `Revenue by capability (€) ${head}`, header: ["Capability", "Revenue"], rows: capRows.map((c) => [c.l, c.v]) },
+          { title: `Revenue by product (€) ${head}`, header: ["Product", "Revenue"], rows: capRows.map((c) => [c.l, c.v]) },
           { title: `Sunbed revenue by zone (€) ${head}`, header: ["Zone", "Revenue"], rows: zoneRev.map((z) => [z.l, z.v]) },
           { title: "Latest transactions", header: ["Tx", "Capability", "Channel", "Status", "Amount"], rows: REVENUE_TX.map((r) => [r[0], r[1], r[2].label, r[3].label, r[4]]) },
         ];
@@ -459,7 +459,7 @@ export function AdminReporting() {
       {!closed && tab === "exec" && <>
         <OverviewPanel d={fin} onDocs={() => setTab("invoices")} />
         <p className="text-[12.5px] text-slate-500 mb-2">
-          Whole beach · all products and payment methods. Card revenue = “Captured” above{section ? " for the whole beach — the section filter applies to the block above only" : ""}; sunbed sets = “Sunbed bookings” above.
+          Whole beach · all products and payment methods. Card revenue = “Captured” above{section ? " for the whole beach — the zone filter applies to the block above only" : ""}; sunbed sets = “Sunbed bookings” above.
         </p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {execKpis.slice(0, 5).map((x, i) => <StatCard instant key={x.label} label={x.label} value={x.value} valueTitle={x.full} sub={x.detail ? <span><span className="block">{x.detail}</span><span className="block text-slate-500">{x.sub}</span></span> : x.sub} tone={x.tone} trend={x.trend}
@@ -498,7 +498,7 @@ export function AdminReporting() {
 
       {!closed && tab === "revenue" && <>
         <div className="grid lg:grid-cols-2 gap-4">
-          <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Revenue by capability (€) · {noun}</div><BarChart data={capRows.map((c) => (c.v === capMax ? { ...c, hi: 1 } : c))} label={`Revenue by capability, ${label}`} /></Card>
+          <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Revenue by product (€) · {noun}</div><BarChart data={capRows.map((c) => (c.v === capMax ? { ...c, hi: 1 } : c))} label={`Revenue by product, ${label}`} /></Card>
           <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Sunbed revenue by zone (€) · {noun}</div><HBarChart color="#0ea5e9" data={zoneRev} label={`Sunbed revenue by zone, ${label}`} /></Card>
         </div>
         <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-2">Latest transactions</div>
@@ -737,7 +737,7 @@ function SchemeConfigModal({ scheme, initial, configured, onSave, onClose }: {
 export function AdminLoyalty() {
   const { toast, loyalty, setLoyalty, go } = useApp();
   const [reward, setReward] = useState("20% off sunbeds");
-  const [store, setStore] = useState("All stores");
+  const [store, setStore] = useState("All zones");
   const [schedule, setSchedule] = useState("Weekday mornings");
   const [offers, setOffers] = useState<{ id: number; reward: string; store: string; schedule: string }[]>([]);
   const [send, setSend] = useState<{ off: string; count: number } | null>(null);
@@ -857,7 +857,7 @@ export function AdminLoyalty() {
           <div className="text-[12.5px] text-slate-600 -mt-1">Run a deal for everyone, on the dates and hours you choose.</div>
           <div className="grid sm:grid-cols-2 gap-3">
             <Field label="Reward"><Select value={reward} onChange={(e) => setReward(e.target.value)} options={LOYALTY_REWARDS} /></Field>
-            <Field label="Applies to"><Select value={store} onChange={(e) => setStore(e.target.value)} options={["All stores", ...ZONES.map((z) => z.name)]} /></Field>
+            <Field label="Applies to"><Select value={store} onChange={(e) => setStore(e.target.value)} options={["All zones", ...ZONES.map((z) => z.name)]} /></Field>
             <Field label="When"><Select value={schedule} onChange={(e) => setSchedule(e.target.value)} options={["Weekday mornings", "Weekends", "Specific date range", "All month", "Happy hour 17:00–19:00"]} /></Field>
             <Field label="Time window"><div className="flex items-center gap-2"><Input type="time" defaultValue="09:00" /><span className="text-slate-400">–</span><Input type="time" defaultValue="11:00" /></div></Field>
           </div>

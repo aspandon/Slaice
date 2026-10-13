@@ -39,7 +39,7 @@ export function PrivacyCenter({ open, onClose }: { open?: boolean; onClose: () =
 
   const exportData = () => {
     setExporting(true);
-    // Assemble the data subject's bundle from the mock stores.
+    // Assemble the data subject's bundle from the mock zones.
     const profile = { name: "Elena Manoli", email: "elena@example.com", phone: "+30 694 000 0000", language: "EN", created: "2025-06-12" };
     const json = JSON.stringify({
       exportedAt: new Date().toISOString(),

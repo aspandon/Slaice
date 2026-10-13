@@ -2167,6 +2167,24 @@ Events, Retail, Compliant: Stripe + MyDATA).
 | X-12 | **Surfaces & elevation** (AENR-549) | Role-named elevation tokens in `tailwind.config.js` — `surface` (page), `surface.raised` (solid data cards), `surface.overlay` (modals, drawers, menus) with `shadow-raised` / `shadow-overlay`. Tables, forms and lists sit on solid raised surfaces in every persona (`Card surface="raised"`; any card holding a table becomes raised automatically), so rows never take the sky / sand tint; glass stays for the top bar, hero cards and scrims. Table text keeps ≥ 4.5:1 (slate-400 is lifted to slate-500 inside tables). |
 | X-13 | **Page header** (AENR-550) | One `PageHead` on every page: the title sits in the top bar; the header says what the page is (`sub`), with an optional back link, view controls (period pickers, toggles), up to three secondary actions in a **More** menu and at most **one primary action**, always last (e.g. Users: More → Import CSV · Duplicates · New tag, primary New segment; Issue Ticket: More → Today’s transactions · Open live display; Reporting: primary Export CSV, More → Export PDF). Pages whose edits apply only when saved (ticket & locker prices, retention policy) show the sticky `SaveBar` only while there are unsaved changes. |
 | X-14 | **Index tables** (AENR-551) | One table standard: compact rows by default on desktop with a **Compact / Comfortable** toggle remembered on the device (`DensityToggle`); long lists (12+ rows) scroll inside a bounded region so the header stays in view; rows open their record (`Table rowLink` — the row’s button stretches over the row, Enter opens it: Bookings → booking drawer, Users → profile, Documents → document, Tenants → tenant page). Tab, sort and page live in the URL (`useListUrl`, `useUrlState`: Bookings `?tab=&sort=&page=`, Users `?segment=`, Documents / Refunds `?page=`, Tenants `?view=`). Status tabs with counts on Bookings; bulk bar and column picker on Users. |
+| X-15 | **One vocabulary** (AENR-552) | "Zone" everywhere for a beach area — the wizard, till, controller, display, reports, exports and i18n (no more "store" or "section"); navigation without unexplained acronyms ("RBAC" → **Team & roles**); "Revenue by capability" → **Revenue mix** / **Revenue by product**; the disability ticket shows **ΑμεΑ** with its meaning ("persons with disabilities"). See the Glossary below. |
+| X-16 | **⌘K search & commands** (AENR-553) | ⌘K / Ctrl+K (or the search button in the top bar) opens one palette for every staff persona (Platform keeps its tenant switcher): bookings by ref, guest or item (opens the booking drawer), guests by name, e-mail or phone (opens the profile), set codes such as `ce12` (opens Live beach / Beach status with the set selected), staff (Team & roles) and every page of the persona. Actions — New phone booking, Send a pay link, Issue ticket, Scan at the gate, Walk-in sale, Open live display, Export month — appear only when the role has that page, and actions that change data are hidden while previewing a role (View-as). Arrow keys + Enter, visible focus. **?** opens the shortcut sheet; **G then a letter** jumps (G D Dashboard, G B Bookings, G L Live beach, G U Users, G R Reporting, G F Refunds, G P Pay-by-link, G M Manual / Month-end, G I Issue, G T Transactions, G S Scan, G E Beach, G W Walk-in, G O Documents). Deep links: `?booking=`, `?guest=`, `?zone=&set=`. |
+
+### Glossary (AENR-552)
+
+| Term | Meaning |
+| --- | --- |
+| **Zone** | A named area of the beach with its own sets, prices and logo (Akanthus, Central, Macaw, Bestbuy, Main, Bolivar). Never "store" or "section". |
+| **Set** | One umbrella with its sunbeds — the unit a guest books, coded by zone (CE-12). |
+| **Price category** | Front row / standard / back row (or tenant-defined) — sets in a category share a price. |
+| **Booking** | One purchase: sets, tickets, lockers and parking for one or more days, with one gate QR. |
+| **Entry ticket** | Admission to the beach; categories Normal, ΑμεΑ (persons with disabilities — Άτομα με Αναπηρία), Resident, Child, Senior. |
+| **Lifecycle stage** | A guest's one classification: First visit → Active → Regular → At risk → Lapsed. |
+| **No-show** | Booked for today and not checked in by the cut-off (11:00). |
+| **ΑΠΥ / ΤΠΥ / ΠΑΠΥ / ΠΤΠΥ** | Greek receipt / invoice types and their credit notes, transmitted to AADE myDATA (MARK = its acknowledgement number). |
+| **Team & roles** | Staff accounts and what each role can do (role-based access control). |
+| **Revenue mix** | Share of revenue by product: sunbeds, tickets, lockers, parking. |
+| **Payout** | Money Stripe sends to the tenant's bank after fees. |
 
 ### 14.1 Journey maps
 

@@ -192,7 +192,7 @@ export function Locations({ t }: SectionProps) {
   return (
     <SectionFrame
       title="Locations & capacity"
-      sub="Sites, stores and what can be sold."
+      sub="Sites, zones and what can be sold."
       actions={
         <Btn
           variant="outline"

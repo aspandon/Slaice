@@ -23,7 +23,7 @@ import type {
 } from "../../domain/types";
 
 /* ============ Pricing calendar & restrictions (AENR-511) ============
-   A month per store: each day shows the effective price per price category,
+   A month per zone: each day shows the effective price per price category,
    expected occupancy and restriction badges. Click a day to see how its price
    is built; drag (or Shift+arrows) to select days and change prices, add
    restrictions, apply a seasonal template or copy a week forward. Every change
@@ -295,7 +295,7 @@ export function PricingCalendar({ onEditRule }: { onEditRule: (r: PriceRule) => 
         <div className="flex flex-wrap items-center gap-2 mb-3">
           <div className="w-44">
             <Select
-              aria-label="Store"
+              aria-label="Zone"
               value={zoneId}
               onChange={(e) => {
                 setZoneId(e.target.value);
@@ -692,7 +692,7 @@ export function PricingCalendar({ onEditRule }: { onEditRule: (r: PriceRule) => 
                     <b className="text-navy-900">{r.label}</b>
                     <div className="text-[11.5px] text-slate-500">
                       {RESTRICTION_LABEL[r.kind]} ·{" "}
-                      {r.zone === "all" ? "All stores" : ZONES.find((z) => z.id === r.zone)?.name} ·{" "}
+                      {r.zone === "all" ? "All zones" : ZONES.find((z) => z.id === r.zone)?.name} ·{" "}
                       {r.dates?.length ? `${r.dates.length} days` : `${r.from} → ${r.to}`}
                     </div>
                   </div>

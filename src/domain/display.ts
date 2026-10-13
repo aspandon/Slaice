@@ -55,7 +55,7 @@ export const DISPLAY_TEXT = {
     book: "Book your sunbed on your phone",
     updated: (t: string) => `Updated ${t}`,
     stale: (t: string) => `Offline — showing availability from ${t}`,
-    overview: "All stores",
+    overview: "All zones",
     prices: "Prices today",
   },
   el: {

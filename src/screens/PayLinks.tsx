@@ -203,7 +203,7 @@ export function PayLinks() {
             </div>
             <div className="w-40">
               <Select
-                aria-label="Store"
+                aria-label="Zone"
                 value={zoneId}
                 onChange={(e) => setZoneId(e.target.value)}
                 options={ZONES.map((z) => ({ v: z.id, l: z.name }))}

@@ -216,7 +216,7 @@ export function ControllerBeach() {
         </label>
         <div className="w-40">
           <Select
-            aria-label="Store"
+            aria-label="Zone"
             value={zoneId}
             onChange={(e) => {
               setZoneId(e.target.value);

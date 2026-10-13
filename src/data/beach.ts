@@ -39,7 +39,7 @@ function unit(key: string): number {
   return ((h >>> 0) % 10000) / 10000;
 }
 export function makeGrid(zone: Zone, cols = 14, rows = 8): Sunbed[] {
-  // A realistic mix per store (AENR-592): roughly half to two-thirds booked,
+  // A realistic mix per zone (AENR-592): roughly half to two-thirds booked,
   // a few held, the rest free — front rows fill first.
   const booked = 0.45 + (zone.total % 5) * 0.04;
   const arr: Sunbed[] = [];
@@ -68,7 +68,7 @@ export function zoneLayout(zone: Zone, cols = 8, rows = 6): SunbedSlot[] {
   const padY = 12;
   const spanX = 100 - padX * 2;
   const spanY = 100 - padY * 2;
-  // Rows map to the store's price categories: front row, standard, back row.
+  // Rows map to the zone's price categories: front row, standard, back row.
   const cat = (r: number) => `${zone.id}-${r === 0 ? "fr" : r === rows - 1 && rows > 1 ? "bk" : "st"}`;
   return makeGrid(zone, cols, rows).map((b) => ({
     id: b.id,
@@ -231,6 +231,6 @@ export const TENANT = {
   subdomain: "aktitouiliou.slaice.app",
 };
 
-/** Default stores closed for the day (demo seed) — the live list is the app
- *  store's `closedStores`, edited in Beach, Availability & Pricing. */
+/** Default zones closed for the day (demo seed) — the live list is the app
+ *  zone's `closedStores`, edited in Beach, Availability & Pricing. */
 export const DEFAULT_CLOSED_STORES: Record<string, string> = { bolivar: "Closed today — private event" };

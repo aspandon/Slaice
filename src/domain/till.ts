@@ -245,7 +245,7 @@ export function validatePromo(
       return {
         ok: false,
         reason: other
-          ? `${code} is valid for ${names} only — not ${zoneNames[other.zoneId ?? ""] ?? "this store"}.`
+          ? `${code} is valid for ${names} only — not ${zoneNames[other.zoneId ?? ""] ?? "this zone"}.`
           : `${code} applies to a sunbed set in ${names}.`,
       };
     }
@@ -415,7 +415,7 @@ export function shiftTotals(shift: TillShift, sales: readonly TillSale[]): Shift
 /** Variance above this needs a note at Z close. */
 export const VARIANCE_TOLERANCE = 2;
 
-/* ---------- Offline limits (terminal store-and-forward) ---------- */
+/* ---------- Offline limits (terminal zone-and-forward) ---------- */
 export const OFFLINE_CARD_CAP = 50;
 export const OFFLINE_CARD_TOTAL = 200;
 export function offlineCardCheck(amount: number, sales: readonly TillSale[]): string | null {

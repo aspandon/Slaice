@@ -23,7 +23,7 @@ import { openDisplay } from "../../domain/display";
 import { OpenShiftCard, TillStatus } from "./TillStatus";
 
 /* ============ ISSUE TICKET — the till (AENR-497) ============
-   One basket for entry tickets, sunbed sets in the store the walk-in chooses,
+   One basket for entry tickets, sunbed sets in the zone the walk-in chooses,
    and bundles. Quick keys put the common sale one tap away; sets in the basket
    are held for this till (On hold everywhere else) until paid or released.
    Payment: card / cash / voucher, split as needed. Every sale → ΑΠΥ to myDATA. */
@@ -152,7 +152,7 @@ function IssueInner() {
     setLines((ls) => [...ls, ...picked.map((s) => setLine(s, zId, bundle))]);
     t.hold(picked.map((s) => s.id));
   };
-  // Scanning the QR label on a set (AENR-499) jumps to its store and adds it.
+  // Scanning the QR label on a set (AENR-499) jumps to its zone and adds it.
   const onScan = (h: ScanHit) => {
     if (h.kind === "booking") return setErr(`${h.code} is a booking QR — redeem it at the gate, not as a sale.`);
     setScanOpen(false);
@@ -223,7 +223,7 @@ function IssueInner() {
   const addBundle = (b: Bundle) => {
     fresh();
     setErr("");
-    if (closure(zone.id, t.day)) return setErr(`${zone.name} is closed — choose another store first.`);
+    if (closure(zone.id, t.day)) return setErr(`${zone.name} is closed — choose another zone first.`);
     const picked = bestFree(b.sets);
     if (picked.length < b.sets) return setErr(`${b.label} needs ${b.sets} free sets in ${zone.name}.`);
     const tag = `${b.label} #${lines.filter((l) => l.bundle).length + 1}`;
@@ -339,7 +339,7 @@ function IssueInner() {
                       </button>
                     ))}
                   </div>
-                  <p className="mt-3 text-[12px] text-slate-500">Sets go in the store picked under <button type="button" className="font-semibold text-teal-700 hover:underline" onClick={() => setTab("sunbeds")}>Sunbeds</button> (now {zone.name}).</p>
+                  <p className="mt-3 text-[12px] text-slate-500">Sets go in the zone picked under <button type="button" className="font-semibold text-teal-700 hover:underline" onClick={() => setTab("sunbeds")}>Sunbeds</button> (now {zone.name}).</p>
                 </>
               )}
 
@@ -353,7 +353,7 @@ function IssueInner() {
                     {ex.tickets.map((c) => (
                       <div key={c.id} className="flex items-center justify-between gap-2 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2">
                         <div className="min-w-0">
-                          <div className="font-semibold text-navy-900 text-sm">{c.short}</div>
+                          <div className="font-semibold text-navy-900 text-sm" title={c.note}>{c.short}</div>
                           <div className="text-[12px] text-slate-600">{ex.ticketPrice(c.id, t.day) === 0 ? "Free" : `€${ex.ticketPrice(c.id, t.day)} each`}{c.note ? <span className="block text-[11px] text-slate-500">{c.note}</span> : null}</div>
                         </div>
                         <Stepper size="lg" label={`${c.short} tickets`} value={ticketQty(c.id)} onChange={(v) => setTicketQty(c.id, v)} />
@@ -365,7 +365,7 @@ function IssueInner() {
 
               {tab === "sunbeds" && (
                 <>
-                  <div role="radiogroup" aria-label="Store" className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
+                  <div role="radiogroup" aria-label="Zone" className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
                     {ZONES.map((z) => {
                       const closed = closure(z.id, t.day);
                       const free = freeIn(z.id);
@@ -395,7 +395,7 @@ function IssueInner() {
                     <div className="mb-2 rounded-lg bg-amber-50 text-amber-800 ring-1 ring-amber-600/20 px-3 py-1.5 text-[12px] flex items-center gap-1.5"><Icon.alert size={13} /> Offline — this is the cached map; availability may be out of date. Conflicts are flagged when the till reconnects.</div>
                   )}
                   {closure(zone.id, t.day) ? (
-                    <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 p-6 text-center text-sm text-slate-600">{zone.name}: {closure(zone.id, t.day)}. Choose another store.</div>
+                    <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 p-6 text-center text-sm text-slate-600">{zone.name}: {closure(zone.id, t.day)}. Choose another zone.</div>
                   ) : (
                     <>
                       <SunbedMap label={`${zone.name} sunbed map`} slots={slots} selected={inBasket} onToggle={toggleSet} priceOf={(s) => priceOf(s)}

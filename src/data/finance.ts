@@ -1,7 +1,7 @@
 // Finance figures for Reporting › Overview / Payments / Invoices (AENR-521):
 // card captures, service & platform fees, Stripe fees and payouts, saved-card
 // usage, and fiscal documents (ΑΠΥ / ΤΠΥ / ΠΑΠΥ / ΠΤΠΥ) with their transmission
-// status. Everything is computed per section (store) and arrival day from the
+// status. Everything is computed per section (zone) and arrival day from the
 // same deterministic generator as the rest of Reporting, so rows always sum to
 // the totals — plus the real demo activity from the Cashier till.
 
@@ -11,7 +11,7 @@ import { DEMO_TODAY, addDays, inRange, type DateRange } from "../domain/period";
 import { feeAmount, type FeeBase, type FinanceConfig } from "../domain/finance";
 import type { TillSale } from "../domain/till";
 
-/** Ticket-only sales at the till have no store; they report under this row. */
+/** Ticket-only sales at the till have no zone; they report under this row. */
 export const ENTRY_SECTION = { id: "entry", name: "Entrance (tickets only)" };
 export const SECTIONS = [...ZONES.map((z) => ({ id: z.id, name: z.name })), ENTRY_SECTION];
 export const sectionName = (id: string) => SECTIONS.find((s) => s.id === id)?.name ?? id;

@@ -198,7 +198,7 @@ export function Users({ t }: SectionProps) {
   return (
     <SectionFrame
       title="Users & roles"
-      sub={`Tenant staff · ${users.length} of ${seats} seats used. Role definitions live in RBAC.`}
+      sub={`Tenant staff · ${users.length} of ${seats} seats used. Role definitions live in Team & roles.`}
     >
       <Card className="p-2">
         <Table

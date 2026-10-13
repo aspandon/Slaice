@@ -36,7 +36,7 @@ export const NAV: Record<PersonaId, NavItem[]> = {
     { k: "reporting", label: "Reporting & Analytics", short: "Reports", icon: "trend", badge: "MVP" },
     { k: "refunds", label: "Refunds", short: "Refunds", icon: "refund", badge: "MVP" },
     { k: "privacy", label: "Privacy & GDPR", short: "Privacy", icon: "shieldCheck", badge: "MVP" },
-    { k: "rbac", label: "RBAC", short: "RBAC", icon: "lock", badge: "MVP" },
+    { k: "rbac", label: "Team & roles", short: "Team", icon: "lock", badge: "MVP" },
     { k: "communicate", label: "Communicate", short: "Comms", icon: "bell", badge: "Future" },
     { k: "loyalty", label: "Loyalty", short: "Loyalty", icon: "gift", badge: "Future" },
     { k: "passes", label: "Passes", short: "Passes", icon: "wallet", badge: "Future" },

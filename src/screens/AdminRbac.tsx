@@ -188,7 +188,7 @@ export function AdminRbac() {
   return (
     <div className="animate-fade-up">
       <PageHead
-        title="RBAC"
+        title="Team & roles"
         sub="Staff accounts and what each role can see and do — invite, change roles, preview as a role." primary={<Btn variant="primary" icon={Icon.plus} onClick={() => openDraft(EMPTY)}>
             Add user
           </Btn>}

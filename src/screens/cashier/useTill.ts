@@ -90,7 +90,7 @@ export function useTill() {
     });
     return { synced: queued.length, conflicts };
   };
-  /** Move a conflicting line to another free set in the same store. */
+  /** Move a conflicting line to another free set in the same zone. */
   const moveLine = (saleId: string, lineId: string, setId: string, label: string) =>
     patchSale(saleId, (s) => ({ ...s, conflict: undefined, lines: s.lines.map((l) => (l.id === lineId ? { ...l, setId, label } : l)) }));
   const clearConflict = (saleId: string) => patchSale(saleId, (s) => ({ ...s, conflict: undefined }));

@@ -231,12 +231,12 @@ function PricingRulesPanel({ rules, previewDate, setPreviewDate, onAdd, onEdit, 
 function ZoneArrangeEditor() {
   const { toast, zoneMap, setZoneMap } = useApp();
   const [pickerOpen, setPickerOpen] = useState(false);
-  // Working copy, seeded from the persisted store (positions, grid, identity).
+  // Working copy, seeded from the persisted zone (positions, grid, identity).
   const [zones, setZones] = useState<ZoneMapItem[]>(zoneMap);
   const [selectedId, setSelectedId] = useState(zones[0].id);
   const selected = zones.find((z) => z.id === selectedId) ?? zones[0];
   // Persist every change back to the store (→ localStorage) so the arrangement
-  // survives a reload — with no backend, the browser IS the store. Debounced so
+  // survives a reload — with no backend, the browser IS the zone. Debounced so
   // a drag doesn't write on every frame; skips the initial mount (no change yet).
   const mounted = useRef(false);
   useEffect(() => {
@@ -443,7 +443,7 @@ function AtmosphereCard() {
 /* ============ BEACH, AVAILABILITY & PRICING (AENR-469) ============
    One page replacing "Availability & Pricing" and "Map Layout Editor":
    the canvas workspace (layout, categories, date prices, landmarks — one
-   draft and one Publish), the zone map with open/closed stores, and the
+   draft and one Publish), the zone map with open/closed zones, and the
    seasonal / weekday rules that apply on top of category prices. */
 export function AdminAvailability() {
   const { toast, priceRules, setPriceRules, closedStores, setClosedStores } = useApp();
@@ -469,7 +469,7 @@ export function AdminAvailability() {
       {tab === "zones" && (
         <div className="space-y-4">
           <Card className="p-2">
-            <Table cols={["Store", "Sets", "Open today", "Reason when closed", "Status"]} right={[1]}
+            <Table cols={["Zone", "Sets", "Open today", "Reason when closed", "Status"]} right={[1]}
               rows={ZONES.map((z) => [
                 <span className="flex items-center gap-2"><i className="w-3 h-3 rounded-full" style={{ background: z.color }} />{z.name}</span>,
                 z.total,
@@ -477,7 +477,7 @@ export function AdminAvailability() {
                 closedStores[z.id] ? <Input aria-label={`Reason ${z.name} is closed`} value={closedStores[z.id]} onChange={(e) => setOpen(z.id, false, e.target.value)} /> : <span className="text-slate-400">—</span>,
                 <Badge tone={closedStores[z.id] ? "amber" : "green"}>{closedStores[z.id] ? "Closed" : "Open"}</Badge>,
               ])} />
-            <div className="px-3 pb-2 text-[12px] text-slate-500">Applies immediately: a closed store can’t be booked online or sold at the till, and its sets show as unavailable.</div>
+            <div className="px-3 pb-2 text-[12px] text-slate-500">Applies immediately: a closed zone can’t be booked online or sold at the till, and its sets show as unavailable.</div>
           </Card>
           <ZoneArrangeEditor />
           <AtmosphereCard />

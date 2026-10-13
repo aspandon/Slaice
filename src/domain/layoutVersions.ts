@@ -52,7 +52,7 @@ export const DEFAULT_LAYOUT_STATE: LayoutState = {
       effectiveFrom: "2026-05-01",
       publishedAt: "2026-04-20T10:00:00",
       by: "Eleni Markou",
-      summary: "First layout — 6 stores.",
+      summary: "First layout — 6 zones.",
     },
   ],
   drafts: [],

@@ -1,5 +1,5 @@
 // Defaults for the admin Map Layout Editor (zone arrangement) and the seasonal /
-// day-of-week pricing rules. These seed the persisted store the first time, so a
+// day-of-week pricing rules. These seed the persisted zone the first time, so a
 // fresh visitor still sees a sensible beach + a couple of live pricing rules to
 // demonstrate the feature. (Pricing *logic* lives in domain/pricing.ts.)
 import { ZONES } from "./beach";
@@ -27,8 +27,8 @@ export const DEFAULT_PRICE_RULES: PriceRule[] = [
 ];
 
 /* ---------- Price categories & landmarks (AENR-469) ----------
-   Every store starts with three row-based categories — the generated layouts
-   assign them by row — so the back row stays at the store's "from" price. The
+   Every zone starts with three row-based categories — the generated layouts
+   assign them by row — so the back row stays at the zone's "from" price. The
    palette is a fixed token set; codes always accompany the colour. */
 export const CATEGORY_COLORS = ["#3a47cc", "#0ea5e9", "#0D9488", "#f59e0b", "#a855f7", "#ec4899", "#64748b"];
 export const catId = (zoneId: string, code: "fr" | "st" | "bk") => `${zoneId}-${code}`;

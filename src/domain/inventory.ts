@@ -35,7 +35,7 @@ export interface Allocation {
 export interface StopSell {
   id: string;
   zoneId: string;
-  /** Limit to one price category; absent = the whole store. */
+  /** Limit to one price category; absent = the whole zone. */
   catId?: string;
   from: string;
   to: string;

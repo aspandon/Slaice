@@ -84,11 +84,11 @@ function bedPickFx(el: HTMLElement, price: number, adding: boolean) {
 }
 
 /* ---- Zone fly-out snapshots (C1) ----
-   When a store cluster is tapped, the overview unmounts immediately so the
+   When a zone cluster is tapped, the overview unmounts immediately so the
    picked zone's umbrellas can FLIP into the full grid. The *other* clusters
    (and the picked one's name label) would vanish abruptly — so they're cloned
    at their viewport rects into a throwaway fixed layer and drift away from the
-   picked store while fading. Pure snapshots: no reflow, no React. */
+   picked zone while fading. Pure snapshots: no reflow, no React. */
 function cloneFadeClusters(pickedId: string) {
   const layer = document.createElement("div");
   layer.className = "fixed inset-0 z-10 pointer-events-none";
@@ -192,7 +192,7 @@ function WizardInner() {
   // Explicit umbrella-set picks — the single source of truth for sunbeds
   // (zone-scoped; cleared when the zone changes).
   const [bedSel, setBedSel] = useState<BedPick[]>([]);
-  // Opt-in: combine sets from several stores in one booking (AENR-524).
+  // Opt-in: combine sets from several zones in one booking (AENR-524).
   const [multiStore, setMultiStore] = useState(false);
   const multiStoreRef = useRef(false);
   useEffect(() => { multiStoreRef.current = multiStore; }, [multiStore]);
@@ -231,7 +231,7 @@ function WizardInner() {
   const zone = ZONES.find((z) => z.id === zoneId) || ZONES[0];
 
   // Bed IDs are zone-scoped — switching zone clears any picked beds.
-  // …unless the guest opted into several stores, then picks are kept per store.
+  // …unless the guest opted into several zones, then picks are kept per zone.
   useEffect(() => { if (!multiStoreRef.current) setBedSel([]); }, [zoneId]);
 
   // A set seats two, so default the headcount to 2 entry tickets per chosen set.
@@ -257,7 +257,7 @@ function WizardInner() {
   const liveSlots = useLiveSlots();
   const slots = useMemo(() => liveSlots(zone, selDates), [liveSlots, zone, selDates]);
   const selectedIds = useMemo(() => new Set(bedSel.filter((b) => b.zoneId === zone.id).map((b) => b.id)), [bedSel, zone.id]);
-  // Live sets of every store with a pick — prices and the stale check before checkout.
+  // Live sets of every zone with a pick — prices and the stale check before checkout.
   const pickZones = useMemo(() => [...new Set(bedSel.map((b) => b.zoneId))], [bedSel]);
   const pickSlots = useMemo(() => Object.fromEntries(pickZones.map((zid) => [zid, liveSlots(ZONES.find((z) => z.id === zid) ?? zone, selDates)])), [pickZones, liveSlots, selDates, zone]);
   const stalePicks = bedSel.filter((b) => pickSlots[b.zoneId]?.find((x) => x.id === b.id)?.state !== "a");
@@ -269,7 +269,7 @@ function WizardInner() {
   const today = todayISO();
   const blockReason = (iso: string) => dateBlock(zone.id, iso, calendar.restrictions, today, nowTime);
   const stayCheck = checkRestrictions(zone.id, selDates, calendar.restrictions, today, nowTime);
-  // Stop-sell (AENR-512): the store isn't sold online on these dates.
+  // Stop-sell (AENR-512): the zone isn't sold online on these dates.
   const stopSell = stopSellFor(inventory, zone.id, selDates);
   // Each chosen day is priced on its own (categories, seasonal rules, date
   // overrides) and with the booking context (early-bird, last-minute, multi-day).
@@ -291,8 +291,8 @@ function WizardInner() {
   const step = STEPS[stepIdx];
   const last = STEPS.length - 1;
 
-  // Tap a store → the camera dives in: its umbrellas FLIP from the cluster into
-  // the full pick grid while the other stores drift away (desktop only; the
+  // Tap a zone → the camera dives in: its umbrellas FLIP from the cluster into
+  // the full pick grid while the other zones drift away (desktop only; the
   // phone card list keeps the instant swap).
   const pickZone = (id: string) => {
     if (zoomingRef.current) return;
@@ -432,7 +432,7 @@ function WizardInner() {
       {/* ============ Menu over the sea (top) ============
            When picking sunbeds, the min-height holds the menu band down to ~the
            shoreline so the sets always start on the sand (never the sea). The
-           store overview gives the menu band less reserved height so the
+           zone overview gives the menu band less reserved height so the
            clusters get more room to spread. */}
       <div className={`shrink-0 flex items-start justify-center px-3 pt-2 sm:pt-3 ${showSets ? "min-h-[50vh]" : "min-h-[44vh]"}`}>
         <div className="pointer-events-auto w-full max-w-2xl glass-card rounded-3xl shadow-float flex flex-col max-h-[64vh] overflow-hidden animate-fade-down" data-flip-id="checkout-panel">
@@ -530,7 +530,7 @@ function WizardInner() {
       {/* ============ The beach itself — fills the space below the menu so every
            set is visible (never hidden behind it) and is tapped directly. ====== */}
       <div className="flex-1 min-h-0 px-3 sm:px-5 flex justify-center animate-fade-in" style={{ animationDelay: revealDelay, animationFillMode: "both" }}>
-        {/* The store overview spreads the full beach width (panoramic); a single
+        {/* The zone overview spreads the full beach width (panoramic); a single
             zone's sunbed grid stays at a comfortable reading width. */}
         <div className={`relative w-full ${showSets ? "max-w-5xl" : "max-w-[1700px]"}`}>
           {showZones && <StoreOverview days={selDates} selectedId={zoneId} onPick={pickZone} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} picked={pickedByZone} />}
@@ -730,16 +730,16 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
         </div>
       )}
 
-      {/* Several stores in one booking (AENR-524) — off by default. */}
+      {/* Several zones in one booking (AENR-524) — off by default. */}
       <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
         <div className="text-[12.5px] min-w-0">
-          <div className="font-semibold text-navy-900">{tr("Book in more than one store")}</div>
+          <div className="font-semibold text-navy-900">{tr("Book in more than one zone")}</div>
           <div className="text-[11px] text-slate-500">{tr("e.g. 2 sets in Macaw and 1 in Central — one payment.")}</div>
         </div>
-        <Toggle on={multiStore} onChange={turnMulti} ariaLabel={tr("Book in more than one store")} />
+        <Toggle on={multiStore} onChange={turnMulti} ariaLabel={tr("Book in more than one zone")} />
       </div>
       {multiStore && bedSel.length > 0 && (
-        <section aria-label={tr("Your sets by store")} className="rounded-xl ring-1 ring-teal-300 bg-teal-50/80 px-3 py-2.5 space-y-2">
+        <section aria-label={tr("Your sets by zone")} className="rounded-xl ring-1 ring-teal-300 bg-teal-50/80 px-3 py-2.5 space-y-2">
           {groups.map((g) => (
             <div key={g.zone.id} className="text-[12.5px]">
               <div className="flex items-center justify-between gap-2">
@@ -759,15 +759,15 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
             </div>
           ))}
           <div className="border-t border-teal-200 pt-1.5 flex items-center justify-between text-[12.5px] font-semibold text-navy-900">
-            <span>{bedSel.length} {tr("sets in")} {groups.length} {groups.length !== 1 ? tr("stores") : tr("store")} · {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}</span>
+            <span>{bedSel.length} {tr("sets in")} {groups.length} {groups.length !== 1 ? tr("zones") : tr("zone")} · {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}</span>
             <span className="tnum">€{pickedSubtotal * dayCount}</span>
           </div>
         </section>
       )}
       {!multiStore && stale.length > 0 && <div role="alert" className="rounded-xl bg-rose-50 ring-1 ring-rose-300 px-3 py-2 text-[12px] text-rose-800">{stale.join(", ")} {tr("is no longer available — remove it and pick another set.")}</div>}
-      <Modal open={keepAsk} onClose={() => setKeepAsk(false)} title={tr("Keep sets from one store?")}
+      <Modal open={keepAsk} onClose={() => setKeepAsk(false)} title={tr("Keep sets from one zone?")}
         footer={<Btn variant="ghost" onClick={() => setKeepAsk(false)}>{tr("Cancel")}</Btn>}>
-        <p className="text-sm text-slate-600 mb-3">{tr("You picked sets in several stores. Choose the store whose sets you keep — the others are removed.")}</p>
+        <p className="text-sm text-slate-600 mb-3">{tr("You picked sets in several zones. Choose the zone whose sets you keep — the others are removed.")}</p>
         <div className="grid gap-2">
           {groups.map((g) => (
             <Btn key={g.zone.id} variant="outline" onClick={() => { setBedSel((s) => s.filter((b) => b.zoneId === g.zone.id)); setMultiStore(false); setKeepAsk(false); }}>
@@ -781,7 +781,7 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
 }
 
 /* Track a CSS media query — used to pick the rich (desktop) vs compact (phone)
-   store overview. */
+   zone overview. */
 function useMediaQuery(query: string) {
   const [matches, setMatches] = useState(() => typeof window !== "undefined" && window.matchMedia(query).matches);
   useEffect(() => {
@@ -798,7 +798,7 @@ const clampN = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, 
 
 /* Push equal-size boxes apart until none overlap, starting from their given
    centres and keeping them inside [0,W]×[0,H]. A handful of relaxation passes —
-   enough for six store clusters to settle near the admin's arrangement without
+   enough for six zone clusters to settle near the admin's arrangement without
    colliding. */
 function declutter(init: { x: number; y: number }[], W: number, H: number, cw: number, ch: number, gap: number) {
   const pos = init.map((p) => ({ ...p }));
@@ -827,10 +827,10 @@ function declutter(init: { x: number; y: number }[], W: number, H: number, cw: n
   return pos;
 }
 
-/* ============ Store overview ============
-   Tablet / desktop: a panoramic beach — each store's real umbrella rows laid out
+/* ============ Zone overview ============
+   Tablet / desktop: a panoramic beach — each zone's real umbrella rows laid out
    on the open sand (no card chrome) at the admin's position, auto-spaced so they
-   never overlap, with the store name + optional logo set on the sand beneath. Tap
+   never overlap, with the zone name + optional logo set on the sand beneath. Tap
    to open it. Phones / tight screens fall back to compact cards. `rich` is owned
    by the wizard (it gates the FLIP zoom); `flipEnter` names the zone whose beds
    are flying back in, so the entrance stagger skips that cluster. */
@@ -909,11 +909,11 @@ function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: 
             className="absolute group focus:outline-none pointer-events-auto"
             style={{ left: pos.x - cw / 2, top: pos.y - ch / 2, width: cw }}
           >
-            {/* Soft tint on the sand under the selected / hovered store, so it
+            {/* Soft tint on the sand under the selected / hovered zone, so it
                 reads as one beach section without a hard card edge. */}
             <span aria-hidden className={`absolute left-1/2 -translate-x-1/2 top-0 rounded-[45%] blur-2xl transition-opacity duration-300 ${active ? "opacity-45" : "opacity-0 group-hover:opacity-25"}`} style={{ width: "94%", height: plotH, background: z.color }} />
 
-            {/* The store's real umbrella rows, straight on the sand (no card).
+            {/* The zone's real umbrella rows, straight on the sand (no card).
                 data-flip-id pairs each mini glyph with its big grid cell so the
                 zoom-in/out FLIPs them as one continuous camera move. */}
             <span className={`relative block transition-transform duration-300 ease-spring group-hover:-translate-y-1.5 ${active ? "-translate-y-0.5" : ""}`} style={{ height: plotH }}>
@@ -924,7 +924,7 @@ function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: 
               ))}
             </span>
 
-            {/* Store label set on the sand — logo + name + a line of detail. */}
+            {/* Zone label set on the sand — logo + name + a line of detail. */}
             <span className="relative block text-center mt-0.5" data-cluster-label>
               {logo && <img src={logo} alt="" className="mx-auto mb-1 h-8 w-auto max-w-[82%] object-contain drop-shadow-[0_1px_2px_rgba(255,255,255,0.55)]" />}
               <span className={`block font-display font-bold text-[15px] tracking-wide transition-colors drop-shadow-[0_1px_1px_rgba(255,255,255,0.75)] ${active ? "" : "text-navy-900 group-hover:text-teal-800"}`} style={active ? { color: z.color } : undefined}>{z.name}</span>
@@ -946,10 +946,10 @@ function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: 
   );
 }
 
-/* Compact store cards — phones / tight screens. The same translucent glass
-   material as the menu above, with the store's logo/name, from-price and live
+/* Compact zone cards — phones / tight screens. The same translucent glass
+   material as the menu above, with the zone's logo/name, from-price and live
    availability, in a tidy two-column grid. A small zone-colour umbrella chip
-   keeps the stores distinguishable. */
+   keeps the zones distinguishable. */
 function StoreCards({ days, selectedId, onPick, picked }: { days: string[]; selectedId: string; onPick: (id: string) => void; picked: Record<string, number> }) {
   const tr = useT();
   const { zoneLogos } = useApp();
@@ -1430,7 +1430,7 @@ function ReviewStep({ people, totalPeople, selDates, zone, bedSel = [], includeT
   const dateLabel = selDates.length === 1
     ? first.label + ", " + first.sub
     : `${selDates.length} ${tr("days")} (${selDates.map((d) => chipLabel(d, loc).sub).join(", ")})`;
-  // Grouped by store when the booking spans several (AENR-524).
+  // Grouped by zone when the booking spans several (AENR-524).
   const byStore = [...new Set(bedSel.map((b) => b.zoneId))].map((zid) => ({ name: ZONES.find((z) => z.id === zid)?.name ?? zone.name, ids: bedSel.filter((b) => b.zoneId === zid).map((b) => b.id) }));
   const beachBody = bedSel.length > 0
     ? byStore.map((g) => `${g.name} · ${g.ids.length} ${g.ids.length !== 1 ? tr("sets") : tr("set")} · ${g.ids.join(", ")}`).join(" — ")

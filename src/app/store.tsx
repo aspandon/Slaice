@@ -85,8 +85,8 @@ export interface AppContextValue {
    *  Sunbed-layout tab, read by the booking wizard's zoom. */
   beachLayout: Record<string, SunbedSlot[]>;
   setZoneLayout: (zoneId: string, slots: SunbedSlot[]) => void;
-  /** Optional per-store (zone) logo as a data URL — set in the admin Map Editor,
-   *  shown under the store name on the booking beach. */
+  /** Optional per-zone (zone) logo as a data URL — set in the admin Map Editor,
+   *  shown under the zone name on the booking beach. */
   zoneLogos: Record<string, string>;
   setZoneLogo: (zoneId: string, src: string | null) => void;
   /** The customer's purchased passes (VIP credit + Season) — persisted. */
@@ -156,7 +156,7 @@ export interface AppContextValue {
   /** Price categories, per-sunbed date overrides and landmarks (AENR-469) — published, persisted. */
   beachPricing: BeachPricing;
   setBeachPricing: (p: BeachPricing) => void;
-  /** Stores closed for today with the reason (admin › Zones & availability) — persisted. */
+  /** Zones closed for today with the reason (admin › Zones & availability) — persisted. */
   closedStores: Record<string, string>;
   setClosedStores: (c: Record<string, string>) => void;
   /** Booking restrictions and seasonal templates (AENR-511) — persisted. */

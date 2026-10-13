@@ -61,7 +61,7 @@ export function AdminDisplay() {
           <section>
             <h2 className="font-semibold text-navy-900 mb-1">Zones on the screen</h2>
             <p className="text-[12px] text-slate-500 mb-2">
-              Tick the stores to show and set their order.
+              Tick the zones to show and set their order.
             </p>
             <ul className="space-y-1">
               {listed.map((z) => {

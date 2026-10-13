@@ -351,7 +351,7 @@ export function Confirmation({ inline, booking }: { inline?: boolean; booking?: 
   const sunbeds = cart.filter((i) => i.kind === "sunbed");
   const total = booking?.total ?? cart.reduce((a, b) => a + b.price, 0);
   const first = sunbeds[0] || cart[0];
-  // Sets grouped by store (a booking can span several, AENR-524).
+  // Sets grouped by zone (a booking can span several, AENR-524).
   const byStore = [...new Set(sunbeds.map((s) => s.sub.split(" · ")[0]))].map((name) => ({ name, sets: [...new Set(sunbeds.filter((s) => s.sub.startsWith(name)).map((s) => s.setId ?? s.label.replace(/^\S+\s+/, "")))] }));
   const [zone, date] = (first?.sub || "Akti tou Iliou · Today").split(" · ");
   const pass = {

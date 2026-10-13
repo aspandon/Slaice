@@ -4,6 +4,7 @@ import { Badge, Btn, Card, Field, PageHead, PeriodPicker, Select } from "../../c
 import { SunbedMap } from "../../components/SunbedMap";
 import { Sunbed } from "../../components/Beach";
 import { useApp } from "../../app/store";
+import { readHashQuery } from "../../app/router";
 import { ZONES } from "../../data/beach";
 import { summarize } from "../../data/analytics";
 import { DEMO_TODAY, addDays, rangeLabel, resolveRange } from "../../domain/period";
@@ -42,11 +43,12 @@ const unit = (key: string) => {
 export function AdminLiveBeach() {
   const { toast } = useApp();
   const [date, setDate] = useState(DEMO_TODAY);
-  const [zoneId, setZoneId] = useState("central");
+  // ?zone=&set= open a zone with a set selected (deep links from ⌘K, AENR-553).
+  const [zoneId, setZoneId] = useState(() => readHashQuery().get("zone") ?? "central");
   const [view, setView] = useState<View>("live");
   const [metric, setMetric] = useState<Metric>("occupancy");
   const [period, setPeriod] = usePeriod({ kind: "preset", preset: "season", offset: 0 });
-  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [sel, setSel] = useState<Set<string>>(() => new Set(readHashQuery().get("set") ? [readHashQuery().get("set") as string] : []));
   const [moveTo, setMoveTo] = useState("");
   const zone = ZONES.find((z) => z.id === zoneId) ?? ZONES[0];
   const liveSlots = useLiveSlots("walkin");
@@ -77,7 +79,7 @@ export function AdminLiveBeach() {
     return `${LEGEND.find((x) => x.k === keyOf(s))?.label.toLowerCase()}${b ? `, ${b.guest}` : ""}`;
   };
 
-  // Heatmap: the store's occupancy for the period, shaped by row and set.
+  // Heatmap: the zone's occupancy for the period, shaped by row and set.
   const range =
     resolveRange(period) ?? resolveRange({ kind: "preset", preset: "season", offset: 0 })!;
   const summary = useMemo(() => summarize(range), [range]);
@@ -183,7 +185,7 @@ export function AdminLiveBeach() {
         </div>
         <div className="w-40">
           <Select
-            aria-label="Store"
+            aria-label="Zone"
             value={zoneId}
             onChange={(e) => {
               setZoneId(e.target.value);

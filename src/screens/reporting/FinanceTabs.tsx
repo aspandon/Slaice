@@ -33,8 +33,8 @@ export function useSection(): [string | null, (s: string | null) => void] {
 export function SectionChips({ value, onChange }: { value: string | null; onChange: (s: string | null) => void }) {
   const opts = [{ id: null as string | null, name: "All" }, ...ZONES.map((z) => ({ id: z.id as string | null, name: z.name }))];
   return (
-    <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Section">
-      <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mr-1">Section</span>
+    <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Zone">
+      <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mr-1">Zone</span>
       {opts.map((o) => (
         <button key={o.id ?? "all"} type="button" role="radio" aria-checked={value === o.id} onClick={() => onChange(o.id)}
           className={`rounded-lg px-2.5 py-1.5 text-[12px] font-semibold ring-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${value === o.id ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 text-slate-700 hover:ring-slate-300"}`}>
@@ -109,7 +109,7 @@ export function OverviewPanel({ d, onDocs }: { d: FinanceData; onDocs: () => voi
       </div>
       <DailyBars rep={rep} pick={(x) => x.sets} title="Confirmed sets per arrival day" label="Confirmed sunbed sets per arrival day" />
       <div className="mt-4">
-        <Table dense cols={["Section", "Bookings", "Share", "Captured", "Transmitted to AADE"]} right={[1, 2, 3, 4]}
+        <Table dense cols={["Zone", "Bookings", "Share", "Captured", "Transmitted to AADE"]} right={[1, 2, 3, 4]}
           rows={[...rep.sections.map((s) => [s.name, int(s.sets), pct(s.sets, t.sets), eur2(s.captured), `${int(transmitted(s))} / ${int(docsTotal(s.docs))}`]),
             [<b>Total</b>, <b>{int(t.sets)}</b>, <b>{t.sets ? "100%" : "—"}</b>, <b>{eur2(t.captured)}</b>, <b>{int(transmitted(t))} / {int(docs)}</b>]]} />
       </div>
@@ -215,10 +215,10 @@ export function InvoicesTab({ d }: { d: FinanceData }) {
       </Card>
       <Card className="p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
-          <div className="font-semibold text-navy-900">By section (total &amp; %)</div>
-          <div className="text-[12px] text-slate-500">% of each section’s documents</div>
+          <div className="font-semibold text-navy-900">By zone (total &amp; %)</div>
+          <div className="text-[12px] text-slate-500">% of each zone’s documents</div>
         </div>
-        <Table dense cols={["Section", ...DOC_TYPES.map((x) => x.l), "Transmitted", "Total"]} right={[1, 2, 3, 4, 5, 6]}
+        <Table dense cols={["Zone", ...DOC_TYPES.map((x) => x.l), "Transmitted", "Total"]} right={[1, 2, 3, 4, 5, 6]}
           rows={[...rep.sections, t].map((s) => {
             const n = docsTotal(s.docs);
             const cell = (v: number, of: number) => <span className="tnum whitespace-nowrap">{int(v)} <span className="text-slate-500 text-[11.5px]">{pct(v, of)}</span></span>;
@@ -235,11 +235,11 @@ export function InvoicesTab({ d }: { d: FinanceData }) {
 export function financeCsv(kind: "overview" | "payments" | "invoices", d: FinanceData, label: string): CsvSection[] {
   const { rep, flow, pay } = d;
   const t = rep.total;
-  const sec = `Section: ${d.section ? sectionName(d.section) : "All"}`;
+  const sec = `Zone: ${d.section ? sectionName(d.section) : "All"}`;
   if (kind === "overview")
     return [
       { title: `Bookings, payments & AADE · arrival dates ${label} · ${sec}`, header: ["Metric", "Value"], rows: [["Confirmed sunbed sets", t.sets], ["Captured (€)", t.captured], ["Service fees (€)", flow.serviceTotal], ["Captures", t.tx], ["Documents transmitted", transmitted(t)], ["Documents issued", docsTotal(t.docs)], ["Pending", t.pending]] },
-      { title: "By section", header: ["Section", "Bookings", "Share %", "Captured (€)", "Transmitted", "Issued"], rows: rep.sections.map((s) => [s.name, s.sets, t.sets ? +((s.sets / t.sets) * 100).toFixed(1) : 0, s.captured, transmitted(s), docsTotal(s.docs)]) },
+      { title: "By zone", header: ["Zone", "Bookings", "Share %", "Captured (€)", "Transmitted", "Issued"], rows: rep.sections.map((s) => [s.name, s.sets, t.sets ? +((s.sets / t.sets) * 100).toFixed(1) : 0, s.captured, transmitted(s), docsTotal(s.docs)]) },
       { title: "Confirmed sets per arrival day", header: ["Date", "Sets"], rows: rep.days.map((x) => [x.date, x.sets]) },
     ];
   if (kind === "payments")
@@ -251,7 +251,7 @@ export function financeCsv(kind: "overview" | "payments" | "invoices", d: Financ
   const all = docsTotal(t.docs);
   return [
     { title: `Invoices · arrival dates ${label} · ${sec} · via ${d.cfg.provider}`, header: ["Type", "Count", "% of documents"], rows: [...DOC_TYPES.map((x) => [x.l, t.docs[x.k], all ? +((t.docs[x.k] / all) * 100).toFixed(1) : 0]), ["Transmitted", transmitted(t), all ? +((transmitted(t) / all) * 100).toFixed(1) : 0], ["Pending", t.pending, ""], ["Total", all, 100]] },
-    { title: "By section", header: ["Section", ...DOC_TYPES.map((x) => x.l), "Transmitted", "Total"], rows: [...rep.sections, t].map((s) => [s.name, ...DOC_TYPES.map((x) => s.docs[x.k]), transmitted(s), docsTotal(s.docs)]) },
+    { title: "By zone", header: ["Zone", ...DOC_TYPES.map((x) => x.l), "Transmitted", "Total"], rows: [...rep.sections, t].map((s) => [s.name, ...DOC_TYPES.map((x) => s.docs[x.k]), transmitted(s), docsTotal(s.docs)]) },
   ];
 }
 

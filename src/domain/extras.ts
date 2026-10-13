@@ -71,8 +71,9 @@ export const DEFAULT_EXTRAS: ExtrasState = {
     },
     {
       id: "amea",
-      name: "AMEA",
-      short: "AMEA",
+      // ΑμεΑ = Άτομα με Αναπηρία (persons with disabilities) — the Greek term guests know (AENR-552).
+      name: "ΑμεΑ (persons with disabilities)",
+      short: "ΑμεΑ",
       note: "Persons with disabilities — proof required at the gate",
       active: true,
       order: 2,

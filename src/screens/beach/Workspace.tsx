@@ -19,7 +19,7 @@ import type { BeachPricing, Landmark, LandmarkKind, PriceCategory, PriceRuleDays
 const BeachCanvas = lazyWithReload(() => import("../../components/BeachCanvas").then((m) => ({ default: m.BeachCanvas })));
 
 /* ============ Beach workspace (AENR-469) ============
-   One canvas to arrange and price every store. All edits land in a draft
+   One canvas to arrange and price every zone. All edits land in a draft
    (layouts + categories + date overrides + landmarks) with undo/redo; the
    price view follows a chosen date; "Preview as customer" shows the draft as
    guests will see it; Publish makes it live for the wizard, the Cashier and
@@ -240,8 +240,8 @@ export function SunbedWorkspace() {
 
       <div className="grid xl:grid-cols-[minmax(0,1fr)_340px] gap-4 items-start">
         <Card className="p-4 min-w-0">
-          {/* Store + date + mode */}
-          <div className="flex flex-wrap items-center gap-1.5 mb-3" role="radiogroup" aria-label="Store">
+          {/* Zone + date + mode */}
+          <div className="flex flex-wrap items-center gap-1.5 mb-3" role="radiogroup" aria-label="Zone">
             {ZONES.map((z) => (
               <button key={z.id} type="button" role="radio" aria-checked={zoneId === z.id} onClick={() => { setZoneId(z.id); setSel(new Set()); setLmSel(null); setPaintCat(""); }}
                 className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold ring-1 transition ${zoneId === z.id ? "bg-navy-900 text-white ring-navy-900" : "ring-slate-200 text-slate-700 hover:ring-teal-400"}`}>
@@ -461,14 +461,14 @@ export function SunbedWorkspace() {
             </div>
             <div className="flex gap-2"><Btn size="sm" variant="tint" icon={Icon.grid} onClick={generate}>Generate grid</Btn><Btn size="sm" variant="ghost" icon={Icon.plus} onClick={addBed}>Add a set</Btn><Btn size="sm" variant="ghost" icon={Icon.qr} disabled={!slots.length} onClick={() => setLabels(true)}>Print QR labels</Btn></div>
             <div className="flex gap-2 items-end">
-              <div className="flex-1"><Field label="Copy this layout to"><Select value={copyTo} onChange={(e) => setCopyTo(e.target.value)} options={[{ v: "", l: "Choose a store…" }, ...ZONES.filter((z) => z.id !== zoneId).map((z) => ({ v: z.id, l: z.name }))]} /></Field></div>
+              <div className="flex-1"><Field label="Copy this layout to"><Select value={copyTo} onChange={(e) => setCopyTo(e.target.value)} options={[{ v: "", l: "Choose a zone…" }, ...ZONES.filter((z) => z.id !== zoneId).map((z) => ({ v: z.id, l: z.name }))]} /></Field></div>
               <Btn size="sm" variant="outline" disabled={!copyTo} onClick={copyLayout}>Copy</Btn>
             </div>
             <div className="flex items-center gap-2.5 rounded-xl ring-1 ring-slate-200 bg-slate-50 p-2.5">
               <span className="w-10 h-10 rounded-lg bg-white ring-1 ring-slate-200 grid place-items-center overflow-hidden shrink-0">
                 {zoneLogos[zoneId] ? <img src={zoneLogos[zoneId]} alt={`${zone.name} logo`} className="w-full h-full object-contain" /> : <Icon.image size={16} className="text-slate-300" />}
               </span>
-              <div className="min-w-0 flex-1 text-[12px]"><b className="text-navy-900">Store logo</b><div className="text-slate-500">Shown under the store name on the beach.</div></div>
+              <div className="min-w-0 flex-1 text-[12px]"><b className="text-navy-900">Zone logo</b><div className="text-slate-500">Shown under the zone name on the beach.</div></div>
               <label className="cursor-pointer inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold ring-1 ring-slate-200 bg-white hover:ring-teal-400">
                 <input type="file" accept="image/*" aria-label={`Upload a logo for ${zone.name}`} className="sr-only" disabled={logoBusy} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; void onLogo(f); }} />
                 {logoBusy ? <Spinner size={12} /> : <Icon.upload size={12} />} {zoneLogos[zoneId] ? "Replace" : "Upload"}
@@ -486,7 +486,7 @@ export function SunbedWorkspace() {
 }
 
 /* ---------- QR labels for the sets (AENR-499) ----------
-   One label per set (the selection, or the whole store) encoding `SET:<id>`,
+   One label per set (the selection, or the whole zone) encoding `SET:<id>`,
    which the Controller, Cashier and Support Agent scanners resolve. */
 function QrLabelsModal({ zone, ids, onClose }: { zone: string; ids: string[]; onClose: () => void }) {
   return (

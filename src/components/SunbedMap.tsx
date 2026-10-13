@@ -3,7 +3,7 @@ import { LANDMARK_LABEL } from "../data/pricing";
 import type { Landmark, SunbedSlot } from "../domain/types";
 
 /* ---------- Shared sunbed map (AENR-469) ----------
-   One store's sets on a sea-at-the-top sand box, with landmarks and the
+   One zone's sets on a sea-at-the-top sand box, with landmarks and the
    accessibility mark — the same picture for the admin's "Preview as customer",
    the Cashier till and the entrance display. Every set is the shared <Sunbed>
    glyph, so states, tooltips and accessible names match the booking wizard. */

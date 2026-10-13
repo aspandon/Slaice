@@ -85,7 +85,7 @@ export function awaitingLinkBookings(links: readonly PayLink[], now: number): Ad
     }));
 }
 
-/** Bookings placed online in the customer wizard on this device (AENR-532/524) — one row, every store's sets. */
+/** Bookings placed online in the customer wizard on this device (AENR-532/524) — one row, every zone's sets. */
 export function onlineBookings(list: readonly PlacedBooking[]): AdminBooking[] {
   return list.map((b) => {
     const dates = [...new Set(b.items.map((i) => i.date).filter(Boolean))] as string[];

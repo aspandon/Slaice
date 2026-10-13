@@ -50,6 +50,7 @@ import { DEFAULT_TILL } from "./data/till";
 import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "./data/beach";
 import type { SceneFx, WeatherKind } from "./data/beach";
 import { OfflineBanner } from "./screens/cashier/TillStatus";
+import { CommandPalette } from "./components/CommandPalette";
 import { migrateLegacySegments, stripLegacyTags, visitSegmentName } from "./domain/segments";
 
 interface ToastItem {
@@ -192,7 +193,11 @@ export default function App() {
   const setDisplay = useCallback((u: (s: DisplayConfig) => DisplayConfig) => setDisplayState(u), []);
   const [layouts, setLayoutsState] = useState<LayoutState>({ ...DEFAULT_LAYOUT_STATE, ...(saved.layouts || {}) });
   const setLayouts = useCallback((u: (s: LayoutState) => LayoutState) => setLayoutsState(u), []);
-  const [extras, setExtrasState] = useState<ExtrasState>({ ...DEFAULT_EXTRAS, ...(saved.extras || {}) });
+  const [extras, setExtrasState] = useState<ExtrasState>(() => {
+    const e: ExtrasState = { ...DEFAULT_EXTRAS, ...(saved.extras || {}) };
+    // "AMEA" is shown as ΑμεΑ with its meaning (AENR-552).
+    return { ...e, tickets: e.tickets.map((t) => (t.id === "amea" && t.short === "AMEA" ? { ...t, name: "ΑμεΑ (persons with disabilities)", short: "ΑμεΑ" } : t)) };
+  });
   const setExtras = useCallback((u: (s: ExtrasState) => ExtrasState) => setExtrasState(u), []);
   const [account, setAccountState] = useState<AccountState>({ ...DEFAULT_ACCOUNT, ...(saved.account || {}) });
   const setAccount = useCallback((u: (s: AccountState) => AccountState) => setAccountState(u), []);
@@ -278,7 +283,7 @@ export default function App() {
   const setZoneLayout = useCallback((zoneId: string, slots: SunbedSlot[]) => {
     setBeachLayoutState((m) => ({ ...m, [zoneId]: slots }));
   }, []);
-  // Set (or clear, with null) a store's logo from the admin Map Editor.
+  // Set (or clear, with null) a zone's logo from the admin Map Editor.
   const setZoneLogo = useCallback((zoneId: string, src: string | null) => {
     setZoneLogosState((m) => {
       if (!src) {
@@ -435,6 +440,7 @@ export default function App() {
           <PlatformJanitor />
           <CommsJanitor />
           {persona === "platform" && <TenantSwitcher />}
+          <CommandPalette />
           {persona !== "platform" && platform.siteTenant !== "akti" && (
             <div role="status" className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl bg-slaice-600 text-white px-4 py-2 text-[13px]">
               <Icon.eye size={15} /> Previewing <b>{platform.tenants.find((x) => x.id === platform.siteTenant)?.name}</b>'s site and till

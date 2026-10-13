@@ -27,7 +27,7 @@ export function useDemoNow(ms = 15000): number {
 }
 
 /** A zone's sunbed sets with the live per-day status applied — till sales and
- *  basket holds, closed stores, and inventory controls (holds, channel
+ *  basket holds, closed zones, and inventory controls (holds, channel
  *  allocations, stop-sell) for the selling channel — the one view every
  *  persona renders. For several days, a set taken on any of them counts. */
 export function useLiveSlots(channel: SalesChannel = "online"): (zone: Zone, days: readonly string[]) => SunbedSlot[] {
@@ -85,7 +85,7 @@ export function useLiveSlots(channel: SalesChannel = "online"): (zone: Zone, day
   );
 }
 
-/** Why a store is closed on a date: the admin's "closed today" switch (today
+/** Why a zone is closed on a date: the admin's "closed today" switch (today
  *  only) or a "closed" restriction on the pricing calendar (AENR-511). */
 export function useClosure(): (zoneId: string, day: string) => string | undefined {
   const { closedStores, calendar } = useApp();

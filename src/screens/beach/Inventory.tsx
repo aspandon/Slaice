@@ -12,7 +12,7 @@ import type { SunbedSlot } from "../../domain/types";
 /* ============ Inventory controls (AENR-512) ============
    Live operations on today's (or any date's) inventory — applied at once, not
    part of the layout draft: hold sets with a reason and expiry, keep sets for
-   a sales channel with automatic release, stop selling a store online, and see
+   a sales channel with automatic release, stop selling a zone online, and see
    who can sell what. A demo clock fast-forwards to expiry / release times. */
 
 let seq = 0;
@@ -82,7 +82,7 @@ export function InventoryActions({ zoneId, sel, date }: { zoneId: string; sel: S
   );
 }
 
-/** Store-level panel: summary for the date, stop-sell, active controls, log, demo clock. */
+/** Zone-level panel: summary for the date, stop-sell, active controls, log, demo clock. */
 export function InventoryPanel({ zoneId, slots, date }: { zoneId: string; slots: SunbedSlot[]; date: string }) {
   const { toast, till, beachPricing } = useApp();
   const { inventory, update } = useInv();
@@ -127,7 +127,7 @@ export function InventoryPanel({ zoneId, slots, date }: { zoneId: string; slots:
           <Field label="To"><Input type="date" value={ss.to} onChange={(e) => setSs((x) => ({ ...x, to: e.target.value }))} /></Field>
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Scope"><Select value={ss.cat} onChange={(e) => setSs((x) => ({ ...x, cat: e.target.value }))} options={[{ v: "", l: "Whole store" }, ...cats.map((c) => ({ v: c.id, l: `${c.code} · ${c.name}` }))]} /></Field>
+          <Field label="Scope"><Select value={ss.cat} onChange={(e) => setSs((x) => ({ ...x, cat: e.target.value }))} options={[{ v: "", l: "Whole zone" }, ...cats.map((c) => ({ v: c.id, l: `${c.code} · ${c.name}` }))]} /></Field>
           <Field label="Reason"><Input value={ss.reason} onChange={(e) => setSs((x) => ({ ...x, reason: e.target.value }))} placeholder="e.g. Festival — on-site only" /></Field>
         </div>
         <Btn type="submit" size="sm" variant="outline" disabled={!ss.reason.trim() || ss.to < ss.from}>Stop online sales</Btn>

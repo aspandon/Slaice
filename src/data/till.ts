@@ -18,7 +18,7 @@ export const TICKET_LABEL: Record<TicketCategory, string> = {
 };
 export const TICKET_ORDER: TicketCategory[] = ["adult", "resident", "child", "senior"];
 
-/** One-tap favourites (per tenant). `sets` auto-assigns that many free sets in the chosen store. */
+/** One-tap favourites (per tenant). `sets` auto-assigns that many free sets in the chosen zone. */
 export interface QuickKey {
   id: string;
   label: string;
@@ -140,7 +140,7 @@ export const parkingSold = (sales: readonly TillSale[], day: string) =>
 /** Hold time for sets sitting in a till basket. */
 export const HOLD_MS = 5 * 60 * 1000;
 
-/** One set per store that gets booked online while the till is offline (sync conflicts). */
+/** One set per zone that gets booked online while the till is offline (sync conflicts). */
 export const OFFLINE_ONLINE_BOOKED = ZONES.map(
   (z) => zoneLayout(z).filter((s) => s.state === "a")[1]?.id,
 ).filter(Boolean) as string[];

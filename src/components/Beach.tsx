@@ -12,7 +12,7 @@ import type { SeaEnv } from "./LiveSeaCanvas";
 
 /* ---------- Sunbed-set mark (presentational) ----------
    Just the SVG glyph — a parasol over twin loungers — with no button wrapper, so
-   it can render inside other clickable surfaces (the store-cluster previews on the
+   it can render inside other clickable surfaces (the zone-cluster previews on the
    booking beach) without nesting buttons. Geometry + colour come from
    sunbedGlyph.ts, the shared source the Konva grid renders from too. */
 export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, className = "" }: {
@@ -103,7 +103,7 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
 /* ---------- Beach backdrop ----------
    Resolves the active tenant background (a preset or an uploaded photo) and
    renders it behind `children`. Pass an explicit `background` to preview a
-   specific scene (the picker does this); otherwise it reads the store, so the
+   specific scene (the picker does this); otherwise it reads the zone, so the
    choice flows to the booking map and the customer surface automatically. */
 export function BeachBackdrop({ children, className = "", pos = "relative", parallax = false, background, preview = false, shoreline, noVeg = false, seaEnv }: {
   children?: ReactNode;

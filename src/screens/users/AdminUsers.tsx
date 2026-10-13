@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, ConfirmModal, DensityToggle, EmptyState, ErrorState, Field, Input, Modal, PageHead, Table, TableSkeleton, Toggle } from "../../components/ui";
 import { useApp } from "../../app/store";
+import { readHashQuery } from "../../app/router";
 import { listCustomers } from "../../api";
 import { useAsync } from "../../lib/useAsync";
 import type { Customer, GuestView } from "../../domain/types";
@@ -46,7 +47,13 @@ export function AdminUsers() {
   const [segId, setSegId] = useUrlState("segment", "all");
   const customersQ = useAsync(listCustomers);
   const [editId, setEditId] = useState<number | null>(null);
-  const [profileId, setProfileId] = useState<number | null>(null);
+  // ?guest=<id> opens that guest's profile (deep links from ⌘K, AENR-553).
+  const [profileId, setProfileId] = useState<number | null>(() => Number(readHashQuery().get("guest")) || null);
+  useEffect(() => {
+    const on = () => { const g = Number(readHashQuery().get("guest")); if (g) setProfileId(g); };
+    window.addEventListener("hashchange", on);
+    return () => window.removeEventListener("hashchange", on);
+  }, []);
   const [builder, setBuilder] = useState<Segment | "new" | null>(null);
   const [tagModal, setTagModal] = useState(false);
   const [deleting, setDeleting] = useState<Segment | null>(null);

@@ -165,7 +165,7 @@ export interface SunbedSlot {
 }
 
 /* ---------- Beach workspace: price categories, date overrides, landmarks (AENR-469) ---------- */
-/** A colour-coded price category per store, e.g. "Front row · FR · €45". */
+/** A colour-coded price category per zone, e.g. "Front row · FR · €45". */
 export interface PriceCategory {
   id: string;
   zoneId: string;

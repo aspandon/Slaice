@@ -105,7 +105,7 @@ export const makeCustomScheme = (id: string): LoyaltyScheme => ({
   fields: [
     { key: "title", label: "Scheme name", type: "text", def: "Custom scheme", full: true },
     { key: "reward", label: "Reward", type: "select", def: LOYALTY_REWARDS[0], options: LOYALTY_REWARDS },
-    { key: "appliesTo", label: "Applies to", type: "select", def: "All stores", options: ["All stores", ...ZONES.map((z) => z.name)] },
+    { key: "appliesTo", label: "Applies to", type: "select", def: "All zones", options: ["All zones", ...ZONES.map((z) => z.name)] },
     { key: "when", label: "When", type: "select", def: "Weekday mornings", options: ["Weekday mornings", "Weekends", "All season", "Happy hour 17:00–19:00"] },
   ],
   summarize: (v) => `${v.reward} · ${v.appliesTo} · ${v.when}`,
