@@ -130,7 +130,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
             // floating over the beach surface (the centered tenant logo sits
             // separately in App). fixed so it stays reachable while scrolling.
             "glass text-navy-900 rounded-2xl flex items-center z-40 shadow-soft fixed top-3 right-3 sm:right-5 px-1.5 py-1 gap-0.5"
-          : "glass text-navy-900 rounded-2xl mb-4 flex items-center relative z-30 shadow-soft sticky top-2 px-2 py-1.5 gap-2"
+          : "glass text-navy-900 rounded-2xl mb-4 flex items-center relative z-30 shadow-soft sticky top-2 px-1.5 sm:px-2 py-1.5 gap-1 sm:gap-2"
       }
     >
       {/* Staff personas: current page title — tapping opens the full nav sheet
@@ -140,7 +140,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
           onClick={() => setNavOpen(true)}
           className="md:pointer-events-none flex items-center gap-2 pl-1.5 pr-2 h-11 rounded-xl min-w-0 flex-1 hover:bg-white/60 md:hover:bg-transparent transition"
           aria-label={t("Open navigation")}>
-          {CurrentIcon && <CurrentIcon size={17} className="text-slate-500 shrink-0" />}
+          {CurrentIcon && <CurrentIcon size={17} className="text-slate-500 shrink-0 hidden sm:block" />}
           <span className="font-display font-bold truncate text-[15px]">
             <span className="md:hidden">{currentItem ? t(currentItem.short || currentItem.label) : ""}</span>
             <span className="hidden md:inline">{currentItem ? t(currentItem.label) : ""}</span>
@@ -149,7 +149,8 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
         </button>
       )}
 
-      <div className={`flex items-center shrink-0 ${persona === "customer" ? "gap-0.5" : "gap-2"}`}>
+      {/* Tight on phones so the staff page title keeps room (AENR defect: it showed one letter at 390px). */}
+      <div className={`flex items-center shrink-0 ${persona === "customer" ? "gap-0.5" : "gap-0.5 sm:gap-2"}`}>
         {/* basket popup — only on the customer persona */}
         {persona === "customer" && (
         <Popover.Root open={basketOpen} onOpenChange={setBasketOpen}>
@@ -279,9 +280,9 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
         {/* avatar menu */}
         <DropdownMenu.Root modal={false}>
           <DropdownMenu.Trigger asChild>
-            <button aria-label={t("Account menu")} className="flex items-center gap-1.5 bg-slate-100/80 hover:bg-slate-200/80 data-[state=open]:bg-slate-200/80 rounded-xl pl-1 pr-1.5 py-1 transition">
+            <button aria-label={t("Account menu")} className="flex items-center gap-1.5 bg-slate-100/80 hover:bg-slate-200/80 data-[state=open]:bg-slate-200/80 rounded-xl p-1 sm:pr-1.5 transition">
               <span className="w-7 h-7 rounded-lg grid place-items-center text-white text-xs font-bold" style={{ background: "linear-gradient(135deg,#f7b535,#e8920e)" }}>EM</span>
-              <Icon.chevD size={14} className="text-slate-500" />
+              <Icon.chevD size={14} className="text-slate-500 hidden sm:block" />
             </button>
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
@@ -291,7 +292,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
                 <div className="text-[12px] text-slate-500">elena@example.com</div>
               </div>
               <DropdownMenu.Item onSelect={() => go("customer", "mybookings")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.grid size={15} /> {t("My bookings")}</DropdownMenu.Item>
-              <DropdownMenu.Item onSelect={() => go("customer", "mydocs")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.receipt size={15} /> {t("My documents")}</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => go("customer", "account")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.users size={15} /> {t("Account & receipts")}</DropdownMenu.Item>
               <DropdownMenu.Item onSelect={() => setSettingsOpen(true)} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.cog size={15} /> {t("Account settings")}</DropdownMenu.Item>
               <div className="border-t border-slate-100 mt-1 pt-1">
                 <DropdownMenu.Item onSelect={() => { setSignedIn(false); toast(t("Signed out (demo).")); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-rose-600 cursor-pointer select-none outline-none hover:bg-rose-50 data-[highlighted]:bg-rose-50"><Icon.arrowL size={15} /> {t("Sign out")}</DropdownMenu.Item>
@@ -390,7 +391,7 @@ function NotificationSettingsModal({ open, onClose }: { open: boolean; onClose: 
   );
 }
 
-function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { toast, lang, setLang } = useApp();
   const t = useT();
   const [name, setName] = useState("Elena Manoli");

@@ -1,22 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Pager, moneyVal } from "../components/TableTools";
-import { Icon } from "../lib/icons";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, EmptyState, FutureBanner, ContextPanel, Spinner, PeriodPicker, DateInput } from "../components/ui";
+import { Icon, type IconRenderer } from "../lib/icons";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, EmptyState, FutureBanner, Spinner, PeriodPicker } from "../components/ui";
 import type { TabEntry } from "../components/ui";
-import { BarChart, HBarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts";
-import { SunbedMark } from "../components/Beach";
+import { BarChart, HBarChart, LineChartMini, Donut, Sparkline } from "../components/charts";
 
 import { fileToBackgroundSrc } from "../lib/image";
-import { ZONES, zoneLayout, TENANT } from "../data/beach";
+import { ZONES, TENANT } from "../data/beach";
 import { LOYALTY_REWARDS, BUILTIN_SCHEMES, makeCustomScheme, schemeDefaults } from "../data/loyalty";
 import type { LoyaltyScheme, SchemeValues, SchemeField } from "../data/loyalty";
 import { BADGE_COLORS, BADGE_COLOR_KEYS, BADGE_ICONS, GAME_METRICS } from "../data/gamification";
 import type { Achievement, GameMetric } from "../data/gamification";
-import type { SunbedSlot, PassDesign, CardText } from "../domain/types";
+import type { PassDesign, CardText } from "../domain/types";
 import { CardFace, ScaledCard, WalletRendition, TEXT_KEYS, TEXT_LABELS, type DragKey } from "../components/PassDesigner";
 import { TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, personByFirst, CUSTOMERS } from "../data/mock";
-import { SendModal, type SendChannel } from "../components/SendModal";
+import { SendModal } from "../components/SendModal";
 import { useApp } from "../app/store";
 import { downloadCSV, downloadCSVReport, downloadPDF, type CsvSection } from "../lib/download";
 import { usePeriod } from "../lib/usePeriod";
@@ -28,7 +27,8 @@ import { resolveRange, comparisonRange, lastYearRange, granularityFor, rangeLabe
 import { summarize, series, buckets, fmtEUR, fmtInt, fmtPct, trendPct, trendPp, trendEUR } from "../data/analytics";
 import { Masked } from "./tenant/ViewAs";
 import { tillRefunds } from "../data/tillAdmin";
-import { useListUrl } from "../lib/useUrlState";
+import { useListUrl, useUrlState } from "../lib/useUrlState";
+import { GateThroughputCard } from "./controller";
 import { refundHistory, refundStats } from "../data/refunds";
 import { decidedRefundRows, opsNow, useBookingOps } from "../lib/useBookingOps";
 import { slaState } from "../domain/bookingOps";
@@ -123,151 +123,15 @@ export function AdminDashboard() {
 }
 const Leg = ({ c, t }: { c: string; t: ReactNode }) => <div className="flex items-center gap-2"><i className={`w-3 h-3 rounded-sm ${c} inline-block`} />{t}</div>;
 
-export { AdminAvailability } from "./beach/BeachAdmin";
 export { AdminBookings } from "./bookings/Bookings";
 
 /* ============ BOOKINGS LIST ============ */
-/* Compact live beach coverage for the manual booking — the same umbrella sets the
-   customer sees, scaled into the form. Available sets are tappable (fill the
-   code); taken sets are dimmed. */
-function ManualCoverage({ zone, slots, selectedCode, onPick }: {
-  zone: { name: string };
-  slots: SunbedSlot[];
-  selectedCode: string;
-  onPick: (id: string) => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [box, setBox] = useState({ w: 0, h: 0 });
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const measure = () => { const r = el.getBoundingClientRect(); setBox({ w: r.width, h: r.height }); };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  const size = useMemo(() => {
-    const base = Math.min(40, box.w * 0.07);
-    if (slots.length < 2 || box.w === 0) return Math.max(16, base);
-    let min = Infinity;
-    for (let i = 0; i < slots.length; i++) {
-      for (let j = i + 1; j < slots.length; j++) {
-        const dx = ((slots[i].x - slots[j].x) / 100) * box.w;
-        const dy = ((slots[i].y - slots[j].y) / 100) * box.h;
-        min = Math.min(min, Math.hypot(dx, dy));
-      }
-    }
-    return Math.max(14, Math.min(base, min * 0.82));
-  }, [slots, box]);
-  const free = slots.filter((s) => s.state === "a").length;
-  const want = selectedCode.trim().toUpperCase();
-  return (
-    <div className="mt-4">
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.umbrella size={12} /> Live beach coverage · {zone.name}</div>
-        <div className="text-[11px] text-slate-500 tnum">{free} free · {slots.length} sets</div>
-      </div>
-      <div ref={ref} className="relative w-full rounded-xl ring-1 ring-slate-200 overflow-hidden" style={{ aspectRatio: "16 / 6", background: "linear-gradient(to bottom, #bfe6f5 0%, #cdebf6 16%, #f1ddb4 30%, #ecd3a1 100%)" }}>
-        {slots.map((s) => {
-          const sel = !!want && s.id.toUpperCase() === want;
-          const taken = s.state !== "a";
-          return (
-            <button
-              key={s.id}
-              type="button"
-              disabled={taken}
-              onClick={() => onPick(s.id)}
-              title={`${s.id} · ${taken ? "taken" : "available"}`}
-              className={`absolute -translate-x-1/2 -translate-y-1/2 transition-transform ${taken ? "opacity-35 cursor-not-allowed" : "hover:scale-110 hover:z-10 cursor-pointer"}`}
-              style={{ left: `${s.x}%`, top: `${s.y}%`, width: size, height: size }}
-            >
-              <SunbedMark state={s.state} sel={sel} fill />
-            </button>
-          );
-        })}
-      </div>
-      <div className="mt-1 text-[11px] text-slate-400">Tap an available set to fill the code · taken sets are dimmed.</div>
-    </div>
-  );
-}
-
-/* ============ MANUAL / PHONE BOOKING ============ */
-export function AdminManual() {
-  const { toast, beachLayout, hint } = useApp();
-  // Opened from a guest profile ("New booking"): start with that guest's details.
-  const pre = hint?.page === "manual" ? hint.prefill : undefined;
-  const [done, setDone] = useState(false);
-  const [zoneName, setZoneName] = useState(ZONES[0].name);
-  const [code, setCode] = useState("");
-  const [email, setEmail] = useState(pre?.email ?? "maria@example.com");
-  const [mphone, setMphone] = useState(pre?.phone ?? "+30 694 100 0001");
-  const [sendOpen, setSendOpen] = useState(false);
-  const [sentVia, setSentVia] = useState<SendChannel>("Email");
-  const [sentTo, setSentTo] = useState("");
-  const today = DEMO_TODAY;
-  const [bookDate, setBookDate] = useState<string>(DEMO_TODAY);
-  const zone = ZONES.find((z) => z.name === zoneName) ?? ZONES[0];
-  const slots = beachLayout[zone.id] ?? zoneLayout(zone);
-  const reserve = () => {
-    if (!code.trim()) { toast("Pick a set on the map (or type a code) first.", { tone: "error" }); return; }
-    setSendOpen(true);
-  };
-  return (
-    <>
-      <div className="animate-fade-up grid lg:grid-cols-[1fr_320px] gap-5">
-        <div>
-          <PageHead title="Manual / Phone Booking" sub="Reserve and block a sunbed without taking payment (VIP / phone), then send the QR to the customer." badge={<Badge tone="mvp">MVP</Badge>} />
-          <Card className="p-5">
-            <div className="grid sm:grid-cols-2 gap-3">
-              <Field label="Customer name"><Input placeholder="e.g. Maria K." defaultValue={pre?.name ?? "Maria K."} /></Field>
-              <Field label="Customer e-mail"><Input placeholder="maria@example.com" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
-              <Field label="Customer phone"><Input placeholder="+30 694 …" value={mphone} onChange={(e) => setMphone(e.target.value)} /></Field>
-              <Field label="Zone"><Select value={zoneName} onChange={(e) => { setZoneName(e.target.value); setCode(""); }} options={ZONES.map((z) => z.name)} /></Field>
-              <Field label="Sunbed code"><Input placeholder="CE-92" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} /></Field>
-              <Field label="Date"><DateInput value={bookDate} onChange={setBookDate} min={today} required /></Field>
-              <Field label="Mark as"><Select options={["Unpaid (manual)", "Comp / VIP", "Pay later"]} /></Field>
-            </div>
-            <ManualCoverage zone={zone} slots={slots} selectedCode={code} onPick={(id) => setCode(id)} />
-            <div className="mt-4">
-              <Btn variant="primary" full className="sm:w-auto" icon={Icon.lock} onClick={reserve}>Reserve &amp; send QR</Btn>
-            </div>
-          </Card>
-          {done && (
-            <Card className="p-5 mt-4 flex items-center gap-4 animate-fade-up">
-              <QR size={96} seed={`MANUAL-${code}`} />
-              <div>
-                <div className="font-semibold text-navy-900 flex items-center gap-2">Reserved <Badge tone="amber">Unpaid</Badge></div>
-                <div className="text-sm text-slate-600">{zone.name} · {code} — QR sent via <b>{sentVia}</b> to {sentTo}. The customer can pay later or present the QR at the gate.</div>
-              </div>
-            </Card>
-          )}
-        </div>
-        <ContextPanel title="Manual / phone bookings" items={[
-          { icon: Icon.phone, title: "Block without payment", body: "Used for phone bookings, VIP comps, and pay-later guests." },
-          { icon: Icon.mail, title: "QR by e-mail / Viber / SMS", body: "The guest gets the same gate QR as an online booking, on the channel you pick." },
-          { icon: Icon.cash, title: "Settle later", body: "Mark unpaid bookings paid in Bookings when they arrive." },
-        ]} footer="Manual bookings appear in Reporting with channel = Phone." />
-      </div>
-      <SendModal
-        open={sendOpen}
-        onClose={() => setSendOpen(false)}
-        title="Reserve & send QR"
-        intro={`Block ${zone.name} · ${code} and send the gate QR to the customer.`}
-        email={email}
-        phone={mphone}
-        sendLabel="Reserve & send"
-        onSend={(ch, dest) => { setSentVia(ch); setSentTo(dest); setDone(true); toast(`Demo — ${zone.name} · ${code} blocked & QR sent via ${ch} to ${dest}.`, { tone: "success" }); }}
-      />
-    </>
-  );
-}
-
 /* ============ REPORTING & ANALYTICS ============ */
 const FIN_TABS = ["exec", "payments", "invoices"];
 export function AdminReporting() {
   const { toast, go, till } = useApp();
-  const [tab, setTab] = useState("exec");
+  // Reports grouped by question (AENR-562): the view lives in the URL (?report=).
+  const [tab, setTab] = useUrlState("report", "exec");
   const tabs: TabEntry[] = [
     ["exec", "Executive", Icon.chart],
     ["revenue", "Revenue", Icon.cash],
@@ -279,7 +143,15 @@ export function AdminReporting() {
     ["ops", "Operations", Icon.clock],
     ["payments", "Payments", Icon.card],
     ["invoices", "Invoices", Icon.receipt],
+    ["refunds", "Refunds", Icon.refund],
   ];
+  const GROUPS: { k: string; l: string; icon: IconRenderer; views: string[] }[] = [
+    { k: "overview", l: "Overview", icon: Icon.chart, views: ["exec"] },
+    { k: "sales", l: "Sales", icon: Icon.cash, views: ["revenue", "payments", "invoices", "refunds"] },
+    { k: "ops", l: "Operations", icon: Icon.umbrella, views: ["occupancy", "ops", "tickets"] },
+    { k: "customers", l: "Customers & channels", icon: Icon.users, views: ["customers", "channel", "bookings"] },
+  ];
+  const group = GROUPS.find((g) => g.views.includes(tab)) ?? GROUPS[0];
   // One period for the whole page (kept when switching tabs, AENR-466).
   const [period, setPeriod] = usePeriod({ kind: "preset", preset: "season", offset: 0 });
   // Memoised on the period so the tab modules can cache their (heavier) figures.
@@ -353,6 +225,9 @@ export function AdminReporting() {
   const [section, setSection] = useSection();
   const fin = useFinanceData(range, section);
   const finDocs = fin.rep.total.docs;
+  const { bookingOps } = useApp();
+  const refStats = refundStats(refundHistory(range));
+  const pendingRefunds = bookingOps.refunds.filter((r) => r.status === "pending").length;
   // Customers: the seed top-customer list scaled to the period's share of a full season.
   const seasonRev = summarize(resolveRange({ kind: "preset", preset: "season", offset: -1 })!).revenue;
   const custScale = Math.min(1.2, ratio(now.revenue, seasonRev));
@@ -387,6 +262,8 @@ export function AdminReporting() {
           { title: `Booking pace (vs same period last year ${paceVsLy ?? "—"})`, header: [axis, "Bookings"], rows: bookSeries.map((d) => [d.l, d.v]) },
           ...financeCsv("overview", fin, label),
         ];
+      case "refunds":
+        return [{ title: `Refunds · ${label}`, header: ["Metric", "Value"], rows: [["Refunded (€)", refStats.amount], ["Refunds", refStats.count], ["Refund rate %", +(now.revenue ? (refStats.amount / now.revenue) * 100 : 0).toFixed(2)], ["Top reason", refStats.top?.reason ?? "—"], ["Needs decision", pendingRefunds]] }];
       case "payments":
         return financeCsv("payments", fin, label);
       case "invoices":
@@ -449,7 +326,20 @@ export function AdminReporting() {
       <PageHead sub="How the beach is doing — revenue, occupancy, bookings, channels, guests and payments for any period."
         primary={<Btn variant="primary" icon={Icon.download} onClick={() => exportReport(tab)}>{FIN_TABS.includes(tab) ? "Export CSV" : "Export"}</Btn>}
         secondary={FIN_TABS.includes(tab) ? [{ label: "Export PDF", icon: Icon.doc, onClick: () => exportPdf(tab) }] : []} />
-      <div className="mb-3"><Tabs tabs={tabs} value={tab} onChange={setTab} scroll /></div>
+      <div className="mb-2"><Tabs tabs={GROUPS.map((g): TabEntry => [g.k, g.l, g.icon])} value={group.k} onChange={(k) => setTab(GROUPS.find((g) => g.k === k)!.views[0])} scroll /></div>
+      {group.views.length > 1 && (
+        <div role="radiogroup" aria-label={`${group.l} reports`} className="mb-3 flex flex-wrap gap-1.5">
+          {group.views.map((v) => {
+            const on = v === tab;
+            return (
+              <button key={v} type="button" role="radio" aria-checked={on} onClick={() => setTab(v)}
+                className={`min-h-[36px] rounded-lg px-3 text-[13px] font-semibold ring-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white text-navy-900 ring-slate-200 hover:ring-slate-400"}`}>
+                {tabs.find((t) => t[0] === v)?.[1]}
+              </button>
+            );
+          })}
+        </div>
+      )}
       <PeriodPicker value={period} onChange={setPeriod} presets={["day", "week", "month", "year", "season"]} resetTo={{ kind: "preset", preset: "season", offset: 0 }} className="mb-4" />
 
       {closed && <EmptyState icon={Icon.umbrella} title="The beach was closed" body={`No activity in ${label}. The season runs 1 May – 30 Sep — pick a date inside it.`} />}
@@ -492,7 +382,7 @@ export function AdminReporting() {
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-teal-700"><Icon.sparkles size={14} /> Insight · {label}</div>
             <div className="mt-2 font-display font-bold text-lg leading-snug text-navy-900">{weekendLift > 0 ? `Weekends run ${weekendLift}% fuller than weekdays.` : "Demand is even across the week."}</div>
             <p className="text-[13px] text-slate-600 mt-1 leading-snug">{topZone.l} averages {topZone.v}% occupancy {noun}. Consider dynamic weekend pricing on front-row sets to lift RevPATB.</p>
-            <Btn variant="teal" size="sm" className="mt-auto self-start" icon={Icon.trend} onClick={() => go("admin", "availability")}>Set a rule</Btn>
+            <Btn variant="teal" size="sm" className="mt-auto self-start" icon={Icon.trend} onClick={() => go("admin", "pricing")}>Set a rule</Btn>
           </Card>
         </div>
       </>}
@@ -539,6 +429,21 @@ export function AdminReporting() {
           : <EmptyState compact icon={Icon.ticket} title="No tickets in this period" body="Try a wider range, e.g. This season." />}
       </Card>}
 
+      {/* Refund KPIs live in Sales (AENR-562); deciding refunds stays in Refunds / the booking. */}
+      {!closed && tab === "refunds" && (
+        <div className="space-y-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard instant label="Refunded" value={fmtEUR(refStats.amount)} valueTitle={eurFull(refStats.amount)} sub={`${fmtInt(refStats.count)} refunds · ${label}`} tone="teal" />
+            <StatCard instant label="Refund rate" value={fmtPct(now.revenue ? refStats.amount / now.revenue : 0, 1)} sub={`of ${fmtEUR(now.revenue)} revenue`} />
+            <StatCard instant label="Top reason" value={refStats.top?.reason ?? "—"} sub={refStats.top ? `${Math.round(refStats.top.share * 100)}% of refunds` : "no refunds"} tone="indigo" />
+            <StatCard instant label="Needs decision" value={String(pendingRefunds)} sub="refund requests waiting" tone={pendingRefunds ? "amber" : "navy"} />
+          </div>
+          <Card className="p-5 flex flex-wrap items-center gap-3">
+            <p className="flex-1 min-w-[220px] text-[13.5px] text-slate-600">Decide requests and see every refund in the period on the Refunds page; each refund is also on its booking’s timeline.</p>
+            <Btn variant="outline" icon={Icon.refund} onClick={() => go("admin", "refunds")}>Open Refunds</Btn>
+          </Card>
+        </div>
+      )}
       {!closed && tab === "ops" && <Card className="p-5"><div className="flex items-center justify-between gap-2 mb-2 flex-wrap"><div className="font-semibold text-navy-900">Operations · {label}</div>
           <div className="flex items-center gap-2">
             {opsRows.length > 1 && <Toggle on={opsByDay} onChange={setOpsByDay} label={`By ${opsG}`} />}
@@ -556,6 +461,7 @@ export function AdminReporting() {
         </div>}
       </Card>}
       {tab === "ops" && <TillShiftsCard />}
+      {tab === "ops" && <div className="mt-4"><h2 className="font-display font-bold text-navy-900 mb-2">Gate</h2><GateThroughputCard /></div>}
     </div>
   );
 }

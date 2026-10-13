@@ -97,7 +97,7 @@ export function GuestProfile({ guest, customer, rfm, segments, tags, onClose, on
         </div>
       }
       footer={<>
-        <Btn variant="outline" icon={Icon.plus} onClick={() => go("admin", "manual", { prefill: { name: `${customer.first} ${customer.last.charAt(0)}.`, email: customer.email, phone: customer.phone } })}>New booking</Btn>
+        <Btn variant="outline" icon={Icon.plus} onClick={() => go("admin", "newbooking", { prefill: { name: `${customer.first} ${customer.last}`, email: customer.email, phone: customer.phone } })}>New booking</Btn>
         <Btn variant="outline" icon={Icon.mail} onClick={() => go("admin", "communicate")}>Message</Btn>
         <Btn variant="outline" icon={Icon.qr} onClick={() => toast(bookings[0] ? `Demo — QR for ${bookings[0].id} re-sent to ${customer.email}.` : "No bookings to resend.", { tone: bookings[0] ? "success" : "error" })}>Resend QR</Btn>
         <Btn variant="primary" icon={Icon.edit} onClick={onEdit}>Edit details</Btn>

@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { Icon, type IconRenderer } from "../lib/icons";
-import { Card, Btn, Badge, PageHead, StatCard, Modal, Toggle } from "../components/ui";
+import { Card, Btn, Input, StatCard, Modal, Toggle } from "../components/ui";
 import { BarChart } from "../components/charts";
 import { RECENT_VALIDATIONS } from "../data/mock";
 import { useApp, useSpotlight } from "../app/store";
-import { openDisplay } from "../domain/display";
 import { ScanResult, detailOf, useGateFeedback, type ScanState, type Validation } from "./gate/ScanResult";
 
 /* Demo scans cycle through every outcome so each result screen can be shown. */
@@ -24,7 +23,7 @@ const RESULT_STYLE: Record<string, { wrap: string; badge: string; label: string;
 };
 
 export function ControllerScan() {
-  const { toast, go, persona } = useApp();
+  const { toast } = useApp();
   useSpotlight("controller", "scan");
   const [scanning, setScanning] = useState(false);
   const [recent, setRecent] = useState<Validation[]>(RECENT_VALIDATIONS as Validation[]);
@@ -32,7 +31,6 @@ export function ControllerScan() {
   const [result, setResult] = useState<Validation | null>(null);
   const [n, setN] = useState(0);
   const [fb, setFb] = useGateFeedback();
-  const stateTone: Record<string, string> = { valid: "green", used: "amber", invalid: "red" };
 
   const doScan = () => {
     setScanning(true);
@@ -56,63 +54,64 @@ export function ControllerScan() {
     setResult(null);
   };
 
+  // Manual code entry: a booking ref or ticket code typed from the guest's screen.
+  const [code, setCode] = useState("");
+  const checkCode = () => {
+    const c = code.trim().toUpperCase().replace(/^([A-Z]{2})-?(\d+)$/, "#$1-$2").replace(/^(?!#)/, "#");
+    if (!c || c === "#") return;
+    const known = [...DEMO_SCANS, ...recent].find((v) => v.id.toUpperCase() === c);
+    const v: Validation = known ?? { id: c, sub: "Typed code", state: "invalid", reason: "Not a Slaice ticket" };
+    setResult(v);
+    if (v.state !== "used") log(v, v.state);
+    setCode("");
+  };
+
+  /* Full-screen scanner (AENR-564): the camera area, manual entry and the last
+     scans — nothing else. Gate KPIs and hourly throughput live in Reports ›
+     Operations; Beach status and Walk-in are in the bottom bar / sidebar. */
   return (
-    <div className="animate-fade-up max-w-4xl">
-      <PageHead title="Gate Validation" sub="Scan booking & ticket QR codes from the browser — real-time verification. Also handle walk-ins and on-the-spot tickets." badge={<Badge tone="mvp">MVP</Badge>} />
-      <div className="grid md:grid-cols-2 gap-4">
-        <Card data-spotlight="scanner" className="p-5 grid place-items-center text-center">
-          <div className={`w-44 h-44 rounded-2xl ring-2 ring-dashed grid place-items-center relative overflow-hidden ${scanning ? "ring-teal-500 bg-teal-50" : "ring-teal-400/60 bg-teal-50/40"} text-teal-600`}>
-            <Icon.scan size={60} />
-            {scanning && <div className="absolute left-0 right-0 h-0.5 bg-teal-500 shadow-[0_0_8px_#14b8a6]" style={{ animation: "scanline 1.1s linear infinite" }} />}
-          </div>
-          <Btn variant="teal" size="lg" className="mt-4" icon={Icon.scan} onClick={doScan} disabled={scanning}>{scanning ? "Scanning…" : "Scan QR"}</Btn>
-          <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2 text-[13px]">
+    <div className="animate-fade-up flex flex-col gap-3 min-h-[calc(100dvh-170px)] md:min-h-[calc(100dvh-140px)]">
+      <div data-spotlight="scanner" className="relative flex-1 min-h-[300px] rounded-3xl bg-navy-950 text-white overflow-hidden grid place-items-center">
+        <div className={`relative w-[min(64vw,300px)] aspect-square rounded-3xl ${scanning ? "ring-4 ring-teal-400" : "ring-2 ring-white/40"}`}>
+          {["top-0 left-0 border-t-4 border-l-4 rounded-tl-3xl", "top-0 right-0 border-t-4 border-r-4 rounded-tr-3xl", "bottom-0 left-0 border-b-4 border-l-4 rounded-bl-3xl", "bottom-0 right-0 border-b-4 border-r-4 rounded-br-3xl"].map((c) => (
+            <span key={c} aria-hidden className={`absolute w-10 h-10 border-teal-300 ${c}`} />
+          ))}
+          <Icon.scan size={72} className="absolute inset-0 m-auto text-white/25" />
+          {scanning && <div aria-hidden className="absolute left-3 right-3 h-0.5 bg-teal-300 shadow-[0_0_10px_#5eead4] motion-safe:animate-[scanline_1.1s_linear_infinite]" />}
+        </div>
+        <p className="absolute top-4 inset-x-0 text-center text-[13px] text-white/80" aria-live="polite">{scanning ? "Reading the code…" : "Point the camera at the guest’s QR code"}</p>
+        <div className="absolute bottom-4 inset-x-4 flex flex-wrap items-center justify-center gap-3">
+          <Btn variant="teal" size="lg" icon={Icon.scan} onClick={doScan} disabled={scanning}>{scanning ? "Scanning…" : "Scan QR"}</Btn>
+          <div className="flex gap-4 rounded-xl bg-white/10 px-3 py-1.5 text-[13px] [&_*]:!text-white">
             <Toggle label="Sound" on={fb.sound} onChange={(v) => setFb({ ...fb, sound: v })} />
             <Toggle label="Vibrate" on={fb.vibrate} onChange={(v) => setFb({ ...fb, vibrate: v })} />
           </div>
-          <div className="mt-4 grid grid-cols-3 gap-1.5 w-full text-[11px]">
-            <div className="flex items-center justify-center gap-1.5 rounded-lg bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/15 px-2 py-1.5"><Icon.checkCircle size={12} /> valid</div>
-            <div className="flex items-center justify-center gap-1.5 rounded-lg bg-amber-50 text-amber-700 ring-1 ring-amber-600/15 px-2 py-1.5"><Icon.clock size={12} /> used</div>
-            <div className="flex items-center justify-center gap-1.5 rounded-lg bg-rose-50 text-rose-700 ring-1 ring-rose-600/15 px-2 py-1.5"><Icon.alert size={12} /> invalid</div>
-          </div>
-          <style>{`@keyframes scanline{0%{top:8px}50%{top:160px}100%{top:8px}}`}</style>
-        </Card>
+        </div>
+        <style>{`@keyframes scanline{0%{top:8%}50%{top:90%}100%{top:8%}}`}</style>
+      </div>
 
-        <Card className="p-5">
-          <div className="font-semibold text-navy-900 mb-3">Recent validations</div>
-          <div className="space-y-2 text-sm max-h-56 overflow-y-auto">
-            {recent.map((r, i) => (
-              <button key={i} type="button" onClick={() => setInspect({ v: r, fresh: false })}
-                className="w-full flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 hover:ring-teal-400 transition text-left animate-fade-in">
-                <div><div className="font-semibold text-navy-900">{r.id}</div><div className="text-[12px] text-slate-600">{r.sub}</div></div>
-                <Badge tone={stateTone[r.state]}>{r.state}</Badge>
+      <form className="flex gap-2" onSubmit={(e) => { e.preventDefault(); checkCode(); }}>
+        <div className="flex-1"><Input aria-label="Type a booking or ticket code" placeholder="Or type the code — e.g. BK-10436" value={code} onChange={(e) => setCode(e.target.value)} className="!min-h-[52px] text-base" /></div>
+        <Btn type="submit" size="lg" variant="primary" disabled={!code.trim()}>Check</Btn>
+      </form>
+
+      <section aria-label="Last scans">
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Last scans</div>
+        <ul className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+          {recent.map((r, i) => (
+            <li key={i} className="shrink-0">
+              <button type="button" onClick={() => setInspect({ v: r, fresh: false })}
+                className="min-h-[52px] rounded-xl ring-1 ring-slate-200 bg-white px-3 py-1.5 text-left hover:ring-teal-400 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                <div className="flex items-center gap-1.5 font-semibold text-navy-900 text-[13px]">
+                  {r.state === "valid" ? <Icon.checkCircle size={13} className="text-emerald-600" /> : r.state === "used" ? <Icon.clock size={13} className="text-amber-600" /> : <Icon.alert size={13} className="text-rose-600" />}
+                  {r.id}
+                </div>
+                <div className="text-[11.5px] text-slate-600 whitespace-nowrap">{r.sub} · {r.state === "valid" ? "Admitted" : r.state === "used" ? "Already entered" : "Refused"}</div>
               </button>
-            ))}
-          </div>
-          <div data-spotlight="walkins" className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-1 gap-2 rounded-xl p-2 -mx-1">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 mb-0.5">Walk-ins & on-the-spot</div>
-            <Btn variant="outline" size="sm" icon={Icon.umbrella} onClick={() => go(persona, "walkin")}>Walk-in sale — scan or tap the set</Btn>
-            <Btn variant="outline" size="sm" icon={Icon.ticket} onClick={() => go(persona, "walkin")}>Add ticket (pay on site)</Btn>
-            <Btn variant="outline" size="sm" icon={Icon.grid} onClick={() => go(persona, "beach")}>Beach status — sets & check-in</Btn>
-            <Btn variant="ghost" size="sm" icon={Icon.monitor} onClick={openDisplay}>Open live display</Btn>
-          </div>
-        </Card>
-      </div>
-
-      {/* Gate throughput analytics (P5.3) */}
-      <div className="grid sm:grid-cols-4 gap-4 mt-4">
-        <StatCard instant label="Scanned today" value="1,284" sub="entries validated" tone="teal" trend="+6%" compare="vs same day last week" />
-        <StatCard instant label="Throughput" value="312/hr" sub="peak 11:00–13:00" />
-        <StatCard instant label="No-shows" value="2.8%" sub="booked, not arrived" tone="amber" />
-        <StatCard instant label="Duplicate scans" value="4" sub="flagged today" tone="rose" />
-      </div>
-      <Card className="p-5 mt-4">
-        <div className="font-semibold text-navy-900 mb-1">Gate throughput by hour</div>
-        <BarChart label="Gate throughput by hour" color="#f59e0b" data={[
-          { l: "9h", v: 90 }, { l: "10h", v: 180 }, { l: "11h", v: 280, hi: 1 }, { l: "12h", v: 312, hi: 1 },
-          { l: "13h", v: 240 }, { l: "14h", v: 150 }, { l: "15h", v: 120 }, { l: "16h", v: 80 },
-        ]} />
-      </Card>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <ScanResultModal data={inspect} onClose={() => setInspect(null)} onAdmit={(v) => { admit(v); setInspect(null); }} />
       {result && <ScanResult v={result} feedback={fb} onAdmit={admit} onDeny={deny} onDone={() => setResult(null)} />}
@@ -146,3 +145,24 @@ function ScanResultModal({ data, onClose, onAdmit }: { data: { v: Validation; fr
   );
 }
 
+
+/* Gate throughput for managers (AENR-564) — shown in Reports › Operations. */
+export function GateThroughputCard() {
+  return (
+    <div className="space-y-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard instant label="Scanned today" value="1,284" sub="entries validated" tone="teal" trend="+6%" compare="vs same day last week" />
+        <StatCard instant label="Throughput" value="312/hr" sub="peak 11:00–13:00" />
+        <StatCard instant label="No-shows" value="2.8%" sub="booked, not arrived" tone="amber" />
+        <StatCard instant label="Duplicate scans" value="4" sub="flagged today" tone="rose" />
+      </div>
+      <Card className="p-5">
+        <div className="font-semibold text-navy-900 mb-1">Gate throughput by hour · today (entries)</div>
+        <BarChart label="Gate throughput by hour" color="#f59e0b" data={[
+          { l: "9h", v: 90 }, { l: "10h", v: 180 }, { l: "11h", v: 280, hi: 1 }, { l: "12h", v: 312, hi: 1 },
+          { l: "13h", v: 240 }, { l: "14h", v: 150 }, { l: "15h", v: 120 }, { l: "16h", v: 80 },
+        ]} />
+      </Card>
+    </div>
+  );
+}

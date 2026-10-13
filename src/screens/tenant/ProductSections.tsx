@@ -199,7 +199,7 @@ export function Locations({ t }: SectionProps) {
           icon={Icon.map}
           onClick={() => {
             setPlatform((p) => ({ ...p, siteTenant: t.id }));
-            go("admin", "availability");
+            go("admin", "layout");
           }}
         >
           Open the tenant's map

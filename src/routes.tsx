@@ -1,3 +1,5 @@
+import { AdminToday } from "./screens/today/Today";
+import { AdminBeachLayout, AdminPricing, AdminProducts } from "./screens/beach/BeachAdmin";
 import { AdminLiveBeach } from "./screens/beach/LiveBeach";
 import type { ReactElement } from "react";
 import type { PersonaId } from "./domain/types";
@@ -15,7 +17,8 @@ import * as CA from "./screens/cashier";
 import * as CT from "./screens/controller";
 import { ControllerBeach } from "./screens/ControllerBeach";
 import { ControllerWalkin } from "./screens/ControllerWalkin";
-import { PayLinks } from "./screens/PayLinks";
+import { NewBooking } from "./screens/bookings/NewBooking";
+import { AdminBilling } from "./screens/AdminBilling";
 import { AdminDisplay } from "./screens/display/AdminDisplay";
 import * as AC from "./screens/accountant";
 import { AccountantReports } from "./screens/reporting/FinanceTabs";
@@ -29,17 +32,23 @@ const MAP: Record<string, () => ReactElement> = {
   "customer.home": () => <C.CustomerHome />,
   "customer.plan": () => <CW.CustomerWizard />,
   "customer.mybookings": () => <C.CustomerBookings />,
-  "customer.mydocs": () => <C.CustomerDocs />,
+  "customer.wallet": () => <C.CustomerWallet />,
+  "customer.account": () => <C.CustomerAccount />,
   "customer.checkout": () => <CO.Checkout />,
   "customer.confirm": () => <CO.Confirmation />,
   "customer.vip": () => <PP.PassPurchase kind="vip" />,
   "customer.season": () => <PP.PassPurchase kind="season" />,
   // admin
-  "admin.dashboard": () => <A.AdminDashboard />,
-  "admin.availability": () => <A.AdminAvailability />,
+  // Today is the manager's home (AENR-560); the old Dashboard URL opens it too.
+  "admin.today": () => <AdminToday />,
+  // Beach area split by job (AENR-561); the old Availability URL opens Beach layout.
+  "admin.layout": () => <AdminBeachLayout />,
+  "admin.pricing": () => <AdminPricing />,
+  "admin.products": () => <AdminProducts />,
   "admin.bookings": () => <A.AdminBookings />,
   "admin.live": () => <AdminLiveBeach />,
-  "admin.manual": () => <A.AdminManual />,
+  // One New booking flow (AENR-559); old Manual / Pay-by-link links are aliased in the router.
+  "admin.newbooking": () => <NewBooking />,
   "admin.users": () => <AdminUsers />,
   "admin.reporting": () => <A.AdminReporting />,
   "admin.refunds": () => <A.AdminRefunds />,
@@ -49,8 +58,9 @@ const MAP: Record<string, () => ReactElement> = {
   "admin.loyalty": () => <A.AdminLoyalty />,
   "admin.passes": () => <A.AdminPasses />,
   "admin.gamification": () => <A.AdminGamification />,
+  "admin.billing": () => <AdminBilling />,
   // call center — the same screens as the admin's, scoped by persona
-  "callcenter.manual": () => <A.AdminManual />,
+  "callcenter.newbooking": () => <NewBooking />,
   "callcenter.bookings": () => <A.AdminBookings />,
   // cashier
   "cashier.issue": () => <CA.CashierIssue />,
@@ -71,9 +81,8 @@ const MAP: Record<string, () => ReactElement> = {
   "support.register": () => <CA.CashierRegister />,
   "support.redeem": () => <CA.CashierRedeem />,
   "support.locker": () => <CA.CashierLocker />,
-  "support.paylinks": () => <PayLinks />,
-  "callcenter.paylinks": () => <PayLinks />,
-  "admin.paylinks": () => <PayLinks />,
+  "support.newbooking": () => <NewBooking />,
+  "support.bookings": () => <A.AdminBookings />,
   "admin.display": () => <AdminDisplay />,
   // accountant
   "accountant.monthend": () => <MonthEnd />,
@@ -83,7 +92,6 @@ const MAP: Record<string, () => ReactElement> = {
   // platform
   "platform.tenants": () => <PO.PlatformTenants />,
   "platform.tenant": () => <TenantPage />,
-  "platform.onboarding": () => <PO.PlatformOnboarding />,
   "platform.superadmin": () => <PO.PlatformSuperAdmin />,
   "platform.compliance": () => <P.PlatformCompliance />,
   "platform.verticals": () => <P.PlatformVerticals />,
@@ -95,7 +103,7 @@ const MAP: Record<string, () => ReactElement> = {
 const FALLBACK: Record<PersonaId, () => ReactElement> = {
   customer: () => <C.CustomerHome />,
   admin: () => <A.AdminDashboard />,
-  callcenter: () => <A.AdminManual />,
+  callcenter: () => <NewBooking />,
   cashier: () => <CA.CashierIssue />,
   controller: () => <CT.ControllerScan />,
   support: () => <CT.ControllerScan />,

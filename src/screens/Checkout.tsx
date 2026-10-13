@@ -402,7 +402,7 @@ export function Confirmation({ inline, booking }: { inline?: boolean; booking?: 
             });
             toast(t("Calendar invite downloaded (.ics)."), { tone: "success" });
           }}>{t("Add to calendar")}</Btn>
-          <Btn variant="outline" icon={Icon.receipt} onClick={() => { clearCart(); go("customer", "mydocs"); }}>{t("View receipt")}</Btn>
+          <Btn variant="outline" icon={Icon.receipt} onClick={() => { clearCart(); go("customer", "account"); }}>{t("View receipt")}</Btn>
         </div>
       </Card>
       <div className="text-center mt-3 text-[11px] text-slate-600 flex items-center justify-center gap-1.5">powered by <SlaiceLogo size={18} withText /></div>

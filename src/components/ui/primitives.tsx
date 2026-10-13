@@ -36,14 +36,17 @@ export function Badge({ tone = "slate", children, className = "" }: { tone?: str
 /* ---------- StatusBadge ----------
    Status conveyed by colour AND an icon + text, so meaning never relies on
    colour alone (WCAG 1.4.1 Use of Color). Pass a known status or any label. */
+// Order matters: the first key the status contains wins, so "unpaid" must
+// come before "paid" (AENR defect: Unpaid showed as a green success badge).
 const STATUS_MAP: Record<string, { tone: string; icon: IconRenderer }> = {
+  unpaid: { tone: "warning", icon: Icon.clock },
+  expired: { tone: "neutral", icon: Icon.clock },
   confirmed: { tone: "success", icon: Icon.checkCircle },
   paid: { tone: "success", icon: Icon.checkCircle },
   active: { tone: "success", icon: Icon.checkCircle },
   live: { tone: "success", icon: Icon.checkCircle },
   ok: { tone: "success", icon: Icon.checkCircle },
   used: { tone: "neutral", icon: Icon.check },
-  unpaid: { tone: "warning", icon: Icon.clock },
   pending: { tone: "warning", icon: Icon.clock },
   awaiting: { tone: "warning", icon: Icon.clock },
   issued: { tone: "info", icon: Icon.doc },

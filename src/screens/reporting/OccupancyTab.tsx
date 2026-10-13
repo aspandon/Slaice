@@ -478,7 +478,7 @@ export function OccupancyTab({
               size="sm"
               variant="outline"
               icon={Icon.trend}
-              onClick={() => go("admin", "availability")}
+              onClick={() => go("admin", "pricing")}
             >
               Set a pricing rule
             </Btn>

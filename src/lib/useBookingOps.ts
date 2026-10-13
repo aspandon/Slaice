@@ -1,12 +1,7 @@
 import { useMemo } from "react";
 import { useApp } from "../app/store";
 import { ADMIN_BOOKINGS, personByFirst, type AdminBooking, type AdminRefund } from "../data/mock";
-import {
-  awaitingLinkBookings,
-  onlineBookings,
-  payLinkBookings,
-  tillBookings,
-} from "../data/tillAdmin";
+import { onlineBookings, staffBookings, tillBookings } from "../data/tillAdmin";
 import { ZONES } from "../data/beach";
 import { DEMO_TODAY, fmtDay, isoFromDayMonth } from "../domain/period";
 import { opsKey } from "../domain/sunbedOps";
@@ -32,6 +27,17 @@ export type OpsBooking = AdminBooking & {
   visitIso: string;
 };
 
+const linkEventKind = (text: string): BookingEventKind =>
+  /^(Reserved|Booked)/.test(text)
+    ? "created"
+    : /paid|Paid/.test(text)
+      ? "paid"
+      : /resent|link sent/i.test(text)
+        ? "link_sent"
+        : /Cancelled|declined/.test(text)
+          ? "refund_declined"
+          : "note";
+
 /** "Now" on the demo calendar: the demo day at the real time of day. */
 export const opsNow = () => `${DEMO_TODAY}T${new Date().toTimeString().slice(0, 5)}`;
 
@@ -39,6 +45,7 @@ export function useBookingOps() {
   const {
     till,
     payLinks,
+    inventory,
     account,
     bookingOps,
     setBookingOps,
@@ -51,14 +58,17 @@ export function useBookingOps() {
 
   const bookings: OpsBooking[] = useMemo(() => {
     const all = [
-      ...awaitingLinkBookings(payLinks, Date.now()),
+      ...staffBookings(payLinks, Date.now() + inventory.clockOffset * 60000),
       ...onlineBookings(account.bookings),
-      ...payLinkBookings(payLinks),
       ...tillBookings(till.sales),
       ...ADMIN_BOOKINGS,
     ];
     return all.map((b) => {
-      const p = personByFirst(b.who);
+      // A staff booking knows its guest (AENR-559); sample rows borrow a sample person.
+      const g = payLinks.find((l) => `#${l.id}` === b.id)?.guest;
+      const p = g
+        ? { last: g.name.split(" ").slice(1).join(" "), phone: g.phone, email: g.email }
+        : personByFirst(b.who);
       return {
         ...b,
         items: applyMoves(b.items, bookingOps.moves[b.id]),
@@ -69,7 +79,7 @@ export function useBookingOps() {
         visitIso: isoFromDayMonth(b.date) ?? DEMO_TODAY,
       };
     });
-  }, [payLinks, account.bookings, till.sales, bookingOps]);
+  }, [payLinks, inventory.clockOffset, account.bookings, till.sales, bookingOps]);
 
   const addEvent = (id: string, kind: BookingEventKind, text: string) =>
     setBookingOps((o) => ({
@@ -77,8 +87,19 @@ export function useBookingOps() {
       events: { ...o.events, [id]: [...(o.events[id] ?? []), { at: opsNow(), kind, text, by }] },
     }));
 
-  const timelineOf = (b: OpsBooking): BookingEvent[] =>
-    timeline(
+  const timelineOf = (b: OpsBooking): BookingEvent[] => {
+    // A staff booking (AENR-559) has its own real history — use it, not the sample one.
+    const link = payLinks.find((l) => `#${l.id}` === b.id);
+    if (link)
+      return [
+        ...link.log.map((e) => ({
+          at: `${DEMO_TODAY}T${new Date(e.at).toTimeString().slice(0, 5)}`,
+          kind: linkEventKind(e.text),
+          text: e.text,
+        })),
+        ...(bookingOps.events[b.id] ?? []),
+      ].sort((x, y) => x.at.localeCompare(y.at));
+    return timeline(
       b,
       b.visitIso,
       bookingOps,
@@ -88,6 +109,7 @@ export function useBookingOps() {
         by: n.by,
       })),
     );
+  };
 
   const resendQr = (b: OpsBooking, channel: string, dest: string) =>
     addEvent(b.id, "qr_resent", `Gate QR re-sent via ${channel} to ${dest}`);

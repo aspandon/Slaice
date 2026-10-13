@@ -7,7 +7,7 @@ import { ZONES } from "./beach";
 import { DEMO_TODAY, fmtDay } from "../domain/period";
 import { refundedTotal, saleStatus, type TillSale } from "../domain/till";
 import type { AdminBooking, AdminRefund } from "./mock";
-import type { PayLink } from "../domain/payLink";
+import { payLinkStatus, type PayLink, type PayLinkStatus } from "../domain/payLink";
 import type { PlacedBooking } from "../domain/account";
 
 const zoneName = (id?: string) => ZONES.find((z) => z.id === id)?.name ?? "";
@@ -55,34 +55,44 @@ export function tillRefunds(sales: readonly TillSale[]): AdminRefund[] {
     });
 }
 
-/** Paid pay-by-link reservations as Admin bookings (AENR-534), channel Pay-by-link. */
-export function payLinkBookings(links: readonly PayLink[]): AdminBooking[] {
-  return links
-    .filter((l) => l.closed === "paid")
-    .map((l) => ({
-      id: `#${l.id}`,
-      who: l.guest.name.split(" ")[0],
-      items: l.lines.map((x) => (x.setId ? `Sunbed · ${zoneName(x.zoneId)} · ${x.setId}` : `Entry · ${x.label} ×${x.qty}`)),
-      date: fmtDay(l.date),
-      channel: "Pay-by-link",
-      status: "Confirmed",
-      amount: l.total,
-    }));
-}
+const LINK_STATUS: Record<PayLinkStatus, string> = {
+  awaiting: "Awaiting payment",
+  unpaid: "Unpaid",
+  paid: "Confirmed",
+  expired: "Expired",
+  cancelled: "Cancelled",
+};
+const payMethodOf = (l: PayLink, st: PayLinkStatus) =>
+  l.mode === "card"
+    ? "Card on the phone (simulated terminal)"
+    : l.mode === "unpaid"
+      ? st === "paid"
+        ? "Paid on arrival"
+        : "Pay on arrival (cash or card at the till)"
+      : st === "paid"
+        ? "Card via payment link (Stripe)"
+        : st === "expired"
+          ? "Payment link expired — not paid, sets released"
+          : st === "cancelled"
+            ? "Payment link cancelled — not charged"
+            : "Payment link sent — not paid yet";
 
-/** Pay-by-link reservations still waiting for payment (AENR-579) — "Awaiting payment". */
-export function awaitingLinkBookings(links: readonly PayLink[], now: number): AdminBooking[] {
-  return links
-    .filter((l) => !l.closed && new Date(l.deadline).getTime() > now)
-    .map((l) => ({
+/** Staff bookings — phone, call center, admin, pay-by-link (AENR-534/559) — as
+    Admin bookings, every state: awaiting a link, unpaid, paid, expired, cancelled. */
+export function staffBookings(links: readonly PayLink[], now: number): AdminBooking[] {
+  return links.map((l) => {
+    const st = payLinkStatus(l, now);
+    return {
       id: `#${l.id}`,
       who: l.guest.name.split(" ")[0],
       items: l.lines.map((x) => (x.setId ? `Sunbed · ${zoneName(x.zoneId)} · ${x.setId}` : `Entry · ${x.label} ×${x.qty}`)),
       date: fmtDay(l.date),
-      channel: "Pay-by-link",
-      status: "Awaiting payment",
+      channel: l.channel ?? "Pay-by-link",
+      status: LINK_STATUS[st],
       amount: l.total,
-    }));
+      payMethod: payMethodOf(l, st),
+    };
+  });
 }
 
 /** Bookings placed online in the customer wizard on this device (AENR-532/524) — one row, every zone's sets. */

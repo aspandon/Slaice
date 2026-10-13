@@ -1,4 +1,3 @@
-import { SupportAccessCard } from "./tenant/ViewAs";
 import { useState } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon } from "../lib/icons";
@@ -389,8 +388,14 @@ export function AdminRbac() {
                 </div>
                 <div className="text-[12px] text-slate-500 mt-0.5 leading-snug">{r.blurb}</div>
                 <ul className="mt-2 space-y-1 text-[12.5px] text-slate-700 flex-1">
-                  {NAV[r.id].map((n) => (
-                    <li key={n.k} className="flex items-center gap-1.5">
+                  {NAV[r.id].map((n, i, all) => (
+                    <li key={n.k} className="flex flex-wrap items-center gap-1.5">
+                      {/* The role's pages under the same job groups as its sidebar (AENR-558). */}
+                      {n.group && n.group !== all[i - 1]?.group && (
+                        <span className="w-full pt-1.5 text-[10.5px] font-semibold uppercase tracking-wider text-slate-500">
+                          {n.group}
+                        </span>
+                      )}
                       <Icon.check size={12} className="text-teal-600 shrink-0" />
                       {n.label}
                       {n.badge === "Future" && (
@@ -572,8 +577,12 @@ export function AdminRbac() {
         confirmLabel="Delete user"
         body="This removes their account and access. It can't be undone — suspend instead if they may come back."
       />
-      {/* Transparency (AENR-515): every Slaice support session on this account. */}
-      <div className="mt-4"><SupportAccessCard /></div>
+      {/* Support access moved to Privacy & GDPR › Processors & DPO (AENR-565); a link stays here. */}
+      <p className="mt-4 text-[13px] text-slate-600 flex items-center gap-1.5">
+        <Icon.shieldCheck size={15} className="text-teal-700" />
+        Slaice support sessions on this account and the access grant are in{" "}
+        <a className="font-semibold text-teal-700 hover:underline" href="#/admin/privacy?tab=processors">Privacy &amp; GDPR › Processors &amp; DPO</a>.
+      </p>
     </div>
   );
 }

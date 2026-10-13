@@ -9,6 +9,8 @@ import type { CustomerBooking } from "../../domain/types";
 import { useApp, useT } from "../../app/store";
 import { PROFILE } from "../../domain/account";
 import { fmtDay } from "../../domain/period";
+import type { CustomerDocument } from "../../domain/types";
+import { ReceiptModal } from "./CustomerDocs";
 
 /** One row per booking with the fields guests ask for (AENR-532): code, sunbeds, section, guest, price. */
 type Row = CustomerBooking & { sets: string; section: string; guest: string };
@@ -17,11 +19,29 @@ const parseItem = (item: string) => {
   return kind === "Sunbed" ? { section: section ?? "—", sets: set ?? "—" } : { section: "—", sets: "—" };
 };
 
+/* The booking's receipt (AENR-563): receipts open from each booking; every
+   receipt is also listed in Account. Prices include 24% VAT. */
+const money = (n: number) => `€${n.toFixed(2)}`;
+function receiptOf(r: Row): CustomerDocument {
+  const n = r.id.replace(/\D/g, "").padStart(6, "0").slice(-6);
+  const gross = r.price;
+  const net = Math.round((gross / 1.24) * 100) / 100;
+  return {
+    id: `ΑΠΥ-2026-${n}`,
+    for: r.item || "Beach booking",
+    date: r.date,
+    amt: `€${gross}`,
+    mark: `4000010203040${n.slice(-5)}`,
+    lines: [[`${r.item || "Beach booking"} · ${r.id}`, money(net), money(gross - net), money(gross)]],
+  };
+}
+
 /* ============ MY BOOKINGS ============ */
 export function CustomerBookings() {
   const { go, toast, account } = useApp();
   const t = useT();
   const [qrFor, setQrFor] = useState<CustomerBooking | null>(null);
+  const [receipt, setReceipt] = useState<CustomerDocument | null>(null);
   const [filter, setFilter] = useState("all");
   const bookings = useAsync(listCustomerBookings);
   // Bookings placed on this device first (several zones grouped), then the account's history.
@@ -84,10 +104,14 @@ export function CustomerBookings() {
         ) : filtered.length === 0 ? (
           <EmptyState icon={Icon.grid} title={filter === "active" ? t("No active bookings") : t("No past bookings yet")} body={filter === "active" ? t("Plan a visit for this weekend — Central front-row spots are 20% off.") : t("Once a visit is over, it will move here.")} action={<Btn variant="teal" icon={Icon.sparkles} onClick={() => go("customer", "plan")}>{t("Plan my visit")}</Btn>} />
         ) : (
-          <Table cols={[t("Booking"), t("Sunbeds"), t("Zone"), t("Date"), t("Guest"), t("Status"), t("Price"), "QR"]} right={[6]}
-            rows={filtered.map((r) => [<span className="font-mono font-semibold text-navy-900">{r.id}</span>, r.sets, r.section, r.date, r.guest, <StatusBadge status={r.status} />, `€${r.price}`, <Btn size="sm" variant="ghost" icon={Icon.qr} onClick={() => setQrFor(r)} aria-label={`QR ${r.id}`}>QR</Btn>])} />
+          <Table cols={[t("Booking"), t("Sunbeds"), t("Zone"), t("Date"), t("Guest"), t("Status"), t("Price"), ""]} right={[6]}
+            rows={filtered.map((r) => [<span className="font-mono font-semibold text-navy-900">{r.id}</span>, r.sets, r.section, r.date, r.guest, <StatusBadge status={r.status} />, `€${r.price}`, <span className="flex gap-1 justify-end">
+              <Btn size="sm" variant="ghost" icon={Icon.qr} onClick={() => setQrFor(r)} aria-label={`QR ${r.id}`}>QR</Btn>
+              <Btn size="sm" variant="ghost" icon={Icon.receipt} onClick={() => setReceipt(receiptOf(r))} aria-label={`${t("Receipt")} ${r.id}`}>{t("Receipt")}</Btn>
+            </span>])} />
         )}
       </Card>
+      <ReceiptModal doc={receipt} onClose={() => setReceipt(null)} />
       <Modal open={!!qrFor} onClose={() => setQrFor(null)} title={`${t("Entry QR")} · ${qrFor?.id ?? ""}`}>
         {qrFor && (
           <div className="text-center">

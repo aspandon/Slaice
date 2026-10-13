@@ -16,6 +16,7 @@ import {
 import { REFUND_REASONS } from "../../data/refunds";
 import { DEMO_TODAY } from "../../domain/period";
 import { Masked } from "../tenant/ViewAs";
+import { LinkActions } from "./LinkActions";
 
 /* ============ Booking drawer (AENR-579) ============
    Everything about one booking: guest, items, payment, gate QR and the full
@@ -48,7 +49,8 @@ const fmtAt = (at: string) => {
   });
 };
 const payMethod = (b: OpsBooking) =>
-  b.status === "Awaiting payment"
+  b.payMethod ??
+  (b.status === "Awaiting payment"
     ? "Payment link sent — not paid yet"
     : b.status === "Unpaid"
       ? "Pay on arrival (cash or card at the till)"
@@ -58,7 +60,7 @@ const payMethod = (b: OpsBooking) =>
           ? "Paid at the till"
           : b.status === "Cancelled"
             ? "Not charged"
-            : "Card online (Stripe)";
+            : "Card online (Stripe)");
 
 export function BookingDrawer({
   booking,
@@ -163,6 +165,7 @@ function DrawerBody({ b, agent }: { b: OpsBooking; agent: boolean }) {
 
   return (
     <div className="space-y-5">
+      <LinkActions bookingId={b.id} />
       {/* Actions */}
       <div className="flex flex-wrap gap-2">
         {paid && (

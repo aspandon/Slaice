@@ -64,7 +64,7 @@ export function Sidebar({ persona, page, setPage }: NavProps) {
   const rail = persona === "cashier";
   const label = rail ? "sr-only xl:not-sr-only xl:flex-1 xl:text-left" : "flex-1 text-left";
   return (
-    <aside className={`${rail ? "w-[76px] xl:w-60 p-2 xl:p-3" : "w-60 p-3"} shrink-0 glass rounded-2xl h-max sticky top-[86px] hidden md:block z-20`}>
+    <aside className={`${rail ? "w-[76px] xl:w-60 p-2 xl:p-3" : "w-60 p-3"} shrink-0 glass rounded-2xl h-max max-h-[calc(100dvh-100px)] overflow-y-auto no-scrollbar sticky top-[86px] hidden md:block z-20`}>
       <div className={`py-2 flex items-center gap-2 ${rail ? "justify-center xl:justify-start xl:px-2" : "px-2"}`}>
         <span className="w-6 h-6 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: p.color }}>{(() => { const I = Icon[p.icon]; return I ? <I size={13} /> : null; })()}</span>
         <span className={`text-[12px] font-semibold uppercase tracking-wider text-slate-500 ${rail ? "sr-only xl:not-sr-only" : ""}`}>{t(p.label)}</span>
@@ -117,6 +117,30 @@ export function PageTopNav({ persona, page, setPage }: NavProps) {
         );
       })}
     </div>
+  );
+}
+
+/* ---------- Customer top nav (desktop, AENR-563) ----------
+   Home · Plan a visit · My bookings · Wallet · Account, centred under the
+   tenant logo from md up — phones use the bottom tab bar with the same five. */
+export function CustomerNav({ page, setPage }: Pick<NavProps, "page" | "setPage">) {
+  const t = useT();
+  return (
+    <nav aria-label={t("Main")} className="hidden md:flex justify-center -mt-1 mb-4">
+      <div className="glass-card-solid rounded-2xl p-1 flex gap-1 shadow-soft">
+        {NAV.customer.map((it) => {
+          const IconC = Icon[it.icon];
+          const active = page === it.k;
+          return (
+            <button key={it.k} type="button" onClick={() => setPage(it.k)} aria-current={active ? "page" : undefined}
+              className={`flex items-center gap-2 h-10 px-3.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-700 hover:bg-white/80 hover:text-navy-900"}`}>
+              {IconC && <IconC size={16} className={active ? "" : "text-slate-500"} />}
+              {t(it.label)}
+            </button>
+          );
+        })}
+      </div>
+    </nav>
   );
 }
 

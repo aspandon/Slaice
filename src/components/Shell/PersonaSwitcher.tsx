@@ -1,7 +1,7 @@
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon } from "../../lib/icons";
 import { PERSONAS } from "../../data/personas";
-import { useT } from "../../app/store";
+import { useApp, useT } from "../../app/store";
 import type { PersonaId } from "../../domain/types";
 
 /* ---------- Persona switcher ----------
@@ -23,6 +23,7 @@ export function PersonaSwitcher({
   side?: "top" | "bottom";
 }) {
   const t = useT();
+  const { inventory, setInventory } = useApp();
   const cur = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[0];
   const origin = side === "top" ? "origin-bottom-right" : "origin-top-right";
   return (
@@ -42,13 +43,13 @@ export function PersonaSwitcher({
           <button
             aria-label={`${t("Switch persona — currently")} ${t(cur.label)}`}
             style={{ background: cur.color + "14", borderColor: cur.color + "55" }}
-            className="flex items-center gap-2 ring-1 rounded-xl pl-1.5 pr-3 py-1.5 text-sm font-semibold hover:brightness-[.98] transition"
+            className="flex items-center gap-2 ring-1 rounded-xl p-1.5 sm:pr-3 text-sm font-semibold hover:brightness-[.98] transition"
           >
             <span className="w-6 h-6 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: cur.color }}>
               {(() => { const I = Icon[cur.icon]; return I ? <I size={13} /> : null; })()}
             </span>
             <span className="hidden md:inline text-navy-900">{t(cur.label)}</span>
-            <Icon.chevD size={14} className="text-slate-400" />
+            <Icon.chevD size={14} className="text-slate-400 hidden sm:block" />
           </button>
         )}
       </DropdownMenu.Trigger>
@@ -70,6 +71,25 @@ export function PersonaSwitcher({
               </span>
             </DropdownMenu.Item>
           ))}
+          {/* Demo clock for holds / allocation releases (AENR-561 — moved out of the Beach pages). */}
+          {persona === "admin" && (
+            <>
+              <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
+              <DropdownMenu.Label className="px-2.5 pt-1 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">
+                {t("Demo clock")} · {new Date(Date.now() + inventory.clockOffset * 60000).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}{inventory.clockOffset ? ` (+${Math.round(inventory.clockOffset / 60)}h)` : ""}
+              </DropdownMenu.Label>
+              <div className="flex gap-1.5 px-2 pb-1.5">
+                {[[60, "+1 h"], [180, "+3 h"]].map(([m, l]) => (
+                  <DropdownMenu.Item key={l} onSelect={(e) => { e.preventDefault(); setInventory((i) => ({ ...i, clockOffset: i.clockOffset + (m as number), log: [{ at: new Date().toISOString(), text: `Demo clock ${l}` }, ...i.log] })); }}
+                    className="rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold ring-1 ring-slate-200 bg-white cursor-pointer outline-none data-[highlighted]:ring-teal-400">{l}</DropdownMenu.Item>
+                ))}
+                {inventory.clockOffset !== 0 && (
+                  <DropdownMenu.Item onSelect={(e) => { e.preventDefault(); setInventory((i) => ({ ...i, clockOffset: 0 })); }}
+                    className="rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold text-slate-600 cursor-pointer outline-none data-[highlighted]:bg-slate-100">{t("Reset")}</DropdownMenu.Item>
+                )}
+              </div>
+            </>
+          )}
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>

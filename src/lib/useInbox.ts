@@ -25,10 +25,10 @@ export interface InboxItem {
 }
 
 export function useInbox(persona: PersonaId): InboxItem[] {
-  const { privacy, payLinks, bookingOps, till, comms } = useApp();
+  const { privacy, payLinks, bookingOps, till, comms, inventory } = useApp();
   const out: InboxItem[] = [];
   const staff = persona === "admin" || persona === "callcenter" || persona === "support";
-  const now = Date.now();
+  const now = Date.now() + inventory.clockOffset * 60000;
 
   if (persona === "admin") {
     for (const r of privacy.requests.filter(isOpen)) {
@@ -88,7 +88,7 @@ export function useInbox(persona: PersonaId): InboxItem[] {
           title: `Pay link expires in ${min} min`,
           body: `${l.guest.name} · €${l.total} · sets are held until then`,
           time: `${min}m`,
-          href: `#/${persona}/paylinks`,
+          href: `#/${persona}/bookings?tab=awaiting&booking=${encodeURIComponent(`#${l.id}`)}`,
         });
     }
   if (persona === "cashier" || persona === "accountant" || persona === "admin") {

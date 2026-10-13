@@ -4,12 +4,12 @@ import { AppCtx, DEFAULT_CRM } from "./app/store";
 import type { AppContextValue, SpotlightHint, ToastOptions } from "./app/store";
 import { DEFAULT_PAGE } from "./data/personas";
 import { Icon } from "./lib/icons";
-import { TopBar, Sidebar, BottomTabBar, SiteFooter, Toasts, PersonaSwitcher } from "./components/Shell";
+import { TopBar, Sidebar, BottomTabBar, CustomerNav, SiteFooter, Toasts, PersonaSwitcher } from "./components/Shell";
 import { AuthGate } from "./screens/auth";
 import { ConsentBanner } from "./components/ConsentBanner";
 import { CustomerBackdrop } from "./components/CustomerBackdrop";
 import { routeFor } from "./routes";
-import { parseHash, buildHash, hashPath, isValidPage } from "./app/router";
+import { parseHash, buildHash, hashPath, isValidPage, resolvePage } from "./app/router";
 import { HTML_LANG, normalizeLang } from "./app/i18n";
 import { DEFAULT_BACKGROUND } from "./data/backgrounds";
 import { DEFAULT_PASSES, DEFAULT_PASS_PRICING, SEASON_END_LABEL, seasonValidUntil, round2 } from "./data/passes";
@@ -128,6 +128,7 @@ export default function App() {
     // Drop any stale page (e.g. a since-removed customer flow) so it resolves to
     // the persona's default instead of a blank/foreign screen.
     (Object.keys(base) as PersonaId[]).forEach((p) => {
+      base[p] = resolvePage(p, base[p]);
       if (!isValidPage(p, base[p])) base[p] = DEFAULT_PAGE[p];
     });
     return initialRoute.persona && initialRoute.page
@@ -342,8 +343,10 @@ export default function App() {
   const clearHint = useCallback(() => setHint(null), []);
   const go = useCallback((p: PersonaId, k?: string, h?: Partial<SpotlightHint> | null) => {
     setPersona(p);
-    if (k) setPageByPersona((s) => ({ ...s, [p]: k }));
-    setHint(h ? { ...h, persona: p, page: k, ts: Date.now() } : null);
+    // Retired page keys still work (AENR-558/559): resolve them like a hash link.
+    const page = k && resolvePage(p, k);
+    if (page) setPageByPersona((s) => ({ ...s, [p]: page }));
+    setHint(h ? { ...h, persona: p, page, ts: Date.now() } : null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
   // Cinematic entry into the booking wizard. The "reveal" is now the page
@@ -429,6 +432,7 @@ export default function App() {
               <img src={`${import.meta.env.BASE_URL}tenant-logo.png`} alt="Ακτή του Ηλίου" className="h-[100px] w-auto" />
             </button>
           )}
+          {persona === "customer" && !immersive && !viewAs && <CustomerNav page={page} setPage={setPage} />}
           {viewAs && (
             <div role="status" className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl bg-navy-900 text-white px-4 py-2.5 text-[13px] shadow-lift">
               <Icon.eye size={15} className="text-teal-300 shrink-0" />

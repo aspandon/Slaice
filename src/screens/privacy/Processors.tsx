@@ -1,3 +1,4 @@
+import { SupportAccessCard } from "../tenant/ViewAs";
 import { useState } from "react";
 import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, Field, Input } from "../../components/ui";
@@ -209,6 +210,9 @@ export function ProcessorsTab() {
           </table>
         </div>
       </Card>
+      {/* Data-access transparency lives with the DPA and sub-processors (AENR-565):
+          every Slaice support session on this account, with the grant controls. */}
+      <div id="support-access"><SupportAccessCard /></div>
     </div>
   );
 }

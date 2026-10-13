@@ -15,14 +15,22 @@ export interface Route {
 // Customer account/flow destinations that aren't in the primary NAV but are
 // still legitimate (deep-linkable) pages.
 const EXTRA_PAGES: Partial<Record<PersonaId, string[]>> = {
-  customer: ["checkout", "confirm", "mybookings", "mydocs", "vip", "season"],
+  customer: ["checkout", "confirm", "vip", "season"],
   // Per-tenant pages: #/platform/tenant/<tenantId>/<section> (AENR-500).
   platform: ["tenant"],
 };
 
 // Retired pages that now live elsewhere — old links keep working.
 const PAGE_ALIASES: Partial<Record<PersonaId, Record<string, string>>> = {
-  admin: { map: "availability" }, // Map Layout Editor merged into Beach, Availability & Pricing (AENR-469)
+  // Map Layout Editor merged into Beach (AENR-469), split again into layout /
+  // pricing / products (AENR-561); Manual booking and Pay-by-link became one
+  // New booking flow (AENR-559).
+  // AENR-558 regrouped the sidebar: Dashboard → Today, Beach → Beach layout.
+  admin: { map: "layout", availability: "layout", dashboard: "today", manual: "newbooking", paylinks: "newbooking" },
+  callcenter: { manual: "newbooking", paylinks: "newbooking" },
+  support: { paylinks: "newbooking" },
+  platform: { onboarding: "tenants" },
+  customer: { mydocs: "account" }, // receipts moved into Account (AENR-563) // onboarding is a tenant state: Tenants › In onboarding (AENR-566)
   accountant: { invoicing: "documents" }, // e-Invoicing & MyDATA merged into Documents & Payments (AENR-526)
 };
 export const resolvePage = (persona: PersonaId, page: string) => PAGE_ALIASES[persona]?.[page] ?? page;

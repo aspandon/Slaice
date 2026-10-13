@@ -83,6 +83,8 @@ export interface AdminBooking {
   channel: string;
   status: string;
   amount: number;
+  /** How it is (or will be) paid, when the channel alone doesn't say (AENR-559). */
+  payMethod?: string;
 }
 const BASE_ADMIN_BOOKINGS: AdminBooking[] = [
   // Upcoming (after the demo day) — AENR-579.

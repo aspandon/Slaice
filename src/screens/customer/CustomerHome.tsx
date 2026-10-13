@@ -193,7 +193,7 @@ export function CustomerHome() {
 /* VIP credit tile — the tenant membership card art + a buy/top-up footer.
    Tilts in 3D toward the cursor with a light sweep across the card art
    (useCardTilt owns the transform, so hover lift is shadow-only here). */
-function VipTile() {
+export function VipTile() {
   const { go, passes, passPricing, clearPass } = useApp();
   const t = useT();
   const tilt = useCardTilt<HTMLDivElement>(6);
@@ -221,7 +221,7 @@ function VipTile() {
 
 /* Season pass tile — the tenant membership card art + a buy/manage footer.
    Same 3D tilt + light sweep as the VIP tile. */
-function SeasonTile() {
+export function SeasonTile() {
   const { go, passes, passPricing, clearPass } = useApp();
   const t = useT();
   const tilt = useCardTilt<HTMLDivElement>(6);
@@ -248,7 +248,7 @@ function SeasonTile() {
 
 /* "Your badges" — gamification achievements; earned ones light up (summer
    gradients), locked ones dim with progress. Sits exactly under Rebook, same size. */
-function BadgesTile() {
+export function BadgesTile() {
   const { achievements } = useApp();
   const t = useT();
   if (achievements.length === 0) return null;
@@ -302,7 +302,7 @@ function KineticWords({ text }: { text: string }) {
 /* Active loyalty schemes for the guest, sorted (claimable first). Schemes + config
    come from the app store (written by the admin Loyalty screen). */
 const REWARD_ORDER = { claim: 0, progress: 1, perk: 2 } as const;
-function activeRewards(loyalty: LoyaltyState) {
+export function activeRewards(loyalty: LoyaltyState) {
   return [...BUILTIN_SCHEMES, ...loyalty.customIds.map(makeCustomScheme)]
     .filter((s) => loyalty.config[s.id]?.enabled)
     .map((s) => {
@@ -314,7 +314,7 @@ function activeRewards(loyalty: LoyaltyState) {
 }
 
 /* One reward as a compact row inside the tall "Your rewards" tile. */
-function RewardRow({ icon, title, state }: { icon: IconRenderer; title: string; state: RewardState }) {
+export function RewardRow({ icon, title, state }: { icon: IconRenderer; title: string; state: RewardState }) {
   const { dive, toast } = useApp();
   const t = useT();
   const SIcon = icon;

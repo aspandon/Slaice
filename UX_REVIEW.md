@@ -77,7 +77,7 @@ Numbers 1.1–7.4 are the original ones; 8.1–9.3 were numbered in this revisio
 | --- | ------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 3.1 | No global search / ⌘K command palette for staff         | ⏪ Regressed      | A palette and a top-bar search field shipped once; neither is in the code now. Staff navigate by sidebar (desktop) or tab bar + nav sheet (phones), and Admin has grown to 13 destinations.                             |
 | 3.2 | The persona switcher is a production boundary risk      | 🔴 Open [demo-ok] | Unchanged by design: a floating **Demo** pill on customer pages (`src/App.tsx:275`) and a persona chip in the staff top bar. In production the role must come from auth. On phones the pill also overlaps content (N9). |
-| 3.3 | My Bookings / My Documents buried in the avatar menu    | 🟡 Partly done    | On phones they're listed under **Account** in the More sheet — two taps (`src/components/Shell/Nav.tsx:38`). On desktop they're still only in the avatar menu.                                                          |
+| 3.3 | My Bookings / My Documents buried in the avatar menu    | ✅ Resolved (AENR-563) | Home · Plan a visit · My bookings · Wallet · Account are a top nav on desktop and the five phone tabs; receipts open from each booking and are all listed in Account (`src/components/Shell/Nav.tsx` `CustomerNav`). |
 | 3.4 | The marketing landing page renders inside the app shell | 🔴 Open [demo-ok] | `#/platform/landing` still renders inside the staff sidebar and top bar (checked at 1440×900).                                                                                                                          |
 
 ### P1 — accessibility
@@ -364,4 +364,7 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   581 guest row → profile + saved views, 582 reports in the brand system, 583 refund decision queue),
   and the design system & app shell X1–X10 (AENR-549…557: solid data surfaces, one page header,
   index-table standard, one vocabulary, ⌘K palette, notification inbox, KPI context, date picker,
-  one palette).
+  one palette), and navigation & IA I1–I9 (AENR-558 admin sidebar by job, 559 one New booking flow,
+  560 Today, 561 beach split, 562 reports in groups, 563 customer navigation in plain sight, 564
+  full-screen gate scanner, 565 support access in Privacy, 566 platform marketing apart; defects
+  AENR-595 Unpaid badge tone and AENR-596 staff top-bar title at 390 px fixed on the way).

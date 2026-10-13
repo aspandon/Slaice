@@ -25,14 +25,14 @@ interface Item {
 }
 /** G + letter → page key, where the persona has that page. */
 const G_KEYS: Record<string, string[]> = {
-  d: ["dashboard"],
+  d: ["today"],
   b: ["bookings"],
   l: ["live"],
   u: ["users"],
   r: ["reporting"],
   f: ["refunds"],
-  p: ["paylinks"],
-  m: ["manual", "monthend"],
+  n: ["newbooking"],
+  m: ["monthend"],
   i: ["issue"],
   t: ["transactions"],
   s: ["scan"],
@@ -127,20 +127,11 @@ export function CommandPalette() {
       {
         id: "a-new",
         group: "Actions",
-        label: "New phone booking",
-        icon: Icon.phone,
-        need: "manual",
+        label: "New booking",
+        icon: Icon.plus,
+        need: "newbooking",
         mutates: true,
-        run: () => go(persona, "manual"),
-      },
-      {
-        id: "a-link",
-        group: "Actions",
-        label: "Send a pay link",
-        icon: Icon.link,
-        need: "paylinks",
-        mutates: true,
-        run: () => go(persona, "paylinks"),
+        run: () => go(persona, "newbooking"),
       },
       {
         id: "a-issue",

@@ -3,9 +3,10 @@
 // held until the deadline; paying confirms the booking, not paying releases
 // them. Status is derived from the demo clock, never stored stale.
 
-export type PayLinkStatus = "awaiting" | "paid" | "expired" | "cancelled";
+export type PayLinkStatus = "awaiting" | "unpaid" | "paid" | "expired" | "cancelled";
 export const PAY_LINK_LABEL: Record<PayLinkStatus, string> = {
   awaiting: "Awaiting payment",
+  unpaid: "Unpaid · pay on arrival",
   paid: "Paid",
   expired: "Expired",
   cancelled: "Cancelled",
@@ -22,8 +23,22 @@ export interface PayLinkEvent {
   at: string;
   text: string;
 }
+/** How a staff booking is paid (AENR-559): a card now, a link, or on arrival. */
+export type StaffPayMode = "card" | "link" | "unpaid";
+export const PAY_MODE_LABEL: Record<StaffPayMode, string> = {
+  card: "Pay now by card",
+  link: "Send a payment link",
+  unpaid: "Reserve unpaid",
+};
+/** Who took a staff booking — recorded as the booking's channel. */
+export type StaffChannel = "Phone" | "Call Center" | "Admin" | "Support Agent";
+
+/** A booking made by staff (AENR-534, widened in AENR-559 to every payment mode). */
 export interface PayLink {
   id: string;
+  /** Absent on links made before AENR-559 (they are "link"). */
+  mode?: StaffPayMode;
+  channel?: StaffChannel;
   date: string;
   lines: PayLinkLine[];
   total: number;
@@ -43,6 +58,7 @@ export const payUrl = (l: Pick<PayLink, "id">) => `https://pay.slaice.gr/l/${l.i
 
 export function payLinkStatus(l: PayLink, now: number): PayLinkStatus {
   if (l.closed) return l.closed;
+  if (l.mode === "unpaid") return "unpaid";
   return new Date(l.deadline).getTime() <= now ? "expired" : "awaiting";
 }
 
@@ -56,13 +72,15 @@ export function payLinkSets(
   for (const l of links) {
     if (l.date !== date) continue;
     const st = payLinkStatus(l, now);
-    if (st !== "awaiting" && st !== "paid") continue;
+    if (st !== "awaiting" && st !== "paid" && st !== "unpaid") continue;
     for (const x of l.lines)
       if (x.setId)
         out[x.setId] =
           st === "paid"
-            ? { kind: "booked", label: `Booked — pay-by-link ${l.id}` }
-            : { kind: "held", label: `Reserved — awaiting payment (${l.guest.name})` };
+            ? { kind: "booked", label: `Booked — ${l.id}` }
+            : st === "unpaid"
+              ? { kind: "booked", label: `Booked — unpaid, pays on arrival (${l.guest.name})` }
+              : { kind: "held", label: `Reserved — awaiting payment (${l.guest.name})` };
   }
   return out;
 }

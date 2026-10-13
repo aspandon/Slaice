@@ -303,7 +303,13 @@ export function documents(
       const sec = l.lines.find((x) => x.zoneId)?.zoneId ?? ENTRY_SECTION.id;
       if (!section || sec === section)
         out.push({
-          ...onlineDoc(l.id, sec, l.total, l.guest.name, `Pay-by-link ${l.id}`),
+          ...onlineDoc(
+            l.id,
+            sec,
+            l.total,
+            l.guest.name,
+            `${l.mode === "card" ? "Card by phone" : l.mode === "unpaid" ? "Paid on arrival" : "Pay-by-link"} ${l.id}`,
+          ),
           channel: "Phone",
         });
     }

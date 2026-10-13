@@ -236,6 +236,13 @@ export function PlatformTenants() {
         value={view}
         onChange={(v) => setView(v as View)}
       />
+      {view === "onboarding" && (
+        <Card className="p-4 flex flex-wrap items-center gap-3">
+          <Icon.bolt size={18} className="text-teal-700" />
+          <p className="flex-1 min-w-[220px] text-[13px] text-slate-600">Onboarding is a tenant state (AENR-566): open a tenant below to continue its wizard, or start a new one.</p>
+          <Btn variant="primary" icon={Icon.plus} onClick={() => go("platform", "onboarding")}>Onboard a new tenant</Btn>
+        </Card>
+      )}
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 flex-1 min-w-[200px] max-w-sm text-slate-600 bg-white/70">
           <Icon.search size={16} />
@@ -619,7 +626,7 @@ export function PlatformOnboarding() {
                 icon={Icon.map}
                 onClick={() => {
                   setPlatform((p) => ({ ...p, siteTenant: t.id }));
-                  go("admin", "availability");
+                  go("admin", "layout");
                 }}
               >
                 Configure map

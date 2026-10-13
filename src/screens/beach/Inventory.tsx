@@ -109,8 +109,6 @@ export function InventoryPanel({ zoneId, slots, date }: { zoneId: string; slots:
     if (!due.length) return;
     update((i) => ({ ...i, holds: i.holds.map((h) => (due.some((d) => d.id === h.id) ? { ...h, releasedAt: h.until, releasedBy: "auto" } : h)) }), `Hold expired — ${due.map((d) => `${d.setIds.length} sets (${d.reason})`).join(", ")} released automatically`);
   }, [now]); // eslint-disable-line react-hooks/exhaustive-deps
-  const clock = (mins: number, label: string) => { update((i) => ({ ...i, clockOffset: i.clockOffset + mins }), `Demo clock ${label}`); toast(`Demo clock: ${label}.`); };
-  const nextEvent = [...holds.filter((h) => h.until && holdActive(h, now)).map((h) => new Date(h.until!).getTime()), ...allocs.flatMap((a) => a.release ? a.dates.map((d) => { const t = new Date(`${d}T${a.release!.time}:00`); t.setDate(t.getDate() - a.release!.daysBefore); return t.getTime(); }) : [])].filter((t) => t > now).sort((a, b) => a - b)[0];
 
   return (
     <Card className="p-4 space-y-3">
@@ -157,14 +155,9 @@ export function InventoryPanel({ zoneId, slots, date }: { zoneId: string; slots:
         </ul>
       )}
 
-      <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-2 text-[12px] text-slate-600 space-y-1.5">
-        <div className="flex items-center gap-1.5"><Icon.clock size={12} /> Demo clock: <b className="text-navy-900">{fmt(now)}</b>{inventory.clockOffset ? <Badge tone="amber">+{Math.round(inventory.clockOffset / 60)}h</Badge> : null}</div>
-        <div className="flex flex-wrap gap-1.5">
-          <Btn size="sm" variant="ghost" onClick={() => clock(60, "+1 hour")}>+1 h</Btn>
-          {nextEvent && <Btn size="sm" variant="ghost" onClick={() => clock(Math.ceil((nextEvent - now) / 60000) + 1, `fast-forward to ${fmt(nextEvent)}`)}>Fast-forward to next release</Btn>}
-          {inventory.clockOffset !== 0 && <Btn size="sm" variant="ghost" onClick={() => update((i) => ({ ...i, clockOffset: 0 }), "Demo clock reset")}>Reset</Btn>}
-        </div>
-      </div>
+      {inventory.clockOffset !== 0 && (
+        <div className="text-[12px] text-slate-600 flex items-center gap-1.5"><Icon.clock size={12} /> Demo clock <b className="text-navy-900">{fmt(now)}</b> <Badge tone="amber">+{Math.round(inventory.clockOffset / 60)}h</Badge> — set it in the Demo menu.</div>
+      )}
       {inventory.log.length > 0 && (
         <details className="text-[12px]">
           <summary className="cursor-pointer font-semibold text-navy-900">Activity ({inventory.log.length})</summary>

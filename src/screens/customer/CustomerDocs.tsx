@@ -60,10 +60,21 @@ export function CustomerDocs() {
               </span>])} />
         )}
       </Card>
-      <Modal open={!!view} onClose={() => setView(null)} title={view?.id ?? t("Document")}
+      <ReceiptModal doc={view} onClose={() => setView(null)} />
+    </div>
+  );
+}
+
+/* One receipt: view, download (AENR-563 — opened from each booking too). */
+export function ReceiptModal({ doc: view, onClose }: { doc: CustomerDocument | null; onClose: () => void }) {
+  const { toast } = useApp();
+  const t = useT();
+  const download = (d: CustomerDocument) => { downloadPDF(`${d.id}.pdf`, customerReceiptDoc(d)); toast(`${t("Downloaded")} ${d.id}.pdf`, { tone: "success" }); };
+  return (
+    <Modal open={!!view} onClose={() => onClose()} title={view?.id ?? t("Document")}
         footer={<>
-          <Btn variant="ghost" onClick={() => setView(null)}>{t("Close")}</Btn>
-          <Btn variant="primary" icon={Icon.download} onClick={() => { if (!view) return; download(view); setView(null); }}>{t("Download")}</Btn>
+          <Btn variant="ghost" onClick={() => onClose()}>{t("Close")}</Btn>
+          <Btn variant="primary" icon={Icon.download} onClick={() => { if (!view) return; download(view); onClose(); }}>{t("Download")}</Btn>
         </>}>
         {view && (
           <div className="text-sm">
@@ -86,7 +97,6 @@ export function CustomerDocs() {
           </div>
         )}
       </Modal>
-    </div>
   );
 }
 

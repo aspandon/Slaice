@@ -111,7 +111,7 @@ export function PublishModal({
         guest: b.guest,
       })),
       ...payLinks
-        .filter((l) => ["awaiting", "paid"].includes(payLinkStatus(l, Date.now())))
+        .filter((l) => ["awaiting", "paid", "unpaid"].includes(payLinkStatus(l, Date.now())))
         .flatMap((l) =>
           l.lines
             .filter((x) => x.setId && x.zoneId)

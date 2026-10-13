@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Icon } from "../../lib/icons";
-import { Card, Btn, Badge, Table, Modal, Field, Input, Select, Tabs, Toggle, EmptyState, NotMvpBadge, DateInput } from "../../components/ui";
+import { Card, Btn, Badge, Table, Modal, Field, Input, Select, Tabs, Toggle, EmptyState, NotMvpBadge, DateInput, PageHead } from "../../components/ui";
 import { BeachBackdrop } from "../../components/Beach";
 import { BackgroundPicker } from "../../components/BackgroundPicker";
 import { ZONES, WEATHER_KINDS, WEATHER_DEMO, DAY_MIN, DAY_MAX, fmtHour } from "../../data/beach";
 import type { ZoneMapItem, PriceRule, PriceRuleDays, PriceRuleMode } from "../../domain/types";
-import { effectivePrice, ruleEffectLabel, dayMatches } from "../../domain/pricing";
+import { effectivePrice, ruleEffectLabel, dayMatches, PARKING_PRICE } from "../../domain/pricing";
+import { PARKING_LOT } from "../../data/till";
+import { useUrlState } from "../../lib/useUrlState";
 import { useApp } from "../../app/store";
 import { SunbedWorkspace } from "./Workspace";
 import { LockersAdmin, TicketsAdmin } from "./Extras";
@@ -440,32 +442,30 @@ function AtmosphereCard() {
   );
 }
 
-/* ============ BEACH, AVAILABILITY & PRICING (AENR-469) ============
-   One page replacing "Availability & Pricing" and "Map Layout Editor":
-   the canvas workspace (layout, categories, date prices, landmarks — one
-   draft and one Publish), the zone map with open/closed zones, and the
-   seasonal / weekday rules that apply on top of category prices. */
-export function AdminAvailability() {
-  const { toast, priceRules, setPriceRules, closedStores, setClosedStores } = useApp();
-  const [tab, setTab] = useState("sunbeds");
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [editing, setEditing] = useState<PriceRule | null>(null);
-  const [previewDate, setPreviewDate] = useState("2026-08-15");
-  const saveRule = (r: PriceRule) => {
-    setPriceRules(priceRules.some((x) => x.id === r.id) ? priceRules.map((x) => (x.id === r.id ? r : x)) : [...priceRules, r]);
-    toast(`Pricing rule “${r.label}” saved — live for customers and the till.`, { tone: "success" });
-  };
+/* ============ BEACH AREA, SPLIT BY JOB (AENR-561) ============
+   What was one ~1,900px "Beach, Availability & Pricing" page is three focused
+   pages: Beach layout (the map, layout drafts and versions, holds and
+   stop-sell, zones open / closed), Pricing & calendar (categories, seasonal
+   rules, date overrides, demand suggestions) and Products (entry tickets,
+   lockers, parking). The demo clock lives in the Demo menu. */
+function useZoneOpening() {
+  const { closedStores, setClosedStores } = useApp();
   const setOpen = (id: string, open: boolean, reason = "Closed today") => {
     const next = { ...closedStores };
     if (open) delete next[id]; else next[id] = reason;
     setClosedStores(next);
   };
+  return { closedStores, setOpen };
+}
+
+export function AdminBeachLayout() {
+  const { closedStores, setOpen } = useZoneOpening();
+  const [tab, setTab] = useUrlState("view", "map");
   return (
     <div className="animate-fade-up">
-      <div className="mb-4"><Tabs scroll tabs={[["sunbeds", "Sunbeds & pricing"], ["calendar", "Calendar & rules"], ["tickets", "Entry tickets"], ["lockers", "Lockers"], ["zones", "Zones & availability"]]} value={tab} onChange={setTab} /></div>
-      {tab === "sunbeds" && <SunbedWorkspace />}
-      {tab === "tickets" && <TicketsAdmin />}
-      {tab === "lockers" && <LockersAdmin />}
+      <PageHead sub="The beach as guests and staff see it — arrange sets and landmarks, publish layout versions, hold or stop-sell sets, open and close zones." />
+      <div className="mb-4"><Tabs scroll tabs={[["map", "Map & layout"], ["zones", "Zones & opening"]]} value={tab} onChange={setTab} /></div>
+      {tab === "map" && <SunbedWorkspace />}
       {tab === "zones" && (
         <div className="space-y-4">
           <Card className="p-2">
@@ -475,7 +475,7 @@ export function AdminAvailability() {
                 z.total,
                 <Toggle on={!closedStores[z.id]} onChange={(v) => setOpen(z.id, v)} ariaLabel={`${z.name} open today`} />,
                 closedStores[z.id] ? <Input aria-label={`Reason ${z.name} is closed`} value={closedStores[z.id]} onChange={(e) => setOpen(z.id, false, e.target.value)} /> : <span className="text-slate-400">—</span>,
-                <Badge tone={closedStores[z.id] ? "amber" : "green"}>{closedStores[z.id] ? "Closed" : "Open"}</Badge>,
+                <Badge tone={closedStores[z.id] ? "warning" : "success"}>{closedStores[z.id] ? "Closed" : "Open"}</Badge>,
               ])} />
             <div className="px-3 pb-2 text-[12px] text-slate-500">Applies immediately: a closed zone can’t be booked online or sold at the till, and its sets show as unavailable.</div>
           </Card>
@@ -483,14 +483,48 @@ export function AdminAvailability() {
           <AtmosphereCard />
         </div>
       )}
-      {tab === "calendar" && <PricingCalendar onEditRule={(r) => { setEditing(r); setEditorOpen(true); }} />}
-      {tab === "calendar" && (
-        <div className="mt-4"><PricingRulesPanel rules={priceRules} previewDate={previewDate} setPreviewDate={setPreviewDate}
-          onAdd={() => { setEditing(null); setEditorOpen(true); }} onEdit={(r) => { setEditing(r); setEditorOpen(true); }}
-          onRemove={(id) => { setPriceRules(priceRules.filter((r) => r.id !== id)); toast("Pricing rule removed."); }}
-          onToggle={(id, v) => setPriceRules(priceRules.map((r) => (r.id === id ? { ...r, enabled: v } : r)))} /></div>
-      )}
+    </div>
+  );
+}
+
+export function AdminPricing() {
+  const { toast, priceRules, setPriceRules } = useApp();
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editing, setEditing] = useState<PriceRule | null>(null);
+  const [previewDate, setPreviewDate] = useState("2026-08-15");
+  const saveRule = (r: PriceRule) => {
+    setPriceRules(priceRules.some((x) => x.id === r.id) ? priceRules.map((x) => (x.id === r.id ? r : x)) : [...priceRules, r]);
+    toast(`Pricing rule “${r.label}” saved — live for customers and the till.`, { tone: "success" });
+  };
+  return (
+    <div className="animate-fade-up">
+      <PageHead sub="Prices by category and date — seasonal and weekday rules, date overrides and demand suggestions. Set prices per set on the Beach layout map." />
+      <PricingCalendar onEditRule={(r) => { setEditing(r); setEditorOpen(true); }} />
+      <div className="mt-4"><PricingRulesPanel rules={priceRules} previewDate={previewDate} setPreviewDate={setPreviewDate}
+        onAdd={() => { setEditing(null); setEditorOpen(true); }} onEdit={(r) => { setEditing(r); setEditorOpen(true); }}
+        onRemove={(id) => { setPriceRules(priceRules.filter((r) => r.id !== id)); toast("Pricing rule removed."); }}
+        onToggle={(id, v) => setPriceRules(priceRules.map((r) => (r.id === id ? { ...r, enabled: v } : r)))} /></div>
       <RuleEditorModal open={editorOpen} rule={editing} onClose={() => setEditorOpen(false)} onSave={saveRule} />
     </div>
   );
 }
+
+export function AdminProducts() {
+  const [tab, setTab] = useUrlState("product", "tickets");
+  return (
+    <div className="animate-fade-up">
+      <PageHead sub="What else guests can buy with their day at the beach — entry tickets, lockers and parking, with their prices and rules." />
+      <div className="mb-4"><Tabs scroll tabs={[["tickets", "Entry tickets"], ["lockers", "Lockers"], ["parking", "Parking"]]} value={tab} onChange={setTab} /></div>
+      {tab === "tickets" && <TicketsAdmin />}
+      {tab === "lockers" && <LockersAdmin />}
+      {tab === "parking" && (
+        <Card className="p-5 max-w-xl space-y-2">
+          <h2 className="font-display font-bold text-navy-900">Car park</h2>
+          <p className="text-[13.5px] text-slate-600">{PARKING_LOT.spots} spots (P01–P{PARKING_LOT.spots}) · day spot <b className="text-navy-900">€{PARKING_PRICE}</b> · VAT 24%. Sold in the booking wizard and at the till; the spot code is printed on the receipt.</p>
+          <p className="text-[12.5px] text-slate-500">Today: {PARKING_LOT.bookedOnline} booked online before the till sells.</p>
+        </Card>
+      )}
+    </div>
+  );
+}
+

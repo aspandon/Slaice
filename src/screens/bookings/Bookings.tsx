@@ -44,13 +44,14 @@ import { BookingDrawer } from "./BookingDrawer";
    actions (resend QR, move set, refund, note). Shared by Manager / Admin and
    Call Center — agents request refunds, a manager decides. */
 
-type TabKey = "all" | "today" | "upcoming" | "unpaid" | "awaiting" | "refunded" | "used";
+type TabKey = "all" | "today" | "upcoming" | "unpaid" | "awaiting" | "expired" | "refunded" | "used";
 const TABS: { k: TabKey; l: string; test: (b: OpsBooking) => boolean }[] = [
   { k: "all", l: "All", test: () => true },
   {
     k: "today",
     l: "Today",
-    test: (b) => b.visitIso === DEMO_TODAY && b.status !== "Cancelled" && b.status !== "Refunded",
+    test: (b) =>
+      b.visitIso === DEMO_TODAY && !["Cancelled", "Refunded", "Expired"].includes(b.status),
   },
   {
     k: "upcoming",
@@ -59,6 +60,8 @@ const TABS: { k: TabKey; l: string; test: (b: OpsBooking) => boolean }[] = [
   },
   { k: "unpaid", l: "Unpaid", test: (b) => b.status === "Unpaid" },
   { k: "awaiting", l: "Awaiting payment", test: (b) => b.status === "Awaiting payment" },
+  // Payment links that ran out unpaid (AENR-559 — tracking moved from Pay-by-link).
+  { k: "expired", l: "Expired", test: (b) => b.status === "Expired" },
   { k: "refunded", l: "Refunded", test: (b) => b.status === "Refunded" },
   { k: "used", l: "Used", test: (b) => b.status === "Used" },
 ];
@@ -75,7 +78,7 @@ const BOOKING_FILTERS: FilterDef[] = [
     key: "channel",
     label: "Channel",
     kind: "multi",
-    options: ["Online", "Walk-in", "Phone", "Cashier", "Pay-by-link"].map((v) => ({ v, l: v })),
+    options: ["Online", "Walk-in", "Phone", "Call Center", "Admin", "Support Agent", "Cashier", "Pay-by-link"].map((v) => ({ v, l: v })),
   },
   { key: "amount", label: "Amount", kind: "amount" },
   { key: "item", label: "Item type", kind: "multi", options: BOOKING_ITEM_TYPES },
@@ -109,6 +112,9 @@ const chan = (c: string) =>
     Online: "blue",
     "Walk-in": "amber",
     Phone: "indigo",
+    "Call Center": "indigo",
+    Admin: "indigo",
+    "Support Agent": "indigo",
     Cashier: "green",
     "Pay-by-link": "coral",
   })[c] || "slate";
@@ -129,7 +135,7 @@ function BookingItems({ items }: { items: string[] }) {
 }
 
 export function AdminBookings() {
-  const { toast, persona, bookingNotes } = useApp();
+  const { toast, persona, bookingNotes, go } = useApp();
   const agent = persona === "callcenter";
   const ops = useBookingOps();
   const [q, setQ] = useState("");
@@ -256,7 +262,8 @@ export function AdminBookings() {
     <div>
       <PageHead
         sub={agent ? "Find a caller’s booking, resend their QR, move them or ask a manager for a refund." : "Every booking from every channel — find it, open it, act on it."}
-        primary={agent ? undefined : <Btn variant="outline" icon={Icon.download} onClick={exportCSV}>Export</Btn>}
+        primary={<Btn variant="primary" icon={Icon.plus} onClick={() => go(persona, "newbooking")}>New booking</Btn>}
+        secondary={agent ? [] : [{ label: "Export CSV", icon: Icon.download, onClick: exportCSV }]}
       />
       <Card className="p-4">
         <div className="flex items-center gap-3 mb-3 flex-wrap">
