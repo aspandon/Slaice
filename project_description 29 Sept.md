@@ -635,9 +635,11 @@ back; forward only via Continue). Footer: live **Total €** (animated) + **Back
    - Tablet/desktop (≥ 768 px wide and ≥ 560 px tall): a **panoramic beach** — each zone's real umbrella
      rows laid out as a cluster on the sand, auto-spaced so they never overlap, with name, optional
      logo, "from €X · N free". Selected zone highlighted.
-     The clusters hug the shoreline at every window size (AENR-667): the zone area starts just under the
-     waterline (`clamp(140px, 16vh, 210px)` on desktop) and the depth spread is capped at about two
-     cluster heights, so tall or wide windows no longer push zones away from the sea.
+     **One front row along a lower sea** (AENR-669, supersedes the staggered depths of AENR-667): on
+     desktop the wizard brings the sea down to the middle of the screen (shoreline 0.5; the booking panel
+     floats over the water) and every zone stands in one row right under the waterline, in beach order,
+     evenly across the whole width (Akanthus · Central · Macaw · Bestbuy · Main · Bolivar). A zone's set
+     view sits on the sand below the water, beside the panel.
    - Phones: compact **zone cards**.
    - Guidance: "**Tap a zone on the beach** to choose where you'll sit — the sea is at the top."
 3. **Pick sets** — phase _sets_: tapping a zone zooms the "camera" in (FLIP animation) to the zone's

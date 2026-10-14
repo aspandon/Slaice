@@ -758,7 +758,7 @@ function WizardInner() {
 
       {/* ============ The beach itself — fills the space below the menu so every
            set is visible (never hidden behind it) and is tapped directly. ====== */}
-      <div className="flex-1 min-h-0 px-3 sm:px-5 pt-[20vh] lg:pt-[clamp(140px,16vh,210px)] max-lg:pb-[132px] lg:mr-[min(460px,36vw)] flex justify-center animate-fade-in" style={{ animationDelay: revealDelay, animationFillMode: "both" }}>
+      <div className={`flex-1 min-h-0 px-3 sm:px-5 pt-[20vh] lg:pt-[max(calc(50vh+8px),440px)] max-lg:pb-[132px] ${showZones ? "" : "lg:mr-[min(460px,36vw)]"} flex justify-center animate-fade-in`} style={{ animationDelay: revealDelay, animationFillMode: "both" }}>
         {/* The zone overview spreads the full beach width (panoramic); a single
             zone's sunbed grid stays at a comfortable reading width. */}
         <div className={`relative w-full ${showSets ? "max-w-5xl" : "max-w-[1700px]"}`}>
@@ -793,7 +793,7 @@ function WizardInner() {
         </div>
       )}
       {/* ============ Bottom bar — guidance + always-on Slaice credit ============ */}
-      <div className="shrink-0 px-3 pb-1.5 pt-1 pointer-events-none max-lg:hidden lg:mr-[min(460px,36vw)]">
+      <div className={`shrink-0 px-3 pb-1.5 pt-1 pointer-events-none max-lg:hidden ${showZones ? "" : "lg:mr-[min(460px,36vw)]"}`}>
         {(showZones || showSets || showScene) && (
           <div className="max-w-3xl mx-auto pointer-events-auto">
             {showZones && (
@@ -1112,41 +1112,10 @@ function useMediaQuery(query: string) {
 
 const clampN = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
-/* Push equal-size boxes apart until none overlap, starting from their given
-   centres and keeping them inside [0,W]×[0,H]. A handful of relaxation passes —
-   enough for six zone clusters to settle near the admin's arrangement without
-   colliding. */
-function declutter(init: { x: number; y: number }[], W: number, H: number, cw: number, ch: number, gap: number) {
-  const pos = init.map((p) => ({ ...p }));
-  const minX = cw / 2, maxX = Math.max(cw / 2, W - cw / 2);
-  const minY = ch / 2, maxY = Math.max(ch / 2, H - ch / 2);
-  for (let it = 0; it < 90; it++) {
-    for (let i = 0; i < pos.length; i++) {
-      for (let j = i + 1; j < pos.length; j++) {
-        const dx = pos[j].x - pos[i].x;
-        const dy = pos[j].y - pos[i].y;
-        const ox = cw + gap - Math.abs(dx);
-        const oy = ch + gap - Math.abs(dy);
-        if (ox > 0 && oy > 0) {
-          if (ox < oy) {
-            const push = (ox / 2) * (dx < 0 ? -1 : 1);
-            pos[i].x -= push; pos[j].x += push;
-          } else {
-            const push = (oy / 2) * (dy < 0 ? -1 : 1);
-            pos[i].y -= push; pos[j].y += push;
-          }
-        }
-      }
-    }
-    for (const p of pos) { p.x = clampN(p.x, minX, maxX); p.y = clampN(p.y, minY, maxY); }
-  }
-  return pos;
-}
-
 /* ============ Zone overview ============
    Tablet / desktop: a panoramic beach — each zone's real umbrella rows laid out
-   on the open sand (no card chrome) at the admin's position, auto-spaced so they
-   never overlap, with the zone name + optional logo set on the sand beneath. Tap
+   on the open sand (no card chrome) in one front row along the water, in beach
+   order across the whole width (AENR-668), with the zone name + optional logo set on the sand beneath. Tap
    to open it. Phones / tight screens fall back to compact cards. `rich` is owned
    by the wizard (it gates the FLIP zoom); `flipEnter` names the zone whose beds
    are flying back in, so the entrance stagger skips that cluster. */
@@ -1188,22 +1157,18 @@ function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: 
   }, [hasPositions, flipEnter]);
 
   // Big enough to fill the open beach, small enough that six sit side by side.
-  const cw = clampN(box.w * 0.155, 120, 290);
+  const cw = clampN(Math.min(box.w * 0.155, box.w / (ZONES.length + 0.6)), 120, 290);
   const plotH = cw * 0.86;
   const ch = plotH + 46; // + the name/logo band on the sand
   const glyph = clampN(cw * 0.12, 16, 40);
 
   const positions = useMemo(() => {
     if (!box.w || !box.h) return [];
-    const init = ZONES.map((z) => {
-      const blk = ZONE_BLOCKS.find((b) => b.id === z.id);
-      const left = blk ? parseFloat(blk.left) + parseFloat(blk.w) / 2 : 50;
-      const depth = blk ? clampN((parseFloat(blk.top) - 71) / 6, 0, 1) : 0.5;
-      // Zones hug the shoreline (AENR-667): the depth spread is capped at a couple of
-      // cluster heights, so a tall window doesn't stretch the beach away from the sea.
-      return { x: (left / 100) * box.w, y: ch / 2 + 4 + depth * Math.min(Math.max(0, box.h - ch - 10), ch * 2.1) };
-    });
-    return declutter(init, box.w, box.h, cw, ch, 12);
+    // Every zone in one front row along the water (AENR-668), in beach order, evenly
+    // across the whole width (this also keeps them right under the shoreline, AENR-667).
+    const order = [...ZONES].sort((a, b) => parseFloat(ZONE_BLOCKS.find((x) => x.id === a.id)?.left ?? "50") - parseFloat(ZONE_BLOCKS.find((x) => x.id === b.id)?.left ?? "50"));
+    const gap = box.w / ZONES.length;
+    return ZONES.map((z) => ({ x: gap * (order.indexOf(z) + 0.5), y: ch / 2 + 4 }));
   }, [box, cw, ch]);
 
   return (
