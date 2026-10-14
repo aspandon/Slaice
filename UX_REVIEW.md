@@ -483,3 +483,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   in. Staff pages pick a zone from chips with live counts instead of a dropdown.
 - **AENR-647 — maps on a phone.** Staff maps open zoomed on what matters with 44px sets, pan and pinch
   (or −/+), and a Map | List toggle with the same selection.
+- **AENR-660 — the beach is the screen.** Desktop: beach on the left two-thirds, steps and total in a
+  right column. Phones: full-width beach with pinch-zoom and a bottom sheet (total + Continue lowered).

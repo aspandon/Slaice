@@ -1,4 +1,5 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as RPointerEvent } from "react";
+import { useLayoutEffect, useState } from "react";
+import { ZoomBox } from "./ZoomBox";
 import { Sunbed } from "./Beach";
 import { Icon } from "../lib/icons";
 import { LANDMARK_LABEL } from "../data/pricing";
@@ -65,95 +66,20 @@ function gaps(slots: readonly SunbedSlot[]) {
 const CELL = 44;
 const AR = 0.75;
 function ZoomMap(props: MapProps) {
-  const box = useRef<HTMLDivElement>(null);
-  const [cw, setCw] = useState(358);
-  useLayoutEffect(() => {
-    const el = box.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => setCw(el.clientWidth));
-    ro.observe(el);
-    setCw(el.clientWidth);
-    return () => ro.disconnect();
-  }, []);
   const { dx, dy } = gaps(props.slots);
   // Wide enough that neighbours sit a 44px target + 8px apart, rows a target + code label apart.
   // A taller box than on desktop (3:4) so rows spread down rather than across.
-  const base = Math.max(cw, ((CELL + 8) * 100) / dx, ((CELL + 16) * 100) / (dy * AR));
-  const fit = Math.min(1, cw / base);
-  const [zoom, setZoom] = useState(1);
-  const w = base * zoom;
-  const h = w * AR;
-  const centre = useRef<{ fx: number; fy: number } | null>(null);
-  const setZ = (z: number) => {
-    const el = box.current;
-    if (el) centre.current = { fx: (el.scrollLeft + el.clientWidth / 2) / w, fy: (el.scrollTop + el.clientHeight / 2) / h };
-    setZoom(Math.max(fit, Math.min(2, z)));
-  };
+  const need = Math.max(((CELL + 8) * 100) / dx, ((CELL + 16) * 100) / (dy * AR));
   // Open on what matters: your picks, then highlighted sets, then the first free set.
-  const started = useRef(false);
-  useLayoutEffect(() => {
-    const el = box.current;
-    if (!el) return;
-    if (centre.current) {
-      el.scrollLeft = centre.current.fx * w - el.clientWidth / 2;
-      el.scrollTop = centre.current.fy * h - el.clientHeight / 2;
-      centre.current = null;
-      return;
-    }
-    if (started.current || cw < 100) return;
-    started.current = true;
-    const s =
-      props.slots.find((x) => props.selected?.has(x.id)) ??
-      props.slots.find((x) => props.highlight?.has(x.id)) ??
-      props.slots.find((x) => x.state === "a") ??
-      props.slots[0];
-    if (!s) return;
-    el.scrollLeft = (s.x / 100) * w - el.clientWidth / 2;
-    el.scrollTop = (s.y / 100) * h - el.clientHeight / 2;
-  }, [w, h, cw, props.slots, props.selected, props.highlight]);
-  // Two-finger pinch (one finger pans natively).
-  const pts = useRef(new Map<number, { x: number; y: number }>());
-  const pinch = useRef<{ d: number; z: number } | null>(null);
-  const dist = () => {
-    const [a, b] = [...pts.current.values()];
-    return Math.hypot(a.x - b.x, a.y - b.y);
-  };
-  const down = (e: RPointerEvent) => {
-    if (e.pointerType !== "touch") return;
-    pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pts.current.size === 2) pinch.current = { d: dist(), z: zoom };
-  };
-  const move = (e: RPointerEvent) => {
-    if (!pts.current.has(e.pointerId)) return;
-    pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
-    if (pinch.current && pts.current.size === 2) setZ((pinch.current.z * dist()) / pinch.current.d);
-  };
-  const up = (e: RPointerEvent) => {
-    pts.current.delete(e.pointerId);
-    if (pts.current.size < 2) pinch.current = null;
-  };
-  const btn = "w-9 h-9 grid place-items-center rounded-lg bg-white/95 ring-1 ring-slate-300 text-navy-900 shadow-sm disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500";
+  const s =
+    props.slots.find((x) => props.selected?.has(x.id)) ??
+    props.slots.find((x) => props.highlight?.has(x.id)) ??
+    props.slots.find((x) => x.state === "a") ??
+    props.slots[0];
   return (
-    <div className="relative">
-      <div
-        ref={box}
-        onPointerDown={down}
-        onPointerMove={move}
-        onPointerUp={up}
-        onPointerCancel={up}
-        className="overflow-auto overscroll-contain rounded-xl ring-1 ring-slate-200"
-        style={{ touchAction: "pan-x pan-y", maxHeight: "min(62vh, 440px)" }}
-      >
-        <div style={{ width: w, height: h, "--cell": `${CELL * zoom}px` } as CSSProperties}>
-          <MapCanvas {...props} className={`${props.className ?? ""} !aspect-auto h-full !ring-0`} />
-        </div>
-      </div>
-      <div className="absolute right-2 bottom-2 flex flex-col gap-1.5">
-        <button type="button" className={btn} aria-label="Zoom in" disabled={zoom >= 2} onClick={() => setZ(zoom * 1.25)}><Icon.plus size={16} /></button>
-        <button type="button" className={btn} aria-label="Zoom out" disabled={zoom <= fit + 0.01} onClick={() => setZ(zoom / 1.25)}><Icon.minus size={16} /></button>
-      </div>
-      <p className="mt-1 text-[11px] text-slate-500">Drag to move · pinch or −/+ to zoom.</p>
-    </div>
+    <ZoomBox minWidth={need} aspect={AR} focus={s ? { x: s.x, y: s.y } : undefined} vars={(z) => ({ "--cell": `${CELL * z}px` })}>
+      <MapCanvas {...props} className={`${props.className ?? ""} !aspect-auto h-full !ring-0`} />
+    </ZoomBox>
   );
 }
 

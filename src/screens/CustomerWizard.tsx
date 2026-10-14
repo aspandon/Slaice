@@ -24,6 +24,7 @@ import { cancelLine } from "../domain/visits";
 import { useSiteStatus } from "../lib/usePlatform";
 import { Checkout } from "./Checkout";
 import { bestSets } from "../domain/bestSets";
+import { ZoomBox } from "../components/ZoomBox";
 
 type People = Record<string, number>;
 interface BedPick { id: string; price: number; zoneId: string }
@@ -400,6 +401,7 @@ function WizardInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- flip reads refs + DOM
   }, [phase]);
   const [announce, setAnnounce] = useState("");
+  const [sheetPref, setSheetPref] = useState<Record<string, boolean>>({});
   const toggleBed = (slot: SunbedSlot, el?: HTMLElement | null) => {
     const adding = !bedSel.find((b) => b.id === slot.id);
     setBedSel((s) => (adding ? [...s, { id: slot.id, price: slot.price, zoneId: zone.id }] : s.filter((b) => b.id !== slot.id)));
@@ -560,6 +562,14 @@ function WizardInner() {
   const showScene = step.id !== "beach" && bedSel.length > 0;
   const pickedByZone = bedSel.reduce<Record<string, number>>((m, b) => ({ ...m, [b.zoneId]: (m[b.zoneId] ?? 0) + 1 }), {});
   const revealDelay = prefersReducedMotion() ? "0ms" : "420ms";
+  // Below 1024px the panel is a bottom sheet over the beach (AENR-660): on the beach
+  // step it starts lowered (total + Continue) so the sand is the screen; the form
+  // steps start raised. The guest's own choice per step wins.
+  const sheetKey = `${step.id}-${phase}`;
+  const sheetOpen = sheetPref[sheetKey] ?? step.id !== "beach";
+  const setSheetOpen = (v: boolean) => setSheetPref((m) => ({ ...m, [sheetKey]: v }));
+  const swipe = useRef<number | null>(null);
+  const sheetHide = sheetOpen ? "" : "max-lg:hidden";
 
   return (
     <div className="fixed inset-0 z-20 flex flex-col pointer-events-none select-none pt-[72px] md:pt-0 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
@@ -568,10 +578,31 @@ function WizardInner() {
            shoreline so the sets always start on the sand (never the sea). The
            zone overview gives the menu band less reserved height so the
            clusters get more room to spread. */}
-      <div className={`shrink-0 flex items-start justify-center px-3 pt-2 sm:pt-3 ${showSets ? "min-h-[50vh]" : "min-h-[44vh]"}`}>
-        <div className="pointer-events-auto w-full max-w-2xl glass-card rounded-3xl shadow-float flex flex-col max-h-[64vh] overflow-hidden animate-fade-down" data-flip-id="checkout-panel">
+      {/* Desktop (≥1024px): a sticky column on the right, the beach fills the rest.
+          Smaller screens: a bottom sheet the guest raises or lowers (AENR-660). */}
+      <div className="absolute z-10 inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] md:bottom-0 lg:inset-x-auto lg:right-0 lg:top-[68px] lg:bottom-0 lg:w-[min(460px,36vw)] lg:px-4 lg:pb-4 flex items-end lg:items-start justify-center">
+        <div className="pointer-events-auto w-full max-w-2xl glass-card rounded-t-3xl lg:rounded-3xl shadow-float flex flex-col max-h-[78vh] lg:max-h-full overflow-hidden animate-fade-down" data-flip-id="checkout-panel">
+          {/* Sheet handle (phones/tablets): tap or swipe to raise / lower. */}
+          <button
+            type="button"
+            aria-expanded={sheetOpen}
+            onClick={() => setSheetOpen(!sheetOpen)}
+            onPointerDown={(e) => { swipe.current = e.clientY; }}
+            onPointerUp={(e) => { const y0 = swipe.current; swipe.current = null; if (y0 != null && Math.abs(e.clientY - y0) > 24) { e.preventDefault(); setSheetOpen(e.clientY < y0); } }}
+            className="lg:hidden shrink-0 w-full pt-2 pb-1 flex flex-col items-center gap-1 touch-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500 rounded-t-3xl"
+          >
+            <span aria-hidden className="w-10 h-1.5 rounded-full bg-slate-300" />
+            {sheetOpen ? (
+              <span className="sr-only">{tr("Lower the panel to see the beach")}</span>
+            ) : (
+              <span className="text-[12px] font-semibold text-slate-600 inline-flex items-center gap-1">
+                {step.id === "beach" ? `${selDates.length === 1 ? chipLabel(selDates[0], localeFor(lang)).sub : `${selDates.length} ${tr("days")}`} · ${phase === "sets" ? zone.name : tr("all zones")} · ${tr("Change")}` : `${tr("Step")} ${stepIdx + 1} ${tr("of")} ${STEPS.length} · ${tr(step.label)}`}
+                <Icon.chevD size={13} className="rotate-180" />
+              </span>
+            )}
+          </button>
           {/* Pinned header — leave, progress, (step title only on the form steps). */}
-          <div className="p-4 sm:p-5 pb-3 shrink-0">
+          <div className={`p-4 sm:p-5 pb-3 max-lg:pt-1 shrink-0 ${sheetHide}`}>
             <div className="flex items-center justify-between mb-3">
               <button onClick={() => go("customer", "home")} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-600 hover:text-navy-900 rounded-lg px-2 py-1 hover:bg-white/60 transition">
                 <Icon.arrowL size={14} /> {tr("Leave")}
@@ -584,7 +615,7 @@ function WizardInner() {
 
           {/* Scrolling step body — a real scrollbar appears when a step (e.g.
               Review with many lines) overflows the panel. */}
-          <div key={`${step.id}-${phase}`} className="px-4 sm:px-5 pb-1 overflow-y-auto animate-fade-up">
+          <div key={`${step.id}-${phase}`} className={`px-4 sm:px-5 pb-1 overflow-y-auto animate-fade-up ${sheetHide}`}>
             {step.id === "beach" && (
               <BeachMenu blockReason={blockReason} dayInfo={dayInfo} fullDay={fullDay}
                 alternatives={fullDay ? {
@@ -683,7 +714,7 @@ function WizardInner() {
             )}
           </div>
 
-          {showBreak && (
+          {showBreak && sheetOpen && (
             <div className="px-4 sm:px-5 pt-2 text-[12.5px] text-slate-700 border-t border-slate-200/70 shrink-0" aria-label={tr("Price breakdown")}>
               {[[tr("Sunbeds"), setSubtotal], [tr("Entry tickets"), ticketSubtotal], [tr("Lockers"), lockerSubtotal], [tr("Parking"), parkingSubtotal], [tr("Service fee"), feeTotal]].filter(([, v]) => (v as number) > 0).map(([l, v]) => (
                 <div key={l as string} className="flex justify-between py-0.5"><span>{l}</span><span className="tnum">€{(v as number).toFixed(2)}</span></div>
@@ -714,7 +745,7 @@ function WizardInner() {
             </div>
             )}
             <div className="flex items-center gap-2">
-              <Btn variant="ghost" icon={Icon.arrowL} onClick={back}>
+              <Btn variant="ghost" icon={Icon.arrowL} onClick={back} className="lg:whitespace-nowrap">
                 {stepIdx === 0 && phase === "zones" ? tr("Home") : stepIdx === 0 && phase === "sets" ? tr("All zones") : tr("Back")}
               </Btn>
               {stepIdx < last ? (
@@ -729,12 +760,20 @@ function WizardInner() {
 
       {/* ============ The beach itself — fills the space below the menu so every
            set is visible (never hidden behind it) and is tapped directly. ====== */}
-      <div className="flex-1 min-h-0 px-3 sm:px-5 flex justify-center animate-fade-in" style={{ animationDelay: revealDelay, animationFillMode: "both" }}>
+      <div className="flex-1 min-h-0 px-3 sm:px-5 pt-[20vh] max-lg:pb-[132px] lg:mr-[min(460px,36vw)] flex justify-center animate-fade-in" style={{ animationDelay: revealDelay, animationFillMode: "both" }}>
         {/* The zone overview spreads the full beach width (panoramic); a single
             zone's sunbed grid stays at a comfortable reading width. */}
         <div className={`relative w-full ${showSets ? "max-w-5xl" : "max-w-[1700px]"}`}>
           {showZones && <StoreOverview days={selDates} selectedId={zoneId} onPick={pickZone} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} picked={pickedByZone} />}
-          {showSets && <SandSunbeds slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zone.id)} />}
+          {showSets && (richOverview ? (
+            <SandSunbeds slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zone.id)} />
+          ) : (
+            // Phones: the sets at a tappable size, pan + pinch, opened on your picks (AENR-660).
+            <ZoomBox className="h-full pointer-events-auto" maxHeight="100%" hint={null} minWidth={540} aspect={0.95}
+              focus={(() => { const f = slots.find((x) => selectedIds.has(x.id)) ?? slots.find((x) => x.state === "a"); return f ? { x: f.x, y: f.y } : undefined; })()}>
+              <SandSunbeds slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zone.id)} />
+            </ZoomBox>
+          ))}
           {showScene && (
             <SandScene
               slots={slots} picked={selectedIds} stepId={step.id}
@@ -756,7 +795,7 @@ function WizardInner() {
         </div>
       )}
       {/* ============ Bottom bar — guidance + always-on Slaice credit ============ */}
-      <div className="shrink-0 px-3 pb-1.5 pt-1 pointer-events-none">
+      <div className="shrink-0 px-3 pb-1.5 pt-1 pointer-events-none max-lg:hidden lg:mr-[min(460px,36vw)]">
         {(showZones || showSets || showScene) && (
           <div className="max-w-3xl mx-auto pointer-events-auto">
             {showZones && (

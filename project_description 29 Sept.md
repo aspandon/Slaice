@@ -547,7 +547,7 @@ Entrance motion: full choreography once per session, then a quick card stagger o
  ENTRY  hero CTA · Claim · Book again · Use it · "Plan my visit" · Plan tab
           │   (shoreline animates up — the sand fills the screen)
           ▼
- ┌─ glass menu over the sea ────────────────────────────────────────────────────┐
+ ┌─ glass panel: right column on desktop · bottom sheet on phones (AENR-660) ───┐
  │ ◀ Leave                                     Step 1 of 3 · When & where       │
  │        (1)━━━━━━━━━━━━━━━━━━(2)┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄(3)                          │
  │    When & where             Who                  Pay                          │
@@ -595,8 +595,17 @@ Entrance motion: full choreography once per session, then a quick card stagger o
 
 **Trigger:** hero CTA, Claim, Book again, Use it, "Plan my visit" buttons, the Plan tab.
 
-**Layout:** a glass menu panel over the sea (top) + the tappable beach (sand) below + a guidance bar
-(bottom) + "powered by SLAiCE". **Three steps** (AENR-612): **When & where**, **Who**, **Pay** (AENR-640: the Pay step **takes the payment** — the checkout summary and its buttons (Apple Pay / Google Pay, card, deposit, 18+ on the first booking, rewards and credit applied) sit under the review; paying opens the confirmation directly; the visit is kept in the basket while on Pay, so a guest who leaves finds it there; the footer’s **Go to payment** scrolls to the panel and shows no second total) —
+**Layout** (AENR-660, like a map app — the beach is the screen, the details live beside or below it):
+on desktop (≥ 1024 px) the beach fills the left two-thirds from the shoreline down (the wizard lifts the
+shoreline to 20 % of the screen) and the steps, choices and running total sit in a column on the right
+(`min(460px, 36vw)`, under the account bar), with the guidance bar and "powered by SLAiCE" under the
+beach. Below 1024 px the panel is a **bottom sheet** above the tab bar with a handle (tap or swipe):
+lowered it shows only the total + Back/Continue and a line such as "19 Jul · Akanthus · Change ⌃";
+raised it shows the whole step (up to 78 % of the screen). It starts lowered on When & where (zones
+and sets) and raised on Who and Pay; the guest's own choice per step wins. On phones (< 768 px) a
+zone's sets are drawn at a tappable size (~46 px) in a pan / pinch / −/+ box (`ZoomBox`, shared with
+the staff maps) that opens on your picks or the first free set; the zone-to-sets FLIP zoom stays on
+larger screens (reduced motion: instant). **Three steps** (AENR-612): **When & where**, **Who**, **Pay** (AENR-640: the Pay step **takes the payment** — the checkout summary and its buttons (Apple Pay / Google Pay, card, deposit, 18+ on the first booking, rewards and credit applied) sit under the review; paying opens the confirmation directly; the visit is kept in the basket while on Pay, so a guest who leaves finds it there; the footer’s **Go to payment** scrolls to the panel and shows no second total) —
 locker and parking are one optional row on Pay, not steps of their own (old deep links to the locker
 or parking step open that row). Header: **Leave** (back to Home), "Step n of 3 · <step>", and a
 **progress rail** drawn as a footpath across the sand with 3 stations (tap a reached station to jump

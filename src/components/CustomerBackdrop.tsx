@@ -10,7 +10,7 @@ import { useApp } from "../app/store";
 /* Sand-top fraction (0–1). Higher = thinner sand strip / ocean vista; lower lifts
    the shoreline so the sand fills the view. */
 const REST = 0.8; // home + browsing
-const IMMERSIVE = 0.4; // inside the booking wizard — a sand-heavy beach you tap on
+const IMMERSIVE = 0.2; // inside the booking wizard — a sand-heavy beach you tap on (the panel sits beside or below it, AENR-660)
 
 /* ---------- Customer page backdrop ----------
    The beach scene behind the whole customer surface. Entering the guided-booking
@@ -88,7 +88,7 @@ export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
       {/* The life-buoy bobs in the open water. As the booking flow lifts the
           shoreline, it rides up with the sea to a spot in the top-left, clear of
           the menu and the tappable sand. */}
-      <LifeRing className={`hidden sm:block absolute left-[8%] w-[60px] h-[60px] transition-[top] duration-700 ease-out ${immersive ? "top-[20%]" : "top-[72%]"}`} />
+      <LifeRing className={`hidden sm:block absolute left-[8%] w-[60px] h-[60px] transition-[top] duration-700 ease-out ${immersive ? "top-[7%]" : "top-[72%]"}`} />
 
       {/* Cloud cover for overcast/rainy — drifting banks of soft grey blobs. */}
       <div className="absolute inset-0 overflow-hidden transition-opacity duration-1000" style={{ opacity: clouds }}>
