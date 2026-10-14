@@ -196,102 +196,11 @@ export function AdminToday() {
           )}
         </div>
       )}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          instant
-          label="Occupancy now"
-          value={`${total ? Math.round((taken / total) * 100) : 0}%`}
-          sub={`${taken} of ${total} sets taken`}
-          tone="teal"
-        />
-        <StatCard
-          instant
-          label="Bookings for today"
-          value={String(arrivals.length)}
-          sub={`${checkedIn} set${checkedIn === 1 ? "" : "s"} checked in so far${expected > 0 ? ` · ${expected} still expected` : ""}`}
-        />
-        <StatCard
-          instant
-          label="No-shows"
-          value={String(noShows.length)}
-          sub={
-            noShows.length
-              ? `booked sets not checked in by ${NO_SHOW_CUTOFF}`
-              : beforeCutoff
-                ? `counted from ${NO_SHOW_CUTOFF} — arrivals until then are on time`
-                : "everyone expected has arrived"
-          }
-          tone={noShows.length ? "amber" : "navy"}
-        />
-        <StatCard
-          instant
-          label="Gate"
-          value={clock < "09:00" ? "—" : `${Math.round(scanned / hoursOpen)}/hr`}
-          sub={clock < "09:00" ? "gates open at 09:00" : `${scanned.toLocaleString("en-GB")} scanned today · since 09:00`}
-        />
-      </div>
-
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-4 items-start">
-        <Card className="p-5">
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <h2 className="font-display font-bold text-navy-900">Occupancy now by zone</h2>
-            <a
-              href="#/admin/live"
-              className="text-[13px] font-semibold text-teal-700 hover:underline"
-            >
-              Open live beach →
-            </a>
-          </div>
-          <ul className="space-y-2.5">
-            {zones.map((x) => {
-              const pct = x.total ? Math.round((x.taken / x.total) * 100) : 0;
-              return (
-                <li key={x.z.id}>
-                  <a
-                    href={`#/admin/live?zone=${x.z.id}`}
-                    className="block rounded-xl px-2 py-1.5 -mx-2 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
-                  >
-                    <div className="flex items-center justify-between gap-2 text-[13.5px]">
-                      <span className="flex items-center gap-2 font-semibold text-navy-900">
-                        <i className="w-2.5 h-2.5 rounded-full" style={{ background: x.z.color }} />
-                        {x.z.name}
-                      </span>
-                      <span className="tnum text-slate-600">
-                        {x.closed ? (
-                          <Badge tone="neutral">{/^closed/i.test(x.closed) ? x.closed : `Closed · ${x.closed}`}</Badge>
-                        ) : (
-                          <>
-                            {x.taken}/{x.total} · <b className="text-navy-900">{pct}%</b>
-                            {x.noShows.length > 0 && (
-                              <span className="text-amber-700">
-                                {" "}
-                                · {x.noShows.length} no-show{x.noShows.length === 1 ? "" : "s"}
-                              </span>
-                            )}
-                            {x.unpaid > 0 && (
-                              <span className="text-amber-700"> · {x.unpaid} unpaid</span>
-                            )}
-                          </>
-                        )}
-                      </span>
-                    </div>
-                    {/* A closed zone has no occupancy: a grey striped track, not a full bar (AENR-655). */}
-                    <div className="mt-1 h-2 rounded-full bg-slate-100 overflow-hidden" aria-hidden>
-                      {x.closed ? (
-                        <div className="h-full w-full bg-[repeating-linear-gradient(135deg,theme(colors.slate.300)_0_4px,transparent_4px_8px)]" />
-                      ) : (
-                        <div className="h-full rounded-full bg-teal-600" style={{ width: `${pct}%` }} />
-                      )}
-                    </div>
-                  </a>
-                </li>
-              );
-            })}
-          </ul>
-        </Card>
-
-        <div className="space-y-4">
-          <Card className="p-5">
+      {/* The to-do comes first (AENR-630): Needs attention is the main column, first on phones;
+          the numbers, occupancy and weather sit beside it. */}
+      <div className="grid lg:grid-cols-[minmax(0,1fr)_400px] gap-4 items-start">
+        <div className="min-w-0">
+          <Card className="p-5 sm:p-6">
             <h2 className="font-display font-bold text-navy-900 mb-2">
               Needs attention <span className="text-slate-400 tnum">{attention.length}</span>
             </h2>
@@ -383,6 +292,100 @@ export function AdminToday() {
                 </ul>
               </details>
             )}
+          </Card>
+        </div>
+        <div className="space-y-4 min-w-0">
+          <div className="grid grid-cols-2 gap-3" aria-label="Today in numbers">
+            <StatCard
+              instant
+              label="Occupancy now"
+              value={`${total ? Math.round((taken / total) * 100) : 0}%`}
+              sub={`${taken} of ${total} sets taken`}
+              tone="teal"
+            />
+            <StatCard
+              instant
+              label="Bookings for today"
+              value={String(arrivals.length)}
+              sub={`${checkedIn} set${checkedIn === 1 ? "" : "s"} checked in so far${expected > 0 ? ` · ${expected} still expected` : ""}`}
+            />
+            <StatCard
+              instant
+              label="No-shows"
+              value={String(noShows.length)}
+              sub={
+                noShows.length
+                  ? `booked sets not checked in by ${NO_SHOW_CUTOFF}`
+                  : beforeCutoff
+                    ? `counted from ${NO_SHOW_CUTOFF} — arrivals until then are on time`
+                    : "everyone expected has arrived"
+              }
+              tone={noShows.length ? "amber" : "navy"}
+            />
+            <StatCard
+              instant
+              label="Gate"
+              value={clock < "09:00" ? "—" : `${Math.round(scanned / hoursOpen)}/hr`}
+              sub={clock < "09:00" ? "gates open at 09:00" : `${scanned.toLocaleString("en-GB")} scanned today · since 09:00`}
+            />
+          </div>
+
+          <Card className="p-5">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <h2 className="font-display font-bold text-navy-900">Occupancy now by zone</h2>
+              <a
+                href="#/admin/live"
+                className="text-[13px] font-semibold text-teal-700 hover:underline"
+              >
+                Open live beach →
+              </a>
+            </div>
+            <ul className="space-y-2.5">
+              {zones.map((x) => {
+                const pct = x.total ? Math.round((x.taken / x.total) * 100) : 0;
+                return (
+                  <li key={x.z.id}>
+                    <a
+                      href={`#/admin/live?zone=${x.z.id}`}
+                      className="block rounded-xl px-2 py-1.5 -mx-2 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                    >
+                      <div className="flex items-center justify-between gap-2 text-[13.5px]">
+                        <span className="flex items-center gap-2 font-semibold text-navy-900">
+                          <i className="w-2.5 h-2.5 rounded-full" style={{ background: x.z.color }} />
+                          {x.z.name}
+                        </span>
+                        <span className="tnum text-slate-600">
+                          {x.closed ? (
+                            <Badge tone="neutral">{/^closed/i.test(x.closed) ? x.closed : `Closed · ${x.closed}`}</Badge>
+                          ) : (
+                            <>
+                              {x.taken}/{x.total} · <b className="text-navy-900">{pct}%</b>
+                              {x.noShows.length > 0 && (
+                                <span className="text-amber-700">
+                                  {" "}
+                                  · {x.noShows.length} no-show{x.noShows.length === 1 ? "" : "s"}
+                                </span>
+                              )}
+                              {x.unpaid > 0 && (
+                                <span className="text-amber-700"> · {x.unpaid} unpaid</span>
+                              )}
+                            </>
+                          )}
+                        </span>
+                      </div>
+                      {/* A closed zone has no occupancy: a grey striped track, not a full bar (AENR-655). */}
+                      <div className="mt-1 h-2 rounded-full bg-slate-100 overflow-hidden" aria-hidden>
+                        {x.closed ? (
+                          <div className="h-full w-full bg-[repeating-linear-gradient(135deg,theme(colors.slate.300)_0_4px,transparent_4px_8px)]" />
+                        ) : (
+                          <div className="h-full rounded-full bg-teal-600" style={{ width: `${pct}%` }} />
+                        )}
+                      </div>
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
           </Card>
           <Card className="p-5">
             <h2 className="font-display font-bold text-navy-900 mb-2">Weather &amp; closures</h2>

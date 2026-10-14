@@ -469,3 +469,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   “Add sets in another zone” button and an “All zones” back. AENR-645 Today, Live beach and the gate follow
   one arrival model (guests arrive 09:00–11:00 on the demo clock; no-shows only after 11:00). AENR-643
   Commission & Payouts and Platform GMV come from the same figures as Reports, up to today.
+- **AENR-630 — Today starts with the to-do.** Needs attention is the main column (first on phones);
+  the four numbers, occupancy by zone and weather sit beside it.
