@@ -870,6 +870,7 @@ One model for the guest's beach days — `src/domain/visits.ts` (`historyVisits`
 - **Phones: nothing overlaps** (AENR-575): the customer top bar is part of the layout (content starts below it); the Demo menu (persona + scene clock + weather) docks in the top bar instead of floating pills.
 - **Passes in the beach's brand** (AENR-576): VIP in the sun gold, Season in the sea, tenant logo; savings line from the guest's own visits ("With VIP this season you would have saved €44").
 - **One Wallet** (AENR-577): beach credit with its history, passes (each card carries its gate QR), the season set, rewards (Claim → voucher QR), badges.
+  Order (AENR-648): beach credit → rewards → **Your passes** (only passes the guest holds keep the card with name, number and QR) → the season set → **Passes you can get** as slim offer rows (“Become VIP — 20% off every visit · from €500 of credit”, “Season pass — your own set all summer · from €120”, no name or QR) → badges.
 - **Release my day** (AENR-578): a season pass reserves one Central front-row set every day (`seasonSetIn`); the holder releases a day until N hours before opening and the set is free on every channel that day; when it resells (demo: _Simulate sale_) the guest earns the policy's credit %.
 
 ### C-08 · Buy a VIP Pass (prepaid credit)
