@@ -182,6 +182,7 @@ export function AdminToday() {
   return (
     <div className="animate-fade-up space-y-4">
       <PageHead
+        daily
         sub={`${WEEKDAY[d.getDay()]} ${fmtDateGB(DEMO_TODAY)} · ${TENANT.name} — what is happening now and what needs you.`}
       />
 

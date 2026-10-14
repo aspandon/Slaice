@@ -201,6 +201,7 @@ export function AdminLiveBeach() {
   return (
     <div className="animate-fade-up">
       <PageHead
+        daily
         title="Live beach"
         sub="Run the beach from the map — who is where, what needs action, and where demand is."
         badge={<Badge tone="mvp">MVP</Badge>}

@@ -499,4 +499,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-631 — Beach layout: canvas plus one inspector.** Stop-sell, date overrides and drafts & versions are tabs; the inspector follows the selection.
 - **AENR-644 — one guest record.** Favourite zone, party, channel and the card name agree across My bookings, Home, Wallet and the admin profile.
 - **AENR-632 — Live display preview stays in view.** Pinned beside the settings; pairing folds to one row once paired.
+- **AENR-661 — daily screens start with content.** Their description moved behind a “?” next to the title.
 - **AENR-658 — a calm first step.** No total or refund warning before a set is picked; the terms show once, on Pay.

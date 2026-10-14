@@ -152,6 +152,7 @@ export function MonthEnd() {
   return (
     <div className="animate-fade-up space-y-4">
       <PageHead
+        daily
         sub="Close the books for a month: what reached myDATA, card charges and payouts, VAT by rate, and the exceptions to clear first."
         actions={
           <div className="w-56">

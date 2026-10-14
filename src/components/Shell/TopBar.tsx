@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import * as Popover from "@radix-ui/react-popover";
+import { usePageHelp } from "../../lib/pageHelp";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
@@ -120,6 +121,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
   // is the primary nav). On the customer surface, the logo acts as the home
   // link and the bar is a compact action cluster — no inline nav here.
   const navItems = NAV[persona] || [];
+  const pageHelp = usePageHelp();
   // Pages outside the nav (e.g. a tenant page, AENR-500) get a plain title.
   const currentItem = navItems.find((it) => it.k === page) ?? (page === "tenant" ? { k: "tenant", label: "Tenant", short: "Tenant", icon: "building" } : undefined);
   const CurrentIcon = currentItem && Icon[currentItem.icon];
@@ -147,6 +149,20 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
           </span>
           <Icon.chevD size={15} className="text-slate-400 shrink-0 md:hidden" />
         </button>
+      )}
+      {persona !== "customer" && pageHelp && (
+        <Popover.Root>
+          <Popover.Trigger asChild>
+            <button type="button" aria-label="About this page" className="-ml-1 w-8 h-8 shrink-0 grid place-items-center rounded-full text-slate-500 hover:text-navy-900 hover:bg-slate-100 data-[state=open]:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+              <Icon.help size={16} />
+            </button>
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content align="start" sideOffset={6} className="z-[60] max-w-xs rounded-xl bg-white p-3 text-[13px] text-slate-700 leading-snug shadow-overlay ring-1 ring-slate-200">
+              {pageHelp}
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
       )}
 
       {/* Tight on phones so the staff page title keeps room (AENR defect: it showed one letter at 390px). */}

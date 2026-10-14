@@ -307,6 +307,7 @@ export function AdminBookings() {
   return (
     <div>
       <PageHead
+        daily
         sub={agent ? "Find a caller’s booking, resend their QR, move them or ask a manager for a refund." : "Every booking from every channel — find it, open it, act on it."}
         primary={<Btn variant="primary" icon={Icon.plus} onClick={() => go(persona, "newbooking")}>New booking</Btn>}
         actions={agent ? undefined : <ExportMenu onExport={exportBookings} what="bookings" />}

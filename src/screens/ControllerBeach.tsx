@@ -183,6 +183,7 @@ export function ControllerBeach() {
   return (
     <div className="animate-fade-up">
       <PageHead
+        daily
         title="Beach Status"
         sub="Every set on the beach — scan its label or tap it to check guests in, release, hold or take it out of service."
         badge={<Badge tone="mvp">MVP</Badge>}

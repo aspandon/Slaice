@@ -4,6 +4,7 @@ import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
 import { useCountUp } from "../../lib/motion";
 import { Card } from "./primitives";
+import { setPageHelp } from "../../lib/pageHelp";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 
 /* ---------- StatCard ----------
@@ -123,7 +124,9 @@ export interface PageAction {
   onClick: () => void;
   disabled?: boolean;
 }
-export function PageHead({ sub, back, actions, primary, secondary = [] }: {
+export function PageHead({ sub, back, actions, primary, secondary = [], daily = false }: {
+  /** A screen used every day (AENR-661): the sentence moves behind "?" by the title. */
+  daily?: boolean;
   /** Kept for call sites; the title shows in the top bar. */
   title?: ReactNode;
   sub?: ReactNode;
@@ -136,6 +139,13 @@ export function PageHead({ sub, back, actions, primary, secondary = [] }: {
   /** Up to three secondary actions, in the overflow menu. */
   secondary?: PageAction[];
 }) {
+  const helpText = daily && typeof sub === "string" ? sub : null;
+  useEffect(() => {
+    if (!helpText) return;
+    setPageHelp(helpText);
+    return () => setPageHelp(null);
+  }, [helpText]);
+  if (daily) sub = undefined;
   if (!sub && !back && !actions && !primary && secondary.length === 0) return null;
   const more = secondary.slice(0, 3);
   return (
