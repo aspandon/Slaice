@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ZoneChips, useZoneFree } from "../../components/ZoneChips";
+import { bestSets } from "../../domain/bestSets";
 import { Icon } from "../../lib/icons";
 import { Btn, Card, Field, Input, PageHead, Select, Stepper } from "../../components/ui";
 import { DateInput } from "../../components/ui/DateInput";
@@ -77,7 +78,18 @@ export function NewBooking() {
   // Opened from a free set on Live beach (AENR-651): start with that set picked.
   const [preZone] = useState(() => (hint?.setId ? ZONES.find((z) => liveSlots(z, [today]).some((x) => x.id === hint.setId)) : undefined));
   const [zoneId, setZoneId] = useState(preZone?.id ?? (ZONES.some((z) => z.id === prefs.zoneId) ? (prefs.zoneId as string) : "macaw"));
-  const [sets, setSets] = useState<{ id: string; zoneId: string }[]>(() => (preZone && hint?.setId ? [{ id: hint.setId, zoneId: preZone.id }] : []));
+  // Sets start pre-picked (AENR-635, like the guest's "Choose for me"): the best free
+  // sets for the party, side by side, cheapest, nearest the sea.
+  const bestFor = (zId: string, d: string, n = 1) => {
+    const z = ZONES.find((x) => x.id === zId);
+    if (!z) return [];
+    const all = liveSlots(z, [d]);
+    return (bestSets(all.filter((x) => x.state === "a"), all, n)?.ids ?? []).map((id) => ({ id, zoneId: zId }));
+  };
+  const [sets, setSets] = useState<{ id: string; zoneId: string }[]>(() =>
+    preZone && hint?.setId ? [{ id: hint.setId, zoneId: preZone.id }] : bestFor(zoneId, date),
+  );
+  const [autoPicked, setAutoPicked] = useState(() => !(preZone && hint?.setId));
   const [qty, setQty] = useState<Record<string, number>>({});
   const [guest, setGuest] = useState({
     name: pre?.name ?? "",
@@ -140,15 +152,26 @@ export function NewBooking() {
 
   const toggle = (id: string, state: string) => {
     setErr("");
+    setAutoPicked(false);
     if (picked.has(id)) return setSets((x) => x.filter((s) => s.id !== id));
     if (state !== "a") return setErr(`${id} isn’t free on ${fmtDay(date)}.`);
     setSets((x) => [...x, { id, zoneId }]);
   };
+  const partySets = Math.max(1, Math.ceil(Object.values(qty).reduce((a, n) => a + n, 0) / 2));
   const pickDate = (d: string) => {
     setDate(d);
-    setSets([]);
+    setSets(bestFor(zoneId, d, partySets));
+    setAutoPicked(true);
     setErr("");
   };
+  const pickZone = (zId: string) => {
+    setZoneId(zId);
+    if (sets.length === 0 || autoPicked) {
+      setSets(bestFor(zId, date, partySets));
+      setAutoPicked(true);
+    }
+  };
+  const [ticketsOpen, setTicketsOpen] = useState(false);
   // Start from the caller's number: a known guest fills in the rest (AENR-603).
   const digits = (x: string) => x.replace(/\D/g, "").replace(/^30/, "");
   const known = guest.phone.trim().length >= 8 ? CUSTOMERS.find((c) => digits(c.phone) === digits(guest.phone)) : undefined;
@@ -163,7 +186,8 @@ export function NewBooking() {
     );
   };
   const reset = () => {
-    setSets([]);
+    setSets(bestFor(zoneId, date));
+    setAutoPicked(true);
     setQty({});
     setGuest({ name: "", phone: "", email: "" });
     setDone(null);
@@ -223,8 +247,18 @@ export function NewBooking() {
   const hhmm = (iso: string) =>
     new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
+  // One column in the order of a phone call (AENR-635): caller, when, zone and sets,
+  // tickets, payment — the total and the main button pinned at the bottom.
+  const step = (n: number, title: string, aside?: ReactNode) => (
+    <div className="flex items-center gap-2 mb-2">
+      <span className="w-6 h-6 rounded-full bg-navy-900 text-white text-[12px] font-bold grid place-items-center shrink-0">{n}</span>
+      <h2 className="font-display font-bold text-navy-900">{title}</h2>
+      {aside && <span className="ml-auto text-[12px] text-slate-500">{aside}</span>}
+    </div>
+  );
+  const ticketCount = Object.values(qty).reduce((a, n) => a + n, 0);
   return (
-    <div className="animate-fade-up max-w-6xl space-y-4">
+    <div className="animate-fade-up max-w-3xl space-y-4">
       <PageHead
         sub="Book sets and tickets for a guest by phone or in person — pay now by card, send a payment link, or reserve unpaid."
         actions={
@@ -236,84 +270,8 @@ export function NewBooking() {
           </a>
         }
       />
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start">
-        <Card className="p-4 min-w-0">
-          <div className="flex flex-wrap items-end gap-2 mb-3">
-            <div
-              role="radiogroup"
-              aria-label="Date"
-              className="flex rounded-xl ring-1 ring-slate-200 overflow-hidden"
-            >
-              {[
-                [today, "Today"],
-                [addDays(today, 1), "Tomorrow"],
-              ].map(([d, l]) => (
-                <button
-                  key={d}
-                  type="button"
-                  role="radio"
-                  aria-checked={date === d}
-                  onClick={() => pickDate(d)}
-                  className={`px-3.5 min-h-[44px] text-sm font-semibold ${date === d ? "bg-navy-900 text-white" : "bg-white text-navy-900"}`}
-                >
-                  {l}
-                </button>
-              ))}
-            </div>
-            <div className="w-44">
-              <DateInput
-                aria-label="Visit date"
-                value={date}
-                min={today}
-                required
-                onChange={(d) => d && pickDate(d)}
-              />
-            </div>
-            <ZoneChips info={zoneInfo} value={zoneId} onChange={(v) => setZoneId(v)} className="w-full" />
-            <span className="ml-auto text-[12px] text-slate-500">
-              {sets.length
-                ? `${sets.length} set${sets.length === 1 ? "" : "s"} picked`
-                : "Tap free sets to book"}
-            </span>
-          </div>
-          <SunbedMap staff
-            label={`${zone.name} map for ${fmtDay(date)}`}
-            slots={slots}
-            selected={picked}
-            onToggle={(s) => toggle(s.id, s.state)}
-            priceOf={(s) => resolvePrice(s, zone.id, date, beachPricing, priceRules).price}
-            landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zone.id)}
-          />
-          {err && (
-            <div
-              role="alert"
-              className="mt-2 rounded-lg bg-rose-50 text-rose-800 ring-1 ring-rose-600/20 px-3 py-2 text-[12.5px]"
-            >
-              {err}
-            </div>
-          )}
-          <div className="mt-3 grid sm:grid-cols-2 gap-x-4 gap-y-1.5">
-            <div className="sm:col-span-2 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-              Entry tickets (optional)
-            </div>
-            {ex.tickets.map(({ id: c }) => (
-              <div key={c} className="flex items-center justify-between text-sm">
-                <span>
-                  {ex.ticketLabel(c)}{" "}
-                  <span className="text-slate-500">€{ex.ticketPrice(c, date)}</span>
-                </span>
-                <Stepper
-                  label={`${ex.ticketLabel(c)} tickets`}
-                  value={qty[c] ?? 0}
-                  onChange={(v) => setQty((q) => ({ ...q, [c]: v }))}
-                />
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {done ? (
-          <Card surface="raised" className="p-5 space-y-3 lg:sticky lg:top-4">
+      {done ? (
+          <Card surface="raised" className="p-5 space-y-3 ">
             <div role="status" className="flex items-start gap-3">
               <span className="w-10 h-10 rounded-full bg-emerald-50 text-emerald-700 grid place-items-center shrink-0">
                 <Icon.checkCircle size={22} />
@@ -351,30 +309,11 @@ export function NewBooking() {
               </Btn>
             </div>
           </Card>
-        ) : (
-          <Card surface="raised" className="p-4 space-y-3 lg:sticky lg:top-4">
-            <h2 className="font-display font-bold text-navy-900">Booking</h2>
-            {lines.length === 0 ? (
-              <div className="rounded-xl bg-slate-50 ring-1 ring-dashed ring-slate-300 px-3 py-4 text-center text-[13px] text-slate-600">
-                Pick one or more free sets on the map.
-              </div>
-            ) : (
-              <ul className="text-sm divide-y divide-slate-100">
-                {lines.map((l) => (
-                  <li key={l.label} className="py-1.5 flex justify-between gap-2">
-                    <span>
-                      {l.qty > 1 ? `${l.qty} × ` : ""}
-                      {l.label}
-                    </span>
-                    <span className="tnum font-semibold">{eur(l.qty * l.unit)}</span>
-                  </li>
-                ))}
-                <li className="pt-2 flex justify-between font-bold text-navy-900">
-                  <span>Total · {fmtDay(date)}</span>
-                  <span className="tnum">{eur(total)}</span>
-                </li>
-              </ul>
-            )}
+      ) : (
+        <>
+          <Card className="p-4 space-y-3">
+            {step(1, "Caller")}
+            <div className="grid sm:grid-cols-2 gap-3 items-start">
             <Field
               label="Caller’s mobile"
               hint={
@@ -427,6 +366,96 @@ export function NewBooking() {
               </Field>
             )}
 
+            </div>
+          </Card>
+
+          <Card className="p-4">
+            {step(2, "When")}
+            <div className="flex flex-wrap items-end gap-2">
+            <div
+              role="radiogroup"
+              aria-label="Date"
+              className="flex rounded-xl ring-1 ring-slate-200 overflow-hidden"
+            >
+              {[
+                [today, "Today"],
+                [addDays(today, 1), "Tomorrow"],
+              ].map(([d, l]) => (
+                <button
+                  key={d}
+                  type="button"
+                  role="radio"
+                  aria-checked={date === d}
+                  onClick={() => pickDate(d)}
+                  className={`px-3.5 min-h-[44px] text-sm font-semibold ${date === d ? "bg-navy-900 text-white" : "bg-white text-navy-900"}`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+            <div className="w-44">
+              <DateInput
+                aria-label="Visit date"
+                value={date}
+                min={today}
+                required
+                onChange={(d) => d && pickDate(d)}
+              />
+            </div>
+            </div>
+          </Card>
+
+          <Card className="p-4 min-w-0 space-y-3">
+            {step(3, "Zone and sets", sets.length ? `${sets.length} set${sets.length === 1 ? "" : "s"} · ${sets.map((x) => x.id).join(", ")}${autoPicked ? " · picked for you" : ""}` : "Tap free sets to book")}
+            <ZoneChips info={zoneInfo} value={zoneId} onChange={pickZone} className="w-full" />
+          <SunbedMap staff
+            showCodes
+            label={`${zone.name} map for ${fmtDay(date)}`}
+            slots={slots}
+            selected={picked}
+            onToggle={(s) => toggle(s.id, s.state)}
+            priceOf={(s) => resolvePrice(s, zone.id, date, beachPricing, priceRules).price}
+            landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zone.id)}
+          />
+            <p className="text-[11.5px] text-slate-500">Outline = free · solid = booked · striped = held · teal = picked. {autoPicked ? "The best free set is picked for you — tap to change." : ""}</p>
+          {err && (
+            <div
+              role="alert"
+              className="mt-2 rounded-lg bg-rose-50 text-rose-800 ring-1 ring-rose-600/20 px-3 py-2 text-[12.5px]"
+            >
+              {err}
+            </div>
+          )}
+          </Card>
+
+          <Card className="p-4">
+            {step(4, "Entry tickets", ticketCount ? `${ticketCount} ticket${ticketCount === 1 ? "" : "s"}` : "optional")}
+            {ticketsOpen || ticketCount > 0 ? (
+              <div className="grid sm:grid-cols-2 gap-x-4 gap-y-1.5">
+            {ex.tickets.map(({ id: c }) => (
+              <div key={c} className="flex items-center justify-between text-sm">
+                <span>
+                  {ex.ticketLabel(c)}{" "}
+                  <span className="text-slate-500">€{ex.ticketPrice(c, date)}</span>
+                </span>
+                <Stepper
+                  label={`${ex.ticketLabel(c)} tickets`}
+                  value={qty[c] ?? 0}
+                  onChange={(v) => setQty((q) => ({ ...q, [c]: v }))}
+                />
+              </div>
+            ))}
+              </div>
+            ) : (
+              <button type="button" onClick={() => { setTicketsOpen(true); setQty((q) => ({ ...q, [ex.tickets[0]?.id ?? "adult"]: sets.length * 2 || 2 })); }}
+                className="w-full flex items-center gap-2 rounded-xl ring-1 ring-dashed ring-slate-300 px-3 py-2.5 text-left text-[13px] text-slate-700 hover:ring-teal-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                <Icon.plus size={14} className="text-teal-700" /> Add entry tickets <span className="text-slate-500">· {sets.length * 2 || 2} for {sets.length || 1} set{sets.length === 1 ? "" : "s"}, change after</span>
+              </button>
+            )}
+          </Card>
+
+          <Card className="p-4 space-y-3">
+            {step(5, "Payment")}
             <fieldset>
               <legend className="text-[12px] font-semibold text-slate-700 mb-1.5">Payment</legend>
               <div className="space-y-1.5">
@@ -499,9 +528,18 @@ export function NewBooking() {
                 />
               </Field>
             )}
-            {sets.length > 0 && problem && (
-              <div className="text-[12px] text-slate-600">{problem}</div>
-            )}
+          </Card>
+
+          {/* Pinned: what it costs and the one button (AENR-635). */}
+          <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:bottom-3 z-20">
+            <div className="glass-card rounded-2xl shadow-float p-3 flex flex-wrap items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="font-display font-bold text-navy-900 text-xl tnum leading-tight">{eur(total)}</div>
+                <div className="text-[12px] text-slate-600 truncate">
+                  {problem || `${lines.map((l) => `${l.qty > 1 ? `${l.qty} × ` : ""}${l.label}`).join(" · ")} · ${fmtDay(date)}`}
+                </div>
+              </div>
+              <div className="w-full sm:w-auto">
             <Btn
               variant="primary"
               size="lg"
@@ -516,9 +554,11 @@ export function NewBooking() {
                   ? `Reserve & send link · ${eur(total)}`
                   : `Reserve unpaid · ${eur(total)}`}
             </Btn>
-          </Card>
-        )}
-      </div>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {paying && (
         <CardPayModal
