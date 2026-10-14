@@ -14,6 +14,8 @@ import type { CartItem, LangCode, PersonaId } from "../../domain/types";
 import { NavSheet } from "./Nav";
 import { PersonaSwitcher } from "./PersonaSwitcher";
 import type { NavProps } from "./types";
+import type { StaffUser } from "../../domain/types";
+import { DEFAULT_CASHIER } from "../../data/till";
 
 interface FeedItem { ic: string; tone: string; t: string; b: string; time: string }
 
@@ -69,14 +71,31 @@ const FEEDS: Record<string, FeedItem[]> = {
   ],
 };
 
+/* ---------- Who is signed in on a staff device (AENR-646) ---------- */
+const PERSONA_USER: Partial<Record<PersonaId, string>> = {
+  admin: "Eleni Markou",
+  callcenter: "Maria Kontou",
+  controller: "Petros Nikolaou",
+  accountant: "Anna Mavridi",
+};
+function staffMe(persona: PersonaId, staff: readonly StaffUser[], name?: string) {
+  const want = name ?? PERSONA_USER[persona];
+  const u = staff.find((x) => x.name === want) ?? staff.find((x) => x.role === persona && x.status === "active");
+  const full = u?.name ?? want ?? (persona === "platform" ? "Sofia Antoniou" : "Staff");
+  const initials = full.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  return { initials, name: full, email: u?.email ?? (persona === "platform" ? "ops@slaice.com" : "") };
+}
+
 /* ---------- Top bar ---------- */
 export function TopBar({ persona, setPersona, page, setPage, previewing = false }: NavProps & { setPersona: (p: PersonaId) => void; previewing?: boolean }) {
-  const { setSignedIn, go, toast, cart, removeFromCart, addToCart, clearCart } = useApp();
+  const { setSignedIn, go, toast, cart, removeFromCart, addToCart, clearCart, staffUsers, till, viewAs } = useApp();
   const t = useT();
-  // Who is signed in: the guest on the customer side, the demo staff member elsewhere.
+  // Who is signed in (AENR-646): the guest on the customer side; elsewhere the demo
+  // staff member for this persona from Team & roles — on the till the active
+  // cashier, so Switch cashier changes the avatar at once.
   const me = persona === "customer"
     ? { initials: `${PROFILE.first[0]}${PROFILE.last[0]}`, name: `${PROFILE.first} ${PROFILE.last}`, email: PROFILE.email }
-    : { initials: "EM", name: "Elena M.", email: "elena@example.com" };
+    : staffMe(persona, staffUsers, viewAs?.name ?? (persona === "cashier" ? till.active ?? till.shift?.cashier ?? DEFAULT_CASHIER : undefined));
   const cartCount = (cart || []).length;
   const cartTotal = (cart || []).reduce((a, b) => a + b.price, 0);
   // Basket + notifications are controlled Popovers so their in-panel CTAs can
