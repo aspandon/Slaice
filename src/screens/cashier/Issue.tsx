@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { ZoneChips } from "../../components/ZoneChips";
 import { Icon, type IconRenderer } from "../../lib/icons";
 import { ActionsMenu, Btn, Card, Field, Input, Modal, StickyActionBar, Stepper } from "../../components/ui";
 import { Sunbed } from "../../components/Beach";
@@ -404,25 +405,13 @@ function IssueInner() {
 
               {tab === "sunbeds" && (
                 <>
-                  <div role="radiogroup" aria-label="Zone" className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
-                    {ZONES.map((z) => {
-                      const closed = closure(z.id, t.day);
-                      const free = freeIn(z.id);
-                      const from = free.length ? Math.min(...free.map((s) => priceOf(s, z.id))) : null;
-                      const off = !!closed || free.length === 0;
-                      const active = z.id === zone.id;
-                      return (
-                        <button key={z.id} type="button" role="radio" aria-checked={active} disabled={off && !active}
-                          onClick={() => { setZoneId(z.id); setErr(""); }}
-                          className={`shrink-0 min-h-[56px] min-w-[112px] rounded-xl px-3 py-1.5 text-left ring-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${active ? "bg-navy-900 text-white ring-navy-900" : off ? "bg-slate-50 ring-slate-200 text-slate-400 cursor-not-allowed" : "bg-white/70 ring-slate-200 text-navy-900 hover:bg-white"}`}>
-                          <span className="flex items-center gap-1.5 font-semibold text-sm"><i className="w-2 h-2 rounded-full" style={{ background: z.color }} />{z.name}</span>
-                          <span className={`block text-[11.5px] mt-0.5 whitespace-nowrap ${active ? "text-white/75" : off ? "text-slate-400" : "text-slate-500"}`}>
-                            {closed ? "Closed" : free.length === 0 ? "Full today" : `${free.length} free · €${from}+`}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <ZoneChips disableOff value={zone.id} onChange={(id) => { setZoneId(id); setErr(""); }}
+                    info={(id) => {
+                      const closed = closure(id, t.day);
+                      const free = freeIn(id);
+                      const from = free.length ? Math.min(...free.map((s) => priceOf(s, id))) : null;
+                      return { off: !!closed || free.length === 0, sub: closed ? "Closed" : free.length === 0 ? "Full today" : `${free.length} free · €${from}+` };
+                    }} />
                   <div className="flex flex-wrap items-center gap-2 justify-between my-2">
                     <h2 className="font-display font-bold text-navy-900">Sunbeds · {zone.name}</h2>
                     <div className="flex gap-2">

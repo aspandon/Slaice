@@ -1,6 +1,7 @@
 import { useState } from "react";
+import { ZoneChips } from "../../components/ZoneChips";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Input, Modal, Select, Spinner, DateInput } from "../../components/ui";
+import { Badge, Btn, Card, Input, Modal, Spinner, DateInput } from "../../components/ui";
 import { SunbedMap } from "../../components/SunbedMap";
 import { useApp } from "../../app/store";
 import { ZONES, todayISO, zoneLayout } from "../../data/beach";
@@ -591,14 +592,7 @@ function VersionView({
       }
     >
       <div className="flex items-center gap-2 mb-2">
-        <div className="w-44">
-          <Select
-            aria-label="Zone"
-            value={zid}
-            onChange={(e) => setZid(e.target.value)}
-            options={ZONES.map((z) => ({ v: z.id, l: z.name }))}
-          />
-        </div>
+        <ZoneChips info={() => ({})} value={zid} onChange={(v) => setZid(v)} className="w-full" />
         <span className="text-[12px] text-slate-500">
           Effective from {fy(v.effectiveFrom)} · {v.summary}
         </span>

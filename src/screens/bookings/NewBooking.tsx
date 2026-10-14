@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ZoneChips, useZoneFree } from "../../components/ZoneChips";
 import { Icon } from "../../lib/icons";
 import { Btn, Card, Field, Input, PageHead, Select, Stepper } from "../../components/ui";
 import { DateInput } from "../../components/ui/DateInput";
@@ -71,6 +72,7 @@ export function NewBooking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [date, setDate] = useState(today);
+  const zoneInfo = useZoneFree(date, "phone");
 
   // Opened from a free set on Live beach (AENR-651): start with that set picked.
   const [preZone] = useState(() => (hint?.setId ? ZONES.find((z) => liveSlots(z, [today]).some((x) => x.id === hint.setId)) : undefined));
@@ -267,14 +269,7 @@ export function NewBooking() {
                 onChange={(d) => d && pickDate(d)}
               />
             </div>
-            <div className="w-40">
-              <Select
-                aria-label="Zone"
-                value={zoneId}
-                onChange={(e) => setZoneId(e.target.value)}
-                options={ZONES.map((z) => ({ v: z.id, l: z.name }))}
-              />
-            </div>
+            <ZoneChips info={zoneInfo} value={zoneId} onChange={(v) => setZoneId(v)} className="w-full" />
             <span className="ml-auto text-[12px] text-slate-500">
               {sets.length
                 ? `${sets.length} set${sets.length === 1 ? "" : "s"} picked`

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ZoneChips } from "../../components/ZoneChips";
 import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, Field, Input, Select, Toggle, DateInput } from "../../components/ui";
 import { useApp } from "../../app/store";
@@ -610,17 +611,10 @@ export function PricingCalendar({
     <div className="grid md:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start">
       <Card className="p-4 min-w-0">
         <div className="flex flex-wrap items-center gap-2 mb-3">
-          <div className="w-40">
-            <Select
-              aria-label="Zone"
-              value={zoneId}
-              onChange={(e) => {
-                setZoneId(e.target.value);
+          <ZoneChips value={zoneId} onChange={(v) => {
+                setZoneId(v);
                 setSel(new Set());
-              }}
-              options={ZONES.map((z) => ({ v: z.id, l: z.name }))}
-            />
-          </div>
+              }} className="w-full" />
           <div className="flex items-center gap-1">
             <Btn
               size="sm"
@@ -847,14 +841,7 @@ export function PricingAdvanced({
   };
   return (
     <div className="space-y-4">
-      <div className="w-40">
-        <Select
-          aria-label="Zone"
-          value={zoneId}
-          onChange={(e) => setZoneId(e.target.value)}
-          options={ZONES.map((z) => ({ v: z.id, l: z.name }))}
-        />
-      </div>
+      <ZoneChips info={() => ({})} value={zoneId} onChange={(v) => setZoneId(v)} className="w-full" />
       <div className="grid lg:grid-cols-3 gap-4 items-start">
         <Card className="p-4">
           <div className="font-semibold text-navy-900 mb-2">Restrictions</div>

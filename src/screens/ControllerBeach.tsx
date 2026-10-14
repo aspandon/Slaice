@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ZoneChips, useZoneFree } from "../components/ZoneChips";
 import { Icon } from "../lib/icons";
 import { Badge, Btn, Card, Field, Input, Select, PageHead, DateInput, fmtDateGB } from "../components/ui";
 import { SunbedMap } from "../components/SunbedMap";
@@ -70,6 +71,7 @@ export function ControllerBeach() {
   const who = viewAs?.name ?? "Petros Nikolaou";
   const today = todayISO();
   const [date, setDate] = useState(today);
+  const zoneInfo = useZoneFree(date, "walkin");
   const [zoneId, setZoneId] = useState("central");
   const [sel, setSel] = useState<Set<string>>(new Set());
   // On a phone the panel sits under the map — bring it into view on a pick.
@@ -214,17 +216,10 @@ export function ControllerBeach() {
             className="block mt-1 rounded-lg ring-1 ring-slate-200 px-2 py-2 text-[13px]"
           />
         </div>
-        <div className="w-40">
-          <Select
-            aria-label="Zone"
-            value={zoneId}
-            onChange={(e) => {
-              setZoneId(e.target.value);
+        <ZoneChips info={zoneInfo} value={zoneId} onChange={(v) => {
+              setZoneId(v);
               setSel(new Set());
-            }}
-            options={ZONES.map((z) => ({ v: z.id, l: z.name }))}
-          />
-        </div>
+            }} className="w-full" />
       </div>
       <div className="grid lg:grid-cols-[minmax(0,1fr)_360px] gap-4 items-start">
         <div className="space-y-4 min-w-0">

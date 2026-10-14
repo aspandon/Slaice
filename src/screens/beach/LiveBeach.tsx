@@ -1,11 +1,14 @@
-import { useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Flip, motionOK, EASE } from "../../lib/fx";
+import { useClosure } from "../../lib/useLiveSlots";
+import { ZoneChips } from "../../components/ZoneChips";
 import { prefersReducedMotion } from "../../lib/motion";
 import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, Field, PageHead, PeriodPicker, Select, Toggle } from "../../components/ui";
 import { SunbedMap } from "../../components/SunbedMap";
 import { Sunbed } from "../../components/Beach";
 import { useApp } from "../../app/store";
-import { readHashQuery } from "../../app/router";
+import { readHashQuery, writeHashQuery } from "../../app/router";
 import { ZONES } from "../../data/beach";
 import { summarize } from "../../data/analytics";
 import { DEMO_TODAY, addDays, rangeLabel, resolveRange } from "../../domain/period";
@@ -55,7 +58,9 @@ export function AdminLiveBeach() {
   };
   const [date, setDate] = useState(DEMO_TODAY);
   // ?zone=&set= open a zone with a set selected (deep links from ⌘K, AENR-553).
-  const [zoneId, setZoneId] = useState(() => readHashQuery().get("zone") ?? "central");
+  // No ?zone= → the whole beach first (AENR-650).
+  const [zoneId, setZoneId] = useState(() => readHashQuery().get("zone") ?? "all");
+  const overview = zoneId === "all";
   const [view, setView] = useState<View>("live");
   const [metric, setMetric] = useState<Metric>("occupancy");
   const [period, setPeriod] = usePeriod({ kind: "preset", preset: "season", offset: 0 });
@@ -157,6 +162,28 @@ export function AdminLiveBeach() {
   };
   const [moveOpen, setMoveOpen] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  // The whole beach (AENR-650): every zone with its counts; tap one to zoom in.
+  const closure = useClosure();
+  const stats = ZONES.map((z) => {
+    const sl = liveSlots(z, [date]);
+    const keys = sl.map((x) => [x, keyOf(x)] as const);
+    const n = (k: LegendKey) => keys.filter(([, kk]) => kk === k).length;
+    return { zone: z, slots: keys, closed: closure(z.id, date), free: n("free"), booked: n("booked") + n("unpaid") + n("noshow"), inUse: n("occupied"), action: n("unpaid") + n("noshow") };
+  });
+  const flipRef = useRef<ReturnType<typeof Flip.getState> | null>(null);
+  const pickZone = (id: string) => {
+    if (id !== "all" && overview && motionOK()) flipRef.current = Flip.getState(`[data-flip-id="zone-${id}"]`);
+    setZoneId(id);
+    setSel(new Set());
+    if (id === "all") writeHashQuery({}, ["zone", "set"]);
+    else writeHashQuery({ zone: id }, ["set"]);
+  };
+  useLayoutEffect(() => {
+    const st = flipRef.current;
+    if (!st) return;
+    flipRef.current = null;
+    Flip.from(st, { targets: `[data-flip-id="zone-${zoneId}"]`, duration: 0.55, ease: EASE.inOut, scale: true });
+  }, [zoneId]);
   const toggle = (s: SunbedSlot) => {
     // On a phone the card sits under the map: bring it into view on the first pick.
     if (!sel.size && window.matchMedia("(max-width: 1023px)").matches)
@@ -202,17 +229,9 @@ export function AdminLiveBeach() {
             </button>
           ))}
         </div>
-        <div className="w-40">
-          <Select
-            aria-label="Zone"
-            value={zoneId}
-            onChange={(e) => {
-              setZoneId(e.target.value);
-              setSel(new Set());
-            }}
-            options={ZONES.map((z) => ({ v: z.id, l: z.name }))}
-          />
-        </div>
+        <ZoneChips value={zoneId} onChange={pickZone} className="w-full" all={{ sub: `${stats.reduce((a, x) => a + (x.closed ? 0 : x.free), 0)} free` }}
+          info={(id) => { const x = stats.find((z) => z.zone.id === id); return !x ? {} : x.closed ? { sub: "Closed", off: true } : { sub: `${x.free} free · ${x.booked + x.inUse} booked`, off: x.free === 0 }; }} />
+        {!overview && (
         <div
           role="radiogroup"
           aria-label="View"
@@ -236,9 +255,14 @@ export function AdminLiveBeach() {
             </button>
           ))}
         </div>
+        )}
       </div>
 
+      {overview ? (
+        <BeachOverview stats={stats} onPick={pickZone} />
+      ) : (
       <div className="grid lg:grid-cols-[minmax(0,1fr)_340px] gap-4 items-start">
+        <div data-flip-id={`zone-${zone.id}`} className="min-w-0">
         <Card className="p-4 min-w-0">
           {view === "live" ? (
             <ul
@@ -319,6 +343,7 @@ export function AdminLiveBeach() {
             free ones).
           </p>
         </Card>
+        </div>
 
         <div className="flex flex-col gap-4 lg:sticky lg:top-4">
           {allNoShows.length > 0 && date === DEMO_TODAY && (
@@ -446,7 +471,65 @@ export function AdminLiveBeach() {
           </div>
         </div>
       </div>
+      )}
     </div>
+  );
+}
+
+/* The whole beach at a glance (AENR-650): each zone as a small map with its
+   counts — free, booked, in use, needing action, closed. Tap to zoom in. */
+type ZoneStat = { zone: (typeof ZONES)[number]; slots: (readonly [SunbedSlot, LegendKey])[]; closed?: string; free: number; booked: number; inUse: number; action: number };
+const DOT: Record<LegendKey, string> = {
+  free: "bg-white ring-1 ring-slate-400",
+  booked: "bg-sky-500",
+  occupied: "bg-teal-600",
+  unpaid: "bg-amber-400",
+  noshow: "bg-violet-600",
+  held: "bg-slate-600",
+  oos: "bg-rose-600",
+};
+function BeachOverview({ stats, onPick }: { stats: ZoneStat[]; onPick: (id: string) => void }) {
+  return (
+    <section aria-label="Whole beach" className="space-y-3">
+      <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+        {stats.map((x) => (
+          <button
+            key={x.zone.id}
+            type="button"
+            data-flip-id={`zone-${x.zone.id}`}
+            onClick={() => onPick(x.zone.id)}
+            aria-label={`${x.zone.name}: ${x.closed ? `closed (${x.closed})` : `${x.free} free, ${x.booked} booked, ${x.inUse} in use${x.action ? `, ${x.action} need action` : ""}`}. Open the zone.`}
+            className="text-left rounded-2xl bg-white/80 ring-1 ring-slate-200 p-3 hover:ring-teal-400 hover:shadow-md transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+          >
+            <div className="flex items-center justify-between gap-2 mb-2">
+              <span className="flex items-center gap-2 font-display font-bold text-navy-900">
+                <i aria-hidden className="w-2.5 h-2.5 rounded-full" style={{ background: x.zone.color }} />
+                {x.zone.name}
+              </span>
+              {x.closed ? <Badge tone="neutral">Closed</Badge> : x.action > 0 ? <Badge tone="amber">{x.action} to act on</Badge> : null}
+            </div>
+            <div aria-hidden className={`relative rounded-xl aspect-[16/8] bg-gradient-to-b from-sky-100 via-amber-50 to-amber-100/70 ring-1 ring-slate-200 overflow-hidden ${x.closed ? "opacity-50 grayscale" : ""}`}>
+              <div className="absolute inset-x-0 top-0 h-[7%] bg-sky-300/50" />
+              {x.slots.map(([s, k]) => (
+                <span key={s.id} className={`absolute w-[7px] h-[7px] -translate-x-1/2 -translate-y-1/2 rounded-full ${DOT[k]}`} style={{ left: `${s.x}%`, top: `${s.y}%` }} />
+              ))}
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[12.5px] text-slate-600 tnum">
+              {x.closed ? (
+                <span>{x.closed}</span>
+              ) : (
+                <>
+                  <span><b className="text-emerald-700">{x.free}</b> free</span>
+                  <span><b className="text-navy-900">{x.booked}</b> booked</span>
+                  <span><b className="text-navy-900">{x.inUse}</b> in use</span>
+                </>
+              )}
+            </div>
+          </button>
+        ))}
+      </div>
+      <p className="text-[12px] text-slate-500">Dots: white free · blue booked · green in use · amber unpaid · violet no-show · grey held · red out of service. Tap a zone to work on its sets.</p>
+    </section>
   );
 }
 

@@ -1201,7 +1201,8 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
 ### A-04a · Live beach [MVP] (AENR-580)
 
 ```text
- [Today | Tomorrow]  Store ◆   [Live state | Heatmap]
+ [Today | Tomorrow]  [All zones 98 free][Akanthus 24 free · 22 booked][Central …]…   [Live state | Heatmap]
+ All zones: a card per zone — mini map of dots · 24 free · 5 booked · 17 in use · "5 to act on" → tap to zoom in
  Legend: Free 19 · Booked 21 · ✓ Checked in · € Unpaid · N No-show · H Held · ✕ Out of service (counts)
  Map: every set with its code and a lettered state badge · tap to select (several at once)
  Side: N no-shows in Central [Release all for resale]
@@ -1211,6 +1212,15 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
  Heatmap: Occupancy | Revenue · ‹ Week | Month | Season | Custom › · low → high tint per set
 ```
 
+- **Whole beach first** (AENR-650): with no `?zone=` Live beach opens on every zone at once — a small
+  map per zone (dots: free, booked, in use, unpaid, no-show, held, out of service), "24 free · 5 booked ·
+  17 in use", a "N to act on" badge and closed zones greyed. Tapping a zone zooms into its map (FLIP,
+  skipped with reduced motion) and writes `?zone=` to the URL; the **All zones** chip goes back.
+- **Zone chips, not dropdowns** (AENR-650): every staff page that shows one zone at a time picks it
+  from a row of chips with live counts — `src/components/ZoneChips.tsx` (radiogroup, arrow keys,
+  sideways scroll on phones): Live beach ("21 free · 22 booked"), New booking and the Controller's
+  Beach status (free sets on the chosen day), Walk-in, Pricing calendar and restrictions, Beach layout
+  workspace and versions, and the till's Sunbeds tab ("21 free · €25+", closed / full disabled).
 - The manager's operations map (Admin › **Live beach**): live state per set read the same way as the
   Controller's Beach status (`src/lib/useBeachState.ts` — staff status, then real bookings, then the
   sample beach), set codes printed, a legend with counts where each state has a letter badge (never

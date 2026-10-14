@@ -479,3 +479,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   cheapest, nearest the sea) with "Front row instead (+€X)"; tap a set to swap it, Clear to start over.
 - **AENR-651 — the set card.** Tapping a set on Live beach shows the guest, phone, party, paid / due,
   arrived / expected and notes, with one action that fits: Check in, Take payment, Release or Sell.
+- **AENR-650 — the whole beach, then a zone.** Live beach opens on every zone with its counts; tap to zoom
+  in. Staff pages pick a zone from chips with live counts instead of a dropdown.

@@ -1,4 +1,5 @@
 import { Suspense, useEffect, useMemo, useState } from "react";
+import { ZoneChips } from "../../components/ZoneChips";
 import { lazyWithReload } from "../../lib/staleChunk";
 import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, Field, Input, Modal, Select, Spinner, Table, Toggle, DateInput } from "../../components/ui";
@@ -241,14 +242,7 @@ export function SunbedWorkspace() {
       <div className="grid xl:grid-cols-[minmax(0,1fr)_340px] gap-4 items-start">
         <Card className="p-4 min-w-0">
           {/* Zone + date + mode */}
-          <div className="flex flex-wrap items-center gap-1.5 mb-3" role="radiogroup" aria-label="Zone">
-            {ZONES.map((z) => (
-              <button key={z.id} type="button" role="radio" aria-checked={zoneId === z.id} onClick={() => { setZoneId(z.id); setSel(new Set()); setLmSel(null); setPaintCat(""); }}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold ring-1 transition ${zoneId === z.id ? "bg-navy-900 text-white ring-navy-900" : "ring-slate-200 text-slate-700 hover:ring-teal-400"}`}>
-                <span className="w-2.5 h-2.5 rounded-full" style={{ background: z.color }} /> {z.name}
-              </button>
-            ))}
-          </div>
+          <ZoneChips className="mb-3" info={() => ({})} value={zoneId} onChange={(id) => { setZoneId(id); setSel(new Set()); setLmSel(null); setPaintCat(""); }} />
           <div className="flex flex-wrap items-end gap-3 mb-3">
             <div className="text-[12px] font-semibold text-slate-700">Prices on
               <DateInput aria-label="Prices on" value={date} onChange={(v) => v && setDate(v)} className="block mt-1 rounded-lg ring-1 ring-slate-200 px-2 py-1.5 text-[13px]" />

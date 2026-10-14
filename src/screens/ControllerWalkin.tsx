@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { ZoneChips } from "../components/ZoneChips";
 import { Icon } from "../lib/icons";
-import { Badge, Btn, Card, PageHead, Select, Stepper } from "../components/ui";
+import { Badge, Btn, Card, PageHead, Stepper } from "../components/ui";
 import { SunbedMap } from "../components/SunbedMap";
 import { SetScanner, type ScanHit } from "../components/SetScanner";
 import { useApp } from "../app/store";
@@ -141,14 +142,7 @@ export function ControllerWalkin({
           <Card className="p-4">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
               <h2 className="font-display font-bold text-navy-900">Or tap a free set</h2>
-              <div className="w-40">
-                <Select
-                  aria-label="Zone"
-                  value={zoneId}
-                  onChange={(e) => setZoneId(e.target.value)}
-                  options={ZONES.map((z) => ({ v: z.id, l: z.name }))}
-                />
-              </div>
+              <ZoneChips value={zoneId} onChange={(v) => setZoneId(v)} className="w-full" />
             </div>
             <SunbedMap
               label={`${zone.name} walk-in map`}
