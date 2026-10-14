@@ -144,7 +144,7 @@ export function ControllerWalkin({
               <h2 className="font-display font-bold text-navy-900">Or tap a free set</h2>
               <ZoneChips value={zoneId} onChange={(v) => setZoneId(v)} className="w-full" />
             </div>
-            <SunbedMap
+            <SunbedMap staff
               label={`${zone.name} walk-in map`}
               slots={slots}
               selected={inBasket}

@@ -1,4 +1,4 @@
-import { useLayoutEffect, useState } from "react";
+import { useLayoutEffect, useState, type ReactNode } from "react";
 import { ZoomBox } from "./ZoomBox";
 import { Sunbed } from "./Beach";
 import { Icon } from "../lib/icons";
@@ -129,9 +129,12 @@ function MapCanvas({
   describe,
   marker,
   heat,
+  staff = false,
 }: {
   /** A small state badge on a set — a letter plus colour, never colour alone (AENR-580). */
-  marker?: (s: SunbedSlot) => { text: string; cls: string } | undefined;
+  marker?: (s: SunbedSlot) => { text: ReactNode; cls: string } | undefined;
+  /** Staff colours (AENR-663): booked sets solid, free sets outlined — busy reads busy. */
+  staff?: boolean;
   /** Heatmap: 0–1 per set, drawn as a tint behind it (AENR-580). */
   heat?: (s: SunbedSlot) => number;
   /** Only these sets stay prominent (status filters, AENR-587); the rest fade. */
@@ -179,6 +182,9 @@ function MapCanvas({
             height: "var(--cell, clamp(30px, 5.2vw, 44px))",
           }}
         >
+          {staff ? (
+            <span className="absolute inset-[14%] top-[6%] bottom-[22%] grid"><StaffSet state={s.state} sel={!!selected?.has(s.id)} /></span>
+          ) : (
           <Sunbed
             state={s.state}
             sel={selected?.has(s.id)}
@@ -188,6 +194,17 @@ function MapCanvas({
             readOnly={readOnly || pickAny}
             onClick={onToggle && !pickAny ? () => onToggle(s) : undefined}
           />
+          )}
+          {staff && !pickAny && onToggle && !readOnly && (
+            <button
+              type="button"
+              aria-pressed={!!selected?.has(s.id)}
+              disabled={s.state !== "a" && !selected?.has(s.id)}
+              aria-label={`${s.id} — ${s.state === "u" ? "booked" : s.state === "h" ? "on hold" : "free"}, €${priceOf ? priceOf(s) : s.price}`}
+              onClick={() => onToggle(s)}
+              className="absolute inset-0 rounded-lg disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+            />
+          )}
           {pickAny && onToggle && (
             <button
               type="button"
@@ -207,7 +224,7 @@ function MapCanvas({
           })()}
           {highlight?.has(s.id) && <span aria-hidden className="absolute -inset-1 rounded-xl ring-[3px] ring-amber-500 pointer-events-none" />}
           {showCodes && (
-            <span aria-hidden className="absolute left-1/2 -translate-x-1/2 top-[88%] whitespace-nowrap rounded bg-white/90 px-0.5 text-[9px] leading-tight font-semibold text-navy-900 tnum pointer-events-none">
+            <span aria-hidden className="absolute z-[2] left-1/2 -translate-x-1/2 top-[88%] whitespace-nowrap rounded bg-white/90 px-0.5 text-[9px] leading-tight font-semibold text-navy-900 tnum pointer-events-none">
               {s.id}
             </span>
           )}
@@ -223,5 +240,28 @@ function MapCanvas({
         </div>
       ))}
     </div>
+  );
+}
+
+/* The staff glyph (AENR-663): booked = solid navy, free = an outline, on hold =
+   striped. Same umbrella mark, so it still reads as the beach. */
+export function StaffSet({ state, sel = false, size }: { state: "a" | "h" | "u"; sel?: boolean; size?: number }) {
+  const box = size ? { width: size, height: size } : undefined;
+  return (
+    <span
+      aria-hidden
+      style={box}
+      className={`grid place-items-center rounded-lg transition ${size ? "" : "w-full h-full"} ${
+        sel
+          ? "bg-teal-600 text-white ring-2 ring-navy-900 ring-offset-1"
+          : state === "u"
+            ? "bg-navy-800 text-white"
+            : state === "h"
+              ? "bg-[repeating-linear-gradient(45deg,#cbd5e1_0_3px,#f1f5f9_3px_6px)] text-slate-600 ring-1 ring-slate-400"
+              : "bg-white/85 text-teal-700 ring-2 ring-teal-600"
+      }`}
+    >
+      <Icon.umbrella size={size ? Math.round(size * 0.6) : 14} />
+    </span>
   );
 }

@@ -2,8 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEve
 import { ZoneChips } from "../../components/ZoneChips";
 import { Icon, type IconRenderer } from "../../lib/icons";
 import { ActionsMenu, Btn, Card, Field, Input, Modal, StickyActionBar, Stepper } from "../../components/ui";
-import { Sunbed } from "../../components/Beach";
-import { SunbedMap } from "../../components/SunbedMap";
+import { SunbedMap, StaffSet } from "../../components/SunbedMap";
 import { SetScanner, type ScanHit } from "../../components/SetScanner";
 import { useApp } from "../../app/store";
 import { ZONES } from "../../data/beach";
@@ -426,13 +425,13 @@ function IssueInner() {
                     <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 p-6 text-center text-sm text-slate-600">{zone.name}: {closure(zone.id, t.day)}. Choose another zone.</div>
                   ) : (
                     <>
-                      <SunbedMap label={`${zone.name} sunbed map`} slots={slots} selected={inBasket} onToggle={toggleSet} priceOf={(s) => priceOf(s)}
+                      <SunbedMap staff label={`${zone.name} sunbed map`} slots={slots} selected={inBasket} onToggle={toggleSet} priceOf={(s) => priceOf(s)}
                         landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zone.id)} />
                       <div className="mt-2 flex flex-wrap gap-3 text-[11.5px] text-slate-600">
-                        <span className="flex items-center gap-1"><Sunbed state="a" size={14} readOnly /> Free</span>
-                        <span className="flex items-center gap-1"><Sunbed state="h" size={14} readOnly /> On hold</span>
-                        <span className="flex items-center gap-1"><Sunbed state="u" size={14} readOnly /> Booked / blocked</span>
-                        <span className="flex items-center gap-1"><Sunbed state="a" sel size={14} readOnly /> In this basket</span>
+                        <span className="flex items-center gap-1"><StaffSet state="a" size={16} /> Free</span>
+                        <span className="flex items-center gap-1"><StaffSet state="h" size={16} /> On hold</span>
+                        <span className="flex items-center gap-1"><StaffSet state="u" size={16} /> Booked / blocked</span>
+                        <span className="flex items-center gap-1"><StaffSet state="a" sel size={16} /> In this basket</span>
                       </div>
                     </>
                   )}

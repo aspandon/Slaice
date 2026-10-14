@@ -491,4 +491,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-642 — accountant pages with distinct names.** Month-end · Documents · Payments & payouts · Reports; old links redirect.
 - **AENR-638 — the modules matrix opens read-only.** Edit → switch → one reason → Done (with Undo); a stray click changes nothing.
 - **AENR-652 — calmer refund decisions.** Queue first, brand-colour Approve €X, Partial… on demand, policy behind Rules.
+- **AENR-663 — staff maps show who is there.** Booked solid, free outlined, a clock on guests not arrived yet.
 - **AENR-658 — a calm first step.** No total or refund warning before a set is picked; the terms show once, on Pay.

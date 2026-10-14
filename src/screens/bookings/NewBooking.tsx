@@ -276,7 +276,7 @@ export function NewBooking() {
                 : "Tap free sets to book"}
             </span>
           </div>
-          <SunbedMap
+          <SunbedMap staff
             label={`${zone.name} map for ${fmtDay(date)}`}
             slots={slots}
             selected={picked}

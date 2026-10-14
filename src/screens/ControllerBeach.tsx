@@ -250,6 +250,8 @@ export function ControllerBeach() {
             </div>
             <SunbedMap
               pickAny
+              staff
+              marker={(s) => (statusOf(s) === "booked" ? { text: <Icon.clock size={11} />, cls: "bg-sky-600 text-white grid place-items-center" } : undefined)}
               label={`${zone.name} status map`}
               slots={slots}
               selected={sel}
@@ -269,7 +271,7 @@ export function ControllerBeach() {
             <div className="mt-2 text-[11.5px] text-slate-500">
               {exF === "noshow"
                 ? `No-show: booked for today and not checked in by ${NO_SHOW_CUTOFF}.`
-                : "Every set can be opened here — booked, held and out-of-service ones too."}
+                : "Solid = booked · outline = free · striped = held · clock = not arrived yet. Every set can be opened here."}
             </div>
             {shown && (
               <div className="mt-3 border-t border-slate-100 pt-3">

@@ -1238,6 +1238,11 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
   map per zone (dots: free, booked, in use, unpaid, no-show, held, out of service), "24 free · 5 booked ·
   17 in use", a "N to act on" badge and closed zones greyed. Tapping a zone zooms into its map (FLIP,
   skipped with reduced motion) and writes `?zone=` to the URL; the **All zones** chip goes back.
+- **Staff colours** (AENR-663): every staff map (Live beach, Controller beach and walk-in, New booking,
+  the till) flips the emphasis — booked sets are **solid navy**, free sets an **outline**, held sets
+  **striped**, your selection teal; a booked set whose guest has not arrived carries a small **clock**
+  badge (Live beach, Controller); checked-in, unpaid, no-show, held and out-of-service keep their
+  lettered badges. Legends show the same glyphs. Customer maps keep the guest colours.
 - **Maps that work on a phone** (AENR-647): every staff map (`SunbedMap` — Live beach, New booking,
   Controller beach and walk-in, the till's Sunbeds tab) below 768 px is drawn so each set is a 44 px
   target (3:4 box sized from the tightest gap between sets, so codes never overlap) inside a pannable

@@ -5,8 +5,7 @@ import { ZoneChips } from "../../components/ZoneChips";
 import { prefersReducedMotion } from "../../lib/motion";
 import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, Field, PageHead, PeriodPicker, Select, Toggle } from "../../components/ui";
-import { SunbedMap } from "../../components/SunbedMap";
-import { Sunbed } from "../../components/Beach";
+import { SunbedMap, StaffSet } from "../../components/SunbedMap";
 import { useApp } from "../../app/store";
 import { readHashQuery, writeHashQuery } from "../../app/router";
 import { ZONES } from "../../data/beach";
@@ -87,6 +86,8 @@ export function AdminLiveBeach() {
     {} as Record<LegendKey, number>,
   );
   const marker = (s: SunbedSlot) => {
+    // Booked but not here yet: a small clock (AENR-663).
+    if (keyOf(s) === "booked") return { text: <Icon.clock size={11} />, cls: "bg-sky-600 text-white grid place-items-center" };
     const l = LEGEND.find((x) => x.k === keyOf(s));
     return l && l.text ? { text: l.text, cls: l.cls } : undefined;
   };
@@ -272,7 +273,10 @@ export function AdminLiveBeach() {
               {LEGEND.map((l) => (
                 <li key={l.k} className="inline-flex items-center gap-1.5">
                   {l.k === "free" || l.k === "booked" ? (
-                    <Sunbed state={l.k === "free" ? "a" : "u"} size={16} readOnly />
+                    <span className="relative inline-block">
+                      <StaffSet state={l.k === "free" ? "a" : "u"} size={18} />
+                      {l.k === "booked" && <span aria-hidden className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 rounded-full bg-sky-600 text-white grid place-items-center ring-1 ring-white"><Icon.clock size={9} /></span>}
+                    </span>
                   ) : (
                     <span
                       aria-hidden
@@ -329,6 +333,7 @@ export function AdminLiveBeach() {
           )}
           <SunbedMap
             pickAny
+            staff
             showCodes
             label={`${zone.name} live map`}
             slots={slots}
