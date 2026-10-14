@@ -3,7 +3,7 @@ import { useGuestRecord } from "../../lib/useGuestRecord";
 import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, EmptyState, ErrorState, Field, Input, Modal, Stepper, Tabs, CardGridSkeleton, ActionsMenu, useLongPress, type MenuAction } from "../../components/ui";
 import { DateInput } from "../../components/ui/DateInput";
-import { WalletButtons } from "../../components/WalletPass";
+import { WalletButtons, WalletSheetFor, otherWallets } from "../../components/WalletPass";
 import { QR, Sparkline } from "../../components/charts";
 import { useApp, useT } from "../../app/store";
 import { ZONES, todayISO } from "../../data/beach";
@@ -149,11 +149,13 @@ function VisitCard({ v, deadline, onOpen }: { v: Visit; deadline: string; onOpen
   const [menu, setMenu] = useState(false);
   const press = useLongPress(() => setMenu(true));
   const openDoc = () => onOpen({ kind: "receipt", v, doc: invoice ? invoiceForVisit(v, invoice) : receiptForVisit(v) });
+  const [walletKind, setWalletKind] = useState<"apple" | "google" | null>(null);
   const actions: MenuAction[] = [
     ...(live ? [{ id: "doc", label: invoice ? t("Invoice") : t("Receipt"), icon: Icon.receipt, onSelect: openDoc }] : []),
     ...(live && inWindow ? [{ id: "move", label: t("Move date"), icon: Icon.calendar, onSelect: () => onOpen({ kind: "move", v }) }] : []),
     ...(live ? [{ id: "extras", label: t("Add extras"), icon: Icon.plus, onSelect: () => onOpen({ kind: "extras", v }) }] : []),
     ...(live ? [{ id: "ics", label: t("Add to calendar"), icon: Icon.calendar, onSelect: () => { downloadVisitIcs(v); toast(t("Calendar invite downloaded (.ics)."), { tone: "success" }); } }] : []),
+    ...otherWallets().map((k) => ({ id: `wallet-${k}`, label: `${t("Add to")} ${k === "apple" ? "Apple Wallet" : "Google Wallet"}`, icon: Icon.wallet, onSelect: () => setWalletKind(k) })),
     ...(live ? [{ id: "share", label: t("Share"), icon: Icon.send, onSelect: async () => { const r = await shareVisit(v); if (r === "copied") toast(t("Visit details copied — paste them to your friends."), { tone: "success" }); } }] : []),
     ...(live ? [{ id: "cancel", label: t("Cancel visit"), icon: Icon.x, destructive: true, hint: inWindow ? t("Free until") + " " + fmtDeadline(deadline) : t("No refund now"), onSelect: () => onOpen({ kind: "cancel", v }) }] : []),
   ];
@@ -204,6 +206,7 @@ function VisitCard({ v, deadline, onOpen }: { v: Visit; deadline: string; onOpen
           <Btn size="sm" variant="outline" icon={Icon.receipt} onClick={openDoc}>{invoice ? t("Invoice") : t("Receipt")}</Btn>
         )}
         <WalletButtons compact pass={visitPass(v)} />
+        {walletKind && <WalletSheetFor pass={visitPass(v)} kind={walletKind} onClose={() => setWalletKind(null)} />}
         <ActionsMenu size="sm" className="ml-auto" open={menu} onOpenChange={setMenu} label={`${t("More actions for")} ${fmtWeekday(v.date)} ${fmtDay(v.date)}`} actions={actions} />
       </div>
     </Card>

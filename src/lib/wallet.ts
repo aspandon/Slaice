@@ -29,7 +29,9 @@ export function detectWalletPlatform() {
   const ua = navigator.userAgent || "";
   // iPadOS 13+ reports as Mac; detect the touch-capable Mac case too.
   const iOS = /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-  if (iOS) return "ios";
+  // Safari on a Mac adds to Apple Wallet too (AENR-662); Chrome / Firefox on a Mac don't.
+  const macSafari = /Macintosh/.test(ua) && /Safari\//.test(ua) && !/Chrome|Chromium|Firefox|Edg\//.test(ua);
+  if (iOS || macSafari) return "ios";
   if (/Android/.test(ua)) return "android";
   return "other";
 }

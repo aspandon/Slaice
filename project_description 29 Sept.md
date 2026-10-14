@@ -791,11 +791,12 @@ vignette — towels for guests, a locker cabin (×qty), the car with its plate o
 
 - Animated check (confetti), "Payment successful", booking reference **#BK-NNNNN** (sequential), a
   **QR code** (flips in), **Add to Apple Wallet / Google Wallet** (the badge matching the device —
-  iPhone Apple, Android Google, desktop both; AENR-620),
+  iPhone / iPad / Mac Safari Apple, Android Google, other computers neither — AENR-620, AENR-662),
   status pills (Stripe paid · QR e-mailed · ΑΠΥ → MyDATA ✓).
 - Actions: **View my bookings**, **Add to calendar** (downloads a real `.ics`), **View receipt** (→ My
   Documents). The first and last clear the basket. **[GAP]** the basket is not cleared if the guest
   leaves another way.
+- **One wallet button that fits the device** (AENR-662): a visit card, the Home next-visit card and the confirmation show at most one wallet button (Apple on iPhone / iPad / Mac Safari, Google on Android, none on other computers — the QR and e-mail are enough); the other wallet (or both) stays in the visit's “…” menu as “Add to Apple Wallet” / “Add to Google Wallet”.
 - **Wallet passes per visit** (AENR-620): the same badges sit on the Home next-visit card and on each
   upcoming visit in My bookings (compact). Adding one is remembered with the account
   (`account.wallet`, visit key → wallet) and the badge becomes **In Apple Wallet ✓** / **In Google

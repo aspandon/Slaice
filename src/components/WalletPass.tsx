@@ -82,7 +82,10 @@ export function WalletButtons({ pass, className = "", compact = false }: { pass:
   if (pass.voided && !added) return null;
   const apple = <WalletBadge key="a" compact={compact} logo={<AppleLogo size={compact ? 15 : 18} />} label="Apple Wallet" onClick={() => setOpen("apple")} />;
   const google = <WalletBadge key="g" compact={compact} logo={<span className="bg-white rounded-full p-0.5 grid place-items-center"><GoogleG size={compact ? 13 : 16} /></span>} label="Google Wallet" onClick={() => setOpen("google")} />;
-  const order = platform === "ios" ? [apple] : platform === "android" ? [google] : [apple, google];
+  // One wallet that fits the device (AENR-662): iPhone / iPad / Mac Safari → Apple,
+  // Android → Google, other computers → neither (the QR and e-mail are enough);
+  // the other wallet stays in the visit's "…" menu.
+  const order = platform === "ios" ? [apple] : platform === "android" ? [google] : [];
   return (
     <div className={className}>
       {added ? (
@@ -95,7 +98,7 @@ export function WalletButtons({ pass, className = "", compact = false }: { pass:
           {pass.voided ? t("Pass voided") : `${t("In")} ${WALLET_NAME[added]}`}
           {!pass.voided && <Icon.checkCircle size={14} className="text-emerald-600" />}
         </button>
-      ) : (
+      ) : order.length === 0 ? null : (
         <>
           {!compact && <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">{t("Add your pass to")}</div>}
           <div className={`flex flex-wrap items-center gap-2 ${compact ? "" : "justify-center"}`}>{order}</div>
@@ -104,6 +107,16 @@ export function WalletButtons({ pass, className = "", compact = false }: { pass:
       {open && <WalletSheet open onClose={() => setOpen(null)} pass={pass} kind={open} platform={platform} />}
     </div>
   );
+}
+
+/** The wallets a "…" menu offers: the ones not shown as a button on this device (AENR-662). */
+export function otherWallets(): WalletKind[] {
+  const p = detectWalletPlatform();
+  return p === "ios" ? ["google"] : p === "android" ? ["apple"] : ["apple", "google"];
+}
+/** Opens one wallet's sheet from a menu. */
+export function WalletSheetFor({ pass, kind, onClose }: { pass: WalletPassData; kind: WalletKind; onClose: () => void }) {
+  return <WalletSheet open onClose={onClose} pass={pass} kind={kind} platform={detectWalletPlatform()} />;
 }
 
 /* ---------- The pass preview (looks like a real wallet pass) ---------- */
