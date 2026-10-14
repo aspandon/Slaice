@@ -1466,17 +1466,21 @@ all three; **Export CSV** and **Export PDF** (a one-page PDF with the key figure
 ### A-08 · Refunds [MVP]
 
 ```text
- ‹ period ›   KPIs: Needs decision (n past SLA) · Refunded · Refund rate · Top reason   [Export]
- ┌─ Needs decision 4 ─ oldest first · decide within 48 h ────────────────────────┐
+ ‹ period ›                                                                        [Export]
+ ┌─ Needs decision 4 ─ oldest first · decide within 48 h              [Rules] ────┐
  │ Marina Georgiou · #TX-87601            Refund requested · €15 · Double booking │
- │   by Call Center · 3 days ago   [Past 48 h SLA]   [€15] [Approve €15] [Decline…] │
+ │   by Call Center · 3 days ago   [Past 48 h SLA]  [Approve €15] [Decline…] Partial… │
  │ Anna Mavridi · #TX-88216 · #BK-10419   … 9 min ago  [Within SLA] …             │
  └────────────────────────────────────────────────────────────────────────────────┘
+ KPIs: Needs decision (n past SLA) · Refunded · Refund rate · Top reason
  History · 1 – 19 Jul 2026:  Transaction · Date · Guest · Amount · Reason (decided by) · Refunded / Declined
 ```
 
 - **Decision queue (AENR-583):** every pending request, oldest first, whatever the period, with its
-  age and the **48 h SLA** (Within SLA / SLA due soon / Past 48 h SLA). **Approve** (full or a lower
+  age and the **48 h SLA** (Within SLA / SLA due soon / Past 48 h SLA). Calm decisions (AENR-652): the
+  queue comes first, then the KPIs; cards are neutral and red appears only on the “Past 48 h SLA” tag;
+  **Approve €X** is the brand primary button for the full amount, **Partial…** reveals the amount field;
+  the refund policy (X-35) sits behind **Rules**. **Approve** (full or a lower
   amount) issues the Stripe refund and credit note; **Decline…** needs a reason told to the guest
   (Outside the cancellation policy · Already used · Duplicate request · Offered a date change instead ·
   Other). The same decision component sits in the booking drawer (A-04): deciding in either place gives

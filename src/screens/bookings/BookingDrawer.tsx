@@ -484,11 +484,13 @@ export function PendingRefund({
   const { toast } = useApp();
   const [amount, setAmount] = useState(r.amount);
   const [declining, setDeclining] = useState(false);
+  // Calm decisions (AENR-652): full amount by default; "Partial…" reveals the field.
+  const [partial, setPartial] = useState(false);
   const [why, setWhy] = useState(DECLINE_REASONS[0]);
   const sla = slaState(r.requestedAt, opsNow());
   return (
     <div
-      className={`rounded-2xl ring-1 p-4 space-y-3 ${sla === "overdue" ? "ring-rose-300 bg-rose-50/60" : "ring-amber-300 bg-amber-50/60"}`}
+      className="rounded-2xl ring-1 ring-slate-200 bg-white/80 p-4 space-y-3"
     >
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
@@ -542,6 +544,7 @@ export function PendingRefund({
             }
           }}
         >
+          {partial && (
           <div className="w-36">
             <Field label={`Amount (€, up to ${r.amount})`}>
               <Input
@@ -555,12 +558,22 @@ export function PendingRefund({
               />
             </Field>
           </div>
-          <Btn type="submit" variant="danger" icon={Icon.refund} disabled={!(amount > 0)}>
+          )}
+          <Btn type="submit" variant="primary" icon={Icon.refund} disabled={!(amount > 0)}>
             Approve €{amount}
           </Btn>
           <Btn variant="outline" onClick={() => setDeclining(true)}>
             Decline…
           </Btn>
+          {!partial && (
+            <button
+              type="button"
+              onClick={() => setPartial(true)}
+              className="self-center text-[12.5px] font-semibold text-teal-700 hover:underline rounded px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+            >
+              Partial…
+            </button>
+          )}
         </form>
       )}
     </div>

@@ -499,6 +499,8 @@ export function AdminRefunds() {
   const { toast, till, persona } = useApp();
   const agent = persona === "callcenter";
   const ops = useBookingOps();
+  // The queue comes first; the refund policy waits behind "Rules" (AENR-652).
+  const [rulesOpen, setRulesOpen] = useState(false);
   // The shared period filters the KPIs, the history and the export (AENR-466).
   const [period, setPeriod] = usePeriod({ kind: "preset", preset: "month", offset: 0 });
   const range = resolveRange(period);
@@ -559,18 +561,12 @@ export function AdminRefunds() {
     <div className="animate-fade-up">
       <PageHead title="Refunds" sub="Decide refund requests first, then the history — full or partial via Stripe, with reason logging and an automatic credit note (myDATA)." badge={<Badge tone="mvp">MVP</Badge>}
         actions={<PeriodPicker value={period} onChange={setPeriod} presets={["day", "week", "month", "season"]} allowAll resetTo={{ kind: "preset", preset: "month", offset: 0 }} />} primary={<ExportMenu onExport={exportRefunds} what="refunds" />} />
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <StatCard label="Needs decision" value={queue.length} sub={overdue ? `${overdue} past the 48 h SLA` : "all within the 48 h SLA"} tone={overdue ? "rose" : "amber"} />
-        <StatCard label={`Refunded · ${noun}`} value={fmtEUR(stats.amount)} sub={`${fmtInt(stats.count)} refund${stats.count === 1 ? "" : "s"} in the history below`} tone="teal" trend={hasPrev ? trendPct(stats.amount, prevStats.amount) : undefined} compare={prevRange ? `vs ${rangeLabel(prevRange)}` : undefined} />
-        <StatCard label="Refund rate" value={fmtPct(refundRate, 1)} sub={`of ${fmtEUR(sales)} sales`} compare={prevRange ? `vs ${rangeLabel(prevRange)}` : undefined} trend={hasPrev ? `${refundRate - prevRate >= 0 ? "+" : "−"}${Math.abs((refundRate - prevRate) * 100).toFixed(1)}pp` : undefined} />
-        <StatCard label="Top reason" value={stats.top ? stats.top.reason : "—"} sub={stats.top ? `${Math.round(stats.top.share * 100)}% of refunds` : "no refunds yet"} tone="indigo" />
-      </div>
-
-      {!agent && <RefundPolicyCard />}
+      {!agent && rulesOpen && <RefundPolicyCard />}
       <Card className="p-4 mb-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
           <h2 className="font-display font-bold text-navy-900 text-lg">Needs decision <span className="text-slate-400 tnum">{queue.length}</span></h2>
-          <span className="text-[12px] text-slate-500">Oldest first · decide within 48 h · the same decision is available in the booking</span>
+          <span className="text-[12px] text-slate-500 flex items-center gap-2">Oldest first · decide within 48 h
+            {!agent && <Btn size="sm" variant="ghost" icon={Icon.sliders} onClick={() => setRulesOpen((v) => !v)} aria-expanded={rulesOpen}>Rules</Btn>}</span>
         </div>
         {queue.length === 0 ? (
           <EmptyState compact icon={Icon.checkCircle} title="Nothing to decide" body="Every refund request has an answer. New requests from guests and the call centre land here." />
@@ -588,6 +584,13 @@ export function AdminRefunds() {
           </ul>
         )}
       </Card>
+
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <StatCard label="Needs decision" value={queue.length} sub={overdue ? `${overdue} past the 48 h SLA` : "all within the 48 h SLA"} tone={overdue ? "rose" : "amber"} />
+        <StatCard label={`Refunded · ${noun}`} value={fmtEUR(stats.amount)} sub={`${fmtInt(stats.count)} refund${stats.count === 1 ? "" : "s"} in the history below`} tone="teal" trend={hasPrev ? trendPct(stats.amount, prevStats.amount) : undefined} compare={prevRange ? `vs ${rangeLabel(prevRange)}` : undefined} />
+        <StatCard label="Refund rate" value={fmtPct(refundRate, 1)} sub={`of ${fmtEUR(sales)} sales`} compare={prevRange ? `vs ${rangeLabel(prevRange)}` : undefined} trend={hasPrev ? `${refundRate - prevRate >= 0 ? "+" : "−"}${Math.abs((refundRate - prevRate) * 100).toFixed(1)}pp` : undefined} />
+        <StatCard label="Top reason" value={stats.top ? stats.top.reason : "—"} sub={stats.top ? `${Math.round(stats.top.share * 100)}% of refunds` : "no refunds yet"} tone="indigo" />
+      </div>
 
       <Card className="p-2">
         <h2 className="font-display font-bold text-navy-900 px-2 pt-2 pb-1">History · {label}</h2>
