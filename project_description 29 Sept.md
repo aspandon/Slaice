@@ -829,6 +829,10 @@ vignette — towels for guests, a locker cabin (×qty), the car with its plate o
 
 - KPI cards: Active bookings, This season (€ total, count), Next visit.
 - **"Your season in review"** banner: visits, favourite zone, savings, spend, visits/month sparkline.
+- **One guest record** (AENR-644, `src/lib/useGuestRecord.ts`): the signed-in guest's name, favourite zone,
+  usual party and usual channel come from her account and the same visit history — the season review,
+  Home's "your usual", the names on her pass cards ("ELENA VLACHOS") and Admin › Guests › her profile
+  (favourite zone, party size, usual channel) all read it.
 - Tabs **All / Active / Past**; **E-mail all QRs** (demo).
 - Table: Booking, Item, Date, Status (Confirmed / Used / Cancelled / Unpaid / Refunded / Pending),
   Price, **QR**. The QR modal shows the entry QR, wallet buttons and **Resend by e-mail**.

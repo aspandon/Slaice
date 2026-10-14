@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useGuestRecord } from "../../lib/useGuestRecord";
 import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, EmptyState, ErrorState, Field, Input, Modal, Stepper, Tabs, CardGridSkeleton, ActionsMenu, useLongPress, type MenuAction } from "../../components/ui";
 import { DateInput } from "../../components/ui/DateInput";
@@ -52,11 +53,8 @@ export function CustomerBookings() {
   );
   const used = visits.filter((v) => v.status === "used");
   const spent = used.reduce((a, v) => a + v.total, 0);
-  const fav = useMemo(() => {
-    const c = new Map<string, number>();
-    for (const v of used) if (v.zone) c.set(v.zone, (c.get(v.zone) ?? 0) + 1);
-    return [...c.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
-  }, [used]);
+  // The same favourite zone as Home and the admin profile (AENR-644).
+  const fav = useGuestRecord().favouriteZone ?? "—";
   const count = (f: string) =>
     visits.filter((v) => (f === "upcoming" ? v.status === "today" || v.status === "upcoming" : f === "past" ? v.status === "used" : v.status === "cancelled")).length;
 

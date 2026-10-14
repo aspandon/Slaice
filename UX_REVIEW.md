@@ -497,4 +497,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-635 — New booking follows the call.** Caller · When · Zone and sets (pre-picked) · Tickets · Payment, total and button pinned.
 - **AENR-637 — Controller: Gate and Beach.** Walk-in merged into Beach: a free set's card sells in place; one scanner per tab.
 - **AENR-631 — Beach layout: canvas plus one inspector.** Stop-sell, date overrides and drafts & versions are tabs; the inspector follows the selection.
+- **AENR-644 — one guest record.** Favourite zone, party, channel and the card name agree across My bookings, Home, Wallet and the admin profile.
 - **AENR-658 — a calm first step.** No total or refund warning before a set is picked; the terms show once, on Pay.

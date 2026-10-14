@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useGuestRecord } from "../../lib/useGuestRecord";
 import { Icon, type IconRenderer } from "../../lib/icons";
 import { Badge, Btn, Drawer, Field, Input, Select, Table, Tabs, Toggle, ExportMenu } from "../../components/ui";
 import { useApp } from "../../app/store";
@@ -27,7 +28,7 @@ const TABS: [string, string, IconRenderer][] = [
 ];
 const CHANNEL_LABEL: Record<string, string> = { email: "E-mail", sms: "SMS", viber: "Viber" };
 
-export function GuestProfile({ guest, customer, rfm, segments, tags, onClose, onEdit, onAddTag }: {
+export function GuestProfile({ guest: facts, customer, rfm, segments, tags, onClose, onEdit, onAddTag }: {
   guest: GuestFacts;
   customer: Customer;
   rfm: Rfm | undefined;
@@ -38,6 +39,12 @@ export function GuestProfile({ guest, customer, rfm, segments, tags, onClose, on
   onAddTag: (tag: string) => void;
 }) {
   const { crm, setCrm, toast, go, bookingNotes, comms } = useApp();
+  // The demo guest is one record everywhere (AENR-644): her own visits decide these.
+  const me = useGuestRecord();
+  const guest: GuestFacts =
+    customer.email === me.email
+      ? { ...facts, zone: me.favouriteZone ?? facts.zone, partySize: me.partySize, channel: me.channel }
+      : facts;
   const [tab, setTab] = useState("overview");
   const prof: GuestProfileData = crm.profiles[customer.id] ?? {};
   const patch = (p: Partial<GuestProfileData>) => setCrm((c) => ({ ...c, profiles: { ...c.profiles, [customer.id]: { ...c.profiles[customer.id], ...p } } }));

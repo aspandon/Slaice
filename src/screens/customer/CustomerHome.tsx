@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useGuestRecord } from "../../lib/useGuestRecord";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
 import { Badge, Btn, NotMvpBadge } from "../../components/ui";
@@ -344,6 +345,7 @@ function RewardsStrip({ rewards, ready }: { rewards: ReturnType<typeof activeRew
    (useCardTilt owns the transform, so hover lift is shadow-only here). */
 export function VipTile() {
   const { go, passes, passPricing, clearPass } = useApp();
+  const me = useGuestRecord();
   const t = useT();
   const tilt = useCardTilt<HTMLDivElement>(6);
   const vip = passes.vip;
@@ -353,7 +355,7 @@ export function VipTile() {
     <div ref={tilt} className={`${CARD} flex flex-col w-full transition-shadow duration-300 hover:shadow-lift`} data-home-card>
       <span aria-hidden="true" className="sheen-card" />
       <button onClick={() => go("customer", "vip")} aria-label={`${vip ? t("Top up VIP credit") : t("Get VIP Pass")} · ${t("FUTURE")}`} className="block w-full group">
-        <PassCard kind="vip" holder="ELENA M." subtitle={vip ? `€${vip.balance.toLocaleString()} CREDIT` : `MEMBER · ${disc}% OFF`} validUntil={SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
+        <PassCard kind="vip" holder={me.cardName} subtitle={vip ? `€${vip.balance.toLocaleString()} CREDIT` : `MEMBER · ${disc}% OFF`} validUntil={SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
       </button>
       <div className="mt-auto flex items-center justify-between gap-2 px-4 py-3">
         <button onClick={() => go("customer", "vip")} className="inline-flex items-center gap-1 text-sky-700 hover:text-sky-800 text-[13px] font-semibold">
@@ -372,6 +374,7 @@ export function VipTile() {
    Same 3D tilt + light sweep as the VIP tile. */
 export function SeasonTile() {
   const { go, passes, passPricing, clearPass } = useApp();
+  const me = useGuestRecord();
   const t = useT();
   const tilt = useCardTilt<HTMLDivElement>(6);
   const season = passes.season;
@@ -380,7 +383,7 @@ export function SeasonTile() {
     <div ref={tilt} className={`${CARD} flex flex-col w-full transition-shadow duration-300 hover:shadow-lift`} data-home-card>
       <span aria-hidden="true" className="sheen-card" />
       <button onClick={() => go("customer", "season")} aria-label={`${season ? t("Manage Season pass") : t("Get Season Pass")} · ${t("FUTURE")}`} className="block w-full group">
-        <PassCard kind="season" holder="ELENA M." subtitle={season && season.plan === "monthly" ? "MONTHLY 2026" : "SUMMER 2026"} validUntil={season ? dateOf(season.validUntil) : SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
+        <PassCard kind="season" holder={me.cardName} subtitle={season && season.plan === "monthly" ? "MONTHLY 2026" : "SUMMER 2026"} validUntil={season ? dateOf(season.validUntil) : SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
       </button>
       <div className="mt-auto flex items-center justify-between gap-2 px-4 py-3">
         <button onClick={() => go("customer", "season")} className="inline-flex items-center gap-1 text-teal-700 hover:text-teal-800 text-[13px] font-semibold">
