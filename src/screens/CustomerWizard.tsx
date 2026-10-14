@@ -758,7 +758,7 @@ function WizardInner() {
 
       {/* ============ The beach itself — fills the space below the menu so every
            set is visible (never hidden behind it) and is tapped directly. ====== */}
-      <div className="flex-1 min-h-0 px-3 sm:px-5 pt-[20vh] max-lg:pb-[132px] lg:mr-[min(460px,36vw)] flex justify-center animate-fade-in" style={{ animationDelay: revealDelay, animationFillMode: "both" }}>
+      <div className="flex-1 min-h-0 px-3 sm:px-5 pt-[20vh] lg:pt-[clamp(140px,16vh,210px)] max-lg:pb-[132px] lg:mr-[min(460px,36vw)] flex justify-center animate-fade-in" style={{ animationDelay: revealDelay, animationFillMode: "both" }}>
         {/* The zone overview spreads the full beach width (panoramic); a single
             zone's sunbed grid stays at a comfortable reading width. */}
         <div className={`relative w-full ${showSets ? "max-w-5xl" : "max-w-[1700px]"}`}>
@@ -1199,7 +1199,9 @@ function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: 
       const blk = ZONE_BLOCKS.find((b) => b.id === z.id);
       const left = blk ? parseFloat(blk.left) + parseFloat(blk.w) / 2 : 50;
       const depth = blk ? clampN((parseFloat(blk.top) - 71) / 6, 0, 1) : 0.5;
-      return { x: (left / 100) * box.w, y: ch / 2 + 4 + depth * Math.max(0, box.h - ch - 10) };
+      // Zones hug the shoreline (AENR-667): the depth spread is capped at a couple of
+      // cluster heights, so a tall window doesn't stretch the beach away from the sea.
+      return { x: (left / 100) * box.w, y: ch / 2 + 4 + depth * Math.min(Math.max(0, box.h - ch - 10), ch * 2.1) };
     });
     return declutter(init, box.w, box.h, cw, ch, 12);
   }, [box, cw, ch]);
