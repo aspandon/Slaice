@@ -20,7 +20,6 @@ import { PARKING_PRICE } from "../domain/pricing";
 import { useExtras } from "../lib/useExtras";
 import { useFinance } from "../lib/useFinance";
 import { partyLabel, serviceFees } from "../domain/account";
-import { cancelLine } from "../domain/visits";
 import { useSiteStatus } from "../lib/usePlatform";
 import { Checkout } from "./Checkout";
 import { bestSets } from "../domain/bestSets";
@@ -262,7 +261,6 @@ function WizardInner() {
   const zoomingRef = useRef(false);
 
   const ex = useExtras();
-  const extrasState = ex.extras;
   const firstDay = selDates[0] ?? todayISO();
   const TICKET: TicketInfo = Object.fromEntries(ex.tickets.map((t) => [t.id, { price: ex.ticketPrice(t.id, firstDay), label: t.name, sub: t.note ?? "" }]));
   const totalPeople = ex.tickets.reduce((a, t) => a + (people[t.id] ?? 0), 0);
@@ -519,7 +517,6 @@ function WizardInner() {
   const feeTotal = grandTotal > 0 ? serviceFees(buildItems(), finance.fees, todayISO()).total : 0;
   const allIn = Math.round((grandTotal + feeTotal) * 100) / 100;
   const [showBreak, setShowBreak] = useState(false);
-  const cancelText = tr(cancelLine(selDates[0] ?? todayISO(), `${todayISO()}T${nowTime}`, extrasState.policy));
 
   // The Pay step pays (AENR-640): this visit's items are kept in the basket while the guest is on
   // Pay (replacing the ones from an earlier pass), and the checkout panel below takes the payment.
@@ -728,7 +725,9 @@ function WizardInner() {
             {step.id === "review" && payItems ? (
               // On Pay the payment panel holds the one total that counts (rewards, credit, passes applied).
               <div className="leading-tight min-w-0 text-[12.5px] text-slate-600">{tr("Check the total and pay below.")}</div>
-            ) : grandTotal === 0 ? (
+            ) : grandTotal === 0 || (step.id === "beach" && bedSel.length === 0) ? (
+              // A calm first step (AENR-658): no price before a set is chosen; the
+              // cancellation terms appear once, on Pay.
               <div className="leading-tight min-w-0 text-[12.5px] text-slate-600">
                 {step.id === "beach" ? (phase === "zones" ? tr("Pick a zone, then your sets.") : tr("Tap a set to add it.")) : tr("Add a set or a ticket to see the price.")}
               </div>
@@ -741,7 +740,6 @@ function WizardInner() {
                 <span className="font-display text-2xl font-bold text-navy-900 tnum leading-none" data-wizard-total>€<LiveEuro value={allIn} /></span>
                 <span className="text-[11px] font-semibold text-slate-600 inline-flex items-center gap-0.5">{tr("all-in")} <Icon.chevD size={12} className={showBreak ? "rotate-180 transition" : "transition"} /></span>
               </button>
-              <div className={`text-[11px] font-semibold mt-0.5 truncate ${cancelText.startsWith(tr("Free")) ? "text-emerald-700" : "text-amber-700"}`}>{cancelText}</div>
             </div>
             )}
             <div className="flex items-center gap-2">

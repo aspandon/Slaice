@@ -610,7 +610,7 @@ locker and parking are one optional row on Pay, not steps of their own (old deep
 or parking step open that row). Header: **Leave** (back to Home), "Step n of 3 · <step>", and a
 **progress rail** drawn as a footpath across the sand with 3 stations (tap a reached station to jump
 back; forward only via Continue). Footer: live **Total €** (animated) + **Back/Home** + **Continue** (or
-**Confirm · €total** on the last step); before anything is picked it shows guidance instead of €0.
+**Confirm · €total** on the last step); before anything is picked it shows guidance instead of €0. A calm first step (AENR-658): on When & where the footer shows no price until a set is chosen (even when the usual party pre-fills tickets), and the cancellation terms appear once, on Pay, in neutral text — “Free cancellation until Fri 24 Jul, 09:00” or “This booking can’t be refunded”.
 
 **Step 1 — Beach** ("Pick your zone, sunbeds & days")
 

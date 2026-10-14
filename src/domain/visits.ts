@@ -67,7 +67,7 @@ export function cancelLine(visitIso: string, now: string, p: GuestPolicy): strin
   if (now < d) return `Free cancellation until ${fmtDeadline(d)}`;
   return p.lateRefundPct > 0
     ? `${p.lateRefundPct}% refund if you cancel`
-    : "Non-refundable — the free-cancellation window has passed";
+    : "This booking can’t be refunded";
 }
 /** What cancelling now gives back. */
 export function refundQuote(total: number, visitIso: string, now: string, p: GuestPolicy) {
