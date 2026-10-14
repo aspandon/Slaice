@@ -1185,9 +1185,9 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
 
 ```text
  [Search: ID · name · surname · phone · items]                         [Export] ─▶ CSV, one row per item
- All 74 · Today 19 · Upcoming 4 · Unpaid 4 · Awaiting payment 0 · Refunded 1 · Used 41   (tabs, counts)
+ [Today 21 | Upcoming 7 | Past 56 | All 85]   (when)        (Unpaid 2) (Refunded 1) …   (status chips, only > 0)
  ‹ period ›   filters: Channel · Amount · Item type · Zone
- Booking ▲▼ │ Guest ▲▼ (name + phone) │ Items │ Date ▲▼ │ Channel │ Status (+ Refund pending / Escalated) │ € ▲▼
+ Booking ▲▼ │ Guest ▲▼ │ Items (one line) │ Date ▲▼ │ Channel │ Arrival (Today) │ Status │ € ▲▼
      │ the whole row opens (Enter on the booking id too)
      ▼
  ┌─ Booking drawer ─────────────────────────────────────────────────────┐
@@ -1200,10 +1200,13 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
  └──────────────────────────────────────────────────────────────────────┘
 ```
 
-- **Status tabs (AENR-579)** with counts on top of the period, filters and search: All, Today,
-  Upcoming (after the demo day, confirmed or unpaid), Unpaid, Awaiting payment (pay-by-link
-  reservations not yet paid), Refunded, Used. The tab is kept in the URL (`?tab=unpaid`), and so is an
-  open booking (`?booking=%23BK-10419`).
+- **When, then status (AENR-634, replacing the eight tabs of AENR-579):** one segmented control for
+  _when_ — **Today · Upcoming · Past · All** with counts (remembered per persona and kept in the URL,
+  `?tab=`) — and **status chips** for _what_ (Unpaid, Awaiting payment, Expired, Refunded, Used), each
+  shown only when its count is above zero (`?status=`; old `?tab=unpaid` links open All with that chip).
+  Items read on one line (“2 sets · Central CE-89, CE-90 · + parking, locker”, full list on hover); on
+  Today an **Arrival** column shows Arrived / Expected / No-show, read like Live beach. An open booking
+  stays in the URL too (`?booking=%23BK-10419`).
 - **One Guest column** (name and surname, masked phone under it). The whole row opens the booking
   drawer; the booking id is the row's button, so Enter opens it from the keyboard.
 - **Drawer:** guest, payment (method from the channel), items, gate QR, and the **timeline** — booked,

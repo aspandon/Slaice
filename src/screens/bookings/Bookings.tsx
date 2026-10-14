@@ -35,7 +35,9 @@ import {
 import { DEMO_TODAY, inRange, rangeLabel, resolveRange } from "../../domain/period";
 import { downloadReport } from "../../lib/download";
 import { Masked } from "../tenant/ViewAs";
-import { useBookingOps, type OpsBooking } from "../../lib/useBookingOps";
+import { useBookingOps, zoneByName, type OpsBooking } from "../../lib/useBookingOps";
+import { useBeachState } from "../../lib/useBeachState";
+import { useLiveSlots } from "../../lib/useLiveSlots";
 import { useListUrl } from "../../lib/useUrlState";
 import { BookingDrawer } from "./BookingDrawer";
 
@@ -45,20 +47,16 @@ import { BookingDrawer } from "./BookingDrawer";
    actions (resend QR, move set, refund, note). Shared by Manager / Admin and
    Call Center — agents request refunds, a manager decides. */
 
-type TabKey = "all" | "today" | "upcoming" | "unpaid" | "awaiting" | "expired" | "refunded" | "used";
-const TABS: { k: TabKey; l: string; test: (b: OpsBooking) => boolean }[] = [
+// One control for *when* and chips for *status* (AENR-634) — two questions, two controls.
+type When = "today" | "upcoming" | "past" | "all";
+const WHEN: { k: When; l: string; test: (b: OpsBooking) => boolean }[] = [
+  { k: "today", l: "Today", test: (b) => b.visitIso === DEMO_TODAY && !["Cancelled", "Refunded", "Expired"].includes(b.status) },
+  { k: "upcoming", l: "Upcoming", test: (b) => b.visitIso > DEMO_TODAY },
+  { k: "past", l: "Past", test: (b) => b.visitIso < DEMO_TODAY },
   { k: "all", l: "All", test: () => true },
-  {
-    k: "today",
-    l: "Today",
-    test: (b) =>
-      b.visitIso === DEMO_TODAY && !["Cancelled", "Refunded", "Expired"].includes(b.status),
-  },
-  {
-    k: "upcoming",
-    l: "Upcoming",
-    test: (b) => b.visitIso > DEMO_TODAY && (b.status === "Confirmed" || b.status === "Unpaid"),
-  },
+];
+type Status = "unpaid" | "awaiting" | "expired" | "refunded" | "used";
+const STATUS: { k: Status; l: string; test: (b: OpsBooking) => boolean }[] = [
   { k: "unpaid", l: "Unpaid", test: (b) => b.status === "Unpaid" },
   { k: "awaiting", l: "Awaiting payment", test: (b) => b.status === "Awaiting payment" },
   // Payment links that ran out unpaid (AENR-559 — tracking moved from Pay-by-link).
@@ -121,24 +119,25 @@ const chan = (c: string) =>
   })[c] || "slate";
 
 /* Items of one booking, stacked under the booking. */
-function BookingItems({ items }: { items: string[] }) {
-  if (items.length <= 1) return <span className="whitespace-nowrap">{items[0] ?? "—"}</span>;
-  return (
-    <div className="space-y-0.5 min-w-[170px]">
-      {items.map((it, i) => (
-        <div key={i} className="flex items-center gap-1.5 whitespace-nowrap">
-          <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
-          <span>{it}</span>
-        </div>
-      ))}
-    </div>
-  );
+/** One line per booking (AENR-634): "2 sets · Central CE-89, CE-90 · + parking, locker". */
+export function itemSummary(items: readonly string[]): string {
+  const sets = items.filter((i) => i.startsWith("Sunbed · ")).map((i) => i.split(" · "));
+  const byZone = new Map<string, string[]>();
+  sets.forEach(([, z, id]) => byZone.set(z, [...(byZone.get(z) ?? []), id]));
+  const others = [...new Set(items.filter((i) => !i.startsWith("Sunbed · ")).map((i) => i.split(" · ")[0].replace(/^Day /, "").toLowerCase()))];
+  const head = sets.length
+    ? `${sets.length} set${sets.length === 1 ? "" : "s"} · ${[...byZone].map(([z, ids]) => `${z} ${ids.join(", ")}`).join("; ")}`
+    : items[0] ?? "—";
+  const rest = sets.length ? others : others.slice(1);
+  return rest.length ? `${head} · + ${rest.join(", ")}` : head;
 }
 
 export function AdminBookings() {
   const { toast, persona, bookingNotes, go } = useApp();
   const agent = persona === "callcenter";
   const ops = useBookingOps();
+  const beach = useBeachState(DEMO_TODAY);
+  const liveSlots = useLiveSlots("walkin");
   const [q, setQ] = useState("");
   // Tab, sort and page live in the URL (AENR-551).
   const { sort, setSort, page, setPage } = useListUrl();
@@ -148,19 +147,29 @@ export function AdminBookings() {
   // Lists open where the work is (AENR-624): Today by default, then the last tab used;
   // a ?tab= link always wins.
   const TAB_KEY = `slaice.bookings.tab.${persona}`;
-  const [tab, setTabRaw] = useState<TabKey>(() => {
-    const fromUrl = TABS.find((t) => t.k === params.get("tab"))?.k;
+  // Old ?tab=unpaid links (a status) still work: they open All with that chip.
+  const [tab, setTabRaw] = useState<When>(() => {
+    const raw = params.get("tab");
+    const fromUrl = WHEN.find((t) => t.k === raw)?.k ?? (STATUS.some((x) => x.k === raw) ? "all" : undefined);
     if (fromUrl) return fromUrl;
     try {
-      const saved = TABS.find((t) => t.k === localStorage.getItem(TAB_KEY))?.k;
+      const saved = WHEN.find((t) => t.k === localStorage.getItem(TAB_KEY))?.k;
       if (saved) return saved;
     } catch {
       /* storage blocked — fall back to Today */
     }
     return "today";
   });
+  const [statusPick, setStatusRaw] = useState<Status | "">(
+    () => STATUS.find((x) => x.k === (params.get("status") ?? params.get("tab")))?.k ?? "",
+  );
+  const setStatus = (v: Status | "") => {
+    setStatusRaw(v);
+    setPage(0);
+    writeHashQuery(v ? { status: v } : {}, ["status"]);
+  };
   const [openId, setOpenIdRaw] = useState<string | null>(() => params.get("booking"));
-  const setTab = (t: TabKey) => {
+  const setTab = (t: When) => {
     setTabRaw(t);
     setPage(0);
     writeHashQuery({ tab: t }, ["tab"]);
@@ -207,12 +216,13 @@ export function AdminBookings() {
         .toLowerCase()
         .includes(q.toLowerCase()),
   );
-  const counts = Object.fromEntries(TABS.map((t) => [t.k, base.filter(t.test).length])) as Record<
-    TabKey,
-    number
-  >;
-  const filtered = base.filter(TABS.find((t) => t.k === tab)!.test);
-  const anyFilter = !!range || !!q || activeCount(filters) > 0 || tab !== "all";
+  const counts = Object.fromEntries(WHEN.map((t) => [t.k, base.filter(t.test).length])) as Record<When, number>;
+  const inWhen = base.filter(WHEN.find((t) => t.k === tab)!.test);
+  const statusCounts = Object.fromEntries(STATUS.map((x) => [x.k, inWhen.filter(x.test).length])) as Record<Status, number>;
+  // A chip with no bookings is never shown, so it can't stay selected either.
+  const status = statusPick && statusCounts[statusPick] > 0 ? statusPick : "";
+  const filtered = status ? inWhen.filter(STATUS.find((x) => x.k === status)!.test) : inWhen;
+  const anyFilter = !!range || !!q || activeCount(filters) > 0 || tab !== "all" || !!status;
   const sortVal = (b: OpsBooking): string | number => {
     switch (sort?.key) {
       case "id":
@@ -241,7 +251,7 @@ export function AdminBookings() {
 
   // One report, PDF or CSV (AENR-593): the bookings in view, with their headline numbers.
   const exportBookings = (format: "pdf" | "csv") => {
-    const tabLabel = TABS.find((t) => t.k === tab)!.l;
+    const tabLabel = `${WHEN.find((t) => t.k === tab)!.l}${status ? ` · ${STATUS.find((x) => x.k === status)!.l}` : ""}`;
     const nf = Object.values(filters).filter((v) => (Array.isArray(v) ? v.length > 0 : !!v)).length;
     const revenue = sorted.filter((b) => b.status !== "Cancelled" && b.status !== "Refunded" && b.status !== "Expired").reduce((a, b) => a + b.amount, 0);
     const byStatus = [...new Set(sorted.map((b) => b.status))].map((st) => `${st} ${sorted.filter((b) => b.status === st).length}`).join(" · ");
@@ -274,7 +284,25 @@ export function AdminBookings() {
     );
     toast(`Exported ${sorted.length} bookings (${format.toUpperCase()}).`, { tone: "success" });
   };
-  const tabs: TabEntry[] = TABS.map((t) => [t.k, `${t.l} ${counts[t.k]}`]);
+  // Today: who is already on the sand (AENR-634), read like Live beach.
+  const arrivalBadge = (b: OpsBooking) => {
+    const ids = b.items.filter((i) => i.startsWith("Sunbed · ")).map((i) => i.split(" · "));
+    if (!ids.length) return <span className="text-slate-400">—</span>;
+    const states = ids.map(([, zName, id]) => {
+      const z = zoneByName(zName);
+      const slot = z ? liveSlots(z, [DEMO_TODAY]).find((x) => x.id === id) : undefined;
+      return slot ? beach.statusOf(slot) : "booked";
+    });
+    const noShow = ids.some(([, zName, id]) => {
+      const z = zoneByName(zName);
+      const slot = z ? liveSlots(z, [DEMO_TODAY]).find((x) => x.id === id) : undefined;
+      return slot ? beach.exOf(slot).includes("noshow") : false;
+    });
+    if (states.every((x) => x === "occupied" || x === "vacated")) return <Badge tone="green">Arrived</Badge>;
+    if (noShow) return <Badge tone="red">No-show</Badge>;
+    return <Badge tone="slate">Expected</Badge>;
+  };
+  const tabs: TabEntry[] = WHEN.map((t) => [t.k, `${t.l} ${counts[t.k]}`]);
 
   return (
     <div>
@@ -320,9 +348,25 @@ export function AdminBookings() {
           scroll
           tabs={tabs}
           value={tab}
-          onChange={(v) => setTab(v as TabKey)}
-          className="mb-3"
+          onChange={(v) => setTab(v as When)}
+          className="mb-2"
         />
+        {STATUS.some((x) => statusCounts[x.k] > 0) && (
+          <div role="radiogroup" aria-label="Status" className="flex flex-wrap gap-1.5 mb-3">
+            {STATUS.filter((x) => statusCounts[x.k] > 0).map((x) => (
+              <button
+                key={x.k}
+                type="button"
+                role="radio"
+                aria-checked={status === x.k}
+                onClick={() => setStatus(status === x.k ? "" : x.k)}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 min-h-[34px] text-[12.5px] font-semibold ring-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${status === x.k ? "bg-navy-900 text-white ring-navy-900" : "bg-white text-navy-900 ring-slate-200 hover:ring-teal-400"}`}
+              >
+                {x.l} <span className={`tnum ${status === x.k ? "text-white/75" : "text-slate-500"}`}>{statusCounts[x.k]}</span>
+              </button>
+            ))}
+          </div>
+        )}
         {loading ? (
           <TableSkeleton rows={5} cols={8} />
         ) : sorted.length === 0 ? (
@@ -332,7 +376,7 @@ export function AdminBookings() {
             body={
               q
                 ? `Nothing matches “${q}”${range ? ` in ${rangeLabel(range)}` : ""}. Try a different name, sunbed code or booking ID.`
-                : `No ${tab === "all" ? "" : TABS.find((t) => t.k === tab)!.l.toLowerCase() + " "}bookings${range ? ` in ${rangeLabel(range)}` : ""} with these filters.`
+                : `No ${tab === "all" ? "" : WHEN.find((t) => t.k === tab)!.l.toLowerCase() + " "}bookings${range ? ` in ${rangeLabel(range)}` : ""} with these filters.`
             }
             action={
               anyFilter ? (
@@ -344,6 +388,7 @@ export function AdminBookings() {
                     setFilters({});
                     setPeriod({ kind: "all" });
                     setTab("all");
+                    setStatus("");
                   }}
                 >
                   Clear filters
@@ -356,13 +401,14 @@ export function AdminBookings() {
             <Table
               rowLink
               dense
-              right={[6]}
+              right={[tab === "today" ? 7 : 6]}
               cols={[
                 <SortHeader label="Booking" k="id" sort={sort} onSort={onSort} />,
                 <SortHeader label="Guest" k="guest" sort={sort} onSort={onSort} />,
                 "Items",
                 <SortHeader label="Date" k="date" sort={sort} onSort={onSort} />,
                 "Channel",
+                ...(tab === "today" ? ["Arrival"] : []),
                 "Status",
                 <SortHeader label="Amount" k="amount" sort={sort} onSort={onSort} align="right" />,
               ]}
@@ -388,9 +434,10 @@ export function AdminBookings() {
                       </div>
                     )}
                   </div>,
-                  <BookingItems items={b.items} />,
+                  <span className="block max-w-[18rem] truncate" title={b.items.join("\n")}>{itemSummary(b.items)}</span>,
                   <span className="whitespace-nowrap">{b.date}</span>,
                   <Badge tone={chan(b.channel)}>{b.channel}</Badge>,
+                  ...(tab === "today" ? [arrivalBadge(b)] : []),
                   <div className="flex flex-col items-start gap-1">
                     <StatusBadge status={b.status} />
                     {pending && (

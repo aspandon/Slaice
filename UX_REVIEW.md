@@ -493,4 +493,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-652 — calmer refund decisions.** Queue first, brand-colour Approve €X, Partial… on demand, policy behind Rules.
 - **AENR-663 — staff maps show who is there.** Booked solid, free outlined, a clock on guests not arrived yet.
 - **AENR-656 — the drawer's main button follows the booking.** Take payment, Check in, Resend QR or Receipt; the QR is a compact row.
+- **AENR-634 — Bookings: when, then status.** Today · Upcoming · Past · All plus non-zero status chips; one line per booking; Arrival column today.
 - **AENR-658 — a calm first step.** No total or refund warning before a set is picked; the terms show once, on Pay.
