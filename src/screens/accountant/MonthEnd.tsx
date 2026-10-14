@@ -34,7 +34,7 @@ const eur = (n: number) =>
   `${n < 0 ? "−" : ""}€${Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 export function MonthEnd() {
-  const { till, account, payLinks, toast, go } = useApp();
+  const { till, account, payLinks, toast } = useApp();
   const months = useMemo(() => seasonMonths(DEMO_TODAY), []);
   // Default: the last complete month — the one an accountant is closing.
   const initial = readHashQuery().get("month");
@@ -111,9 +111,12 @@ export function MonthEnd() {
   };
 
   const open = (t: ExceptionTarget) => {
-    if (t.page === "commission") return go("accountant", "commission");
-    const q = new URLSearchParams({ tab: t.page, status: t.status, from: ref.from, to: ref.to });
-    window.location.hash = `#/accountant/documents?${q.toString()}`;
+    if (t.page === "commission") {
+      window.location.hash = "#/accountant/payments?view=payouts";
+      return;
+    }
+    const q = new URLSearchParams({ status: t.status, from: ref.from, to: ref.to });
+    window.location.hash = `#/accountant/${t.page}?${q.toString()}`;
   };
   const money = (n: number) => n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   // The month-end pack as a readable report — PDF to file, CSV to work in (AENR-593).

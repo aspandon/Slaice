@@ -49,11 +49,11 @@ const eur = (n: number) =>
   `${n < 0 ? "−" : ""}€${Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const docNo = (d: FiscalDoc) => `${d.series}-${d.number}`;
 
-export function DocsPayments() {
+export function DocsPayments({ only }: { only?: "documents" | "payments" } = {}) {
   const { toast, till, account, payLinks } = useApp();
   // Month-end exceptions deep-link here with ?tab=…&status=… (AENR-588).
   const [tab, setTab] = useState<"documents" | "payments">(() =>
-    readHashQuery().get("tab") === "payments" ? "payments" : "documents",
+    only ?? (readHashQuery().get("tab") === "payments" ? "payments" : "documents"),
   );
   const [period, setPeriod] = usePeriod({ kind: "preset", preset: "week", offset: 0 });
   const range = useMemo(
@@ -270,7 +270,7 @@ export function DocsPayments() {
   return (
     <div className="animate-fade-up space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Tabs
+        {!only && <Tabs
           tabs={[
             ["documents", "Documents", Icon.receipt],
             ["payments", "Payments", Icon.card],
@@ -282,7 +282,7 @@ export function DocsPayments() {
             setChannel("");
             reset();
           }}
-        />
+        />}
         <span className="ml-auto"><DensityToggle /></span>
         <Badge tone="slate">Read-only</Badge>
         <div className="ml-auto flex flex-wrap gap-2">

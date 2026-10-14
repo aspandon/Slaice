@@ -307,10 +307,14 @@ Reservations; phone-first like the Controller. Staff get the role in Admin › R
 
 ### Accountant
 
-| Route                     | Screen               | Tag   |
-| ------------------------- | -------------------- | ----- |
-| `#/accountant/invoicing`  | e-Invoicing & MyDATA | [MVP] |
-| `#/accountant/commission` | Commission & Payouts | [MVP] |
+Four pages with distinct names (AENR-642); old `invoicing` and `commission` links redirect.
+
+| Route                    | Screen                                                   | Tag   |
+| ------------------------ | -------------------------------------------------------- | ----- |
+| `#/accountant/monthend`  | Month-end                                                | [MVP] |
+| `#/accountant/documents` | Documents (every fiscal document, myDATA)                | [MVP] |
+| `#/accountant/payments`  | Payments & payouts (card charges · payouts & commission) | [MVP] |
+| `#/accountant/reports`   | Reports (invoice and payment summaries, read-only)       | [MVP] |
 
 ### Platform / Slaice
 
@@ -1969,8 +1973,8 @@ For a guest who isn't at the beach yet — Support Agent, Call Center and Admin 
   fees), payouts (paid, in transit, scheduled) — all from the same ledger as Documents & Payments.
 - **Exceptions to clear:** documents rejected by myDATA (blocking), not yet transmitted (blocking for a
   closed month, a check for the current one), payouts in transit, card refunds without a credit note.
-  Each opens Documents & Payments filtered to those records (`?tab=…&status=…&from=…&to=…`) or the
-  payouts page.
+  Each opens Documents or Payments & payouts filtered to those records (`?status=…&from=…&to=…`) or
+  its Payouts & commission view (`#/accountant/payments?view=payouts`).
 - **Prepare month** (AENR-614): one step fixes what a machine can — re-sends the documents still waiting for
   myDATA and drafts the missing credit notes for card refunds — and reports it (“Prepared 15:23 — 126 re-sent
   to myDATA, 20 credit notes drafted.”). Only what needs a person stays: **rejected documents** open a
@@ -1983,7 +1987,11 @@ For a guest who isn't at the beach yet — Support Agent, Call Center and Admin 
 - **Export month** (the layout is remembered on the device, AENR-625) in a layout for Generic CSV, Epsilon Net (Pylon), SoftOne or Entersoft (semicolon and
   decimal comma for the Greek packages, UTF-8 BOM, myDATA type codes).
 
-### F-00 · Documents & Payments [MVP] (AENR-526)
+### F-00 · Documents and Payments & payouts [MVP] (AENR-526, AENR-642)
+
+- AENR-642 split this page in two: **Documents** (`#/accountant/documents`, the documents tab below) and
+  **Payments & payouts** (`#/accountant/payments`: **Card charges** = the payments tab below, and
+  **Payouts & commission** = F-02). The description below keeps the original two-tab wording.
 
 - `#/accountant/documents` (old `#/accountant/invoicing` links redirect), read-only, two tabs, with the shared
   period control, section chips, filters (type, myDATA status, channel) and search (number, MARK, receipt,

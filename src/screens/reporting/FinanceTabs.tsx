@@ -263,7 +263,7 @@ export function financeExport(kind: "overview" | "payments" | "invoices", d: Fin
   );
 }
 
-/* ============ Accountant: read-only Payments & Invoices ============
+/* ============ Accountant › Reports: read-only invoice and payment summaries (AENR-642) ============
    The same two reports as Admin › Reporting, for the accountant role. */
 export function AccountantReports() {
   const { toast } = useApp();

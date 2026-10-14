@@ -33,7 +33,8 @@ const PAGE_ALIASES: Partial<Record<PersonaId, Record<string, string>>> = {
   cashier: { redeem: "issue", locker: "issue" },
   platform: { onboarding: "tenants" },
   customer: { mydocs: "account" }, // receipts moved into Account (AENR-563) // onboarding is a tenant state: Tenants › In onboarding (AENR-566)
-  accountant: { invoicing: "documents" }, // e-Invoicing & MyDATA merged into Documents & Payments (AENR-526)
+  // e-Invoicing & MyDATA merged into Documents (AENR-526); Commission & Payouts became Payments & payouts (AENR-642).
+  accountant: { invoicing: "documents", commission: "payments" },
 };
 export const resolvePage = (persona: PersonaId, page: string) => PAGE_ALIASES[persona]?.[page] ?? page;
 

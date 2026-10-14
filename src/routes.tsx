@@ -20,9 +20,9 @@ import { ControllerWalkin } from "./screens/ControllerWalkin";
 import { NewBooking } from "./screens/bookings/NewBooking";
 import { AdminBilling } from "./screens/AdminBilling";
 import { AdminDisplay } from "./screens/display/AdminDisplay";
-import * as AC from "./screens/accountant";
 import { AccountantReports } from "./screens/reporting/FinanceTabs";
 import { DocsPayments } from "./screens/accountant/DocsPayments";
+import { AccountantPayments } from "./screens/accountant/Payments";
 import { TenantPage } from "./screens/tenant/TenantPage";
 import * as PO from "./screens/tenant/PlatformOverviews";
 import * as P from "./screens/platform";
@@ -82,8 +82,8 @@ const MAP: Record<string, () => ReactElement> = {
   "admin.display": () => <AdminDisplay />,
   // accountant
   "accountant.monthend": () => <MonthEnd />,
-  "accountant.documents": () => <DocsPayments />,
-  "accountant.commission": () => <AC.AccountantCommission />,
+  "accountant.documents": () => <DocsPayments only="documents" />,
+  "accountant.payments": () => <AccountantPayments />,
   "accountant.reports": () => <AccountantReports />,
   // platform
   "platform.tenants": () => <PO.PlatformTenants />,

@@ -85,9 +85,10 @@ export const NAV: Record<PersonaId, NavItem[]> = {
   ],
   accountant: [
     { k: "monthend", label: "Month-end", short: "Month", icon: "calendar", badge: "MVP" },
-    { k: "documents", label: "Documents & Payments", short: "Docs", icon: "receipt", badge: "MVP" },
-    { k: "commission", label: "Commission & Payouts", short: "Payouts", icon: "trend", badge: "MVP" },
-    { k: "reports", label: "Payments & Invoices", short: "Reports", icon: "chart", badge: "MVP" },
+    // Four pages, four distinct names (AENR-642).
+    { k: "documents", label: "Documents", short: "Docs", icon: "receipt", badge: "MVP" },
+    { k: "payments", label: "Payments & payouts", short: "Payments", icon: "card", badge: "MVP" },
+    { k: "reports", label: "Reports", short: "Reports", icon: "chart", badge: "MVP" },
   ],
   platform: [
     { k: "tenants", label: "Tenants", short: "Tenants", icon: "building", badge: "MVP" },

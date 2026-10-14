@@ -488,4 +488,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-659 — one visit, one card.** The basket groups a day's sunbed, tickets and parking into one card with one Remove; Empty basket sits in the “…” menu; platform economics moved to the Demo menu.
 - **AENR-649 — slimmer customer header.** Phones: a small logo beside the icon bar; the basket is a bag with a count, only when used.
 - **AENR-648 — Wallet shows what you hold.** Credit and rewards first; only owned passes look like cards; the rest are offer rows.
+- **AENR-642 — accountant pages with distinct names.** Month-end · Documents · Payments & payouts · Reports; old links redirect.
 - **AENR-658 — a calm first step.** No total or refund warning before a set is picked; the terms show once, on Pay.
