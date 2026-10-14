@@ -1216,6 +1216,14 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
   map per zone (dots: free, booked, in use, unpaid, no-show, held, out of service), "24 free · 5 booked ·
   17 in use", a "N to act on" badge and closed zones greyed. Tapping a zone zooms into its map (FLIP,
   skipped with reduced motion) and writes `?zone=` to the URL; the **All zones** chip goes back.
+- **Maps that work on a phone** (AENR-647): every staff map (`SunbedMap` — Live beach, New booking,
+  Controller beach and walk-in, the till's Sunbeds tab) below 768 px is drawn so each set is a 44 px
+  target (3:4 box sized from the tightest gap between sets, so codes never overlap) inside a pannable
+  box that opens on the part that matters — your picks, then highlighted sets, then the first free
+  set; pinch (two fingers) or the **−/+** buttons zoom between "whole zone" and 2×. A **Map | List**
+  toggle (every map you can pick on, any width) shows the same sets as rows — code, state badge,
+  price, **Select / Selected** — using the same selection, so list and map stay in sync. The guest
+  map's phone layout is AENR-660.
 - **Zone chips, not dropdowns** (AENR-650): every staff page that shows one zone at a time picks it
   from a row of chips with live counts — `src/components/ZoneChips.tsx` (radiogroup, arrow keys,
   sideways scroll on phones): Live beach ("21 free · 22 booked"), New booking and the Controller's

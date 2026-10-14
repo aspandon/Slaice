@@ -1,4 +1,6 @@
+import { useLayoutEffect, useRef, useState, type CSSProperties, type PointerEvent as RPointerEvent } from "react";
 import { Sunbed } from "./Beach";
+import { Icon } from "../lib/icons";
 import { LANDMARK_LABEL } from "../data/pricing";
 import type { Landmark, SunbedSlot } from "../domain/types";
 
@@ -7,7 +9,186 @@ import type { Landmark, SunbedSlot } from "../domain/types";
    accessibility mark — the same picture for the admin's "Preview as customer",
    the Cashier till and the entrance display. Every set is the shared <Sunbed>
    glyph, so states, tooltips and accessible names match the booking wizard. */
-export function SunbedMap({
+type MapProps = Parameters<typeof MapCanvas>[0];
+
+/* Phones (AENR-647): the map is drawn at a size where every set is a 44px target,
+   in a pannable box that opens on the part that matters (your picks, the
+   highlighted sets, or the first free set); pinch or −/+ to zoom. A Map | List
+   toggle shows the same sets as rows with the same action, selections in sync. */
+export function SunbedMap(props: MapProps & { list?: boolean }) {
+  const { list = !!props.onToggle, ...rest } = props;
+  const [view, setView] = useState<"map" | "list">("map");
+  const narrow = useNarrow();
+  return (
+    <div className="space-y-2">
+      {list && (
+        <div role="radiogroup" aria-label={`${props.label} view`} className="flex justify-end">
+          <div className="inline-flex rounded-lg ring-1 ring-slate-200 overflow-hidden text-[12px] font-semibold">
+            {(["map", "list"] as const).map((v) => (
+              <button key={v} type="button" role="radio" aria-checked={view === v} onClick={() => setView(v)}
+                className={`px-3 min-h-[36px] inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500 ${view === v ? "bg-navy-900 text-white" : "bg-white text-navy-900 hover:bg-slate-50"}`}>
+                {v === "map" ? <Icon.map size={13} /> : <Icon.list size={13} />} {v === "map" ? "Map" : "List"}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {view === "list" ? <SetList {...rest} /> : narrow ? <ZoomMap {...rest} /> : <MapCanvas {...rest} />}
+    </div>
+  );
+}
+
+function useNarrow() {
+  const q = "(max-width: 767px)";
+  const [n, setN] = useState(() => typeof window !== "undefined" && window.matchMedia(q).matches);
+  useLayoutEffect(() => {
+    const m = window.matchMedia(q);
+    const on = () => setN(m.matches);
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
+  return n;
+}
+
+/** The smallest gap between neighbouring sets (in % of the box), across and down. */
+function gaps(slots: readonly SunbedSlot[]) {
+  const rows = new Map<number, number[]>();
+  slots.forEach((s) => rows.set(Math.round(s.y), [...(rows.get(Math.round(s.y)) ?? []), s.x]));
+  let dx = 100;
+  rows.forEach((xs) => xs.sort((a, b) => a - b).forEach((x, i) => i && x - xs[i - 1] > 0.5 && (dx = Math.min(dx, x - xs[i - 1]))));
+  const ys = [...rows.keys()].sort((a, b) => a - b);
+  let dy = 100;
+  ys.forEach((y, i) => i && (dy = Math.min(dy, y - ys[i - 1])));
+  return { dx, dy };
+}
+
+const CELL = 44;
+const AR = 0.75;
+function ZoomMap(props: MapProps) {
+  const box = useRef<HTMLDivElement>(null);
+  const [cw, setCw] = useState(358);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setCw(el.clientWidth));
+    ro.observe(el);
+    setCw(el.clientWidth);
+    return () => ro.disconnect();
+  }, []);
+  const { dx, dy } = gaps(props.slots);
+  // Wide enough that neighbours sit a 44px target + 8px apart, rows a target + code label apart.
+  // A taller box than on desktop (3:4) so rows spread down rather than across.
+  const base = Math.max(cw, ((CELL + 8) * 100) / dx, ((CELL + 16) * 100) / (dy * AR));
+  const fit = Math.min(1, cw / base);
+  const [zoom, setZoom] = useState(1);
+  const w = base * zoom;
+  const h = w * AR;
+  const centre = useRef<{ fx: number; fy: number } | null>(null);
+  const setZ = (z: number) => {
+    const el = box.current;
+    if (el) centre.current = { fx: (el.scrollLeft + el.clientWidth / 2) / w, fy: (el.scrollTop + el.clientHeight / 2) / h };
+    setZoom(Math.max(fit, Math.min(2, z)));
+  };
+  // Open on what matters: your picks, then highlighted sets, then the first free set.
+  const started = useRef(false);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    if (centre.current) {
+      el.scrollLeft = centre.current.fx * w - el.clientWidth / 2;
+      el.scrollTop = centre.current.fy * h - el.clientHeight / 2;
+      centre.current = null;
+      return;
+    }
+    if (started.current || cw < 100) return;
+    started.current = true;
+    const s =
+      props.slots.find((x) => props.selected?.has(x.id)) ??
+      props.slots.find((x) => props.highlight?.has(x.id)) ??
+      props.slots.find((x) => x.state === "a") ??
+      props.slots[0];
+    if (!s) return;
+    el.scrollLeft = (s.x / 100) * w - el.clientWidth / 2;
+    el.scrollTop = (s.y / 100) * h - el.clientHeight / 2;
+  }, [w, h, cw, props.slots, props.selected, props.highlight]);
+  // Two-finger pinch (one finger pans natively).
+  const pts = useRef(new Map<number, { x: number; y: number }>());
+  const pinch = useRef<{ d: number; z: number } | null>(null);
+  const dist = () => {
+    const [a, b] = [...pts.current.values()];
+    return Math.hypot(a.x - b.x, a.y - b.y);
+  };
+  const down = (e: RPointerEvent) => {
+    if (e.pointerType !== "touch") return;
+    pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pts.current.size === 2) pinch.current = { d: dist(), z: zoom };
+  };
+  const move = (e: RPointerEvent) => {
+    if (!pts.current.has(e.pointerId)) return;
+    pts.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pinch.current && pts.current.size === 2) setZ((pinch.current.z * dist()) / pinch.current.d);
+  };
+  const up = (e: RPointerEvent) => {
+    pts.current.delete(e.pointerId);
+    if (pts.current.size < 2) pinch.current = null;
+  };
+  const btn = "w-9 h-9 grid place-items-center rounded-lg bg-white/95 ring-1 ring-slate-300 text-navy-900 shadow-sm disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500";
+  return (
+    <div className="relative">
+      <div
+        ref={box}
+        onPointerDown={down}
+        onPointerMove={move}
+        onPointerUp={up}
+        onPointerCancel={up}
+        className="overflow-auto overscroll-contain rounded-xl ring-1 ring-slate-200"
+        style={{ touchAction: "pan-x pan-y", maxHeight: "min(62vh, 440px)" }}
+      >
+        <div style={{ width: w, height: h, "--cell": `${CELL * zoom}px` } as CSSProperties}>
+          <MapCanvas {...props} className={`${props.className ?? ""} !aspect-auto h-full !ring-0`} />
+        </div>
+      </div>
+      <div className="absolute right-2 bottom-2 flex flex-col gap-1.5">
+        <button type="button" className={btn} aria-label="Zoom in" disabled={zoom >= 2} onClick={() => setZ(zoom * 1.25)}><Icon.plus size={16} /></button>
+        <button type="button" className={btn} aria-label="Zoom out" disabled={zoom <= fit + 0.01} onClick={() => setZ(zoom / 1.25)}><Icon.minus size={16} /></button>
+      </div>
+      <p className="mt-1 text-[11px] text-slate-500">Drag to move · pinch or −/+ to zoom.</p>
+    </div>
+  );
+}
+
+/** The same sets as rows (AENR-647): code, state, price — and the same action. */
+function SetList({ slots, selected, onToggle, describe, priceOf, marker, label, pickAny }: MapProps) {
+  const rows = [...slots].sort((a, b) => a.y - b.y || a.x - b.x);
+  return (
+    <ul aria-label={`${label} — list`} className="max-h-[440px] overflow-y-auto divide-y divide-slate-100 rounded-xl ring-1 ring-slate-200 bg-white/80">
+      {rows.map((s) => {
+        const on = !!selected?.has(s.id);
+        const m = marker?.(s);
+        const state = describe?.(s) ?? (s.state === "u" ? "taken" : s.state === "h" ? "on hold" : "free");
+        const can = !!onToggle && (pickAny || s.state === "a" || on);
+        return (
+          <li key={s.id} className="flex items-center gap-3 px-3 min-h-[48px]">
+            <span className="font-mono font-semibold text-navy-900 w-14">{s.id}</span>
+            <span className="flex-1 min-w-0 truncate text-[13px] text-slate-600">
+              {m && <span aria-hidden className={`inline-block min-w-[18px] h-[18px] px-1 mr-1.5 rounded-full text-[10px] font-bold leading-[18px] text-center align-middle ${m.cls}`}>{m.text}</span>}
+              {state}{s.access ? " · step-free" : ""}{s.inv ? ` · ${s.inv}` : ""}
+            </span>
+            <span className="tnum text-[13px] text-slate-700">€{priceOf ? priceOf(s) : s.price}</span>
+            {onToggle && (
+              <button type="button" aria-pressed={on} disabled={!can} onClick={() => onToggle(s)} aria-label={`${on ? "Deselect" : "Select"} ${s.id}`}
+                className={`min-h-[36px] min-w-[72px] rounded-lg px-2.5 text-[12.5px] font-semibold ring-1 transition disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white text-navy-900 ring-slate-300 hover:ring-teal-400"}`}>
+                {on ? "Selected" : "Select"}
+              </button>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+function MapCanvas({
   slots,
   landmarks = [],
   selected,
@@ -68,8 +249,8 @@ export function SunbedMap({
           style={{
             left: `${s.x}%`,
             top: `${s.y}%`,
-            width: "clamp(30px, 5.2vw, 44px)",
-            height: "clamp(30px, 5.2vw, 44px)",
+            width: "var(--cell, clamp(30px, 5.2vw, 44px))",
+            height: "var(--cell, clamp(30px, 5.2vw, 44px))",
           }}
         >
           <Sunbed

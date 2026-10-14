@@ -50,11 +50,7 @@ export function ZoneChips({
     onChange(next);
     const row = e.currentTarget.parentElement; // currentTarget is gone by the next frame
     requestAnimationFrame(() =>
-      (
-        row?.querySelector(
-          `[data-zone-chip="${next}"]`,
-        ) as HTMLElement | null
-      )?.focus(),
+      (row?.querySelector(`[data-zone-chip="${next}"]`) as HTMLElement | null)?.focus(),
     );
   };
   const chip = (

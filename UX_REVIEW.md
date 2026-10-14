@@ -481,3 +481,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   arrived / expected and notes, with one action that fits: Check in, Take payment, Release or Sell.
 - **AENR-650 — the whole beach, then a zone.** Live beach opens on every zone with its counts; tap to zoom
   in. Staff pages pick a zone from chips with live counts instead of a dropdown.
+- **AENR-647 — maps on a phone.** Staff maps open zoomed on what matters with 44px sets, pan and pinch
+  (or −/+), and a Map | List toggle with the same selection.
