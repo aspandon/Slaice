@@ -502,4 +502,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-661 — daily screens start with content.** Their description moved behind a “?” next to the title.
 - **AENR-646 — the avatar is who is signed in.** Per persona from Team & roles; on the till the active cashier.
 - **AENR-662 — one wallet that fits.** At most one wallet button per visit card; the other in “…”.
+- **AENR-653 — Guests: one Guest column and the next visit.** One primary action in the profile; Important folded into VIP.
 - **AENR-658 — a calm first step.** No total or refund warning before a set is picked; the terms show once, on Pay.

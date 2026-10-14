@@ -27,6 +27,7 @@ import type { ReactNode } from "react";
 
 
 import { useUndoToast } from "../../lib/useUndo";
+import { useBookingOps } from "../../lib/useBookingOps";
 /* ============ USERS & SEGMENTS ============
    Guests are grouped by segments: built-in ones (VIP, Season pass, and
    "Over N visits", whose threshold is editable) plus the tenant's own
@@ -44,6 +45,7 @@ type Guest = GuestFacts & { name: string; customer: Customer };
 
 export function AdminUsers() {
   const { toast, passes, crm, setCrm, go, viewAs } = useApp();
+  const ops = useBookingOps();
   const ra = crm.regularAfter;
   const [q, setQ] = useState("");
   const [segId, setSegId] = useUrlState("segment", "all");
@@ -194,6 +196,12 @@ export function AdminUsers() {
     toast(`Merged ${drop.first} ${drop.last} into ${keep.first} ${keep.last}.`, { tone: "success" });
   };
   const cols = crm.columns;
+  // The guest's next booked visit (AENR-653), from the same bookings as Bookings.
+  const nextVisitOf = (u: Customer) =>
+    ops.bookings
+      .filter((b) => `${b.who} ${b.surname}`.trim() === `${u.first} ${u.last}` && b.visitIso >= DEMO_TODAY && !["Cancelled", "Refunded", "Expired"].includes(b.status))
+      .map((b) => b.visitIso)
+      .sort()[0];
   const OPTIONAL: { k: string; l: string; cell: (g: Guest) => ReactNode; right?: boolean }[] = [
     { k: "lifecycle", l: "Lifecycle", cell: (g) => <Badge tone={STAGE_TONE[g.lifecycle as Stage]}>{g.lifecycle}</Badge> },
     { k: "rfm", l: "RFM", cell: (g) => { const x = rfm.get(g.id)!; return <span className="whitespace-nowrap"><Badge tone={RFM_TONE[x.label]}>{x.label}</Badge> <span className="text-[11px] text-slate-500 tnum">{x.r}{x.f}{x.m}</span></span>; } },
@@ -395,11 +403,15 @@ export function AdminUsers() {
           <>
           <Table rowLink dense={shownOptional.length > 1}
             cols={[<input type="checkbox" aria-label="Select all shown guests" checked={allShownSelected} onChange={(e) => setSel(e.target.checked ? new Set(sorted.map((u) => u.id)) : new Set())} className="w-4 h-4 accent-teal-600" />,
-              <SortHeader label="Name" k="name" sort={sort} onSort={onSort} />, <SortHeader label="Surname" k="surname" sort={sort} onSort={onSort} />, "Phone", "Email",
-              <SortHeader label="Visits" k="visits" sort={sort} onSort={onSort} align="right" />, ...shownOptional.map((c) => (c.k === "spend" ? <SortHeader key={c.k} label={c.l} k="spend" sort={sort} onSort={onSort} align="right" /> : c.k === "lastVisit" ? <SortHeader key={c.k} label={c.l} k="last" sort={sort} onSort={onSort} /> : c.l)), "Tags", ""]}
-            right={[5, ...shownOptional.map((c, i) => (c.right ? 6 + i : -1)).filter((i) => i >= 0)]}
+              <SortHeader label="Guest" k="name" sort={sort} onSort={onSort} />,
+              <SortHeader label="Visits" k="visits" sort={sort} onSort={onSort} align="right" />, "Next visit", ...shownOptional.map((c) => (c.k === "spend" ? <SortHeader key={c.k} label={c.l} k="spend" sort={sort} onSort={onSort} align="right" /> : c.k === "lastVisit" ? <SortHeader key={c.k} label={c.l} k="last" sort={sort} onSort={onSort} /> : c.l)), "Tags", ""]}
+            right={[2, ...shownOptional.map((c, i) => (c.right ? 4 + i : -1)).filter((i) => i >= 0)]}
             rows={rows.map((u) => [<input type="checkbox" aria-label={`Select ${u.first} ${u.last}`} checked={sel.has(u.id)} onChange={() => toggleSel(u.id)} className="relative z-[1] w-4 h-4 accent-teal-600" />,
-              <span className="inline-flex items-center gap-1.5">{crm.profiles[u.id]?.important && <Icon.star size={12} className="text-amber-500" aria-label="Important guest" />}<button type="button" className="row-link font-semibold text-navy-900 hover:text-teal-700 text-left" onClick={() => setProfileId(u.id)} aria-label={`Open profile of ${u.first} ${u.last}`}>{u.first}</button>{crm.eraseRequests.includes(u.id) && <Badge tone="red">Erasure requested</Badge>}{u.id >= 1000 && <Badge tone="slate">Imported</Badge>}</span>, u.last, <span className="tnum whitespace-nowrap">{u.phone}</span>, u.email, u.bookings, ...shownOptional.map((c) => c.cell(byId.get(u.id)!)),
+              // One Guest column (AENR-653): name, phone underneath.
+              <div className="leading-tight">
+                <span className="inline-flex items-center gap-1.5">{(crm.profiles[u.id]?.important || tagsFor(u).some((x) => x.t === "VIP")) && <Icon.star size={12} className="text-amber-500" aria-label="VIP" />}<button type="button" className="row-link font-semibold text-navy-900 hover:text-teal-700 text-left whitespace-nowrap" onClick={() => setProfileId(u.id)} aria-label={`Open profile of ${u.first} ${u.last}`}>{u.first} {u.last}</button>{crm.eraseRequests.includes(u.id) && <Badge tone="red">Erasure requested</Badge>}{u.id >= 1000 && <Badge tone="slate">Imported</Badge>}</span>
+                <div className="text-[11.5px] text-slate-500 tnum whitespace-nowrap">{u.phone}</div>
+              </div>, u.bookings, nextVisitOf(u) ? <span className="whitespace-nowrap font-medium text-navy-900">{fmtDay(nextVisitOf(u)!)}</span> : <span className="text-slate-400">—</span>, ...shownOptional.map((c) => c.cell(byId.get(u.id)!)),
               <span className="flex gap-1 flex-wrap">{tagsFor(u).map(({ t, pass }) => <Badge key={t} tone={tagTone(t)} className="whitespace-nowrap">{pass && <Icon.wallet size={9} />}{t}</Badge>)}</span>,
               <Icon.chevR size={16} className="text-slate-400" aria-hidden />])} />
           {pageCount > 1 && <Pager page={safePage} pageCount={pageCount} total={sorted.length} pageSize={PAGE} onPage={setPage} />}

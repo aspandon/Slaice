@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useGuestRecord } from "../../lib/useGuestRecord";
 import { Icon, type IconRenderer } from "../../lib/icons";
-import { Badge, Btn, Drawer, Field, Input, Select, Table, Tabs, Toggle, ExportMenu } from "../../components/ui";
+import { Badge, Btn, Drawer, Field, Input, Select, Table, Tabs, Toggle, ExportMenu, ActionsMenu } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { ADMIN_BOOKINGS, ADMIN_REFUNDS } from "../../data/mock";
 import { ZONES, TENANT } from "../../data/beach";
@@ -105,16 +105,19 @@ export function GuestProfile({ guest: facts, customer, rfm, segments, tags, onCl
         <div className="flex items-center gap-3">
           <span className="w-12 h-12 rounded-2xl bg-gradient-to-br from-navy-800 to-teal-600 text-white grid place-items-center font-display font-bold text-lg shrink-0">{customer.first.charAt(0)}{customer.last.charAt(0)}</span>
           <div className="min-w-0">
-            <div className="font-display font-bold text-navy-900 text-lg truncate flex items-center gap-2">{name}{prof.important && <Badge tone="amber"><Icon.star size={10} /> Important</Badge>}{prof.restricted && <Badge tone="red"><Icon.lock size={10} /> Processing restricted</Badge>}</div>
+            <div className="font-display font-bold text-navy-900 text-lg truncate flex items-center gap-2">{name}{(prof.important || tags.some((x) => x.t === "VIP")) && <Badge tone="amber"><Icon.star size={10} /> VIP</Badge>}{prof.restricted && <Badge tone="red"><Icon.lock size={10} /> Processing restricted</Badge>}</div>
             <div className="text-[12px] text-slate-500 truncate">{customer.email} · <span className="tnum">{customer.phone}</span></div>
           </div>
         </div>
       }
       footer={<>
-        <Btn variant="outline" icon={Icon.plus} onClick={() => go("admin", "newbooking", { prefill: { name: `${customer.first} ${customer.last}`, email: customer.email, phone: customer.phone } })}>New booking</Btn>
-        <Btn variant="outline" icon={Icon.mail} onClick={() => go("admin", "communicate")}>Message</Btn>
-        <Btn variant="outline" icon={Icon.qr} onClick={() => toast(bookings[0] ? `Demo — QR for ${bookings[0].id} re-sent to ${customer.email}.` : "No bookings to resend.", { tone: bookings[0] ? "success" : "error" })}>Resend QR</Btn>
-        <Btn variant="primary" icon={Icon.edit} onClick={onEdit}>Edit details</Btn>
+        {/* One primary action; the rest in "…" (AENR-653, AENR-617). */}
+        <ActionsMenu label={`More actions for ${name}`} align="end" actions={[
+          { id: "edit", label: "Edit details", icon: Icon.edit, onSelect: onEdit },
+          { id: "message", label: "Message", icon: Icon.mail, onSelect: () => go("admin", "communicate") },
+          { id: "qr", label: "Resend QR", icon: Icon.qr, disabled: !bookings[0], hint: bookings[0] ? undefined : "No bookings yet", onSelect: () => toast(`Demo — QR for ${bookings[0].id} re-sent to ${customer.email}.`, { tone: "success" }) },
+        ]} />
+        <Btn variant="primary" icon={Icon.plus} onClick={() => go("admin", "newbooking", { prefill: { name: `${customer.first} ${customer.last}`, email: customer.email, phone: customer.phone } })}>New booking</Btn>
       </>}>
       <Tabs scroll tabs={TABS} value={tab} onChange={setTab} className="mb-4" />
 
@@ -128,10 +131,7 @@ export function GuestProfile({ guest: facts, customer, rfm, segments, tags, onCl
             {rfm && <Badge tone={RFM_TONE[rfm.label]}>{rfm.label} · RFM {rfm.r}{rfm.f}{rfm.m}</Badge>}
             <span className="text-slate-500">Next visit (predicted): <b className="text-navy-900">{next ? fmtDay(next) : "—"}</b></span>
           </div>
-          <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
-            <div><div className="font-semibold text-sm text-navy-900">Important guest</div><div className="text-[12px] text-slate-500">Flagged in the guest list and for staff when they arrive.</div></div>
-            <Toggle on={!!prof.important} onChange={(v) => patch({ important: v })} ariaLabel="Important guest" />
-          </div>
+          {/* “Important guest” folded into the VIP tag (AENR-653): tag a guest VIP to flag them for staff. */}
           <div>
             <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-1.5">Tags</div>
             <div className="flex flex-wrap items-center gap-1.5">
