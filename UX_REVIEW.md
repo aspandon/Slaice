@@ -475,3 +475,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   phone keeps the total and Charge pinned at the bottom (it used to render below the screen).
 - **AENR-640 — Pay where it says Pay.** The wizard's Pay step shows the checkout panel and takes the
   payment; the separate basket page is only for guests who leave and come back.
+- **AENR-641 — Choose for me.** Opening a zone lands on the best free sets for the party (side by side,
+  cheapest, nearest the sea) with "Front row instead (+€X)"; tap a set to swap it, Clear to start over.

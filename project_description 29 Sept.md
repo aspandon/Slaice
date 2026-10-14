@@ -619,12 +619,19 @@ back; forward only via Continue). Footer: live **Total €** (animated) + **Back
    - Guidance: "**Tap a zone on the beach** to choose where you'll sit — the sea is at the top."
 3. **Pick sets** — phase _sets_: tapping a zone zooms the "camera" in (FLIP animation) to the zone's
    full set layout on the sand (sea at top = front row). Tap available sets to toggle them.
+   - **Choose for me** (AENR-641): opening a zone with no sets of yours in it lands on the best free sets
+     for the party (2 guests a set; 1 set until the headcount is known) — side by side in one row first,
+     the cheapest, and on a tie the row nearest the sea; with nothing adjacent free, the cheapest sets
+     nearest the sea and the summary says "none free side by side". The summary reads "Picked for you:
+     2 sets together · Middle rows · €70" with a **Front row instead (+€X)** chip when front-row sets
+     are free. Tapping a set swaps it; **Clear** removes the pick. Until the guest edits it by hand,
+     the pick follows the party size from the Who step. Logic: `src/domain/bestSets.ts`.
    - Legend: Available · On hold · Taken · Yours. Only **available** sets are selectable **[GAP]**
      (on-hold sets can currently be picked too — §22).
    - Feedback: umbrella pops open, sand ripple, a price chip flies into the total which pulses.
    - Summary chip: "N umbrella sets · CE-01, CE-04 · €X × D days" + **Clear**.
-   - **Back** (or the menu) returns to the zones overview (reverse zoom). Changing zone **clears** the
-     picked sets.
+   - **Back** (or the menu) returns to the zones overview (reverse zoom). Changing zone replaces the
+     picked sets with that zone's suggestion (several zones on: adds to them).
 
 **Step 2 — Guests** ("Tell us who's coming")
 

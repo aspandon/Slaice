@@ -23,6 +23,7 @@ import { partyLabel, serviceFees } from "../domain/account";
 import { cancelLine } from "../domain/visits";
 import { useSiteStatus } from "../lib/usePlatform";
 import { Checkout } from "./Checkout";
+import { bestSets } from "../domain/bestSets";
 
 type People = Record<string, number>;
 interface BedPick { id: string; price: number; zoneId: string }
@@ -359,6 +360,7 @@ function WizardInner() {
     }
     flipBackRef.current = false;
     setZoneId(id);
+    autoPick(id);
     setPhase("sets");
   };
   // Reverse camera: the big grid FLIPs back down into its cluster on the map.
@@ -401,6 +403,7 @@ function WizardInner() {
   const toggleBed = (slot: SunbedSlot, el?: HTMLElement | null) => {
     const adding = !bedSel.find((b) => b.id === slot.id);
     setBedSel((s) => (adding ? [...s, { id: slot.id, price: slot.price, zoneId: zone.id }] : s.filter((b) => b.id !== slot.id)));
+    setAuto((a) => (a && !a.edited ? { ...a, edited: true } : a));
     if (el) bedPickFx(el, slot.price, adding);
     const n = bedSel.length + (adding ? 1 : -1);
     setAnnounce(`${slot.id} ${adding ? tr("selected") : tr("removed")}, €${slot.price}. ${n} ${n === 1 ? tr("set") : tr("sets")} ${tr("picked")}.`);
@@ -408,6 +411,50 @@ function WizardInner() {
   // Tapping a set opens its spot sheet first (AENR-568); Select there picks it.
   const [inspect, setInspect] = useState<{ slot: SunbedSlot; el: HTMLElement | null } | null>(null);
   const tierOfZone = useMemo(() => tierInfo(slots), [slots]);
+
+  // "Choose for me" (AENR-641): opening a zone lands on the best free sets for the
+  // party (two guests a set) — side by side, cheapest, nearest the sea — the way an
+  // airline app assigns seats. Tapping a set swaps it; the pick follows the party
+  // size until the guest edits it by hand.
+  const wantSets = Math.max(1, Math.ceil((peopleTouched ? totalPeople : 2) / 2));
+  const [auto, setAuto] = useState<{ zoneId: string; ids: string[]; together: boolean; rowIdx: number; edited: boolean } | null>(null);
+  const autoPick = (id: string, n = wantSets, onlyRow?: number, replace = false) => {
+    const z = ZONES.find((x) => x.id === id);
+    if (!z || (!replace && bedSel.some((b) => b.zoneId === id))) return; // the guest's own picks stay
+    const all = liveSlots(z, selDates);
+    const pick = bestSets(all.filter((x) => x.state === "a"), all, n, onlyRow);
+    if (!pick) return;
+    const price = new Map(all.map((x) => [x.id, x.price]));
+    const picks = pick.ids.map((sid) => ({ id: sid, price: price.get(sid) ?? 0, zoneId: id }));
+    shownZone.current = id; // the zone-switch effect must not wipe this pick
+    setBedSel((s) => (multiStoreRef.current ? [...s.filter((b) => b.zoneId !== id), ...picks] : picks));
+    setAuto({ zoneId: id, ids: pick.ids, together: pick.together, rowIdx: pick.rowIdx, edited: false });
+    setAnnounce(`${tr("Picked for you")}: ${pick.ids.join(", ")}, €${pick.total}.`);
+  };
+  const autoIntact = !!auto && !auto.edited && auto.ids.every((id) => bedSel.some((b) => b.id === id)) && bedSel.filter((b) => b.zoneId === auto.zoneId).length === auto.ids.length;
+  const lastWant = useRef(wantSets);
+  useEffect(() => {
+    if (lastWant.current === wantSets) return;
+    lastWant.current = wantSets;
+    if (auto && autoIntact) autoPick(auto.zoneId, wantSets, undefined, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-pick only when the party size changes
+  }, [wantSets]);
+  const autoNote = useMemo(() => {
+    if (!auto || !autoIntact || auto.zoneId !== zone.id) return null;
+    const picked = slots.filter((x) => auto.ids.includes(x.id));
+    const total = picked.reduce((a, x) => a + x.price, 0);
+    const n = picked.length;
+    const rowName = picked[0] ? tierOfZone(picked[0]).tier.name : TIERS[1].name;
+    const head = n === 1 ? tr("1 set") : `${n} ${tr("sets")} ${auto.together ? tr("together") : tr("— none free side by side")}`;
+    const text = `${head} · ${tr(rowName)} · €${total}${dayCount > 1 ? ` ${tr("a day")}` : ""}`;
+    let upgrade: { label: string; onClick: () => void } | undefined;
+    if (auto.rowIdx > 0) {
+      const front = bestSets(slots.filter((x) => x.state === "a"), slots, n, 0);
+      if (front) upgrade = { label: `${tr("Front row instead")} (+€${front.total - total})`, onClick: () => autoPick(zone.id, n, 0, true) };
+    }
+    return { text, upgrade };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- autoPick is a plain closure
+  }, [auto, autoIntact, zone.id, slots, tierOfZone, dayCount, tr]);
   // Any manual change to the headcount flips off the auto pre-fill for the rest
   // of the session, so the guest's numbers are never overwritten.
   const editPeople = (v: SetStateAction<People>) => { setPeopleTouched(true); setPeople(v); };
@@ -544,13 +591,14 @@ function WizardInner() {
                   days: [1, -1, 2, -2, 3, 4, 5, 6, 7].map((n) => addDays(fullDay, n)).filter((d) => d >= todayISO() && !blockReason(d) && (dayInfo(d).left ?? 0) > 0).slice(0, 3),
                   zones: phase === "sets" ? ZONES.filter((z) => z.id !== zone.id).map((z) => ({ z, left: liveSlots(z, [fullDay]).filter((x) => x.state === "a").length })).filter((x) => x.left > 0).slice(0, 3) : [],
                 } : null}
-                onPickZone={(id) => { setBedSel([]); setZoneId(id); }} stayReasons={[...(stopSell ? [`${zone.name}: not available online — ask at the beach (${stopSell.reason}).`] : []), ...Object.entries(stayCheck.blocked).map(([d, why]) => `${chipLabel(d, localeFor(lang)).sub}: ${why}`), ...stayCheck.reasons]}
+                onPickZone={(id) => { setBedSel([]); setZoneId(id); autoPick(id, wantSets, undefined, true); }} stayReasons={[...(stopSell ? [`${zone.name}: not available online — ask at the beach (${stopSell.reason}).`] : []), ...Object.entries(stayCheck.blocked).map(([d, why]) => `${chipLabel(d, localeFor(lang)).sub}: ${why}`), ...stayCheck.reasons]}
                 selDates={selDates} setSelDates={setSelDates}
                 multiDate={multiDate} setMultiDate={setMultiDate}
                 phase={phase} setPhase={(p) => (p === "zones" ? backToZones() : setPhase(p))}
                 zone={zone} bedSel={bedSel} setBedSel={setBedSel}
                 avail={avail} dayCount={dayCount}
                 multiStore={multiStore} setMultiStore={setMultiStore} stale={stalePicks.map((b) => b.id)}
+                autoNote={autoNote}
               />
             )}
             {step.id === "people" && (
@@ -823,7 +871,9 @@ function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number
 /* ============ Beach step — menu side (dates + phase controls) ============
    The map and the sunbed grid have moved onto the page background; the menu keeps
    the dates and the supporting info (zone summary, legend, picks). */
-function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setPhase, zone, bedSel, setBedSel, avail, dayCount, blockReason, stayReasons, multiStore, setMultiStore, stale, dayInfo, fullDay, alternatives, onPickZone }: {
+function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setPhase, zone, bedSel, setBedSel, avail, dayCount, blockReason, stayReasons, multiStore, setMultiStore, stale, dayInfo, fullDay, alternatives, onPickZone, autoNote }: {
+  /** The "Choose for me" pick in words, with the front-row upgrade (AENR-641). */
+  autoNote?: { text: string; upgrade?: { label: string; onClick: () => void } } | null;
   dayInfo: (iso: string) => DayInfo;
   fullDay: string | null;
   alternatives: { days: string[]; zones: { z: WizardZone; left: number }[] } | null;
@@ -896,12 +946,21 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
 
           {bedSel.length > 0 && !multiStore && (
             <div className="rounded-xl px-3 py-2.5 ring-1 ring-teal-300 bg-teal-50/80 flex items-center justify-between gap-3">
-              <div className="min-w-0 text-[12.5px]">
-                <div className="font-semibold text-navy-900 truncate">{bedSel.length} {bedSel.length !== 1 ? tr("umbrella sets") : tr("umbrella set")} · {bedSel.map((b) => b.id).join(", ")}</div>
-                <div className="text-[11px] text-slate-600">€{pickedSubtotal} × {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}</div>
+              <div className="min-w-0 text-[12.5px] flex items-start gap-2" role="status">
+                {autoNote && <Icon.sparkles size={14} className="text-teal-700 shrink-0 mt-0.5" />}
+                <div className="min-w-0">
+                  {autoNote && <div className="font-semibold text-navy-900">{tr("Picked for you")}: {autoNote.text}</div>}
+                  <div className={autoNote ? "text-[11px] text-slate-600" : "font-semibold text-navy-900 truncate"}>{bedSel.length} {bedSel.length !== 1 ? tr("umbrella sets") : tr("umbrella set")} · {bedSel.map((b) => b.id).join(", ")}</div>
+                  <div className="text-[11px] text-slate-600">€{pickedSubtotal} × {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}{autoNote ? ` · ${tr("tap a set on the sand to swap it")}` : ""}</div>
+                </div>
               </div>
-              <button onClick={() => setBedSel([])} className="text-[11px] font-semibold text-slate-500 hover:text-rose-600 shrink-0">{tr("Clear")}</button>
+              <button onClick={() => setBedSel([])} className="text-[11px] font-semibold text-slate-500 hover:text-rose-600 shrink-0 min-h-[32px] px-1">{tr("Clear")}</button>
             </div>
+          )}
+          {autoNote?.upgrade && !multiStore && (
+            <button type="button" onClick={autoNote.upgrade.onClick} className="inline-flex items-center gap-1.5 min-h-[36px] rounded-full px-3 text-[12px] font-semibold text-teal-800 bg-white/90 ring-1 ring-teal-300 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+              <Icon.wave size={13} /> {autoNote.upgrade.label}
+            </button>
           )}
         </div>
       )}
