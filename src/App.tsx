@@ -8,6 +8,7 @@ import { TopBar, Sidebar, BottomTabBar, CustomerNav, SiteFooter, Toasts, Persona
 import { AuthGate } from "./screens/auth";
 import { ConsentBanner } from "./components/ConsentBanner";
 import { CustomerBackdrop } from "./components/CustomerBackdrop";
+import { GlideLogo } from "./components/GlideLogo";
 import { routeFor } from "./routes";
 import { parseHash, buildHash, hashPath, isValidPage, resolvePage } from "./app/router";
 import { HTML_LANG, deviceLang, normalizeLang } from "./app/i18n";
@@ -439,14 +440,14 @@ export default function App() {
               // desktop keeps the large logo on Home only.
               className={`flex max-md:justify-start md:justify-center items-center max-md:-mt-[54px] max-md:h-12 relative z-10 md:pt-1 md:pb-1 mb-2 sm:mb-4 w-fit md:w-full max-md:mr-auto group hover:opacity-90 active:opacity-75 transition-opacity`}
             >
-              <img src={`${import.meta.env.BASE_URL}tenant-logo.png`} alt="Ακτή του Ηλίου" className={`w-auto max-md:h-9 ${page === "home" ? "md:h-[100px]" : "md:h-16"}`} />
+              <GlideLogo spot="home" className={`w-auto max-md:h-9 ${page === "home" ? "md:h-[100px]" : "md:h-16"}`} />
             </button>
           )}
           {/* Booking wizard on desktop: the beach logo floats over the open sea, as on Home (AENR-671). */}
           {persona === "customer" && immersive && (
             <div className="hidden lg:flex fixed z-[15] top-[13vh] left-0 right-[min(460px,36vw)] justify-center pointer-events-none">
               <button onClick={() => go("customer", "home")} aria-label="Go to home" className="pointer-events-auto rounded-2xl hover:opacity-90 active:opacity-75 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
-                <img src={`${import.meta.env.BASE_URL}tenant-logo.png`} alt="Ακτή του Ηλίου" className="h-[110px] w-auto drop-shadow-[0_2px_10px_rgba(0,40,80,0.25)]" />
+                <GlideLogo spot="wizard" className="h-[110px] w-auto drop-shadow-[0_2px_10px_rgba(0,40,80,0.25)]" />
               </button>
             </div>
           )}

@@ -643,7 +643,9 @@ back; forward only via Continue). Footer: live **Total €** (animated) + **Back
      The row is centred in the open sand between the shoreline and the guidance bar, so no zone touches
      the water (AENR-670).
      The beach logo floats large over the open sea to the left of the panel, as on Home; tapping it goes
-     Home (AENR-671).
+     Home (AENR-671). Opening the wizard glides the logo from the Home header to that spot — and back on
+     leaving — in step with the sand (0.78 s, ease-out; `GlideLogo`; reduced motion: it simply appears)
+     (AENR-672).
    - Phones: compact **zone cards**.
    - Guidance: "**Tap a zone on the beach** to choose where you'll sit — the sea is at the top."
 3. **Pick sets** — phase _sets_: tapping a zone zooms the "camera" in (FLIP animation) to the zone's
