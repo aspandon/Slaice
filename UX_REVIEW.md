@@ -496,4 +496,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-634 — Bookings: when, then status.** Today · Upcoming · Past · All plus non-zero status chips; one line per booking; Arrival column today.
 - **AENR-635 — New booking follows the call.** Caller · When · Zone and sets (pre-picked) · Tickets · Payment, total and button pinned.
 - **AENR-637 — Controller: Gate and Beach.** Walk-in merged into Beach: a free set's card sells in place; one scanner per tab.
+- **AENR-631 — Beach layout: canvas plus one inspector.** Stop-sell, date overrides and drafts & versions are tabs; the inspector follows the selection.
 - **AENR-658 — a calm first step.** No total or refund warning before a set is picked; the terms show once, on Pay.

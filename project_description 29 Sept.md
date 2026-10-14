@@ -1020,6 +1020,12 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
 ```
 
 - One nav item (**Beach, Availability & Pricing**); `#/admin/map` redirects here.
+- **One page, four views** (AENR-631): tabs above the canvas — **Layout** · **Stop-sell & inventory** ·
+  **Date overrides** · **Drafts & versions**. On Layout the canvas takes the width and **one inspector**
+  on the right follows the selection: a landmark → its type and label; sets → category, type, state,
+  step-free, persons, the price breakdown, price for dates, stop-sell actions, duplicate / remove;
+  nothing → the zone (price categories, layout tools, QR labels, copy layout, zone logo). Every tool is
+  within one scroll at 1440×900.
 - **Sunbeds & pricing** (`src/screens/beach/Workspace.tsx`): every edit goes into one draft (layouts of
   all stores, price categories, date overrides, landmarks) with Undo / Redo (buttons and ⌘Z / ⇧⌘Z); a
   bar shows the number of unsaved changes with **Discard** and **Publish** (simulated processing); leaving

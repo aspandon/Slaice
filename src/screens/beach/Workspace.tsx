@@ -2,7 +2,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { ZoneChips } from "../../components/ZoneChips";
 import { lazyWithReload } from "../../lib/staleChunk";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Field, Input, Modal, Select, Spinner, Table, Toggle, DateInput } from "../../components/ui";
+import { Badge, Btn, Card, Field, Input, Modal, Select, Spinner, Table, Toggle, DateInput, Tabs } from "../../components/ui";
 import { QR } from "../../components/charts";
 import { SunbedMap } from "../../components/SunbedMap";
 import { InventoryActions, InventoryPanel } from "./Inventory";
@@ -221,6 +221,7 @@ export function SunbedWorkspace() {
   const mixedState = same(selList.map((s) => s.state));
   const mixedAccess = same(selList.map((s) => !!s.access));
   const catCount = (id: string) => slots.filter((s) => s.cat === id).length;
+  const [pane, setPane] = useState<"layout" | "stopsell" | "overrides" | "versions">("layout");
 
   return (
     <div className="space-y-4">
@@ -239,6 +240,20 @@ export function SunbedWorkspace() {
         <Icon.info size={14} className="shrink-0 mt-0.5 text-sky-700" /> Best on a larger screen. On phones, use the List view to select and edit sets.
       </div>
 
+      {/* One page, four views (AENR-631): the canvas with one inspector, then the
+          zone's stop-sell, date overrides and drafts & versions as tabs. */}
+      <Tabs
+        scroll
+        tabs={[
+          ["layout", "Layout"],
+          ["stopsell", "Stop-sell & inventory"],
+          ["overrides", `Date overrides${overrides.length ? ` ${overrides.length}` : ""}`],
+          ["versions", "Drafts & versions"],
+        ]}
+        value={pane}
+        onChange={(v) => setPane(v as typeof pane)}
+      />
+      {pane === "layout" && (
       <div className="grid xl:grid-cols-[minmax(0,1fr)_340px] gap-4 items-start">
         <Card className="p-4 min-w-0">
           {/* Zone + date + mode */}
@@ -405,11 +420,9 @@ export function SunbedWorkspace() {
               </div>
             </Card>
           ) : (
-            <Card className="p-4 text-[12.5px] text-slate-600">Select sets on the canvas or in the list to edit category, type, state, accessibility or date prices. Use “Paint category” to assign categories by sweeping.</Card>
-          )}
-
-          <InventoryPanel zoneId={zoneId} slots={live.layouts[zoneId] ?? slots} date={date} />
-
+            // Nothing selected: the inspector shows the zone (AENR-631).
+            <>
+              <p className="text-[12.5px] text-slate-600 px-1">Select sets on the canvas or in the list to edit their category, type, state, accessibility or date prices.</p>
           <Card className="p-4">
             <div className="flex items-center justify-between mb-2"><div className="font-semibold text-navy-900">Price categories · {zone.name}</div><Btn size="sm" variant="ghost" icon={Icon.plus} onClick={addCat}>Add</Btn></div>
             <ul className="space-y-2">
@@ -429,21 +442,6 @@ export function SunbedWorkspace() {
               ))}
             </ul>
             <div className="mt-2 text-[11.5px] text-slate-500">Precedence: date override › seasonal rule › category › set default.</div>
-          </Card>
-
-          <Card className="p-4">
-            <div className="font-semibold text-navy-900 mb-2">Date overrides · {zone.name}</div>
-            {overrides.length === 0 ? <div className="text-[12.5px] text-slate-500">None — select sets and use “Price for dates”.</div> : (
-              <ul className="space-y-1.5 text-[12.5px]">
-                {overrides.map((o) => (
-                  <li key={o.id} className="flex items-center gap-2 rounded-lg ring-1 ring-slate-200 px-2.5 py-1.5">
-                    <div className="min-w-0 flex-1"><b className="text-navy-900">€{o.price}</b> · {o.label}<div className="text-[11.5px] text-slate-500">{o.setIds.length} sets · {o.from} → {o.to} · {DAYS.find((d) => d.v === o.days)?.l}</div></div>
-                    <button type="button" className="text-teal-700 font-semibold" onClick={() => setSel(new Set(o.setIds))}>Select</button>
-                    <button type="button" aria-label={`Remove override ${o.label}`} className="text-slate-400 hover:text-rose-600" onClick={() => setPricing((p) => ({ ...p, overrides: p.overrides.filter((x) => x.id !== o.id) }))}><Icon.trash size={13} /></button>
-                  </li>
-                ))}
-              </ul>
-            )}
           </Card>
 
           <Card className="p-4 space-y-3">
@@ -470,10 +468,39 @@ export function SunbedWorkspace() {
               {zoneLogos[zoneId] && <button type="button" className="text-[11px] text-slate-500 hover:text-rose-600" onClick={() => setZoneLogo(zoneId, null)}>Remove</button>}
             </div>
           </Card>
+            </>
+          )}
+
+
         </div>
       </div>
-      <VersionsPanel zoneId={zoneId} draft={draft} draftName={draftName} setDraftName={setDraftName}
+      )}
+      {pane === "stopsell" && (
+        <InventoryPanel zoneId={zoneId} slots={live.layouts[zoneId] ?? slots} date={date} />
+      )}
+      {pane === "overrides" && (
+        <div className="max-w-3xl">
+          <Card className="p-4">
+            <div className="font-semibold text-navy-900 mb-2">Date overrides · {zone.name}</div>
+            {overrides.length === 0 ? <div className="text-[12.5px] text-slate-500">None — select sets and use “Price for dates”.</div> : (
+              <ul className="space-y-1.5 text-[12.5px]">
+                {overrides.map((o) => (
+                  <li key={o.id} className="flex items-center gap-2 rounded-lg ring-1 ring-slate-200 px-2.5 py-1.5">
+                    <div className="min-w-0 flex-1"><b className="text-navy-900">€{o.price}</b> · {o.label}<div className="text-[11.5px] text-slate-500">{o.setIds.length} sets · {o.from} → {o.to} · {DAYS.find((d) => d.v === o.days)?.l}</div></div>
+                    <button type="button" className="text-teal-700 font-semibold" onClick={() => setSel(new Set(o.setIds))}>Select</button>
+                    <button type="button" aria-label={`Remove override ${o.label}`} className="text-slate-400 hover:text-rose-600" onClick={() => setPricing((p) => ({ ...p, overrides: p.overrides.filter((x) => x.id !== o.id) }))}><Icon.trash size={13} /></button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Card>
+
+        </div>
+      )}
+      {pane === "versions" && (
+        <VersionsPanel zoneId={zoneId} draft={draft} draftName={draftName} setDraftName={setDraftName}
         onLoad={(d, name) => { commit(() => d); setDraftName(name); toast(`Opened “${name}” as the working draft.`); }} />
+      )}
       {pubOpen && <PublishModal draft={draft} name={draftName} onClose={() => setPubOpen(false)} onDone={() => { setPubOpen(false); setResync(true); }} />}
     </div>
   );
