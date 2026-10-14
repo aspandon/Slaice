@@ -154,7 +154,8 @@ function RulesAndPreview({
     picked: "",
     month: `${year + 1}-08`,
   });
-  const [start, setStart] = useState(`${year + 1}-08-01`);
+  // The effective-prices week opens on the demo week, not next season (AENR-633).
+  const [start, setStart] = useState(() => { const d = new Date(`${todayISO()}T12:00:00`); d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); return d.toISOString().slice(0, 10); });
   const rules = draft.rules.filter((r) => r.target === kind);
   const add = () => {
     const price = Number(form.price);

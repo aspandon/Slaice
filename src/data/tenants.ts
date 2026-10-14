@@ -5,6 +5,10 @@
 // environment, offboarding candidate) and a few still in onboarding.
 
 import type { Contact, Lifecycle, TenantRecord, Env } from "../domain/tenants";
+import { summarize } from "./analytics";
+import { DEMO_TODAY } from "../domain/period";
+
+const AKTI_SEASON = summarize({ from: `${DEMO_TODAY.slice(0, 4)}-05-01`, to: DEMO_TODAY });
 
 const seed = (k: string) => {
   let h = 2166136261;
@@ -82,8 +86,9 @@ const SEEDS: Seed[] = [
     plan: "pro",
     owner: "Eleni Markou",
     seats: 10,
-    bookings: 9800,
-    gmv: 241000,
+    // The demo beach's season so far, from the same figures as its Reports (AENR-643).
+    bookings: AKTI_SEASON.bookings,
+    gmv: Math.round(AKTI_SEASON.revenue),
     renewal: "2027-03-31",
     domain: "book.aktitouiliou.gr",
   },
@@ -257,7 +262,14 @@ export const DEFAULT_TENANTS: TenantRecord[] = SEEDS.map((s) => {
     trialEnd: live ? undefined : "2026-11-15",
     renewal: s.renewal,
     addOns: s.id === "akti" ? 60 : 0,
-    overrides: [],
+    // The demo beach sells day lockers and parking every day, so its modules say so (AENR-657).
+    overrides:
+      s.id === "akti"
+        ? [
+            { module: "Day Locker", on: true, reason: "Sold at the beach since opening", by: "Slaice onboarding", at: "2026-04-20T10:00:00" },
+            { module: "Parking", on: true, reason: "Sold at the beach since opening", by: "Slaice onboarding", at: "2026-04-20T10:00:00" },
+          ]
+        : [],
     beta: s.id === "akti" ? ["Geo Map"] : [],
     releaseChannel: s.id === "akti" ? "beta" : "stable",
     stripe: {

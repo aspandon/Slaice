@@ -2,7 +2,9 @@ import type { ReactNode } from "react";
 import { Icon } from "../lib/icons";
 import { Card, PageHead, Table, StatCard, ExportMenu } from "../components/ui";
 import { Donut } from "../components/charts";
-import { ACCOUNTANT_PAYOUTS } from "../data/mock";
+import { summarize } from "../data/analytics";
+import { DEMO_TODAY } from "../domain/period";
+import { useMemo } from "react";
 import { useApp } from "../app/store";
 import { downloadReport } from "../lib/download";
 
@@ -10,70 +12,93 @@ import { TENANT } from "../data/beach";
 const neg = (v: ReactNode) => <span className="text-rose-600 font-medium tnum">{v}</span>;
 const negBold = (v: ReactNode) => <b className="text-rose-600 tnum">{v}</b>;
 
+/* Commission & payouts from the same figures as Reports and Month-end (AENR-643):
+   season months up to the demo day, the current month to date, nothing in the future. */
+const STRIPE_RATE = 0.015;
+const SLAICE_RATE = 0.05;
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+function payoutMonths() {
+  const y = Number(DEMO_TODAY.slice(0, 4));
+  const out: { label: string; gross: number; stripe: number; slaice: number; net: number; open: boolean }[] = [];
+  for (let m = 5; m <= 9; m++) {
+    const from = `${y}-${String(m).padStart(2, "0")}-01`;
+    if (from > DEMO_TODAY) break;
+    const last = new Date(y, m, 0).getDate();
+    const end = `${y}-${String(m).padStart(2, "0")}-${last}`;
+    const to = end > DEMO_TODAY ? DEMO_TODAY : end;
+    const gross = Math.round(summarize({ from, to }).revenue);
+    const stripe = Math.round(gross * STRIPE_RATE);
+    const slaice = Math.round(gross * SLAICE_RATE);
+    out.push({ label: MONTHS[m - 1] + (to < end ? " (to date)" : ""), gross, stripe, slaice, net: gross - stripe - slaice, open: to < end });
+  }
+  return out;
+}
+const eurK = (n: number) => `€${(n / 1000).toFixed(1)}k`;
+const eurN = (n: number) => `€${n.toLocaleString("en-GB")}`;
+
 export function AccountantCommission() {
   const { toast } = useApp();
-  const monthly = ACCOUNTANT_PAYOUTS;
+  const monthly = useMemo(payoutMonths, []);
+  const sum = monthly.reduce((a, r) => ({ g: a.g + r.gross, sf: a.sf + r.stripe, sl: a.sl + r.slaice, n: a.n + r.net }), { g: 0, sf: 0, sl: 0, n: 0 });
+  const cur = monthly[monthly.length - 1];
   return (
     <div>
       <PageHead primary={<ExportMenu variant="primary" what="payout statement" onExport={(f) => {
-        const num = (v: string) => Number(v.replace(/[^0-9-−]/g, "").replace("−", "-"));
         downloadReport("payouts", {
           title: "Commission & payouts",
-          subtitle: "Season 2026 · by month",
+          subtitle: `Season ${DEMO_TODAY.slice(0, 4)} · by month, to ${DEMO_TODAY}`,
           meta: [`${TENANT.name} · Stripe Connect direct charges with the Slaice application fee (5%)`],
           sections: [
-            { kpis: [{ label: "Season gross", value: "€704k" }, { label: "Stripe fees", value: "−€10.2k", sub: "~1.5%" }, { label: "Slaice 5%", value: "−€35.2k", sub: "application fee" }, { label: "Tenant net", value: "€658.6k" }] },
+            { kpis: [{ label: "Season gross", value: eurK(sum.g) }, { label: "Stripe fees", value: `−${eurK(sum.sf)}`, sub: "~1.5%" }, { label: "Slaice 5%", value: `−${eurK(sum.sl)}`, sub: "application fee" }, { label: "Tenant net", value: eurK(sum.n) }] },
             { title: "Payout statement", table: {
               cols: ["Month", "Gross (€)", "Stripe fee (€)", "Slaice 5% (€)", "Tenant net (€)"],
-              rows: monthly.map((r) => [r[0], num(r[1]), num(r[2]), num(r[3]), num(r[4])]),
-              total: ["Total", ...[1, 2, 3, 4].map((i) => monthly.reduce((a, r) => a + num(r[i]), 0))],
+              rows: monthly.map((r) => [r.label, r.gross, -r.stripe, -r.slaice, r.net]),
+              total: ["Total", sum.g, -sum.sf, -sum.sl, sum.n],
             } },
           ],
         }, f);
         toast(`Exported payout statement (${f.toUpperCase()}).`);
       }} />} />
       <div className="grid sm:grid-cols-4 gap-4 mb-4">
-        <StatCard label="Season gross" value="€704k" tone="teal" icon={Icon.chart} />
-        <StatCard label="Stripe fees" value="−€10.2k" sub="~1.5%" icon={Icon.stripe} />
-        <StatCard label="Slaice 5%" value="−€35.2k" sub="application fee" icon={Icon.trend} />
-        <StatCard label="Tenant net" value="€658.6k" tone="teal" icon={Icon.cash} />
+        <StatCard label="Season gross" value={eurK(sum.g)} sub="same as Reports" tone="teal" icon={Icon.chart} />
+        <StatCard label="Stripe fees" value={`−${eurK(sum.sf)}`} sub="~1.5%" icon={Icon.stripe} />
+        <StatCard label="Slaice 5%" value={`−${eurK(sum.sl)}`} sub="application fee" icon={Icon.trend} />
+        <StatCard label="Tenant net" value={eurK(sum.n)} tone="teal" icon={Icon.cash} />
       </div>
-      <Card className="p-5 mb-4">
-        <div className="font-semibold text-navy-900 mb-2">Gross → net (this month)</div>
-        <Table cols={["Line", "Amount"]} right={[1]} rows={[
-          ["Gross sales", "€198,400"],
-          ["Stripe fees", neg("−€2,900")],
-          ["Slaice commission (5%)", neg("−€9,920")],
-          [<b>Tenant net</b>, <b className="tnum">€185,580</b>],
-        ]} />
-      </Card>
+      {cur && (
+        <Card className="p-5 mb-4">
+          <div className="font-semibold text-navy-900 mb-2">Gross → net ({cur.label})</div>
+          <Table cols={["Line", "Amount"]} right={[1]} rows={[
+            ["Gross sales", eurN(cur.gross)],
+            ["Stripe fees", neg(`−${eurN(cur.stripe)}`)],
+            ["Slaice commission (5%)", neg(`−${eurN(cur.slaice)}`)],
+            [<b>Tenant net</b>, <b className="tnum">{eurN(cur.net)}</b>],
+          ]} />
+        </Card>
+      )}
       <Card className="p-5">
-        <div className="font-semibold text-navy-900 mb-2">Monthly payouts (season)</div>
-        <Table cols={["Month", "Gross", "Stripe fee", "Slaice 5%", "Tenant net"]} right={[1, 2, 3, 4]} rows={(() => {
-          const sums = monthly.reduce((acc, r) => ({
-            g: acc.g + parseInt(r[1].replace(/[^0-9]/g, ""), 10),
-            sf: acc.sf + parseInt(r[2].replace(/[^0-9]/g, ""), 10),
-            sl: acc.sl + parseInt(r[3].replace(/[^0-9]/g, ""), 10),
-            n: acc.n + parseInt(r[4].replace(/[^0-9]/g, ""), 10),
-          }), { g: 0, sf: 0, sl: 0, n: 0 });
-          const fmt = (v: number) => "€" + v.toLocaleString();
-          return [
-            ...monthly.map((r) => [r[0], r[1], neg(r[2]), neg(r[3]), <b className="tnum">{r[4]}</b>]),
-            [<b key="s">Season</b>, <b key="g" className="tnum">{fmt(sums.g)}</b>, negBold(`−${fmt(sums.sf)}`), negBold(`−${fmt(sums.sl)}`), <b key="tn" className="tnum">{fmt(sums.n)}</b>],
-          ];
-        })()} />
+        <div className="font-semibold text-navy-900 mb-2">Monthly payouts (season to date)</div>
+        <Table cols={["Month", "Gross", "Stripe fee", "Slaice 5%", "Tenant net", "Payout"]} right={[1, 2, 3, 4]} rows={[
+          ...monthly.map((r) => [r.label, eurN(r.gross), neg(`−${eurN(r.stripe)}`), neg(`−${eurN(r.slaice)}`), <b className="tnum">{eurN(r.net)}</b>, r.open ? "Weekly, in progress" : "Paid"]),
+          [<b key="s">Season</b>, <b key="g" className="tnum">{eurN(sum.g)}</b>, negBold(`−${eurN(sum.sf)}`), negBold(`−${eurN(sum.sl)}`), <b key="tn" className="tnum">{eurN(sum.n)}</b>, ""],
+        ]} />
       </Card>
 
       {/* VAT, MyDATA health & payout reconciliation (P5.4) */}
       <div className="grid lg:grid-cols-3 gap-4 mt-4">
         <Card className="p-5">
           <div className="font-semibold text-navy-900 mb-2">VAT collected by rate</div>
-          <Table cols={["Rate", "Net", "VAT"]} right={[1, 2]} rows={[
-            ["24% (standard)", "€512,300", "€122,952"],
-            ["13% (reduced F&B)", "€84,100", "€10,933"],
-            ["6% (super-reduced)", "€7,400", "€444"],
-            [<b>Total</b>, <b className="tnum">€603,800</b>, <b className="tnum">€134,329</b>],
-          ]} />
+          {/* From the season gross with the ledger's rate mix (sunbeds 24%, entry and F&B 13%). */}
+          {(() => {
+            const net = sum.g / (1 + 0.68 * 0.24 + 0.32 * 0.13);
+            const r24 = Math.round(net * 0.68), r13 = Math.round(net * 0.32);
+            const v24 = Math.round(r24 * 0.24), v13 = Math.round(r13 * 0.13);
+            return <Table cols={["Rate", "Net", "VAT"]} right={[1, 2]} rows={[
+              ["24% (standard)", eurN(r24), eurN(v24)],
+              ["13% (reduced)", eurN(r13), eurN(v13)],
+              [<b>Total</b>, <b className="tnum">{eurN(r24 + r13)}</b>, <b className="tnum">{eurN(v24 + v13)}</b>],
+            ]} />;
+          })()}
         </Card>
         <Card className="p-5 flex flex-col">
           <div className="font-semibold text-navy-900 mb-2">myDATA transmission</div>
@@ -91,9 +116,9 @@ export function AccountantCommission() {
         <Card className="p-5">
           <div className="font-semibold text-navy-900 mb-2">Payout reconciliation</div>
           <div className="space-y-2 text-[13px]">
-            <RecRow label="Stripe balance" value="€187,420" />
-            <RecRow label="In transit to bank" value="€185,580" />
-            <RecRow label="Fees withheld" value="−€1,840" neg />
+            <RecRow label="Stripe balance" value={eurN((cur?.net ?? 0) + (cur?.stripe ?? 0))} />
+            <RecRow label="In transit to bank" value={eurN(cur?.net ?? 0)} />
+            <RecRow label="Fees withheld" value={`−${eurN(cur?.stripe ?? 0)}`} neg />
             <RecRow label="Unreconciled" value="€0" ok />
           </div>
           <div className="mt-3 text-[11px] text-teal-700 bg-teal-50 ring-1 ring-teal-600/15 rounded-lg px-2.5 py-1.5 inline-flex items-center gap-1.5"><Icon.checkCircle size={13} /> Bank statement matched to the cent.</div>

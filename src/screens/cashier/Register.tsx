@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, FutureBanner, Field, Input, Modal, PageHead, Select, StatCard, Table, Toggle, ExportMenu } from "../../components/ui";
+import { Badge, Btn, Card, Field, Input, Modal, PageHead, Select, StatCard, Table, Toggle, ExportMenu } from "../../components/ui";
 import { StackedBar } from "../../components/charts";
 import { useApp } from "../../app/store";
 import { ZONES, TENANT } from "../../data/beach";
@@ -32,8 +32,8 @@ export function CashierRegister() {
 
   return (
     <div className="animate-fade-up">
-      <PageHead title="Cash Register" badge={<Badge tone="future">Future</Badge>} />
-      <FutureBanner />
+      {/* Part of the MVP till (AENR-636): open / close the shift, X and Z reports. */}
+      <PageHead title="Cash Register" />
       <TillStatus />
       {!shift || !tot ? (
         <div className="space-y-4">

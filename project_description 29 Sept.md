@@ -276,11 +276,11 @@ Three pages (AENR-605): **Sell**, **Sales** and **Cash register**. Lockers are s
 everything else and tickets are redeemed at the gate, so the old `#/cashier/redeem` and
 `#/cashier/locker` links open Sell.
 
-| Route                    | Screen        | Tag      |
-| ------------------------ | ------------- | -------- |
-| `#/cashier/issue`        | Sell          | [MVP]    |
-| `#/cashier/transactions` | Sales         | [MVP]    |
-| `#/cashier/register`     | Cash register | [Future] |
+| Route                    | Screen        | Tag              |
+| ------------------------ | ------------- | ---------------- |
+| `#/cashier/issue`        | Sell          | [MVP]            |
+| `#/cashier/transactions` | Sales         | [MVP]            |
+| `#/cashier/register`     | Cash register | [MVP] (AENR-636) |
 
 ### Controller
 
@@ -295,15 +295,15 @@ everything else and tickets are redeemed at the gate, so the old `#/cashier/rede
 Every Controller and Cashier page plus pay-by-link, grouped in the navigation as Gate · Beach · Till ·
 Reservations; phone-first like the Controller. Staff get the role in Admin › RBAC (view-as works).
 
-| Route                    | Screen                                | Tag      |
-| ------------------------ | ------------------------------------- | -------- |
-| `#/support/scan`         | Gate Validation                       | [MVP]    |
-| `#/support/beach`        | Beach Status                          | [MVP]    |
-| `#/support/walkin`       | Walk-in Sale (channel Support)        | [MVP]    |
-| `#/support/issue`        | Sell                                  | [MVP]    |
-| `#/support/transactions` | Sales                                 | [MVP]    |
-| `#/support/register`     | Cash register                         | [Future] |
-| `#/support/paylinks`     | Pay-by-link reservations (also Admin) | [MVP]    |
+| Route                    | Screen                                | Tag              |
+| ------------------------ | ------------------------------------- | ---------------- |
+| `#/support/scan`         | Gate Validation                       | [MVP]            |
+| `#/support/beach`        | Beach Status                          | [MVP]            |
+| `#/support/walkin`       | Walk-in Sale (channel Support)        | [MVP]            |
+| `#/support/issue`        | Sell                                  | [MVP]            |
+| `#/support/transactions` | Sales                                 | [MVP]            |
+| `#/support/register`     | Cash register                         | [MVP] (AENR-636) |
+| `#/support/paylinks`     | Pay-by-link reservations (also Admin) | [MVP]            |
 
 ### Accountant
 
@@ -608,7 +608,9 @@ back; forward only via Continue). Footer: live **Total €** (animated) + **Back
 1. **Dates** — "When are you coming?": a horizontal strip of 7 date chips (Today, Tomorrow, weekday +
    date) with arrows and a full calendar modal. **More options** (collapsed until asked for) holds
    **"Book several days at once"** — multi-select up to **7 days**; turning it off keeps only the first
-   date — and **"Book in more than one zone"**.
+   date — and **"Book in more than one zone"**. With several zones on (AENR-666) the picks box offers
+   **+ Add sets in another zone**, the top **← All zones** is a real button, and inside a zone the footer back
+   button reads **All zones** instead of Back; the overview shows how many sets are picked per zone.
 2. **Choose a zone** — phase _zones_:
    - Tablet/desktop (≥ 768 px wide and ≥ 560 px tall): a **panoramic beach** — each zone's real umbrella
      rows laid out as a cluster on the sand, auto-spaced so they never overlap, with name, optional
@@ -1756,7 +1758,9 @@ The till no longer has its own Redeem page: tickets are checked at the gate (G-0
 Agent also works, and lockers are sold in Sell. Old links redirect — `#/cashier/redeem` and
 `#/cashier/locker` to Sell, `#/support/redeem` to the gate, `#/support/locker` to Sell.
 
-### K-03 · Cash register — shift & drawer [Future]
+### K-03 · Cash register — shift & drawer [MVP]
+
+> AENR-636: part of the MVP till (open / close shift, X / Z reports, paid in / out, switch cashier) — always in the till navigation, no preview banner, whatever the roadmap-preview setting.
 
 ```text
  NO SHIFT ──[Open shift: cashier · till · float]──▶ OPEN SHIFT ──[Close shift (Z)]──▶ CLOSED (locked)
@@ -1975,6 +1979,8 @@ For a guest who isn't at the beach yet — Support Agent, Call Center and Admin 
   payment 7.
 
 ### F-02 · Commission & Payouts [MVP]
+
+> AENR-643: computed from the same figures as Reports (`summarize`), season months up to the demo day — the current month “to date” with payouts “Weekly, in progress”, no future months. Season gross equals Reports’ revenue; VAT by rate and the payout reconciliation follow from it; the Platform’s GMV and booking count for this beach use the same season figures. (The diagram below shows the shape, not today’s figures.)
 
 ```text
  Season gross      Stripe fees        Slaice 5%          Tenant net
@@ -2435,7 +2441,7 @@ Events, Retail, Compliant: Stripe + MyDATA).
 | 41  | Pass pricing + wallet card designer                                              | Admin                           | Future              | A-12             |
 | 42  | On-site anonymous ticket sales + printing                                        | Cashier                         | MVP                 | K-01             |
 | 43  | Ticket redemption                                                                | Cashier                         | Future              | K-02             |
-| 44  | Cash register shifts, X / Z reports, reconciliation, paid in / out               | Cashier                         | Future              | K-03             |
+| 44  | Cash register shifts, X / Z reports, reconciliation, paid in / out               | Cashier                         | MVP                 | K-03             |
 | 45  | On-site locker sales from locker banks                                           | Cashier                         | Future              | K-04             |
 | 46  | QR gate validation (valid/used/invalid, override)                                | Controller                      | MVP                 | G-01             |
 | 47  | Walk-in booking, pay-on-site tickets, same-day release                           | Controller                      | MVP                 | G-02..G-04       |

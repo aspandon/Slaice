@@ -54,7 +54,7 @@ export function SunbedWorkspace() {
   const [past, setPast] = useState<Draft[]>([]);
   const [future, setFuture] = useState<Draft[]>([]);
   const [zoneId, setZoneId] = useState(ZONES[1].id);
-  const [date, setDate] = useState("2026-08-05");
+  const [date, setDate] = useState(todayISO());
   const [mode, setMode] = useState<Mode>("select");
   const [paintCat, setPaintCat] = useState<string>("");
   const [lmKind, setLmKind] = useState<LandmarkKind>("bar");

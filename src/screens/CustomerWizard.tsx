@@ -644,7 +644,7 @@ function WizardInner() {
             )}
             <div className="flex items-center gap-2">
               <Btn variant="ghost" icon={Icon.arrowL} onClick={back}>
-                {stepIdx === 0 && phase === "zones" ? tr("Home") : tr("Back")}
+                {stepIdx === 0 && phase === "zones" ? tr("Home") : stepIdx === 0 && phase === "sets" ? tr("All zones") : tr("Back")}
               </Btn>
               {stepIdx < last ? (
                 <Btn variant="teal" onClick={next} disabled={step.id === "beach" && (!stayCheck.ok || !!stopSell)}>{tr("Continue")} <Icon.arrowR size={15} /></Btn>
@@ -860,7 +860,8 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
       {phase === "sets" && (
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <button onClick={() => setPhase("zones")} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-600 hover:text-navy-900 rounded-lg px-2 py-1 hover:bg-white/60">
+            {/* A real button, not grey text: it is how guests reach the other zones (AENR-666). */}
+            <button type="button" onClick={() => setPhase("zones")} className="inline-flex items-center gap-1.5 min-h-[36px] text-[13px] font-semibold text-navy-900 rounded-xl px-3 py-1.5 bg-white/80 ring-1 ring-slate-200 hover:ring-teal-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
               <Icon.arrowL size={14} /> {tr("All zones")}
             </button>
             <div className="flex items-center gap-2 min-w-0">
@@ -927,6 +928,11 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
               </ul>
             </div>
           ))}
+          {phase === "sets" && (
+            <button type="button" onClick={() => setPhase("zones")} className="w-full inline-flex items-center justify-center gap-1.5 min-h-[40px] rounded-xl bg-white text-teal-800 text-[13px] font-semibold ring-1 ring-teal-300 hover:ring-teal-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+              <Icon.plus size={14} /> {tr("Add sets in another zone")}
+            </button>
+          )}
           <div className="border-t border-teal-200 pt-1.5 flex items-center justify-between text-[12.5px] font-semibold text-navy-900">
             <span>{bedSel.length} {tr("sets in")} {groups.length} {groups.length !== 1 ? tr("zones") : tr("zone")} · {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}</span>
             <span className="tnum">€{pickedSubtotal * dayCount}</span>

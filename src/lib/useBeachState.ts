@@ -1,7 +1,8 @@
 import { useApp } from "../app/store";
 import { CUSTOMERS } from "../data/mock";
 import { DEMO_TODAY } from "../domain/period";
-import { exceptionsOf, opsKey, type OpsStatus, type SetException } from "../domain/sunbedOps";
+import { NO_SHOW_CUTOFF, exceptionsOf, opsKey, type OpsStatus, type SetException } from "../domain/sunbedOps";
+import { useDemoNow } from "./useLiveSlots";
 import type { SunbedSlot } from "../domain/types";
 import { useBookingOps, type OpsBooking } from "./useBookingOps";
 
@@ -28,9 +29,27 @@ export function useBeachState(date: string) {
     (b) => b.visitIso === date && b.status !== "Cancelled" && b.status !== "Refunded",
   );
 
+  // The sample beach fills up through the arrival window (AENR-645): each sample guest
+  // arrives at their own time between 09:00 and 11:00 on the demo clock; about one in
+  // seven never comes (they become no-shows after the cut-off). Past days: everyone came.
+  const now = new Date(useDemoNow()).toTimeString().slice(0, 5);
+  const setNo = (s: SunbedSlot) => parseInt(s.id.replace(/\D/g, ""), 10) || 1;
+  const sampleNoShow = (n: number) => n % 7 === 3;
+  // Real bookings and till sales always turn up (their no-shows come from staff, not the sample).
+  const isReal = (s: SunbedSlot) =>
+    bookingsOnDate.some((b) => b.items.some((i) => i.startsWith("Sunbed · ") && i.endsWith(` · ${s.id}`))) ||
+    till.sales.some((x) => x.day === date && x.lines.some((l) => l.setId === s.id));
+  const arrivedBy = (s: SunbedSlot) => {
+    const n = setNo(s);
+    if (sampleNoShow(n) && !isReal(s)) return false;
+    if (date < DEMO_TODAY) return true;
+    if (date > DEMO_TODAY) return false;
+    const mins = 9 * 60 + ((n * 37) % 120);
+    return now >= `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
+  };
   const statusOf = (s: SunbedSlot): OpsStatus =>
     sunbedOps.status[opsKey(date, s.id)]?.status ??
-    (s.state === "u" ? "booked" : s.state === "h" ? "hold" : "available");
+    (s.state === "u" ? (arrivedBy(s) ? "occupied" : "booked") : s.state === "h" ? "hold" : "available");
 
   const bookingOf = (s: SunbedSlot): SetBooking | null => {
     const real = bookingsOnDate.find((b) =>
@@ -77,7 +96,7 @@ export function useBeachState(date: string) {
       guests: 2 + (g % 3),
       paid: g % 5 !== 0,
       // Sample: about one booking in seven hasn't arrived by the cut-off (a moved guest has).
-      noShow: !movedFrom && g % 7 === 3,
+      noShow: !movedFrom && sampleNoShow(g) && (date < DEMO_TODAY || now >= NO_SHOW_CUTOFF),
       channel: g % 4 === 0 ? "Phone" : "Online",
     };
   };

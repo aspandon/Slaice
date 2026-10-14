@@ -4,7 +4,7 @@ import { Badge, Btn, Card, PageHead, StatCard } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { TENANT, WEATHER_DEMO, ZONES } from "../../data/beach";
 import { DEMO_TODAY } from "../../domain/period";
-import { useLiveSlots } from "../../lib/useLiveSlots";
+import { useDemoNow, useLiveSlots } from "../../lib/useLiveSlots";
 import { useBeachState } from "../../lib/useBeachState";
 import { useInbox, type InboxItem } from "../../lib/useInbox";
 import { useBookingOps } from "../../lib/useBookingOps";
@@ -56,6 +56,7 @@ export function AdminToday() {
     setConfirming(null);
   };
 
+  const clock = new Date(useDemoNow()).toTimeString().slice(0, 5);
   const zones = useMemo(
     () =>
       ZONES.map((z) => {
@@ -64,6 +65,7 @@ export function AdminToday() {
           ["booked", "occupied", "hold", "blocked"].includes(statusOf(s)),
         ).length;
         const occupied = slots.filter((s) => statusOf(s) === "occupied").length;
+        const booked = closedStores[z.id] ? 0 : slots.filter((s) => statusOf(s) === "booked").length;
         // A closed zone has no arrivals to wait for, so its sets are not no-shows.
         const noShows = closedStores[z.id] ? [] : slots.filter((s) => exOf(s).includes("noshow"));
         const unpaid = slots.filter((s) => exOf(s).includes("unpaid")).length;
@@ -72,13 +74,14 @@ export function AdminToday() {
           total: slots.length,
           taken,
           occupied,
+          booked,
           noShows,
           unpaid,
           closed: closedStores[z.id],
         };
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [liveSlots, sunbedOps, closedStores, ops.bookings],
+    [liveSlots, sunbedOps, closedStores, ops.bookings, clock],
   );
   const total = zones.reduce((a, x) => a + x.total, 0);
   const taken = zones.reduce((a, x) => a + x.taken, 0);
@@ -86,9 +89,14 @@ export function AdminToday() {
   const arrivals = ops.bookings.filter(
     (b) => b.visitIso === DEMO_TODAY && b.status !== "Cancelled" && b.status !== "Refunded",
   );
-  const checkedIn = Object.entries(sunbedOps.status).filter(
-    ([k, v]) => k.startsWith(`${DEMO_TODAY}|`) && v.status === "occupied",
-  ).length;
+  // Arrivals, no-shows and the gate tell one story (AENR-645): all three read the live set states.
+  const checkedIn = zones.reduce((a, x) => a + x.occupied, 0);
+  // Booked but not here yet; after the cut-off those are the no-shows, so it is never both.
+  const expected = zones.reduce((a, x) => a + x.booked, 0) - noShows.length;
+  const beforeCutoff = clock < NO_SHOW_CUTOFF;
+  // Gate scans follow the arrivals: about 2.4 people per checked-in set, plus ticket-only guests.
+  const scanned = Math.round(checkedIn * 2.4 + arrivals.length * 0.6);
+  const hoursOpen = Math.max(0.25, (Number(clock.slice(0, 2)) * 60 + Number(clock.slice(3)) - 9 * 60) / 60);
   const w = WEATHER_DEMO[weather];
 
   /* ---- Attention items, each with one action ---- */
@@ -200,7 +208,7 @@ export function AdminToday() {
           instant
           label="Bookings for today"
           value={String(arrivals.length)}
-          sub={`${checkedIn} set${checkedIn === 1 ? "" : "s"} checked in so far`}
+          sub={`${checkedIn} set${checkedIn === 1 ? "" : "s"} checked in so far${expected > 0 ? ` · ${expected} still expected` : ""}`}
         />
         <StatCard
           instant
@@ -209,15 +217,17 @@ export function AdminToday() {
           sub={
             noShows.length
               ? `booked sets not checked in by ${NO_SHOW_CUTOFF}`
-              : "everyone expected has arrived"
+              : beforeCutoff
+                ? `counted from ${NO_SHOW_CUTOFF} — arrivals until then are on time`
+                : "everyone expected has arrived"
           }
           tone={noShows.length ? "amber" : "navy"}
         />
         <StatCard
           instant
           label="Gate"
-          value="312/hr"
-          sub="1,284 scanned today · peak 11:00–13:00"
+          value={clock < "09:00" ? "—" : `${Math.round(scanned / hoursOpen)}/hr`}
+          sub={clock < "09:00" ? "gates open at 09:00" : `${scanned.toLocaleString("en-GB")} scanned today · since 09:00`}
         />
       </div>
 
@@ -248,7 +258,7 @@ export function AdminToday() {
                       </span>
                       <span className="tnum text-slate-600">
                         {x.closed ? (
-                          <Badge tone="critical">Closed · {x.closed}</Badge>
+                          <Badge tone="neutral">{/^closed/i.test(x.closed) ? x.closed : `Closed · ${x.closed}`}</Badge>
                         ) : (
                           <>
                             {x.taken}/{x.total} · <b className="text-navy-900">{pct}%</b>
@@ -265,11 +275,13 @@ export function AdminToday() {
                         )}
                       </span>
                     </div>
+                    {/* A closed zone has no occupancy: a grey striped track, not a full bar (AENR-655). */}
                     <div className="mt-1 h-2 rounded-full bg-slate-100 overflow-hidden" aria-hidden>
-                      <div
-                        className="h-full rounded-full bg-teal-600"
-                        style={{ width: `${pct}%` }}
-                      />
+                      {x.closed ? (
+                        <div className="h-full w-full bg-[repeating-linear-gradient(135deg,theme(colors.slate.300)_0_4px,transparent_4px_8px)]" />
+                      ) : (
+                        <div className="h-full rounded-full bg-teal-600" style={{ width: `${pct}%` }} />
+                      )}
                     </div>
                   </a>
                 </li>

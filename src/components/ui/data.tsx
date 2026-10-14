@@ -149,7 +149,7 @@ export function PageHead({ sub, back, actions, primary, secondary = [] }: {
         {sub && <p className="text-[13px] text-slate-600 leading-snug max-w-3xl">{sub}</p>}
       </div>
       {(actions || primary || more.length > 0) && (
-        <div className="flex flex-wrap items-center justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2 min-w-0 max-w-full">
           {actions}
           {more.length > 0 && (
             <DropdownMenu.Root modal={false}>

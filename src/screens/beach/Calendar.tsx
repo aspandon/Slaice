@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, Field, Input, Select, Toggle, DateInput } from "../../components/ui";
 import { useApp } from "../../app/store";
-import { ZONES, zoneLayout } from "../../data/beach";
+import { ZONES, todayISO, zoneLayout } from "../../data/beach";
 import { dayStats } from "../../data/analytics";
 import { DemandPanel } from "./Demand";
 import {
@@ -69,9 +69,10 @@ export function PricingCalendar({
 }) {
   const { toast, priceRules, setPriceRules, calendar, setCalendar, beachPricing, beachLayout } =
     useApp();
-  const [month, setMonth] = useState({ y: 2026, m: 7 });
+  // Opens on the demo day's month (AENR-633).
+  const [month, setMonth] = useState(() => ({ y: Number(todayISO().slice(0, 4)), m: Number(todayISO().slice(5, 7)) - 1 }));
   const [sel, setSel] = useState<Set<string>>(new Set());
-  const [focus, setFocus] = useState(iso(2026, 7, 1));
+  const [focus, setFocus] = useState(todayISO());
   const [history, setHistory] = useState<Snapshot[]>([]);
   const drag = useRef<string | null>(null);
   const cells = useRef(new Map<string, HTMLButtonElement>());

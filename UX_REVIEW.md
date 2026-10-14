@@ -461,3 +461,11 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   AENR-629 fixed staff avatar menus showing the guest's name and customer links.
 - **AENR-626 — language set automatically.** The first visit uses the browser's language when offered;
   picking one saves it, and Automatic returns to following the device.
+- **Further Improvements sprint — defects.** AENR-636 Cash register is part of the till again (no preview
+  flag), so cashiers can close their shift. AENR-664 Refunds (and any page header with a period picker)
+  fits 390px. AENR-639 Home rewards strip wraps cleanly on phones. AENR-655 closed zones on Today show a
+  grey striped bar. AENR-633 Pricing calendar, Products › Effective prices and Beach layout open on the demo
+  day. AENR-657 the demo tenant's Day Locker and Parking modules are on. AENR-666 multi-zone booking has an
+  “Add sets in another zone” button and an “All zones” back. AENR-645 Today, Live beach and the gate follow
+  one arrival model (guests arrive 09:00–11:00 on the demo clock; no-shows only after 11:00). AENR-643
+  Commission & Payouts and Platform GMV come from the same figures as Reports, up to today.

@@ -5,7 +5,7 @@ import { Icon } from "../../lib/icons";
 import { Card, Btn, Badge, Table, Modal, Field, Input, Select, Tabs, Toggle, EmptyState, NotMvpBadge, DateInput, PageHead } from "../../components/ui";
 import { BeachBackdrop } from "../../components/Beach";
 import { BackgroundPicker } from "../../components/BackgroundPicker";
-import { ZONES, WEATHER_KINDS, WEATHER_DEMO, DAY_MIN, DAY_MAX, fmtHour } from "../../data/beach";
+import { ZONES, WEATHER_KINDS, WEATHER_DEMO, DAY_MIN, DAY_MAX, fmtHour, todayISO } from "../../data/beach";
 import type { ZoneMapItem, PriceRule, PriceRuleDays, PriceRuleMode } from "../../domain/types";
 import { effectivePrice, ruleEffectLabel, dayMatches, PARKING_PRICE } from "../../domain/pricing";
 import { PARKING_LOT } from "../../data/till";
@@ -492,7 +492,7 @@ export function AdminPricing() {
   const { toast, priceRules, setPriceRules } = useApp();
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<PriceRule | null>(null);
-  const [previewDate, setPreviewDate] = useState("2026-08-15");
+  const [previewDate, setPreviewDate] = useState(todayISO());
   const [view, setView] = useUrlState("view", "calendar");
   const [zoneId, setZoneId] = useUrlState("zone", "macaw");
   const saveRule = (r: PriceRule) => {
