@@ -442,6 +442,14 @@ export default function App() {
               <img src={`${import.meta.env.BASE_URL}tenant-logo.png`} alt="Ακτή του Ηλίου" className={`w-auto max-md:h-9 ${page === "home" ? "md:h-[100px]" : "md:h-16"}`} />
             </button>
           )}
+          {/* Booking wizard on desktop: the beach logo floats over the open sea, as on Home (AENR-671). */}
+          {persona === "customer" && immersive && (
+            <div className="hidden lg:flex fixed z-[15] top-[13vh] left-0 right-[min(460px,36vw)] justify-center pointer-events-none">
+              <button onClick={() => go("customer", "home")} aria-label="Go to home" className="pointer-events-auto rounded-2xl hover:opacity-90 active:opacity-75 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
+                <img src={`${import.meta.env.BASE_URL}tenant-logo.png`} alt="Ακτή του Ηλίου" className="h-[110px] w-auto drop-shadow-[0_2px_10px_rgba(0,40,80,0.25)]" />
+              </button>
+            </div>
+          )}
           {persona === "customer" && !immersive && !viewAs && <CustomerNav page={page} setPage={setPage} />}
           {viewAs && (
             <div role="status" className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl bg-navy-900 text-white px-4 py-2.5 text-[13px] shadow-lift">

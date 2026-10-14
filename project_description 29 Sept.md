@@ -642,6 +642,8 @@ back; forward only via Continue). Footer: live **Total €** (animated) + **Back
      view sits on the sand below the water, beside the panel.
      The row is centred in the open sand between the shoreline and the guidance bar, so no zone touches
      the water (AENR-670).
+     The beach logo floats large over the open sea to the left of the panel, as on Home; tapping it goes
+     Home (AENR-671).
    - Phones: compact **zone cards**.
    - Guidance: "**Tap a zone on the beach** to choose where you'll sit — the sea is at the top."
 3. **Pick sets** — phase _sets_: tapping a zone zooms the "camera" in (FLIP animation) to the zone's

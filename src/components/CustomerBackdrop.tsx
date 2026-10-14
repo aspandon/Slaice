@@ -99,7 +99,7 @@ export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
       {/* The life-buoy bobs in the open water. As the booking flow lifts the
           shoreline, it rides up with the sea to a spot in the top-left, clear of
           the menu and the tappable sand. */}
-      <LifeRing className={`hidden sm:block absolute left-[8%] w-[60px] h-[60px] transition-[top] duration-700 ease-out ${immersive ? (wide ? "top-[22%]" : "top-[7%]") : "top-[72%]"}`} />
+      <LifeRing className={`hidden sm:block absolute left-[8%] w-[60px] h-[60px] transition-[top] duration-700 ease-out ${immersive ? (wide ? "top-[31%]" : "top-[7%]") : "top-[72%]"}`} />
 
       {/* Cloud cover for overcast/rainy — drifting banks of soft grey blobs. */}
       <div className="absolute inset-0 overflow-hidden transition-opacity duration-1000" style={{ opacity: clouds }}>
