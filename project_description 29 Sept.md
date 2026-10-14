@@ -596,7 +596,7 @@ Entrance motion: full choreography once per session, then a quick card stagger o
 **Trigger:** hero CTA, Claim, Book again, Use it, "Plan my visit" buttons, the Plan tab.
 
 **Layout:** a glass menu panel over the sea (top) + the tappable beach (sand) below + a guidance bar
-(bottom) + "powered by SLAiCE". **Three steps** (AENR-612): **When & where**, **Who**, **Pay** —
+(bottom) + "powered by SLAiCE". **Three steps** (AENR-612): **When & where**, **Who**, **Pay** (AENR-640: the Pay step **takes the payment** — the checkout summary and its buttons (Apple Pay / Google Pay, card, deposit, 18+ on the first booking, rewards and credit applied) sit under the review; paying opens the confirmation directly; the visit is kept in the basket while on Pay, so a guest who leaves finds it there; the footer’s **Go to payment** scrolls to the panel and shows no second total) —
 locker and parking are one optional row on Pay, not steps of their own (old deep links to the locker
 or parking step open that row). Header: **Leave** (back to Home), "Step n of 3 · <step>", and a
 **progress rail** drawn as a footpath across the sand with 3 stations (tap a reached station to jump

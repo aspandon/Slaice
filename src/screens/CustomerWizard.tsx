@@ -22,6 +22,7 @@ import { useFinance } from "../lib/useFinance";
 import { partyLabel, serviceFees } from "../domain/account";
 import { cancelLine } from "../domain/visits";
 import { useSiteStatus } from "../lib/usePlatform";
+import { Checkout } from "./Checkout";
 
 type People = Record<string, number>;
 interface BedPick { id: string; price: number; zoneId: string }
@@ -172,7 +173,7 @@ export function CustomerWizard() {
 
 function WizardInner() {
   const tr = useT();
-  const { go, toast, addToCart, hint, lang, beachPricing, priceRules, calendar, inventory, weather, account, setAccount } = useApp();
+  const { go, toast, addToCart, removeFromCart, hint, lang, beachPricing, priceRules, calendar, inventory, weather, account, setAccount } = useApp();
   useSpotlight("customer", "plan");
   const liveSlots = useLiveSlots();
 
@@ -471,6 +472,19 @@ function WizardInner() {
   const [showBreak, setShowBreak] = useState(false);
   const cancelText = tr(cancelLine(selDates[0] ?? todayISO(), `${todayISO()}T${nowTime}`, extrasState.policy));
 
+  // The Pay step pays (AENR-640): this visit's items are kept in the basket while the guest is on
+  // Pay (replacing the ones from an earlier pass), and the checkout panel below takes the payment.
+  const wizKeys = useRef<{ kind: CartItem["kind"]; id: string }[]>([]);
+  const payItems = step.id === "review" && !stalePicks.length && grandTotal > 0 ? buildItems() : null;
+  const payKey = payItems ? JSON.stringify(payItems.map((i) => [i.kind, i.id, i.price])) : "";
+  useEffect(() => {
+    if (!payItems) return;
+    wizKeys.current.forEach((k) => removeFromCart(k.kind, k.id));
+    payItems.forEach((it) => addToCart(it));
+    wizKeys.current = payItems.map((i) => ({ kind: i.kind, id: i.id }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- payKey captures the items
+  }, [payKey]);
+  const payRef = useRef<HTMLElement>(null);
   const confirm = () => {
     // A set taken or put on hold since it was picked must be replaced first (AENR-524 / 520).
     if (stalePicks.length) {
@@ -613,6 +627,12 @@ function WizardInner() {
                 )}
               </section>
             )}
+            {step.id === "review" && payItems && (
+              <section ref={payRef} aria-label={tr("Payment")} className="mb-2 scroll-mt-2">
+                <Checkout embedded />
+                <p className="mt-1.5 px-1 text-[11.5px] text-slate-600">{tr("Not paying now? This visit waits in your basket.")}</p>
+              </section>
+            )}
           </div>
 
           {showBreak && (
@@ -626,7 +646,10 @@ function WizardInner() {
           )}
           {/* Pinned footer — live total + nav. */}
           <div className="flex items-center justify-between gap-3 p-4 sm:p-5 pt-3 border-t border-slate-200/70 shrink-0">
-            {grandTotal === 0 ? (
+            {step.id === "review" && payItems ? (
+              // On Pay the payment panel holds the one total that counts (rewards, credit, passes applied).
+              <div className="leading-tight min-w-0 text-[12.5px] text-slate-600">{tr("Check the total and pay below.")}</div>
+            ) : grandTotal === 0 ? (
               <div className="leading-tight min-w-0 text-[12.5px] text-slate-600">
                 {step.id === "beach" ? (phase === "zones" ? tr("Pick a zone, then your sets.") : tr("Tap a set to add it.")) : tr("Add a set or a ticket to see the price.")}
               </div>
@@ -649,7 +672,7 @@ function WizardInner() {
               {stepIdx < last ? (
                 <Btn variant="teal" onClick={next} disabled={step.id === "beach" && (!stayCheck.ok || !!stopSell)}>{tr("Continue")} <Icon.arrowR size={15} /></Btn>
               ) : (
-                <Btn variant="dark" icon={Icon.card} onClick={confirm} disabled={grandTotal === 0}>{tr("Confirm")} · €{allIn % 1 ? allIn.toFixed(2) : allIn}</Btn>
+                <Btn variant="dark" icon={Icon.card} disabled={grandTotal === 0} onClick={() => (stalePicks.length ? confirm() : payRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" }))}>{tr("Go to payment")}</Btn>
               )}
             </div>
           </div>

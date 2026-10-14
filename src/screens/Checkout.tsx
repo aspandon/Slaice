@@ -30,7 +30,9 @@ const bookingRefFor = (n: number) => `BK-${30001 + n}`;
 /** The operator behind the beach — shown at checkout (AENR-574). */
 export const OPERATOR = { legal: "Akti tou Iliou AE", vat: "EL123456789", address: "Leof. Poseidonos 1, 174 55 Alimos", phone: "+30 210 980 0000", email: "help@aktitouiliou.gr" };
 
-export function Checkout() {
+/* `embedded` (AENR-640): the booking wizard's Pay step shows only the summary and the
+   payment buttons, and a paid booking goes straight to the confirmation. */
+export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
   const { cart, removeFromCart, addToCart, clearCart, go, toast, passes, spendVipCredit, passPricing, account, setAccount, loyalty } = useApp();
   const t = useT();
   const mine = usual(useVisits().visits);
@@ -105,6 +107,8 @@ export function Checkout() {
     setPlaced(booking);
     clearCart();
     setPhase("done");
+    // Embedded in the wizard (AENR-640): the paid booking opens its confirmation page.
+    if (embedded) go("customer", "confirm");
   };
   // Guests browsing without an account sign in first; the basket stays as it is.
   // The 18+ confirmation is asked once, at the first booking (AENR-622) — not at sign-in.
@@ -128,6 +132,7 @@ export function Checkout() {
   // reads as the journey's last scene, not a different app. Direct visits
   // (cart icon, deep link) find no stash and keep the plain fade-up.
   useLayoutEffect(() => {
+    if (embedded) return;
     const state = takeFlip("checkout-panel");
     if (!state) return;
     const ctx = gsap.context(() => {
@@ -135,7 +140,7 @@ export function Checkout() {
       gsap.from("[data-cart-row]", { y: 16, opacity: 0, stagger: 0.06, duration: 0.5, ease: EASE.out, delay: 0.15 });
     });
     return () => ctx.revert();
-  }, []);
+  }, [embedded]);
 
   const removeItem = (it: CartItem) => { removeFromCart(it.kind, it.id); toast(`${t("Removed")} ${it.label}.`, { action: { label: t("Undo"), onClick: () => addToCart(it) } }); };
   const emptyBasket = () => {
@@ -144,6 +149,8 @@ export function Checkout() {
     toast(t("Basket emptied."), { action: { label: t("Undo"), onClick: () => snapshot.forEach(addToCart) } });
   };
 
+  // Embedded in the wizard, a paid booking opens its confirmation page.
+  if (embedded && (phase === "done" || cart.length === 0)) return null;
   if (cart.length === 0 && phase !== "done") {
     return (
       <div className="animate-fade-up max-w-xl mx-auto min-h-[50dvh] grid place-items-center">
@@ -186,8 +193,8 @@ export function Checkout() {
   if (phase === "done") return <Confirmation inline booking={placed} />;
 
   return (
-    <div className="animate-fade-up grid lg:grid-cols-[1fr_360px] gap-5">
-      <div>
+    <div className={embedded ? "" : "animate-fade-up grid lg:grid-cols-[1fr_360px] gap-5"}>
+      {!embedded && <div>
         <h1 className="sr-only">{t("Checkout")}</h1>
         <Card className="p-2">
           <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100">
@@ -212,10 +219,10 @@ export function Checkout() {
           </div>
         </Card>
         <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg glass-card-solid px-2.5 py-1 text-[12px] text-slate-700"><Icon.shield size={13} /> {t("Your ticket and receipt arrive by e-mail the moment you pay.")}</div>
-      </div>
+      </div>}
 
-      <div className="lg:sticky lg:top-4 h-max" data-flip-id="checkout-panel">
-        <Card className="p-5">
+      <div className={embedded ? "" : "lg:sticky lg:top-4 h-max"} data-flip-id={embedded ? undefined : "checkout-panel"}>
+        <Card className={embedded ? "p-4" : "p-5"}>
           <div className="flex items-center gap-2 mb-3"><TenantLogo size={30} /><div className="text-sm font-semibold text-navy-900">{TENANT.name}</div></div>
           {/* Customer-facing summary: subtotal, any pass deductions, then what's due now. */}
           <Row l={t("Subtotal")} v={`€${goods.toFixed(2)}`} />

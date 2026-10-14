@@ -473,3 +473,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   the four numbers, occupancy by zone and weather sit beside it.
 - **AENR-654 — the till uses the whole screen.** No sidebar; Sell · Sales · Register as top tabs; the
   phone keeps the total and Charge pinned at the bottom (it used to render below the screen).
+- **AENR-640 — Pay where it says Pay.** The wizard's Pay step shows the checkout panel and takes the
+  payment; the separate basket page is only for guests who leave and come back.
