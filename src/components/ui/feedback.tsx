@@ -55,11 +55,13 @@ export function CardGridSkeleton({ count = 4, className = "" }: { count?: number
 
 /* ---------- StickyActionBar ----------
    Mobile-only bar pinned above the bottom tab bar (and the iOS home indicator). */
-export function StickyActionBar({ children, show = "lg:hidden" }: { children?: ReactNode; show?: string }) {
-  return (
-    <div className={`${show} fixed left-3 right-3 z-30 bottom-[calc(4.25rem+env(safe-area-inset-bottom))]`}>
+export function StickyActionBar({ children, show = "lg:hidden", noTabBar = false }: { children?: ReactNode; show?: string; /** No phone tab bar below (the till): sit at the bottom edge. */ noTabBar?: boolean }) {
+  // Portalled to <body>: an animated (transformed) page wrapper would otherwise pin it to the page, not the screen.
+  return createPortal(
+    <div className={`${show} fixed left-3 right-3 z-30 ${noTabBar ? "bottom-[calc(0.75rem+env(safe-area-inset-bottom))]" : "bottom-[calc(4.25rem+env(safe-area-inset-bottom))]"}`}>
       <div className="glass-card-solid rounded-2xl shadow-float px-3 py-2.5">{children}</div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

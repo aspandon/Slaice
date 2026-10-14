@@ -188,3 +188,24 @@ export function BottomTabBar({ persona, page, setPage }: NavProps) {
     </>
   );
 }
+
+/* The till uses the whole screen (AENR-654): no sidebar — Sell · Sales · Register as
+   tabs across the top, on every width (they replace the phone tab bar too). */
+export function TillTabs({ persona, page, setPage }: NavProps) {
+  const t = useT();
+  const items = useNav(persona).filter((it) => it.area !== "account");
+  return (
+    <nav aria-label={t("Till")} className="mb-3 grid gap-1 rounded-2xl glass-card p-1" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
+      {items.map((it) => {
+        const IconC = Icon[it.icon];
+        const on = it.k === page;
+        return (
+          <button key={it.k} type="button" aria-current={on ? "page" : undefined} onClick={() => setPage(it.k)}
+            className={`min-h-[44px] rounded-xl inline-flex items-center justify-center gap-2 text-[14px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${on ? "bg-navy-900 text-white shadow-sm" : "text-slate-600 hover:bg-white/70 hover:text-navy-900"}`}>
+            {IconC && <IconC size={16} />} {t(it.short ?? it.label)}
+          </button>
+        );
+      })}
+    </nav>
+  );
+}

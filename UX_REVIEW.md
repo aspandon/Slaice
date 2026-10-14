@@ -471,3 +471,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   Commission & Payouts and Platform GMV come from the same figures as Reports, up to today.
 - **AENR-630 — Today starts with the to-do.** Needs attention is the main column (first on phones);
   the four numbers, occupancy by zone and weather sit beside it.
+- **AENR-654 — the till uses the whole screen.** No sidebar; Sell · Sales · Register as top tabs; the
+  phone keeps the total and Charge pinned at the bottom (it used to render below the screen).

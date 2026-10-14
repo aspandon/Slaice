@@ -4,7 +4,7 @@ import { AppCtx, DEFAULT_CRM } from "./app/store";
 import type { AppContextValue, SpotlightHint, ToastOptions } from "./app/store";
 import { DEFAULT_PAGE } from "./data/personas";
 import { Icon } from "./lib/icons";
-import { TopBar, Sidebar, BottomTabBar, CustomerNav, SiteFooter, Toasts, PersonaSwitcher } from "./components/Shell";
+import { TopBar, Sidebar, BottomTabBar, CustomerNav, SiteFooter, Toasts, PersonaSwitcher, TillTabs } from "./components/Shell";
 import { AuthGate } from "./screens/auth";
 import { ConsentBanner } from "./components/ConsentBanner";
 import { CustomerBackdrop } from "./components/CustomerBackdrop";
@@ -471,10 +471,10 @@ export default function App() {
             </div>
           ) : (
             <div className="flex-1 flex gap-5 min-h-0">
-              <Sidebar persona={persona} page={page} setPage={setPage} />
+              {persona !== "cashier" && <Sidebar persona={persona} page={page} setPage={setPage} />}
               {/* While Slaice staff view a tenant, the guard disables mutating / blocked controls (AENR-515). */}
               <GuardCtx.Provider value={guard}>
-                <main className="flex-1 min-w-0">{persona === "cashier" && !viewAs && <OfflineBanner />}{viewAs && viewAs.role !== persona ? <AccessDenied role={viewAs.role} onHome={() => go(viewAs.role, DEFAULT_PAGE[viewAs.role])} /> : routeFor(persona, page)}</main>
+                <main className="flex-1 min-w-0">{persona === "cashier" && <TillTabs persona={persona} page={page} setPage={setPage} />}{persona === "cashier" && !viewAs && <OfflineBanner />}{viewAs && viewAs.role !== persona ? <AccessDenied role={viewAs.role} onHome={() => go(viewAs.role, DEFAULT_PAGE[viewAs.role])} /> : routeFor(persona, page)}</main>
               </GuardCtx.Provider>
             </div>
           )}
@@ -483,7 +483,7 @@ export default function App() {
           {!immersive && <SiteFooter />}
           {/* Bottom tab bar (mobile only) stays visible everywhere — including the
               immersive booking flow — so global navigation is always reachable. */}
-          <BottomTabBar persona={persona} page={page} setPage={setPage} />
+          {persona !== "cashier" && <BottomTabBar persona={persona} page={page} setPage={setPage} />}
           {/* The "view as another persona" control lives in the bottom-right
               corner on the customer surface — a quiet demo affordance, opening
               upward, lifted clear of the mobile bottom tab bar. */}

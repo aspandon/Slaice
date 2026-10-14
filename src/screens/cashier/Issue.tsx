@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Icon, type IconRenderer } from "../../lib/icons";
-import { Badge, Btn, Card, Field, Input, Modal, PageHead, StickyActionBar, Stepper } from "../../components/ui";
+import { ActionsMenu, Btn, Card, Field, Input, Modal, StickyActionBar, Stepper } from "../../components/ui";
 import { Sunbed } from "../../components/Beach";
 import { SunbedMap } from "../../components/SunbedMap";
 import { SetScanner, type ScanHit } from "../../components/SetScanner";
@@ -116,7 +116,7 @@ function IssueInner() {
   useEffect(() => {
     const el = document.getElementById("till-basket");
     if (!el || typeof IntersectionObserver === "undefined") return;
-    const io = new IntersectionObserver(([e]) => setBasketInView(e.isIntersecting), { threshold: 0.15 });
+    const io = new IntersectionObserver(([e]) => setBasketInView(e.intersectionRatio >= 0.6), { threshold: [0, 0.6, 1] });
     io.observe(el);
     return () => io.disconnect();
   }, [shiftOpen]);
@@ -318,10 +318,12 @@ function IssueInner() {
   const plain = lines.filter((l) => !l.bundle);
 
   return (
-    <div className="animate-fade-up pb-20 md:pb-0">
-      <PageHead title="Sell" sub="Sell entry tickets, sunbed sets, lockers and parking in one charge — card, cash, voucher or split." badge={<Badge tone="mvp">MVP</Badge>}
-        secondary={[{ label: "Today’s transactions", icon: Icon.list, onClick: () => go(persona, "transactions") }, { label: "Open live display", icon: Icon.monitor, onClick: openDisplay }]} />
-      <TillStatus />
+    <div className="animate-fade-up pb-24 lg:pb-0">
+      {/* Shift strip and the few extras share one row: the till keeps its space for selling (AENR-654). */}
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1"><TillStatus /></div>
+        <ActionsMenu label="More till actions" actions={[{ id: "tx", label: "Today’s transactions", icon: Icon.list, onSelect: () => go(persona, "transactions") }, { id: "display", label: "Open live display", icon: Icon.monitor, onSelect: openDisplay }]} />
+      </div>
       {!shiftOpen ? (
         <OpenShiftCard />
       ) : (
@@ -599,11 +601,15 @@ function IssueInner() {
       )}
 
       {/* Phones / small tablets: the basket sits below the catalogue, so keep the total and a jump to it in reach. */}
-      {shiftOpen && !done && lines.length > 0 && !basketInView && (
-        <StickyActionBar>
+      {/* Phones: the total and Charge are always in reach (AENR-654); tapping the total jumps to the basket. */}
+      {shiftOpen && !done && !basketInView && (
+        <StickyActionBar noTabBar>
           <div className="flex items-center gap-3">
-            <div className="min-w-0 flex-1"><div className="text-[11.5px] text-slate-500">{lines.reduce((a, l) => a + l.qty, 0)} item{lines.reduce((a, l) => a + l.qty, 0) === 1 ? "" : "s"} in basket</div><div className="font-display text-xl font-bold text-navy-900 tnum">{eur(totals.total)}</div></div>
-            <Btn variant="teal" icon={Icon.card} onClick={() => startPay(t.till.lastTender ?? "card")}>Charge</Btn>
+            <button type="button" onClick={() => document.getElementById("till-basket")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="min-w-0 flex-1 text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+              <div className="text-[11.5px] text-slate-500">{lines.length ? `${lines.reduce((a, l) => a + l.qty, 0)} item${lines.reduce((a, l) => a + l.qty, 0) === 1 ? "" : "s"} in basket · view` : "Basket is empty"}</div>
+              <div className="font-display text-xl font-bold text-navy-900 tnum">{eur(totals.total)}</div>
+            </button>
+            <Btn variant="teal" icon={Icon.card} disabled={!lines.length} onClick={() => startPay(t.till.lastTender ?? "card")}>{lines.length ? `Charge ${eur(totals.total)}` : "Charge"}</Btn>
           </div>
         </StickyActionBar>
       )}
