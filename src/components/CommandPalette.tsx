@@ -37,7 +37,6 @@ const G_KEYS: Record<string, string[]> = {
   t: ["transactions"],
   s: ["scan"],
   e: ["beach"],
-  w: ["walkin"],
   o: ["documents"],
 };
 const STAFF_PERSONAS: PersonaId[] = [
@@ -158,9 +157,10 @@ export function CommandPalette() {
         group: "Actions",
         label: "Walk-in sale",
         icon: Icon.cash,
-        need: "walkin",
+        need: "beach",
         mutates: true,
-        run: () => go(persona, "walkin"),
+        // Walk-ins are sold from Beach since AENR-637: tap a free set → Sell walk-in.
+        run: () => go(persona, "beach"),
       },
       {
         id: "a-display",

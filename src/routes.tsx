@@ -16,7 +16,6 @@ import * as A from "./screens/admin";
 import * as CA from "./screens/cashier";
 import * as CT from "./screens/controller";
 import { ControllerBeach } from "./screens/ControllerBeach";
-import { ControllerWalkin } from "./screens/ControllerWalkin";
 import { NewBooking } from "./screens/bookings/NewBooking";
 import { AdminBilling } from "./screens/AdminBilling";
 import { AdminDisplay } from "./screens/display/AdminDisplay";
@@ -69,11 +68,9 @@ const MAP: Record<string, () => ReactElement> = {
   // controller
   "controller.scan": () => <CT.ControllerScan />,
   "controller.beach": () => <ControllerBeach />,
-  "controller.walkin": () => <ControllerWalkin />,
   // support agent — the Controller and Cashier screens plus pay-by-link (AENR-533)
   "support.scan": () => <CT.ControllerScan />,
   "support.beach": () => <ControllerBeach />,
-  "support.walkin": () => <ControllerWalkin channel="support" />,
   "support.issue": () => <CA.CashierIssue />,
   "support.transactions": () => <CA.CashierTransactions />,
   "support.register": () => <CA.CashierRegister />,

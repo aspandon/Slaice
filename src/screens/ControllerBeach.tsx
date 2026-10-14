@@ -22,6 +22,7 @@ import {
 } from "../domain/sunbedOps";
 import { useLiveSlots } from "../lib/useLiveSlots";
 import { useBeachState } from "../lib/useBeachState";
+import { WalkinSale } from "./ControllerWalkin";
 import type { SunbedSlot } from "../domain/types";
 
 /* ============ Controller › Beach (AENR-499) ============
@@ -82,6 +83,7 @@ export function ControllerBeach() {
   const [reason, setReason] = useState(BLOCK_REASONS[0]);
   const [note, setNote] = useState("");
   const [pending, setPending] = useState<OpsStatus | null>(null);
+  const [selling, setSelling] = useState<string | null>(null);
   const liveSlots = useLiveSlots("walkin");
   const zone = ZONES.find((z) => z.id === zoneId) ?? ZONES[0];
   const slots = useMemo(() => liveSlots(zone, [date]), [liveSlots, zone, date]);
@@ -90,7 +92,7 @@ export function ControllerBeach() {
 
   // Deep link from elsewhere (e.g. a scanned label) opens that set.
   useEffect(() => {
-    if (hint?.persona === persona && hint.page === "beach" && hint.setId) {
+    if (hint?.persona === persona && (hint.page === "beach" || hint.page === "walkin") && hint.setId) {
       openSet(hint.setId);
       clearHint();
     }
@@ -310,7 +312,12 @@ export function ControllerBeach() {
         </div>
 
         <div id="set-panel" className="space-y-4 lg:sticky lg:top-4 scroll-mt-4 pb-24 lg:pb-0">
-          {selList.length === 0 ? (
+          {/* Sell in place (AENR-637): tickets + Charge right on the set's card. */}
+          {one && selling === one.id ? (
+            <Card className="p-4">
+              <WalkinSale setId={one.id} zoneId={zoneId} channel={persona === "support" ? "support" : "controller"} onClose={() => setSelling(null)} />
+            </Card>
+          ) : selList.length === 0 ? (
             <Card className="p-5 text-[13px] text-slate-600">
               Scan a sunbed label, type its code or tap a set on the map to see and change its
               status.
@@ -415,13 +422,8 @@ export function ControllerBeach() {
                         </Btn>
                       )}
                       {statusOf(one) === "available" && (
-                        <Btn
-                          variant="primary"
-                          size="lg"
-                          icon={Icon.cash}
-                          onClick={() => go(persona, "walkin", { setId: one.id })}
-                        >
-                          Walk-in sale on {one.id}
+                        <Btn variant="primary" size="lg" icon={Icon.cash} onClick={() => setSelling(one.id)}>
+                          Sell walk-in on {one.id}
                         </Btn>
                       )}
                     </div>

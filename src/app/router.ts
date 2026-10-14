@@ -28,7 +28,9 @@ const PAGE_ALIASES: Partial<Record<PersonaId, Record<string, string>>> = {
   // AENR-558 regrouped the sidebar: Dashboard → Today, Beach → Beach layout.
   admin: { map: "layout", availability: "layout", dashboard: "today", manual: "newbooking", paylinks: "newbooking" },
   callcenter: { manual: "newbooking", paylinks: "newbooking" },
-  support: { paylinks: "newbooking", redeem: "scan", locker: "issue" },
+  support: { paylinks: "newbooking", redeem: "scan", locker: "issue", walkin: "beach" },
+  // Walk-in Sale merged into Beach (AENR-637).
+  controller: { walkin: "beach" },
   // Sell Locker and Redeem Ticket left the till (AENR-605): lockers sell in Sell.
   cashier: { redeem: "issue", locker: "issue" },
   platform: { onboarding: "tenants" },

@@ -68,15 +68,14 @@ export const NAV: Record<PersonaId, NavItem[]> = {
     { k: "register", label: "Cash register", short: "Register", icon: "cash" },
   ],
   controller: [
-    { k: "scan", label: "Gate Validation", short: "Gate", icon: "scan", badge: "MVP" },
-    { k: "beach", label: "Beach Status", short: "Beach", icon: "umbrella", badge: "MVP" },
-    { k: "walkin", label: "Walk-in Sale", short: "Walk-in", icon: "cash", badge: "MVP" },
+    { k: "scan", label: "Gate", short: "Gate", icon: "scan", badge: "MVP" },
+    // Walk-in Sale merged into Beach (AENR-637): two tabs, Gate and Beach.
+    { k: "beach", label: "Beach", short: "Beach", icon: "umbrella", badge: "MVP" },
   ],
   // Support Agent (AENR-533): every Controller and Cashier page plus pay-by-link.
   support: [
     { k: "scan", label: "Gate Validation", short: "Gate", icon: "scan", badge: "MVP", group: "Gate" },
     { k: "beach", label: "Beach Status", short: "Beach", icon: "umbrella", badge: "MVP", group: "Beach" },
-    { k: "walkin", label: "Walk-in Sale", short: "Walk-in", icon: "cash", badge: "MVP", group: "Beach" },
     { k: "issue", label: "Sell", short: "Till", icon: "ticket", badge: "MVP", group: "Till" },
     { k: "transactions", label: "Sales", short: "Sales", icon: "list", badge: "MVP", group: "Till" },
     { k: "register", label: "Cash register", short: "Register", icon: "cash", group: "Till" },
