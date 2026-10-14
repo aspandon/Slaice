@@ -239,7 +239,9 @@ export function timeline(
           },
         ]
       : [];
-  return [...baseTimeline(b, visitIso), ...refunds, ...extra, ...noteEvents].sort((a, c) =>
+  // Paid by staff on the spot (AENR-651/656): that is the payment, not a generated one.
+  const base = extra.some((e) => e.kind === "paid") ? baseTimeline(b, visitIso).filter((e) => e.kind !== "paid") : baseTimeline(b, visitIso);
+  return [...base, ...refunds, ...extra, ...noteEvents].sort((a, c) =>
     a.at.localeCompare(c.at),
   );
 }

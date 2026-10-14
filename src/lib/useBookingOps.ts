@@ -256,8 +256,8 @@ export function useBookingOps() {
     if (ref) addEvent(ref, "scanned", `Checked in at ${setId} by ${by}`);
   };
   /** Payment taken on the spot (AENR-651): the booking counts as paid everywhere. */
-  const takePayment = (ref: string, amount: number, how: string) =>
-    addEvent(ref, "paid", `Paid €${amount.toFixed(2)} · ${how} · taken on the live map`);
+  const takePayment = (ref: string, amount: number, how: string, where = "on the live map") =>
+    addEvent(ref, "paid", `Paid €${amount.toFixed(2)} · ${how} · taken ${where}`);
 
   const newRequest = (
     b: Pick<OpsBooking, "id" | "who" | "amount">,

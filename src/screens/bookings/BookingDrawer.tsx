@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { Icon, type IconRenderer } from "../../lib/icons";
-import { Badge, Btn, Drawer, Field, Input, Select, StatusBadge, ActionsMenu } from "../../components/ui";
+import { Badge, Btn, Drawer, Field, Input, Modal, Select, StatusBadge, ActionsMenu } from "../../components/ui";
+import { downloadReport } from "../../lib/download";
+import { opsKey } from "../../domain/sunbedOps";
 import { QR } from "../../components/charts";
 import { SendModal } from "../../components/SendModal";
 import { useApp } from "../../app/store";
@@ -117,6 +119,58 @@ function DrawerBody({ b, agent }: { b: OpsBooking; agent: boolean }) {
     b.visitIso >= DEMO_TODAY &&
     (b.status === "Confirmed" || b.status === "Unpaid" || b.status === "Awaiting payment");
   const sets = b.items.filter((i) => i.startsWith("Sunbed · "));
+  const setIds = sets.map((i) => i.split(" · ")[2]).filter(Boolean);
+  // The primary action follows the booking's state (AENR-656).
+  const arrived =
+    events.some((e) => e.kind === "scanned") ||
+    (setIds.length > 0 && setIds.every((id) => sunbedOps.status[opsKey(b.visitIso, id)]?.status === "occupied"));
+  const [paying, setPaying] = useState(false);
+  const staffPaid = (bookingOps.events[b.id] ?? []).find((e) => e.kind === "paid");
+  const [qrOpen, setQrOpen] = useState(false);
+  const snap = () => {
+    const prev = { s: sunbedOps, o: bookingOps };
+    return () => {
+      setSunbedOps(() => prev.s);
+      setBookingOps(() => prev.o);
+    };
+  };
+  const checkIn = () => {
+    const restore = snap();
+    setIds.forEach((id) => ops.checkIn(id, b.visitIso, b.id));
+    undo(`${b.who} checked in at ${setIds.join(", ")}.`, restore);
+  };
+  const takePay = (how: "Card" | "Cash") => {
+    const restore = snap();
+    ops.takePayment(b.id, b.amount, how, "in the booking");
+    undo(`${b.id} paid €${b.amount} by ${how.toLowerCase()}.`, restore);
+    setPaying(false);
+  };
+  const receipt = () => {
+    downloadReport(
+      `receipt-${b.id.replace("#", "")}`,
+      {
+        title: `Receipt ${b.id}`,
+        subtitle: `${b.who} ${b.surname} · ${b.date}`,
+        meta: [payMethod(b)],
+        sections: [{ table: { cols: ["Item"], rows: b.items.map((i) => [i]), total: [`Total €${b.amount}`] } }],
+      },
+      "pdf",
+    );
+    toast(`Receipt for ${b.id} downloaded (PDF).`, { tone: "success" });
+  };
+  type Primary = { label: string; icon: IconRenderer; run: () => void } | null;
+  const primary: Primary =
+    b.status === "Awaiting payment" || b.status === "Cancelled" || b.status === "Refunded"
+      ? null // the payment-link card above carries its own action
+      : b.status === "Unpaid"
+        ? { label: `Take payment · €${b.amount}`, icon: Icon.card, run: () => setPaying(true) }
+        : b.visitIso === DEMO_TODAY && b.status === "Confirmed" && !arrived && setIds.length > 0
+          ? { label: "Check in", icon: Icon.checkCircle, run: checkIn }
+          : b.visitIso > DEMO_TODAY && paid
+            ? { label: "Resend QR", icon: Icon.send, run: () => setSend(true) }
+            : paid
+              ? { label: "Receipt", icon: Icon.receipt, run: receipt }
+              : null;
 
   // Free sets in the moving set's zone on the visit day.
   const freeSets = useMemo(() => {
@@ -175,9 +229,9 @@ function DrawerBody({ b, agent }: { b: OpsBooking; agent: boolean }) {
       <LinkActions bookingId={b.id} />
       {/* Actions — one primary, the rest in "…" (AENR-617). */}
       <div className="flex flex-wrap items-center gap-2">
-        {paid ? (
-          <Btn size="sm" variant="primary" icon={Icon.send} onClick={() => setSend(true)}>
-            Resend QR
+        {primary ? (
+          <Btn size="sm" variant="primary" icon={primary.icon} onClick={primary.run}>
+            {primary.label}
           </Btn>
         ) : (
           <Btn size="sm" variant="outline" icon={Icon.doc} onClick={() => document.getElementById("bk-note")?.focus()}>
@@ -197,6 +251,15 @@ function DrawerBody({ b, agent }: { b: OpsBooking; agent: boolean }) {
                 setMoveTo("");
               },
             },
+            paid &&
+              primary?.label !== "Resend QR" && {
+                id: "resend",
+                label: "Resend QR",
+                icon: Icon.send,
+                onSelect: () => setSend(true),
+              },
+            paid &&
+              primary?.label !== "Receipt" && { id: "receipt", label: "Receipt (PDF)", icon: Icon.receipt, onSelect: receipt },
             paid && {
               id: "note",
               label: "Add note",
@@ -218,6 +281,15 @@ function DrawerBody({ b, agent }: { b: OpsBooking; agent: boolean }) {
           ]}
         />
       </div>
+
+      {paying && (
+        <div role="group" aria-label={`Take €${b.amount}`} className="rounded-2xl ring-1 ring-slate-200 bg-white/80 p-3 flex flex-wrap items-center gap-2">
+          <span className="text-[13px] font-semibold text-navy-900 mr-auto">Take €{b.amount} — how is the guest paying?</span>
+          <Btn size="sm" variant="primary" icon={Icon.card} onClick={() => takePay("Card")}>Card</Btn>
+          <Btn size="sm" variant="outline" icon={Icon.cash} onClick={() => takePay("Cash")}>Cash</Btn>
+          <Btn size="sm" variant="ghost" onClick={() => setPaying(false)}>Cancel</Btn>
+        </div>
+      )}
 
       {pending && <PendingRefund r={pending} agent={agent} onDecide={ops.decideRefund} />}
 
@@ -347,7 +419,7 @@ function DrawerBody({ b, agent }: { b: OpsBooking; agent: boolean }) {
             Payment
           </h3>
           <div className="font-display font-bold text-navy-900 text-xl tnum">€{b.amount}</div>
-          <div className="text-[13px] text-slate-600">{payMethod(b)}</div>
+          <div className="text-[13px] text-slate-600">{staffPaid ? staffPaid.text.split(" · ").slice(1).join(" · ") : payMethod(b)}</div>
         </div>
       </section>
 
@@ -381,20 +453,31 @@ function DrawerBody({ b, agent }: { b: OpsBooking; agent: boolean }) {
       </section>
 
       {paid && (
-        <section className="flex items-center gap-4 rounded-2xl ring-1 ring-slate-200 bg-white/70 p-4">
-          <QR size={84} seed={`BOOKING-${b.id}`} />
-          <div className="min-w-0">
-            <div className="font-semibold text-navy-900">Gate QR</div>
-            <div className="text-[12.5px] text-slate-600">
-              {b.status === "Used"
-                ? "Scanned at the gate — no longer valid for entry."
-                : "Valid for entry on " +
-                  b.date +
-                  ". The guest can show it from the e-mail or their account."}
-            </div>
-          </div>
-        </section>
+        <button
+          type="button"
+          onClick={() => setQrOpen(true)}
+          className="w-full flex items-center gap-3 rounded-2xl ring-1 ring-slate-200 bg-white/70 px-4 py-2.5 text-left hover:ring-teal-400 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+        >
+          <Icon.qr size={18} className="text-slate-600 shrink-0" />
+          <span className="flex-1 min-w-0">
+            <span className="block font-semibold text-navy-900 text-[13.5px]">Gate QR</span>
+            <span className="block text-[12px] text-slate-600 truncate">
+              {b.status === "Used" ? "Scanned at the gate — no longer valid." : `Valid for entry on ${b.date}`}
+            </span>
+          </span>
+          <span className="text-[12.5px] font-semibold text-teal-700">Show</span>
+        </button>
       )}
+      <Modal open={qrOpen} onClose={() => setQrOpen(false)} title={`Gate QR · ${b.id}`}>
+        <div className="grid place-items-center gap-3 py-2">
+          <QR size={220} seed={`BOOKING-${b.id}`} />
+          <p className="text-[13px] text-slate-600 text-center">
+            {b.status === "Used"
+              ? "Scanned at the gate — no longer valid for entry."
+              : `Valid for entry on ${b.date}. The guest can show it from the e-mail or their account.`}
+          </p>
+        </div>
+      </Modal>
 
       <section>
         <h3 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">

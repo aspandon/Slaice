@@ -1213,6 +1213,12 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
   till, controller, live beach), **Refund** (manager: refunded at once via Stripe; Call Center: **Request
   refund**, which goes to Refunds › Needs decision), a pending refund decided right there (same result
   as the queue), **Add note** (optionally escalated).
+- **The primary action follows the state** (AENR-656): unpaid → **Take payment · €X** (Card / Cash; the
+  booking turns Confirmed everywhere, the timeline logs it, Undo); today, paid, not arrived → **Check
+  in** (its sets turn Checked in, Undo); a future visit → **Resend QR**; past or used → **Receipt** (PDF);
+  awaiting a payment link → the link card's own actions. The others move to "…". The gate QR is a
+  compact **Gate QR · Show** row that opens it full size, so guest, payment and items fit the first
+  screen.
 - Booking actions live in the app store (`bookingOps`: timeline events, moves, refund requests —
   `src/domain/bookingOps.ts`, `src/lib/useBookingOps.ts`).
 - Visit-date filter: the shared period control (X-11), default **All dates**. **Filters** (shared
