@@ -345,8 +345,12 @@ Reservations; phone-first like the Controller. Staff get the role in Admin › R
 
 ### 7.2 Customer shell
 
-- Full-bleed **beach backdrop** behind every customer page (see §20.6), large **tenant logo** centred
-  at the top (links to Home), **SiteFooter** "powered by SLAiCE".
+- Full-bleed **beach backdrop** behind every customer page (see §20.6), **tenant logo** at the top (links
+  to Home): large and centred on desktop Home, 64 px on other desktop pages, and on phones a compact
+  36 px logo on the left of the icon bar so the first card starts in the top tenth of the screen
+  (AENR-649). **SiteFooter** "powered by SLAiCE".
+- **Basket** (AENR-649): a shopping-bag icon with the item count, shown only when the basket has
+  something in it.
 - **Floating action cluster**, fixed top-right:
   - **Basket** popover: item count badge, line items with kind icon, remove (with **Undo** toast),
     subtotal, **Checkout**, **Empty basket** (with Undo), **Continue planning**. Empty state with a

@@ -435,9 +435,11 @@ export default function App() {
             <button
               onClick={() => go("customer", "home")}
               aria-label="Go to home"
-              className="flex justify-center items-center pt-1 pb-1 mb-3 sm:mb-4 w-full group hover:opacity-90 active:opacity-75 transition-opacity"
+              // Phones: a compact logo beside the icon bar, so content starts high (AENR-649);
+              // desktop keeps the large logo on Home only.
+              className={`flex max-md:justify-start md:justify-center items-center max-md:-mt-[54px] max-md:h-12 relative z-10 md:pt-1 md:pb-1 mb-2 sm:mb-4 w-fit md:w-full max-md:mr-auto group hover:opacity-90 active:opacity-75 transition-opacity`}
             >
-              <img src={`${import.meta.env.BASE_URL}tenant-logo.png`} alt="Ακτή του Ηλίου" className="h-[100px] w-auto" />
+              <img src={`${import.meta.env.BASE_URL}tenant-logo.png`} alt="Ακτή του Ηλίου" className={`w-auto max-md:h-9 ${page === "home" ? "md:h-[100px]" : "md:h-16"}`} />
             </button>
           )}
           {persona === "customer" && !immersive && !viewAs && <CustomerNav page={page} setPage={setPage} />}

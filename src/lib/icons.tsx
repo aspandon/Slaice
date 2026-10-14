@@ -4,7 +4,7 @@
 // width) onto the lucide component, keeping a consistent 1.75 stroke and
 // crisp absolute stroke width across sizes.
 import {
-  Umbrella, Ticket, ReceiptText, CreditCard, Car, BarChart3, LayoutGrid,
+  Umbrella, ShoppingBag, Ticket, ReceiptText, CreditCard, Car, BarChart3, LayoutGrid,
   Users, Map, ScanLine, RotateCcw, Building2, Banknote, Lock, Home, Calendar,
   Download, Check, CheckCircle2, X, ChevronRight, ChevronLeft, ChevronDown, ArrowLeft, MoreHorizontal,
   ArrowRight, Bell, Search, Globe, Tag, FileText, Settings, Zap, Package,
@@ -68,6 +68,7 @@ export const Icon: Record<string, IconRenderer> = {
   cog: w(Settings),
   bolt: w(Zap),
   pkg: w(Package),
+  bag: w(ShoppingBag),
   trend: w(TrendingUp),
   phone: w(Phone),
   mail: w(Mail),

@@ -152,11 +152,12 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
       {/* Tight on phones so the staff page title keeps room (AENR defect: it showed one letter at 390px). */}
       <div className={`flex items-center shrink-0 ${persona === "customer" ? "gap-0.5" : "gap-0.5 sm:gap-2"}`}>
         {/* basket popup — only on the customer persona */}
-        {persona === "customer" && (
+        {/* A bag with a count, only when something is in it (AENR-649). */}
+        {persona === "customer" && (cartCount > 0 || basketOpen) && (
         <Popover.Root open={basketOpen} onOpenChange={setBasketOpen}>
           <Popover.Trigger asChild>
-            <button className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 data-[state=open]:bg-slate-100 data-[state=open]:text-navy-900 relative transition" aria-label={t("Basket")} title={t("Basket")}>
-              <Icon.card size={18} />
+            <button className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 data-[state=open]:bg-slate-100 data-[state=open]:text-navy-900 relative transition" aria-label={`${t("Basket")} · ${cartCount}`} title={t("Basket")}>
+              <Icon.bag size={18} />
               {cartCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 grid place-items-center text-[10px] font-bold bg-teal-500 text-white rounded-full ring-2 ring-white">{cartCount}</span>
               )}
@@ -166,7 +167,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
             <Popover.Content align="end" sideOffset={8} aria-label={t("Basket")} className="glass w-[320px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
               <div className="flex items-center justify-between px-2 py-1.5">
                 <div className="font-semibold text-navy-900 text-sm flex items-center gap-2">
-                  <Icon.card size={14} /> {t("Your basket")}
+                  <Icon.bag size={14} /> {t("Your basket")}
                   {cartCount > 0 && <Badge tone="green">{cartCount} {cartCount === 1 ? t("item") : t("items")}</Badge>}
                 </div>
                 {cartCount > 0 && <span className="text-[12px] font-bold text-navy-900 tnum">€{cartTotal}</span>}
@@ -196,7 +197,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
                       <span className="text-slate-600">{t("Subtotal")}</span>
                       <span className="font-bold text-navy-900 tnum">€{cartTotal}</span>
                     </div>
-                    <Btn variant="teal" full size="sm" icon={Icon.card} onClick={() => { setBasketOpen(false); go("customer", "checkout"); }}>{t("Checkout")}</Btn>
+                    <Btn variant="teal" full size="sm" icon={Icon.bag} onClick={() => { setBasketOpen(false); go("customer", "checkout"); }}>{t("Checkout")}</Btn>
                     <div className="flex items-center justify-between gap-2">
                       <button onClick={emptyBasket} className="text-[11px] text-slate-500 hover:text-rose-600 py-1 inline-flex items-center gap-1"><Icon.trash size={12} /> {t("Empty basket")}</button>
                       <button onClick={() => { setBasketOpen(false); go("customer", "plan"); }} className="text-[11px] text-slate-500 hover:text-navy-900 py-1">{t("Continue planning")}</button>
