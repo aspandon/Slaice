@@ -600,8 +600,8 @@ Entrance motion: full choreography once per session, then a quick card stagger o
           ▼
    basket lines (§17.2) ─▶ toast "Booking ready — 5 items added" ─▶ menu morphs ─▶ C-04
 
- SAND VIGNETTES (after step 1, read-only)
-   picked sets ──▶ + towels (guests) ──▶ + locker cabin × qty ──▶ + car with plate × qty
+ YOUR ZONE STAYS ON THE SAND (Who, Pay — AENR-670)
+   the last zone you picked sets from, read-only, your sets highlighted (no towels / cabin / car)
 ```
 
 **Trigger:** hero CTA, Claim, Book again, Use it, "Plan my visit" buttons, the Plan tab.
@@ -640,6 +640,8 @@ back; forward only via Continue). Footer: live **Total €** (animated) + **Back
      floats over the water) and every zone stands in one row right under the waterline, in beach order,
      evenly across the whole width (Akanthus · Central · Macaw · Bestbuy · Main · Bolivar). A zone's set
      view sits on the sand below the water, beside the panel.
+     The row is centred in the open sand between the shoreline and the guidance bar, so no zone touches
+     the water (AENR-670).
    - Phones: compact **zone cards**.
    - Guidance: "**Tap a zone on the beach** to choose where you'll sit — the sea is at the top."
 3. **Pick sets** — phase _sets_: tapping a zone zooms the "camera" in (FLIP animation) to the zone's
@@ -698,8 +700,8 @@ back; forward only via Continue). Footer: live **Total €** (animated) + **Back
 **On confirm:** the booking is exploded into **basket lines** (see §17.2), a toast "Booking ready — N
 items added to your basket.", and the menu panel **morphs** into the Checkout summary.
 
-**Beach vignettes:** after step 1 the picked sets stay on the sand (read-only) and each step adds a
-vignette — towels for guests, a locker cabin (×qty), the car with its plate on a parking pad (×qty).
+**Your zone stays on the sand** (AENR-670, replacing the beach vignettes): on Who and Pay the beach shows
+the last zone you picked sets from, read-only, with your sets highlighted — no towels, cabin or car.
 
 **States:** zero sets → total €0 and Confirm disabled; Continue is never blocked on earlier steps.
 
@@ -3055,7 +3057,6 @@ src/
     LiveSeaCanvas.tsx    three.js sea
     WeatherFx.tsx        rain / wind particle canvas
     CustomerBackdrop.tsx scene resolution (weather × daytime) for all customer pages
-    SandScene.tsx        wizard vignettes (towels, locker, car)
     SceneDemoPanel.tsx   demo weather/time control
     PassCard.tsx, PassDesigner.tsx, WalletPass.tsx, BackgroundPicker.tsx, PrivacyCenter.tsx,
     Security.tsx, ConsentBanner.tsx, TableTools.tsx (sort/pager), charts.tsx, Brand.tsx, LifeRing.tsx

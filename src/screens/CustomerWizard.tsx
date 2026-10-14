@@ -6,7 +6,6 @@ import { Btn, Badge, Stepper, Input, Field, DatePickerRow, Toggle, Modal, Sheet,
 import { prefersReducedMotion } from "../lib/motion";
 import { gsap, Flip, motionOK, stashFlip, EASE } from "../lib/fx";
 import { Sunbed, SunbedMark } from "../components/Beach";
-import { SandScene } from "../components/SandScene";
 import { ZONES, ZONE_BLOCKS, todayISO, chipLabel, forecastFor, WEATHER_DEMO } from "../data/beach";
 import { addDays } from "../domain/period";
 import { useLiveSlots } from "../lib/useLiveSlots";
@@ -557,6 +556,10 @@ function WizardInner() {
   const showZones = step.id === "beach" && phase === "zones";
   const showSets = step.id === "beach" && phase === "sets";
   const showScene = step.id !== "beach" && bedSel.length > 0;
+  // The zone shown behind Who and Pay: where the last set was picked (AENR-670).
+  const sceneZone = ZONES.find((z) => z.id === bedSel[bedSel.length - 1]?.zoneId) ?? zone;
+  const sceneSlots = sceneZone.id === zone.id ? slots : liveSlots(sceneZone, selDates);
+  const sceneIds = new Set(bedSel.filter((b) => b.zoneId === sceneZone.id).map((b) => b.id));
   const pickedByZone = bedSel.reduce<Record<string, number>>((m, b) => ({ ...m, [b.zoneId]: (m[b.zoneId] ?? 0) + 1 }), {});
   const revealDelay = prefersReducedMotion() ? "0ms" : "420ms";
   // Below 1024px the panel is a bottom sheet over the beach (AENR-660): on the beach
@@ -772,15 +775,16 @@ function WizardInner() {
               <SandSunbeds slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zone.id)} />
             </ZoomBox>
           ))}
-          {showScene && (
-            <SandScene
-              slots={slots} picked={selectedIds} stepId={step.id}
-              guests={totalPeople}
-              lockerOn={lockerOn} lockerQty={lockerQty}
-              parkingOn={parkingOn && parkingDates.length > 0} parkingQty={parkingQty}
-              plate={parkingQty > 1 ? spotPlates[0] : plates[selDates[0]]}
-            />
-          )}
+          {/* Who and Pay keep your zone on the sand (AENR-670): the last zone you picked
+              sets from, read-only, your sets highlighted — no extra vignettes. */}
+          {showScene && (richOverview ? (
+            <SandSunbeds readOnly slots={sceneSlots} selected={sceneIds} landmarks={beachPricing.landmarks.filter((l) => l.zoneId === sceneZone.id)} />
+          ) : (
+            <ZoomBox className="h-full pointer-events-auto" maxHeight="100%" hint={null} minWidth={540} aspect={0.95}
+              focus={(() => { const f = sceneSlots.find((x) => sceneIds.has(x.id)); return f ? { x: f.x, y: f.y } : undefined; })()}>
+              <SandSunbeds readOnly slots={sceneSlots} selected={sceneIds} landmarks={beachPricing.landmarks.filter((l) => l.zoneId === sceneZone.id)} />
+            </ZoomBox>
+          ))}
         </div>
       </div>
 
@@ -803,7 +807,7 @@ function WizardInner() {
             )}
             {showScene && (
               <div className="rounded-2xl glass px-4 py-1.5 text-center">
-                <span className="text-[12.5px] text-navy-900"><b>{pickZones.length > 1 ? pickZones.map((z) => `${ZONES.find((x) => x.id === z)?.name} ×${pickedByZone[z]}`).join(" · ") : zone.name}</b> · {bedSel.length} {bedSel.length !== 1 ? tr("umbrella sets") : tr("umbrella set")} — {tr("your picks stay on the sand while you finish up.")}</span>
+                <span className="text-[12.5px] text-navy-900"><b>{pickZones.length > 1 ? pickZones.map((z) => `${ZONES.find((x) => x.id === z)?.name} ×${pickedByZone[z]}`).join(" · ") : sceneZone.name}</b> · {bedSel.length} {bedSel.length !== 1 ? tr("umbrella sets") : tr("umbrella set")} — {tr("your picks stay on the sand while you finish up.")}</span>
               </div>
             )}
             {showSets && (
@@ -1168,8 +1172,9 @@ function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: 
     // across the whole width (this also keeps them right under the shoreline, AENR-667).
     const order = [...ZONES].sort((a, b) => parseFloat(ZONE_BLOCKS.find((x) => x.id === a.id)?.left ?? "50") - parseFloat(ZONE_BLOCKS.find((x) => x.id === b.id)?.left ?? "50"));
     const gap = box.w / ZONES.length;
-    return ZONES.map((z) => ({ x: gap * (order.indexOf(z) + 0.5), y: ch / 2 + 4 }));
-  }, [box, cw, ch]);
+    // Centred in the open sand between the shoreline and the guidance bar (AENR-670).
+    return ZONES.map((z) => ({ x: gap * (order.indexOf(z) + 0.5), y: Math.max(ch / 2 + 4, box.h / 2) }));
+  }, [box, ch]);
 
   return (
     <div ref={ref} className="absolute inset-0">

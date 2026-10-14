@@ -506,4 +506,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-667 (defect) — zones hug the sea.** On tall or wide windows the zone overview no longer drifts away from the shoreline.
 - **AENR-665 — one Charge button.** The controller's walk-in uses the till's Charge €X with the remembered tender.
 - **AENR-669 — a beach front.** Desktop: the sea comes down to mid-screen and every zone stands in one front row along the water, across the whole width.
+- **AENR-670 — your zone stays on the sand.** Who and Pay show the zone you booked in with your sets; the zone row sits mid-sand.
 - **AENR-658 — a calm first step.** No total or refund warning before a set is picked; the terms show once, on Pay.
