@@ -217,7 +217,8 @@ export function AdminDisplay() {
           </Btn>
         </Card>
 
-        <Card className="p-4">
+        {/* Pinned beside the settings (AENR-632); on phones it comes first. */}
+        <Card className="p-4 order-first xl:order-none xl:sticky xl:top-4">
           <div className="flex items-center justify-between mb-2">
             <h2 className="font-semibold text-navy-900">Live preview</h2>
             <Badge tone="green">Updates live</Badge>
@@ -251,6 +252,8 @@ function PairScreens() {
   const [code, setCode] = useState("");
   const [err, setErr] = useState("");
   const screens = cfg.screens ?? [];
+  // Once a screen is paired the card folds to one row (AENR-632).
+  const [open, setOpen] = useState(false);
   const pair = () => {
     const hit = readPending().find((x) => x.code === code);
     if (!hit) return setErr("No screen shows that code — check the TV, or wait for a fresh code.");
@@ -272,8 +275,30 @@ function PairScreens() {
     setDisplay((c) => ({ ...c, screens: (c.screens ?? []).filter((x) => x.device !== device) }));
     undo(`${gone?.name ?? "Screen"} removed — it shows a pairing code again.`, () => setDisplay((c) => ({ ...c, screens: prev })));
   };
+  if (screens.length > 0 && !open)
+    return (
+      <button
+        type="button"
+        aria-expanded={false}
+        onClick={() => setOpen(true)}
+        className="w-full flex items-center gap-3 rounded-2xl glass-card ring-1 ring-slate-200 px-4 py-3 text-left hover:ring-teal-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+      >
+        <Icon.monitor size={16} className="text-teal-700 shrink-0" />
+        <span className="flex-1 min-w-0 text-[13.5px]">
+          <b className="text-navy-900">Screens</b> · {screens.length} paired
+          <span className="text-slate-500"> — {screens.map((x) => x.name).join(", ")}</span>
+        </span>
+        <span className="text-[12.5px] font-semibold text-teal-700">Manage · pair another</span>
+        <Icon.chevD size={15} className="text-slate-400" />
+      </button>
+    );
   return (
     <Card className="p-4">
+      {screens.length > 0 && (
+        <div className="flex justify-end -mt-1 mb-1">
+          <button type="button" aria-expanded onClick={() => setOpen(false)} className="text-[12px] font-semibold text-slate-500 hover:text-navy-900 rounded px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">Fold</button>
+        </div>
+      )}
       <div className="flex flex-wrap items-start gap-4">
         <form
           className="min-w-0 flex-1 basis-64"

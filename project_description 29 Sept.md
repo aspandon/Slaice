@@ -1133,6 +1133,9 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
   Paired screens are listed with a name (editable) and can be removed (Undo); a removed screen shows a
   code again. The admin preview never needs pairing. New setups use the **Auto** look (sunrise /
   sunset). Codes live under their own storage key because a display window never writes app state.
+- **Preview beside the settings** (AENR-632): on desktop the live preview stays pinned while the
+  settings scroll, so every change shows at once; phones stack the preview first. Once a screen is
+  paired, pairing folds into one row — “Screens · 1 paired — Screen 1 · Manage · pair another”.
 - **`#/display`** — chrome-less and read-only (no shell, sign-in, cookie banner or guest data): headline "N
   sunbed sets free now · from €X", clock and weather, the overview map with each zone in its position (free /
   total, fill bar and a text level: Plenty free · Filling up · Almost full · Full · Closed today), a per-zone
