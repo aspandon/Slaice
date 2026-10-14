@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Icon } from "../lib/icons";
 import { Badge, Btn, Stepper } from "../components/ui";
 import { useApp } from "../app/store";
 import { ZONES } from "../data/beach";
@@ -16,7 +15,7 @@ import {
 import { useLiveSlots } from "../lib/useLiveSlots";
 import { useFinance } from "../lib/useFinance";
 import { useTill } from "./cashier/useTill";
-import { SaleDone } from "./cashier/TillParts";
+import { ChargeButton, SaleDone } from "./cashier/TillParts";
 import { TenderModal } from "./cashier/Tender";
 
 /* ============ Walk-in sale on the beach (AENR-528; in place on Beach since AENR-637) ============
@@ -82,6 +81,8 @@ export function WalkinSale({
   const totals = basketTotals(lines, []);
   const onPaid = (tenders: Tender[]) => {
     const sale = t.completeSale({ lines, discounts: [], total: totals.total, tenders, channel, seller });
+    const main = [...tenders].sort((a, b) => b.amount - a.amount)[0];
+    if (main) t.rememberTender(main.kind);
     setSold(true);
     setTender(null);
     setDone(sale);
@@ -124,10 +125,8 @@ export function WalkinSale({
         </span>
         <span className="font-display text-3xl font-bold text-navy-900 tnum" aria-live="polite">{eur(totals.total)}</span>
       </div>
-      <div className="grid grid-cols-2 gap-2">
-        <Btn variant="primary" size="lg" icon={Icon.cash} onClick={() => setTender("cash")}>Cash</Btn>
-        <Btn variant="teal" size="lg" icon={Icon.card} onClick={() => setTender("card")}>Card · POS</Btn>
-      </div>
+      {/* The till's Charge button and remembered tender (AENR-665). */}
+      <ChargeButton total={totals.total} last={t.till.lastTender} onCharge={setTender} />
       <Btn variant="ghost" full onClick={onClose}>Cancel</Btn>
       <div className="text-[11.5px] text-slate-500 flex items-center gap-1.5">
         <Badge tone="slate">{channel === "support" ? "Support Agent" : "Controller"}</Badge> Confirming the payment books the set and records the sale in one step.

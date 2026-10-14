@@ -4,6 +4,7 @@ import { Badge, Btn, Field, Input, Modal } from "../../components/ui";
 import { QR } from "../../components/charts";
 import { TENANT, ZONES } from "../../data/beach";
 import { MANAGER_PINS } from "../../data/till";
+import type { TenderKind } from "../../domain/till";
 import { basketTotals, changeDue, discountAmount, eur, lineGross, saleStatus, type ReceiptChoice, type TillSale, vatBreakdown } from "../../domain/till";
 
 /* ============ Manager approval ============
@@ -193,3 +194,18 @@ export const SaleStatusBadge = ({ sale }: { sale: TillSale }) => {
   const s = saleStatus(sale);
   return <Badge tone={s === "Completed" ? "green" : s === "Part refunded" ? "amber" : "slate"}>{s}</Badge>;
 };
+
+/* One Charge button (AENR-606), shared by the till and the controller's walk-in
+   (AENR-665): it opens on the tender used last; card, cash, voucher or split are
+   chosen in the tender sheet. */
+export function ChargeButton({ total, last, onCharge }: { total: number; last?: TenderKind; onCharge: (k: TenderKind) => void }) {
+  const k = last ?? "card";
+  return (
+    <div>
+      <Btn variant="teal" size="lg" full icon={k === "cash" ? Icon.cash : k === "voucher" ? Icon.layers : Icon.card} onClick={() => onCharge(k)}>
+        Charge {eur(total)}
+      </Btn>
+      <div className="mt-1.5 text-center text-[11.5px] text-slate-500">Opens on {k} — switch to card, cash, voucher or split there.</div>
+    </div>
+  );
+}

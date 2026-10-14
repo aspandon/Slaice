@@ -17,7 +17,7 @@ import type { SunbedSlot, TicketCategory } from "../../domain/types";
 import { useClosure, useLiveSlots, useNow } from "../../lib/useLiveSlots";
 import { useFinance } from "../../lib/useFinance";
 import { useTill } from "./useTill";
-import { ManagerPinModal, ReceiptModal, SaleDone } from "./TillParts";
+import { ChargeButton, ManagerPinModal, ReceiptModal, SaleDone } from "./TillParts";
 import { TenderModal } from "./Tender";
 import { openDisplay } from "../../domain/display";
 import { OpenShiftCard, TillStatus } from "./TillStatus";
@@ -566,12 +566,7 @@ function IssueInner() {
                   {/* One Charge button (AENR-606): it opens on the tender used last; card, cash, voucher or split are chosen there. */}
                   {lines.length > 0 && (
                     <div className="mt-3">
-                      <Btn variant="teal" size="lg" full icon={t.till.lastTender === "cash" ? Icon.cash : t.till.lastTender === "voucher" ? Icon.layers : Icon.card} onClick={() => startPay(t.till.lastTender ?? "card")}>
-                        Charge {eur(totals.total)}
-                      </Btn>
-                      <div className="mt-1.5 text-center text-[11.5px] text-slate-500">
-                        Opens on {t.till.lastTender ?? "card"} — switch to card, cash, voucher or split there.
-                      </div>
+                      <ChargeButton total={totals.total} last={t.till.lastTender} onCharge={startPay} />
                     </div>
                   )}
                 </>

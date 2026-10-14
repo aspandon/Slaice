@@ -286,7 +286,7 @@ everything else and tickets are redeemed at the gate, so the old `#/cashier/rede
 
 Two tabs (AENR-637): **Gate** (the continuous scanner) and **Beach** — scan, type or tap a set and its
 card offers what fits: a free set **Sell walk-in on CE-12** in place (entry tickets, 2 by default, then
-Cash or Card · POS — the till's sale record and receipt), a booked one **Check in**, a no-show
+the till's **Charge €X** button, opening on the tender used last — AENR-665 — and the till's sale record and receipt), a booked one **Check in**, a no-show
 **Release**. Old `#/controller/walkin` and `#/support/walkin` links open Beach.
 
 | Route                | Screen | Tag   |
