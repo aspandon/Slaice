@@ -485,4 +485,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   (or −/+), and a Map | List toggle with the same selection.
 - **AENR-660 — the beach is the screen.** Desktop: beach on the left two-thirds, steps and total in a
   right column. Phones: full-width beach with pinch-zoom and a bottom sheet (total + Continue lowered).
+- **AENR-659 — one visit, one card.** The basket groups a day's sunbed, tickets and parking into one card with one Remove; Empty basket sits in the “…” menu; platform economics moved to the Demo menu.
 - **AENR-658 — a calm first step.** No total or refund warning before a set is picked; the terms show once, on Pay.

@@ -5,6 +5,7 @@ import { useApp, useT } from "../../app/store";
 import type { PersonaId } from "../../domain/types";
 import { SceneControls } from "../SceneDemoPanel";
 import { readHashQuery } from "../../app/router";
+import { useDemoFlag } from "../../lib/useDemoFlag";
 
 /* ---------- Persona switcher ----------
    The "view as another persona" control, shared by two surfaces:
@@ -28,6 +29,7 @@ export function PersonaSwitcher({
   compact?: boolean;
 }) {
   const t = useT();
+  const [economics, setEconomics] = useDemoFlag("economics");
   const { inventory, setInventory, sceneFx, showPreviews, setShowPreviews, till } = useApp();
   const cur = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[0];
   const momentPreview = readHashQuery().get("moment") ?? "";
@@ -111,6 +113,23 @@ export function PersonaSwitcher({
                 ))}
               </DropdownMenu.RadioGroup>
             </>
+          )}
+          {/* Demo: what the platform earns on this basket (AENR-659 — moved out of the guest's checkout). */}
+          {persona === "customer" && (
+            <DropdownMenu.CheckboxItem
+              checked={economics}
+              onCheckedChange={(v) => setEconomics(v === true)}
+              onSelect={(e) => e.preventDefault()}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"
+            >
+              <span className="flex-1 min-w-0">
+                <span className="block font-semibold">{t("Show platform economics")}</span>
+                <span className="block text-[11px] text-slate-500 leading-tight">{t("Checkout shows what the beach and Slaice earn.")}</span>
+              </span>
+              <span aria-hidden className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${economics ? "bg-teal-600" : "bg-slate-300"}`}>
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${economics ? "left-[18px]" : "left-0.5"}`} />
+              </span>
+            </DropdownMenu.CheckboxItem>
           )}
           {/* Demo: the till losing its connection (AENR-607). It raises the browser's own offline /
               online events, so the till reacts exactly as to a real drop: queue, then sync on return. */}

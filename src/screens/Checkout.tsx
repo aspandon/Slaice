@@ -23,6 +23,8 @@ import { useFinance } from "../lib/useFinance";
 import { useExtras } from "../lib/useExtras";
 import { bestReward, usableRewards } from "../domain/rewards";
 import { activeRewards } from "./customer/CustomerHome";
+import { useDemoFlag } from "../lib/useDemoFlag";
+import { ActionsMenu } from "../components/ui/ActionsMenu";
 
 // Online booking refs follow the account's bookings (BK-30001, BK-30002…) so they
 // never collide with sample or staff bookings, and survive a reload (AENR-597).
@@ -44,7 +46,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
   const [placed, setPlaced] = useState<PlacedBooking | null>(null);
   // The buyer never needs the marketplace split — it's hidden by default and
   // revealed only via an explicit demo toggle.
-  const [showEconomics, setShowEconomics] = useState(false);
+  const [showEconomics] = useDemoFlag("economics");
   // Service fees from the tenant's customer fee lines (AENR-521 / 532), per item and in total.
   const goods = round2(cart.reduce((a, b) => a + b.price, 0));
   const sf = serviceFees(cart, finance.fees, todayISO());
@@ -142,7 +144,21 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
     return () => ctx.revert();
   }, [embedded]);
 
-  const removeItem = (it: CartItem) => { removeFromCart(it.kind, it.id); toast(`${t("Removed")} ${it.label}.`, { action: { label: t("Undo"), onClick: () => addToCart(it) } }); };
+  // Basket by visit (AENR-659): every line of one beach day is one card. Lines that
+  // carry no date (rare) share a card of their own.
+  const dayOf = (it: CartItem) => it.date ?? it.id.split("@")[1] ?? "";
+  const visits = [...new Set(cart.map(dayOf))].sort().map((d) => {
+    const items = cart.filter((it) => dayOf(it) === d);
+    const sets = items.filter((it) => it.kind === "sunbed");
+    const zones = [...new Set(sets.map((it) => ZONES.find((z) => z.id === it.zoneId)?.name).filter(Boolean))];
+    const title = [d ? `${fmtWeekday(d)} ${fmtDay(d)}` : t("Other items"), ...zones, sets.map((it) => it.setId).filter(Boolean).join(", ")].filter(Boolean).join(" · ");
+    return { key: d || "other", title, items, total: items.reduce((a, it) => a + it.price, 0), fees: items.reduce((a, it) => a + (sf.perItem[cartKey(it)] ?? 0), 0) };
+  });
+  const plateOf = (it: CartItem) => { const p = it.sub.split(" · ")[0]; return !p || p === "—" ? t("Plate: add on arrival") : `${t("Plate")} ${p}`; };
+  const removeVisit = (items: CartItem[]) => {
+    items.forEach((it) => removeFromCart(it.kind, it.id));
+    toast(t("Visit removed from your basket."), { action: { label: t("Undo"), onClick: () => items.forEach(addToCart) } });
+  };
   const emptyBasket = () => {
     const snapshot = [...cart];
     clearCart();
@@ -194,25 +210,45 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
 
   return (
     <div className={embedded ? "" : "animate-fade-up grid lg:grid-cols-[1fr_360px] gap-5"}>
-      {!embedded && <div>
+      {!embedded && <div className="min-w-0">
         <h1 className="sr-only">{t("Checkout")}</h1>
         <Card className="p-2">
-          <div className="flex items-center justify-between px-3 py-2.5 border-b border-slate-100">
-            <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.card size={16} /> {t("Your basket")} · {cart.length} {cart.length === 1 ? t("item") : t("items")}</div>
-            <button onClick={emptyBasket} className="text-[11.5px] font-semibold text-slate-500 hover:text-rose-600 inline-flex items-center gap-1"><Icon.trash size={13} /> {t("Empty basket")}</button>
+          <div className="flex items-center justify-between px-3 py-1.5 border-b border-slate-100">
+            <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.card size={16} /> {t("Your basket")} · {visits.length} {visits.length === 1 ? t("visit") : t("visits")}</div>
+            <ActionsMenu size="sm" label={t("Basket actions")} actions={[{ id: "empty", label: t("Empty basket"), icon: Icon.trash, destructive: true, onSelect: emptyBasket }]} />
           </div>
-          {/* Swipe a row left (or tap the trash) to remove it. */}
+          {/* One card per visit (AENR-659): the day, the zone and sets, then what it includes. Swipe left or Remove takes the whole visit. */}
           <div className="divide-y divide-slate-100">
-            {cart.map((it) => (
-              <div key={it.kind + it.id} data-cart-row>
-              <SwipeRow onDelete={() => removeItem(it)} rounded="">
-                <div className="flex items-center justify-between px-3 py-3 bg-white">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <span className="w-9 h-9 rounded-lg bg-slate-100 grid place-items-center text-slate-500 shrink-0">{kindIcon(it.kind)}</span>
-                    <div className="min-w-0"><div className="font-semibold text-sm text-navy-900 truncate">{it.label}</div><div className="text-[12px] text-slate-600 truncate">{it.sub}</div></div>
+            {visits.map((v) => (
+              <div key={v.key} data-cart-row>
+              <SwipeRow onDelete={() => removeVisit(v.items)} rounded="">
+                <section aria-label={v.title} className="px-3 py-3 bg-white">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <span className="w-9 h-9 rounded-lg bg-teal-50 grid place-items-center text-teal-700 shrink-0"><Icon.calendar size={16} /></span>
+                      <div className="min-w-0">
+                        <div className="font-semibold text-sm text-navy-900">{v.title}</div>
+                        <ul className="mt-1 space-y-0.5 text-[12.5px] text-slate-600">
+                          {v.items.map((it) => (
+                            <li key={it.kind + it.id} className="flex items-center gap-1.5 min-w-0">
+                              <span className="text-slate-400 shrink-0">{kindIcon(it.kind)}</span>
+                              <span className="truncate">{it.label}{it.kind === "parking" ? ` · ${plateOf(it)}` : ""}</span>
+                              <span className="ml-auto pl-2 tnum shrink-0">€{it.price}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <div className="font-semibold tnum text-navy-900">€{v.total.toFixed(2)}</div>
+                      {v.fees > 0 && <div className="text-[11px] text-slate-500 tnum">+€{v.fees.toFixed(2)} {t("fees")}</div>}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0"><span className="text-right"><span className="block font-semibold tnum">€{it.price}</span>{sf.perItem[cartKey(it)] ? <span className="block text-[11px] text-slate-500 tnum">+€{sf.perItem[cartKey(it)].toFixed(2)} {t("fee")}</span> : null}</span><button aria-label={`${t("Remove")} ${it.label}`} onClick={() => removeItem(it)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={16} /></button></div>
-                </div>
+                  <div className="mt-2 flex justify-end gap-1">
+                    <Btn size="sm" variant="ghost" icon={Icon.edit} onClick={() => go("customer", "plan")}>{t("Edit")}</Btn>
+                    <Btn size="sm" variant="ghost" icon={Icon.trash} onClick={() => removeVisit(v.items)} aria-label={`${t("Remove")} ${v.title}`}>{t("Remove")}</Btn>
+                  </div>
+                </section>
               </SwipeRow>
               </div>
             ))}
@@ -330,10 +366,6 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
 
           <div className="mt-3 flex items-center justify-between">
             <button onClick={() => go("customer", "plan")} className="text-[12px] text-slate-600 hover:text-navy-900">← {t("Back to planning")}</button>
-            <button onClick={emptyBasket} className="text-[12px] font-semibold text-slate-500 hover:text-rose-600 inline-flex items-center gap-1"><Icon.trash size={13} /> {t("Empty basket")}</button>
-          </div>
-          <div className="mt-2 text-center">
-            <button onClick={() => setShowEconomics((s) => !s)} className="text-[11px] text-slate-400 hover:text-slate-600 inline-flex items-center gap-1" title={t("Demo affordance — not shown to real customers")}><Icon.layers size={11} /> {showEconomics ? t("Hide") : t("Show")} {t("platform economics")}</button>
           </div>
         </Card>
       </div>

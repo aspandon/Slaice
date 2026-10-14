@@ -730,8 +730,11 @@ vignette — towels for guests, a locker cabin (×qty), the car with its plate o
  ◀ Back to planning ─▶ C-03
 ```
 
-- **Basket** list: kind icon, label, sub-line (zone/date/plate), price, remove (trash or **swipe left**
-  on touch) with **Undo**; **Empty basket** with Undo. Empty state → "Plan my visit".
+- **Basket** by visit (AENR-659): one card per beach day — "Sun 19 Jul · Central · CE-01" — listing its
+  sunbeds, entry tickets, lockers and parking (a spot without a plate reads "Plate: add on arrival"),
+  the visit total and its fees, with **Edit** (reopens the wizard) and **Remove** (or **swipe left**) for
+  the whole visit, with **Undo**. **Empty basket** (with Undo) lives once, in the basket's "…" menu.
+  Empty state → "Plan my visit".
 - **Summary panel** (tenant logo + name): Subtotal → pass deductions → **Total / Pay now**. "VAT
   included where applicable."
 - **Use a pass** (only if held): toggle **VIP credit** (balance, % off) and/or **Season pass** (covers
@@ -743,7 +746,8 @@ vignette — towels for guests, a locker cabin (×qty), the car with its plate o
   APPLE), "Free cancellation up to 24h before your visit", Refund policy / Terms links (demo toasts).
 - **Back to planning**. Footnote: _"On success: booking confirmed via webhook, QR e-mailed, and an ΑΠΥ
   auto-issued to MyDATA."_
-- **Show platform economics** toggle **[DEMO]**: Stripe ~1.5%, Slaice 5%, tenant net.
+- **Show platform economics** **[DEMO]**: Stripe ~1.5%, Slaice 5%, tenant net — switched from the Demo
+  (persona) menu, not from the guest's checkout (AENR-659).
 
 #### Sign-in, service fees, saved card, notifications (AENR-532)
 
