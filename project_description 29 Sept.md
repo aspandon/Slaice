@@ -1205,6 +1205,7 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
  Legend: Free 19 · Booked 21 · ✓ Checked in · € Unpaid · N No-show · H Held · ✕ Out of service (counts)
  Map: every set with its code and a lettered state badge · tap to select (several at once)
  Side: N no-shows in Central [Release all for resale]
+       One set: CE-10 Unpaid · Petros N. · ☎ · Party 3 | €30 due | Expected 09:10 ─▶ [Check in Petros]  …
        Selection: CE-04 booked · Dimitris  +  CE-01 free  ─▶ [Move 1 guest: CE-04 → CE-01]
                   CE-03 no-show ─▶ [Release 1 no-show for resale]
  Heatmap: Occupancy | Revenue · ‹ Week | Month | Season | Custom › · low → high tint per set
@@ -1214,8 +1215,18 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
   Controller's Beach status (`src/lib/useBeachState.ts` — staff status, then real bookings, then the
   sample beach), set codes printed, a legend with counts where each state has a letter badge (never
   colour alone).
+- **Set card** (AENR-651): selecting one set opens its card at the top of the side column (scrolled
+  into view on phones): code, state, guest name and phone (tap to call), **Party**, **Payment** (Paid /
+  €X due), **Arrival** (Arrived ✓ / Expected 10:14 / No-show), booking ref and channel, and notes
+  (staff notes on the booking, guest requests). One primary action fits the state: **Release for
+  resale** (no-show) · **Check in {name}** (booked, not arrived) · **Take payment · €X** (unpaid →
+  Card / Cash) · **Sell this set** (free → New booking with the set picked) · **Release hold** · **Back
+  in service**. The "…" menu holds Take payment (when not primary), Move to another set…, Open booking,
+  Hold, Out of service. Check-in sets the set to Checked in and logs the arrival on the booking;
+  payment logs a "paid" event that settles the booking (Bookings shows it Confirmed, Today's unpaid
+  count drops). Every action has **Undo**.
 - **Move guests:** select booked sets and the same number of free sets → "Move N guests: A → X, B → Y";
-  one booked set alone offers a "Move to" list of free sets. Real bookings change (timeline "Moved
+  one booked set alone offers a "Move to" list of free sets (from the card's "…" menu). Real bookings change (timeline "Moved
   from … to …") and both sets' status updates everywhere; a sample guest keeps who they are on the new
   set.
 - **Release no-show:** booked for today and not checked in by 11:00 → **Release** (per selection or

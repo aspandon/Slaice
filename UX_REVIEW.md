@@ -477,3 +477,5 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   payment; the separate basket page is only for guests who leave and come back.
 - **AENR-641 — Choose for me.** Opening a zone lands on the best free sets for the party (side by side,
   cheapest, nearest the sea) with "Front row instead (+€X)"; tap a set to swap it, Clear to start over.
+- **AENR-651 — the set card.** Tapping a set on Live beach shows the guest, phone, party, paid / due,
+  arrived / expected and notes, with one action that fits: Check in, Take payment, Release or Sell.

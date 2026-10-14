@@ -138,9 +138,11 @@ export function effectiveStatus(
   b: Pick<AdminBooking, "id" | "status">,
   ops: BookingOpsState,
 ): string {
-  return ops.refunds.some((r) => r.bookingId === b.id && r.status === "approved")
-    ? "Refunded"
-    : b.status;
+  if (ops.refunds.some((r) => r.bookingId === b.id && r.status === "approved")) return "Refunded";
+  // Payment taken from the live map (AENR-651) settles an unpaid booking.
+  if ((b.status === "Unpaid" || b.status === "Awaiting payment") && ops.events[b.id]?.some((e) => e.kind === "paid"))
+    return "Confirmed";
+  return b.status;
 }
 export const pendingRefundOf = (bookingId: string, ops: BookingOpsState) =>
   ops.refunds.find((r) => r.bookingId === bookingId && r.status === "pending");

@@ -18,12 +18,22 @@ export interface SetBooking {
   paid: boolean;
   noShow: boolean;
   channel: string;
+  /** Contact number, when known. */
+  phone?: string;
+  /** Staff notes and guest requests, newest last. */
+  notes: string[];
+  /** When the guest is expected on the sand (today, sample beach). */
+  expectedAt?: string;
+  /** Amount due when unpaid. */
+  due?: number;
   /** The back-office booking, when there is one (moves and refunds act on it). */
   booking?: OpsBooking;
 }
 
 export function useBeachState(date: string) {
-  const { sunbedOps, till } = useApp();
+  const { sunbedOps, till, bookingOps, bookingNotes } = useApp();
+  const paidOnSite = (ref: string) => bookingOps.events[ref]?.some((e) => e.kind === "paid") ?? false;
+  const notesOf = (ref: string) => (bookingNotes[ref] ?? []).map((n) => n.text);
   const ops = useBookingOps();
   const bookingsOnDate = ops.bookings.filter(
     (b) => b.visitIso === date && b.status !== "Cancelled" && b.status !== "Refunded",
@@ -35,6 +45,12 @@ export function useBeachState(date: string) {
   const now = new Date(useDemoNow()).toTimeString().slice(0, 5);
   const setNo = (s: SunbedSlot) => parseInt(s.id.replace(/\D/g, ""), 10) || 1;
   const sampleNoShow = (n: number) => n % 7 === 3;
+  const arrivalOf = (n: number) => {
+    const mins = 9 * 60 + ((n * 37) % 120);
+    return `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
+  };
+  // A few sample guests leave a request with their booking.
+  const SAMPLE_NOTES = ["Celebrating a birthday — cake at 14:00", "Needs shade: travelling with a baby", "Asked for an extra lounger"];
   // Real bookings and till sales always turn up (their no-shows come from staff, not the sample).
   const isReal = (s: SunbedSlot) =>
     bookingsOnDate.some((b) => b.items.some((i) => i.startsWith("Sunbed · ") && i.endsWith(` · ${s.id}`))) ||
@@ -44,8 +60,7 @@ export function useBeachState(date: string) {
     if (sampleNoShow(n) && !isReal(s)) return false;
     if (date < DEMO_TODAY) return true;
     if (date > DEMO_TODAY) return false;
-    const mins = 9 * 60 + ((n * 37) % 120);
-    return now >= `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
+    return now >= arrivalOf(n);
   };
   const statusOf = (s: SunbedSlot): OpsStatus =>
     sunbedOps.status[opsKey(date, s.id)]?.status ??
@@ -64,6 +79,9 @@ export function useBeachState(date: string) {
         paid: real.status !== "Unpaid" && real.status !== "Awaiting payment",
         noShow: false,
         channel: real.channel,
+        phone: real.phone || undefined,
+        notes: notesOf(real.id),
+        due: real.amount,
         booking: real,
       };
     const sale = till.sales.find((x) => x.day === date && x.lines.some((l) => l.setId === s.id));
@@ -74,6 +92,8 @@ export function useBeachState(date: string) {
         guests: sale.lines.filter((l) => l.kind === "ticket").reduce((a, l) => a + l.qty, 0) || 2,
         paid: true,
         noShow: false,
+        phone: sale.customer?.phone,
+        notes: [],
         channel:
           sale.channel === "controller"
             ? "Controller"
@@ -94,7 +114,11 @@ export function useBeachState(date: string) {
       ref: `#BK-${10300 + g * 3}`,
       guest: `${c.first} ${c.last}`,
       guests: 2 + (g % 3),
-      paid: g % 5 !== 0,
+      paid: g % 5 !== 0 || paidOnSite(`#BK-${10300 + g * 3}`),
+      phone: c.phone,
+      notes: [...(g % 6 === 1 ? [SAMPLE_NOTES[g % 3]] : []), ...notesOf(`#BK-${10300 + g * 3}`)],
+      expectedAt: movedFrom ? undefined : arrivalOf(g),
+      due: s.price,
       // Sample: about one booking in seven hasn't arrived by the cut-off (a moved guest has).
       noShow: !movedFrom && sampleNoShow(g) && (date < DEMO_TODAY || now >= NO_SHOW_CUTOFF),
       channel: g % 4 === 0 ? "Phone" : "Online",

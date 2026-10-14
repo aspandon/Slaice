@@ -71,8 +71,11 @@ export function NewBooking() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [date, setDate] = useState(today);
-  const [zoneId, setZoneId] = useState(ZONES.some((z) => z.id === prefs.zoneId) ? (prefs.zoneId as string) : "macaw");
-  const [sets, setSets] = useState<{ id: string; zoneId: string }[]>([]);
+
+  // Opened from a free set on Live beach (AENR-651): start with that set picked.
+  const [preZone] = useState(() => (hint?.setId ? ZONES.find((z) => liveSlots(z, [today]).some((x) => x.id === hint.setId)) : undefined));
+  const [zoneId, setZoneId] = useState(preZone?.id ?? (ZONES.some((z) => z.id === prefs.zoneId) ? (prefs.zoneId as string) : "macaw"));
+  const [sets, setSets] = useState<{ id: string; zoneId: string }[]>(() => (preZone && hint?.setId ? [{ id: hint.setId, zoneId: preZone.id }] : []));
   const [qty, setQty] = useState<Record<string, number>>({});
   const [guest, setGuest] = useState({
     name: pre?.name ?? "",

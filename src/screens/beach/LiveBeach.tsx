@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { prefersReducedMotion } from "../../lib/motion";
 import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, Field, PageHead, PeriodPicker, Select, Toggle } from "../../components/ui";
 import { SunbedMap } from "../../components/SunbedMap";
@@ -15,6 +16,8 @@ import { useBeachState } from "../../lib/useBeachState";
 import type { SunbedSlot } from "../../domain/types";
 
 import { useUndoToast } from "../../lib/useUndo";
+import { ActionsMenu } from "../../components/ui/ActionsMenu";
+import type { SetBooking } from "../../lib/useBeachState";
 import { DEFAULT_RULES } from "../../domain/bookingOps";
 /* ============ Admin › Live beach (AENR-580) ============
    The manager runs the beach from the map: every set with its code and live
@@ -43,7 +46,7 @@ const unit = (key: string) => {
 };
 
 export function AdminLiveBeach() {
-  const { sunbedOps, bookingOps, setSunbedOps, setBookingOps } = useApp();
+  const { sunbedOps, bookingOps, setSunbedOps, setBookingOps, go } = useApp();
   // Moves and releases are reversible: they happen at once with Undo (AENR-615).
   const undo = useUndoToast();
   const snapshot = () => {
@@ -146,13 +149,26 @@ export function AdminLiveBeach() {
     undo(`${list.map((s) => s.id).join(", ")} released — sellable now online, at the till and on the beach.`, restore);
     setSel(new Set());
   };
-  const toggle = (s: SunbedSlot) =>
+  // One set selected → its card acts on it (AENR-651). Every action is undoable.
+  const act = (msg: string, fn: () => void) => {
+    const restore = snapshot();
+    fn();
+    undo(msg, restore);
+  };
+  const [moveOpen, setMoveOpen] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const toggle = (s: SunbedSlot) => {
+    // On a phone the card sits under the map: bring it into view on the first pick.
+    if (!sel.size && window.matchMedia("(max-width: 1023px)").matches)
+      requestAnimationFrame(() => cardRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "nearest" }));
     setSel((cur) => {
       const n = new Set(cur);
       if (n.has(s.id)) n.delete(s.id);
       else n.add(s.id);
+      setMoveOpen(false);
       return n;
     });
+  };
 
   return (
     <div className="animate-fade-up">
@@ -304,7 +320,7 @@ export function AdminLiveBeach() {
           </p>
         </Card>
 
-        <div className="space-y-4 lg:sticky lg:top-4">
+        <div className="flex flex-col gap-4 lg:sticky lg:top-4">
           {allNoShows.length > 0 && date === DEMO_TODAY && (
             <Card className="p-4">
               <div className="font-semibold text-navy-900">
@@ -326,7 +342,25 @@ export function AdminLiveBeach() {
             </Card>
           )}
           {date === DEMO_TODAY && <AutoReleaseCard />}
+          <div ref={cardRef} className={`scroll-mt-4 ${selList.length ? "order-first" : ""}`}>
           <Card className="p-4 space-y-3">
+            {selList.length === 1 ? (
+              <SetCard
+                s={selList[0]}
+                zoneName={zone.name}
+                b={bookingOf(selList[0])}
+                st={statusOf(selList[0])}
+                legend={keyOf(selList[0])}
+                isToday={date === DEMO_TODAY}
+                onCheckIn={(s, b) => act(`${s.id} checked in — ${b.guest} is on the sand.`, () => ops.checkIn(s.id, date, b.ref))}
+                onPay={(_s, b, how) => act(`${b.ref} paid €${(b.due ?? 0).toFixed(2)} by ${how.toLowerCase()} — Today and Bookings updated.`, () => ops.takePayment(b.ref, b.due ?? 0, how))}
+                onRelease={(s) => releaseNoShows([s])}
+                onStatus={(s, from, to, why) => act(`${s.id} → ${OPS_LABEL[to]}.`, () => ops.setSetStatus(s.id, date, from, to, why))}
+                onSell={(s) => go("admin", "newbooking", { setId: s.id, ts: Date.now() })}
+                onMove={() => setMoveOpen(true)}
+                onOpenBooking={(b) => { window.location.hash = `#/admin/bookings?booking=${encodeURIComponent(b.ref)}`; }}
+              />
+            ) : null}
             {selList.length === 0 ? (
               <p className="text-[13px] text-slate-600">
                 Select a set to see who is on it. Select booked sets plus the same number of free
@@ -334,8 +368,8 @@ export function AdminLiveBeach() {
               </p>
             ) : (
               <>
-                <div className="font-semibold text-navy-900">{selList.length} selected</div>
-                <ul className="divide-y divide-slate-100 text-[13px]">
+                {selList.length > 1 && <div className="font-semibold text-navy-900">{selList.length} selected</div>}
+                {selList.length > 1 && <ul className="divide-y divide-slate-100 text-[13px]">
                   {selList.map((s) => {
                     const b = bookingOf(s);
                     const st: OpsStatus = statusOf(s);
@@ -361,14 +395,14 @@ export function AdminLiveBeach() {
                       </li>
                     );
                   })}
-                </ul>
+                </ul>}
                 {sources.length > 0 && targets.length === sources.length && (
                   <Btn variant="primary" icon={Icon.arrowR} onClick={movePairs}>
                     Move {sources.length} guest{sources.length === 1 ? "" : "s"}:{" "}
                     {sources.map((s, i) => `${s.id} → ${targets[i].id}`).join(", ")}
                   </Btn>
                 )}
-                {sources.length === 1 && targets.length === 0 && (
+                {sources.length === 1 && targets.length === 0 && (selList.length > 1 || moveOpen) && (
                   <form
                     className="flex items-end gap-2"
                     onSubmit={(e) => {
@@ -398,7 +432,7 @@ export function AdminLiveBeach() {
                     Select as many free sets as booked ones ({sources.length}) to move the guests.
                   </p>
                 )}
-                {noShows.length > 0 && date === DEMO_TODAY && (
+                {noShows.length > 0 && date === DEMO_TODAY && selList.length > 1 && (
                   <Btn variant="outline" icon={Icon.bolt} onClick={() => releaseNoShows(noShows)}>
                     Release {noShows.length} no-show{noShows.length === 1 ? "" : "s"} for resale
                   </Btn>
@@ -409,6 +443,7 @@ export function AdminLiveBeach() {
               </>
             )}
           </Card>
+          </div>
         </div>
       </div>
     </div>
@@ -448,5 +483,118 @@ function AutoReleaseCard() {
         </label>
       )}
     </Card>
+  );
+}
+
+/* The set card (AENR-651): who is on the set and the one action that fits —
+   Check in, Take payment, Release, or Sell — like tapping a device in Find My.
+   Move, Hold and Out of service wait in "…". */
+function SetCard({ s, zoneName, b, st, legend, isToday, onCheckIn, onPay, onRelease, onStatus, onSell, onMove, onOpenBooking }: {
+  s: SunbedSlot;
+  zoneName: string;
+  b: SetBooking | null;
+  st: OpsStatus;
+  legend: LegendKey;
+  isToday: boolean;
+  onCheckIn: (s: SunbedSlot, b: SetBooking) => void;
+  onPay: (s: SunbedSlot, b: SetBooking, how: "Card" | "Cash") => void;
+  onRelease: (s: SunbedSlot) => void;
+  onStatus: (s: SunbedSlot, from: OpsStatus, to: OpsStatus, why: string) => void;
+  onSell: (s: SunbedSlot) => void;
+  onMove: () => void;
+  onOpenBooking: (b: SetBooking) => void;
+}) {
+  const [paying, setPaying] = useState(false);
+  const l = LEGEND.find((x) => x.k === legend);
+  const arrived = st === "occupied";
+  type Primary = { label: string; icon: typeof Icon.check; run: () => void } | null;
+  const primary: Primary =
+    legend === "noshow" && isToday && b
+      ? { label: "Release for resale", icon: Icon.bolt, run: () => onRelease(s) }
+      : st === "booked" && b && isToday
+        ? { label: `Check in ${b.guest.split(" ")[0]}`, icon: Icon.checkCircle, run: () => onCheckIn(s, b) }
+        : b && !b.paid
+          ? { label: `Take payment · €${(b.due ?? 0).toFixed(2)}`, icon: Icon.card, run: () => setPaying(true) }
+          : st === "available"
+            ? { label: "Sell this set", icon: Icon.plus, run: () => onSell(s) }
+            : st === "hold"
+              ? { label: "Release hold", icon: Icon.refresh, run: () => onStatus(s, st, "available", "Hold released on the live map") }
+              : st === "blocked"
+                ? { label: "Back in service", icon: Icon.refresh, run: () => onStatus(s, st, "available", "Back in service") }
+                : null;
+  const tone = legend === "free" ? "green" : legend === "oos" ? "red" : legend === "booked" || legend === "occupied" ? "blue" : "amber";
+  return (
+    <section aria-label={`Set ${s.id}`} className="space-y-3">
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-mono font-bold text-lg text-navy-900">{s.id}</span>
+            <Badge tone={tone}>{l?.label}</Badge>
+          </div>
+          <div className="text-[12px] text-slate-500">{zoneName} · €{s.price} a day</div>
+        </div>
+        <ActionsMenu
+          size="sm"
+          label={`More actions for ${s.id}`}
+          actions={[
+            b && !b.paid && primary?.label.startsWith("Take payment") === false && { id: "pay", label: "Take payment", icon: Icon.card, onSelect: () => setPaying(true), hint: `€${(b.due ?? 0).toFixed(2)} due` },
+            b && { id: "move", label: "Move to another set…", icon: Icon.arrowR, onSelect: onMove },
+            b?.booking && { id: "open", label: "Open booking", icon: Icon.doc, onSelect: () => onOpenBooking(b) },
+            st === "available" && { id: "hold", label: "Hold", icon: Icon.lock, onSelect: () => onStatus(s, st, "hold", "Held on the live map") },
+            (st === "available" || st === "hold") && { id: "oos", label: "Out of service", icon: Icon.x, destructive: true, onSelect: () => onStatus(s, st, "blocked", "Out of service — set on the live map") },
+          ]}
+        />
+      </div>
+
+      {b ? (
+        <div className="space-y-2">
+          <div>
+            <div className="font-semibold text-navy-900">{b.guest}</div>
+            {b.phone && (
+              <a href={`tel:${b.phone.replace(/\s/g, "")}`} className="inline-flex items-center gap-1.5 text-[13px] text-teal-700 font-semibold hover:underline rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                <Icon.phone size={13} /> {b.phone}
+              </a>
+            )}
+          </div>
+          <dl className="grid grid-cols-3 gap-2 text-[12px]">
+            <div className="rounded-lg bg-slate-50 ring-1 ring-slate-200 px-2 py-1.5">
+              <dt className="text-slate-500">Party</dt>
+              <dd className="font-semibold text-navy-900">{b.guests} guest{b.guests === 1 ? "" : "s"}</dd>
+            </div>
+            <div className={`rounded-lg px-2 py-1.5 ring-1 ${b.paid ? "bg-emerald-50 ring-emerald-200" : "bg-amber-50 ring-amber-300"}`}>
+              <dt className="text-slate-500">Payment</dt>
+              <dd className={`font-semibold ${b.paid ? "text-emerald-800" : "text-amber-800"}`}>{b.paid ? "Paid" : `€${(b.due ?? 0).toFixed(2)} due`}</dd>
+            </div>
+            <div className={`rounded-lg px-2 py-1.5 ring-1 ${arrived ? "bg-teal-50 ring-teal-200" : legend === "noshow" ? "bg-violet-50 ring-violet-200" : "bg-slate-50 ring-slate-200"}`}>
+              <dt className="text-slate-500">Arrival</dt>
+              <dd className="font-semibold text-navy-900">{arrived ? "Arrived ✓" : legend === "noshow" ? `No-show (${NO_SHOW_CUTOFF})` : b.expectedAt && isToday ? `Expected ${b.expectedAt}` : "Expected"}</dd>
+            </div>
+          </dl>
+          <div className="text-[12px] text-slate-500">{b.ref} · {b.channel}</div>
+          {b.notes.length > 0 && (
+            <ul aria-label="Notes" className="rounded-lg bg-amber-50 ring-1 ring-amber-200 px-2.5 py-1.5 text-[12.5px] text-amber-900 space-y-0.5">
+              {b.notes.map((n, i) => <li key={i} className="flex gap-1.5"><Icon.info size={13} className="shrink-0 mt-0.5" />{n}</li>)}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <p className="text-[13px] text-slate-600">
+          {st === "available" ? "Free — nobody is booked here." : st === "hold" ? "Held — not on sale until released." : st === "blocked" ? "Out of service — not on sale." : OPS_LABEL[st]}
+        </p>
+      )}
+
+      {paying && b ? (
+        <div role="group" aria-label={`Take €${(b.due ?? 0).toFixed(2)} from ${b.guest}`} className="rounded-xl ring-1 ring-slate-200 p-2.5 space-y-2">
+          <div className="text-[12.5px] font-semibold text-navy-900">Take €{(b.due ?? 0).toFixed(2)} — how is the guest paying?</div>
+          <div className="flex gap-2">
+            <Btn variant="primary" icon={Icon.card} onClick={() => { onPay(s, b, "Card"); setPaying(false); }}>Card</Btn>
+            <Btn variant="outline" icon={Icon.cash} onClick={() => { onPay(s, b, "Cash"); setPaying(false); }}>Cash</Btn>
+            <Btn variant="ghost" onClick={() => setPaying(false)}>Cancel</Btn>
+          </div>
+        </div>
+      ) : (
+        primary && <Btn variant="primary" full icon={primary.icon} onClick={primary.run}>{primary.label}</Btn>
+      )}
+    </section>
   );
 }

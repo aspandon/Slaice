@@ -6,7 +6,7 @@ import { onlineBookings, staffBookings, tillBookings } from "../data/tillAdmin";
 import { ZONES } from "../data/beach";
 import type { CancelRecord } from "../domain/visits";
 import { DEMO_TODAY, fmtDay, isoFromDayMonth } from "../domain/period";
-import { opsKey } from "../domain/sunbedOps";
+import { opsKey, type OpsStatus } from "../domain/sunbedOps";
 import {
   applyMoves,
   effectiveStatus,
@@ -242,6 +242,23 @@ export function useBookingOps() {
     if (bookingId) addEvent(bookingId, "released", `${setId} released for resale · ${reason}`);
   };
 
+  /** Set a set's status on a date (Hold, Out of service, back to Available…), with history. */
+  const setSetStatus = (setId: string, date: string, from: OpsStatus, to: OpsStatus, reason: string) => {
+    const at = new Date().toISOString();
+    setSunbedOps((o) => ({
+      status: { ...o.status, [opsKey(date, setId)]: { status: to, reason, by, at } },
+      history: [{ setId, date, from, to, reason, by, at }, ...o.history].slice(0, 300),
+    }));
+  };
+  /** The guest is on the sand (AENR-651): the set turns occupied and the booking logs the arrival. */
+  const checkIn = (setId: string, date: string, ref?: string) => {
+    setSetStatus(setId, date, "booked", "occupied", "Checked in on the live map");
+    if (ref) addEvent(ref, "scanned", `Checked in at ${setId} by ${by}`);
+  };
+  /** Payment taken on the spot (AENR-651): the booking counts as paid everywhere. */
+  const takePayment = (ref: string, amount: number, how: string) =>
+    addEvent(ref, "paid", `Paid €${amount.toFixed(2)} · ${how} · taken on the live map`);
+
   const newRequest = (
     b: Pick<OpsBooking, "id" | "who" | "amount">,
     amount: number,
@@ -361,6 +378,9 @@ export function useBookingOps() {
     move,
     moveSet,
     release,
+    setSetStatus,
+    checkIn,
+    takePayment,
     requestRefund,
     refundNow,
     decideRefund,
