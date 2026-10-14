@@ -137,7 +137,7 @@ export async function moveUnder(p, epicKey, itemKey) {
 export async function setSprint(p, key, sprintLabelPart) {
   await openItem(p, key);
   await p.getByRole('button', { name: /^Sprint:/ }).first().click(); await wait(p, 700);
-  const sel = p.locator('select:has(option:text-is("No sprint (Backlog)"))').first();
+  const sel = p.locator('select:has(option:text-is("No sprint (Backlog)")), select:has(option:text-is("-- No Sprint --"))').first();
   const opts = await sel.locator('option').allInnerTexts();
   const label = opts.find(o => o.includes(sprintLabelPart));
   await sel.selectOption({ label }); await wait(p, 900);
