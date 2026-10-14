@@ -559,9 +559,9 @@ Entrance motion: full choreography once per session, then a quick card stagger o
           │   (shoreline animates up — the sand fills the screen)
           ▼
  ┌─ glass panel: right column on desktop · bottom sheet on phones (AENR-660) ───┐
- │ ◀ Leave                                     Step 1 of 3 · When & where       │
- │        (1)━━━━━━━━━━━━━━━━━━(2)┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄(3)                          │
- │    When & where             Who                  Pay                          │
+ │ ◀ Leave                                             Step 1 of 4 · When       │
+ │      (1)━━━━━━━━━━━━(2)┄┄┄┄┄┄┄┄┄┄┄┄(3)┄┄┄┄┄┄┄┄┄┄┄┄(4)                         │
+ │     When           Where           Who            Pay                         │
  │  reached stations jump back · forward only via Continue                      │
  ├──────────────────────────────────────────────────────────────────────────────┤
  │  Total €110 (animated) — before a pick: "Pick a zone, then your sets."       │
@@ -612,23 +612,23 @@ shoreline to 20 % of the screen) and the steps, choices and running total sit in
 (`min(460px, 36vw)`, under the account bar), with the guidance bar and "powered by SLAiCE" under the
 beach. Below 1024 px the panel is a **bottom sheet** above the tab bar with a handle (tap or swipe):
 lowered it shows only the total + Back/Continue and a line such as "19 Jul · Akanthus · Change ⌃";
-raised it shows the whole step (up to 78 % of the screen). It starts lowered on When & where (zones
-and sets) and raised on Who and Pay; the guest's own choice per step wins. On phones (< 768 px) a
+raised it shows the whole step (up to 78 % of the screen). It starts lowered on Where (zones
+and sets) and raised on When, Who and Pay; the guest's own choice per step wins. On phones (< 768 px) a
 zone's sets are drawn at a tappable size (~46 px) in a pan / pinch / −/+ box (`ZoomBox`, shared with
 the staff maps) that opens on your picks or the first free set; the zone-to-sets FLIP zoom stays on
-larger screens (reduced motion: instant). **Three steps** (AENR-612): **When & where**, **Who**, **Pay** (AENR-640: the Pay step **takes the payment** — the checkout summary and its buttons (Apple Pay / Google Pay, card, deposit, 18+ on the first booking, rewards and credit applied) sit under the review; paying opens the confirmation directly; the visit is kept in the basket while on Pay, so a guest who leaves finds it there; the footer’s **Go to payment** scrolls to the panel and shows no second total) —
+larger screens (reduced motion: instant). **Four steps** (AENR-673, was three in AENR-612): **When** (the day, or several days — with the whole beach and each zone's free sets behind the panel; tapping a zone there goes straight to Where with it open), **Where** (zones, then sets on the sand; the day is a one-line summary with **Change** back to When; "More options" now only holds sets in several zones), **Who**, **Pay** (AENR-640: the Pay step **takes the payment** — the checkout summary and its buttons (Apple Pay / Google Pay, card, deposit, 18+ on the first booking, rewards and credit applied) sit under the review; paying opens the confirmation directly; the visit is kept in the basket while on Pay, so a guest who leaves finds it there; the footer’s **Go to payment** scrolls to the panel and shows no second total) —
 locker and parking are one optional row on Pay, not steps of their own (old deep links to the locker
-or parking step open that row). Header: **Leave** (back to Home), "Step n of 3 · <step>", and a
-**progress rail** drawn as a footpath across the sand with 3 stations (tap a reached station to jump
+or parking step open that row). Header: **Leave** (back to Home), "Step n of 4 · <step>", and a
+**progress rail** drawn as a footpath across the sand with 4 stations (tap a reached station to jump
 back; forward only via Continue). Footer: live **Total €** (animated) + **Back/Home** + **Continue** (or
-**Confirm · €total** on the last step); before anything is picked it shows guidance instead of €0. A calm first step (AENR-658): on When & where the footer shows no price until a set is chosen (even when the usual party pre-fills tickets), and the cancellation terms appear once, on Pay, in neutral text — “Free cancellation until Fri 24 Jul, 09:00” or “This booking can’t be refunded”.
+**Confirm · €total** on the last step); before anything is picked it shows guidance instead of €0. **No set, no silent stop** (AENR-673): Continue on Where with no set picked stays on Where and shows an inline notice above the footer — "You haven't picked a set yet. Tap a zone on the sand, then tap a set…" (in a zone: "Tap a free set on the sand to add it" plus **Pick for me**, which runs the AENR-641 best-sets pick) — with **Entry tickets only** to go on to Who without a set. Back from Where's zone overview returns to When; Review's Dates row opens When. A calm first step (AENR-658): on When and Where the footer shows no price until a set is chosen (even when the usual party pre-fills tickets), and the cancellation terms appear once, on Pay, in neutral text — “Free cancellation until Fri 24 Jul, 09:00” or “This booking can’t be refunded”.
 
-**Step 1 — Beach** ("Pick your zone, sunbeds & days")
+**Steps 1–2 — When, then Where** ("Pick your day" · "Pick your zone and sets"; split in AENR-673)
 
-1. **Dates** — "When are you coming?": a horizontal strip of 7 date chips (Today, Tomorrow, weekday +
-   date) with arrows and a full calendar modal. **More options** (collapsed until asked for) holds
-   **"Book several days at once"** — multi-select up to **7 days**; turning it off keeps only the first
-   date — and **"Book in more than one zone"**. With several zones on (AENR-666) the picks box offers
+1. **Dates (When)** — "When are you coming?": a horizontal strip of 7 date chips (Today, Tomorrow, weekday +
+   date) with arrows and a full calendar modal, and **"Book several days at once"** right under it —
+   multi-select up to **7 days**; turning it off keeps only the first date. On Where, **More options**
+   (collapsed until asked for) holds **"Book in more than one zone"**. With several zones on (AENR-666) the picks box offers
    **+ Add sets in another zone**, the top **← All zones** is a real button, and inside a zone the footer back
    button reads **All zones** instead of Back; the overview shows how many sets are picked per zone.
 2. **Choose a zone** — phase _zones_:

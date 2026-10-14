@@ -38,14 +38,17 @@ interface TicketBreakItem { k: string; n: number; t: { price: number; label: str
 type TicketInfo = Record<string, { price: number; label: string; sub: string }>;
 export interface LockerChoice { id: string; name: string; price: number; avail: number | null }
 
-// Three steps (AENR-612): locker and parking are one optional row on Pay, not steps of their own.
+// Four steps (AENR-673; AENR-612 had three): the day, then where you sit — so a missing set is
+// always named — then who and pay. Locker and parking are one optional row on Pay, not steps.
 const STEPS = [
-  { id: "beach",  label: "When & where", icon: "umbrella",    sub: "Pick your day, zone and sets" },
+  { id: "when",   label: "When",  icon: "calendar",    sub: "Pick your day" },
+  { id: "beach",  label: "Where", icon: "umbrella",    sub: "Pick your zone and sets" },
   { id: "people", label: "Who",          icon: "group",       sub: "Tell us who's coming" },
   { id: "review", label: "Pay",          icon: "checkCircle", sub: "Check, add extras and pay" },
 ];
 /** Old deep links to the retired locker / parking steps open the extras on Pay. */
 const EXTRA_STEPS = ["locker", "parking"];
+const BEACH_IDX = STEPS.findIndex((s) => s.id === "beach");
 
 type FlipStateT = ReturnType<typeof Flip.getState>;
 
@@ -200,6 +203,8 @@ function WizardInner() {
   const hintStep = hint && hint.persona === "customer" && hint.page === "plan" ? hint.step : undefined;
   const initialStep = useMemo(() => {
     if (plan) return STEPS.findIndex((s) => s.id === "review");
+    // A zone already open (deep link or the usual) starts on Where; the day is set.
+    if (hintStep === "beach") return BEACH_IDX;
     if (hintStep) {
       const i = STEPS.findIndex((s) => s.id === (EXTRA_STEPS.includes(hintStep) ? "review" : hintStep));
       if (i >= 0) return i;
@@ -458,14 +463,20 @@ function WizardInner() {
   // of the session, so the guest's numbers are never overwritten.
   const editPeople = (v: SetStateAction<People>) => { setPeopleTouched(true); setPeople(v); };
 
-  const next = () => setStepIdx((i) => Math.min(last, i + 1));
-  // Back walks the flow in reverse: sets → zones → out to Home.
+  // Where with no set picked never moves on silently (AENR-673): Continue says what is
+  // missing and offers entry tickets only instead.
+  const [noSet, setNoSet] = useState(false);
+  const next = () => {
+    if (step.id === "beach" && bedSel.length === 0) { setNoSet(true); return; }
+    setNoSet(false);
+    setStepIdx((i) => Math.min(last, i + 1));
+  };
+  const entryOnly = () => { setNoSet(false); setIncludeTickets(true); setStepIdx(BEACH_IDX + 1); };
+  // Back walks the flow in reverse: sets → zones → When → out to Home.
   const back = () => {
-    if (stepIdx === 0) {
-      if (step.id === "beach" && phase === "sets") { backToZones(); return; }
-      go("customer", "home");
-      return;
-    }
+    setNoSet(false);
+    if (step.id === "beach" && phase === "sets") { backToZones(); return; }
+    if (stepIdx === 0) { go("customer", "home"); return; }
     setStepIdx((i) => Math.max(0, i - 1));
   };
 
@@ -534,7 +545,7 @@ function WizardInner() {
     // A set taken or put on hold since it was picked must be replaced first (AENR-524 / 520).
     if (stalePicks.length) {
       toast(`${stalePicks.map((b) => b.id).join(", ")} ${tr("is no longer available — remove it and pick another set.")}`, { tone: "warn" });
-      setStepIdx(0);
+      setStepIdx(BEACH_IDX);
       return;
     }
     const items = buildItems();
@@ -553,9 +564,10 @@ function WizardInner() {
   // step it stays alive: your picked sets remain on the sand (read-only) and
   // each later step adds its vignette — towels for the guests, the locker
   // cabin, your car at the parking pad — so the booking visibly builds up.
-  const showZones = step.id === "beach" && phase === "zones";
+  // When shows the whole beach behind the day picker; tapping a zone there goes straight to Where.
+  const showZones = step.id === "when" || (step.id === "beach" && phase === "zones");
   const showSets = step.id === "beach" && phase === "sets";
-  const showScene = step.id !== "beach" && bedSel.length > 0;
+  const showScene = step.id !== "beach" && step.id !== "when" && bedSel.length > 0;
   // The zone shown behind Who and Pay: where the last set was picked (AENR-670).
   const sceneZone = ZONES.find((z) => z.id === bedSel[bedSel.length - 1]?.zoneId) ?? zone;
   const sceneSlots = sceneZone.id === zone.id ? slots : liveSlots(sceneZone, selDates);
@@ -616,11 +628,11 @@ function WizardInner() {
           {/* Scrolling step body — a real scrollbar appears when a step (e.g.
               Review with many lines) overflows the panel. */}
           <div key={`${step.id}-${phase}`} className={`px-4 sm:px-5 pb-1 overflow-y-auto animate-fade-up ${sheetHide}`}>
-            {step.id === "beach" && (
-              <BeachMenu blockReason={blockReason} dayInfo={dayInfo} fullDay={fullDay}
+            {(step.id === "when" || step.id === "beach") && (
+              <BeachMenu part={step.id === "when" ? "when" : "where"} onEditDates={() => { setNoSet(false); setStepIdx(0); }} blockReason={blockReason} dayInfo={dayInfo} fullDay={fullDay}
                 alternatives={fullDay ? {
                   days: [1, -1, 2, -2, 3, 4, 5, 6, 7].map((n) => addDays(fullDay, n)).filter((d) => d >= todayISO() && !blockReason(d) && (dayInfo(d).left ?? 0) > 0).slice(0, 3),
-                  zones: phase === "sets" ? ZONES.filter((z) => z.id !== zone.id).map((z) => ({ z, left: liveSlots(z, [fullDay]).filter((x) => x.state === "a").length })).filter((x) => x.left > 0).slice(0, 3) : [],
+                  zones: step.id === "beach" && phase === "sets" ? ZONES.filter((z) => z.id !== zone.id).map((z) => ({ z, left: liveSlots(z, [fullDay]).filter((x) => x.state === "a").length })).filter((x) => x.left > 0).slice(0, 3) : [],
                 } : null}
                 onPickZone={(id) => { setBedSel([]); setZoneId(id); autoPick(id, wantSets, undefined, true); }} stayReasons={[...(stopSell ? [`${zone.name}: not available online — ask at the beach (${stopSell.reason}).`] : []), ...Object.entries(stayCheck.blocked).map(([d, why]) => `${chipLabel(d, localeFor(lang)).sub}: ${why}`), ...stayCheck.reasons]}
                 selDates={selDates} setSelDates={setSelDates}
@@ -724,15 +736,36 @@ function WizardInner() {
             </div>
           )}
           {/* Pinned footer — live total + nav. */}
+          {noSet && step.id === "beach" && bedSel.length === 0 && (
+            <div role="alert" className="mx-4 sm:mx-5 mb-2 rounded-xl bg-amber-50 ring-1 ring-amber-600/25 px-3 py-2.5 text-[12.5px] text-amber-900 shrink-0">
+              <div className="flex items-start gap-2">
+                <Icon.umbrella size={15} className="shrink-0 mt-0.5 text-amber-700" />
+                <div className="min-w-0">
+                  <b>{tr("You haven't picked a set yet.")}</b>{" "}
+                  {phase === "zones" ? tr("Tap a zone on the sand, then tap a set (an umbrella with two sunbeds) to add it.") : tr("Tap a free set on the sand to add it.")}
+                </div>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2 pl-[23px]">
+                {phase === "sets" && avail > 0 && (
+                  <button type="button" onClick={() => autoPick(zone.id, wantSets, undefined, true)} className="inline-flex items-center gap-1.5 min-h-[36px] rounded-lg bg-white px-3 font-semibold text-teal-800 ring-1 ring-teal-300 hover:ring-teal-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                    <Icon.sparkles size={13} /> {tr("Pick for me")}
+                  </button>
+                )}
+                <button type="button" onClick={entryOnly} className="inline-flex items-center min-h-[36px] rounded-lg bg-white/70 px-3 font-semibold text-navy-900 ring-1 ring-amber-300 hover:ring-teal-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                  {tr("Entry tickets only")}
+                </button>
+              </div>
+            </div>
+          )}
           <div className="flex items-center justify-between gap-3 p-4 sm:p-5 pt-3 border-t border-slate-200/70 shrink-0">
             {step.id === "review" && payItems ? (
               // On Pay the payment panel holds the one total that counts (rewards, credit, passes applied).
               <div className="leading-tight min-w-0 text-[12.5px] text-slate-600">{tr("Check the total and pay below.")}</div>
-            ) : grandTotal === 0 || (step.id === "beach" && bedSel.length === 0) ? (
+            ) : step.id === "when" || grandTotal === 0 || (step.id === "beach" && bedSel.length === 0) ? (
               // A calm first step (AENR-658): no price before a set is chosen; the
               // cancellation terms appear once, on Pay.
               <div className="leading-tight min-w-0 text-[12.5px] text-slate-600">
-                {step.id === "beach" ? (phase === "zones" ? tr("Pick a zone, then your sets.") : tr("Tap a set to add it.")) : tr("Add a set or a ticket to see the price.")}
+                {step.id === "when" ? tr("Pick your day, then choose where to sit.") : step.id === "beach" ? (phase === "zones" ? tr("Pick a zone, then your sets.") : tr("Tap a set to add it.")) : tr("Add a set or a ticket to see the price.")}
               </div>
             ) : (
             <div className="leading-tight min-w-0">
@@ -747,10 +780,10 @@ function WizardInner() {
             )}
             <div className="flex items-center gap-2">
               <Btn variant="ghost" icon={Icon.arrowL} onClick={back} className="lg:whitespace-nowrap">
-                {stepIdx === 0 && phase === "zones" ? tr("Home") : stepIdx === 0 && phase === "sets" ? tr("All zones") : tr("Back")}
+                {step.id === "beach" && phase === "sets" ? tr("All zones") : stepIdx === 0 ? tr("Home") : tr("Back")}
               </Btn>
               {stepIdx < last ? (
-                <Btn variant="teal" onClick={next} disabled={step.id === "beach" && (!stayCheck.ok || !!stopSell)}>{tr("Continue")} <Icon.arrowR size={15} /></Btn>
+                <Btn variant="teal" onClick={next} disabled={(step.id === "beach" && (!stayCheck.ok || !!stopSell)) || (step.id === "when" && Object.keys(stayCheck.blocked).length > 0)}>{tr("Continue")} <Icon.arrowR size={15} /></Btn>
               ) : (
                 <Btn variant="dark" icon={Icon.card} disabled={grandTotal === 0} onClick={() => (stalePicks.length ? confirm() : payRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" }))}>{tr("Go to payment")}</Btn>
               )}
@@ -765,7 +798,7 @@ function WizardInner() {
         {/* The zone overview spreads the full beach width (panoramic); a single
             zone's sunbed grid stays at a comfortable reading width. */}
         <div className={`relative w-full ${showSets ? "max-w-5xl" : "max-w-[1700px]"}`}>
-          {showZones && <StoreOverview days={selDates} selectedId={zoneId} onPick={pickZone} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} picked={pickedByZone} />}
+          {showZones && <StoreOverview days={selDates} selectedId={zoneId} onPick={(id) => { if (step.id === "when") setStepIdx(BEACH_IDX); pickZone(id); }} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} picked={pickedByZone} />}
           {showSets && (richOverview ? (
             <SandSunbeds slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zone.id)} />
           ) : (
@@ -802,7 +835,9 @@ function WizardInner() {
           <div className="max-w-3xl mx-auto pointer-events-auto">
             {showZones && (
               <div className="rounded-2xl glass px-4 py-1.5 text-center">
-                <span className="text-[12.5px] text-navy-900"><b>{tr("Tap a zone on the beach")}</b> {tr("to choose where you'll sit — the sea is at the top.")}</span>
+                {step.id === "when"
+                  ? <span className="text-[12.5px] text-navy-900"><b>{tr("Pick your day")}</b> {tr("— the free sets on the beach update with it. Or tap a zone to go straight to it.")}</span>
+                  : <span className="text-[12.5px] text-navy-900"><b>{tr("Tap a zone on the beach")}</b> {tr("to choose where you'll sit — the sea is at the top.")}</span>}
               </div>
             )}
             {showScene && (
@@ -912,7 +947,10 @@ function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number
 /* ============ Beach step — menu side (dates + phase controls) ============
    The map and the sunbed grid have moved onto the page background; the menu keeps
    the dates and the supporting info (zone summary, legend, picks). */
-function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setPhase, zone, bedSel, setBedSel, avail, dayCount, blockReason, stayReasons, multiStore, setMultiStore, stale, dayInfo, fullDay, alternatives, onPickZone, autoNote }: {
+function BeachMenu({ part, onEditDates, selDates, setSelDates, multiDate, setMultiDate, phase, setPhase, zone, bedSel, setBedSel, avail, dayCount, blockReason, stayReasons, multiStore, setMultiStore, stale, dayInfo, fullDay, alternatives, onPickZone, autoNote }: {
+  /** When = the day(s); Where = zone, sets and several zones (AENR-673). */
+  part: "when" | "where";
+  onEditDates: () => void;
   /** The "Choose for me" pick in words, with the front-row upgrade (AENR-641). */
   autoNote?: { text: string; upgrade?: { label: string; onClick: () => void } } | null;
   dayInfo: (iso: string) => DayInfo;
@@ -938,6 +976,7 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
   dayCount: number;
 }) {
   const tr = useT();
+  const { lang } = useApp();
   const pickedSubtotal = bedSel.reduce((a, b) => a + b.price, 0);
   const groups = [...new Set(bedSel.map((b) => b.zoneId))].map((zid) => ({ zone: ZONES.find((z) => z.id === zid) ?? zone, picks: bedSel.filter((b) => b.zoneId === zid) }));
   const [keepAsk, setKeepAsk] = useState(false);
@@ -949,11 +988,18 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
   };
   return (
     <div className="space-y-4">
-      {/* Dates — apply to the whole booking. */}
+      {/* Dates — apply to the whole booking (When). */}
+      {part === "where" ? (
+        <button type="button" onClick={onEditDates} className="w-full flex items-center gap-2 rounded-xl bg-white/70 ring-1 ring-slate-200 px-3 min-h-[40px] text-left text-[12.5px] hover:ring-teal-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+          <Icon.calendar size={13} className="text-slate-500 shrink-0" />
+          <span className="flex-1 min-w-0 truncate text-navy-900 font-semibold">{selDates.length === 1 ? ((c) => `${c.label} ${c.sub}`)(chipLabel(selDates[0], localeFor(lang), tr)) : `${selDates.length} ${tr("days")}`}</span>
+          <span className="text-teal-700 font-semibold">{tr("Change")}</span>
+        </button>
+      ) : (
       <div>
         <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.calendar size={12} /> {tr("When are you coming?")}</div>
         <DatePickerRow value={selDates} onChange={setSelDates} multiple={multiDate} maxDays={7} blockReason={blockReason} dayInfo={dayInfo} />
-        {fullDay && alternatives && <FullDayHelp day={fullDay} zoneName={phase === "sets" ? zone.name : ""} alt={alternatives} onDay={(d) => setSelDates([d])} onZone={onPickZone} />}
+        {fullDay && alternatives && <FullDayHelp day={fullDay} zoneName="" alt={alternatives} onDay={(d) => setSelDates([d])} onZone={onPickZone} />}
         {stayReasons.length > 0 && <div role="alert" className="mt-2 rounded-xl bg-amber-50 ring-1 ring-amber-600/20 px-3 py-2 text-[12px] text-amber-800 space-y-0.5">{stayReasons.map((r) => <div key={r}>{r}</div>)}</div>}
         {multiDate && (
         <div className="mt-2 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
@@ -966,7 +1012,20 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
           <Toggle on={multiDate} onChange={(v) => { setMultiDate(v); if (!v && selDates.length > 1) setSelDates([selDates[0]]); }} ariaLabel={tr("Book several days at once")} />
         </div>
         )}
+        {!multiDate && (
+          <div className="mt-2 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
+            <div className="flex items-start gap-2 text-[12.5px]">
+              <Icon.calendar size={13} className="text-slate-500 shrink-0 mt-0.5" />
+              <span className="text-slate-700">{tr("Book several days at once")}</span>
+            </div>
+            <Toggle on={multiDate} onChange={(v) => setMultiDate(v)} ariaLabel={tr("Book several days at once")} />
+          </div>
+        )}
       </div>
+      )}
+      {part === "where" && fullDay && alternatives && <FullDayHelp day={fullDay} zoneName={phase === "sets" ? zone.name : ""} alt={alternatives} onDay={(d) => setSelDates([d])} onZone={onPickZone} />}
+      {part === "where" && stayReasons.length > 0 && <div role="alert" className="rounded-xl bg-amber-50 ring-1 ring-amber-600/20 px-3 py-2 text-[12px] text-amber-800 space-y-0.5">{stayReasons.map((r) => <div key={r}>{r}</div>)}</div>}
+      {part === "where" && <>
 
       {/* The map and the sunbed glyphs live on the sand; here the menu keeps only
           the chosen-zone summary and your picks. The legend + tap prompts sit in
@@ -1006,22 +1065,13 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
         </div>
       )}
 
-      {/* Several days / several zones (AENR-524) live behind "More options" (AENR-612). */}
-      {!multiDate && !multiStore && !moreOpen ? (
+      {/* Several days live on When; several zones (AENR-524) behind "More options" (AENR-612). */}
+      {!multiStore && !moreOpen ? (
         <button type="button" onClick={() => setMoreOpen(true)} aria-expanded={false} className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 rounded px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
-          <Icon.plus size={13} /> {tr("More options")} <span className="font-normal text-slate-500">· {tr("several days or zones")}</span>
+          <Icon.plus size={13} /> {tr("More options")} <span className="font-normal text-slate-500">· {tr("sets in several zones")}</span>
         </button>
       ) : (
         <div className="space-y-2">
-          {!multiDate && (
-            <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
-              <div className="flex items-start gap-2 text-[12.5px]">
-                <Icon.calendar size={13} className="text-slate-500 shrink-0 mt-0.5" />
-                <span className="text-slate-700">{tr("Book several days at once")}</span>
-              </div>
-              <Toggle on={multiDate} onChange={(v) => setMultiDate(v)} ariaLabel={tr("Book several days at once")} />
-            </div>
-          )}
           <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
             <div className="text-[12.5px] min-w-0">
               <div className="font-semibold text-navy-900">{tr("Book in more than one zone")}</div>
@@ -1063,6 +1113,7 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
         </section>
       )}
       {!multiStore && stale.length > 0 && <div role="alert" className="rounded-xl bg-rose-50 ring-1 ring-rose-300 px-3 py-2 text-[12px] text-rose-800">{stale.join(", ")} {tr("is no longer available — remove it and pick another set.")}</div>}
+      </>}
       <Modal open={keepAsk} onClose={() => setKeepAsk(false)} title={tr("Keep sets from one zone?")}
         footer={<Btn variant="ghost" onClick={() => setKeepAsk(false)}>{tr("Cancel")}</Btn>}>
         <p className="text-sm text-slate-600 mb-3">{tr("You picked sets in several zones. Choose the zone whose sets you keep — the others are removed.")}</p>
@@ -1809,7 +1860,7 @@ function ReviewStep({ people, totalPeople, selDates, zone, bedSel = [], includeT
   return (
     <div className="space-y-2">
       <ReviewRow icon={Icon.umbrella} title={tr("Beach")} body={beachBody} onEdit={() => onJump("beach")} />
-      <ReviewRow icon={Icon.calendar} title={tr("Dates")} body={dateLabel} onEdit={() => onJump("beach")} />
+      <ReviewRow icon={Icon.calendar} title={tr("Dates")} body={dateLabel} onEdit={() => onJump("when")} />
       <ReviewRow icon={Icon.group} title={tr("Guests")} body={totalPeople > 0 ? `${totalPeople} ${tr("total")} · ${humanPeople(people)}` : tr("None added")} onEdit={() => onJump("people")} />
       <ReviewRow
         icon={Icon.ticket}
