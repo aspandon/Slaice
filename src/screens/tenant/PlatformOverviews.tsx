@@ -17,6 +17,7 @@ import { Funnel, LineChartMini } from "../../components/charts";
 import { useApp } from "../../app/store";
 import { readHashQuery } from "../../app/router";
 import { usePlatform } from "../../lib/usePlatform";
+import { useUndoToast } from "../../lib/useUndo";
 import { downloadReport } from "../../lib/download";
 import { makeTenant } from "../../data/tenants";
 import { mrrSeries } from "../../domain/platform";
@@ -651,6 +652,41 @@ export function PlatformSuperAdmin() {
   const { platform, setPlatform, updateTenant, today, toast, plan, actor } = usePlatform();
   const [tab, setTab] = useState("modules");
   const tenants = platform.tenants.filter((t) => t.lifecycle !== "closed");
+  // The matrix opens read-only (AENR-638): Edit collects changes, Done applies them
+  // with one reason and Undo; Cancel drops them. A stray click changes nothing.
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Record<string, boolean>>({});
+  const [why, setWhy] = useState("");
+  const undo = useUndoToast();
+  const changes = Object.entries(draft);
+  const stop = () => {
+    setEditing(false);
+    setDraft({});
+    setWhy("");
+  };
+  const applyDraft = () => {
+    const before = platform;
+    const reason = why.trim();
+    changes.forEach(([key, v]) => {
+      const [tid, m] = key.split("|");
+      const t = tenants.find((x) => x.id === tid);
+      if (!t) return;
+      const inPlan = !!plan(t)?.modules.includes(m);
+      updateTenant(
+        tid,
+        (x) => ({
+          ...x,
+          overrides:
+            v === inPlan
+              ? x.overrides.filter((o) => o.module !== m)
+              : [...x.overrides.filter((o) => o.module !== m), { module: m, on: v, reason, by: actor, at: new Date().toISOString() }],
+        }),
+        { section: "Modules", change: `${m} ${v ? "on" : "off"} (matrix)`, reason },
+      );
+    });
+    undo(`${changes.length} module change${changes.length === 1 ? "" : "s"} applied — ${reason}.`, () => setPlatform(() => before));
+    stop();
+  };
   return (
     <div className="animate-fade-up space-y-4">
       <Tabs
@@ -666,10 +702,26 @@ export function PlatformSuperAdmin() {
       />
       {tab === "modules" && (
         <Card className="p-4 overflow-x-auto">
-          <p className="text-[12.5px] text-slate-500 mb-2">
-            Edits the same data as each tenant's Modules section — switching a cell writes an
-            override with reason “Super Admin matrix”.
-          </p>
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <p className="text-[12.5px] text-slate-500 flex-1 min-w-[16rem]">
+              The same data as each tenant's Modules section.{" "}
+              {editing ? "Switch cells, give one reason, then Done." : "Read-only — Edit to change modules."}
+            </p>
+            {editing ? (
+              <>
+                <span className="text-[12.5px] font-semibold text-navy-900 tnum">
+                  {changes.length} change{changes.length === 1 ? "" : "s"}
+                </span>
+                <div className="w-64">
+                  <Input aria-label="Reason for these changes" placeholder="Reason (required)" value={why} onChange={(e) => setWhy(e.target.value)} />
+                </div>
+                <Btn variant="ghost" onClick={stop}>Cancel</Btn>
+                <Btn variant="primary" icon={Icon.check} disabled={!changes.length || !why.trim()} onClick={applyDraft}>Done</Btn>
+              </>
+            ) : (
+              <Btn variant="outline" icon={Icon.edit} onClick={() => setEditing(true)}>Edit</Btn>
+            )}
+          </div>
           <table className="text-sm">
             <caption className="sr-only">Modules per tenant</caption>
             <thead>
@@ -697,38 +749,32 @@ export function PlatformSuperAdmin() {
                     return (
                       <td key={t.id} className="px-2 py-2 text-center" title={`${st.detail}`}>
                         <span className="inline-flex flex-col items-center gap-0.5">
-                          <Toggle
-                            on={st.on}
-                            disabled={st.source === "blocked"}
-                            ariaLabel={`${m} for ${t.name}`}
-                            onChange={(v) => {
-                              const inPlan = !!plan(t)?.modules.includes(m);
-                              updateTenant(
-                                t.id,
-                                (x) => ({
-                                  ...x,
-                                  overrides:
-                                    v === inPlan
-                                      ? x.overrides.filter((o) => o.module !== m)
-                                      : [
-                                          ...x.overrides.filter((o) => o.module !== m),
-                                          {
-                                            module: m,
-                                            on: v,
-                                            reason: "Super Admin matrix",
-                                            by: actor,
-                                            at: new Date().toISOString(),
-                                          },
-                                        ],
-                                }),
-                                {
-                                  section: "Modules",
-                                  change: `${m} ${v ? "on" : "off"} (matrix)`,
-                                  reason: "Super Admin matrix",
-                                },
-                              );
-                            }}
-                          />
+                          {editing ? (
+                            <Toggle
+                              on={draft[`${t.id}|${m}`] ?? st.on}
+                              disabled={st.source === "blocked"}
+                              ariaLabel={`${m} for ${t.name}`}
+                              onChange={(v) =>
+                                setDraft((d) => {
+                                  const k = `${t.id}|${m}`;
+                                  const n = { ...d };
+                                  if (v === st.on) delete n[k];
+                                  else n[k] = v;
+                                  return n;
+                                })
+                              }
+                            />
+                          ) : (
+                            <span
+                              aria-label={`${m} for ${t.name}: ${st.on ? "on" : "off"}`}
+                              className={`inline-flex items-center justify-center w-7 h-7 rounded-full ${st.on ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-400"}`}
+                            >
+                              {st.on ? <Icon.check size={14} /> : <Icon.minus size={14} />}
+                            </span>
+                          )}
+                          {editing && `${t.id}|${m}` in draft && (
+                            <span className="text-[9.5px] font-semibold text-amber-700">changed</span>
+                          )}
                           {st.source === "override" && (
                             <span className="text-[9.5px] font-semibold text-indigo-700">
                               override

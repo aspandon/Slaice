@@ -2099,6 +2099,9 @@ For a guest who isn't at the beach yet — Support Agent, Call Center and Admin 
   tenant previews gained / lost modules, limits that would be exceeded (hard limits block) and the prorated
   amount. **Modules** show their source — plan, override (reason, expiry; reverts and is logged on expiry),
   beta or blocked (e.g. Payments without Stripe charges); the Super Admin matrix edits the same overrides.
+  The matrix opens **read-only** (✓ / – per tenant and module, AENR-638): **Edit** turns the cells into
+  switches that only collect changes (“changed”), **Done** applies them all with one required reason
+  (logged per tenant as the override reason) and offers **Undo**; **Cancel** drops them.
   **Usage meters** show ≥ 80% Near limit and ≥ 100% Over limit in text. MRR is derived from plan + add-ons.
 - **View as tenant user**: reason (≥ 10 chars), ticket, scope (read-only default / read & write), role,
   15–60 min. Starts at once if the tenant granted support access, else sends an owner request (demo approve /
