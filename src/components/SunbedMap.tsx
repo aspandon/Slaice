@@ -2,8 +2,7 @@ import { useLayoutEffect, useState, type ReactNode } from "react";
 import { ZoomBox } from "./ZoomBox";
 import { Sunbed } from "./Beach";
 import { Icon } from "../lib/icons";
-import { LANDMARK_LABEL } from "../data/pricing";
-import type { Landmark, SunbedSlot } from "../domain/types";
+import type { SunbedSlot } from "../domain/types";
 
 /* ---------- Shared sunbed map (AENR-469) ----------
    One zone's sets on a sea-at-the-top sand box, with landmarks and the
@@ -116,7 +115,6 @@ function SetList({ slots, selected, onToggle, describe, priceOf, marker, label, 
 
 function MapCanvas({
   slots,
-  landmarks = [],
   selected,
   onToggle,
   readOnly = false,
@@ -146,7 +144,6 @@ function MapCanvas({
   /** Staff view: every set is tappable (booked / blocked too), its status in the name. */
   pickAny?: boolean;
   slots: SunbedSlot[];
-  landmarks?: Landmark[];
   selected?: Set<string>;
   onToggle?: (s: SunbedSlot) => void;
   readOnly?: boolean;
@@ -161,16 +158,6 @@ function MapCanvas({
       className={`relative overflow-x-clip rounded-xl bg-gradient-to-b from-sky-100 via-amber-50 to-amber-100/70 ring-1 ring-slate-200 aspect-[16/8] sm:aspect-[16/7] ${className}`}
     >
       <div className="absolute inset-x-0 top-0 h-[7%] bg-sky-300/50 rounded-t-xl" aria-hidden />
-      {landmarks.map((l) => (
-        <span
-          key={l.id}
-          className="absolute -translate-x-1/2 -translate-y-1/2 inline-flex items-center gap-1 rounded-md bg-white/90 ring-1 ring-navy-900/20 px-1.5 py-0.5 text-[10px] font-semibold text-navy-900 shadow-sm pointer-events-none"
-          style={{ left: `${l.x}%`, top: `${l.y}%` }}
-        >
-          <span aria-hidden>{LANDMARK_LABEL[l.kind].icon}</span>
-          {l.label || LANDMARK_LABEL[l.kind].label}
-        </span>
-      ))}
       {slots.map((s) => (
         <div
           key={s.id}

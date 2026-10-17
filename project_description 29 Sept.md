@@ -1061,10 +1061,11 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
 - **Sunbed attributes**: type (Standard, Front row, Cabana, Daybed, VIP), state (Available / On hold /
   Blocked), step-free (♿, shown to guests), persons.
 - **Landmarks**: bar, shower, WC, lifeguard, entrance, ramp, path — placed by clicking the sand, dragged,
-  labelled; shown in the booking wizard, the Cashier map and the preview.
+  labelled; kept in the layout editor only — since AENR-708 they are **not drawn** on the booking wizard's sand
+  or any staff map (Live beach, Controller, New booking, Cashier, preview), which stay uncluttered.
 - **Layout tools**: grid generator with numbering `MC-01…` or row letter + number `MC-A1…`; add, duplicate,
   remove sets; **copy a store's layout** (numbering and categories) to another store; store logo.
-- **Preview as customer** renders the draft for the chosen date with prices, unavailable sets and landmarks.
+- **Preview as customer** renders the draft for the chosen date with prices and unavailable sets (no landmark badges, AENR-708).
 - **Zones & availability**: open / closed per store for today with a reason (live: closed stores can't be
   booked online or sold at the till); the zone map (positions, name, prefix, colour, rows × columns,
   background); Atmosphere card.

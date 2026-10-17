@@ -266,7 +266,6 @@ export function ControllerBeach() {
                   return n;
                 })
               }
-              landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zoneId)}
               highlight={highlight}
               showCodes
               describe={describe}

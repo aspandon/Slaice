@@ -415,7 +415,6 @@ export function NewBooking() {
             selected={picked}
             onToggle={(s) => toggle(s.id, s.state)}
             priceOf={(s) => resolvePrice(s, zone.id, date, beachPricing, priceRules).price}
-            landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zone.id)}
           />
             <p className="text-[11.5px] text-slate-500">Outline = free · solid = booked · striped = held · teal = picked. {autoPicked ? "The best free set is picked for you — tap to change." : ""}</p>
           {err && (

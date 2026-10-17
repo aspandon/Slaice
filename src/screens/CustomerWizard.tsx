@@ -11,8 +11,7 @@ import { addDays } from "../domain/period";
 import { useLiveSlots } from "../lib/useLiveSlots";
 import { checkRestrictions, dateBlock, resolvePrice } from "../domain/pricing";
 import { stopSellFor } from "../domain/inventory";
-import { LANDMARK_LABEL } from "../data/pricing";
-import type { CartItem, Landmark, SunbedSlot } from "../domain/types";
+import type { CartItem, SunbedSlot } from "../domain/types";
 import { useApp, useSpotlight, useT } from "../app/store";
 import { localeFor } from "../app/i18n";
 import { PARKING_PRICE } from "../domain/pricing";
@@ -784,22 +783,22 @@ function WizardInner() {
         <div className={`relative w-full ${showSets ? "max-w-5xl" : "max-w-[1700px]"}`}>
           {showZones && <StoreOverview days={selDates} selectedId={zoneId} onPick={(id) => { if (step.id === "when") setStepIdx(BEACH_IDX); pickZone(id); }} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} picked={pickedByZone} />}
           {showSets && (richOverview ? (
-            <SandSunbeds slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zone.id)} />
+            <SandSunbeds slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} />
           ) : (
             // Phones: the sets at a tappable size, pan + pinch, opened on your picks (AENR-660).
             <ZoomBox className="h-full pointer-events-auto" maxHeight="100%" hint={null} minWidth={540} aspect={0.95}
               focus={(() => { const f = slots.find((x) => selectedIds.has(x.id)) ?? slots.find((x) => x.state === "a"); return f ? { x: f.x, y: f.y } : undefined; })()}>
-              <SandSunbeds slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zone.id)} />
+              <SandSunbeds slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} />
             </ZoomBox>
           ))}
           {/* Who and Pay keep your zone on the sand (AENR-670): the last zone you picked
               sets from, read-only, your sets highlighted — no extra vignettes. */}
           {showScene && (richOverview ? (
-            <SandSunbeds readOnly slots={sceneSlots} selected={sceneIds} landmarks={beachPricing.landmarks.filter((l) => l.zoneId === sceneZone.id)} />
+            <SandSunbeds readOnly slots={sceneSlots} selected={sceneIds} />
           ) : (
             <ZoomBox className="h-full pointer-events-auto" maxHeight="100%" hint={null} minWidth={540} aspect={0.95}
               focus={(() => { const f = sceneSlots.find((x) => sceneIds.has(x.id)); return f ? { x: f.x, y: f.y } : undefined; })()}>
-              <SandSunbeds readOnly slots={sceneSlots} selected={sceneIds} landmarks={beachPricing.landmarks.filter((l) => l.zoneId === sceneZone.id)} />
+              <SandSunbeds readOnly slots={sceneSlots} selected={sceneIds} />
             </ZoomBox>
           ))}
         </div>
@@ -1389,9 +1388,8 @@ function SpotSheet({ slot, info, selected, priceText, onClose, onSelect }: { slo
   );
 }
 
-function SandSunbeds({ slots, selected, onToggle, readOnly = false, landmarks = [] }: {
+function SandSunbeds({ slots, selected, onToggle, readOnly = false }: {
   slots: SunbedSlot[];
-  landmarks?: Landmark[];
   selected: Set<string>;
   onToggle?: (s: SunbedSlot, el: HTMLElement | null) => void;
   readOnly?: boolean;
@@ -1444,13 +1442,6 @@ function SandSunbeds({ slots, selected, onToggle, readOnly = false, landmarks = 
           {s.inv && <span aria-hidden title={s.inv} className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-navy-900 text-white text-[8px] grid place-items-center ring-2 ring-white pointer-events-none">🔒</span>}
           {s.access && <span aria-hidden className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-sky-600 text-white text-[9px] grid place-items-center ring-2 ring-white pointer-events-none">♿</span>}
         </div>
-      ))}
-      {/* Landmarks (bar, showers, WC…) orient guests; they aren't bookable. */}
-      {landmarks.map((l) => (
-        <span key={l.id} className="absolute -translate-x-1/2 -translate-y-1/2 inline-flex items-center gap-1 rounded-md bg-white/90 ring-1 ring-navy-900/20 px-1.5 py-0.5 text-[10px] font-semibold text-navy-900 shadow-sm pointer-events-none"
-          style={{ left: `${l.x}%`, top: `${l.y}%` }}>
-          <span aria-hidden>{LANDMARK_LABEL[l.kind].icon}</span>{l.label || LANDMARK_LABEL[l.kind].label}
-        </span>
       ))}
     </div>
   );

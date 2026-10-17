@@ -355,7 +355,7 @@ export function SunbedWorkspace() {
           {view === "preview" && (
             <div>
               <div className="mb-2 text-[12.5px] text-slate-600 flex items-center gap-2"><Badge tone="amber">Draft preview</Badge> What guests will see for {zone.name} on {date} after you publish.</div>
-              <SunbedMap label={`${zone.name} preview`} slots={slots} landmarks={landmarks} readOnly priceOf={(s) => priceOf(s).price} />
+              <SunbedMap label={`${zone.name} preview`} slots={slots} readOnly priceOf={(s) => priceOf(s).price} />
             </div>
           )}
 

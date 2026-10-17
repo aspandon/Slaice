@@ -425,8 +425,7 @@ function IssueInner() {
                     <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 p-6 text-center text-sm text-slate-600">{zone.name}: {closure(zone.id, t.day)}. Choose another zone.</div>
                   ) : (
                     <>
-                      <SunbedMap staff label={`${zone.name} sunbed map`} slots={slots} selected={inBasket} onToggle={toggleSet} priceOf={(s) => priceOf(s)}
-                        landmarks={beachPricing.landmarks.filter((l) => l.zoneId === zone.id)} />
+                      <SunbedMap staff label={`${zone.name} sunbed map`} slots={slots} selected={inBasket} onToggle={toggleSet} priceOf={(s) => priceOf(s)} />
                       <div className="mt-2 flex flex-wrap gap-3 text-[11.5px] text-slate-600">
                         <span className="flex items-center gap-1"><StaffSet state="a" size={16} /> Free</span>
                         <span className="flex items-center gap-1"><StaffSet state="h" size={16} /> On hold</span>
