@@ -1,15 +1,17 @@
 import { Icon } from "../lib/icons";
 import { Badge, Btn, Card, EmptyState, PageHead, Table, ExportMenu } from "../components/ui";
 import { usePlatform } from "../lib/usePlatform";
-import { downloadReport, slaiceInvoice } from "../lib/download";
 import { fmtDay } from "../domain/period";
+import { todayISO } from "../data/beach";
+import { SERVICES, SERVICE_LABEL, eur, feeLabel, pct, rateLabel, subscriptionLabel, supportLabel, termsOf } from "../domain/economics";
+import { invoiceDownload } from "./reporting/Statement";
 
 /* ============ Billing & plan (AENR-558) ============
    The beach's own view of its Slaice subscription — the same tenant record
-   Platform manages (AENR-517): plan and modules, what it pays, commission per
-   channel, and Slaice's invoices to download. Plan changes go through Slaice. */
-
-const pct = (n: number) => `${Math.round(n * 1000) / 10}%`;
+   Platform manages (AENR-517): plan and modules, what it pays, the commercial
+   terms Slaice set (commission and minimums per service, guest service fee,
+   corporate-tax rebill, support, subscription — AENR-725 / 689) and Slaice's
+   invoices to download. Changes go through Slaice. */
 
 export function AdminBilling() {
   const { platform, plan, planName, mrr, toast } = usePlatform();
@@ -23,11 +25,12 @@ export function AdminBilling() {
       />
     );
   const pv = plan(t);
+  const terms = termsOf(t);
   const open = t.invoices.filter((i) => i.status === "Open" || i.status === "Overdue");
   return (
     <div className="animate-fade-up space-y-4 max-w-5xl">
       <PageHead
-        sub="Your Slaice subscription — plan, modules, commission and invoices."
+        sub="Your Slaice subscription — plan, modules, commercial terms and invoices."
         primary={
           <Btn
             variant="outline"
@@ -57,7 +60,8 @@ export function AdminBilling() {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {[
           ["Plan", planName(t)],
-          ["You pay", `€${mrr(t)}/month`],
+          // This month on the beach's calendar — a seasonal subscription costs less off-season.
+          ["You pay", `€${mrr(t, todayISO().slice(0, 7)).toLocaleString("en-GB")}/month`],
           ["Billing", t.billingCycle === "monthly" ? "Monthly" : "Seasonal"],
           ["Renews", fmtDay(t.renewal)],
         ].map(([l, v]) => (
@@ -80,25 +84,22 @@ export function AdminBilling() {
           <div className="mt-3 text-[13px] text-slate-600">
             Add-ons: €{t.addOns}/month · Payment method: SEPA Direct Debit ···6012
           </div>
+          <dl className="mt-3 space-y-1 text-[13px]">
+            <div className="flex justify-between gap-3"><dt className="text-slate-500">Subscription</dt><dd className="text-right text-navy-900 font-medium">{subscriptionLabel(terms.subscription, pv?.price)}</dd></div>
+            <div className="flex justify-between gap-3"><dt className="text-slate-500">Support</dt><dd className="text-right text-navy-900 font-medium">{supportLabel(terms.support)}</dd></div>
+          </dl>
         </Card>
         <Card surface="raised" className="p-4">
-          <h2 className="font-display font-bold text-navy-900 mb-2">Commission per sale</h2>
-          {pv ? (
-            <dl className="grid grid-cols-3 gap-2 text-center">
-              {[
-                ["Online", pv.commission.online],
-                ["Till", pv.commission.cashier],
-                ["Passes", pv.commission.passes],
-              ].map(([l, v]) => (
-                <div key={l as string} className="rounded-xl bg-slate-50 py-2">
-                  <dt className="text-[12px] text-slate-500">{l}</dt>
-                  <dd className="font-display font-bold text-navy-900 tnum">{pct(v as number)}</dd>
-                </div>
-              ))}
-            </dl>
-          ) : (
-            <p className="text-[13px] text-slate-600">No plan version found.</p>
-          )}
+          <h2 className="font-display font-bold text-navy-900 mb-1">Commission &amp; guest fees</h2>
+          <p className="text-[12.5px] text-slate-500 mb-2">On online bookings only. Commission is a share of the booking's total per service{terms.feesInBase ? " (guest fee included)" : ""}, or the minimum per booking.</p>
+          <Table
+            dense
+            cols={["Service", "Commission", "Guest fee", "VAT"]}
+            rows={SERVICES.map((s) => [SERVICE_LABEL[s], rateLabel(terms.services[s]), feeLabel(s, terms.services[s]), pct(terms.services[s].vat)])}
+          />
+          <p className="mt-2 text-[12px] text-slate-600">
+            Guest fees are {terms.feeTo === "slaice" ? "kept by Slaice" : "yours"}. Each month Slaice re-bills the {pct(terms.corporateTax)} corporate tax on its commission — on {eur(1000)} of commission that is {eur(terms.corporateTax * 10)}.
+          </p>
         </Card>
       </div>
       <Card className="p-2">
@@ -116,9 +117,9 @@ export function AdminBilling() {
             right={[3]}
             rows={t.invoices.map((i) => [
               <span className="font-mono">{i.no}</span>,
-              i.period,
+              i.month ? `${i.period} · month-end` : i.period,
               fmtDay(i.due),
-              `€${i.amount}`,
+              eur(i.amount),
               <Badge
                 tone={
                   i.status === "Paid"
@@ -137,7 +138,7 @@ export function AdminBilling() {
                 variant="ghost"
                 label="Download"
                 what={i.no}
-                onExport={(f) => downloadReport(i.no, slaiceInvoice(i, t, planName(t)), f)}
+                onExport={(f) => invoiceDownload(i, t, planName(t), f)}
               />,
             ])}
           />

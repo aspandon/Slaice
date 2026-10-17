@@ -99,6 +99,8 @@ export const NAV: Record<PersonaId, NavItem[]> = {
     { k: "tenants", label: "Tenants", short: "Tenants", icon: "building", badge: "MVP" },
     // What tenants report, across tenants (AENR-720).
     { k: "incidents", label: "Incidents", short: "Incidents", icon: "alert", badge: "MVP" },
+    // What Slaice earns per tenant and the month-end invoices (AENR-725 / 689).
+    { k: "revenue", label: "Revenue & invoicing", short: "Revenue", icon: "receipt", badge: "MVP" },
     { k: "superadmin", label: "Super Admin", short: "Admin", icon: "cog", badge: "Future" },
     { k: "compliance", label: "Compliance & DPA", short: "Compliance", icon: "shield", badge: "MVP" },
     // Marketing, not operations (AENR-566). Onboarding is a tenant state: Tenants › In onboarding.

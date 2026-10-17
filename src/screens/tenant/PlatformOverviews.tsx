@@ -21,6 +21,8 @@ import { useUndoToast } from "../../lib/useUndo";
 import { downloadReport } from "../../lib/download";
 import { makeTenant } from "../../data/tenants";
 import { mrrSeries } from "../../domain/platform";
+import { seasonToDate } from "../../data/economics";
+import { useStatementOpts } from "../../lib/useEconomics";
 import { addDays, fmtDay } from "../../domain/period";
 import {
   LIMIT_LABEL,
@@ -75,7 +77,8 @@ export function PlatformTenants() {
   const { go, incidents } = useApp();
   const openIncidents = incidents.filter((i) => i.status !== "resolved");
   const newIncidents = incidents.filter((i) => i.status === "new").length;
-  const { platform, setPlatform, today, mrr, planName, plan } = usePlatform();
+  const { platform, setPlatform, today, mrr, arr, planName, plan } = usePlatform();
+  const statementOpts = useStatementOpts(today);
   const [viewRaw, setViewRaw] = useUrlState("view", "all");
   const view = viewRaw as View;
   const setView = (v: View) => setViewRaw(v);
@@ -129,6 +132,15 @@ export function PlatformTenants() {
         [r.t.name, r.t.subdomain, r.t.id, r.t.vatNo].some((v) => v.toLowerCase().includes(qq))),
   );
   const totalMrr = scoped.reduce((a, t) => a + mrr(t), 0);
+  const totalArr = scoped.reduce((a, t) => a + arr(t), 0);
+  // Slaice's own revenue from each tenant's commercial terms, season to date (AENR-725 / 689).
+  const slaiceSeason = useMemo(
+    () =>
+      platform.tenants
+        .filter((t) => platform.includeSandbox || t.env === "live")
+        .reduce((a, t) => a + seasonToDate(t, statementOpts(t)).slaiceRevenue, 0),
+    [platform.tenants, platform.includeSandbox, statementOpts],
+  );
   const live = scoped.filter((t) => t.lifecycle === "live");
   return (
     <div className="animate-fade-up space-y-4">
@@ -185,7 +197,7 @@ export function PlatformTenants() {
         <StatCard
           label="MRR"
           value={eurK(totalMrr)}
-          sub={`ARR ${eurK(totalMrr * 12)} · from plans + add-ons`}
+          sub={`ARR ${eurK(totalArr)} · subscriptions, add-ons, support`}
           tone="indigo"
         />
         <StatCard
@@ -193,19 +205,21 @@ export function PlatformTenants() {
           value={eurK(scoped.reduce((a, t) => a + t.kpi.gmv, 0))}
           sub="season to date"
         />
-        <StatCard
-          label="Slaice fees"
-          value={eurK(scoped.reduce((a, t) => a + t.kpi.fees, 0))}
-          sub="application fees"
-          tone="indigo"
-        />
+        <button type="button" onClick={() => go("platform", "revenue")} className="text-left rounded-3xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500" aria-label={`Slaice revenue, season to date: ${eurK(slaiceSeason)}. Open Revenue & invoicing`}>
+          <StatCard
+            label="Slaice revenue"
+            value={eurK(slaiceSeason)}
+            sub="season to date · commission, fees, support, subscriptions"
+            tone="indigo"
+          />
+        </button>
       </div>
       <div className="grid lg:grid-cols-3 gap-4">
         <Card className="p-5 lg:col-span-2">
           <div className="flex flex-wrap items-baseline justify-between gap-2 mb-1">
             <div className="font-semibold text-navy-900">MRR · last 12 months (€)</div>
             <div className="text-[12px] text-slate-500 tnum">
-              {eurK(totalMrr)} now · ARR {eurK(totalMrr * 12)} · dashed = month to date
+              {eurK(totalMrr)} now · ARR {eurK(totalArr)} · dashed = month to date
             </div>
           </div>
           <LineChartMini
@@ -925,8 +939,8 @@ function PlansCatalog() {
               ))}
             </ul>
             <div className="text-[12px] text-slate-500">
-              Commission: online {lv.commission.online}% · cashier {lv.commission.cashier}% · passes{" "}
-              {lv.commission.passes}%
+              List price. Commission, guest fees, support and the price a tenant pays are its own
+              commercial terms (tenant › Commercial terms).
             </div>
             <div className="text-[12px]">
               {counts.map((c) => (

@@ -1,16 +1,19 @@
 import { fmtEUR } from "../../data/analytics";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, ExportMenu, PeriodPicker, StatCard, Table, Tabs } from "../../components/ui";
 import { BarChart, StackedBar } from "../../components/charts";
 import { useApp } from "../../app/store";
 import { readHashQuery, writeHashQuery } from "../../app/router";
 import { docsTotal, financeReport, moneyFlow, payouts, sectionName, transmitted, type FinanceReport, type MoneyFlow, type Payout } from "../../data/finance";
+import { rangeInput } from "../../data/economics";
 import { TENANT, ZONES } from "../../data/beach";
-import { feeLabel, type FinanceConfig } from "../../domain/finance";
+import type { FinanceConfig } from "../../domain/finance";
+import { aggregate, feeLabel, pct as pctOf, rateLabel, type CommercialTerms, type EconTotals } from "../../domain/economics";
 import { fmtDay, rangeLabel, resolveRange, type DateRange } from "../../domain/period";
 import { usePeriod } from "../../lib/usePeriod";
 import { useFinance } from "../../lib/useFinance";
+import { useSiteTerms } from "../../lib/useEconomics";
 import { csvSectionsToReport, downloadReport, type CsvSection, type ReportDef } from "../../lib/download";
 
 /* ============ Reporting › Overview · Payments · Invoices (AENR-521) ============
@@ -50,15 +53,22 @@ export interface FinanceData {
   flow: MoneyFlow;
   pay: Payout[];
   cfg: FinanceConfig;
+  /** The beach's commercial terms (AENR-725) and what they make of the period's online bookings. */
+  terms: CommercialTerms;
+  econ: EconTotals;
   section: string | null;
 }
 export function useFinanceData(range: DateRange, section: string | null): FinanceData {
-  const { till } = useApp();
+  const { till, account } = useApp();
   const [cfg] = useFinance();
+  const terms = useSiteTerms();
   const rep = useMemo(() => financeReport(range, section, till.sales), [range, section, till.sales]);
-  const flow = useMemo(() => moneyFlow(rep.total, cfg), [rep, cfg]);
-  const pay = useMemo(() => payouts(range, section, till.sales, cfg), [range, section, till.sales, cfg]);
-  return { rep, flow, pay, cfg, section };
+  // Commission and guest fees of any window's online bookings — the sample mix plus the guest's demo bookings.
+  const econOf = useCallback((r: DateRange) => aggregate(rangeInput(r, section, { placed: account.bookings }), terms), [section, account.bookings, terms]);
+  const econ = useMemo(() => econOf(range), [econOf, range]);
+  const flow = useMemo(() => moneyFlow(rep.total, econ, terms), [rep, econ, terms]);
+  const pay = useMemo(() => payouts(range, section, till.sales, (t, w) => moneyFlow(t, econOf(w), terms)), [range, section, till.sales, econOf, terms]);
+  return { rep, flow, pay, cfg, terms, econ, section };
 }
 
 /** KPI tile = the app's StatCard (accent stripe, count-up), with an optional badge. */
@@ -119,26 +129,26 @@ export function OverviewPanel({ d, onDocs }: { d: FinanceData; onDocs: () => voi
 
 /* ============ 2 · Payments ============ */
 export function PaymentsTab({ d }: { d: FinanceData }) {
-  const { rep, flow, pay, cfg } = d;
+  const { rep, flow, pay, terms } = d;
   const t = rep.total;
   const open = rep.days.filter((x) => x.tx > 0);
   const peak = open.reduce((a, x) => (x.tx > (a?.tx ?? -1) ? x : a), open[0]);
   const inTransit = pay.filter((p) => p.status === "In transit").reduce((a, p) => a + p.amount, 0);
   const paid = pay.filter((p) => p.status !== "Scheduled").reduce((a, p) => a + p.amount, 0);
   const savedPct = t.tx ? t.saved / t.tx : 0;
-  const platform = cfg.fees.find((f) => f.payer === "tenant");
   return (
     <div className="space-y-4">
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <Kpi tone="teal" label="Total transactions" value={int(t.tx)} sub="Successful charges in the period" />
         <Kpi tone="teal" label="Total captured value" eur={t.captured} sub="Beach turnover paid by card" />
-        <Kpi label="Total service fees" tone="indigo" eur={flow.serviceTotal} sub={
-          <ul className="mt-0.5 space-y-0.5 text-[11.5px] text-slate-600">
-            {flow.serviceFees.map((f) => <li key={f.id} className="flex justify-between gap-2"><span>{f.name}{f.units !== null ? ` · ${int(f.units)} × ${f.rate}` : ` · ${f.rate}`}</span><b className="tnum text-navy-900">{eur2(f.amount)}</b></li>)}
-            {flow.serviceFees.length === 0 && <li>No customer fees configured</li>}
+        <Kpi label="Guest service fees" tone="indigo" eur={flow.serviceTotal} sub={
+          <ul className="mt-0.5 space-y-0.5 text-[11.5px] text-slate-600 w-full">
+            {flow.serviceFees.map((f) => <li key={f.id} className="flex justify-between gap-2"><span>{f.name} · {int(f.units)} × {f.rate}</span><b className="tnum text-navy-900">{eur2(f.amount)}</b></li>)}
+            {flow.serviceFees.length === 0 && <li>No guest service fees in the period</li>}
+            <li className="text-slate-500">{terms.feeTo === "slaice" ? "Kept by Slaice — taken with the commission" : "Kept by the beach"}</li>
           </ul>} />
-        <Kpi label="Total platform fees" eur={flow.platformFees} sub={platform ? `${feeLabel(platform)} · before VAT` : "None configured"} />
-        <Kpi label="VAT on platform fees" eur={flow.platformVat} badge={<Badge tone="amber">{cfg.settlement === "monthly" ? "Monthly" : "Weekly"}</Badge>} sub={`${platform ? Math.round(platform.vat * 100) : 24}% on ${eur2(flow.platformFees)} · settled ${cfg.settlement}`} />
+        <Kpi label="Slaice commission" eur={flow.commission} sub={`Online bookings · sunbeds ${rateLabel(terms.services.sunbeds)} · tickets ${rateLabel(terms.services.tickets)}`} />
+        <Kpi label="Corporate tax re-billed" eur={flow.corporateTax} badge={<Badge tone="amber">Monthly</Badge>} sub={`${pctOf(terms.corporateTax)} on ${eur2(flow.commission)} commission · on Slaice's invoice`} />
         <Kpi label="Stripe / bank fees" eur={flow.stripeFees} sub={`≈ ${(flow.stripePct * 100).toFixed(2)}% of captured value`} />
         <Kpi tone="indigo" label="Stripe payouts" eur={paid} sub={`Paid to the bank · ${eur2(inTransit)} in transit`} />
         <Kpi label="Saved cards usage" value={`${(savedPct * 100).toFixed(1)}%`} sub={`${int(t.saved)} of ${int(t.tx)} transactions`} />
@@ -170,19 +180,26 @@ export function PaymentsTab({ d }: { d: FinanceData }) {
         </div>
         <DailyBars rep={rep} pick={(x) => x.tx} title="Transactions per arrival day" label="Card transactions per arrival day" />
       </Card>
-      <FeeModelNote cfg={cfg} />
+      <FeeModelNote cfg={d.cfg} terms={terms} />
     </div>
   );
 }
 
-function FeeModelNote({ cfg }: { cfg: FinanceConfig }) {
-  const { persona, go } = useApp();
+/** The commercial terms behind the fee figures, in one line (AENR-725). */
+export function FeeModelNote({ cfg, terms }: { cfg?: FinanceConfig; terms: CommercialTerms }) {
+  const { persona, platform } = useApp();
+  const s = terms.services;
   return (
     <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-[12.5px] text-slate-600 flex flex-wrap items-center gap-2">
       <Icon.info size={14} className="text-slate-400" />
-      <span><b className="text-navy-900">Fee model:</b> {cfg.fees.filter((f) => f.active).map((f) => `${f.name} ${feeLabel(f)}${f.payer === "customer" ? " (customer)" : " (tenant)"}`).join(" · ") || "no fees"} · e-invoicing via {cfg.provider}.</span>
-      {persona === "platform" ? null : <span className="text-slate-500">Set by Slaice in Platform › Tenants.</span>}
-      {persona === "platform" && <Btn size="sm" variant="ghost" onClick={() => go("platform", "tenants")}>Edit</Btn>}
+      <span>
+        <b className="text-navy-900">Commercial terms:</b> commission sunbeds {rateLabel(s.sunbeds)}, entry tickets {rateLabel(s.tickets)}, lockers {rateLabel(s.lockers)}, parking {rateLabel(s.parking)} per online booking · guest fee {feeLabel("sunbeds", s.sunbeds)}, {feeLabel("tickets", s.tickets)} ({terms.feeTo === "slaice" ? "kept by Slaice" : "kept by the beach"}) · corporate tax {pctOf(terms.corporateTax)} re-billed monthly{cfg ? ` · e-invoicing via ${cfg.provider}` : ""}.
+      </span>
+      {persona === "platform" ? (
+        <Btn size="sm" variant="ghost" onClick={() => { window.location.hash = `#/platform/tenant/${platform.siteTenant}/terms`; }}>Edit</Btn>
+      ) : (
+        <span className="text-slate-500">Set by Slaice — ask your account manager to change them.</span>
+      )}
     </div>
   );
 }
@@ -244,7 +261,7 @@ export function financeCsv(kind: "overview" | "payments" | "invoices", d: Financ
     ];
   if (kind === "payments")
     return [
-      { title: `Payments · arrival dates ${label} · ${sec}`, header: ["Metric", "Value"], rows: [["Transactions", t.tx], ["Captured value (€)", t.captured], ["Service fees (€)", flow.serviceTotal], ...flow.serviceFees.map((f) => [`  ${f.name} (${f.units ?? ""} × ${f.rate})`, f.amount] as (string | number)[]), ["Platform fees (€)", flow.platformFees], ["VAT on platform fees (€)", flow.platformVat], ["Stripe / bank fees (€)", flow.stripeFees], ["Saved card transactions", t.saved], ["New card transactions", t.tx - t.saved]] },
+      { title: `Payments · arrival dates ${label} · ${sec}`, header: ["Metric", "Value"], rows: [["Transactions", t.tx], ["Captured value (€)", t.captured], ["Guest service fees (€)", flow.serviceTotal], ...flow.serviceFees.map((f) => [`  ${f.name} (${f.units} × ${f.rate})`, f.amount] as (string | number)[]), ["Guest fees kept by Slaice (€)", flow.slaiceFees], ["Slaice commission (€)", flow.commission], ["Corporate tax re-billed (€)", flow.corporateTax], ["Stripe / bank fees (€)", flow.stripeFees], ["Saved card transactions", t.saved], ["New card transactions", t.tx - t.saved]] },
       { title: "Stripe payouts", header: ["Date", "Bank", "Amount (€)", "Status"], rows: pay.map((p) => [p.date, p.bank, p.amount, p.status]) },
       { title: "Transactions per arrival day", header: ["Date", "Transactions", "Captured (€)"], rows: rep.days.map((x) => [x.date, x.tx, x.captured]) },
     ];

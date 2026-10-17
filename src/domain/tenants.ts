@@ -7,6 +7,7 @@ import type { ModuleOverride, LimitId } from "./plans";
 import type { TenantFeatureId } from "./features";
 import type { StaffRole, StaffUser } from "./types";
 import type { TicketCat } from "./extras";
+import type { CommercialTerms, MonthStatement } from "./economics";
 
 export type Lifecycle =
   | "onboarding"
@@ -85,9 +86,16 @@ export interface Note {
 export interface Invoice {
   no: string;
   period: string;
+  /** What the tenant pays (a month-end invoice: the amount due after commission already settled). */
   amount: number;
   status: "Paid" | "Open" | "Overdue" | "Void";
   due: string;
+  /** Month-end invoice (AENR-725 / 689): the month it covers, YYYY-MM. Subscription invoices (AENR-517) have none. */
+  month?: string;
+  /** When it was issued (ISO). */
+  issued?: string;
+  /** The statement as issued — later changes to the terms never alter it. */
+  statement?: MonthStatement;
 }
 export interface StripeReq {
   id: string;
@@ -162,6 +170,9 @@ export interface TenantRecord {
   /** Entry-ticket categories of a tenant other than the demo beach (Platform › tenant › Entry tickets,
    *  AENR-711); missing = the default list. The demo beach's live list is the app store's extras. */
   ticketCats?: TicketCat[];
+  /** Commercial terms — commission, guest fees, VAT, corporate tax, support fee, subscription (AENR-725 / 689).
+   *  Missing = the defaults; read through `termsOf`. */
+  terms?: CommercialTerms;
   releaseChannel: "stable" | "beta" | "preview";
   stripe: {
     details: boolean;
@@ -189,7 +200,8 @@ export interface TenantRecord {
     season: string;
     hours: string;
   };
-  kpi: { gmv: number; fees: number; bookings: number };
+  /** Season GMV and bookings. Slaice's own revenue is worked out from the commercial terms (data/economics). */
+  kpi: { gmv: number; bookings: number };
   health: {
     adoption: number;
     payments: number;

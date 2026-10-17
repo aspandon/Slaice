@@ -27,11 +27,11 @@ export function Payments({ t }: SectionProps) {
   return (
     <SectionFrame
       title="Payments"
-      sub="Stripe Connect account, fee plan and payout schedule."
+      sub="Stripe Connect account, terminals and payout schedule. Commission and fees: Commercial terms."
       actions={
         <>
           <Btn variant="outline" icon={Icon.cash} onClick={() => setFees(true)}>
-            Fees & terminals
+            Terminals & e-invoicing
           </Btn>
           <Btn
             variant="indigo"
@@ -103,6 +103,7 @@ export function Payments({ t }: SectionProps) {
       {fees && (
         <FinanceSettingsModal
           tenant={t.name}
+          tenantId={t.id}
           subdomain={t.subdomain}
           onClose={() => setFees(false)}
         />

@@ -34,6 +34,7 @@ import { decidedRefundRows, opsNow, useBookingOps } from "../lib/useBookingOps";
 import { slaState } from "../domain/bookingOps";
 import { PendingRefund } from "./bookings/BookingDrawer";
 import { InvoicesTab, OverviewPanel, PaymentsTab, SectionChips, financeCsv, useFinanceData, useSection } from "./reporting/FinanceTabs";
+import { PlatformFeesTab, platformFeesCsv, usePlatformFees } from "./reporting/PlatformFeesTab";
 import { financeReport } from "../data/finance";
 import { reconcile } from "../domain/reconcile";
 import { VARIANCE_TOLERANCE, eur as eurTill, shiftTotals } from "../domain/till";
@@ -70,10 +71,12 @@ export function AdminReporting() {
     ["payments", "Payments", Icon.card],
     ["invoices", "Invoices", Icon.receipt],
     ["refunds", "Refunds", Icon.refund],
+    // What Slaice takes — commission, guest fees, corporate tax (AENR-725).
+    ["fees", "Platform fees", Icon.layers],
   ];
   const GROUPS: { k: string; l: string; icon: IconRenderer; views: string[] }[] = [
     { k: "overview", l: "Overview", icon: Icon.chart, views: ["exec"] },
-    { k: "sales", l: "Sales", icon: Icon.cash, views: ["revenue", "payments", "invoices", "refunds"] },
+    { k: "sales", l: "Sales", icon: Icon.cash, views: ["revenue", "payments", "invoices", "refunds", "fees"] },
     { k: "ops", l: "Operations", icon: Icon.umbrella, views: ["occupancy", "ops", "tickets"] },
     { k: "customers", l: "Customers & channels", icon: Icon.users, views: ["customers", "channel", "bookings"] },
   ];
@@ -151,6 +154,7 @@ export function AdminReporting() {
   // Overview / Payments / Invoices (AENR-521): arrival-date range + section.
   const [section, setSection] = useSection();
   const fin = useFinanceData(range, section);
+  const fees = usePlatformFees(range);
   const finDocs = fin.rep.total.docs;
   const { bookingOps } = useApp();
   const refStats = refundStats(refundHistory(range));
@@ -195,6 +199,8 @@ export function AdminReporting() {
         return financeCsv("payments", fin, label);
       case "invoices":
         return financeCsv("invoices", fin, label);
+      case "fees":
+        return platformFeesCsv(fees, label);
       case "revenue":
         return [
           { title: `Revenue by product (€) ${head}`, header: ["Product", "Revenue"], rows: capRows.map((c) => [c.l, c.v]) },
@@ -289,6 +295,7 @@ export function AdminReporting() {
       {FIN_TABS.includes(tab) && !closed && (tab !== "exec" || showDetail) && <div className="mb-4"><SectionChips value={section} onChange={setSection} /></div>}
       {!closed && tab === "payments" && <PaymentsTab d={fin} />}
       {!closed && tab === "invoices" && <InvoicesTab d={fin} />}
+      {!closed && tab === "fees" && <PlatformFeesTab d={fees} label={label} />}
       {!closed && tab === "exec" && <>
         {/* The answer first (AENR-604): one sentence, four tiles that open their breakdown, the rest one tap below. */}
         <section aria-labelledby="reports-answer" className="mb-4">

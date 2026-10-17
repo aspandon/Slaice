@@ -26,6 +26,7 @@ import { AccountantReports } from "./screens/reporting/FinanceTabs";
 import { DocsPayments } from "./screens/accountant/DocsPayments";
 import { AccountantPayments } from "./screens/accountant/Payments";
 import { TenantPage } from "./screens/tenant/TenantPage";
+import { PlatformRevenue } from "./screens/tenant/PlatformRevenue";
 import * as PO from "./screens/tenant/PlatformOverviews";
 import * as P from "./screens/platform";
 
@@ -91,6 +92,7 @@ const MAP: Record<string, () => ReactElement> = {
   "platform.tenants": () => <PO.PlatformTenants />,
   "platform.incidents": () => <PlatformIncidents />,
   "platform.tenant": () => <TenantPage />,
+  "platform.revenue": () => <PlatformRevenue />,
   "platform.onboarding": () => <PO.PlatformOnboarding />,
   "platform.superadmin": () => <PO.PlatformSuperAdmin />,
   "platform.compliance": () => <P.PlatformCompliance />,

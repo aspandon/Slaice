@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 /* A demo-only switch kept in localStorage and shared live between components
-   (e.g. "Show platform economics" in the Demo menu, read by Checkout — AENR-659). */
+   (e.g. "Simulate a first-time guest" in the Demo menu — AENR-702). */
 const EVT = "slaice-demo-flag";
 const keyOf = (name: string) => `slaice.demo.${name}`;
 const read = (name: string) => {

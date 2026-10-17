@@ -52,11 +52,12 @@ export interface MrrPoint {
   partial: boolean;
 }
 /** Monthly MRR for the last `months` months up to today's month: each tenant
- *  counts from its go-live month at its current price (plan + add-ons), so the
- *  line only rises when a tenant goes live or leaves when it stops paying. */
+ *  counts from its go-live month at its current terms for that month (plan or
+ *  season / off-season price, add-ons, support — AENR-689), so the line rises
+ *  when a tenant goes live and follows seasonal prices. */
 export function mrrSeries(
   tenants: readonly TenantRecord[],
-  mrrOf: (t: TenantRecord) => number,
+  mrrOf: (t: TenantRecord, month: string) => number,
   today: string,
   months = 12,
 ): MrrPoint[] {
@@ -66,7 +67,7 @@ export function mrrSeries(
     const month = d.toISOString().slice(0, 7);
     const v = tenants
       .filter((t) => t.goLive && t.goLive.slice(0, 7) <= month)
-      .reduce((a, t) => a + mrrOf(t), 0);
+      .reduce((a, t) => a + mrrOf(t, month), 0);
     return {
       month,
       label: d.toLocaleDateString("en-GB", { month: "short", timeZone: "UTC" }),

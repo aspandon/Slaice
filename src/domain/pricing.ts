@@ -8,9 +8,8 @@
 
 import type { DemandBand, BeachPricing, CartItem, PriceOverride, PriceRule, PriceRuleDays, Restriction, RestrictionKind, SunbedSlot, TicketCategory } from "./types";
 
-/** Mock economics, mirrors the Checkout summary. */
-export const SLAICE_FEE_RATE = 0.05; // Slaice application fee
-export const STRIPE_FEE_RATE = 0.015; // ~Stripe processing
+// What Slaice earns on a booking (commission, guest service fee) is the tenant's
+// commercial terms — domain/economics (AENR-725), not a constant here.
 
 export const TICKET_PRICES: Record<TicketCategory, number> = {
   adult: 10,
@@ -33,31 +32,8 @@ export const TICKET_META: Record<TicketCategory, { label: string; sub: string }>
   senior: { label: "Senior 65+", sub: "ID required" },
 };
 
-export interface CartTotals {
-  subtotal: number;
-  stripeFee: number;
-  slaiceFee: number;
-  /** What the tenant nets after Stripe + Slaice fees. */
-  tenantNet: number;
-  /** What Slaice nets (the application fee). */
-  slaiceNet: number;
-}
-
 export function cartSubtotal(items: readonly CartItem[]): number {
   return items.reduce((sum, item) => sum + item.price, 0);
-}
-
-export function priceCart(items: readonly CartItem[]): CartTotals {
-  const subtotal = cartSubtotal(items);
-  const stripeFee = round2(subtotal * STRIPE_FEE_RATE);
-  const slaiceFee = round2(subtotal * SLAICE_FEE_RATE);
-  return {
-    subtotal,
-    stripeFee,
-    slaiceFee,
-    tenantNet: round2(subtotal - stripeFee - slaiceFee),
-    slaiceNet: slaiceFee,
-  };
 }
 
 function round2(n: number): number {

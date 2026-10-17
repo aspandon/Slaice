@@ -16,6 +16,7 @@ import { EntryTickets } from "./TicketSection";
 import { Compliance, Integrations, Invoicing, Payments, Security, Users } from "./AccessSections";
 import { Audit, DataExport, Health, Support } from "./SupportSections";
 import { Roles } from "./RolesSection";
+import { CommercialTerms } from "./CommercialTerms";
 import { DangerZone } from "./Lifecycle";
 import { ViewAsDialog } from "./ViewAs";
 
@@ -128,6 +129,15 @@ export const SECTIONS: SectionDef[] = [
     group: "Product",
     edit: "support",
     render: (p) => <Localisation {...p} />,
+  },
+  {
+    // Commission, guest fees, VAT, corporate tax, support and subscription (AENR-725 / 689).
+    id: "terms",
+    label: "Commercial terms",
+    icon: Icon.tag,
+    group: "Money",
+    edit: "admin",
+    render: (p) => <CommercialTerms {...p} />,
   },
   {
     id: "payments",

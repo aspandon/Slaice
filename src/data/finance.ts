@@ -8,7 +8,7 @@
 import { ZONES } from "./beach";
 import { dayStats } from "./analytics";
 import { DEMO_TODAY, addDays, inRange, type DateRange } from "../domain/period";
-import { feeAmount, type FeeBase, type FinanceConfig } from "../domain/finance";
+import { SERVICE_LABEL, type CommercialTerms, type EconTotals, type ServiceId } from "../domain/economics";
 import type { TillSale } from "../domain/till";
 
 /** Ticket-only sales at the till have no zone; they report under this row. */
@@ -186,58 +186,43 @@ export function financeReport(
 export const docsTotal = (d: SectionDay["docs"]) => d.apy + d.tpy + d.papy + d.ptpy;
 export const transmitted = (s: SectionDay) => docsTotal(s.docs) - s.pending;
 
-/* ---------- Money flow ---------- */
+/* ---------- Money flow ----------
+   Guest service fees and the Slaice commission come from the tenant's
+   commercial terms applied to the period's online bookings (AENR-725, see
+   data/economics); both are taken from each online charge as the Stripe
+   application fee, the corporate tax on the commission is invoiced at month end. */
 export interface MoneyFlow {
-  serviceFees: { id: string; name: string; units: number | null; rate: string; amount: number }[];
+  /** Guest service fees per service: units × fee. */
+  serviceFees: { id: ServiceId; name: string; units: number; rate: string; amount: number }[];
   serviceTotal: number;
-  platformFees: number;
-  platformVat: number;
+  /** Slaice commission on the online bookings, minimums applied. */
+  commission: number;
+  /** Guest fees Slaice keeps (taken with the commission); 0 when the beach keeps them. */
+  slaiceFees: number;
+  /** The month-end corporate-tax rebill on the commission. */
+  corporateTax: number;
   stripeFees: number;
   stripePct: number;
-  /** What reaches the tenant's bank: captured + service fees − Stripe − platform fees (+VAT). */
+  /** What reaches the tenant's bank: captured + guest fees − Stripe − the application fees (commission + fees Slaice keeps). */
   netToBank: number;
 }
-export function moneyFlow(t: SectionDay, cfg: FinanceConfig): MoneyFlow {
-  const base: FeeBase = {
-    onlineSets: t.onlineSets,
-    entryPersons: t.entryPersons,
-    captured: t.captured,
-    bookings: t.tx,
-  };
-  const serviceFees = cfg.fees
-    .filter((f) => f.active && f.payer === "customer")
-    .map((f) => ({
-      id: f.id,
-      name: f.name,
-      units:
-        f.basis === "pctBooking"
-          ? null
-          : f.basis === "perOnlineSet"
-            ? base.onlineSets
-            : f.basis === "perEntryPerson"
-              ? base.entryPersons
-              : base.bookings,
-      rate: f.basis === "pctBooking" ? `${f.amount}%` : `€${f.amount}`,
-      amount: feeAmount(f, base),
-    }));
-  const serviceTotal = serviceFees.reduce((a, f) => a + f.amount, 0);
-  const platformFees = cfg.fees
-    .filter((f) => f.payer === "tenant")
-    .reduce((a, f) => a + feeAmount(f, base), 0);
-  const platformVat = cfg.fees
-    .filter((f) => f.payer === "tenant")
-    .reduce((a, f) => a + feeAmount(f, base) * f.vat, 0);
+export function moneyFlow(t: SectionDay, econ: EconTotals, terms: CommercialTerms): MoneyFlow {
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  const serviceFees = econ.services
+    .filter((s) => s.fees > 0)
+    .map((s) => ({ id: s.service, name: SERVICE_LABEL[s.service], units: Math.round(s.units), rate: `€${terms.services[s.service].fee.toFixed(2)}`, amount: s.fees }));
+  const serviceTotal = econ.fees;
   // Stripe EEA cards: 1.5% + €0.25 per successful charge.
   const stripeFees = (t.captured + serviceTotal) * 0.015 + t.tx * 0.25;
-  const r2 = (n: number) => Math.round(n * 100) / 100;
   return {
     serviceFees,
     serviceTotal: r2(serviceTotal),
-    platformFees: r2(platformFees),
-    platformVat: r2(platformVat),
+    commission: econ.commission,
+    slaiceFees: econ.slaiceFees,
+    corporateTax: r2((econ.commission * terms.corporateTax) / 100),
     stripeFees: r2(stripeFees),
     stripePct: t.captured ? stripeFees / t.captured : 0,
-    netToBank: r2(t.captured + serviceTotal - stripeFees - platformFees - platformVat),
+    netToBank: r2(t.captured + serviceTotal - stripeFees - econ.commission - econ.slaiceFees),
   };
 }
 
@@ -252,7 +237,8 @@ export function payouts(
   range: DateRange,
   section: string | null,
   sales: readonly TillSale[],
-  cfg: FinanceConfig,
+  /** The money flow of one payout window (its figures and its online bookings). */
+  flowFor: (t: SectionTotals, window: DateRange) => MoneyFlow,
 ): Payout[] {
   const out: Payout[] = [];
   let from = range.from;
@@ -263,7 +249,7 @@ export function payouts(
       out.push({
         date: pay,
         bank: "···8806",
-        amount: moneyFlow(t, cfg).netToBank,
+        amount: flowFor(t, { from, to: d }).netToBank,
         status:
           pay > DEMO_TODAY ? "Scheduled" : pay >= addDays(DEMO_TODAY, -1) ? "In transit" : "Paid",
       });

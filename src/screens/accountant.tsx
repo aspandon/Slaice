@@ -7,29 +7,46 @@ import { DEMO_TODAY } from "../domain/period";
 import { useMemo } from "react";
 import { useApp } from "../app/store";
 import { downloadReport } from "../lib/download";
+import { rateLabel, termsOf } from "../domain/economics";
+import { tenantStatement } from "../data/economics";
+import { useSiteTenant, useStatementOpts } from "../lib/useEconomics";
 
 import { TENANT } from "../data/beach";
 const neg = (v: ReactNode) => <span className="text-rose-600 font-medium tnum">{v}</span>;
 const negBold = (v: ReactNode) => <b className="text-rose-600 tnum">{v}</b>;
 
 /* Commission & payouts from the same figures as Reports and Month-end (AENR-643):
-   season months up to the demo day, the current month to date, nothing in the future. */
+   season months up to the demo day, the current month to date, nothing in the future.
+   The Slaice commission is the beach's commercial terms applied to its online
+   bookings, minimums included (AENR-725) — the same figure as the Slaice statement. */
 const STRIPE_RATE = 0.015;
-const SLAICE_RATE = 0.05;
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-function payoutMonths() {
+interface PayoutMonth {
+  label: string;
+  gross: number;
+  stripe: number;
+  slaice: number;
+  /** Guest service fees, when the beach keeps them (they are paid on top of its prices). */
+  fees: number;
+  net: number;
+  open: boolean;
+}
+function payoutMonths(commission: (month: string) => { commission: number; fees: number }, feesToTenant: boolean): PayoutMonth[] {
   const y = Number(DEMO_TODAY.slice(0, 4));
-  const out: { label: string; gross: number; stripe: number; slaice: number; net: number; open: boolean }[] = [];
+  const out: PayoutMonth[] = [];
   for (let m = 5; m <= 9; m++) {
-    const from = `${y}-${String(m).padStart(2, "0")}-01`;
+    const month = `${y}-${String(m).padStart(2, "0")}`;
+    const from = `${month}-01`;
     if (from > DEMO_TODAY) break;
     const last = new Date(y, m, 0).getDate();
-    const end = `${y}-${String(m).padStart(2, "0")}-${last}`;
+    const end = `${month}-${last}`;
     const to = end > DEMO_TODAY ? DEMO_TODAY : end;
     const gross = Math.round(summarize({ from, to }).revenue);
     const stripe = Math.round(gross * STRIPE_RATE);
-    const slaice = Math.round(gross * SLAICE_RATE);
-    out.push({ label: MONTHS[m - 1] + (to < end ? " (to date)" : ""), gross, stripe, slaice, net: gross - stripe - slaice, open: to < end });
+    const c = commission(month);
+    const slaice = Math.round(c.commission);
+    const fees = feesToTenant ? Math.round(c.fees) : 0;
+    out.push({ label: MONTHS[m - 1] + (to < end ? " (to date)" : ""), gross, stripe, slaice, fees, net: gross - stripe - slaice + fees, open: to < end });
   }
   return out;
 }
@@ -38,22 +55,34 @@ const eurN = (n: number) => `€${n.toLocaleString("en-GB")}`;
 
 export function AccountantCommission() {
   const { toast } = useApp();
-  const monthly = useMemo(payoutMonths, []);
-  const sum = monthly.reduce((a, r) => ({ g: a.g + r.gross, sf: a.sf + r.stripe, sl: a.sl + r.slaice, n: a.n + r.net }), { g: 0, sf: 0, sl: 0, n: 0 });
+  const tenant = useSiteTenant();
+  const opts = useStatementOpts(DEMO_TODAY);
+  const terms = termsOf(tenant);
+  const feesToTenant = terms.feeTo === "tenant";
+  const monthly = useMemo(
+    () =>
+      payoutMonths((month) => {
+        const st = tenant ? tenantStatement(tenant, month, opts(tenant)) : null;
+        return { commission: st?.totals.commission ?? 0, fees: st?.totals.guestFees ?? 0 };
+      }, feesToTenant),
+    [tenant, opts, feesToTenant],
+  );
+  const sum = monthly.reduce((a, r) => ({ g: a.g + r.gross, sf: a.sf + r.stripe, sl: a.sl + r.slaice, f: a.f + r.fees, n: a.n + r.net }), { g: 0, sf: 0, sl: 0, f: 0, n: 0 });
   const cur = monthly[monthly.length - 1];
+  const rule = `sunbeds ${rateLabel(terms.services.sunbeds)}, entry tickets ${rateLabel(terms.services.tickets)} per online booking`;
   return (
     <div>
       <PageHead primary={<ExportMenu variant="primary" what="payout statement" onExport={(f) => {
         downloadReport("payouts", {
           title: "Commission & payouts",
           subtitle: `Season ${DEMO_TODAY.slice(0, 4)} · by month, to ${DEMO_TODAY}`,
-          meta: [`${TENANT.name} · Stripe Connect direct charges with the Slaice application fee (5%)`],
+          meta: [`${TENANT.name} · Stripe Connect direct charges; the Slaice commission (${rule}) is the application fee`],
           sections: [
-            { kpis: [{ label: "Season gross", value: eurK(sum.g) }, { label: "Stripe fees", value: `−${eurK(sum.sf)}`, sub: "~1.5%" }, { label: "Slaice 5%", value: `−${eurK(sum.sl)}`, sub: "application fee" }, { label: "Tenant net", value: eurK(sum.n) }] },
+            { kpis: [{ label: "Season gross", value: eurK(sum.g) }, { label: "Stripe fees", value: `−${eurK(sum.sf)}`, sub: "~1.5%" }, { label: "Slaice commission", value: `−${eurK(sum.sl)}`, sub: "online bookings, minimums applied" }, { label: "Tenant net", value: eurK(sum.n) }] },
             { title: "Payout statement", table: {
-              cols: ["Month", "Gross (€)", "Stripe fee (€)", "Slaice 5% (€)", "Tenant net (€)"],
-              rows: monthly.map((r) => [r.label, r.gross, -r.stripe, -r.slaice, r.net]),
-              total: ["Total", sum.g, -sum.sf, -sum.sl, sum.n],
+              cols: ["Month", "Gross (€)", "Stripe fee (€)", "Slaice commission (€)", ...(feesToTenant ? ["Guest fees (€)"] : []), "Tenant net (€)"],
+              rows: monthly.map((r) => [r.label, r.gross, -r.stripe, -r.slaice, ...(feesToTenant ? [r.fees] : []), r.net]),
+              total: ["Total", sum.g, -sum.sf, -sum.sl, ...(feesToTenant ? [sum.f] : []), sum.n],
             } },
           ],
         }, f);
@@ -62,7 +91,7 @@ export function AccountantCommission() {
       <div className="grid sm:grid-cols-4 gap-4 mb-4">
         <StatCard label="Season gross" value={eurK(sum.g)} sub="same as Reports" tone="teal" icon={Icon.chart} />
         <StatCard label="Stripe fees" value={`−${eurK(sum.sf)}`} sub="~1.5%" icon={Icon.stripe} />
-        <StatCard label="Slaice 5%" value={`−${eurK(sum.sl)}`} sub="application fee" icon={Icon.trend} />
+        <StatCard label="Slaice commission" value={`−${eurK(sum.sl)}`} sub="online bookings · application fee" icon={Icon.trend} />
         <StatCard label="Tenant net" value={eurK(sum.n)} tone="teal" icon={Icon.cash} />
       </div>
       {cur && (
@@ -71,14 +100,18 @@ export function AccountantCommission() {
           <Table cols={["Line", "Amount"]} right={[1]} rows={[
             ["Gross sales", eurN(cur.gross)],
             ["Stripe fees", neg(`−${eurN(cur.stripe)}`)],
-            ["Slaice commission (5%)", neg(`−${eurN(cur.slaice)}`)],
+            ["Slaice commission", neg(`−${eurN(cur.slaice)}`)],
+            ...(feesToTenant ? [["Guest service fees (kept by the beach)", `+${eurN(cur.fees)}`]] : []),
             [<b>Tenant net</b>, <b className="tnum">{eurN(cur.net)}</b>],
           ]} />
+          <p className="mt-2 text-[12px] text-slate-500">
+            Commission from the commercial terms Slaice set for {TENANT.name}: {rule}. The month-end invoice adds the corporate tax on it — see the Slaice statement tab.
+          </p>
         </Card>
       )}
       <Card className="p-5">
         <div className="font-semibold text-navy-900 mb-2">Monthly payouts (season to date)</div>
-        <Table cols={["Month", "Gross", "Stripe fee", "Slaice 5%", "Tenant net", "Payout"]} right={[1, 2, 3, 4]} rows={[
+        <Table cols={["Month", "Gross", "Stripe fee", "Slaice commission", "Tenant net", "Payout"]} right={[1, 2, 3, 4]} rows={[
           ...monthly.map((r) => [r.label, eurN(r.gross), neg(`−${eurN(r.stripe)}`), neg(`−${eurN(r.slaice)}`), <b className="tnum">{eurN(r.net)}</b>, r.open ? "Weekly, in progress" : "Paid"]),
           [<b key="s">Season</b>, <b key="g" className="tnum">{eurN(sum.g)}</b>, negBold(`−${eurN(sum.sf)}`), negBold(`−${eurN(sum.sl)}`), <b key="tn" className="tnum">{eurN(sum.n)}</b>, ""],
         ]} />

@@ -17,7 +17,7 @@ import { usual, type UsualBooking, type Visit } from "../domain/visits";
 import type { Zone } from "../domain/types";
 import { useClosure, useLiveSlots } from "./useLiveSlots";
 import { activeTickets, lockerAvail, lockerPrice, ticketPrice } from "../domain/extras";
-import { useFinance } from "./useFinance";
+import { useSiteTerms } from "./useEconomics";
 import { useTenantFeatures } from "./useFeatures";
 
 /** Days ahead "Rebook your usual" looks for a day that works. */
@@ -54,7 +54,7 @@ export function useRebook(
     useApp();
   const liveSlots = useLiveSlots();
   const closure = useClosure();
-  const [finance] = useFinance();
+  const terms = useSiteTerms();
   const gates = useTenantFeatures();
 
   const base = useMemo(() => {
@@ -101,7 +101,7 @@ export function useRebook(
       // The wizard starts lockers on bank A.
       locker: (iso) => lockerPrice(extras, "A", iso).price,
       parking: PARKING_PRICE,
-      fees: (items) => serviceFees(items, finance.fees, today).total,
+      fees: (items) => serviceFees(items, terms).total,
     });
     const hint: RebookHint = {
       ...u,
@@ -123,7 +123,7 @@ export function useRebook(
     beachPricing,
     priceRules,
     account.party,
-    finance.fees,
+    terms,
   ]);
   if (base.status !== "ok") return base;
   // The same automatic deductions checkout applies (AENR-619 / 577 / 578), on the basket this plan becomes.

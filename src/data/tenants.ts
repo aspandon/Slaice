@@ -7,6 +7,7 @@
 import type { Contact, Lifecycle, TenantRecord, Env } from "../domain/tenants";
 import { summarize } from "./analytics";
 import { DEMO_TODAY } from "../domain/period";
+import { DEFAULT_TERMS, cloneTerms, type CommercialTerms } from "../domain/economics";
 
 const AKTI_SEASON = summarize({ from: `${DEMO_TODAY.slice(0, 4)}-05-01`, to: DEMO_TODAY });
 
@@ -216,6 +217,42 @@ const SEEDS: Seed[] = [
   },
 ];
 
+/* Commercial terms agreed with each live tenant (AENR-725 / 689): the defaults (3% · min €1.50 on sunbeds,
+   3% · min €0.50 on tickets, €3 / €1 guest fees, VAT 24%, corporate tax 22%) with a few differences, so the
+   Platform shows every kind of payment plan. */
+const withTerms = (patch: (t: CommercialTerms) => void): CommercialTerms => {
+  const t = cloneTerms(DEFAULT_TERMS);
+  patch(t);
+  return t;
+};
+export const SEED_TERMS: Partial<Record<string, CommercialTerms>> = {
+  // A seasonal subscription, and season support that ends mid-September (that month is pro-rated).
+  akti: withTerms((t) => {
+    t.subscription = { mode: "custom", active: 990, inactive: 290, activeMonths: [5, 6, 7, 8, 9] };
+    t.support = {
+      items: [
+        { id: "sup-host", label: "Hosting & infrastructure", amount: 40 },
+        { id: "sup-live", label: "Live support (season)", amount: 120 },
+      ],
+      until: "2026-09-15",
+    };
+  }),
+  // The plan's list price, plus hosting with no end date.
+  kavouri: withTerms((t) => {
+    t.support = { items: [{ id: "sup-host", label: "Hosting & infrastructure", amount: 40 }], until: null };
+  }),
+  // Commission only — no subscription, a higher rate instead.
+  paros: withTerms((t) => {
+    t.subscription = { ...t.subscription, mode: "none" };
+    t.services.sunbeds = { ...t.services.sunbeds, rate: 4, min: 2 };
+    t.services.tickets = { ...t.services.tickets, rate: 4, min: 0.6 };
+  }),
+  // The beach keeps the guest service fee.
+  naxos: withTerms((t) => {
+    t.feeTo = "tenant";
+  }),
+};
+
 const month = (offset: number) => {
   const d = new Date(2026, 9 + offset, 1);
   return {
@@ -334,7 +371,8 @@ export const DEFAULT_TENANTS: TenantRecord[] = SEEDS.map((s) => {
       season: "1 May – 15 Oct",
       hours: "08:00–20:00",
     },
-    kpi: { gmv: s.gmv, fees: Math.round(s.gmv * 0.05), bookings: s.bookings },
+    kpi: { gmv: s.gmv, bookings: s.bookings },
+    terms: SEED_TERMS[s.id],
     health: {
       adoption: live ? Math.round(55 + r("ad") * 40) : 30,
       payments: live ? Math.round(80 + r("pa") * 18) : 50,
@@ -426,6 +464,7 @@ export function makeTenant(name: string, sub: string): TenantRecord {
         change: "Tenant created in onboarding",
       },
     ],
-    kpi: { gmv: 0, fees: 0, bookings: 0 },
+    kpi: { gmv: 0, bookings: 0 },
+    terms: undefined,
   };
 }

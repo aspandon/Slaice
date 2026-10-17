@@ -26,7 +26,8 @@ import type { LegacyStaffUser } from "./data/staff";
 import { DEFAULT_PASS_CARDS } from "./data/passDesigns";
 import type { BeachBackground, BookingNote, CrmState, StaffAuditEntry, StaffRole, StaffUser, CartItem, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "./domain/types";
 import type { TillState } from "./domain/till";
-import type { FinanceConfig } from "./domain/finance";
+import { stripLegacyFinance, type FinanceConfig, type LegacyFinanceConfig } from "./domain/finance";
+import { DEFAULT_TERMS, termsFromLegacyFees } from "./domain/economics";
 import type { BeachPricing, CalendarState } from "./domain/types";
 import { DEFAULT_BEACH_PRICING, DEFAULT_CALENDAR } from "./data/pricing";
 import { DEFAULT_INVENTORY, type InventoryState } from "./domain/inventory";
@@ -50,7 +51,7 @@ import { DEFAULT_PRIVACY, type PrivacyState } from "./data/gdpr";
 import { DEFAULT_INCIDENTS } from "./data/incidents";
 import type { Incident } from "./domain/incidents";
 import { CommsJanitor } from "./screens/communicate/Janitor";
-import { DEFAULT_TENANTS } from "./data/tenants";
+import { DEFAULT_TENANTS, SEED_TERMS } from "./data/tenants";
 import { DEFAULT_CLOSED_STORES } from "./data/beach";
 import { DEFAULT_TILL } from "./data/till";
 import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "./data/beach";
@@ -107,7 +108,7 @@ const saved = loadLS() as {
   viewAsId?: string | null;
   crm?: CrmState;
   till?: TillState;
-  finance?: Record<string, FinanceConfig>;
+  finance?: Record<string, LegacyFinanceConfig>;
   beachPricing?: BeachPricing;
   closedStores?: Record<string, string>;
   calendar?: CalendarState;
@@ -201,7 +202,10 @@ export default function App() {
   const setCrm = useCallback((u: (c: CrmState) => CrmState) => setCrmState(u), []);
   const [till, setTillState] = useState<TillState>({ ...DEFAULT_TILL, ...(saved.till || {}) });
   const setTill = useCallback((u: (t: TillState) => TillState) => setTillState(u), []);
-  const [finance, setFinanceState] = useState<Record<string, FinanceConfig>>(saved.finance || {});
+  // Fee lines saved before AENR-725 moved into the tenants' commercial terms (see platform below).
+  const [finance, setFinanceState] = useState<Record<string, FinanceConfig>>(() =>
+    Object.fromEntries(Object.entries(saved.finance || {}).map(([k, c]) => [k, stripLegacyFinance(c)])),
+  );
   const setFinance = useCallback((sub: string, c: FinanceConfig) => setFinanceState((f) => ({ ...f, [sub]: c })), []);
   const [beachPricing, setBeachPricing] = useState<BeachPricing>({ ...DEFAULT_BEACH_PRICING, ...(saved.beachPricing || {}) });
   const [closedStores, setClosedStores] = useState<Record<string, string>>(saved.closedStores ?? DEFAULT_CLOSED_STORES);
@@ -236,8 +240,12 @@ export default function App() {
     if (!sp) return base;
     // Tenants seeded in later releases join a saved list.
     // Saved seed tenants pick up later seed facts they never had (staggered go-live, AENR-589).
-    const seeded = sp.tenants.map((t) => {
-      const d = DEFAULT_TENANTS.find((x) => x.id === t.id);
+    const seeded = sp.tenants.map((t0) => {
+      const d = DEFAULT_TENANTS.find((x) => x.id === t0.id);
+      // Commercial terms (AENR-725 / 689): a tenant saved before them takes the fee lines someone
+      // customised in the retired fee model (AENR-521), else its seed terms, else the defaults.
+      const migrated = t0.terms ? undefined : (termsFromLegacyFees(saved.finance?.[t0.subdomain]?.fees, SEED_TERMS[t0.id] ?? DEFAULT_TERMS) ?? SEED_TERMS[t0.id]);
+      const t = migrated ? { ...t0, terms: migrated } : t0;
       const t2 = d?.goLive && t.goLive === "2026-04-20" ? { ...t, goLive: d.goLive } : t;
       // Seed module overrides added later (AENR-696: the demo beach has every module) join once,
       // never replacing an override the Platform set since.

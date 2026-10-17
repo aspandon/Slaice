@@ -18,7 +18,7 @@ import { useApp, useSpotlight, useT } from "../app/store";
 import { localeFor } from "../app/i18n";
 import { PARKING_PRICE } from "../domain/pricing";
 import { useExtras } from "../lib/useExtras";
-import { useFinance } from "../lib/useFinance";
+import { useSiteTerms } from "../lib/useEconomics";
 import { partyLabel, serviceFees } from "../domain/account";
 import { useSiteStatus } from "../lib/usePlatform";
 import { Checkout } from "./Checkout";
@@ -536,9 +536,10 @@ function WizardInner() {
     });
     return items;
   };
-  // All-in total (AENR-569): the beach prices plus the customer service fees — the same sum checkout charges.
-  const [finance] = useFinance();
-  const feeTotal = grandTotal > 0 ? serviceFees(buildItems(), finance.fees, todayISO()).total : 0;
+  // All-in total (AENR-569 / 725): the beach prices plus the guest's service fee from the tenant's
+  // commercial terms — the same function and sum checkout charges.
+  const terms = useSiteTerms();
+  const feeTotal = grandTotal > 0 ? serviceFees(buildItems(), terms).total : 0;
   const allIn = Math.round((grandTotal + feeTotal) * 100) / 100;
 
   // The Pay step pays (AENR-640): this visit's items are kept in the basket while the guest is on
@@ -782,6 +783,7 @@ function WizardInner() {
             // Just the total (AENR-682): the truncated set/day line and the "all-in" toggle are gone.
             <div className="leading-tight min-w-0">
               <span className="font-display text-2xl font-bold text-navy-900 tnum leading-none" data-wizard-total>€<LiveEuro value={allIn} /></span>
+              {feeTotal > 0 && <span className="block mt-1 text-[11px] text-slate-500 tnum" data-wizard-fee>{tr("incl. service fee")} €{feeTotal.toFixed(2)}</span>}
             </div>
             )}
             <div className="flex items-center gap-2">

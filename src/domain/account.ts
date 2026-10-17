@@ -1,8 +1,8 @@
 // The signed-in guest's account on this device (AENR-532 / 524): guest mode
 // (browsing without an account), a saved card and the bookings they placed.
-// Service fees for the basket come from the tenant's customer fee lines.
+// The basket's service fee comes from the tenant's commercial terms (AENR-725).
 
-import type { FeeLine } from "./finance";
+import { guestFees, type CommercialTerms } from "./economics";
 import type { CartItem } from "./types";
 import { DEFAULT_SELF_SERVICE, type CancelRecord, type SelfService } from "./visits";
 
@@ -120,35 +120,11 @@ export function settleCheckout(
   return { vipCover, vipDebit, vipSaved, creditUsed, fullDue: r2(afterPasses - creditUsed) };
 }
 
-/** Service fees the guest pays on top of the beach prices, per item and as totals. */
-export function serviceFees(cart: readonly CartItem[], fees: readonly FeeLine[], today: string) {
-  const lines = fees.filter((f) => f.active && f.payer === "customer" && f.from <= today);
-  const perItem: Record<string, number> = {};
-  const totals: { label: string; amount: number }[] = [];
-  const goods = cart.reduce((a, i) => a + i.price, 0);
-  for (const f of lines) {
-    let sum = 0;
-    if (f.basis === "perOnlineSet" || f.basis === "perEntryPerson") {
-      for (const i of cart) {
-        const units =
-          f.basis === "perOnlineSet"
-            ? i.kind === "sunbed"
-              ? 1
-              : 0
-            : i.kind === "ticket"
-              ? (i.qty ?? 1)
-              : 0;
-        if (!units) continue;
-        const v = r2(units * f.amount);
-        perItem[cartKey(i)] = r2((perItem[cartKey(i)] ?? 0) + v);
-        sum += v;
-      }
-    } else if (cart.length) {
-      sum = f.basis === "fixedBooking" ? f.amount : (goods * f.amount) / 100;
-    }
-    if (sum > 0) totals.push({ label: f.name, amount: r2(sum) });
-  }
-  return { perItem, lines: totals, total: r2(totals.reduce((a, t) => a + t.amount, 0)) };
+/** The service fee the guest pays on top of the beach prices (per set, per entry ticket… from the
+ *  tenant's commercial terms), per basket line and as the one "Service fee" line checkout shows. */
+export function serviceFees(cart: readonly CartItem[], terms: CommercialTerms) {
+  const { perItem, total } = guestFees(cart, terms, cartKey);
+  return { perItem, lines: total > 0 ? [{ label: "Service fee", amount: total }] : [], total };
 }
 
 /** Sets a placed booking holds on a date — they show as booked on every map. */

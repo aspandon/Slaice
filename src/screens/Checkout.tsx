@@ -16,17 +16,16 @@ import { OPERATOR, TENANT, ZONES, todayISO } from "../data/beach";
 import { round2 } from "../data/passes";
 import { useApp, useT } from "../app/store";
 import type { CartItem } from "../domain/types";
-import { SLAICE_FEE_RATE, STRIPE_FEE_RATE } from "../domain/pricing";
 import { PROFILE, cartKey, serviceFees, settleCheckout, type PlacedBooking } from "../domain/account";
+import { SERVICE_NOUN, vatRates } from "../domain/economics";
 import { ARRIVAL_WINDOW, cancelLine, placedVisits, usual } from "../domain/visits";
 import { fmtDay, fmtWeekday } from "../domain/period";
 import { FullscreenQR, downloadVisitIcs } from "./customer/VisitTicket";
 import { useVisits, guestNow } from "../lib/useVisits";
-import { useFinance } from "../lib/useFinance";
+import { useSiteTerms } from "../lib/useEconomics";
 import { useExtras } from "../lib/useExtras";
 import { bestReward, usableRewards } from "../domain/rewards";
 import { activeRewards } from "./customer/CustomerHome";
-import { useDemoFlag } from "../lib/useDemoFlag";
 import { useTenantFeatures } from "../lib/useFeatures";
 import { ActionsMenu } from "../components/ui/ActionsMenu";
 
@@ -41,27 +40,26 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
   const { cart, removeFromCart, addToCart, clearCart, go, toast, passes, spendVipCredit, passPricing, account, setAccount, loyalty } = useApp();
   const t = useT();
   const mine = usual(useVisits().visits);
-  const [finance] = useFinance();
+  // The beach's commercial terms (AENR-725): the guest sees the service fee and the VAT rate — never the commission.
+  const terms = useSiteTerms();
   const ex = useExtras();
   const [phase, setPhase] = useState<"cart" | "signin" | "redirect" | "done">("cart");
   const [adult, setAdult] = useState(false);
   const [ageTried, setAgeTried] = useState(false);
   const [placed, setPlaced] = useState<PlacedBooking | null>(null);
-  // The buyer never needs the marketplace split — it's hidden by default and
-  // revealed only via an explicit demo toggle.
-  const [showEconomics] = useDemoFlag("economics");
-  // Service fees from the tenant's customer fee lines (AENR-521 / 532), per item and in total.
+  // The service fee per set / entry ticket from the tenant's commercial terms (AENR-725), per item and in total.
   const goods = round2(cart.reduce((a, b) => a + b.price, 0));
-  const sf = serviceFees(cart, finance.fees, todayISO());
+  const sf = serviceFees(cart, terms);
   const total = round2(goods + sf.total);
+  // "Prices include VAT (24%)" — or the rate per service when they differ.
+  const vat = vatRates(cart, terms);
+  const vatNote = vat.single !== null ? `${t("Prices include VAT")} (${vat.single}%)` : `${t("Prices include VAT")}: ${vat.byService.map(([s, r]) => `${t(SERVICE_NOUN[s])} ${r}%`).join(", ")}`;
   // The best reward the guest has earned comes off by itself (AENR-619) — removable, nothing to claim.
   // Rewards, passes and wallet payments are roadmap features (AENR-691); rewards need Loyalty (AENR-696).
   const { roadmap, allows } = useTenantFeatures();
   const best = allows({ future: true, module: "Loyalty" }) ? bestReward(usableRewards(activeRewards(loyalty), account.rewardsUsed ?? []), cart) : null;
   const [skipReward, setSkipReward] = useState(false);
   const rewardOff = best && !skipReward ? Math.min(best.amount, total) : 0;
-  const fee = +(total * SLAICE_FEE_RATE).toFixed(2);
-  const stripeFee = +(total * STRIPE_FEE_RATE).toFixed(2);
 
   // ---- Passes ----
   // A guest can apply a Season pass (covers one entry ticket per visit) and/or
@@ -240,7 +238,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
                     </div>
                     <div className="text-right shrink-0">
                       <div className="font-semibold tnum text-navy-900">€{v.total.toFixed(2)}</div>
-                      {v.fees > 0 && <div className="text-[11px] text-slate-500 tnum">+€{v.fees.toFixed(2)} {t("fees")}</div>}
+                      {v.fees > 0 && <div className="text-[11px] text-slate-500 tnum">+€{v.fees.toFixed(2)} {t("service fee")}</div>}
                     </div>
                   </div>
                   <div className="mt-2 flex justify-end gap-1">
@@ -277,7 +275,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
           {creditUsed > 0 && <Row l={t("Beach credit")} v={`−€${creditUsed.toFixed(2)}`} discount />}
           <div className="h-px bg-slate-100 my-2" />
           <Row l={passApplied ? t("To pay") : t("Total")} v={`€${fullDue.toFixed(2)}`} bold />
-          <div className="text-[11px] text-slate-500 mt-1">{t("All-in: VAT and fees included.")}</div>
+          <div className="text-[11px] text-slate-500 mt-1" data-vat-note>{vatNote}</div>
           {vipCover > 0 && (
             <div className="mt-2 rounded-xl bg-sky-50 ring-1 ring-sky-600/15 px-3 py-2 text-[11.5px] text-sky-800 leading-snug">
               <Icon.sparkles size={12} className="inline align-[-1px] mr-1" />{t("VIP credit used")} €{vipDebit.toFixed(2)} · {t("you saved")} €{vipSaved.toFixed(2)} ({Math.round(disc * 100)}%). {t("Balance")} €{vipBalance.toFixed(2)} → €{round2(vipBalance - vipDebit).toFixed(2)}.
@@ -306,16 +304,6 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
                   <Toggle on={applySeason} onChange={setApplySeason} ariaLabel={t("Season pass")} />
                 </div>
               )}
-            </div>
-          )}
-
-          {/* Demo-only: reveal the marketplace split. Never shown to a real buyer. */}
-          {showEconomics && (
-            <div className="mt-3 rounded-xl bg-slate-50 ring-1 ring-slate-200 p-3 animate-fade-in">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1.5 flex items-center gap-1"><Icon.layers size={11} /> Platform economics · demo</div>
-              <Row l="Stripe processing (~1.5%)" v={`€${stripeFee.toFixed(2)}`} muted />
-              <Row l="Slaice commission (5%)" v={`€${fee.toFixed(2)}`} muted />
-              <div className="text-[11px] text-slate-600 mt-1.5 pt-1.5 border-t border-slate-200">Tenant receives €{(total - stripeFee - fee).toFixed(2)} · Slaice receives €{fee.toFixed(2)} (Stripe Connect direct charge + application fee).</div>
             </div>
           )}
 

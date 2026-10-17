@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Icon } from "../../lib/icons";
 import {
   Badge,
@@ -13,7 +13,6 @@ import {
   DateInput, ExportMenu } from "../../components/ui";
 import { Sparkline } from "../../components/charts";
 import { usePlatform } from "../../lib/usePlatform";
-import { downloadReport, slaiceInvoice } from "../../lib/download";
 import { addDays, fmtDay } from "../../domain/period";
 import {
   LIMIT_LABEL,
@@ -31,6 +30,10 @@ import {
   type TenantRecord,
 } from "../../domain/tenants";
 import { KV, ReasonModal, SectionFrame, useTenantDraft, type SectionProps } from "./kit";
+import { eur as eurFull, rateLabel, subscriptionLabel, termsOf } from "../../domain/economics";
+import { seasonToDate } from "../../data/economics";
+import { useStatementOpts } from "../../lib/useEconomics";
+import { invoiceDownload } from "../reporting/Statement";
 
 const eur = (n: number) => `€${n.toLocaleString("en-GB")}`;
 const SEV_TONE = { blocking: "red", past_due: "amber", due_soon: "blue", info: "slate" } as const;
@@ -44,6 +47,8 @@ const SEV_ICON = {
 /* ---------- Overview ---------- */
 export function Overview({ t, go }: SectionProps) {
   const { today, updateTenant, toast, mrr, planName } = usePlatform();
+  const statementOpts = useStatementOpts(today);
+  const slaice = useMemo(() => seasonToDate(t, statementOpts(t)), [t, statementOpts]);
   const actions = actionsRequired(t, today);
   const h = healthScore(t, today);
   const resolve = (id: string, how: string) => {
@@ -137,7 +142,7 @@ export function Overview({ t, go }: SectionProps) {
       <div className="grid sm:grid-cols-4 gap-3">
         {[
           ["GMV · season", eur(t.kpi.gmv)],
-          ["Slaice fees", eur(t.kpi.fees)],
+          ["Slaice revenue · season", eur(Math.round(slaice.slaiceRevenue))],
           ["Bookings", t.kpi.bookings.toLocaleString("en-GB")],
           ["MRR", eur(mrr(t))],
         ].map(([l, v]) => (
@@ -374,6 +379,7 @@ export function Contract({ t, go }: SectionProps) {
     "renewal",
   ]);
   const pv = plan(t);
+  const terms = termsOf(t);
   return (
     <SectionFrame
       title="Contract & account"
@@ -387,9 +393,14 @@ export function Contract({ t, go }: SectionProps) {
               {planName(t)}
             </button>
           </KV>
-          <KV k="Commission · online">{pv?.commission.online ?? 0}%</KV>
-          <KV k="Commission · cashier">{pv?.commission.cashier ?? 0}%</KV>
-          <KV k="Commission · passes">{pv?.commission.passes ?? 0}%</KV>
+          {/* Commission lives in the tenant's commercial terms (AENR-725 / 689), not in the plan. */}
+          <KV k="Commission · sunbeds">{rateLabel(terms.services.sunbeds)}</KV>
+          <KV k="Commission · entry tickets">{rateLabel(terms.services.tickets)}</KV>
+          <KV k="Subscription">
+            <button type="button" className="text-teal-700 underline" onClick={() => go("terms")}>
+              {subscriptionLabel(terms.subscription, pv?.price)}
+            </button>
+          </KV>
         </div>
         <div className="space-y-2 pt-2 sm:pt-0">
           <Field label="Renewal date">
@@ -451,7 +462,7 @@ export function Billing({ t, go }: SectionProps) {
   return (
     <SectionFrame
       title="Subscription & billing"
-      sub="Plan, billing cycle, invoices — MRR is derived from the plan and add-ons."
+      sub="Plan, billing cycle, invoices — MRR comes from the commercial terms: the subscription (plan list price, season / off-season price or none), add-ons and support."
       actions={
         <Btn variant="primary" icon={Icon.layers} onClick={() => setChange(t.plan.id)}>
           Change plan
@@ -488,7 +499,12 @@ export function Billing({ t, go }: SectionProps) {
       </div>
       <Card className="p-4 grid sm:grid-cols-2 gap-x-6">
         <div>
-          <KV k="Plan price">€{pv?.price ?? 0}/month</KV>
+          <KV k="Plan list price">€{pv?.price ?? 0}/month</KV>
+          <KV k="Subscription">
+            <button type="button" className="text-teal-700 underline text-right" onClick={() => go("terms")}>
+              {subscriptionLabel(termsOf(t).subscription, pv?.price)}
+            </button>
+          </KV>
           <KV k="Add-ons">€{t.addOns}/month</KV>
           <KV k="Trial ends">{t.trialEnd ? fmtDay(t.trialEnd) : "—"}</KV>
         </div>
@@ -515,8 +531,8 @@ export function Billing({ t, go }: SectionProps) {
             right={[2]}
             rows={t.invoices.map((i) => [
               i.no,
-              i.period,
-              `€${i.amount}`,
+              i.month ? `${i.period} · month-end` : i.period,
+              eurFull(i.amount),
               <Badge
                 tone={
                   i.status === "Paid"
@@ -536,7 +552,7 @@ export function Billing({ t, go }: SectionProps) {
                 variant="ghost"
                 label="Download"
                 what={i.no}
-                onExport={(f) => downloadReport(i.no, slaiceInvoice(i, t, planName(t)), f)}
+                onExport={(f) => invoiceDownload(i, t, planName(t), f)}
               />
                 {i.status !== "Paid" && i.status !== "Void" && (
                   <>
@@ -648,7 +664,12 @@ function PlanChangeModal({ t: tn, onClose }: { t: TenantRecord; onClose: () => v
               </div>
             )}
             <div className="text-[13px]">
-              {when === "now" ? (
+              {termsOf(tn).subscription.mode !== "plan" ? (
+                // The price comes from the commercial terms (AENR-689), not the plan's list price.
+                <>
+                  No price change — the subscription comes from the commercial terms ({subscriptionLabel(termsOf(tn).subscription)}); the plan sets modules and limits.
+                </>
+              ) : when === "now" ? (
                 <>
                   Prorated for the rest of this month:{" "}
                   <b>

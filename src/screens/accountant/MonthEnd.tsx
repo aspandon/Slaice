@@ -22,6 +22,10 @@ import {
 } from "../../domain/monthEnd";
 
 import { TENANT } from "../../data/beach";
+import { eur as eurE } from "../../domain/economics";
+import { statementInvoice } from "../../data/economics";
+import { useSiteTenant, useTenantStatement } from "../../lib/useEconomics";
+import { StatementBadge } from "../reporting/Statement";
 /* ============ Accountant › Month-end (AENR-588) ============
    One month at a glance: documents issued, what reached myDATA, card charges
    and fees, payouts paid / in transit / scheduled, and the VAT summary by
@@ -365,6 +369,7 @@ export function MonthEnd() {
               From the document lines — use it for the periodic VAT return.
             </p>
           </Card>
+          <SlaiceStatementCard month={ref.month} />
           <Card className="p-5">
             <h3 className="font-semibold text-navy-900 mb-2">Documents by type</h3>
             <ul className="space-y-1.5 text-[13px]">
@@ -418,6 +423,54 @@ export function MonthEnd() {
         </Modal>
       )}
     </div>
+  );
+}
+
+/** The month's bill from Slaice (AENR-725 / 689) — commission settled at payment, the balance the
+ *  month-end invoice asks for — one tap from the full statement. */
+function SlaiceStatementCard({ month }: { month: string }) {
+  const tenant = useSiteTenant();
+  const st = useTenantStatement(tenant, month, DEMO_TODAY);
+  if (!tenant || !st || !st.live) return null;
+  const inv = statementInvoice(tenant, month);
+  // An issued invoice is a snapshot — show its figures, not today's recalculation.
+  const s = inv?.statement ?? st;
+  return (
+    <Card className="p-5">
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <h3 className="font-semibold text-navy-900">Slaice statement</h3>
+        <StatementBadge st={st} inv={inv} />
+      </div>
+      <dl className="space-y-1 text-[13px]">
+        <div className="flex justify-between gap-2">
+          <dt className="text-slate-600">Commission (settled at payment)</dt>
+          <dd className="tnum text-slate-600">{eurE(s.totals.commission)}</dd>
+        </div>
+        <div className="flex justify-between gap-2">
+          <dt className="text-slate-600">Monthly charges</dt>
+          <dd className="tnum text-navy-900">{eurE(s.totals.recurring)}</dd>
+        </div>
+        <div className="flex justify-between gap-2">
+          <dt className="text-slate-600">Corporate tax re-billed</dt>
+          <dd className="tnum text-navy-900">{eurE(s.totals.corporateTax)}</dd>
+        </div>
+        <div className="flex justify-between gap-2 border-t border-slate-100 pt-1 font-semibold">
+          <dt className="text-navy-900">{inv ? "Amount due" : st.open ? "Balance so far" : "Balance"}</dt>
+          <dd className="tnum text-navy-900">{eurE(s.totals.due)}</dd>
+        </div>
+      </dl>
+      <Btn
+        size="sm"
+        variant="ghost"
+        icon={Icon.arrowR}
+        className="mt-3"
+        onClick={() => {
+          window.location.hash = `#/accountant/payments?view=statement&month=${month}`;
+        }}
+      >
+        Open the statement
+      </Btn>
+    </Card>
   );
 }
 

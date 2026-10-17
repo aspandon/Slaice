@@ -30,7 +30,6 @@ export function PersonaSwitcher({
   compact?: boolean;
 }) {
   const t = useT();
-  const [economics, setEconomics] = useDemoFlag("economics");
   const [newGuest, setNewGuest] = useDemoFlag("newGuest");
   const { inventory, setInventory, sceneFx, showPreviews, setShowPreviews, till } = useApp();
   const { role: roleOn, tenant } = useTenantFeatures();
@@ -125,23 +124,9 @@ export function PersonaSwitcher({
               </DropdownMenu.RadioGroup>
             </>
           )}
-          {/* Demo: what the platform earns on this basket (AENR-659 — moved out of the guest's checkout). */}
-          {persona === "customer" && (
-            <DropdownMenu.CheckboxItem
-              checked={economics}
-              onCheckedChange={(v) => setEconomics(v === true)}
-              onSelect={(e) => e.preventDefault()}
-              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"
-            >
-              <span className="flex-1 min-w-0">
-                <span className="block font-semibold">{t("Show platform economics")}</span>
-                <span className="block text-[11px] text-slate-500 leading-tight">{t("Checkout shows what the beach and Slaice earn.")}</span>
-              </span>
-              <span aria-hidden className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${economics ? "bg-teal-600" : "bg-slate-300"}`}>
-                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${economics ? "left-[18px]" : "left-0.5"}`} />
-              </span>
-            </DropdownMenu.CheckboxItem>
-          )}
+          {/* What Slaice earns is staff-only (AENR-725): the old "Show platform economics" switch is gone from
+              the customer side — the split lives in Reports › Platform fees, the accountant's Slaice statement
+              and Platform › tenant › Commercial terms. */}
           {/* Demo: a guest who has never booked (AENR-702) — Home, My bookings, Wallet and the
               wizard behave as for a first visit. */}
           {persona === "customer" && (

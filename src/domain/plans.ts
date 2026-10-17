@@ -1,7 +1,10 @@
 // Plans, entitlements & usage limits (AENR-517). A tenant is on a plan
 // version; modules come from the plan plus explicit per-tenant overrides (with
 // optional expiry), limits are metered against the plan, and MRR is derived —
-// never typed. Pure functions only.
+// never typed. What a tenant pays — commission, fees, support, the price it
+// actually pays a month — is its own commercial terms (domain/economics,
+// AENR-725 / 689); a plan's price is the list price those terms can use.
+// Pure functions only.
 
 export type LimitId = "locations" | "seats" | "bookings" | "messages" | "storage";
 export const LIMIT_LABEL: Record<LimitId, string> = {
@@ -23,7 +26,6 @@ export interface PlanVersion {
   price: number;
   modules: string[];
   limits: Record<LimitId, PlanLimit>;
-  commission: { online: number; cashier: number; passes: number };
   created: string;
 }
 export interface Plan {
@@ -72,7 +74,6 @@ export const DEFAULT_PLANS: Plan[] = [
         price: 490,
         modules: ["Sunbed Booking", "Entry Ticket", "Payments"],
         limits: lim(1, 5, 3000, 1000, 5),
-        commission: { online: 5, cashier: 0, passes: 5 },
         created: "2026-01-10",
       },
     ],
@@ -93,7 +94,6 @@ export const DEFAULT_PLANS: Plan[] = [
           "Cash Register",
         ],
         limits: lim(2, 15, 12000, 5000, 20),
-        commission: { online: 4.5, cashier: 1, passes: 4 },
         created: "2026-01-10",
       },
     ],
@@ -117,7 +117,6 @@ export const DEFAULT_PLANS: Plan[] = [
           "Loyalty",
         ],
         limits: lim(10, 60, 60000, 25000, 100),
-        commission: { online: 3.5, cashier: 0.8, passes: 3 },
         created: "2026-01-10",
       },
     ],

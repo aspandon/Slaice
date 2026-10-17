@@ -4,6 +4,7 @@ import { subPath } from "../app/router";
 import { realTodayISO } from "../data/beach";
 import { addDays } from "../domain/period";
 import { planVersion } from "../domain/plans";
+import { recurringFor, termsOf } from "../domain/economics";
 import type { AuditEntry, TenantRecord } from "../domain/tenants";
 
 let seq = 0;
@@ -43,13 +44,17 @@ export function usePlatform() {
   const plan = (t: TenantRecord) => planVersion(platform.plans, t.plan.id, t.plan.version);
   const planName = (t: TenantRecord) =>
     `${platform.plans.find((p) => p.id === t.plan.id)?.name ?? t.plan.id} v${t.plan.version}`;
-  /** MRR derived from the plan version and add-ons (AENR-517). */
-  const mrr = (t: TenantRecord) =>
+  /** MRR for a month (default: this one), derived from the commercial terms (AENR-689): the subscription —
+   *  plan list price, season / off-season price or none — plus add-ons and the support fee. */
+  const mrr = (t: TenantRecord, month: string = today.slice(0, 7)) =>
     ["live", "paused_by_tenant", "suspended_by_slaice"].includes(t.lifecycle)
-      ? (plan(t)?.price ?? 0) + t.addOns
+      ? recurringFor(termsOf(t), plan(t)?.price ?? 0, t.addOns, month)
       : 0;
+  /** ARR: the twelve months of this year added up (seasonal prices differ month to month). */
+  const arr = (t: TenantRecord) =>
+    Array.from({ length: 12 }, (_, i) => mrr(t, `${today.slice(0, 4)}-${String(i + 1).padStart(2, "0")}`)).reduce((a, b) => a + b, 0);
   const canEdit = platform.role !== "viewer";
-  return { platform, setPlatform, toast, today, updateTenant, plan, planName, mrr, canEdit, actor };
+  return { platform, setPlatform, toast, today, updateTenant, plan, planName, mrr, arr, canEdit, actor };
 }
 
 /** The tenant id and section from `#/platform/tenant/<id>/<section>`, kept in sync with the hash. */
