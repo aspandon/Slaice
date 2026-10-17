@@ -1144,7 +1144,7 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
 #### Entrance live display (AENR-519)
 
 - **Admin › Live Display** (`#/admin/display`): zones to show and their order, rotate overview → each zone
-  (6–30 s per view), prices, QR, weather, languages (English ↔ Greek rotate), **Look** — Day (dark text on
+  (6–30 s per view), prices, QR, weather, **languages** (AENR-678: tick any combination of English, Ελληνικά, Deutsch, Français, Español, Italiano and order them with ↑/↓ — the screen and its preview rotate through exactly those, one per view; one ticked = no rotation; at least one stays ticked), **Look** — Day (dark text on
   white, for bright sunlight; text ≥ 7:1), Night (the dark theme), **Auto** (Day from the tenant's sunrise
   time, Night from sunset — default 07:00 / 20:30; open displays flip on the clock without a reload) or High
   contrast (AENR-594) — and landscape / portrait; a live preview frame; **Open on another screen** (pop-up window) and
