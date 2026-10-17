@@ -411,8 +411,12 @@ export function aggregate(input: EconInput, terms: CommercialTerms): EconTotals 
   }
   const services = SERVICES.map((s) => {
     const l = lines.get(s) as ServiceLine;
+    // Sample days carry weighted (fractional) counts; whole bookings and units read right.
     return {
       ...l,
+      bookings: Math.round(l.bookings),
+      units: Math.round(l.units),
+      atMin: Math.round(l.atMin),
       gross: r2(l.gross),
       fees: r2(l.fees),
       base: r2(l.base),

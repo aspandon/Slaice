@@ -22,7 +22,7 @@ import {
    number and dates, bill-to block, the month's lines — subscription,
    support, commission per service, corporate-tax rebill — the totals with
    the commission already settled through Stripe, and how it was worked out.
-   The CSV carries the same figures for Excel (UTF-8 BOM, `sep=,`).
+   The CSV carries the same figures for Excel (UTF-16LE with BOM, tab-separated — AENR-701).
    ============================================================ */
 
 export const SLAICE_ISSUER = {

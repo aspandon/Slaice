@@ -516,6 +516,8 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-716 — roles per tenant** (Platform › tenant › Roles).
 - **AENR-718 — invite staff by e-mail + mobile** with a first sign-in: password and 2-step (SMS, e-mail, authenticator).
 - **AENR-720 — Call Center Incidents** and a Slaice Incidents inbox.
+- **AENR-725 — commercial terms per tenant**: commission with minimums per service, guest service fees, VAT per service, corporate-tax re-bill; staff-only reporting (Platform fees, Slaice statement); guests see only Service fee + "Prices include VAT".
+- **AENR-689 — payment plans**: support fee line items with an end date, plan / custom season pricing / commission only; month-end invoices (PDF + CSV) from Platform › Revenue & invoicing and the Accountant.
 - **AENR-726 — Passes no longer scrolls sideways on phones** (found in the AENR-694 review).
 - **AENR-698 — touch-ready till**: bigger keys and text, split ticket keys with a count/− strip, 44 px+ targets, 48 px fields.
 - **AENR-693 — phones: the zone is a step**: Where lists the zones inside the panel (Zone → Sets), then lowers onto the map.
