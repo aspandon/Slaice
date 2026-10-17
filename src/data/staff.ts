@@ -2,6 +2,7 @@
 // user signed in with a role sees exactly that persona's pages (NAV).
 import type { StaffAuditEntry, StaffRole, StaffUser } from "../domain/types";
 import type { TenantRecord } from "../domain/tenants";
+import { inviteFor } from "../domain/staffInvite";
 
 export const STAFF_ROLES: { id: StaffRole; label: string; blurb: string }[] = [
   {
@@ -127,6 +128,9 @@ export const DEFAULT_STAFF: StaffUser[] = [
     status: "invited",
     lastSignIn: null,
     created: "2026-07-17",
+    username: "sofia.lambrou",
+    // Sent on 17 Jul and never opened — expired, so the demo shows Resend (AENR-718).
+    invite: { sentAt: "2026-07-17T10:12:00", expiresAt: "2026-07-20T10:12:00", sends: 1 },
   },
   {
     id: "u-10",
@@ -202,8 +206,11 @@ export function tenantStaff(t: TenantRecord, demoStaff: readonly StaffUser[]): S
 export type LegacyStaffUser = Omit<StaffUser, "roles"> & { roles?: StaffRole[]; role?: StaffRole };
 export function migrateStaffUser(u: LegacyStaffUser): StaffUser {
   const { role, roles, ...rest } = u;
-  if (roles && roles.length) return { ...rest, roles };
   const seed = DEFAULT_STAFF.find((d) => d.id === u.id);
+  // An Invited user saved before AENR-718 picks up the invitation it was sent.
+  const withInvite = <T extends Omit<StaffUser, "roles">>(x: T): T =>
+    x.status === "invited" && !x.invite ? { ...x, invite: seed?.invite ?? inviteFor(x), username: x.username ?? seed?.username } : x;
+  if (roles && roles.length) return withInvite({ ...rest, roles });
   const next = seed && (!role || seed.roles.includes(role)) ? seed.roles : role ? [role] : ["cashier" as const];
-  return { ...rest, roles: [...next] };
+  return withInvite({ ...rest, roles: [...next] });
 }

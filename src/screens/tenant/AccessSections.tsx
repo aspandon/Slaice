@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Field, Input, Select, Table, Toggle } from "../../components/ui";
+import { ActionsMenu, Badge, Btn, Card, Field, Input, Select, Table, Toggle } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { usePlatform } from "../../lib/usePlatform";
 import { isEu } from "../../domain/gdpr";
 import { addDays, fmtDay } from "../../domain/period";
-import { rolesLabel } from "../../data/staff";
+import { RoleBadges } from "../team/RoleBadges";
+import { StaffStatusCell, staffActions } from "../team/StaffCells";
+import { useStaffDirectory } from "../team/useStaffDirectory";
 import { FinanceSettingsModal } from "../PlatformFinance";
 import { KV, SectionFrame, useTenantDraft, type SectionProps } from "./kit";
 
@@ -179,60 +181,42 @@ export function Invoicing({ t }: SectionProps) {
 
 /* ---------- Users & roles (+ Slaice access, AENR-515) ---------- */
 export function Users({ t }: SectionProps) {
-  const { staffUsers } = useApp();
-  const { platform, plan, updateTenant, toast, today } = usePlatform();
-  const users =
-    t.id === "akti"
-      ? staffUsers.map((u) => ({ name: u.name, role: rolesLabel(u), status: u.status }))
-      : [
-          { name: t.contacts[0].name, role: "Manager / Admin", status: "active" },
-          { name: "Front desk", role: "Cashier", status: "active" },
-          {
-            name: "Gate staff",
-            role: "Controller",
-            status: t.lifecycle === "live" ? "active" : "invited",
-          },
-        ];
+  const { platform, plan, updateTenant, today } = usePlatform();
+  // The same people, invitations and actions as the tenant's Team & roles (AENR-718).
+  const dir = useStaffDirectory(t, "platform");
+  const users = dir.users;
   const sessions = platform.sessions.filter((s) => s.tenantId === t.id);
   const seats = plan(t)?.limits.seats.included ?? 0;
+  const invited = users.filter((u) => u.status === "invited").length;
   return (
     <SectionFrame
       title="Users & roles"
-      sub={`Tenant staff · ${users.length} of ${seats} seats used. Role definitions live in Team & roles.`}
+      sub={`Tenant staff · ${users.length} of ${seats} seats used${invited ? ` · ${invited} invited` : ""}. Which roles exist is set in Roles.`}
+      actions={
+        <Btn variant="primary" icon={Icon.plus} onClick={dir.openAdd}>
+          Add user
+        </Btn>
+      }
     >
       <Card className="p-2">
         <Table
           dense
-          cols={["Name", "Role", "Status", ""]}
+          cols={["Name", "Mobile", "Roles", "Status", ""]}
           rows={users.map((u) => [
-            u.name,
-            u.role,
-            <Badge tone={u.status === "active" ? "green" : "amber"}>{u.status}</Badge>,
-            <span className="flex gap-1 justify-end">
-              <Btn
-                size="sm"
-                variant="ghost"
-                onClick={() => toast(`Demo — 2FA reset for ${u.name}.`)}
-              >
-                Reset 2FA
-              </Btn>
-              <Btn size="sm" variant="ghost" onClick={() => toast(`Demo — ${u.name} deactivated.`)}>
-                Deactivate
-              </Btn>
+            <div className="leading-tight min-w-0">
+              <div className="font-semibold text-navy-900">{u.name}</div>
+              <div className="text-[12px] text-slate-500 break-all">{u.email}</div>
+            </div>,
+            <span className="tnum whitespace-nowrap">{u.phone || "—"}</span>,
+            <RoleBadges roles={u.roles} roleOn={dir.roleOn} beach={dir.beach} />,
+            <StaffStatusCell u={u} dir={dir} />,
+            <span className="flex justify-end">
+              <ActionsMenu size="sm" label={`More actions for ${u.name}`} actions={staffActions(u, dir)} />
             </span>,
           ])}
         />
-        <div className="p-2">
-          <Btn
-            size="sm"
-            variant="outline"
-            icon={Icon.plus}
-            onClick={() => toast("Demo — invitation sent.")}
-          >
-            Invite user
-          </Btn>
-        </div>
       </Card>
+      {dir.modals}
       <Card className="p-4 space-y-2">
         <h3 className="font-semibold text-navy-900">Slaice access to this tenant</h3>
         <KV k="Assigned">

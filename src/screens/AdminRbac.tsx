@@ -4,11 +4,8 @@ import {
   Badge,
   Btn,
   Card,
-  ConfirmModal,
   EmptyState,
   Field,
-  Input,
-  Modal,
   PageHead,
   Select,
   Table,
@@ -17,24 +14,20 @@ import {
 import { useApp } from "../app/store";
 import { navFor } from "../data/personas";
 import { useTenantFeatures } from "../lib/useFeatures";
-import { STAFF_ROLES, hasRole, roleLabel, rolesLabel } from "../data/staff";
+import { STAFF_ROLES, hasRole, roleLabel } from "../data/staff";
 import { RoleBadges } from "./team/RoleBadges";
-import { RolePicker, defaultRoles } from "./team/RolePicker";
+import { StaffStatusCell, staffActions } from "./team/StaffCells";
+import { useStaffDirectory } from "./team/useStaffDirectory";
 import type { StaffRole, StaffStatus, StaffUser } from "../domain/types";
 
 /* ============ RBAC — staff users & roles (AENR-503) ============
    The admin manages the tenant's staff accounts: add (invite), edit, change
    roles, suspend / reactivate, delete — and previews exactly what a role or a
    user sees ("View as"). A user can hold several roles (AENR-717) and switches
-   between them from the account menu. Platform / Slaice is not a tenant role. */
+   between them from the account menu. Platform / Slaice is not a tenant role.
+   Adding someone sends an invitation e-mail (simulated) with their username; the
+   link walks them through a password and 2-step sign-in (AENR-718). */
 
-const STATUS_BADGE: Record<StaffStatus, { tone: string; label: string; icon: keyof typeof Icon }> =
-  {
-    active: { tone: "green", label: "Active", icon: "checkCircle" },
-    invited: { tone: "amber", label: "Invited", icon: "clock" },
-    suspended: { tone: "red", label: "Suspended", icon: "lock" },
-  };
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const fmtWhen = (iso: string | null) =>
   iso
     ? new Date(iso).toLocaleString("en-GB", {
@@ -45,32 +38,19 @@ const fmtWhen = (iso: string | null) =>
       })
     : "Never";
 
-type Draft = { id?: string; name: string; email: string; phone: string; roles: StaffRole[]; tillPin: string };
-const EMPTY: Draft = { name: "", email: "", phone: "", roles: [], tillPin: "" };
-/** Roles that sell at a shared till and switch in with a PIN (AENR-608). */
-const TILL_ROLES: StaffRole[] = ["cashier", "support"];
-const sellsAtTill = (roles: readonly StaffRole[]) => roles.some((r) => TILL_ROLES.includes(r));
-
 export function AdminRbac() {
-  const { staffUsers, updateStaff, staffAudit, startViewAs, toast } = useApp();
+  const { staffAudit, startViewAs, toast } = useApp();
   // A role card lists the pages it can open on this beach (roadmap previews / modules, AENR-691 / 696).
   const { roadmap, module, role: roleOn, tenant } = useTenantFeatures();
-  const beach = tenant?.name ?? "this beach";
+  // Add, invite, edit, suspend… shared with Platform › tenant › Users & roles (AENR-718).
+  const dir = useStaffDirectory(tenant, "tenant");
+  const staffUsers = dir.users;
+  const beach = dir.beach;
   // Roles Slaice turned off for this beach (AENR-716) aren't offered; people who hold one keep it.
   const usable = (u: StaffUser) => u.roles.filter((r) => roleOn(r));
   const [q, setQ] = useState("");
   const [roleF, setRoleF] = useState<"all" | StaffRole>("all");
   const [statusF, setStatusF] = useState<"all" | StaffStatus>("all");
-  const [draft, setDraft] = useState<Draft | null>(null);
-  const [touched, setTouched] = useState(false);
-  const [suspending, setSuspending] = useState<StaffUser | null>(null);
-  const [reason, setReason] = useState("");
-  const [deleting, setDeleting] = useState<StaffUser | null>(null);
-
-  const activeAdmins = staffUsers.filter((u) => hasRole(u, "admin") && u.status === "active");
-  // Guard: the tenant must always keep at least one active Manager/Admin.
-  const isLastAdmin = (u: StaffUser) =>
-    hasRole(u, "admin") && u.status === "active" && activeAdmins.length <= 1;
 
   const shown = staffUsers.filter(
     (u) =>
@@ -79,118 +59,6 @@ export function AdminRbac() {
       `${u.name} ${u.email} ${u.phone}`.toLowerCase().includes(q.toLowerCase()),
   );
 
-  /* ---- Add / edit ---- */
-  const emailTaken =
-    !!draft &&
-    staffUsers.some(
-      (u) => u.email.toLowerCase() === draft.email.trim().toLowerCase() && u.id !== draft.id,
-    );
-  const errors = draft
-    ? {
-        name: !draft.name.trim() ? "Enter the person's name." : "",
-        email: !EMAIL_RE.test(draft.email.trim())
-          ? "Enter a valid e-mail."
-          : emailTaken
-            ? "Someone already uses this e-mail."
-            : "",
-        tillPin:
-          !sellsAtTill(draft.roles) || !draft.tillPin
-            ? ""
-            : !/^\d{4}$/.test(draft.tillPin)
-              ? "Use exactly 4 digits."
-              : staffUsers.some((u) => u.id !== draft.id && u.tillPin === draft.tillPin)
-                ? "Someone else uses this PIN — pick another."
-                : "",
-      }
-    : { name: "", email: "", tillPin: "" };
-  const editing = draft?.id ? staffUsers.find((u) => u.id === draft.id) : undefined;
-  const demotingLastAdmin = !!editing && isLastAdmin(editing) && !!draft && !draft.roles.includes("admin");
-  const saveDraft = () => {
-    setTouched(true);
-    if (!draft || errors.name || errors.email || errors.tillPin || demotingLastAdmin) return;
-    const clean = {
-      name: draft.name.trim(),
-      email: draft.email.trim(),
-      phone: draft.phone.trim(),
-      roles: draft.roles,
-      tillPin: sellsAtTill(draft.roles) && draft.tillPin ? draft.tillPin : undefined,
-    };
-    if (editing) {
-      const changes = [
-        rolesLabel(editing) !== rolesLabel(clean)
-          ? `roles ${rolesLabel(editing)} → ${rolesLabel(clean)}`
-          : "",
-        editing.name !== clean.name ||
-        editing.email !== clean.email ||
-        editing.phone !== clean.phone
-          ? "details"
-          : "",
-        (editing.tillPin ?? "") !== (clean.tillPin ?? "") ? "till PIN" : "",
-      ]
-        .filter(Boolean)
-        .join(", ");
-      updateStaff(
-        staffUsers.map((u) => (u.id === editing.id ? { ...u, ...clean } : u)),
-        `Edited ${clean.name}${changes ? ` (${changes})` : ""}`,
-      );
-      toast(`Saved ${clean.name}.`, { tone: "success" });
-    } else {
-      const user: StaffUser = {
-        id: `u-${Date.now().toString(36)}`,
-        ...clean,
-        status: "invited",
-        lastSignIn: null,
-        created: new Date().toISOString().slice(0, 10),
-      };
-      updateStaff([...staffUsers, user], `Invited ${user.name} as ${rolesLabel(user)}`);
-      toast(`Invitation sent to ${user.email} (demo).`, { tone: "success" });
-    }
-    setDraft(null);
-  };
-  const openDraft = (d: Draft) => {
-    setTouched(false);
-    setDraft(d);
-  };
-
-  /* ---- Status changes ---- */
-  const accept = (u: StaffUser) => {
-    updateStaff(
-      staffUsers.map((x) =>
-        x.id === u.id ? { ...x, status: "active", lastSignIn: new Date().toISOString() } : x,
-      ),
-      `${u.name} accepted the invitation`,
-    );
-    toast(`${u.name} accepted the invitation and is now active.`, { tone: "success" });
-  };
-  const confirmSuspend = () => {
-    if (!suspending || !reason.trim()) return;
-    updateStaff(
-      staffUsers.map((x) =>
-        x.id === suspending.id ? { ...x, status: "suspended", suspendReason: reason.trim() } : x,
-      ),
-      `Suspended ${suspending.name} (${reason.trim()})`,
-    );
-    toast(`${suspending.name} is suspended and can't sign in.`, { tone: "success" });
-    setSuspending(null);
-  };
-  const reactivate = (u: StaffUser) => {
-    updateStaff(
-      staffUsers.map((x) =>
-        x.id === u.id ? { ...x, status: "active", suspendReason: undefined } : x,
-      ),
-      `Reactivated ${u.name}`,
-    );
-    toast(`${u.name} can sign in again.`, { tone: "success" });
-  };
-  const confirmDelete = () => {
-    if (!deleting) return;
-    updateStaff(
-      staffUsers.filter((x) => x.id !== deleting.id),
-      `Deleted ${deleting.name} (${rolesLabel(deleting)})`,
-    );
-    toast(`${deleting.name} was deleted.`, { tone: "success" });
-    setDeleting(null);
-  };
   /* "View as role": preview with the first active user holding that role. */
   const viewRole = (r: StaffRole) => {
     const u = staffUsers.find((x) => hasRole(x, r) && x.status === "active");
@@ -207,7 +75,7 @@ export function AdminRbac() {
     <div className="animate-fade-up">
       <PageHead
         title="Team & roles"
-        sub="Staff accounts and what each role can see and do — invite, change roles, preview as a role." primary={<Btn variant="primary" icon={Icon.plus} onClick={() => openDraft({ ...EMPTY, roles: defaultRoles(roleOn) })}>
+        sub="Staff accounts and what each role can see and do — invite, change roles, preview as a role." primary={<Btn variant="primary" icon={Icon.plus} onClick={dir.openAdd}>
             Add user
           </Btn>}
       />
@@ -277,8 +145,6 @@ export function AdminRbac() {
           <Table
             cols={["Name", "Phone", "Roles", "Status", "Last sign-in", ""]}
             rows={shown.map((u) => {
-              const st = STATUS_BADGE[u.status];
-              const StIcon = Icon[st.icon];
               return [
                 <div className="leading-tight">
                   <div className="font-semibold text-navy-900">{u.name}</div>
@@ -286,21 +152,14 @@ export function AdminRbac() {
                 </div>,
                 <span className="tnum whitespace-nowrap">{u.phone || "—"}</span>,
                 <RoleBadges roles={u.roles} roleOn={roleOn} beach={beach} />,
-                <div className="leading-tight">
-                  <Badge tone={st.tone}>
-                    <StIcon size={10} /> {st.label}
-                  </Badge>
-                  {u.status === "suspended" && u.suspendReason && (
-                    <div className="text-[11px] text-slate-500 mt-0.5">{u.suspendReason}</div>
-                  )}
-                </div>,
+                <StaffStatusCell u={u} dir={dir} />,
                 <span className="text-[12.5px] text-slate-600 whitespace-nowrap">
                   {fmtWhen(u.lastSignIn)}
                 </span>,
                 <div className="flex items-center justify-end gap-1">
                   <button
                     type="button"
-                    disabled={u.status !== "active" || usable(u).length === 0}
+                    disabled={!dir.demo || u.status !== "active" || usable(u).length === 0}
                     onClick={() => startViewAs(u.id)}
                     aria-label={`View as ${u.name}`}
                     title={
@@ -318,37 +177,7 @@ export function AdminRbac() {
                   <ActionsMenu
                     size="sm"
                     label={`More actions for ${u.name}`}
-                    actions={[
-                      {
-                        id: "edit",
-                        label: "Edit details & roles",
-                        icon: Icon.edit,
-                        onSelect: () =>
-                          openDraft({ id: u.id, name: u.name, email: u.email, phone: u.phone, roles: u.roles, tillPin: u.tillPin ?? "" }),
-                      },
-                      u.status === "invited" && { id: "accept", label: "Simulate acceptance", icon: Icon.check, onSelect: () => accept(u) },
-                      u.status === "active" && {
-                        id: "suspend",
-                        label: "Suspend",
-                        icon: Icon.lock,
-                        disabled: isLastAdmin(u),
-                        hint: isLastAdmin(u) ? "The last active admin" : undefined,
-                        onSelect: () => {
-                          setReason("");
-                          setSuspending(u);
-                        },
-                      },
-                      u.status === "suspended" && { id: "reactivate", label: "Reactivate", icon: Icon.refund, onSelect: () => reactivate(u) },
-                      {
-                        id: "delete",
-                        label: "Delete",
-                        icon: Icon.trash,
-                        destructive: true,
-                        disabled: isLastAdmin(u),
-                        hint: isLastAdmin(u) ? "The last active admin" : undefined,
-                        onSelect: () => setDeleting(u),
-                      },
-                    ]}
+                    actions={staffActions(u, dir)}
                   />
                 </div>,
               ];
@@ -445,147 +274,7 @@ export function AdminRbac() {
         </Card>
       </div>
 
-      <Modal
-        open={draft !== null}
-        onClose={() => setDraft(null)}
-        title={editing ? `Edit ${editing.name}` : "Add user"}
-        footer={
-          <>
-            <Btn variant="ghost" onClick={() => setDraft(null)}>
-              Cancel
-            </Btn>
-            <Btn variant="primary" icon={editing ? Icon.check : Icon.mail} onClick={saveDraft}>
-              {editing ? "Save" : "Send invitation"}
-            </Btn>
-          </>
-        }
-      >
-        {draft && (
-          <div className="space-y-3">
-            <Field
-              label="Full name"
-              hint={
-                touched && errors.name ? (
-                  <span className="text-rose-700">{errors.name}</span>
-                ) : undefined
-              }
-            >
-              <Input
-                value={draft.name}
-                onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-                aria-invalid={touched && !!errors.name}
-                autoComplete="off"
-              />
-            </Field>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <Field
-                label="E-mail"
-                hint={
-                  touched && errors.email ? (
-                    <span className="text-rose-700">{errors.email}</span>
-                  ) : undefined
-                }
-              >
-                <Input
-                  type="email"
-                  value={draft.email}
-                  onChange={(e) => setDraft({ ...draft, email: e.target.value })}
-                  aria-invalid={touched && !!errors.email}
-                  autoComplete="off"
-                />
-              </Field>
-              <Field label="Phone (optional)">
-                <Input
-                  value={draft.phone}
-                  onChange={(e) => setDraft({ ...draft, phone: e.target.value })}
-                  autoComplete="off"
-                />
-              </Field>
-            </div>
-            <RolePicker
-              value={draft.roles}
-              onChange={(roles) => setDraft({ ...draft, roles })}
-              roleOn={roleOn}
-              beach={beach}
-            />
-            {sellsAtTill(draft.roles) && (
-              <Field
-                label="Till PIN (4 digits)"
-                hint={
-                  touched && errors.tillPin ? (
-                    <span className="text-rose-700">{errors.tillPin}</span>
-                  ) : (
-                    "Used to switch in on a shared till. Leave empty to set it later."
-                  )
-                }
-              >
-                <Input
-                  className="w-32 tnum tracking-[0.3em]"
-                  inputMode="numeric"
-                  maxLength={4}
-                  value={draft.tillPin}
-                  onChange={(e) => setDraft({ ...draft, tillPin: e.target.value.replace(/\D/g, "").slice(0, 4) })}
-                  aria-invalid={touched && !!errors.tillPin}
-                  autoComplete="off"
-                />
-              </Field>
-            )}
-            {demotingLastAdmin && (
-              <div role="alert" className="text-[12px] text-rose-700">
-                This is the only active Manager / Admin — keep that role, or make someone else an
-                admin first.
-              </div>
-            )}
-            {!editing && (
-              <div className="text-[12px] text-slate-500">
-                They'll get an invitation e-mail (simulated) and appear as <b>Invited</b> until they
-                accept.
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
-
-      <Modal
-        open={suspending !== null}
-        onClose={() => setSuspending(null)}
-        title={suspending ? `Suspend ${suspending.name}?` : "Suspend"}
-        footer={
-          <>
-            <Btn variant="ghost" onClick={() => setSuspending(null)}>
-              Cancel
-            </Btn>
-            <Btn
-              variant="danger"
-              icon={Icon.lock}
-              disabled={!reason.trim()}
-              onClick={confirmSuspend}
-            >
-              Suspend
-            </Btn>
-          </>
-        }
-      >
-        <p className="text-sm text-slate-600 mb-3">
-          They won't be able to sign in until you reactivate them. Their history is kept.
-        </p>
-        <Field label="Reason">
-          <Input
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="e.g. Seasonal contract paused"
-          />
-        </Field>
-      </Modal>
-
-      <ConfirmModal
-        open={deleting !== null}
-        onClose={() => setDeleting(null)}
-        onConfirm={confirmDelete}
-        title={deleting ? `Delete ${deleting.name}?` : "Delete user"}
-        confirmLabel="Delete user"
-        body="This removes their account and access. It can't be undone — suspend instead if they may come back."
-      />
+      {dir.modals}
       {/* Support access moved to Privacy & GDPR › Processors & DPO (AENR-565); a link stays here. */}
       <p className="mt-4 text-[13px] text-slate-600 flex items-center gap-1.5">
         <Icon.shieldCheck size={15} className="text-teal-700" />

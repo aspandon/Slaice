@@ -147,8 +147,8 @@ export interface AppContextValue {
   addBookingNote: (bookingId: string, note: BookingNote) => void;
   /** Tenant staff accounts and their roles (RBAC) — persisted. */
   staffUsers: StaffUser[];
-  /** Replace the staff list and record what changed in the audit trail. */
-  updateStaff: (users: StaffUser[], action: string) => void;
+  /** Replace the staff list and record what changed in the audit trail (by the manager unless `by` says who). */
+  updateStaff: (users: StaffUser[], action: string, by?: string) => void;
   staffAudit: StaffAuditEntry[];
   /** "View as" preview: the staff user whose access is being previewed. */
   viewAs: StaffUser | null;

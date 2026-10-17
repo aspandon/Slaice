@@ -275,9 +275,9 @@ export default function App() {
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
   }, []);
-  const updateStaff = useCallback((users: StaffUser[], action: string) => {
+  const updateStaff = useCallback((users: StaffUser[], action: string, by = "Manager / Admin") => {
     setStaffUsers(users);
-    setStaffAudit((a) => [{ at: new Date().toISOString(), by: "Manager / Admin", action }, ...a]);
+    setStaffAudit((a) => [{ at: new Date().toISOString(), by, action }, ...a]);
   }, []);
 
   useEffect(() => {

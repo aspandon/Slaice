@@ -37,7 +37,24 @@ export interface StaffUser {
   suspendReason?: string;
   /** Personal 4-digit PIN to take over a shared till (AENR-608) — cashier and support roles. */
   tillPin?: string;
+  /** Sign-in name shown in the invitation e-mail (AENR-718). */
+  username?: string;
+  /** The open invitation of an Invited user (AENR-718). */
+  invite?: StaffInvite;
+  /** When they set their own password on first sign-in (AENR-718). */
+  passwordSetAt?: string;
+  /** Their 2-step verification method, set on first sign-in (AENR-718). */
+  twoFactor?: { method: TwoFactorMethod; enrolledAt: string };
 }
+/** An invitation e-mail (AENR-718): valid until `expiresAt`, re-sent with a new link, or revoked. */
+export interface StaffInvite {
+  sentAt: string; // ISO timestamp
+  expiresAt: string; // ISO timestamp
+  /** How many times it was sent (1 = the first e-mail). */
+  sends: number;
+  revokedAt?: string;
+}
+export type TwoFactorMethod = "sms" | "email" | "app";
 export interface StaffAuditEntry {
   at: string; // ISO timestamp
   by: string;
