@@ -388,7 +388,9 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
 
 /* ---------- Language picker (own globe menu) ---------- */
 function LanguageMenu() {
-  const { lang, setLang, langAuto, setLangAuto } = useApp();
+  const { lang, setLang, langAuto, setLangAuto, showPreviews } = useApp();
+  // Non-MVP languages are roadmap (FUTURE) — listed only with previews on, or while in use (AENR-691).
+  const langs = LANGUAGES.filter((l) => l.mvp || showPreviews || (!langAuto && lang === l.code));
   const t = useT();
   return (
     <DropdownMenu.Root modal={false}>
@@ -407,7 +409,7 @@ function LanguageMenu() {
               <span className="flex-1 min-w-0 truncate">{t("Automatic")} <span className="text-slate-500 font-normal">· {LANGUAGES.find((l) => l.code === deviceLang())?.native}</span></span>
               <Icon.check size={12} className={`text-teal-600 shrink-0 ${langAuto ? "" : "invisible"}`} />
             </DropdownMenu.RadioItem>
-            {LANGUAGES.map((l) => (
+            {langs.map((l) => (
               <DropdownMenu.RadioItem key={l.code} value={l.code}
                 className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12px] cursor-pointer select-none outline-none ${!langAuto && lang === l.code ? "bg-slate-100 font-semibold text-navy-900" : "text-slate-700 hover:bg-slate-100 data-[highlighted]:bg-slate-100"}`}>
                 <span className="flex-1 min-w-0 truncate"><span className="font-semibold mr-1.5 uppercase">{l.code}</span><span className="text-slate-500">{l.native}</span></span>

@@ -1,11 +1,20 @@
 import { useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, Field, Input, Modal, Select } from "../../components/ui";
+import { Badge, Btn, Card, Field, Input, Modal, Select, Toggle } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { usePlatform } from "../../lib/usePlatform";
 import { addDays, fmtDay } from "../../domain/period";
 import { MODULES, moduleState, type ModuleSource } from "../../domain/plans";
-import type { TenantRecord } from "../../domain/tenants";
+import {
+  TENANT_FEATURES,
+  TENANT_FEATURE_GROUPS,
+  MODULE_REACH,
+  blockersOf,
+  featureSwitch,
+  isLastOn,
+  tenantHasModule,
+  type TenantFeatureId,
+} from "../../domain/features";
 import { SectionFrame, useTenantDraft, type SectionProps } from "./kit";
 
 const SOURCE: Record<ModuleSource, { l: string; tone: string }> = {
@@ -15,9 +24,8 @@ const SOURCE: Record<ModuleSource, { l: string; tone: string }> = {
   blocked: { l: "Blocked by requirement", tone: "red" },
   off: { l: "Not in plan", tone: "slate" },
 };
-/** Modules a requirement switches off regardless of plan or override. */
-export const blockersOf = (t: TenantRecord): Record<string, string> =>
-  t.stripe.charges ? {} : { Payments: "Stripe charges_enabled is false" };
+// The blockers live in the domain so the tenant app gates by module too (AENR-696).
+export { blockersOf };
 
 /* ---------- Modules (single source for the Super Admin matrix too) ---------- */
 export function Modules({ t }: SectionProps) {
@@ -27,7 +35,7 @@ export function Modules({ t }: SectionProps) {
   return (
     <SectionFrame
       title="Modules"
-      sub="What the tenant can use and why — plan, override (with reason and expiry), beta or blocked."
+      sub="What the tenant can use and why — plan, override (with reason and expiry), beta or blocked. A module that is off disappears at once for every role of the tenant — booking site, till, gate and back office."
     >
       <Card className="p-2">
         <ul className="divide-y divide-slate-100">
@@ -45,6 +53,11 @@ export function Modules({ t }: SectionProps) {
                 <span className="flex-1 min-w-[12rem] text-[12px] text-slate-500">
                   {st.detail}
                   {st.reverted ? ` · override expired ${st.reverted.expires} — reverted` : ""}
+                  {MODULE_REACH[m] && (
+                    <span className="block text-slate-500">
+                      {st.on ? "Shows" : "Hidden"}: {MODULE_REACH[m]}
+                    </span>
+                  )}
                 </span>
                 <span className="flex gap-1">
                   {st.source === "override" ? (
@@ -114,6 +127,64 @@ export function Modules({ t }: SectionProps) {
           }}
         />
       )}
+    </SectionFrame>
+  );
+}
+
+/* ---------- Features (AENR-677 / 721) ----------
+   Per-tenant switches finer than a module: one list (domain/features.ts), so a
+   new switch is one entry. A switch whose module is off shows as unavailable;
+   the till keeps at least one Sell tab on. Changes reach the tenant app at once. */
+export function Features({ t }: SectionProps) {
+  const { platform, today, updateTenant, toast, canEdit } = usePlatform();
+  const hasModule = (m: (typeof MODULES)[number]) => tenantHasModule(t, platform.plans, m, today);
+  const set = (key: TenantFeatureId, label: string, on: boolean) => {
+    updateTenant(t.id, (x) => ({ ...x, features: { ...x.features, [key]: on } }), {
+      section: "Features",
+      change: `${label} ${on ? "on" : "off"}`,
+    });
+    toast(`${label} ${on ? "on" : "off"} for ${t.name}.`, { tone: "success" });
+  };
+  return (
+    <SectionFrame
+      title="Features"
+      sub="Switches for this tenant only, on top of its modules. Every role of the tenant follows them at once."
+    >
+      {TENANT_FEATURE_GROUPS.map((g) => (
+        <Card key={g} className="p-2">
+          <h3 className="px-2 pt-1.5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            {g}
+          </h3>
+          <ul className="divide-y divide-slate-100">
+            {TENANT_FEATURES.filter((f) => f.group === g).map((f) => {
+              const moduleOff = !!f.module && !hasModule(f.module);
+              const on = featureSwitch(t, f.key);
+              const last = on && isLastOn(t, f.key, hasModule);
+              return (
+                <li key={f.key} className="px-2 py-2.5 flex items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-navy-900 text-[14px] flex flex-wrap items-center gap-2">
+                      {f.label}
+                      {moduleOff && <Badge tone="slate">Needs {f.module}</Badge>}
+                    </div>
+                    <p className="text-[12px] text-slate-500 leading-snug">
+                      {f.description}
+                      {moduleOff && ` The ${f.module} module is off for this tenant, so it stays hidden.`}
+                      {last && " The till needs at least one tab — turn another on first."}
+                    </p>
+                  </div>
+                  <Toggle
+                    ariaLabel={f.label}
+                    on={on && !moduleOff}
+                    disabled={!canEdit || moduleOff || last}
+                    onChange={(v) => set(f.key, f.label, v)}
+                  />
+                </li>
+              );
+            })}
+          </ul>
+        </Card>
+      ))}
     </SectionFrame>
   );
 }

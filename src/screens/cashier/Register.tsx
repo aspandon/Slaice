@@ -12,6 +12,7 @@ import { ManagerPinModal } from "./TillParts";
 import { OpenShiftCard, TillStatus } from "./TillStatus";
 
 import { downloadReport } from "../../lib/download";
+import { useTenantFeatures } from "../../lib/useFeatures";
 /* ============ CASH REGISTER — shift & drawer (AENR-507) ============
    Open with a float → every sale, refund and drawer movement lands on the
    shift → X report any time (read-only) → Z close with a counted amount
@@ -184,6 +185,10 @@ function ReportModal({ shift, kind, onClose }: { shift: TillShift; kind: "X" | "
   const { toast } = useApp();
   const t = useTill();
   const tot = shiftTotals(shift, t.till.sales);
+  // Extras the beach sells (AENR-696); anything already sold still prints — it's a fiscal record.
+  const { module } = useTenantFeatures();
+  const extrasLabel = module("Day Locker") && module("Parking") ? "Lockers & parking" : module("Day Locker") ? "Lockers" : module("Parking") ? "Parking" : "";
+  const showExtras = !!extrasLabel || Object.keys(tot.extras).length > 0;
   const variance = shift.counted !== undefined ? r2(shift.counted - tot.expectedCash) : null;
   const Row = ({ l, v, strong }: { l: string; v: string; strong?: boolean }) => <div className={`flex justify-between ${strong ? "font-bold" : ""}`}><span>{l}</span><span className="tnum">{v}</span></div>;
   // The shift report as a file for the accountant (AENR-593): PDF to keep, CSV to reconcile.
@@ -239,8 +244,10 @@ function ReportModal({ shift, kind, onClose }: { shift: TillShift; kind: "X" | "
         {Object.keys(tot.tickets).length ? Object.entries(tot.tickets).map(([k, n]) => <Row key={k} l={k} v={`× ${n}`} />) : <div>—</div>}
         <div className="font-bold mt-1">Sunbed sets by zone</div>
         {Object.keys(tot.sunbeds).length ? Object.entries(tot.sunbeds).map(([k, n]) => <Row key={k} l={zoneName(k)} v={`× ${n}`} />) : <div>—</div>}
-        <div className="font-bold mt-1">Lockers &amp; parking</div>
+        {showExtras && <>
+        <div className="font-bold mt-1">{extrasLabel || "Lockers & parking"}</div>
         {Object.keys(tot.extras).length ? Object.entries(tot.extras).map(([k, n]) => <Row key={k} l={k} v={`× ${n}`} />) : <div>—</div>}
+        </>}
         <div className="border-t border-dashed border-slate-300 my-2" />
         <Row l="Opening float" v={eur(shift.float)} />
         <Row l="Paid in" v={eur(tot.paidIn)} />

@@ -20,7 +20,11 @@ export interface PlatformState {
   role: "admin" | "support" | "viewer";
   /** Which tenant the Customer / Cashier / Controller demo personas represent. */
   siteTenant: string;
+  /** Seed revision of the tenants' module overrides a saved state has picked up (AENR-696). */
+  modulesSeed?: number;
 }
+/** Bump when seed tenants get new module overrides a saved state should adopt once. */
+export const MODULES_SEED = 1;
 export const emptyPlatform = (tenants: TenantRecord[]): PlatformState => ({
   tenants,
   plans: DEFAULT_PLANS,
@@ -33,6 +37,7 @@ export const emptyPlatform = (tenants: TenantRecord[]): PlatformState => ({
   clockDays: 0,
   role: "admin",
   siteTenant: "akti",
+  modulesSeed: MODULES_SEED,
 });
 export const tenantById = (p: PlatformState, id: string) => p.tenants.find((t) => t.id === id);
 

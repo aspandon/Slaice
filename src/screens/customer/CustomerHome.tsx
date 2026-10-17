@@ -27,6 +27,8 @@ import { BUILTIN_SCHEMES, makeCustomScheme, schemeProgress, HOME_LOYALTY_STATS }
 import type { RewardState, LoyaltyState } from "../../data/loyalty";
 import { BADGE_COLORS, statValue, metricFmt, HOME_GAME_STATS } from "../../data/gamification";
 import { useApp, useT } from "../../app/store";
+import { useTenantFeatures } from "../../lib/useFeatures";
+import { ADD_EXTRAS_LABEL, extrasPhrase } from "../../domain/features";
 
 // Bare date from a validity label (e.g. "End of season · 30 Sep 2026").
 const dateOf = (s: string) => s.split(/·|to/).pop()?.trim() ?? s;
@@ -55,6 +57,11 @@ export function CustomerHome() {
   const WIcon = Icon[wd.icon] || Icon.sun;
   const chipBubble = wd.icon === "sun" ? "from-amber-300 to-amber-500" : wd.icon === "wind" ? "from-teal-300 to-teal-500" : "from-slate-400 to-slate-600";
   const [promoDismissed, setPromoDismissed] = useState(false);
+  // Roadmap tiles (promo, rewards) show only with previews on; rewards also need Loyalty (AENR-691 / 696).
+  const { roadmap, module, allows } = useTenantFeatures();
+  const showPromo = roadmap && !promoDismissed;
+  const showRewards = allows({ future: true, module: "Loyalty" });
+  const extrasLine = extrasPhrase(module("Day Locker"), module("Parking"));
   const rewards = activeRewards(loyalty);
   const ready = rewards.filter((a) => a.state.kind === "claim").length;
   const scope = useRef<HTMLDivElement>(null);
@@ -130,7 +137,10 @@ export function CustomerHome() {
               <span className="text-shimmer inline-block" data-hero-word>{t("in 60 seconds")}</span>
             </h1>
             <div className="text-[14px] text-slate-700 mt-3 max-w-xl" data-hero-sub>
-              {t("Guests, dates, sunbeds, locker, parking — one guided flow with a live total.")}
+              {extrasLine === "both" ? t("Guests, dates, sunbeds, locker, parking — one guided flow with a live total.")
+                : extrasLine === "locker" ? t("Guests, dates, sunbeds, locker — one guided flow with a live total.")
+                : extrasLine === "parking" ? t("Guests, dates, sunbeds, parking — one guided flow with a live total.")
+                : t("Guests, dates, sunbeds — one guided flow with a live total.")}
             </div>
             <div className="mt-4 flex items-center gap-2.5 text-[13px] font-semibold text-navy-900" data-hero-live>
               <span aria-hidden="true" className="live-dot relative w-2 h-2 rounded-full bg-teal-500 text-teal-500 shrink-0" />
@@ -154,7 +164,9 @@ export function CustomerHome() {
         : moment.kind === "offseason" ? <OffSeasonCard opens={moment.opens} />
         : hero}
 
-      <div className="grid sm:grid-cols-2 gap-4 items-stretch">
+      {/* One column when only one tile is left (roadmap promo hidden / dismissed, AENR-691) — no half-empty row. */}
+      {(moment.kind !== "after" || showPromo) && (
+      <div className={`grid gap-4 items-stretch ${moment.kind !== "after" && showPromo ? "sm:grid-cols-2" : ""}`}>
         {/* Rebook your usual — from the guest's own visits (the after-visit card already offers it) */}
         {moment.kind !== "after" && <>
         {/* "Book again" opens Pay with exactly this proposal filled in (AENR-611 / 705); first-timers get the guided booking. */}
@@ -173,8 +185,9 @@ export function CustomerHome() {
           <RebookTile rebook={rebook} title={next ? t("Plan another visit") : t("Rebook your usual")} />
         )}
         </>}
+        {showPromo && (
         <div className="min-w-0">
-          {!promoDismissed && (
+          {(
             <div className={`${CARD} p-5 relative flex flex-col gap-2.5`} data-home-card>
               <button aria-label={t("Dismiss offer")} onClick={() => setPromoDismissed(true)} className="absolute top-3 right-3 w-7 h-7 grid place-items-center rounded-lg text-slate-400 hover:text-navy-900 hover:bg-white/50 transition"><Icon.x size={14} /></button>
               <div className="flex items-center gap-3 pr-7">
@@ -189,10 +202,12 @@ export function CustomerHome() {
             </div>
           )}
         </div>
+        )}
 
       </div>
+      )}
 
-      <RewardsStrip rewards={rewards} ready={ready} />
+      {showRewards && <RewardsStrip rewards={rewards} ready={ready} />}
 
       {/* Demo scene controls (time-of-day + weather), bottom-left — the
           counterpart to the persona switcher's demo pill on the right. */}
@@ -262,6 +277,9 @@ function AtBeachCard({ v }: { v: Visit }) {
   const t = useT();
   const [qr, setQr] = useState(false);
   const [extras, setExtras] = useState(false);
+  // Only the extras the beach sells (AENR-696) — no button at all when it sells neither.
+  const { module } = useTenantFeatures();
+  const kind = extrasPhrase(module("Day Locker"), module("Parking"));
   const has = [...v.parking.map((x) => `${t("Parking")} ${x}`), ...v.lockers.map((x) => `${t("Locker")} ${x}`)];
   return (
     <section aria-labelledby="at-beach" className={`${CARD} p-5 sm:p-7`} data-home-card>
@@ -273,8 +291,8 @@ function AtBeachCard({ v }: { v: Visit }) {
             {v.sets.length ? `${t("Sunbeds")} ${v.sets.join(", ")}` : t("Entry tickets")}{has.length ? ` · ${has.join(" · ")}` : ""}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
-            <Btn variant="primary" icon={Icon.plus} onClick={() => setExtras(true)}>{t("Add a locker or parking")}</Btn>
-            <Btn variant="outline" icon={Icon.qr} onClick={() => setQr(true)}>{t("Show QR")}</Btn>
+            {kind !== "none" && <Btn variant="primary" icon={Icon.plus} onClick={() => setExtras(true)}>{t(ADD_EXTRAS_LABEL[kind])}</Btn>}
+            <Btn variant={kind === "none" ? "primary" : "outline"} icon={Icon.qr} onClick={() => setQr(true)}>{t("Show QR")}</Btn>
             {/* Already here today — and planning the next one (AENR-702). */}
             <Btn variant="outline" icon={Icon.sparkles} onClick={() => dive()}>{t("Plan another visit")}</Btn>
             <Btn variant="ghost" onClick={() => go("customer", "mybookings")}>{t("Manage booking")}</Btn>
@@ -540,7 +558,9 @@ export function SeasonTile() {
 export function BadgesTile() {
   const { achievements } = useApp();
   const t = useT();
-  if (achievements.length === 0) return null;
+  // Gamification is a roadmap feature of the Loyalty module (AENR-691 / 696).
+  const { allows } = useTenantFeatures();
+  if (achievements.length === 0 || !allows({ future: true, module: "Loyalty" })) return null;
   const stats = HOME_GAME_STATS;
   const earnedCount = achievements.filter((a) => statValue(stats, a.metric) >= a.threshold).length;
   return (

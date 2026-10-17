@@ -44,7 +44,7 @@ const tagTone = (t: string) => ({ VIP: "amber", "Season pass": "blue" }[t] || "i
 type Guest = GuestFacts & { name: string; customer: Customer };
 
 export function AdminUsers() {
-  const { toast, passes, crm, setCrm, go, viewAs } = useApp();
+  const { toast, passes, crm, setCrm, go, viewAs, showPreviews } = useApp();
   const ops = useBookingOps();
   const ra = crm.regularAfter;
   const [q, setQ] = useState("");
@@ -301,7 +301,7 @@ export function AdminUsers() {
                   { id: "dup", label: "Duplicate", icon: Icon.layers, onSelect: () => duplicate(sg) },
                   { id: "pdf", label: "Export PDF", icon: Icon.doc, onSelect: () => exportSegment(sg, "pdf") },
                   { id: "csv", label: "Export CSV", icon: Icon.download, onSelect: () => exportSegment(sg, "csv") },
-                  { id: "msg", label: "Message segment", icon: Icon.mail, onSelect: () => go("admin", "communicate") },
+                  showPreviews && { id: "msg", label: "Message segment", icon: Icon.mail, onSelect: () => go("admin", "communicate") },
                   !sg.system && { id: "del", label: "Delete", icon: Icon.trash, destructive: true, onSelect: () => deleteSegment(sg) },
                 ]}
               />
@@ -355,9 +355,11 @@ export function AdminUsers() {
             <i className="w-2.5 h-2.5 rounded-full" style={{ background: active.color }} />
             <b className="text-navy-900">{active.name}</b>
             <span>{active.kind === "static" ? `Fixed list of ${active.members?.length ?? 0} guests` : active.rules.map((r) => ruleLabel(r, fieldOf(r.field, SCORE_FIELDS))).join(active.match === "all" ? " AND " : " OR ")}</span>
-            <span className="ml-auto flex gap-1.5">
-              <Btn size="sm" variant="ghost" icon={Icon.mail} onClick={() => go("admin", "communicate")}>Message</Btn>
-            </span>
+            {showPreviews && (
+              <span className="ml-auto flex gap-1.5">
+                <Btn size="sm" variant="ghost" icon={Icon.mail} onClick={() => go("admin", "communicate")}>Message</Btn>
+              </span>
+            )}
           </div>
         )}
         <SavedViews views={myViews} active={activeView?.id ?? null}

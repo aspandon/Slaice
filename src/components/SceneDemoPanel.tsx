@@ -12,10 +12,11 @@ import { NotMvpBadge } from "./ui";
    admin's Atmosphere switches and the whole pill disappears when both are off.
    ============================================================================ */
 export function SceneDemoPanel() {
-  const { weather, dayTime, sceneFx } = useApp();
+  const { weather, dayTime, sceneFx, showPreviews } = useApp();
   const t = useT();
   const [open, setOpen] = useState(false);
-  if (!sceneFx.weather && !sceneFx.daytime) return null;
+  // The atmosphere is a roadmap feature (FUTURE): its demo pill goes with previews off (AENR-691).
+  if (!showPreviews || (!sceneFx.weather && !sceneFx.daytime)) return null;
   const wd = WEATHER_DEMO[weather];
   const WIcon = (sceneFx.weather ? Icon[wd.icon] : Icon.sun) || Icon.sun;
 

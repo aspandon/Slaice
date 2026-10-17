@@ -311,6 +311,8 @@ export interface NavItem {
   group?: string;
   /** "account" marks personal destinations kept out of the desktop primary nav. */
   area?: string;
+  /** The tenant module the page belongs to — hidden when the module is off (AENR-696). */
+  module?: import("./plans").ModuleId;
 }
 
 /* ---------- Tickets ---------- */

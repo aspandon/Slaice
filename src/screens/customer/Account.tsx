@@ -229,7 +229,9 @@ function NotificationsPage({ prefs, setPrefs }: { prefs: Record<string, boolean>
 }
 
 function LanguagePage() {
-  const { lang, setLang, langAuto, setLangAuto } = useApp();
+  const { lang, setLang, langAuto, setLangAuto, showPreviews } = useApp();
+  // Non-MVP languages are roadmap (FUTURE) — listed only with previews on, or while in use (AENR-691).
+  const langs = LANGUAGES.filter((l) => l.mvp || showPreviews || (!langAuto && lang === l.code));
   const t = useT();
   return (
     <fieldset className={`${PAGE} py-1 divide-y divide-slate-200/70`}>
@@ -240,10 +242,10 @@ function LanguagePage() {
         <span className="flex-1 text-[14.5px] text-navy-900 rounded peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500">{t("Automatic")}<span className="block text-[12px] text-slate-500">{t("Same as this device")} · {LANGUAGES.find((l) => l.code === deviceLang())?.native}</span></span>
         {langAuto && <Icon.check size={18} className="text-teal-600" />}
       </label>
-      {LANGUAGES.map((l) => (
+      {langs.map((l) => (
         <label key={l.code} className="flex items-center gap-3 min-h-[52px] cursor-pointer">
           <input type="radio" name="account-lang" className="sr-only peer" checked={!langAuto && lang === l.code} onChange={() => setLang(l.code)} />
-          <span className="flex-1 text-[14.5px] text-navy-900 rounded peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500">{l.native}<span className="block text-[12px] text-slate-500">{l.label}{l.mvp ? "" : ` · ${t("FUTURE")}`}</span></span>
+          <span className="flex-1 text-[14.5px] text-navy-900 rounded peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500">{l.native}<span className="block text-[12px] text-slate-500">{l.label}{l.mvp || !showPreviews ? "" : ` · ${t("FUTURE")}`}</span></span>
           {!langAuto && lang === l.code && <Icon.check size={18} className="text-teal-600" />}
         </label>
       ))}

@@ -1,4 +1,5 @@
 import { useId, useMemo, useState } from "react";
+import { useTenantFeatures } from "../../lib/useFeatures";
 import { Icon, type IconRenderer } from "../../lib/icons";
 import {
   Badge,
@@ -76,6 +77,9 @@ const fmtAt = (at: string) =>
 
 export function CallCenterRefunds() {
   const { toast, bookingOps } = useApp();
+  // Off for the tenant (AENR-677) = no policy: every request waits for the manager.
+  const { feature } = useTenantFeatures();
+  const policy = feature("refunds.autoApprove") ? (bookingOps.rules?.refunds ?? DEFAULT_RULES.refunds) : { ...DEFAULT_RULES.refunds, on: false };
   const ops = useBookingOps();
   const [q, setQ] = useState("");
   // The chosen booking lives in the URL, so a refresh keeps the caller's booking open.
@@ -111,10 +115,10 @@ export function CallCenterRefunds() {
               key={picked.id}
               b={picked}
               eligibility={refundEligibility(picked, ops.refunds)}
-              policy={bookingOps.rules?.refunds ?? DEFAULT_RULES.refunds}
+              policy={policy}
               onChange={clear}
               onSubmit={(amount, reason, note) => {
-                const covered = policyCovers(bookingOps.rules?.refunds ?? DEFAULT_RULES.refunds, {
+                const covered = policyCovers(policy, {
                   amount,
                   reason,
                   status: "pending",

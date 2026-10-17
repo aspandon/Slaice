@@ -14,6 +14,7 @@ import { ARRIVAL_WINDOW, fmtDeadline, releaseDeadline, type Visit } from "../../
 import { guestNow, useVisits } from "../../lib/useVisits";
 import { BadgesTile, RewardRow, SeasonTile, VipTile, activeRewards } from "./CustomerHome";
 import { VisitQR } from "./VisitTicket";
+import { useTenantFeatures } from "../../lib/useFeatures";
 
 /* ============ Wallet (AENR-577 / 578, order AENR-686) ============
    Everything the guest holds, in one centred column under the top nav (the same
@@ -59,7 +60,11 @@ export function CustomerWallet() {
   const t = useT();
   const rewards = activeRewards(loyalty);
   const ready = rewards.filter((a) => a.state.kind === "claim").length;
-  const owned = [passes.vip && "vip", passes.season && "season"].filter(Boolean);
+  // VIP / Season passes and rewards are roadmap features (AENR-691); rewards need Loyalty too (AENR-696).
+  // With previews off the Wallet holds only what works today: credit and entries.
+  const { roadmap, allows } = useTenantFeatures();
+  const showRewards = allows({ future: true, module: "Loyalty" });
+  const owned = roadmap ? [passes.vip && "vip", passes.season && "season"].filter(Boolean) : [];
   const hasCredit = account.credit.balance > 0 || account.credit.log.length > 0;
   return (
     <div className="animate-fade-up w-full max-w-4xl mx-auto space-y-8">
@@ -73,8 +78,8 @@ export function CustomerWallet() {
           <div
             className={`grid gap-4 ${owned.length > 1 ? "sm:grid-cols-2" : "max-w-[26rem] mx-auto"}`}
           >
-            {passes.vip && <VipTile />}
-            {passes.season && <SeasonTile />}
+            {owned.includes("vip") && <VipTile />}
+            {owned.includes("season") && <SeasonTile />}
           </div>
           <p className="mt-3 text-center">
             <span className="inline-flex items-center gap-1.5 rounded-lg glass-card-solid px-2.5 py-1 text-[12.5px] text-slate-700">
@@ -89,6 +94,7 @@ export function CustomerWallet() {
 
       <UpcomingEntries />
 
+      {showRewards && (
       <section aria-labelledby="wallet-rewards">
         <SectionHead
           id="wallet-rewards"
@@ -133,10 +139,11 @@ export function CustomerWallet() {
           )}
         </div>
       </section>
+      )}
 
-      {passes.season && <ReleaseMyDay />}
+      {owned.includes("season") && <ReleaseMyDay />}
 
-      {owned.length < 2 && (
+      {roadmap && owned.length < 2 && (
         <section aria-labelledby="wallet-offers">
           <SectionHead id="wallet-offers" icon={Icon.sparkles}>
             {t("Passes you can get")}

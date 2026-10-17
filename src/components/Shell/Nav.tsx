@@ -194,6 +194,8 @@ export function BottomTabBar({ persona, page, setPage }: NavProps) {
 export function TillTabs({ persona, page, setPage }: NavProps) {
   const t = useT();
   const items = useNav(persona).filter((it) => it.area !== "account");
+  // Cash Register module off (AENR-696): no till pages, no tab bar.
+  if (!items.length) return null;
   return (
     <nav aria-label={t("Till")} className="mb-3 grid gap-1 rounded-2xl glass-card p-1" style={{ gridTemplateColumns: `repeat(${items.length}, minmax(0, 1fr))` }}>
       {items.map((it) => {

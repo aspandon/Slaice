@@ -1,4 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useTenantFeatures } from "../lib/useFeatures";
+import { ADD_EXTRAS_LABEL, extrasPhrase, type ExtrasKind } from "../domain/features";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { Icon } from "../lib/icons";
 import type { IconRenderer } from "../lib/icons";
@@ -46,6 +48,8 @@ const STEPS = [
   { id: "people", label: "Who",          icon: "group",       sub: "Tell us who's coming" },
   { id: "review", label: "Pay",          icon: "checkCircle", sub: "Check, add extras and pay" },
 ];
+/** The extras section heading for what the beach sells (AENR-696). */
+const EXTRAS_TITLE: Record<Exclude<ExtrasKind, "none">, string> = { both: "Locker and parking", locker: "Locker", parking: "Parking" };
 /** Old deep links to the retired locker / parking steps open the extras on Pay. */
 const EXTRA_STEPS = ["locker", "parking"];
 const BEACH_IDX = STEPS.findIndex((s) => s.id === "beach");
@@ -180,6 +184,11 @@ function WizardInner() {
   const [newGuest] = useDemoFlag("newGuest"); // Demo › first-time guest (AENR-702)
   useSpotlight("customer", "plan");
   const liveSlots = useLiveSlots();
+  // Lockers / parking only when the beach has the module (AENR-696) — the Pay row, the usual and the basket.
+  const { module } = useTenantFeatures();
+  const canLocker = module("Day Locker");
+  const canParking = module("Parking");
+  const extrasKind = extrasPhrase(canLocker, canParking);
 
   // "Book again" (AENR-611): the guest's usual — zone, sets, party, locker / parking — on the
   // next day it is free, worked out once when the wizard opens and shown on Pay.
@@ -299,8 +308,8 @@ function WizardInner() {
     setParkingDays((d) => d.filter((x) => set.has(x)));
   }, [selDates]);
   // The days each service actually covers: all chosen days, or a subset (multi-day).
-  const lockerDates = lockerOn ? (multiDate && lockerScope === "some" ? lockerDays : selDates) : [];
-  const parkingDates = parkingOn ? (multiDate && parkingScope === "some" ? parkingDays : selDates) : [];
+  const lockerDates = lockerOn && canLocker ? (multiDate && lockerScope === "some" ? lockerDays : selDates) : [];
+  const parkingDates = parkingOn && canParking ? (multiDate && parkingScope === "some" ? parkingDays : selDates) : [];
 
   // The admin-authored layout for this zone, if any — otherwise the default grid.
   // …with the live status for the chosen dates applied: sets sold at the till
@@ -671,14 +680,14 @@ function WizardInner() {
                 selDates={selDates} dayCount={dayCount}
                 zone={zone} bedSel={bedSel}
                 includeTickets={includeTickets} ticketBreak={ticketBreak}
-                lockerOn={lockerOn} lockerQty={lockerQty} lockerDates={lockerDates}
-                parkingOn={parkingOn} parkingQty={parkingQty} parkingDates={parkingDates} plates={plates} spotPlates={spotPlates}
+                lockerOn={lockerOn && canLocker} lockerQty={lockerQty} lockerDates={lockerDates}
+                parkingOn={parkingOn && canParking} parkingQty={parkingQty} parkingDates={parkingDates} plates={plates} spotPlates={spotPlates}
                 onJump={(id) => { if (EXTRA_STEPS.includes(id)) { setExtrasOpen(true); return; } const i = STEPS.findIndex((s) => s.id === id); if (i >= 0) setStepIdx(i); }}
               />
             )}
-            {step.id === "review" && (
-              <section ref={extrasRef} aria-label={tr("Locker and parking")} className="mt-3 mb-2 scroll-mt-2">
-                {!extrasOpen && !lockerOn && !parkingOn ? (
+            {step.id === "review" && extrasKind !== "none" && (
+              <section ref={extrasRef} aria-label={tr(EXTRAS_TITLE[extrasKind])} className="mt-3 mb-2 scroll-mt-2">
+                {!extrasOpen && !(lockerOn && canLocker) && !(parkingOn && canParking) ? (
                   <button
                     type="button"
                     onClick={() => setExtrasOpen(true)}
@@ -687,28 +696,32 @@ function WizardInner() {
                   >
                     <span className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 grid place-items-center shrink-0"><Icon.plus size={15} /></span>
                     <span className="flex-1 min-w-0">
-                      <span className="block text-[13.5px] font-semibold text-navy-900">{tr("Add a locker or parking")}</span>
-                      <span className="block text-[12px] text-slate-600">{tr("Optional — day lockers from")} €{Math.min(...lockerChoices.map((b) => b.price))} · {tr("parking")} €{PARKING_PRICE} {tr("a day")}</span>
+                      <span className="block text-[13.5px] font-semibold text-navy-900">{tr(ADD_EXTRAS_LABEL[extrasKind])}</span>
+                      <span className="block text-[12px] text-slate-600">
+                        {canLocker && lockerChoices.length > 0 && <>{tr("Optional — day lockers from")} €{Math.min(...lockerChoices.map((b) => b.price))}</>}
+                        {canLocker && lockerChoices.length > 0 && canParking && " · "}
+                        {canParking && <>{canLocker && lockerChoices.length > 0 ? tr("parking") : tr("Optional — parking")} €{PARKING_PRICE} {tr("a day")}</>}
+                      </span>
                     </span>
                     <Icon.chevR size={15} className="text-slate-400" />
                   </button>
                 ) : (
                   <div className="space-y-3 rounded-2xl ring-1 ring-slate-200 bg-white/60 p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-[13px] font-semibold text-navy-900">{tr("Locker and parking")}</div>
-                      {!lockerOn && !parkingOn && (
+                      <div className="text-[13px] font-semibold text-navy-900">{tr(EXTRAS_TITLE[extrasKind])}</div>
+                      {!(lockerOn && canLocker) && !(parkingOn && canParking) && (
                         <button type="button" onClick={() => setExtrasOpen(false)} className="text-[12px] font-semibold text-slate-500 hover:text-navy-900 rounded px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">{tr("Not now")}</button>
                       )}
                     </div>
-                    <LockerStep
+                    {canLocker && <LockerStep
                       on={lockerOn} setOn={setLockerOn}
                       scope={lockerScope} setScope={setLockerScope}
                       days={lockerDays} setDays={setLockerDays}
                       qty={lockerQty} setQty={setLockerQty}
                       selDates={selDates} multiDate={multiDate}
                       banks={lockerChoices} bank={lockerBank} setBank={setLockerBank}
-                    />
-                    <ParkingStep
+                    />}
+                    {canParking && <ParkingStep
                       on={parkingOn} setOn={setParkingOn}
                       qty={parkingQty} setQty={setParkingQty}
                       scope={parkingScope} setScope={setParkingScope}
@@ -717,7 +730,7 @@ function WizardInner() {
                       spotPlates={spotPlates} setSpotPlates={setSpotPlates}
                       samePlate={parkingSamePlate} setSamePlate={setParkingSamePlate}
                       selDates={selDates} multiDate={multiDate}
-                    />
+                    />}
                   </div>
                 )}
               </section>

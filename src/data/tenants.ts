@@ -76,6 +76,9 @@ interface Seed {
   /** Go-live date — drives the platform MRR history (AENR-589). */
   goLive?: string;
 }
+/** Modules outside Akti's Pro plan granted to the demo beach so the whole app shows (AENR-696). */
+export const AKTI_DEMO_MODULES = ["Loyalty", "Reviews", "Catalogue"];
+
 const SEEDS: Seed[] = [
   {
     id: "akti",
@@ -268,6 +271,8 @@ export const DEFAULT_TENANTS: TenantRecord[] = SEEDS.map((s) => {
         ? [
             { module: "Day Locker", on: true, reason: "Sold at the beach since opening", by: "Slaice onboarding", at: "2026-04-20T10:00:00" },
             { module: "Parking", on: true, reason: "Sold at the beach since opening", by: "Slaice onboarding", at: "2026-04-20T10:00:00" },
+            // The demo beach shows every module (AENR-696) — switch one off here to see it vanish.
+            ...AKTI_DEMO_MODULES.map((module) => ({ module, on: true, reason: "Demo beach — every module on", by: "Slaice onboarding", at: "2026-04-20T10:00:00" })),
           ]
         : [],
     beta: s.id === "akti" ? ["Geo Map"] : [],

@@ -18,6 +18,7 @@ import type { Zone } from "../domain/types";
 import { useClosure, useLiveSlots } from "./useLiveSlots";
 import { activeTickets, lockerAvail, lockerPrice, ticketPrice } from "../domain/extras";
 import { useFinance } from "./useFinance";
+import { useTenantFeatures } from "./useFeatures";
 
 /** Days ahead "Rebook your usual" looks for a day that works. */
 const HORIZON = 21;
@@ -54,6 +55,7 @@ export function useRebook(
   const liveSlots = useLiveSlots();
   const closure = useClosure();
   const [finance] = useFinance();
+  const gates = useTenantFeatures();
 
   const base = useMemo(() => {
     const cats = activeTickets(extras);
@@ -126,17 +128,18 @@ export function useRebook(
   if (base.status !== "ok") return base;
   // The same automatic deductions checkout applies (AENR-619 / 577 / 578), on the basket this plan becomes.
   const { quote } = base;
-  const best = bestReward(usableRewards(rewards, account.rewardsUsed ?? []), quote.items);
+  // Gated exactly like checkout (AENR-691 / 696): rewards need roadmap previews + Loyalty, passes need previews.
+  const best = gates.allows({ future: true, module: "Loyalty" }) ? bestReward(usableRewards(rewards, account.rewardsUsed ?? []), quote.items) : null;
   const rewardOff = best ? Math.min(best.amount, quote.total) : 0;
   const entries = quote.items.filter((i) => i.kind === "ticket").reduce((a, i) => a + i.price, 0);
   const seasonCovered =
-    passes.season && entries > 0
+    gates.roadmap && passes.season && entries > 0
       ? Math.min(ticketPrice(extras, "adult", todayISO()).price, entries)
       : 0;
   const { fullDue } = settleCheckout(quote.total, {
     rewardOff,
     seasonCovered,
-    vip: passes.vip ? { balance: passes.vip.balance, discount: passPricing.vipDiscount } : null,
+    vip: gates.roadmap && passes.vip ? { balance: passes.vip.balance, discount: passPricing.vipDiscount } : null,
     credit: account.credit.balance,
   });
   return { ...base, due: { toPay: fullDue, deducted: fullDue !== quote.total } };

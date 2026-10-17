@@ -38,7 +38,7 @@ export function GuestProfile({ guest: facts, customer, rfm, segments, tags, onCl
   onEdit: () => void;
   onAddTag: (tag: string) => void;
 }) {
-  const { crm, setCrm, toast, go, bookingNotes, comms } = useApp();
+  const { crm, setCrm, toast, go, bookingNotes, comms, showPreviews } = useApp();
   // The demo guest is one record everywhere (AENR-644): her own visits decide these.
   const me = useGuestRecord();
   const guest: GuestFacts =
@@ -114,7 +114,8 @@ export function GuestProfile({ guest: facts, customer, rfm, segments, tags, onCl
         {/* One primary action; the rest in "…" (AENR-653, AENR-617). */}
         <ActionsMenu label={`More actions for ${name}`} align="end" actions={[
           { id: "edit", label: "Edit details", icon: Icon.edit, onSelect: onEdit },
-          { id: "message", label: "Message", icon: Icon.mail, onSelect: () => go("admin", "communicate") },
+          // Communicate is a roadmap page (AENR-691).
+          showPreviews && { id: "message", label: "Message", icon: Icon.mail, onSelect: () => go("admin", "communicate") },
           { id: "qr", label: "Resend QR", icon: Icon.qr, disabled: !bookings[0], hint: bookings[0] ? undefined : "No bookings yet", onSelect: () => toast(`Demo — QR for ${bookings[0].id} re-sent to ${customer.email}.`, { tone: "success" }) },
         ]} />
         <Btn variant="primary" icon={Icon.plus} onClick={() => go("admin", "newbooking", { prefill: { name: `${customer.first} ${customer.last}`, email: customer.email, phone: customer.phone } })}>New booking</Btn>

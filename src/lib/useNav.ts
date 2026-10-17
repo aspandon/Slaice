@@ -1,9 +1,20 @@
-import { useApp } from "../app/store";
-import { navFor } from "../data/personas";
+import { FUTURE_PAGES, NAV, navFor } from "../data/personas";
 import type { PersonaId } from "../domain/types";
+import { useTenantFeatures } from "./useFeatures";
 
-/** The persona's menu items, with roadmap previews shown or hidden by the demo switch (AENR-618). */
+/** The persona's menu items: roadmap previews shown or hidden by the demo switch (AENR-618 / 691),
+ *  pages of modules the tenant doesn't have left out (AENR-696). */
 export function useNav(persona: PersonaId) {
-  const { showPreviews } = useApp();
-  return navFor(persona, showPreviews);
+  const { roadmap, module } = useTenantFeatures();
+  return navFor(persona, roadmap, module);
+}
+
+/** Whether a page may open for this tenant now, and why not (a direct link to a hidden page). */
+export function usePageAccess(persona: PersonaId, page: string): { ok: true } | { ok: false; why: "roadmap" | "module"; module?: string } {
+  const { roadmap, module } = useTenantFeatures();
+  const it = (NAV[persona] ?? []).find((x) => x.k === page);
+  if (it?.module && !module(it.module)) return { ok: false, why: "module", module: it.module };
+  const future = it?.badge === "Future" || (FUTURE_PAGES[persona] ?? []).includes(page);
+  if (future && !roadmap) return { ok: false, why: "roadmap" };
+  return { ok: true };
 }

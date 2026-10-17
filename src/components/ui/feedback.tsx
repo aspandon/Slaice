@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
 import { Badge, Btn } from "./primitives";
-import { useT } from "../../app/store";
+import { useApp, useT } from "../../app/store";
 
 /* ---------- Skeleton ---------- */
 export function Skeleton({ className = "" }: { className?: string }) {
@@ -115,9 +115,13 @@ export function ErrorState({ title = "Couldn't load this", body = "Something wen
 /* ---------- Roadmap scope markers ----------
    FutureBanner heads a whole roadmap page; NotMvpBadge marks a single tile or
    option inside an MVP page. Both share the orange "future" tone and are
-   translated, so customer pages read them in the guest's language. */
+   translated, so customer pages read them in the guest's language.
+   With roadmap previews off (AENR-691) both render nothing — a safety net;
+   the block they mark is hidden at its site with <Roadmap> / useTenantFeatures. */
 export function FutureBanner({ children }: { children?: ReactNode }) {
   const t = useT();
+  const { showPreviews } = useApp();
+  if (!showPreviews) return null;
   return (
     <div className="mb-4 flex items-center gap-2 rounded-xl bg-slaice-100 ring-1 ring-slaice-600/20 px-3 py-2 text-[12px] text-slaice-700">
       <Icon.info size={14} className="shrink-0 text-slaice-600" />
@@ -128,6 +132,8 @@ export function FutureBanner({ children }: { children?: ReactNode }) {
 
 export function NotMvpBadge({ className = "" }: { className?: string }) {
   const t = useT();
+  const { showPreviews } = useApp();
+  if (!showPreviews) return null;
   return <Badge tone="roadmap" className={`shrink-0 whitespace-nowrap ${className}`}>{t("FUTURE")}</Badge>;
 }
 

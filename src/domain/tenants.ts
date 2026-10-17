@@ -4,6 +4,7 @@
 // screens derive from it (allowed transitions, actions required, health score).
 
 import type { ModuleOverride, LimitId } from "./plans";
+import type { TenantFeatureId } from "./features";
 
 export type Lifecycle =
   | "onboarding"
@@ -149,6 +150,8 @@ export interface TenantRecord {
   addOns: number;
   overrides: ModuleOverride[];
   beta: string[];
+  /** Per-tenant feature switches (Platform › tenant › Features, AENR-677 / 721); missing = the feature's default. */
+  features?: Partial<Record<TenantFeatureId, boolean>>;
   releaseChannel: "stable" | "beta" | "preview";
   stripe: {
     details: boolean;

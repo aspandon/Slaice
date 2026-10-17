@@ -24,6 +24,7 @@ import { useExtras } from "../lib/useExtras";
 import { bestReward, usableRewards } from "../domain/rewards";
 import { activeRewards } from "./customer/CustomerHome";
 import { useDemoFlag } from "../lib/useDemoFlag";
+import { useTenantFeatures } from "../lib/useFeatures";
 import { ActionsMenu } from "../components/ui/ActionsMenu";
 
 // Online booking refs follow the account's bookings (BK-30001, BK-30002…) so they
@@ -51,7 +52,9 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
   const sf = serviceFees(cart, finance.fees, todayISO());
   const total = round2(goods + sf.total);
   // The best reward the guest has earned comes off by itself (AENR-619) — removable, nothing to claim.
-  const best = bestReward(usableRewards(activeRewards(loyalty), account.rewardsUsed ?? []), cart);
+  // Rewards, passes and wallet payments are roadmap features (AENR-691); rewards need Loyalty (AENR-696).
+  const { roadmap, allows } = useTenantFeatures();
+  const best = allows({ future: true, module: "Loyalty" }) ? bestReward(usableRewards(activeRewards(loyalty), account.rewardsUsed ?? []), cart) : null;
   const [skipReward, setSkipReward] = useState(false);
   const rewardOff = best && !skipReward ? Math.min(best.amount, total) : 0;
   const fee = +(total * SLAICE_FEE_RATE).toFixed(2);
@@ -61,8 +64,8 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
   // A guest can apply a Season pass (covers one entry ticket per visit) and/or
   // VIP credit (pays the order at a discount, billed against the balance). The
   // VIP discount only ever applies to the share the card actually pays for.
-  const hasVip = !!passes.vip;
-  const hasSeason = !!passes.season;
+  const hasVip = roadmap && !!passes.vip;
+  const hasSeason = roadmap && !!passes.season;
   const [applyVip, setApplyVip] = useState(true);
   const [applySeason, setApplySeason] = useState(true);
   const disc = passPricing.vipDiscount;
@@ -319,6 +322,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
               {/* Card is the way to pay today; Apple Pay, Google Pay (AENR-683) and Klarna (AENR-684)
                   are roadmap — shown with the FUTURE badge. */}
               <Btn variant="indigo" full size="lg" icon={Icon.card} onClick={pay}>{`${t("Pay by card")} · €${cashDue.toFixed(2)}`}</Btn>
+              {roadmap && <>
               <div className="flex items-center gap-2 text-[11px] text-slate-500"><span className="h-px flex-1 bg-slate-200" />{t("or")}<span className="h-px flex-1 bg-slate-200" /></div>
               <button type="button" onClick={() => walletPay("apple")} disabled={!!wallet} className="relative w-full min-h-[48px] rounded-[14px] bg-black text-white font-semibold text-[15px] inline-flex items-center justify-center gap-1.5 hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 disabled:opacity-70" aria-label={`${t("Pay with Apple Pay")} €${cashDue.toFixed(2)} · ${t("coming soon")}`}>
                 {wallet === "apple" ? t("Confirming…") : <><AppleLogo size={17} /> Pay</>}
@@ -332,6 +336,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
                 Klarna. <span className="font-semibold text-[13px]">{t("Pay in 3")}</span>
                 <NotMvpBadge className="absolute right-2.5 top-1/2 -translate-y-1/2" />
               </button>
+              </>}
             </div>
           ) : (
             <Btn variant="indigo" full size="lg" className="mt-4" icon={Icon.check} onClick={pay}>{t("Confirm · nothing to pay")}</Btn>

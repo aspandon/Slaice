@@ -1,6 +1,7 @@
 // Personas (RFP roles). Call Center is its own role (phone bookings + booking
 // lookup); Manager/Admin keeps the same Manual / Phone Booking screen too.
 import type { NavItem, Persona, PersonaId } from "../domain/types";
+import type { ModuleId } from "../domain/plans";
 
 export const PERSONAS: Persona[] = [
   { id: "customer", label: "Customer", icon: "umbrella", color: "#0D9488", blurb: "Πελάτης — online booking, tickets, QR entry, documents" },
@@ -18,10 +19,11 @@ export const PERSONAS: Persona[] = [
 // marks personal destinations: shown in the mobile nav sheet + the avatar menu, but
 // kept out of the desktop inline primary nav.
 /** The navigation a persona sees (AENR-618): roadmap (Future) pages are hidden unless the demo
- *  switch "Show roadmap previews" is on, and then they come last under "Coming next". Direct
- *  links to a preview keep working — this only shapes the menus. */
-export function navFor(persona: PersonaId, showPreviews: boolean): NavItem[] {
-  const all = NAV[persona] ?? [];
+ *  switch "Show roadmap previews" is on, and then they come last under "Coming next". Pages of
+ *  a module the tenant doesn't have are left out too (AENR-696); a direct link to a hidden
+ *  page shows a calm "not available" state (PageGate in App). */
+export function navFor(persona: PersonaId, showPreviews: boolean, hasModule: (m: ModuleId) => boolean = () => true): NavItem[] {
+  const all = (NAV[persona] ?? []).filter((it) => !it.module || hasModule(it.module));
   const ready = all.filter((it) => it.badge !== "Future");
   if (!showPreviews) return ready;
   return [...ready, ...all.filter((it) => it.badge === "Future").map((it) => ({ ...it, group: "Coming next" }))];
@@ -47,11 +49,11 @@ export const NAV: Record<PersonaId, NavItem[]> = {
     { k: "pricing", label: "Pricing & calendar", short: "Pricing", icon: "tag", badge: "MVP", group: "Sell" },
     { k: "products", label: "Products", short: "Products", icon: "ticket", badge: "MVP", group: "Sell" },
     { k: "passes", label: "Passes", short: "Passes", icon: "wallet", badge: "Future", group: "Sell" },
-    { k: "loyalty", label: "Loyalty", short: "Loyalty", icon: "gift", badge: "Future", group: "Sell" },
-    { k: "gamification", label: "Badges", short: "Badges", icon: "star", badge: "Future", group: "Sell" },
+    { k: "loyalty", label: "Loyalty", short: "Loyalty", icon: "gift", badge: "Future", group: "Sell", module: "Loyalty" },
+    { k: "gamification", label: "Badges", short: "Badges", icon: "star", badge: "Future", group: "Sell", module: "Loyalty" },
     { k: "users", label: "Guests & segments", short: "Guests", icon: "users", badge: "MVP", group: "Customers" },
     { k: "communicate", label: "Communicate", short: "Comms", icon: "bell", badge: "Future", group: "Customers" },
-    { k: "reporting", label: "Reports", short: "Reports", icon: "trend", badge: "MVP", group: "Analyze" },
+    { k: "reporting", label: "Reports", short: "Reports", icon: "trend", badge: "MVP", group: "Analyze", module: "Reporting" },
     { k: "layout", label: "Beach layout", short: "Layout", icon: "umbrella", badge: "MVP", group: "Settings" },
     { k: "rbac", label: "Team & roles", short: "Team", icon: "lock", badge: "MVP", group: "Settings" },
     { k: "privacy", label: "Privacy & GDPR", short: "Privacy", icon: "shieldCheck", badge: "MVP", group: "Settings" },
@@ -65,9 +67,9 @@ export const NAV: Record<PersonaId, NavItem[]> = {
   ],
   cashier: [
     // One place to sell (AENR-605): lockers are sold in Sell, tickets are redeemed at the gate.
-    { k: "issue", label: "Sell", short: "Sell", icon: "ticket", badge: "MVP" },
-    { k: "transactions", label: "Sales", short: "Sales", icon: "list", badge: "MVP" },
-    { k: "register", label: "Cash register", short: "Register", icon: "cash" },
+    { k: "issue", label: "Sell", short: "Sell", icon: "ticket", badge: "MVP", module: "Cash Register" },
+    { k: "transactions", label: "Sales", short: "Sales", icon: "list", badge: "MVP", module: "Cash Register" },
+    { k: "register", label: "Cash register", short: "Register", icon: "cash", module: "Cash Register" },
   ],
   controller: [
     { k: "scan", label: "Gate", short: "Gate", icon: "scan", badge: "MVP" },
@@ -78,9 +80,9 @@ export const NAV: Record<PersonaId, NavItem[]> = {
   support: [
     { k: "scan", label: "Gate Validation", short: "Gate", icon: "scan", badge: "MVP", group: "Gate" },
     { k: "beach", label: "Beach Status", short: "Beach", icon: "umbrella", badge: "MVP", group: "Beach" },
-    { k: "issue", label: "Sell", short: "Till", icon: "ticket", badge: "MVP", group: "Till" },
-    { k: "transactions", label: "Sales", short: "Sales", icon: "list", badge: "MVP", group: "Till" },
-    { k: "register", label: "Cash register", short: "Register", icon: "cash", group: "Till" },
+    { k: "issue", label: "Sell", short: "Till", icon: "ticket", badge: "MVP", group: "Till", module: "Cash Register" },
+    { k: "transactions", label: "Sales", short: "Sales", icon: "list", badge: "MVP", group: "Till", module: "Cash Register" },
+    { k: "register", label: "Cash register", short: "Register", icon: "cash", group: "Till", module: "Cash Register" },
     { k: "newbooking", label: "New booking", short: "New", icon: "plus", badge: "MVP", group: "Reservations" },
     { k: "bookings", label: "Bookings", short: "Bookings", icon: "grid", badge: "MVP", group: "Reservations" },
   ],
@@ -89,7 +91,7 @@ export const NAV: Record<PersonaId, NavItem[]> = {
     // Four pages, four distinct names (AENR-642).
     { k: "documents", label: "Documents", short: "Docs", icon: "receipt", badge: "MVP" },
     { k: "payments", label: "Payments & payouts", short: "Payments", icon: "card", badge: "MVP" },
-    { k: "reports", label: "Reports", short: "Reports", icon: "chart", badge: "MVP" },
+    { k: "reports", label: "Reports", short: "Reports", icon: "chart", badge: "MVP", module: "Reporting" },
   ],
   platform: [
     { k: "tenants", label: "Tenants", short: "Tenants", icon: "building", badge: "MVP" },
@@ -99,6 +101,11 @@ export const NAV: Record<PersonaId, NavItem[]> = {
     { k: "verticals", label: "Verticals", short: "Verticals", icon: "pkg", badge: "Future", group: "Marketing site" },
     { k: "landing", label: "Landing Page", short: "Landing", icon: "globe", badge: "Future", group: "Marketing site" },
   ],
+};
+
+/** Pages outside the nav that are roadmap previews (AENR-691) — hidden with previews off. */
+export const FUTURE_PAGES: Partial<Record<PersonaId, string[]>> = {
+  customer: ["vip", "season"],
 };
 
 export const DEFAULT_PAGE: Record<PersonaId, string> = {

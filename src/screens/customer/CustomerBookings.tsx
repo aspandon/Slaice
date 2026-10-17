@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useTenantFeatures } from "../../lib/useFeatures";
+import { ADD_EXTRAS_LABEL, extrasPhrase } from "../../domain/features";
 import { useGuestRecord } from "../../lib/useGuestRecord";
 import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, EmptyState, ErrorState, Field, Input, Modal, Stepper, Tabs, CardGridSkeleton, ActionsMenu, useLongPress, type MenuAction } from "../../components/ui";
@@ -257,7 +259,11 @@ export function ExtrasDialog({ v, only, onClose }: { v: Visit; /** "extras" = lo
   const [parking, setParking] = useState(0);
   const [locker, setLocker] = useState(0);
   const [busy, setBusy] = useState(false);
-  const bank = ex.banks[0];
+  // Only the extras the beach sells (AENR-696).
+  const { module } = useTenantFeatures();
+  const canParking = module("Parking");
+  const kind = extrasPhrase(module("Day Locker"), canParking);
+  const bank = module("Day Locker") ? ex.banks[0] : undefined;
   const lines: VisitLine[] = [
     ...ex.tickets.filter((c) => (qty[c.id] ?? 0) > 0).map((c) => ({ ref: v.refs[0], kind: "ticket" as const, label: `${ex.ticketLabel(c.id)} ×${qty[c.id]}`, amount: ex.ticketPrice(c.id, v.date) * qty[c.id] })),
     ...(parking ? [{ ref: v.refs[0], kind: "parking" as const, label: `${parking} spot${parking === 1 ? "" : "s"}`, amount: PARKING_PRICE * parking }] : []),
@@ -266,7 +272,7 @@ export function ExtrasDialog({ v, only, onClose }: { v: Visit; /** "extras" = lo
   const total = lines.reduce((a, l) => a + l.amount, 0);
   const card = account.savedCard ? `${account.savedCard.brand} ···· ${account.savedCard.last4}` : "Visa ···· 4242";
   return (
-    <Modal open onClose={onClose} title={only === "extras" ? `${t("Add a locker or parking")} · ${fmtWeekday(v.date)} ${fmtDay(v.date)}` : `${t("Add to")} ${fmtWeekday(v.date)} ${fmtDay(v.date)}`}
+    <Modal open onClose={onClose} title={only === "extras" && kind !== "none" ? `${t(ADD_EXTRAS_LABEL[kind])} · ${fmtWeekday(v.date)} ${fmtDay(v.date)}` : `${t("Add to")} ${fmtWeekday(v.date)} ${fmtDay(v.date)}`}
       footer={<><Btn variant="ghost" onClick={onClose}>{t("Cancel")}</Btn><Btn variant="primary" icon={Icon.card} loading={busy} disabled={!lines.length} onClick={() => { setBusy(true); window.setTimeout(() => { lines.forEach((l) => addExtra(v, l)); toast(`${t("Added")} · €${total} ${t("charged to")} ${card}. ${t("Your QR now includes them.")}`, { tone: "success" }); onClose(); }, 900); }}>{`${t("Pay")} €${total}`}</Btn></>}>
       <div className="space-y-2.5">
         {only !== "extras" && <>
@@ -277,9 +283,9 @@ export function ExtrasDialog({ v, only, onClose }: { v: Visit; /** "extras" = lo
             <Stepper label={`${ex.ticketLabel(c.id)} ${t("tickets")}`} value={qty[c.id] ?? 0} onChange={(n) => setQty((q) => ({ ...q, [c.id]: n }))} />
           </div>
         ))}
-        <div className="pt-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Extras")}</div>
+        {kind !== "none" && <div className="pt-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Extras")}</div>}
         </>}
-        <div className="flex items-center justify-between text-sm"><span>{t("Parking")} <span className="text-slate-500">€{PARKING_PRICE}</span></span><Stepper label={t("Parking spots")} value={parking} onChange={setParking} /></div>
+        {canParking && <div className="flex items-center justify-between text-sm"><span>{t("Parking")} <span className="text-slate-500">€{PARKING_PRICE}</span></span><Stepper label={t("Parking spots")} value={parking} onChange={setParking} /></div>}
         {bank && <div className="flex items-center justify-between text-sm"><span>{bank.name} <span className="text-slate-500">€{ex.lockerPrice(bank.id, v.date)}</span></span><Stepper label={t("Lockers")} value={locker} onChange={setLocker} /></div>}
         <p className="text-[12px] text-slate-500 pt-1">{t("Paid with")} {card}. {t("Free cancellation follows your booking.")}</p>
       </div>

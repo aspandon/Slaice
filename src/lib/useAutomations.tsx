@@ -7,6 +7,7 @@ import { opsKey } from "../domain/sunbedOps";
 import { useBeachState } from "./useBeachState";
 import { useLiveSlots } from "./useLiveSlots";
 import { opsNow, useBookingOps } from "./useBookingOps";
+import { useTenantFeatures } from "./useFeatures";
 
 /* ============ Routine decisions run by themselves (AENR-623) ============
    Mounted once in the app. The refund policy approves the routine requests
@@ -55,7 +56,10 @@ export function Automations() {
   useBookingOps();
 
   // Refunds the policy covers are approved as they arrive (and when the policy is widened).
-  const due = bookingOps.refunds.filter((r) => policyCovers(rules.refunds, r)).map((r) => r.id).join(",");
+  // Only when Slaice enabled automatic approval for the tenant (AENR-677).
+  const { feature } = useTenantFeatures();
+  const autoOn = feature("refunds.autoApprove");
+  const due = autoOn ? bookingOps.refunds.filter((r) => policyCovers(rules.refunds, r)).map((r) => r.id).join(",") : "";
   useEffect(() => {
     if (!due) return;
     const ids = new Set(due.split(","));

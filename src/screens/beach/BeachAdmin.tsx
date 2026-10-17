@@ -13,6 +13,7 @@ import { useUrlState } from "../../lib/useUrlState";
 import { useApp } from "../../app/store";
 import { SunbedWorkspace } from "./Workspace";
 import { LockersAdmin, TicketsAdmin } from "./Extras";
+import { Roadmap, useTenantFeatures } from "../../lib/useFeatures";
 import { PricingAdvanced, PricingCalendar } from "./Calendar";
 
 /* ============ AVAILABILITY & PRICING ============ */
@@ -481,7 +482,8 @@ export function AdminBeachLayout() {
             <div className="px-3 pb-2 text-[12px] text-slate-500">Applies immediately: a closed zone can’t be booked online or sold at the till, and its sets show as unavailable.</div>
           </Card>
           <ZoneArrangeEditor />
-          <AtmosphereCard />
+          {/* Atmosphere is a roadmap feature (AENR-691). */}
+          <Roadmap><AtmosphereCard /></Roadmap>
         </div>
       )}
     </div>
@@ -519,11 +521,18 @@ export function AdminPricing() {
 }
 
 export function AdminProducts() {
-  const [tab, setTab] = useUrlState("product", "tickets");
+  const [urlTab, setTab] = useUrlState("product", "tickets");
+  // Only the products of modules the tenant has (AENR-696); a stale ?product= falls back to the first tab.
+  const { module } = useTenantFeatures();
+  const tabs = ([["tickets", "Entry tickets", "Entry Ticket"], ["lockers", "Lockers", "Day Locker"], ["parking", "Parking", "Parking"], ["policies", "Guest policies", undefined]] as const)
+    .filter(([, , m]) => !m || module(m))
+    .map(([k, l]) => [k, l] as [string, string]);
+  const tab = tabs.some(([k]) => k === urlTab) ? urlTab : tabs[0][0];
+  const sold = tabs.filter(([k]) => k !== "policies").map(([, l]) => l.toLowerCase());
   return (
     <div className="animate-fade-up">
-      <PageHead sub="What else guests can buy with their day at the beach — entry tickets, lockers and parking, with their prices and rules — and the policies guests see before paying." />
-      <div className="mb-4"><Tabs scroll tabs={[["tickets", "Entry tickets"], ["lockers", "Lockers"], ["parking", "Parking"], ["policies", "Guest policies"]]} value={tab} onChange={setTab} /></div>
+      <PageHead sub={`What else guests can buy with their day at the beach${sold.length ? ` — ${sold.length > 1 ? `${sold.slice(0, -1).join(", ")} and ${sold[sold.length - 1]}` : sold[0]}, with their prices and rules —` : ""} and the policies guests see before paying.`} />
+      <div className="mb-4"><Tabs scroll tabs={tabs} value={tab} onChange={setTab} /></div>
       {tab === "policies" && <GuestPolicies />}
       {tab === "tickets" && <TicketsAdmin />}
       {tab === "lockers" && <LockersAdmin />}

@@ -169,7 +169,7 @@ export function PersonaSwitcher({
             </DropdownMenu.CheckboxItem>
           )}
           {/* Phones: the scene demo controls live here instead of floating over content (AENR-575). */}
-          {compact && persona === "customer" && (sceneFx.weather || sceneFx.daytime) && (
+          {compact && persona === "customer" && showPreviews && (sceneFx.weather || sceneFx.daytime) && (
             <div className="border-t border-slate-200 mt-1 px-2.5 pt-2 pb-1.5">
               <SceneControls />
             </div>

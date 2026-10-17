@@ -39,6 +39,7 @@ import { reconcile } from "../domain/reconcile";
 import { VARIANCE_TOLERANCE, eur as eurTill, shiftTotals } from "../domain/till";
 
 import { DEFAULT_RULES, POLICY_BY, POLICY_REASONS } from "../domain/bookingOps";
+import { useTenantFeatures } from "../lib/useFeatures";
 /** Full euro amount for exports and tables; tiles use the abbreviated fmtEUR. */
 const eurFull = (n: number) => `€${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -51,6 +52,10 @@ export { AdminBookings } from "./bookings/Bookings";
 const FIN_TABS = ["exec", "payments", "invoices"];
 export function AdminReporting() {
   const { toast, go, till } = useApp();
+  // Locker / parking figures only for the modules the tenant has (AENR-696); the till shifts need Cash Register.
+  const { module } = useTenantFeatures();
+  const hasLocker = module("Day Locker");
+  const hasParking = module("Parking");
   // Reports grouped by question (AENR-562): the view lives in the URL (?report=).
   const [tab, setTab] = useUrlState("report", "exec");
   const tabs: TabEntry[] = [
@@ -93,11 +98,12 @@ export function AdminReporting() {
 
   /* ---- Figures, computed once and shared by the screen and the CSV ---- */
   const ratio = (a: number, b: number) => (b ? a / b : 0);
-  const otherRev = now.byCapability.Lockers + now.byCapability.Parking;
+  const otherRev = (hasLocker ? now.byCapability.Lockers : 0) + (hasParking ? now.byCapability.Parking : 0);
+  const otherLabel = hasLocker && hasParking ? "Lockers & parking" : hasLocker ? "Lockers" : "Parking";
   const mix = [
     { l: "Sunbeds", v: Math.round(ratio(now.byCapability.Sunbeds, now.revenue) * 100), amt: now.byCapability.Sunbeds, c: "#0D9488", cls: "bg-teal-600" },
     { l: "Tickets", v: Math.round(ratio(now.byCapability.Tickets, now.revenue) * 100), amt: now.byCapability.Tickets, c: "#0ea5e9", cls: "bg-sky-500" },
-    { l: "Lockers & parking", v: Math.round(ratio(otherRev, now.revenue) * 100), amt: otherRev, c: "#f59e0b", cls: "bg-amber-500" },
+    ...(hasLocker || hasParking ? [{ l: otherLabel, v: Math.round(ratio(otherRev, now.revenue) * 100), amt: otherRev, c: "#f59e0b", cls: "bg-amber-500" }] : []),
   ];
   const k = (s: typeof now) => ({
     online: ratio(s.byChannel.Online.bookings, s.bookings),
@@ -134,7 +140,7 @@ export function AdminReporting() {
   const weekendLift = now.weekdayOccupancy ? Math.round((now.weekendOccupancy / now.weekdayOccupancy - 1) * 100) : 0;
   const capRows = [
     { l: "Sunbed", v: now.byCapability.Sunbeds }, { l: "Ticket", v: now.byCapability.Tickets },
-    { l: "Locker", v: now.byCapability.Lockers }, { l: "Parking", v: now.byCapability.Parking },
+    ...(hasLocker ? [{ l: "Locker", v: now.byCapability.Lockers }] : []), ...(hasParking ? [{ l: "Parking", v: now.byCapability.Parking }] : []),
   ];
   const capMax = Math.max(...capRows.map((c) => c.v));
   const zoneRev = ZONES.map((z) => ({ l: z.name, v: Math.round(now.revenueByZone[z.id] ?? 0) }));
@@ -160,8 +166,8 @@ export function AdminReporting() {
   const ops = [
     { l: "Sunbed bookings", n: now.sunbedBookings, g: now.byCapability.Sunbeds },
     { l: "Entry tickets", n: now.units.Tickets, g: now.byCapability.Tickets },
-    { l: "Day lockers", n: now.units.Lockers, g: now.byCapability.Lockers },
-    { l: "Parking", n: now.units.Parking, g: now.byCapability.Parking },
+    ...(hasLocker ? [{ l: "Day lockers", n: now.units.Lockers, g: now.byCapability.Lockers }] : []),
+    ...(hasParking ? [{ l: "Parking", n: now.units.Parking, g: now.byCapability.Parking }] : []),
   ].map((o) => ({ ...o, rf: refundShare(o.g), net: o.g - refundShare(o.g) }));
   const opsTotal = ops.reduce((a, o) => ({ n: a.n + o.n, g: a.g + o.g, rf: a.rf + o.rf, net: a.net + o.net }), { n: 0, g: 0, rf: 0, net: 0 });
   // Breakdown by day (by week / month for long ranges) so daily operations stay visible (AENR-480).
@@ -424,7 +430,7 @@ export function AdminReporting() {
             rows={opsRows.map((r) => [<span className="whitespace-nowrap">{r.l}</span>, fmtInt(r.x.sunbedBookings), fmtInt(r.x.units.Tickets), fmtInt(r.x.units.Lockers), fmtInt(r.x.units.Parking), eur(r.x.revenue), <span className="text-rose-600 tnum">−{eur(r.x.refunds.amount)}</span>, eur(r.x.revenue - r.x.refunds.amount)])} />
         </div>}
       </Card>}
-      {tab === "ops" && <TillShiftsCard />}
+      {tab === "ops" && module("Cash Register") && <TillShiftsCard />}
       {tab === "ops" && <div className="mt-4"><h2 className="font-display font-bold text-navy-900 mb-2">Gate</h2><GateThroughputCard /></div>}
     </div>
   );
@@ -457,10 +463,24 @@ function TillShiftsCard() {
    arrive, so the queue below holds only the exceptions. */
 function RefundPolicyCard() {
   const { bookingOps, setBookingOps } = useApp();
+  // Slaice enables automatic approval per tenant (AENR-677: Platform › tenant › Features).
+  const { feature } = useTenantFeatures();
   const rules = bookingOps.rules ?? DEFAULT_RULES;
   const pol = rules.refunds;
   const setPol = (p: Partial<typeof pol>) => setBookingOps((o) => ({ ...o, rules: { ...(o.rules ?? DEFAULT_RULES), refunds: { ...(o.rules ?? DEFAULT_RULES).refunds, ...p } } }));
   const byPolicy = bookingOps.refunds.filter((r) => r.decidedBy === POLICY_BY);
+  if (!feature("refunds.autoApprove"))
+    return (
+      <Card className="p-4 mb-4">
+        <div className="flex items-start gap-3">
+          <span className="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 grid place-items-center shrink-0"><Icon.lock size={16} /></span>
+          <div className="min-w-0">
+            <h2 className="font-display font-bold text-navy-900">Approve routine refunds automatically</h2>
+            <p className="text-[12.5px] text-slate-600">Not enabled for this beach — every request waits here for a person to decide. Ask Slaice to switch it on.</p>
+          </div>
+        </div>
+      </Card>
+    );
   return (
     <Card className="p-4 mb-4">
       <div className="flex flex-wrap items-start justify-between gap-3">

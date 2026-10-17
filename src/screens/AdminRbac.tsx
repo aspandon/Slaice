@@ -15,7 +15,8 @@ import {
   ActionsMenu,
 } from "../components/ui";
 import { useApp } from "../app/store";
-import { NAV } from "../data/personas";
+import { navFor } from "../data/personas";
+import { useTenantFeatures } from "../lib/useFeatures";
 import { STAFF_ROLES, hasRole, roleLabel, rolesLabel } from "../data/staff";
 import type { StaffRole, StaffStatus, StaffUser } from "../domain/types";
 
@@ -50,6 +51,8 @@ const sellsAtTill = (roles: readonly StaffRole[]) => roles.some((r) => TILL_ROLE
 
 export function AdminRbac() {
   const { staffUsers, updateStaff, staffAudit, startViewAs, toast } = useApp();
+  // A role card lists the pages it can open on this beach (roadmap previews / modules, AENR-691 / 696).
+  const { roadmap, module } = useTenantFeatures();
   const [q, setQ] = useState("");
   const [roleF, setRoleF] = useState<"all" | StaffRole>("all");
   const [statusF, setStatusF] = useState<"all" | StaffStatus>("all");
@@ -380,7 +383,7 @@ export function AdminRbac() {
                 </div>
                 <div className="text-[12px] text-slate-500 mt-0.5 leading-snug">{r.blurb}</div>
                 <ul className="mt-2 space-y-1 text-[12.5px] text-slate-700 flex-1">
-                  {NAV[r.id].map((n, i, all) => (
+                  {navFor(r.id, roadmap, module).map((n, i, all) => (
                     <li key={n.k} className="flex flex-wrap items-center gap-1.5">
                       {/* The role's pages under the same job groups as its sidebar (AENR-558). */}
                       {n.group && n.group !== all[i - 1]?.group && (

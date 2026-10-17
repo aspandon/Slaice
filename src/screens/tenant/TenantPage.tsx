@@ -11,7 +11,7 @@ import {
 } from "../../domain/tenants";
 import { SectionCtx, confirmLeave, type SectionProps } from "./kit";
 import { Billing, Contract, Overview, Profile, Usage } from "./AccountSections";
-import { Branding, Localisation, Locations, Modules } from "./ProductSections";
+import { Branding, Features, Localisation, Locations, Modules } from "./ProductSections";
 import { Compliance, Integrations, Invoicing, Payments, Security, Users } from "./AccessSections";
 import { Audit, DataExport, Health, Support } from "./SupportSections";
 import { DangerZone } from "./Lifecycle";
@@ -84,6 +84,15 @@ export const SECTIONS: SectionDef[] = [
     group: "Product",
     edit: "admin",
     render: (p) => <Modules {...p} />,
+  },
+  {
+    // Per-tenant feature switches (AENR-677 / 721) — the permanent home for new ones.
+    id: "features",
+    label: "Features",
+    icon: Icon.sliders,
+    group: "Product",
+    edit: "admin",
+    render: (p) => <Features {...p} />,
   },
   {
     id: "locations",

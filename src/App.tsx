@@ -10,6 +10,7 @@ import { ConsentBanner } from "./components/ConsentBanner";
 import { CustomerBackdrop } from "./components/CustomerBackdrop";
 import { GlideLogo } from "./components/GlideLogo";
 import { routeFor } from "./routes";
+import { PageGate } from "./components/Shell/PageGate";
 import { parseHash, buildHash, hashPath, isValidPage, resolvePage } from "./app/router";
 import { HTML_LANG, deviceLang, normalizeLang } from "./app/i18n";
 import { DEFAULT_BACKGROUND } from "./data/backgrounds";
@@ -42,7 +43,7 @@ import { TenantSwitcher } from "./screens/tenant/TenantPage";
 import { DEFAULT_LAYOUT_STATE, type LayoutState } from "./domain/layoutVersions";
 import { DEFAULT_EXTRAS, type ExtrasState } from "./domain/extras";
 import { DEFAULT_ACCOUNT, type AccountState } from "./domain/account";
-import { emptyPlatform, type PlatformState } from "./domain/platform";
+import { MODULES_SEED, emptyPlatform, type PlatformState } from "./domain/platform";
 import { DEFAULT_COMMS, type CommsState } from "./data/comms";
 import { DEFAULT_PRIVACY, type PrivacyState } from "./data/gdpr";
 import { CommsJanitor } from "./screens/communicate/Janitor";
@@ -229,9 +230,14 @@ export default function App() {
     // Saved seed tenants pick up later seed facts they never had (staggered go-live, AENR-589).
     const seeded = sp.tenants.map((t) => {
       const d = DEFAULT_TENANTS.find((x) => x.id === t.id);
-      return d?.goLive && t.goLive === "2026-04-20" ? { ...t, goLive: d.goLive } : t;
+      const t2 = d?.goLive && t.goLive === "2026-04-20" ? { ...t, goLive: d.goLive } : t;
+      // Seed module overrides added later (AENR-696: the demo beach has every module) join once,
+      // never replacing an override the Platform set since.
+      if (!d || (sp.modulesSeed ?? 0) >= MODULES_SEED) return t2;
+      const add = d.overrides.filter((o) => !t2.overrides.some((x) => x.module === o.module));
+      return add.length ? { ...t2, overrides: [...t2.overrides, ...add] } : t2;
     });
-    return { ...base, ...sp, tenants: [...seeded, ...DEFAULT_TENANTS.filter((d) => !sp.tenants.some((t) => t.id === d.id))] };
+    return { ...base, ...sp, modulesSeed: MODULES_SEED, tenants: [...seeded, ...DEFAULT_TENANTS.filter((d) => !sp.tenants.some((t) => t.id === d.id))] };
   });
   const setPlatform = useCallback((u: (s: PlatformState) => PlatformState) => setPlatformState(u), []);
   const [comms, setCommsState] = useState<CommsState>(() => {
@@ -500,14 +506,14 @@ export default function App() {
             // the bottom of the viewport (the beach backdrop's green band)
             // instead of floating up under short pages.
             <div className="flex-1">
-              <main className="min-w-0">{viewAs ? <AccessDenied user={viewAs} onHome={() => go(viewAs.roles[0], DEFAULT_PAGE[viewAs.roles[0]])} /> : routeFor(persona, page)}</main>
+              <main className="min-w-0">{viewAs ? <AccessDenied user={viewAs} onHome={() => go(viewAs.roles[0], DEFAULT_PAGE[viewAs.roles[0]])} /> : <PageGate persona={persona} page={page}>{routeFor(persona, page)}</PageGate>}</main>
             </div>
           ) : (
             <div className="flex-1 flex gap-5 min-h-0">
               {persona !== "cashier" && <Sidebar persona={persona} page={page} setPage={setPage} />}
               {/* While Slaice staff view a tenant, the guard disables mutating / blocked controls (AENR-515). */}
               <GuardCtx.Provider value={guard}>
-                <main className="flex-1 min-w-0">{persona === "cashier" && <TillTabs persona={persona} page={page} setPage={setPage} />}{persona === "cashier" && !viewAs && <OfflineBanner />}{viewAs && !hasRole(viewAs, persona) ? <AccessDenied user={viewAs} onHome={() => go(viewAs.roles[0], DEFAULT_PAGE[viewAs.roles[0]])} /> : routeFor(persona, page)}</main>
+                <main className="flex-1 min-w-0">{persona === "cashier" && <TillTabs persona={persona} page={page} setPage={setPage} />}{persona === "cashier" && !viewAs && <OfflineBanner />}{viewAs && !hasRole(viewAs, persona) ? <AccessDenied user={viewAs} onHome={() => go(viewAs.roles[0], DEFAULT_PAGE[viewAs.roles[0]])} /> : <PageGate persona={persona} page={page}>{routeFor(persona, page)}</PageGate>}</main>
               </GuardCtx.Provider>
             </div>
           )}

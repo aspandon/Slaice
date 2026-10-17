@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { ZoneChips } from "../../components/ZoneChips";
 import { Icon, type IconRenderer } from "../../lib/icons";
-import { ActionsMenu, Btn, Card, Field, Input, Modal, StickyActionBar, Stepper } from "../../components/ui";
+import { ActionsMenu, Btn, Card, EmptyState, Field, Input, Modal, StickyActionBar, Stepper } from "../../components/ui";
 import { SunbedMap, StaffSet } from "../../components/SunbedMap";
 import { SetScanner, type ScanHit } from "../../components/SetScanner";
 import { useApp } from "../../app/store";
@@ -21,6 +21,7 @@ import { ChargeButton, ManagerPinModal, ReceiptModal, SaleDone } from "./TillPar
 import { TenderModal } from "./Tender";
 import { openDisplay } from "../../domain/display";
 import { OpenShiftCard, TillStatus } from "./TillStatus";
+import { useTenantFeatures } from "../../lib/useFeatures";
 
 /* ============ ISSUE TICKET — the till (AENR-497) ============
    One basket for entry tickets, sunbed sets in the zone the walk-in chooses,
@@ -77,7 +78,15 @@ function IssueInner() {
   const [custOpen, setCustOpen] = useState(false);
   const [err, setErr] = useState("");
   const [scanOpen, setScanOpen] = useState(false);
-  const [tab, setTab] = useState<ProductTab>("quick");
+  const [tabPick, setTab] = useState<ProductTab>("quick");
+  // The Sell tabs the tenant switched on (AENR-721), each also needing its module (AENR-696).
+  const { feature } = useTenantFeatures();
+  const tabs = PRODUCT_TABS.filter((x) => feature(`till.${x.id}`));
+  const tab: ProductTab | undefined = tabs.some((x) => x.id === tabPick) ? tabPick : tabs[0]?.id;
+  const canTickets = feature("till.tickets");
+  const canSets = feature("till.sunbeds");
+  const quickKeys = QUICK_KEYS.filter((q) => (canTickets || !Object.values(q.tickets).some((n) => (n ?? 0) > 0)) && (canSets || !q.sets));
+  const bundles = canTickets && canSets ? BUNDLES : [];
 
   const zone = ZONES.find((z) => z.id === zoneId) ?? ZONES[0];
   const priceOf = (s: SunbedSlot, zId = zone.id) => resolvePrice(s, zId, t.day, beachPricing, priceRules).price;
@@ -191,11 +200,11 @@ function IssueInner() {
   }); };
   // Arrow keys / Home / End move between product tabs (WAI-ARIA tabs pattern).
   const tabKeys = (e: KeyboardEvent) => {
-    const i = PRODUCT_TABS.findIndex((x) => x.id === tab);
-    const next = e.key === "ArrowRight" ? i + 1 : e.key === "ArrowLeft" ? i - 1 : e.key === "Home" ? 0 : e.key === "End" ? PRODUCT_TABS.length - 1 : null;
-    if (next === null) return;
+    const i = tabs.findIndex((x) => x.id === tab);
+    const next = e.key === "ArrowRight" ? i + 1 : e.key === "ArrowLeft" ? i - 1 : e.key === "Home" ? 0 : e.key === "End" ? tabs.length - 1 : null;
+    if (next === null || !tabs.length) return;
     e.preventDefault();
-    const id = PRODUCT_TABS[(next + PRODUCT_TABS.length) % PRODUCT_TABS.length].id;
+    const id = tabs[(next + tabs.length) % tabs.length].id;
     setTab(id);
     document.getElementById(`till-tab-${id}`)?.focus();
   };
@@ -227,11 +236,12 @@ function IssueInner() {
     fresh();
     setErr("");
     lastSale.lines.forEach((l) => {
-      if (l.kind === "ticket" && l.cat) setTicketQty(l.cat, ticketQty(l.cat) + l.qty);
-      else if (l.kind === "locker" && l.bank) setLockerQty(l.bank, lockerQty(l.bank) + l.qty);
-      else if (l.kind === "parking") setParkingQty(parkingQty + l.qty);
+      // Only what the till still sells (AENR-721).
+      if (l.kind === "ticket" && l.cat && canTickets) setTicketQty(l.cat, ticketQty(l.cat) + l.qty);
+      else if (l.kind === "locker" && l.bank && feature("till.lockers")) setLockerQty(l.bank, lockerQty(l.bank) + l.qty);
+      else if (l.kind === "parking" && feature("till.parking")) setParkingQty(parkingQty + l.qty);
     });
-    const byZone = lastSale.lines.filter((l) => l.kind === "sunbed" && l.zoneId).reduce<Record<string, number>>((m, l) => ({ ...m, [l.zoneId as string]: (m[l.zoneId as string] ?? 0) + l.qty }), {});
+    const byZone = lastSale.lines.filter((l) => canSets && l.kind === "sunbed" && l.zoneId).reduce<Record<string, number>>((m, l) => ({ ...m, [l.zoneId as string]: (m[l.zoneId as string] ?? 0) + l.qty }), {});
     const short: string[] = [];
     Object.entries(byZone).forEach(([zId, n]) => {
       const picked = [...freeIn(zId)].sort((a, b) => a.y - b.y || a.price - b.price).slice(0, n);
@@ -331,8 +341,9 @@ function IssueInner() {
           {/* Catalogue: product tabs, one panel at a time (AENR-584) — on a
               tablet the whole sale fits the screen; only a panel scrolls. */}
           <div className="min-w-0 flex flex-col gap-3" style={fitH ? { height: fitH } : undefined}>
-            <div role="tablist" aria-label="Products" aria-orientation="horizontal" className="shrink-0 grid grid-cols-5 gap-1 rounded-2xl glass-card p-1">
-              {PRODUCT_TABS.map((x) => {
+            {tabs.length > 1 && (
+            <div role="tablist" aria-label="Products" aria-orientation="horizontal" className="shrink-0 grid gap-1 rounded-2xl glass-card p-1" style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}>
+              {tabs.map((x) => {
                 const n = tabCount(x.id);
                 const on = tab === x.id;
                 const I = x.icon;
@@ -346,13 +357,15 @@ function IssueInner() {
                 );
               })}
             </div>
+            )}
 
-            <div id="till-panel" role="tabpanel" aria-labelledby={`till-tab-${tab}`} className="glass-card surface-raised rounded-3xl p-4 flex-1 min-h-0 overflow-y-auto">
+            <div id="till-panel" role={tabs.length > 1 ? "tabpanel" : undefined} aria-labelledby={tabs.length > 1 ? `till-tab-${tab}` : undefined} className="glass-card surface-raised rounded-3xl p-4 flex-1 min-h-0 overflow-y-auto">
+              {!tab && <EmptyState compact icon={Icon.ticket} title="Nothing to sell here" body="Every product on the till is switched off for this beach. Slaice sets them in Platform › Tenants › Features." />}
               {tab === "quick" && (
                 <>
-                  <h2 className="font-display font-bold text-navy-900 mb-2">Quick keys</h2>
+                  {quickKeys.length > 0 && <h2 className="font-display font-bold text-navy-900 mb-2">Quick keys</h2>}
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
-                    {QUICK_KEYS.map((q) => (
+                    {quickKeys.map((q) => (
                       <button key={q.id} type="button" onClick={() => quick(q)}
                         className="min-h-[56px] rounded-xl bg-navy-900 text-white px-4 py-1.5 font-semibold text-sm shadow-sm hover:bg-navy-800 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2">
                         <span className="block">{q.label}</span>
@@ -368,9 +381,10 @@ function IssueInner() {
                       <span className="font-semibold text-navy-900 tnum">{eur(lastSale.total)}</span>
                     </button>
                   )}
+                  {bundles.length > 0 && <>
                   <h2 className="font-display font-bold text-navy-900 mt-4 mb-2">Bundles · {zone.name}</h2>
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">
-                    {BUNDLES.map((b) => (
+                    {bundles.map((b) => (
                       <button key={b.id} type="button" onClick={() => addBundle(b)}
                         className="min-h-[56px] rounded-xl bg-teal-50 text-teal-800 ring-1 ring-teal-600/25 px-4 py-2 text-left text-sm hover:bg-teal-100 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
                         <span className="font-semibold">{b.label}</span>
@@ -378,7 +392,8 @@ function IssueInner() {
                       </button>
                     ))}
                   </div>
-                  <p className="mt-3 text-[12px] text-slate-500">Sets go in the zone picked under <button type="button" className="font-semibold text-teal-700 hover:underline" onClick={() => setTab("sunbeds")}>Sunbeds</button> (now {zone.name}).</p>
+                  </>}
+                  {canSets && <p className="mt-3 text-[12px] text-slate-500">Sets go in the zone picked under <button type="button" className="font-semibold text-teal-700 hover:underline" onClick={() => setTab("sunbeds")}>Sunbeds</button> (now {zone.name}).</p>}
                 </>
               )}
 
