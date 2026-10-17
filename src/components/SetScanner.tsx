@@ -68,6 +68,9 @@ export function SetScanner({
   };
   return (
     <div className={compact ? "space-y-2" : "space-y-3"}>
+      {/* Compact (the Beach page, AENR-699): the viewfinder shows only while scanning, so the
+          map starts higher on a phone. */}
+      {(!compact || scanning) && (
       <div
         className={`relative mx-auto ${compact ? "w-full h-28" : "w-full max-w-xs h-40"} rounded-2xl ring-2 ring-dashed grid place-items-center overflow-hidden ${scanning ? "ring-teal-500 bg-teal-50" : "ring-teal-400/60 bg-teal-50/40"} text-teal-600`}
       >
@@ -80,6 +83,7 @@ export function SetScanner({
         )}
         <style>{`@keyframes setscan{0%{top:8px}50%{top:calc(100% - 10px)}100%{top:8px}}`}</style>
       </div>
+      )}
       <Btn variant="teal" full icon={Icon.scan} onClick={scan} disabled={scanning}>
         {scanning ? "Scanning…" : "Scan QR (demo camera)"}
       </Btn>

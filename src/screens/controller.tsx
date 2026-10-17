@@ -200,7 +200,7 @@ export function ControllerScan() {
             <label className="inline-flex items-center gap-1.5 text-sm">
               <Icon.scan size={14} />
               <span className="sr-only">Gate</span>
-              <select value={fb.gate} onChange={(e) => setFb({ ...fb, gate: e.target.value })} className="rounded-lg bg-white/15 font-semibold px-2 py-1 min-h-[32px] outline-none focus-visible:ring-2 focus-visible:ring-teal-300">
+              <select value={fb.gate} onChange={(e) => setFb({ ...fb, gate: e.target.value })} className="rounded-lg bg-white/15 font-semibold px-2.5 py-1 min-h-[44px] outline-none focus-visible:ring-2 focus-visible:ring-teal-300">
                 {GATES.map((g) => <option key={g} value={g}>{g}</option>)}
               </select>
             </label>

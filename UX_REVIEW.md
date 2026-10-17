@@ -509,6 +509,7 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-670 — your zone stays on the sand.** Who and Pay show the zone you booked in with your sets; the zone row sits mid-sand.
 - **AENR-671 — the beach logo in the wizard.** Shown large over the sea on desktop, as on Home.
 - **AENR-672 — the logo glides with the sand.** From the Home header to its place over the sea and back.
+- **AENR-699 / 700 — Controller and Support Agent on phones and tablets**: compact Bookings rows below 1024 px, 44 px touch targets (tabs, filters, map switch, zoom, gate select), viewfinder only while scanning.
 - **AENR-715 — one QR for the group**: share by e-mail / SMS / Viber with a public guest view and wallets; the gate admits people per arrival until the QR is used up.
 - **AENR-727 — one QR per booking everywhere** (screens used to draw different codes).
 - **AENR-711 — Slaice sets each beach’s entry-ticket categories** (name, label, description, price, order; add/remove).

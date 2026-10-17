@@ -10,7 +10,7 @@ import type { AmountFilter, AmountOp, FilterDef, FilterState } from "../../domai
 import { activeCount, amountError, amountLabel, isAmount } from "../../domain/filters";
 
 const trigger = (on: boolean) =>
-  `inline-flex items-center gap-1.5 h-9 rounded-xl px-3 text-[13px] font-semibold ring-1 transition whitespace-nowrap ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white/70 text-navy-900 ring-slate-200 hover:ring-slate-300"}`;
+  `inline-flex items-center gap-1.5 h-9 [@media(pointer:coarse)]:h-11 rounded-xl px-3 text-[13px] font-semibold ring-1 transition whitespace-nowrap ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white/70 text-navy-900 ring-slate-200 hover:ring-slate-300"}`;
 const panel =
   "glass !bg-white/95 text-ink rounded-2xl p-3 z-[60] shadow-float w-[260px] max-w-[calc(100vw-1.5rem)] data-[state=open]:animate-scale-in";
 

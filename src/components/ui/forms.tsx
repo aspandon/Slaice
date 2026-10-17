@@ -45,7 +45,7 @@ export function Toggle({ on, onChange, label, ariaLabel, disabled }: { on?: bool
   const g = useGuard();
   const ro = g.viewAs && g.readOnly;
   return (
-    <button type="button" role="switch" aria-checked={!!on} aria-label={label ? undefined : ariaLabel} disabled={disabled || ro} title={ro ? "Read-only View-as session — changes are disabled." : undefined} onClick={() => onChange(!on)} className="inline-flex items-center gap-2 group rounded-full disabled:cursor-not-allowed disabled:opacity-60">
+    <button type="button" role="switch" aria-checked={!!on} aria-label={label ? undefined : ariaLabel} disabled={disabled || ro} title={ro ? "Read-only View-as session — changes are disabled." : undefined} onClick={() => onChange(!on)} className="relative inline-flex items-center gap-2 group rounded-full disabled:cursor-not-allowed disabled:opacity-60 before:absolute before:-inset-y-2 before:-inset-x-1 before:content-['']">
       <span className={`w-11 h-7 rounded-full transition-colors duration-200 relative ${on ? "bg-teal-600" : "bg-slate-300 group-hover:group-enabled:bg-slate-400"}`}>
         <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-sm transition-all duration-200 ease-spring ${on ? "left-[18px]" : "left-0.5"}`} />
       </span>

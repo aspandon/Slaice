@@ -348,7 +348,7 @@ export function AdminBookings() {
               <PeriodPicker value={period} onChange={setPeriod} allowAll presets={["day", "week", "month", "year", "season"]} resetTo={{ kind: "all" }} />
             </div>
           </FilterBar>
-          <span className="ml-auto"><DensityToggle /></span>
+          <span className="ml-auto hidden lg:inline-flex"><DensityToggle /></span>
         </div>
         <Tabs
           scroll
@@ -366,7 +366,7 @@ export function AdminBookings() {
                 role="radio"
                 aria-checked={status === x.k}
                 onClick={() => setStatus(status === x.k ? "" : x.k)}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 min-h-[34px] text-[12.5px] font-semibold ring-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${status === x.k ? "bg-navy-900 text-white ring-navy-900" : "bg-white text-navy-900 ring-slate-200 hover:ring-teal-400"}`}
+                className={`inline-flex items-center gap-1.5 rounded-full px-3 min-h-[34px] [@media(pointer:coarse)]:min-h-[44px] text-[12.5px] font-semibold ring-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${status === x.k ? "bg-navy-900 text-white ring-navy-900" : "bg-white text-navy-900 ring-slate-200 hover:ring-teal-400"}`}
               >
                 {x.l} <span className={`tnum ${status === x.k ? "text-white/75" : "text-slate-500"}`}>{statusCounts[x.k]}</span>
               </button>
@@ -404,6 +404,44 @@ export function AdminBookings() {
           />
         ) : (
           <>
+            {/* Phones and portrait tablets (AENR-700): one compact, fully tappable row per booking instead of a tall
+                key/value card — ref and guest, what was booked, status and amount. */}
+            <ul className="lg:hidden -mx-1 divide-y divide-slate-100" aria-label="Bookings">
+              {pageRows.map((b) => {
+                const pending = ops.pendingRefund(b.id);
+                const escalated = bookingNotes[b.id]?.some((n) => n.escalated);
+                return (
+                  <li key={b.id}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenId(b.id)}
+                      aria-label={`Open booking ${b.id} · ${b.who} ${b.surname}`}
+                      className="w-full text-left px-2 py-3 min-h-[72px] rounded-xl flex items-start gap-3 active:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500"
+                    >
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-baseline gap-2">
+                          <span className="font-semibold text-navy-900 text-[15px] truncate">{b.who} {b.surname}</span>
+                          <span className="font-mono text-[12px] text-slate-500 shrink-0">{b.id}</span>
+                        </span>
+                        <span className="block text-[13px] text-slate-600 truncate">{itemSummary(b.items)} · {b.date}</span>
+                        <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                          <StatusBadge status={b.status} />
+                          {tab === "today" && arrivalBadge(b)}
+                          <Badge tone={chan(b.channel)}>{b.channel}</Badge>
+                          {pending && <Badge tone="amber"><Icon.refund size={10} /> Refund pending</Badge>}
+                          {escalated && <Badge tone="red"><Icon.bell size={10} /> Escalated</Badge>}
+                        </span>
+                      </span>
+                      <span className="shrink-0 flex items-center gap-1 pt-0.5">
+                        <span className="font-display font-bold text-navy-900 tnum text-[16px]">€{b.amount}</span>
+                        <Icon.chevR size={16} className="text-slate-400" />
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="hidden lg:block">
             <Table
               rowLink
               dense
@@ -461,6 +499,7 @@ export function AdminBookings() {
                 ];
               })}
             />
+            </div>
             {pageCount > 1 && (
               <Pager
                 page={safePage}

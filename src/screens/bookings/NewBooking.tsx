@@ -264,7 +264,7 @@ export function NewBooking() {
         actions={
           <a
             href={`#/${persona}/bookings?tab=awaiting`}
-            className="text-[13px] font-semibold text-teal-700 hover:underline"
+            className="inline-flex items-center min-h-[44px] px-1 text-[13px] font-semibold text-teal-700 hover:underline rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
           >
             Track payment links in Bookings →
           </a>

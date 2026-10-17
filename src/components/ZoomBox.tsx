@@ -96,7 +96,7 @@ export function ZoomBox({
     if (pts.current.size < 2) pinch.current = null;
   };
   const btn =
-    "w-9 h-9 grid place-items-center rounded-lg bg-white/95 ring-1 ring-slate-300 text-navy-900 shadow-sm disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500";
+    "w-11 h-11 grid place-items-center rounded-xl bg-white/95 ring-1 ring-slate-300 text-navy-900 shadow-sm disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500";
   return (
     <div className={`relative ${className}`}>
       <div

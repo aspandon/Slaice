@@ -26,7 +26,7 @@ export function SunbedMap(props: MapProps & { list?: boolean }) {
           <div className="inline-flex rounded-lg ring-1 ring-slate-200 overflow-hidden text-[12px] font-semibold">
             {(["map", "list"] as const).map((v) => (
               <button key={v} type="button" role="radio" aria-checked={view === v} onClick={() => setView(v)}
-                className={`px-3 min-h-[36px] inline-flex items-center gap-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500 ${view === v ? "bg-navy-900 text-white" : "bg-white text-navy-900 hover:bg-slate-50"}`}>
+                className={`px-3.5 min-h-[44px] inline-flex items-center gap-1.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500 ${view === v ? "bg-navy-900 text-white" : "bg-white text-navy-900 hover:bg-slate-50"}`}>
                 {v === "map" ? <Icon.map size={13} /> : <Icon.list size={13} />} {v === "map" ? "Map" : "List"}
               </button>
             ))}
