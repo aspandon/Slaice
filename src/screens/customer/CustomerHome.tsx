@@ -163,7 +163,7 @@ export function CustomerHome() {
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
               <div className="min-w-0">
-                <div className="font-semibold text-navy-900 text-[15px] leading-tight">{next ? t("Plan another visit") : t("Rebook your usual")}</div>
+                <div className="font-semibold text-navy-900 text-[15px] leading-tight">{next ? t("Plan another visit") : t("Your first visit")}</div>
                 <div className="text-[12.5px] text-slate-600 mt-0.5 leading-snug">{`${freeDisplay} ${t("sunbeds free today")} · ${t("from")} €${fromPrice}`}</div>
               </div>
             </div>

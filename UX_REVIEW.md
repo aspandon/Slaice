@@ -509,6 +509,8 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-670 — your zone stays on the sand.** Who and Pay show the zone you booked in with your sets; the zone row sits mid-sand.
 - **AENR-671 — the beach logo in the wizard.** Shown large over the sea on desktop, as on Home.
 - **AENR-672 — the logo glides with the sand.** From the Home header to its place over the sea and back.
+- **AENR-702 — Enjoy your day: Plan another visit + a weather panel**; Demo › Simulate a first-time guest.
+- **AENR-705 — Rebook your usual is concrete**: the most common booking, checked free, with the total, editable before paying.
 - **AENR-697 — Switch cashier in the top bar**, left of search, with who is on the shift.
 - **AENR-690 — Release channel removed** from the Platform tenant pages.
 - **AENR-717 — staff can hold several roles** and switch between them from the account menu.
