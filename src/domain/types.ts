@@ -27,7 +27,9 @@ export interface StaffUser {
   name: string;
   email: string;
   phone: string;
-  role: StaffRole;
+  /** Roles the user holds — at least one (AENR-717). The first is their default
+   *  start role; they switch between the others from the account menu. */
+  roles: StaffRole[];
   status: StaffStatus;
   /** ISO timestamp, or null if the user never signed in. */
   lastSignIn: string | null;

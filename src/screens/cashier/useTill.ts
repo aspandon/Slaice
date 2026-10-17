@@ -1,5 +1,6 @@
 import { useApp } from "../../app/store";
 import { todayISO } from "../../data/beach";
+import { hasRole } from "../../data/staff";
 import { DEFAULT_CASHIER, HOLD_MS, OFFLINE_ONLINE_BOOKED } from "../../data/till";
 import {
   apyNo, creditNo, fakeMark, receiptNo, refundedQty, tillSetStatus,
@@ -10,7 +11,7 @@ import {
 export function useTill() {
   const { till, setTill, viewAs } = useApp();
   const day = todayISO();
-  const cashier = viewAs?.role === "cashier" ? viewAs.name : till.active ?? till.shift?.cashier ?? DEFAULT_CASHIER;
+  const cashier = viewAs && hasRole(viewAs, "cashier") ? viewAs.name : till.active ?? till.shift?.cashier ?? DEFAULT_CASHIER;
   const tillName = till.shift?.till ?? "Main entrance";
   const nowIso = () => new Date().toISOString();
 

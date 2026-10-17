@@ -27,6 +27,11 @@ export const STAFF_ROLES: { id: StaffRole; label: string; blurb: string }[] = [
   { id: "accountant", label: "Accountant", blurb: "e-Invoicing, MyDATA, commission and payouts." },
 ];
 export const roleLabel = (r: StaffRole) => STAFF_ROLES.find((x) => x.id === r)?.label ?? r;
+/** Does the user hold this role (AENR-717)? Accepts any persona id — Customer
+ *  and Platform are never staff roles, so they simply return false. */
+export const hasRole = (u: Pick<StaffUser, "roles">, r: string) => u.roles.some((x) => x === r);
+/** "Manager / Admin + Accountant" — for audit lines and compact hints. */
+export const rolesLabel = (u: Pick<StaffUser, "roles">) => u.roles.map(roleLabel).join(" + ");
 
 export const DEFAULT_STAFF: StaffUser[] = [
   {
@@ -34,7 +39,7 @@ export const DEFAULT_STAFF: StaffUser[] = [
     name: "Eleni Markou",
     email: "eleni@aktitouiliou.gr",
     phone: "+30 694 200 0101",
-    role: "admin",
+    roles: ["admin", "accountant"],
     status: "active",
     lastSignIn: "2026-07-19T08:42:00",
     created: "2025-04-02",
@@ -44,7 +49,7 @@ export const DEFAULT_STAFF: StaffUser[] = [
     name: "Giorgos Antoniou",
     email: "giorgos@aktitouiliou.gr",
     phone: "+30 694 200 0102",
-    role: "admin",
+    roles: ["admin"],
     status: "active",
     lastSignIn: "2026-07-18T19:10:00",
     created: "2025-04-02",
@@ -54,7 +59,7 @@ export const DEFAULT_STAFF: StaffUser[] = [
     name: "Maria Kontou",
     email: "maria.k@aktitouiliou.gr",
     phone: "+30 694 200 0103",
-    role: "callcenter",
+    roles: ["callcenter", "cashier"],
     status: "active",
     lastSignIn: "2026-07-19T09:05:00",
     created: "2026-05-10",
@@ -64,7 +69,7 @@ export const DEFAULT_STAFF: StaffUser[] = [
     name: "Kostas Leontis",
     email: "kostas@aktitouiliou.gr",
     phone: "+30 694 200 0104",
-    role: "cashier",
+    roles: ["cashier"],
     status: "active",
     tillPin: "1111",
     lastSignIn: "2026-07-19T09:02:00",
@@ -75,7 +80,7 @@ export const DEFAULT_STAFF: StaffUser[] = [
     name: "Eleni Sava",
     email: "eleni.s@aktitouiliou.gr",
     phone: "+30 694 200 0105",
-    role: "cashier",
+    roles: ["cashier"],
     status: "active",
     tillPin: "2222",
     lastSignIn: "2026-07-18T17:55:00",
@@ -86,7 +91,7 @@ export const DEFAULT_STAFF: StaffUser[] = [
     name: "Petros Nikolaou",
     email: "petros@aktitouiliou.gr",
     phone: "+30 694 200 0106",
-    role: "controller",
+    roles: ["controller"],
     status: "active",
     lastSignIn: "2026-07-19T08:30:00",
     created: "2025-06-01",
@@ -96,7 +101,7 @@ export const DEFAULT_STAFF: StaffUser[] = [
     name: "Anna Mavridi",
     email: "anna@papadopoulos-accounting.gr",
     phone: "+30 210 900 1200",
-    role: "accountant",
+    roles: ["accountant"],
     status: "active",
     lastSignIn: "2026-07-15T11:20:00",
     created: "2025-04-15",
@@ -106,7 +111,7 @@ export const DEFAULT_STAFF: StaffUser[] = [
     name: "Nikos Papas",
     email: "nikos.p@aktitouiliou.gr",
     phone: "+30 694 200 0108",
-    role: "controller",
+    roles: ["controller"],
     status: "suspended",
     lastSignIn: "2026-06-30T18:00:00",
     created: "2026-06-01",
@@ -117,7 +122,7 @@ export const DEFAULT_STAFF: StaffUser[] = [
     name: "Sofia Lambrou",
     email: "sofia@aktitouiliou.gr",
     phone: "+30 694 200 0109",
-    role: "callcenter",
+    roles: ["callcenter"],
     status: "invited",
     lastSignIn: null,
     created: "2026-07-17",
@@ -127,7 +132,7 @@ export const DEFAULT_STAFF: StaffUser[] = [
     name: "Dimitris Galanis",
     email: "dimitris@aktitouiliou.gr",
     phone: "+30 694 200 0110",
-    role: "support",
+    roles: ["support"],
     status: "active",
     tillPin: "3333",
     lastSignIn: "2026-07-19T08:15:00",
@@ -144,3 +149,15 @@ export const DEFAULT_STAFF_AUDIT: StaffAuditEntry[] = [
   },
   { at: "2026-05-28T09:00:00", by: "Eleni Markou", action: "Added Eleni Sava as Cashier" },
 ];
+
+/** Saved state from before AENR-717 holds a single `role`: lift it into `roles`.
+ *  A seed user still on its legacy role picks up the demo's multi-role seed
+ *  (e.g. Eleni Markou → Manager / Admin + Accountant) as long as it agrees. */
+export type LegacyStaffUser = Omit<StaffUser, "roles"> & { roles?: StaffRole[]; role?: StaffRole };
+export function migrateStaffUser(u: LegacyStaffUser): StaffUser {
+  const { role, roles, ...rest } = u;
+  if (roles && roles.length) return { ...rest, roles };
+  const seed = DEFAULT_STAFF.find((d) => d.id === u.id);
+  const next = seed && (!role || seed.roles.includes(role)) ? seed.roles : role ? [role] : ["cashier" as const];
+  return { ...rest, roles: [...next] };
+}

@@ -16,13 +16,14 @@ import {
 } from "../components/ui";
 import { useApp } from "../app/store";
 import { NAV } from "../data/personas";
-import { STAFF_ROLES, roleLabel } from "../data/staff";
+import { STAFF_ROLES, hasRole, roleLabel, rolesLabel } from "../data/staff";
 import type { StaffRole, StaffStatus, StaffUser } from "../domain/types";
 
 /* ============ RBAC — staff users & roles (AENR-503) ============
    The admin manages the tenant's staff accounts: add (invite), edit, change
-   role, suspend / reactivate, delete — and previews exactly what a role or a
-   user sees ("View as"). Platform / Slaice is not a tenant role. */
+   roles, suspend / reactivate, delete — and previews exactly what a role or a
+   user sees ("View as"). A user can hold several roles (AENR-717) and switches
+   between them from the account menu. Platform / Slaice is not a tenant role. */
 
 const STATUS_BADGE: Record<StaffStatus, { tone: string; label: string; icon: keyof typeof Icon }> =
   {
@@ -41,10 +42,11 @@ const fmtWhen = (iso: string | null) =>
       })
     : "Never";
 
-type Draft = { id?: string; name: string; email: string; phone: string; role: StaffRole; tillPin: string };
-const EMPTY: Draft = { name: "", email: "", phone: "", role: "cashier", tillPin: "" };
+type Draft = { id?: string; name: string; email: string; phone: string; roles: StaffRole[]; tillPin: string };
+const EMPTY: Draft = { name: "", email: "", phone: "", roles: ["cashier"], tillPin: "" };
 /** Roles that sell at a shared till and switch in with a PIN (AENR-608). */
 const TILL_ROLES: StaffRole[] = ["cashier", "support"];
+const sellsAtTill = (roles: readonly StaffRole[]) => roles.some((r) => TILL_ROLES.includes(r));
 
 export function AdminRbac() {
   const { staffUsers, updateStaff, staffAudit, startViewAs, toast } = useApp();
@@ -53,18 +55,20 @@ export function AdminRbac() {
   const [statusF, setStatusF] = useState<"all" | StaffStatus>("all");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [touched, setTouched] = useState(false);
+  // Set when the admin tries to untick a user's only role (AENR-717).
+  const [lastRoleWarn, setLastRoleWarn] = useState(false);
   const [suspending, setSuspending] = useState<StaffUser | null>(null);
   const [reason, setReason] = useState("");
   const [deleting, setDeleting] = useState<StaffUser | null>(null);
 
-  const activeAdmins = staffUsers.filter((u) => u.role === "admin" && u.status === "active");
+  const activeAdmins = staffUsers.filter((u) => hasRole(u, "admin") && u.status === "active");
   // Guard: the tenant must always keep at least one active Manager/Admin.
   const isLastAdmin = (u: StaffUser) =>
-    u.role === "admin" && u.status === "active" && activeAdmins.length <= 1;
+    hasRole(u, "admin") && u.status === "active" && activeAdmins.length <= 1;
 
   const shown = staffUsers.filter(
     (u) =>
-      (roleF === "all" || u.role === roleF) &&
+      (roleF === "all" || hasRole(u, roleF)) &&
       (statusF === "all" || u.status === statusF) &&
       `${u.name} ${u.email} ${u.phone}`.toLowerCase().includes(q.toLowerCase()),
   );
@@ -84,7 +88,7 @@ export function AdminRbac() {
             ? "Someone already uses this e-mail."
             : "",
         tillPin:
-          !TILL_ROLES.includes(draft.role) || !draft.tillPin
+          !sellsAtTill(draft.roles) || !draft.tillPin
             ? ""
             : !/^\d{4}$/.test(draft.tillPin)
               ? "Use exactly 4 digits."
@@ -94,7 +98,7 @@ export function AdminRbac() {
       }
     : { name: "", email: "", tillPin: "" };
   const editing = draft?.id ? staffUsers.find((u) => u.id === draft.id) : undefined;
-  const demotingLastAdmin = !!editing && isLastAdmin(editing) && draft?.role !== "admin";
+  const demotingLastAdmin = !!editing && isLastAdmin(editing) && !!draft && !draft.roles.includes("admin");
   const saveDraft = () => {
     setTouched(true);
     if (!draft || errors.name || errors.email || errors.tillPin || demotingLastAdmin) return;
@@ -102,13 +106,13 @@ export function AdminRbac() {
       name: draft.name.trim(),
       email: draft.email.trim(),
       phone: draft.phone.trim(),
-      role: draft.role,
-      tillPin: TILL_ROLES.includes(draft.role) && draft.tillPin ? draft.tillPin : undefined,
+      roles: draft.roles,
+      tillPin: sellsAtTill(draft.roles) && draft.tillPin ? draft.tillPin : undefined,
     };
     if (editing) {
       const changes = [
-        editing.role !== clean.role
-          ? `role ${roleLabel(editing.role)} → ${roleLabel(clean.role)}`
+        rolesLabel(editing) !== rolesLabel(clean)
+          ? `roles ${rolesLabel(editing)} → ${rolesLabel(clean)}`
           : "",
         editing.name !== clean.name ||
         editing.email !== clean.email ||
@@ -132,13 +136,14 @@ export function AdminRbac() {
         lastSignIn: null,
         created: new Date().toISOString().slice(0, 10),
       };
-      updateStaff([...staffUsers, user], `Invited ${user.name} as ${roleLabel(user.role)}`);
+      updateStaff([...staffUsers, user], `Invited ${user.name} as ${rolesLabel(user)}`);
       toast(`Invitation sent to ${user.email} (demo).`, { tone: "success" });
     }
     setDraft(null);
   };
   const openDraft = (d: Draft) => {
     setTouched(false);
+    setLastRoleWarn(false);
     setDraft(d);
   };
 
@@ -176,14 +181,14 @@ export function AdminRbac() {
     if (!deleting) return;
     updateStaff(
       staffUsers.filter((x) => x.id !== deleting.id),
-      `Deleted ${deleting.name} (${roleLabel(deleting.role)})`,
+      `Deleted ${deleting.name} (${rolesLabel(deleting)})`,
     );
     toast(`${deleting.name} was deleted.`, { tone: "success" });
     setDeleting(null);
   };
   /* "View as role": preview with the first active user holding that role. */
   const viewRole = (r: StaffRole) => {
-    const u = staffUsers.find((x) => x.role === r && x.status === "active");
+    const u = staffUsers.find((x) => hasRole(x, r) && x.status === "active");
     if (!u) {
       toast(`No active ${roleLabel(r)} user to preview — add or reactivate one first.`, {
         tone: "error",
@@ -265,7 +270,7 @@ export function AdminRbac() {
           />
         ) : (
           <Table
-            cols={["Name", "Phone", "Role", "Status", "Last sign-in", ""]}
+            cols={["Name", "Phone", "Roles", "Status", "Last sign-in", ""]}
             rows={shown.map((u) => {
               const st = STATUS_BADGE[u.status];
               const StIcon = Icon[st.icon];
@@ -275,7 +280,13 @@ export function AdminRbac() {
                   <div className="text-[12px] text-slate-500">{u.email}</div>
                 </div>,
                 <span className="tnum whitespace-nowrap">{u.phone || "—"}</span>,
-                <Badge tone={u.role === "admin" ? "indigo" : "slate"}>{roleLabel(u.role)}</Badge>,
+                <div className="flex flex-wrap gap-1 min-w-[7rem]">
+                  {u.roles.map((r) => (
+                    <Badge key={r} tone={r === "admin" ? "indigo" : "slate"}>
+                      {roleLabel(r)}
+                    </Badge>
+                  ))}
+                </div>,
                 <div className="leading-tight">
                   <Badge tone={st.tone}>
                     <StIcon size={10} /> {st.label}
@@ -309,10 +320,10 @@ export function AdminRbac() {
                     actions={[
                       {
                         id: "edit",
-                        label: "Edit details & role",
+                        label: "Edit details & roles",
                         icon: Icon.edit,
                         onSelect: () =>
-                          openDraft({ id: u.id, name: u.name, email: u.email, phone: u.phone, role: u.role, tillPin: u.tillPin ?? "" }),
+                          openDraft({ id: u.id, name: u.name, email: u.email, phone: u.phone, roles: u.roles, tillPin: u.tillPin ?? "" }),
                       },
                       u.status === "invited" && { id: "accept", label: "Simulate acceptance", icon: Icon.check, onSelect: () => accept(u) },
                       u.status === "active" && {
@@ -362,7 +373,7 @@ export function AdminRbac() {
                   <div className="font-semibold text-navy-900 text-[14px]">{r.label}</div>
                   <span className="text-[11px] text-slate-500 tnum">
                     {(() => {
-                      const n = staffUsers.filter((u) => u.role === r.id).length;
+                      const n = staffUsers.filter((u) => hasRole(u, r.id)).length;
                       return `${n} user${n === 1 ? "" : "s"}`;
                     })()}
                   </span>
@@ -476,33 +487,56 @@ export function AdminRbac() {
                 />
               </Field>
             </div>
-            <fieldset>
-              <legend className="text-[12px] font-semibold text-slate-700 mb-1.5">Role</legend>
+            <fieldset aria-describedby="staff-roles-hint">
+              <legend className="text-[12px] font-semibold text-slate-700 mb-0.5">Roles</legend>
+              <p id="staff-roles-hint" className="text-[11.5px] text-slate-500 mb-1.5">
+                Pick one or more. Someone with several roles switches between them from their
+                account menu (top right).
+              </p>
               <div className="grid sm:grid-cols-2 gap-2">
-                {STAFF_ROLES.map((r) => (
-                  <label
-                    key={r.id}
-                    className={`flex items-start gap-2.5 rounded-xl ring-1 px-3 py-2.5 cursor-pointer transition ${draft.role === r.id ? "ring-2 ring-teal-500 bg-teal-50/40" : "ring-slate-200 hover:ring-slate-300"}`}
-                  >
-                    <input
-                      type="radio"
-                      name="staff-role"
-                      value={r.id}
-                      checked={draft.role === r.id}
-                      onChange={() => setDraft({ ...draft, role: r.id })}
-                      className="mt-0.5 accent-teal-600"
-                    />
-                    <span className="text-[13px] font-semibold text-navy-900">
-                      {r.label}
-                      <span className="block font-normal text-[11.5px] text-slate-500 leading-snug">
-                        {r.blurb}
+                {STAFF_ROLES.map((r) => {
+                  const on = draft.roles.includes(r.id);
+                  return (
+                    <label
+                      key={r.id}
+                      className={`flex items-start gap-2.5 rounded-xl ring-1 px-3 py-2.5 cursor-pointer transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-teal-500 ${on ? "ring-2 ring-teal-500 bg-teal-50/40" : "ring-slate-200 hover:ring-slate-300"}`}
+                    >
+                      <input
+                        type="checkbox"
+                        name="staff-roles"
+                        value={r.id}
+                        checked={on}
+                        onChange={() => {
+                          if (on && draft.roles.length === 1) {
+                            setLastRoleWarn(true);
+                            return;
+                          }
+                          setLastRoleWarn(false);
+                          setDraft({
+                            ...draft,
+                            roles: on ? draft.roles.filter((x) => x !== r.id) : [...draft.roles, r.id],
+                          });
+                        }}
+                        className="mt-0.5 w-4 h-4 accent-teal-600"
+                      />
+                      <span className="text-[13px] font-semibold text-navy-900">
+                        {r.label}
+                        <span className="block font-normal text-[11.5px] text-slate-500 leading-snug">
+                          {r.blurb}
+                        </span>
                       </span>
-                    </span>
-                  </label>
-                ))}
+                    </label>
+                  );
+                })}
               </div>
+              {lastRoleWarn && (
+                <div role="alert" className="mt-1.5 text-[12px] text-rose-700 flex items-center gap-1.5">
+                  <Icon.info size={12} /> A user needs at least one role — tick another role before
+                  removing this one.
+                </div>
+              )}
             </fieldset>
-            {TILL_ROLES.includes(draft.role) && (
+            {sellsAtTill(draft.roles) && (
               <Field
                 label="Till PIN (4 digits)"
                 hint={
@@ -526,7 +560,7 @@ export function AdminRbac() {
             )}
             {demotingLastAdmin && (
               <div role="alert" className="text-[12px] text-rose-700">
-                This is the only active Manager / Admin — keep the role, or make someone else an
+                This is the only active Manager / Admin — keep that role, or make someone else an
                 admin first.
               </div>
             )}

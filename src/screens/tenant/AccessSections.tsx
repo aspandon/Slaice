@@ -5,7 +5,7 @@ import { useApp } from "../../app/store";
 import { usePlatform } from "../../lib/usePlatform";
 import { isEu } from "../../domain/gdpr";
 import { addDays, fmtDay } from "../../domain/period";
-import { roleLabel } from "../../data/staff";
+import { rolesLabel } from "../../data/staff";
 import { FinanceSettingsModal } from "../PlatformFinance";
 import { KV, SectionFrame, useTenantDraft, type SectionProps } from "./kit";
 
@@ -183,7 +183,7 @@ export function Users({ t }: SectionProps) {
   const { platform, plan, updateTenant, toast, today } = usePlatform();
   const users =
     t.id === "akti"
-      ? staffUsers.map((u) => ({ name: u.name, role: roleLabel(u.role), status: u.status }))
+      ? staffUsers.map((u) => ({ name: u.name, role: rolesLabel(u), status: u.status }))
       : [
           { name: t.contacts[0].name, role: "Manager / Admin", status: "active" },
           { name: "Front desk", role: "Cashier", status: "active" },

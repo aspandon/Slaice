@@ -16,6 +16,7 @@ import { PersonaSwitcher } from "./PersonaSwitcher";
 import type { NavProps } from "./types";
 import type { StaffUser } from "../../domain/types";
 import { DEFAULT_CASHIER } from "../../data/till";
+import { hasRole, roleLabel } from "../../data/staff";
 
 interface FeedItem { ic: string; tone: string; t: string; b: string; time: string }
 
@@ -74,28 +75,35 @@ const FEEDS: Record<string, FeedItem[]> = {
 /* ---------- Who is signed in on a staff device (AENR-646) ---------- */
 const PERSONA_USER: Partial<Record<PersonaId, string>> = {
   admin: "Eleni Markou",
+  cashier: DEFAULT_CASHIER,
   callcenter: "Maria Kontou",
   controller: "Petros Nikolaou",
   accountant: "Anna Mavridi",
 };
-function staffMe(persona: PersonaId, staff: readonly StaffUser[], name?: string) {
-  const want = name ?? PERSONA_USER[persona];
-  const u = staff.find((x) => x.name === want) ?? staff.find((x) => x.role === persona && x.status === "active");
+// `meId` is the user who picked this role from "Your roles" (AENR-717): they stay
+// signed in while their role changes, as long as they hold the current one.
+function staffMe(persona: PersonaId, staff: readonly StaffUser[], name?: string, meId?: string | null) {
+  const signed = meId ? staff.find((x) => x.id === meId && x.status === "active" && hasRole(x, persona)) : undefined;
+  const want = name ?? signed?.name ?? PERSONA_USER[persona];
+  const u = staff.find((x) => x.name === want) ?? staff.find((x) => hasRole(x, persona) && x.status === "active");
   const full = u?.name ?? want ?? (persona === "platform" ? "Sofia Antoniou" : "Staff");
   const initials = full.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
-  return { initials, name: full, email: u?.email ?? (persona === "platform" ? "ops@slaice.com" : "") };
+  return { initials, name: full, email: u?.email ?? (persona === "platform" ? "ops@slaice.com" : ""), user: u && hasRole(u, persona) ? u : undefined };
 }
 
 /* ---------- Top bar ---------- */
 export function TopBar({ persona, setPersona, page, setPage, previewing = false }: NavProps & { setPersona: (p: PersonaId) => void; previewing?: boolean }) {
-  const { setSignedIn, go, toast, cart, removeFromCart, addToCart, clearCart, staffUsers, till, viewAs } = useApp();
+  const { setSignedIn, go, toast, cart, removeFromCart, addToCart, clearCart, staffUsers, till, viewAs, staffMeId, switchRole } = useApp();
   const t = useT();
   // Who is signed in (AENR-646): the guest on the customer side; elsewhere the demo
   // staff member for this persona from Team & roles — on the till the active
   // cashier, so Switch cashier changes the avatar at once.
   const me = persona === "customer"
     ? { initials: `${PROFILE.first[0]}${PROFILE.last[0]}`, name: `${PROFILE.first} ${PROFILE.last}`, email: PROFILE.email }
-    : staffMe(persona, staffUsers, viewAs?.name ?? (persona === "cashier" ? till.active ?? till.shift?.cashier ?? DEFAULT_CASHIER : undefined));
+    : staffMe(persona, staffUsers, viewAs?.name ?? (persona === "cashier" ? till.active ?? till.shift?.cashier : undefined), staffMeId);
+  // The signed-in staff member's roles (AENR-717) — a switcher only when they hold more than one.
+  const meUser = "user" in me ? me.user : undefined;
+  const myRoles = meUser?.roles ?? [];
   const cartCount = (cart || []).length;
   const cartTotal = (cart || []).reduce((a, b) => a + b.price, 0);
   // Basket + notifications are controlled Popovers so their in-panel CTAs can
@@ -326,7 +334,28 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
               <div className="px-3 py-2 border-b border-slate-100 mb-1">
                 <div className="font-semibold text-sm text-navy-900">{me.name}</div>
                 <div className="text-[12px] text-slate-500">{me.email}</div>
+                {myRoles.length === 1 && (
+                  <div className="mt-1 text-[11.5px] text-slate-600">Role · <b className="font-semibold text-navy-900">{roleLabel(myRoles[0])}</b></div>
+                )}
               </div>
+              {meUser && myRoles.length > 1 && <>
+                <DropdownMenu.Label className="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-slate-500">Your roles</DropdownMenu.Label>
+                <DropdownMenu.RadioGroup value={persona} onValueChange={(v) => { const r = myRoles.find((x) => x === v); if (r && r !== persona) switchRole(meUser.id, r); }} className="grid gap-0.5 pb-1">
+                  {myRoles.map((r) => {
+                    const p = PERSONAS.find((x) => x.id === r);
+                    const I = p ? Icon[p.icon] : undefined;
+                    const on = persona === r;
+                    return (
+                      <DropdownMenu.RadioItem key={r} value={r}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 min-h-[40px] rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100 focus-visible:ring-2 focus-visible:ring-teal-500 ${on ? "font-semibold text-navy-900" : "text-slate-700"}`}>
+                        <span className="w-6 h-6 rounded-md grid place-items-center text-white shrink-0" style={{ background: p?.color ?? "#64748b" }}>{I ? <I size={13} /> : null}</span>
+                        <span className="flex-1 min-w-0 truncate">{roleLabel(r)}</span>
+                        <DropdownMenu.ItemIndicator><Icon.check size={14} className="text-teal-600" /></DropdownMenu.ItemIndicator>
+                      </DropdownMenu.RadioItem>
+                    );
+                  })}
+                </DropdownMenu.RadioGroup>
+              </>}
               {persona === "customer" && <>
               <DropdownMenu.Item onSelect={() => go("customer", "mybookings")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.grid size={15} /> {t("My bookings")}</DropdownMenu.Item>
               <DropdownMenu.Item onSelect={() => go("customer", "account")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.cog size={15} /> {t("Account")}</DropdownMenu.Item>

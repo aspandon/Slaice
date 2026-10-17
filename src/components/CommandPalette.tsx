@@ -8,6 +8,7 @@ import { ZONES, zoneLayout } from "../data/beach";
 import { useBookingOps } from "../lib/useBookingOps";
 import { openDisplay } from "../domain/display";
 import type { PersonaId } from "../domain/types";
+import { rolesLabel } from "../data/staff";
 
 /* ============ ⌘K command palette (AENR-553) ============
    Jump to anything — a booking ref, a guest, a set code, a staff member, a
@@ -242,7 +243,7 @@ export function CommandPalette() {
               id: `u-${u.id}`,
               group: "Staff",
               label: u.name,
-              hint: u.role,
+              hint: rolesLabel(u),
               icon: Icon.lock,
               run: () => go(persona, "rbac"),
             });

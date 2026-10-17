@@ -10,7 +10,7 @@ import type { Achievement } from "../data/gamification";
 import { DEFAULT_ZONE_MAP, DEFAULT_PRICE_RULES, DEFAULT_BEACH_PRICING, DEFAULT_CALENDAR } from "../data/pricing";
 import { DEFAULT_CHANNELS } from "../data/channels";
 import { DEFAULT_PASS_CARDS } from "../data/passDesigns";
-import type { BeachPricing, CalendarState, BeachBackground, BookingNote, CrmState, StaffAuditEntry, StaffUser, CartItem, CartKind, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "../domain/types";
+import type { BeachPricing, CalendarState, BeachBackground, BookingNote, CrmState, StaffAuditEntry, StaffRole, StaffUser, CartItem, CartKind, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "../domain/types";
 import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "../data/beach";
 import type { SceneFx, WeatherKind } from "../data/beach";
 import { DEFAULT_TILL } from "../data/till";
@@ -154,6 +154,10 @@ export interface AppContextValue {
   viewAs: StaffUser | null;
   startViewAs: (userId: string) => void;
   exitViewAs: () => void;
+  /** The staff user signed in on this device after a role switch (AENR-717), if any. */
+  staffMeId: string | null;
+  /** Switch the signed-in user to another of their roles — lands on its start page. */
+  switchRole: (userId: string, role: StaffRole) => void;
   /** Guest CRM: saved segments, tags, profile edits — persisted. */
   crm: CrmState;
   setCrm: (updater: (c: CrmState) => CrmState) => void;
@@ -278,6 +282,8 @@ export const AppCtx = createContext<AppContextValue>({
   viewAs: null,
   startViewAs: () => {},
   exitViewAs: () => {},
+  staffMeId: null,
+  switchRole: () => {},
   crm: DEFAULT_CRM,
   setCrm: () => {},
   till: DEFAULT_TILL,

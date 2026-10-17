@@ -20,9 +20,10 @@ import { DEFAULT_ACHIEVEMENTS } from "./data/gamification";
 import type { Achievement } from "./data/gamification";
 import { DEFAULT_ZONE_MAP, DEFAULT_PRICE_RULES } from "./data/pricing";
 import { DEFAULT_CHANNELS } from "./data/channels";
-import { DEFAULT_STAFF, DEFAULT_STAFF_AUDIT, roleLabel } from "./data/staff";
+import { DEFAULT_STAFF, DEFAULT_STAFF_AUDIT, hasRole, migrateStaffUser, roleLabel, rolesLabel } from "./data/staff";
+import type { LegacyStaffUser } from "./data/staff";
 import { DEFAULT_PASS_CARDS } from "./data/passDesigns";
-import type { BeachBackground, BookingNote, CrmState, StaffAuditEntry, StaffUser, CartItem, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "./domain/types";
+import type { BeachBackground, BookingNote, CrmState, StaffAuditEntry, StaffRole, StaffUser, CartItem, ChannelSetupState, Consent, CustomerPasses, LangCode, PassDesign, PassPricing, PersonaId, PriceRule, SeasonPlan, SunbedSlot, ZoneMapItem } from "./domain/types";
 import type { TillState } from "./domain/till";
 import type { FinanceConfig } from "./domain/finance";
 import type { BeachPricing, CalendarState } from "./domain/types";
@@ -96,7 +97,8 @@ const saved = loadLS() as {
   sceneFx?: SceneFx;
   showPreviews?: boolean;
   bookingNotes?: Record<string, BookingNote[]>;
-  staffUsers?: StaffUser[];
+  staffUsers?: LegacyStaffUser[];
+  staffMeId?: string | null;
   staffAudit?: StaffAuditEntry[];
   viewAsId?: string | null;
   crm?: CrmState;
@@ -168,12 +170,16 @@ export default function App() {
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>(() =>
     // Seed accounts added in later releases (e.g. the Support Agent) join a saved list.
     {
-      const su = saved.staffUsers;
+      // Saved users with a single legacy `role` migrate to `roles` (AENR-717).
+      const su = saved.staffUsers?.map(migrateStaffUser);
       return su ? [...su, ...DEFAULT_STAFF.filter((d) => !su.some((u) => u.id === d.id))] : DEFAULT_STAFF;
     },
   );
   const [staffAudit, setStaffAudit] = useState<StaffAuditEntry[]>(saved.staffAudit || DEFAULT_STAFF_AUDIT);
   const [viewAsId, setViewAsId] = useState<string | null>(saved.viewAsId ?? null);
+  // The staff member signed in on this device once they pick one of their roles
+  // from the account menu (AENR-717) — keeps "who" while the role changes.
+  const [staffMeId, setStaffMeId] = useState<string | null>(saved.staffMeId ?? null);
   const [crm, setCrmState] = useState<CrmState>(() => {
     const c: CrmState = { ...DEFAULT_CRM, ...(saved.crm || {}) };
     // Retired New / Regular tags (AENR-548): rules become visit counts, tags are dropped.
@@ -271,11 +277,11 @@ export default function App() {
     if (DISPLAY) return;
     // Guard the write: Safari Private Mode and a full quota throw on setItem.
     try {
-      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang: langChoice ?? undefined, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, showPreviews, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, bookingOps, payLinks, display, layouts, extras, account, platform, comms, privacy }));
+      localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang: langChoice ?? undefined, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, showPreviews, bookingNotes, staffUsers, staffMeId, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, bookingOps, payLinks, display, layouts, extras, account, platform, comms, privacy }));
     } catch {
       /* storage unavailable (private mode / quota) — ignore */
     }
-  }, [persona, pageByPersona, signedIn, langChoice, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, showPreviews, bookingNotes, staffUsers, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, bookingOps, payLinks, display, layouts, extras, account, platform, comms, privacy]);
+  }, [persona, pageByPersona, signedIn, langChoice, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, showPreviews, bookingNotes, staffUsers, staffMeId, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, bookingOps, payLinks, display, layouts, extras, account, platform, comms, privacy]);
 
   // Keep <html lang> in sync with the chosen language (a11y / SEO correctness).
   useEffect(() => {
@@ -374,8 +380,20 @@ export default function App() {
     const u = staffUsers.find((x) => x.id === id);
     if (!u || u.status !== "active") return;
     setViewAsId(id);
-    go(u.role, DEFAULT_PAGE[u.role]);
+    go(u.roles[0], DEFAULT_PAGE[u.roles[0]]);
   }, [staffUsers, go]);
+  // "Your roles" in the account menu (AENR-717): the same user, another of their
+  // roles — lands on that role's start page. On the till, a role switch while a
+  // shift is open hands the till to this person (they're signed in already).
+  const switchRole = useCallback((userId: string, role: StaffRole) => {
+    const u = staffUsers.find((x) => x.id === userId);
+    if (!u || !hasRole(u, role)) return;
+    if (!viewAsId) {
+      setStaffMeId(userId);
+      if (role === "cashier" || role === "support") setTill((t) => (t.shift ? { ...t, active: u.name } : t));
+    }
+    go(role, DEFAULT_PAGE[role]);
+  }, [staffUsers, viewAsId, go, setTill]);
   const exitViewAs = useCallback(() => {
     setViewAsId(null);
     go("admin", "rbac");
@@ -410,8 +428,8 @@ export default function App() {
 
   // Memoised so the provider value keeps a stable identity across renders.
   const ctx = useMemo<AppContextValue>(
-    () => ({ toast, go, dive, persona, page, signedIn, setSignedIn, lang, setLang, langAuto, setLangAuto, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, showPreviews, setShowPreviews, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, bookingOps, setBookingOps, payLinks, setPayLinks, display, setDisplay, layouts, setLayouts, extras, setExtras, account, setAccount, platform, setPlatform, comms, setComms, privacy, setPrivacy }),
-    [toast, go, dive, persona, page, signedIn, setSignedIn, lang, setLang, langAuto, setLangAuto, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, showPreviews, setShowPreviews, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, bookingOps, setBookingOps, payLinks, setPayLinks, display, setDisplay, layouts, setLayouts, extras, setExtras, account, setAccount, platform, setPlatform, comms, setComms, privacy, setPrivacy],
+    () => ({ toast, go, dive, persona, page, signedIn, setSignedIn, lang, setLang, langAuto, setLangAuto, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, showPreviews, setShowPreviews, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, staffMeId, switchRole, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, bookingOps, setBookingOps, payLinks, setPayLinks, display, setDisplay, layouts, setLayouts, extras, setExtras, account, setAccount, platform, setPlatform, comms, setComms, privacy, setPrivacy }),
+    [toast, go, dive, persona, page, signedIn, setSignedIn, lang, setLang, langAuto, setLangAuto, cart, addToCart, removeFromCart, clearCart, hint, clearHint, consent, setConsent, reopenConsent, background, setBackground, beachLayout, setZoneLayout, zoneLogos, setZoneLogo, passes, buyVipCredit, spendVipCredit, buySeasonPass, clearPass, passPricing, setPassPricing, loyalty, setLoyalty, achievements, setAchievements, zoneMap, setZoneMap, priceRules, setPriceRules, channels, setChannels, passCards, setPassCards, weather, setWeather, dayTime, setDayTime, sceneFx, setSceneFx, showPreviews, setShowPreviews, bookingNotes, addBookingNote, staffUsers, updateStaff, staffAudit, viewAs, startViewAs, exitViewAs, staffMeId, switchRole, crm, setCrm, till, setTill, finance, setFinance, beachPricing, setBeachPricing, closedStores, setClosedStores, calendar, setCalendar, inventory, setInventory, sunbedOps, setSunbedOps, bookingOps, setBookingOps, payLinks, setPayLinks, display, setDisplay, layouts, setLayouts, extras, setExtras, account, setAccount, platform, setPlatform, comms, setComms, privacy, setPrivacy],
   );
 
   // The booking wizard takes over the whole viewport: the beach becomes the
@@ -459,7 +477,7 @@ export default function App() {
           {viewAs && (
             <div role="status" className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl bg-navy-900 text-white px-4 py-2.5 text-[13px] shadow-lift">
               <Icon.eye size={15} className="text-teal-300 shrink-0" />
-              <span className="flex-1 min-w-0">Viewing as <b>{viewAs.name}</b> · {roleLabel(viewAs.role)} — you see only the pages this role can open.</span>
+              <span className="flex-1 min-w-0">Viewing as <b>{viewAs.name}</b> · {rolesLabel(viewAs)} — you see only the pages {viewAs.roles.length > 1 ? "these roles" : "this role"} can open.</span>
               <button type="button" onClick={exitViewAs} className="rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1.5 font-semibold transition">Exit preview</button>
             </div>
           )}
@@ -482,14 +500,14 @@ export default function App() {
             // the bottom of the viewport (the beach backdrop's green band)
             // instead of floating up under short pages.
             <div className="flex-1">
-              <main className="min-w-0">{viewAs ? <AccessDenied role={viewAs.role} onHome={() => go(viewAs.role, DEFAULT_PAGE[viewAs.role])} /> : routeFor(persona, page)}</main>
+              <main className="min-w-0">{viewAs ? <AccessDenied user={viewAs} onHome={() => go(viewAs.roles[0], DEFAULT_PAGE[viewAs.roles[0]])} /> : routeFor(persona, page)}</main>
             </div>
           ) : (
             <div className="flex-1 flex gap-5 min-h-0">
               {persona !== "cashier" && <Sidebar persona={persona} page={page} setPage={setPage} />}
               {/* While Slaice staff view a tenant, the guard disables mutating / blocked controls (AENR-515). */}
               <GuardCtx.Provider value={guard}>
-                <main className="flex-1 min-w-0">{persona === "cashier" && <TillTabs persona={persona} page={page} setPage={setPage} />}{persona === "cashier" && !viewAs && <OfflineBanner />}{viewAs && viewAs.role !== persona ? <AccessDenied role={viewAs.role} onHome={() => go(viewAs.role, DEFAULT_PAGE[viewAs.role])} /> : routeFor(persona, page)}</main>
+                <main className="flex-1 min-w-0">{persona === "cashier" && <TillTabs persona={persona} page={page} setPage={setPage} />}{persona === "cashier" && !viewAs && <OfflineBanner />}{viewAs && !hasRole(viewAs, persona) ? <AccessDenied user={viewAs} onHome={() => go(viewAs.roles[0], DEFAULT_PAGE[viewAs.roles[0]])} /> : routeFor(persona, page)}</main>
               </GuardCtx.Provider>
             </div>
           )}
@@ -516,12 +534,12 @@ export default function App() {
 }
 
 /* Shown while previewing a staff user who opens a page outside their role. */
-function AccessDenied({ role, onHome }: { role: StaffUser["role"]; onHome: () => void }) {
+function AccessDenied({ user, onHome }: { user: StaffUser; onHome: () => void }) {
   return (
     <div className="glass-card rounded-3xl p-8 max-w-lg mx-auto mt-6 text-center">
       <div className="w-12 h-12 mx-auto rounded-2xl bg-rose-50 text-rose-600 grid place-items-center"><Icon.lock size={22} /></div>
       <h1 className="mt-3 font-display font-bold text-xl text-navy-900">Access denied</h1>
-      <p className="mt-1 text-sm text-slate-600">The {roleLabel(role)} role can't open this page.</p>
+      <p className="mt-1 text-sm text-slate-600">{user.roles.length > 1 ? `None of ${user.name}'s roles (${rolesLabel(user)}) can` : `The ${roleLabel(user.roles[0])} role can't`} open this page.</p>
       <button type="button" onClick={onHome} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-navy-900 text-white px-4 py-2 text-sm font-semibold">Go to my start page</button>
     </div>
   );

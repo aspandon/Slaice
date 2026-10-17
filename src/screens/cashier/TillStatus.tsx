@@ -3,7 +3,7 @@ import { Icon } from "../../lib/icons";
 import { Badge, Btn, Field, Input, Modal, Select } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { DEFAULT_CASHIER, MANAGER_PINS, TILLS } from "../../data/till";
-import { DEFAULT_STAFF } from "../../data/staff";
+import { DEFAULT_STAFF, hasRole } from "../../data/staff";
 import { OFFLINE_CARD_CAP, OFFLINE_CARD_TOTAL, eur, shiftTotals } from "../../domain/till";
 import { useTill } from "./useTill";
 
@@ -61,7 +61,7 @@ function SwitchCashierModal({ onClose }: { onClose: () => void }) {
   const shift = t.till.shift;
   // A PIN set in Team & roles wins; older saved data falls back to the demo seed.
   const pinOf = (id: string, pin?: string) => pin ?? DEFAULT_STAFF.find((u) => u.id === id)?.tillPin;
-  const people = staffUsers.filter((u) => u.status === "active" && (u.role === "cashier" || u.role === "support") && u.name !== t.cashier);
+  const people = staffUsers.filter((u) => u.status === "active" && (hasRole(u, "cashier") || hasRole(u, "support")) && u.name !== t.cashier);
   const [who, setWho] = useState(people[0]?.id ?? "");
   const [pin, setPin] = useState("");
   const [count, setCount] = useState("");
@@ -269,7 +269,7 @@ function OfflineHelp({ open, onClose }: { open: boolean; onClose: () => void }) 
 export function OpenShiftCard({ compact = false }: { compact?: boolean }) {
   const { toast, viewAs } = useApp();
   const t = useTill();
-  const [cashier, setCashier] = useState(viewAs?.role === "cashier" ? viewAs.name : DEFAULT_CASHIER);
+  const [cashier, setCashier] = useState(viewAs && hasRole(viewAs, "cashier") ? viewAs.name : DEFAULT_CASHIER);
   const [tillName, setTillName] = useState(TILLS[0]);
   const [float, setFloat] = useState("100");
   const ok = cashier.trim() && Number(float) >= 0 && float !== "";
