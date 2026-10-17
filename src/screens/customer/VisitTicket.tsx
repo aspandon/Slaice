@@ -1,9 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Icon } from "../../lib/icons";
 import { QR } from "../../components/charts";
+import { Btn, Modal } from "../../components/ui";
+import { WalletButtons } from "../../components/WalletPass";
 import { useT } from "../../app/store";
 import { TENANT } from "../../data/beach";
-import { addDays, fmtDay } from "../../domain/period";
+import { addDays, fmtDay, fmtWeekday } from "../../domain/period";
 import { downloadICS } from "../../lib/download";
 import { ARRIVAL_WINDOW, type Visit } from "../../domain/visits";
 import type { CustomerDocument } from "../../domain/types";
@@ -67,6 +69,31 @@ export function FullscreenQR({
         </button>
       </div>
     </div>
+  );
+}
+
+/** Show a visit's QR (AENR-703; reused by the Wallet, AENR-686): on a phone the white full
+ *  screen for the gate scanner; on larger screens a modal with the code, the wallet buttons
+ *  and a full-screen option. */
+export function VisitQR({ v, onClose }: { v: Visit; onClose: () => void }) {
+  const t = useT();
+  const [full, setFull] = useState(() => !window.matchMedia("(min-width: 768px)").matches);
+  const caption = `${fmtWeekday(v.date)} ${fmtDay(v.date)}${v.sets.length ? ` · ${v.sets.join(", ")}` : ""}`;
+  if (full) return <FullscreenQR code={v.refs[0]} caption={caption} onClose={onClose} />;
+  return (
+    <Modal open onClose={onClose} title={`${t("Entry QR")} · ${v.refs[0]}`}>
+      <div className="text-center">
+        <div className="mx-auto grid place-items-center">
+          <QR size={240} seed={v.refs[0]} />
+        </div>
+        <div className="mt-2 font-mono text-[15px] font-bold text-navy-900">{v.refs[0]}</div>
+        <div className="text-[13px] text-slate-600">{caption}</div>
+        <WalletButtons className="mt-4 pt-4 border-t border-slate-100" pass={visitPass(v)} />
+        <Btn variant="outline" full className="mt-4" icon={Icon.qr} onClick={() => setFull(true)}>
+          {t("Show full screen")}
+        </Btn>
+      </div>
+    </Modal>
   );
 }
 

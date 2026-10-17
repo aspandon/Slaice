@@ -1,128 +1,147 @@
+import { useState } from "react";
+import type { ReactNode } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, EmptyState, NotMvpBadge } from "../../components/ui";
+import type { IconRenderer } from "../../lib/icons";
+import { Badge, Btn, EmptyState, ErrorState, NotMvpBadge, Skeleton } from "../../components/ui";
+import { QR } from "../../components/charts";
 import { useApp, useT } from "../../app/store";
-import { ZONES, todayISO, zoneLayout } from "../../data/beach";
+import { TENANT, ZONES, todayISO, zoneLayout } from "../../data/beach";
 import { SEASON_ZONE, seasonSetIn } from "../../data/passes";
 import { layoutFor } from "../../domain/layoutVersions";
 import { resolvePrice } from "../../domain/pricing";
 import { addDays, fmtDay, fmtWeekday } from "../../domain/period";
-import { fmtDeadline, releaseDeadline } from "../../domain/visits";
-import { guestNow } from "../../lib/useVisits";
+import { ARRIVAL_WINDOW, fmtDeadline, releaseDeadline, type Visit } from "../../domain/visits";
+import { guestNow, useVisits } from "../../lib/useVisits";
 import { BadgesTile, RewardRow, SeasonTile, VipTile, activeRewards } from "./CustomerHome";
+import { VisitQR } from "./VisitTicket";
 
-/* ============ Wallet (AENR-577 / 578) ============
-   Everything the guest holds in one place: beach credit, passes (each card
-   carries its gate QR), the season set with "Release my day", rewards (applied by
-   themselves, AENR-619) and badges. Home keeps one rewards strip that links here. */
+/* ============ Wallet (AENR-577 / 578, order AENR-686) ============
+   Everything the guest holds, in one centred column under the top nav (the same
+   max-w-4xl as My bookings):
+     1. the passes they own (VIP credit / Season) and their beach credit,
+     2. their upcoming entries — one ticket per visit with its gate QR,
+     3. rewards (a roadmap feature, marked FUTURE),
+     4. "Release my day" for season holders,
+     5. passes they could buy (slim offers, never a card with their name and a QR),
+     6. badges (gamification, FUTURE). */
 
-const pill =
-  "inline-flex items-center gap-2 mb-2 rounded-xl glass-card-solid px-3 py-1.5 font-display font-bold text-navy-900";
+/** Entries shown on the Wallet; the rest live in My bookings. */
+const ENTRY_LIMIT = 4;
+
+/* One heading style for every Wallet section: a solid pill that stays legible over the
+   beach photo, with an optional aside (a count, a FUTURE badge, a link) on the right. */
+function SectionHead({
+  id,
+  icon: I,
+  children,
+  aside,
+}: {
+  id: string;
+  icon: IconRenderer;
+  children: ReactNode;
+  aside?: ReactNode;
+}) {
+  return (
+    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+      <h2
+        id={id}
+        className="inline-flex items-center gap-2 rounded-xl glass-card-solid px-3 py-1.5 font-display font-bold text-navy-900"
+      >
+        <I size={17} className="text-teal-700" /> {children}
+      </h2>
+      {aside && <div className="flex items-center gap-2">{aside}</div>}
+    </div>
+  );
+}
 
 export function CustomerWallet() {
   const { loyalty, go, account, passes, passPricing } = useApp();
   const t = useT();
   const rewards = activeRewards(loyalty);
   const ready = rewards.filter((a) => a.state.kind === "claim").length;
+  const owned = [passes.vip && "vip", passes.season && "season"].filter(Boolean);
+  const hasCredit = account.credit.balance > 0 || account.credit.log.length > 0;
   return (
-    <div className="animate-fade-up space-y-5 max-w-5xl mx-auto">
+    <div className="animate-fade-up w-full max-w-4xl mx-auto space-y-8">
       <h1 className="sr-only">{t("Wallet")}</h1>
 
-      {(account.credit.balance > 0 || account.credit.log.length > 0) && (
-        <section aria-labelledby="wallet-credit">
-          <h2 id="wallet-credit" className={pill}>
-            <Icon.cash size={17} className="text-teal-700" /> {t("Beach credit")}
-          </h2>
-          <div className="glass-flat rounded-3xl p-4 sm:p-5 flex flex-wrap items-start gap-4">
-            <div>
-              <div className="font-display font-bold text-3xl text-navy-900 tnum">
-                €{account.credit.balance.toFixed(2)}
-              </div>
-              <div className="text-[12.5px] text-slate-600">
-                {t("Used automatically at checkout.")}
-              </div>
-            </div>
-            <ul className="flex-1 min-w-[220px] divide-y divide-slate-100 text-[13px]">
-              {account.credit.log.slice(0, 5).map((e, i) => (
-                <li key={i} className="py-1.5 flex justify-between gap-3">
-                  <span className="text-slate-700">
-                    {e.text} <span className="text-slate-500">· {fmtDay(e.at.slice(0, 10))}</span>
-                  </span>
-                  <span
-                    className={`tnum font-semibold ${e.amount >= 0 ? "text-emerald-700" : "text-navy-900"}`}
-                  >
-                    {e.amount >= 0 ? "+" : "−"}€{Math.abs(e.amount).toFixed(2)}
-                  </span>
-                </li>
-              ))}
-            </ul>
+      {owned.length > 0 && (
+        <section aria-labelledby="wallet-passes">
+          <SectionHead id="wallet-passes" icon={Icon.wallet}>
+            {t("Your passes")}
+          </SectionHead>
+          <div
+            className={`grid gap-4 ${owned.length > 1 ? "sm:grid-cols-2" : "max-w-[26rem] mx-auto"}`}
+          >
+            {passes.vip && <VipTile />}
+            {passes.season && <SeasonTile />}
           </div>
+          <p className="mt-3 text-center">
+            <span className="inline-flex items-center gap-1.5 rounded-lg glass-card-solid px-2.5 py-1 text-[12.5px] text-slate-700">
+              <Icon.qr size={13} className="text-teal-700" />
+              {t("Each pass card carries your gate QR — show it at the entrance.")}
+            </span>
+          </p>
         </section>
       )}
 
-      {/* Order (AENR-648): what you can use now first — credit, rewards, the passes you hold —
-          then passes you could buy, as slim offers (never a card with your name and a QR). */}
-      <section aria-labelledby="wallet-rewards" className="glass-flat rounded-3xl p-4 max-w-3xl">
-        <h2
+      {hasCredit && <BeachCredit />}
+
+      <UpcomingEntries />
+
+      <section aria-labelledby="wallet-rewards">
+        <SectionHead
           id="wallet-rewards"
-          className="font-display font-bold text-navy-900 mb-3 flex items-center gap-2"
+          icon={Icon.gift}
         >
-          <Icon.gift size={16} className="text-teal-700" /> {t("Rewards")}
+          {t("Rewards")}
+          {/* Loyalty rewards are a roadmap feature (AENR-679 / 686). */}
+          <NotMvpBadge />
           {ready > 0 && (
             <Badge tone="green">
               {ready} {t("ready")}
             </Badge>
           )}
-        </h2>
-        {rewards.length ? (
-          <div className="space-y-2.5">
-            {rewards.map((a) => (
-              <RewardRow
-                key={a.id}
-                icon={a.icon}
-                title={a.title}
-                state={a.state}
-                used={a.id !== "tiers" && (account.rewardsUsed ?? []).includes(a.id)}
-              />
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            compact
-            icon={Icon.gift}
-            title={t("No rewards running")}
-            body={t("Your beach hasn’t started a rewards scheme yet.")}
-            action={
-              <Btn variant="teal" icon={Icon.sparkles} onClick={() => go("customer", "plan")}>
-                {t("Plan a visit")}
-              </Btn>
-            }
-          />
-        )}
+        </SectionHead>
+        <div className="glass-flat rounded-3xl p-3 sm:p-4">
+          {rewards.length ? (
+            <div className="grid gap-2.5 md:grid-cols-2">
+              {rewards.map((a, i) => (
+                // An odd count lets the first (usually the tier) span the row — no orphan tile.
+                <div key={a.id} className={rewards.length % 2 && i === 0 ? "md:col-span-2" : ""}>
+                  <RewardRow
+                    icon={a.icon}
+                    title={a.title}
+                    state={a.state}
+                    used={a.id !== "tiers" && (account.rewardsUsed ?? []).includes(a.id)}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              compact
+              icon={Icon.gift}
+              title={t("No rewards running")}
+              body={t("Your beach hasn’t started a rewards scheme yet.")}
+              action={
+                <Btn variant="teal" icon={Icon.sparkles} onClick={() => go("customer", "plan")}>
+                  {t("Plan a visit")}
+                </Btn>
+              }
+            />
+          )}
+        </div>
       </section>
-
-      {(passes.vip || passes.season) && (
-        <section aria-labelledby="wallet-passes">
-          <h2 id="wallet-passes" className={pill}>
-            <Icon.wallet size={17} className="text-teal-700" /> {t("Your passes")}
-          </h2>
-          <div className="grid sm:grid-cols-2 gap-4 max-w-[calc(2*85.6mm+1rem)]">
-            {passes.vip && <VipTile />}
-            {passes.season && <SeasonTile />}
-          </div>
-          <p className="mt-2 text-[12.5px] text-slate-600 glass-card-solid inline-block rounded-lg px-2.5 py-1">
-            {t("Each pass card carries your gate QR — show it at the entrance.")}
-          </p>
-        </section>
-      )}
 
       {passes.season && <ReleaseMyDay />}
 
-      {(!passes.vip || !passes.season) && (
-        <section aria-labelledby="wallet-offers" className="max-w-3xl">
-          <h2 id="wallet-offers" className={pill}>
-            <Icon.sparkles size={17} className="text-teal-700" /> {t("Passes you can get")}
-          </h2>
-          <div className="space-y-2">
+      {owned.length < 2 && (
+        <section aria-labelledby="wallet-offers">
+          <SectionHead id="wallet-offers" icon={Icon.sparkles}>
+            {t("Passes you can get")}
+          </SectionHead>
+          <div className={`grid gap-3 ${owned.length === 0 ? "md:grid-cols-2" : ""}`}>
             {!passes.vip && (
               <PassOffer
                 tone="vip"
@@ -143,12 +162,185 @@ export function CustomerWallet() {
         </section>
       )}
 
-      <div className="max-w-3xl">
-        <BadgesTile />
-      </div>
+      <BadgesTile />
     </div>
   );
 }
+
+/* Beach credit: the balance (used at checkout by itself) and its latest movements. */
+function BeachCredit() {
+  const { account } = useApp();
+  const t = useT();
+  return (
+    <section aria-labelledby="wallet-credit">
+      <SectionHead id="wallet-credit" icon={Icon.cash}>
+        {t("Beach credit")}
+      </SectionHead>
+      <div className="glass-flat rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-start gap-4">
+        <div className="sm:w-48 shrink-0">
+          <div className="font-display font-bold text-3xl text-navy-900 tnum">
+            €{account.credit.balance.toFixed(2)}
+          </div>
+          <div className="text-[12.5px] text-slate-600">{t("Used automatically at checkout.")}</div>
+        </div>
+        {account.credit.log.length > 0 && (
+          <ul className="flex-1 min-w-0 divide-y divide-slate-100 text-[13px]">
+            {account.credit.log.slice(0, 5).map((e, i) => (
+              <li key={i} className="py-1.5 flex justify-between gap-3">
+                <span className="text-slate-700 min-w-0">
+                  {e.text} <span className="text-slate-500">· {fmtDay(e.at.slice(0, 10))}</span>
+                </span>
+                <span
+                  className={`tnum font-semibold shrink-0 ${e.amount >= 0 ? "text-emerald-700" : "text-navy-900"}`}
+                >
+                  {e.amount >= 0 ? "+" : "−"}€{Math.abs(e.amount).toFixed(2)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* Upcoming entries (AENR-686): every visit still ahead (today included, cancelled ones
+   left out) as a ticket with its gate QR — tap to enlarge (modal on desktop, white full
+   screen on phones, the same VisitQR as Home). */
+function UpcomingEntries() {
+  const { go } = useApp();
+  const t = useT();
+  const { status, refetch, visits } = useVisits();
+  const [open, setOpen] = useState<Visit | null>(null);
+  const ahead = visits.filter((v) => v.status === "today" || v.status === "upcoming");
+  const shown = ahead.slice(0, ENTRY_LIMIT);
+  const more = ahead.length - shown.length;
+  return (
+    <section aria-labelledby="wallet-entries" aria-busy={status === "loading"}>
+      <SectionHead
+        id="wallet-entries"
+        icon={Icon.ticket}
+        aside={
+          ahead.length > 0 && (
+            <button
+              type="button"
+              onClick={() => go("customer", "mybookings")}
+              className="inline-flex items-center gap-1 rounded-lg glass-card-solid px-2.5 py-1 text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+            >
+              {more > 0 ? `${t("All")} ${ahead.length} ${t("in My bookings")}` : t("My bookings")}
+              <Icon.chevR size={13} />
+            </button>
+          )
+        }
+      >
+        {t("Upcoming entries")}
+        {ahead.length > 0 && <Badge tone="info">{ahead.length}</Badge>}
+      </SectionHead>
+      {status === "loading" ? (
+        <div className="grid gap-3 md:grid-cols-2">
+          {[0, 1].map((i) => (
+            <Skeleton key={i} className="h-[164px] !rounded-3xl" />
+          ))}
+        </div>
+      ) : status === "error" ? (
+        <div className="glass-flat rounded-3xl">
+          <ErrorState compact body={t("We couldn't load your bookings.")} onRetry={refetch} />
+        </div>
+      ) : shown.length === 0 ? (
+        <div className="glass-flat rounded-3xl">
+          <EmptyState
+            compact
+            icon={Icon.ticket}
+            title={t("No upcoming visits")}
+            body={t("Book a day at the beach — its entry QR will be here, ready for the gate.")}
+            action={
+              <Btn variant="teal" icon={Icon.sparkles} onClick={() => go("customer", "plan")}>
+                {t("Plan a visit")}
+              </Btn>
+            }
+          />
+        </div>
+      ) : (
+        <ul className="grid gap-3 md:grid-cols-2">
+          {shown.map((v) => (
+            <li key={v.key}>
+              <EntryTicket v={v} onShow={() => setOpen(v)} />
+            </li>
+          ))}
+        </ul>
+      )}
+      {open && <VisitQR v={open} onClose={() => setOpen(null)} />}
+    </section>
+  );
+}
+
+/* A visit as a ticket stub: the day on the left, a perforated edge, the gate QR on the right. */
+function EntryTicket({ v, onShow }: { v: Visit; onShow: () => void }) {
+  const t = useT();
+  const days = Math.round((Date.parse(v.date) - Date.parse(todayISO())) / 86400000);
+  const when =
+    days <= 0 ? t("Today") : days === 1 ? t("Tomorrow") : `${t("In")} ${days} ${t("days")}`;
+  const extras = [
+    ...v.tickets.map((x) => `${t("Entry")} ${x}`),
+    ...v.parking.map((x) => `${t("Parking")} ${x}`),
+    ...v.lockers.map((x) => `${t("Locker")} ${x}`),
+  ];
+  return (
+    <article
+      aria-label={`${fmtWeekday(v.date)} ${fmtDay(v.date)} · ${v.refs[0]}`}
+      className="glass-flat rounded-3xl overflow-hidden flex h-full"
+    >
+      <div className="flex-1 min-w-0 p-4 sm:p-5 flex flex-col">
+        <div
+          className={`inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] ${days <= 0 ? "text-amber-700" : "text-teal-700"}`}
+        >
+          <Icon.calendar size={12} /> {when}
+        </div>
+        <h3 className="mt-1 font-display font-bold text-[19px] leading-tight text-navy-900">
+          {fmtWeekday(v.date)} {fmtDay(v.date)}
+        </h3>
+        <p className="mt-0.5 text-[13px] font-semibold text-navy-900 truncate">
+          {v.zone || TENANT.name}
+        </p>
+        <p className="text-[13px] text-slate-600 truncate">
+          {v.sets.length ? `${t("Sunbeds")} ${v.sets.join(", ")}` : t("Entry tickets")}
+        </p>
+        {extras.length > 0 && (
+          <ul className="mt-2 flex flex-wrap gap-1">
+            {extras.map((x) => (
+              <li
+                key={x}
+                className="rounded-md bg-white/80 ring-1 ring-slate-200 px-1.5 py-0.5 text-[11px] text-slate-700"
+              >
+                {x}
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="mt-auto pt-3 inline-flex items-center gap-1.5 text-[12px] text-slate-600">
+          <Icon.clock size={13} className="text-teal-700" /> {t("Arrive")} {ARRIVAL_WINDOW}
+        </div>
+      </div>
+      {/* The stub: a dashed tear line, then the code on white for the scanner. */}
+      <button
+        type="button"
+        onClick={onShow}
+        data-wallet-qr
+        aria-label={`${t("Show QR")} ${v.refs[0]}`}
+        className="group shrink-0 w-[124px] sm:w-[144px] border-l-2 border-dashed border-slate-300/80 bg-white/70 hover:bg-white transition-colors flex flex-col items-center justify-center gap-1.5 px-3 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500"
+      >
+        <span className="rounded-xl bg-white p-1.5 ring-1 ring-slate-200 shadow-soft transition group-hover:shadow-lift">
+          <QR size={84} seed={v.refs[0]} />
+        </span>
+        <span className="font-mono text-[11.5px] font-semibold text-navy-900">{v.refs[0]}</span>
+        <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-teal-700">
+          <Icon.qr size={12} /> {t("Tap to enlarge")}
+        </span>
+      </button>
+    </article>
+  );
+}
+
 
 /* Release my day (AENR-578): the season set goes back on sale for a day the
    holder won't use; when it sells again they earn credit. */
@@ -199,10 +391,9 @@ function ReleaseMyDay() {
     });
   return (
     <section aria-labelledby="wallet-release">
-      <h2 id="wallet-release" className={pill}>
-        <Icon.umbrella size={17} className="text-teal-700" /> {t("Your season set")} · {zone.name}{" "}
-        {setId}
-      </h2>
+      <SectionHead id="wallet-release" icon={Icon.umbrella}>
+        {t("Your season set")} · {zone.name} {setId}
+      </SectionHead>
       <div className="glass-flat rounded-3xl p-4">
         <p className="text-[13px] text-slate-700 mb-3">
           {t(

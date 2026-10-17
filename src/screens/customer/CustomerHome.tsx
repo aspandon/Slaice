@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useGuestRecord } from "../../lib/useGuestRecord";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
-import { Badge, Btn, Modal, NotMvpBadge } from "../../components/ui";
+import { Badge, Btn, NotMvpBadge } from "../../components/ui";
 import { PassCard } from "../../components/PassCard";
 import { gsap, motionOK, DUR, EASE, useMagnetic, useCardTilt } from "../../lib/fx";
 import { useCountUp } from "../../lib/motion";
@@ -11,7 +11,7 @@ import { QR } from "../../components/charts";
 import { useVisits } from "../../lib/useVisits";
 import { ARRIVAL_ENDS, ARRIVAL_WINDOW, homeMoment, usual, type MomentKind, type UsualBooking, type Visit } from "../../domain/visits";
 import { fmtDay, fmtWeekday } from "../../domain/period";
-import { FullscreenQR, receiptForVisit, visitPass } from "./VisitTicket";
+import { VisitQR, receiptForVisit, visitPass } from "./VisitTicket";
 import { ExtrasDialog } from "./CustomerBookings";
 import { ReceiptModal } from "./CustomerDocs";
 import { useDemoNow } from "../../lib/useLiveSlots";
@@ -248,26 +248,6 @@ function NextVisitCard({ v, qrFirst = false }: { v: Visit; qrFirst?: boolean }) 
       </div>
       {qr && <VisitQR v={v} onClose={() => setQr(false)} />}
     </section>
-  );
-}
-
-/* Show QR from Home (AENR-703): on a phone the white full screen for the gate scanner; on
-   larger screens a modal with the code, the wallet and a full-screen option. */
-function VisitQR({ v, onClose }: { v: Visit; onClose: () => void }) {
-  const t = useT();
-  const [full, setFull] = useState(() => !window.matchMedia("(min-width: 768px)").matches);
-  const caption = `${fmtWeekday(v.date)} ${fmtDay(v.date)}${v.sets.length ? ` · ${v.sets.join(", ")}` : ""}`;
-  if (full) return <FullscreenQR code={v.refs[0]} caption={caption} onClose={onClose} />;
-  return (
-    <Modal open onClose={onClose} title={`${t("Entry QR")} · ${v.refs[0]}`}>
-      <div className="text-center">
-        <div className="mx-auto grid place-items-center"><QR size={240} seed={v.refs[0]} /></div>
-        <div className="mt-2 font-mono text-[15px] font-bold text-navy-900">{v.refs[0]}</div>
-        <div className="text-[13px] text-slate-600">{caption}</div>
-        <WalletButtons className="mt-4 pt-4 border-t border-slate-100" pass={visitPass(v)} />
-        <Btn variant="outline" full className="mt-4" icon={Icon.qr} onClick={() => setFull(true)}>{t("Show full screen")}</Btn>
-      </div>
-    </Modal>
   );
 }
 
