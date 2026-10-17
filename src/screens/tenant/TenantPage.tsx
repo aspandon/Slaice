@@ -14,6 +14,7 @@ import { Billing, Contract, Overview, Profile, Usage } from "./AccountSections";
 import { Branding, Features, Localisation, Locations, Modules } from "./ProductSections";
 import { Compliance, Integrations, Invoicing, Payments, Security, Users } from "./AccessSections";
 import { Audit, DataExport, Health, Support } from "./SupportSections";
+import { Roles } from "./RolesSection";
 import { DangerZone } from "./Lifecycle";
 import { ViewAsDialog } from "./ViewAs";
 
@@ -133,6 +134,15 @@ export const SECTIONS: SectionDef[] = [
     group: "Money",
     edit: "admin",
     render: (p) => <Invoicing {...p} />,
+  },
+  {
+    // Which staff roles the tenant uses (AENR-716).
+    id: "roles",
+    label: "Roles",
+    icon: Icon.group,
+    group: "Access & trust",
+    edit: "admin",
+    render: (p) => <Roles {...p} />,
   },
   {
     id: "users",

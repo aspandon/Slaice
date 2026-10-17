@@ -11,6 +11,7 @@
 // A Future item shows only when previews are on AND its module (if any) is on.
 
 import { moduleState, planVersion, type ModuleId, type ModuleOverride, type Plan } from "./plans";
+import type { StaffRole } from "./types";
 
 /** Modules a requirement switches off regardless of plan or override. */
 export const blockersOf = (t: { stripe: { charges: boolean } }): Record<string, string> =>
@@ -157,3 +158,34 @@ export function isLastOn(
   );
   return on.length === 1 && on[0].key === key;
 }
+
+/* ---------- Tenant roles (AENR-716) ----------
+   Slaice decides which staff roles a tenant uses (Platform › tenant › Roles).
+   A role that is off disappears for that tenant: no role pickers, no "Your
+   roles" / "View as", and its pages show the calm not-available card. Users who
+   hold it keep it, shown as "role off for this beach", so turning it back on
+   restores their access. Manager / Admin is always on: someone has to own the
+   beach's configuration, staff and refunds. */
+export const STAFF_ROLE_IDS: readonly StaffRole[] = [
+  "admin",
+  "callcenter",
+  "cashier",
+  "controller",
+  "support",
+  "accountant",
+];
+export const ALWAYS_ON_ROLE: StaffRole = "admin";
+const isStaffRole = (r: string): r is StaffRole => STAFF_ROLE_IDS.some((x) => x === r);
+/** Whether the tenant uses role `r`. Customer, Platform and unknown ids are never gated. */
+export function tenantRoleOn(
+  t: { roles?: Partial<Record<StaffRole, boolean>> } | undefined,
+  r: string,
+): boolean {
+  if (r === ALWAYS_ON_ROLE || !isStaffRole(r)) return true;
+  return t?.roles?.[r] ?? true;
+}
+/** The roles of a user the tenant still uses — the ones they can sign in with. */
+export const usableRoles = (
+  t: { roles?: Partial<Record<StaffRole, boolean>> } | undefined,
+  roles: readonly StaffRole[],
+): StaffRole[] => roles.filter((r) => tenantRoleOn(t, r));

@@ -5,6 +5,7 @@ import {
   featureSwitch,
   featureDef,
   tenantHasModule,
+  tenantRoleOn,
   type TenantFeatureId,
 } from "../domain/features";
 import { addDays } from "../domain/period";
@@ -12,7 +13,8 @@ import type { ModuleId } from "../domain/plans";
 
 /* ============ What this tenant's app shows (AENR-691 / 696 / 677 / 721) ============
    One hook for every gate: roadmap previews (the demo switch), the tenant's
-   modules (Platform › tenant › Modules) and its feature switches (› Features).
+   modules (Platform › tenant › Modules), its feature switches (› Features)
+   and the staff roles it uses (› Roles, AENR-716).
    The tenant is the one the demo personas represent (platform.siteTenant), so
    a change on the Platform reaches every role at once — it is the same store. */
 
@@ -45,7 +47,9 @@ export function useTenantFeatures() {
     (!g.future || showPreviews) &&
     (!g.module || module(g.module)) &&
     (!g.feature || feature(g.feature));
-  return { tenant, roadmap: showPreviews, module, feature, allows };
+  /** Whether the tenant uses this staff role (Platform › tenant › Roles, AENR-716) — Customer and Platform always do. */
+  const role = (r: string) => tenantRoleOn(tenant, r);
+  return { tenant, roadmap: showPreviews, module, feature, role, allows };
 }
 
 /** Renders its children only when the gate allows them — use it at every Future or module-bound site. */

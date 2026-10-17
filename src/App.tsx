@@ -44,6 +44,7 @@ import { DEFAULT_LAYOUT_STATE, type LayoutState } from "./domain/layoutVersions"
 import { DEFAULT_EXTRAS, type ExtrasState } from "./domain/extras";
 import { DEFAULT_ACCOUNT, type AccountState } from "./domain/account";
 import { MODULES_SEED, emptyPlatform, type PlatformState } from "./domain/platform";
+import { tenantRoleOn, usableRoles } from "./domain/features";
 import { DEFAULT_COMMS, type CommsState } from "./data/comms";
 import { DEFAULT_PRIVACY, type PrivacyState } from "./data/gdpr";
 import { CommsJanitor } from "./screens/communicate/Janitor";
@@ -382,24 +383,28 @@ export default function App() {
   // RBAC "view as": show the app exactly as a staff user would see it — their
   // role's pages only — until the admin exits the preview.
   const viewAs = staffUsers.find((u) => u.id === viewAsId && u.status === "active") ?? null;
+  // Roles the demo beach doesn't use (AENR-716) are never a preview or switch target.
+  const siteTenant = platform.tenants.find((x) => x.id === platform.siteTenant);
+  const viewAsHome: PersonaId = viewAs ? (usableRoles(siteTenant, viewAs.roles)[0] ?? viewAs.roles[0]) : "admin";
   const startViewAs = useCallback((id: string) => {
     const u = staffUsers.find((x) => x.id === id);
-    if (!u || u.status !== "active") return;
+    const first = u ? usableRoles(siteTenant, u.roles)[0] : undefined;
+    if (!u || u.status !== "active" || !first) return;
     setViewAsId(id);
-    go(u.roles[0], DEFAULT_PAGE[u.roles[0]]);
-  }, [staffUsers, go]);
+    go(first, DEFAULT_PAGE[first]);
+  }, [staffUsers, go, siteTenant]);
   // "Your roles" in the account menu (AENR-717): the same user, another of their
   // roles — lands on that role's start page. On the till, a role switch while a
   // shift is open hands the till to this person (they're signed in already).
   const switchRole = useCallback((userId: string, role: StaffRole) => {
     const u = staffUsers.find((x) => x.id === userId);
-    if (!u || !hasRole(u, role)) return;
+    if (!u || !hasRole(u, role) || !tenantRoleOn(siteTenant, role)) return;
     if (!viewAsId) {
       setStaffMeId(userId);
       if (role === "cashier" || role === "support") setTill((t) => (t.shift ? { ...t, active: u.name } : t));
     }
     go(role, DEFAULT_PAGE[role]);
-  }, [staffUsers, viewAsId, go, setTill]);
+  }, [staffUsers, viewAsId, go, setTill, siteTenant]);
   const exitViewAs = useCallback(() => {
     setViewAsId(null);
     go("admin", "rbac");
@@ -500,20 +505,20 @@ export default function App() {
               <button type="button" onClick={() => setPlatformState((p) => ({ ...p, siteTenant: "akti" }))} className="ml-auto rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1 font-semibold">Back to Akti tou Iliou</button>
             </div>
           )}
-          <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} previewing={!!viewAs} lead={persona === "cashier" ? <ShiftSwitch /> : undefined} />
+          <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} previewing={!!viewAs} lead={persona === "cashier" && tenantRoleOn(siteTenant, "cashier") ? <ShiftSwitch /> : undefined} />
           {persona === "customer" ? (
             // flex-1 lets the content region grow so the SiteFooter is pushed to
             // the bottom of the viewport (the beach backdrop's green band)
             // instead of floating up under short pages.
             <div className="flex-1">
-              <main className="min-w-0">{viewAs ? <AccessDenied user={viewAs} onHome={() => go(viewAs.roles[0], DEFAULT_PAGE[viewAs.roles[0]])} /> : <PageGate persona={persona} page={page}>{routeFor(persona, page)}</PageGate>}</main>
+              <main className="min-w-0">{viewAs ? <AccessDenied user={viewAs} onHome={() => go(viewAsHome, DEFAULT_PAGE[viewAsHome])} /> : <PageGate persona={persona} page={page}>{routeFor(persona, page)}</PageGate>}</main>
             </div>
           ) : (
             <div className="flex-1 flex gap-5 min-h-0">
               {persona !== "cashier" && <Sidebar persona={persona} page={page} setPage={setPage} />}
               {/* While Slaice staff view a tenant, the guard disables mutating / blocked controls (AENR-515). */}
               <GuardCtx.Provider value={guard}>
-                <main className="flex-1 min-w-0">{persona === "cashier" && <TillTabs persona={persona} page={page} setPage={setPage} />}{persona === "cashier" && !viewAs && <OfflineBanner />}{viewAs && !hasRole(viewAs, persona) ? <AccessDenied user={viewAs} onHome={() => go(viewAs.roles[0], DEFAULT_PAGE[viewAs.roles[0]])} /> : <PageGate persona={persona} page={page}>{routeFor(persona, page)}</PageGate>}</main>
+                <main className="flex-1 min-w-0">{persona === "cashier" && <TillTabs persona={persona} page={page} setPage={setPage} />}{persona === "cashier" && !viewAs && <OfflineBanner />}{viewAs && !hasRole(viewAs, persona) ? <AccessDenied user={viewAs} onHome={() => go(viewAsHome, DEFAULT_PAGE[viewAsHome])} /> : <PageGate persona={persona} page={page}>{routeFor(persona, page)}</PageGate>}</main>
               </GuardCtx.Provider>
             </div>
           )}

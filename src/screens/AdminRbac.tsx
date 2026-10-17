@@ -18,6 +18,8 @@ import { useApp } from "../app/store";
 import { navFor } from "../data/personas";
 import { useTenantFeatures } from "../lib/useFeatures";
 import { STAFF_ROLES, hasRole, roleLabel, rolesLabel } from "../data/staff";
+import { RoleBadges } from "./team/RoleBadges";
+import { RolePicker, defaultRoles } from "./team/RolePicker";
 import type { StaffRole, StaffStatus, StaffUser } from "../domain/types";
 
 /* ============ RBAC — staff users & roles (AENR-503) ============
@@ -44,7 +46,7 @@ const fmtWhen = (iso: string | null) =>
     : "Never";
 
 type Draft = { id?: string; name: string; email: string; phone: string; roles: StaffRole[]; tillPin: string };
-const EMPTY: Draft = { name: "", email: "", phone: "", roles: ["cashier"], tillPin: "" };
+const EMPTY: Draft = { name: "", email: "", phone: "", roles: [], tillPin: "" };
 /** Roles that sell at a shared till and switch in with a PIN (AENR-608). */
 const TILL_ROLES: StaffRole[] = ["cashier", "support"];
 const sellsAtTill = (roles: readonly StaffRole[]) => roles.some((r) => TILL_ROLES.includes(r));
@@ -52,14 +54,15 @@ const sellsAtTill = (roles: readonly StaffRole[]) => roles.some((r) => TILL_ROLE
 export function AdminRbac() {
   const { staffUsers, updateStaff, staffAudit, startViewAs, toast } = useApp();
   // A role card lists the pages it can open on this beach (roadmap previews / modules, AENR-691 / 696).
-  const { roadmap, module } = useTenantFeatures();
+  const { roadmap, module, role: roleOn, tenant } = useTenantFeatures();
+  const beach = tenant?.name ?? "this beach";
+  // Roles Slaice turned off for this beach (AENR-716) aren't offered; people who hold one keep it.
+  const usable = (u: StaffUser) => u.roles.filter((r) => roleOn(r));
   const [q, setQ] = useState("");
   const [roleF, setRoleF] = useState<"all" | StaffRole>("all");
   const [statusF, setStatusF] = useState<"all" | StaffStatus>("all");
   const [draft, setDraft] = useState<Draft | null>(null);
   const [touched, setTouched] = useState(false);
-  // Set when the admin tries to untick a user's only role (AENR-717).
-  const [lastRoleWarn, setLastRoleWarn] = useState(false);
   const [suspending, setSuspending] = useState<StaffUser | null>(null);
   const [reason, setReason] = useState("");
   const [deleting, setDeleting] = useState<StaffUser | null>(null);
@@ -146,7 +149,6 @@ export function AdminRbac() {
   };
   const openDraft = (d: Draft) => {
     setTouched(false);
-    setLastRoleWarn(false);
     setDraft(d);
   };
 
@@ -205,7 +207,7 @@ export function AdminRbac() {
     <div className="animate-fade-up">
       <PageHead
         title="Team & roles"
-        sub="Staff accounts and what each role can see and do — invite, change roles, preview as a role." primary={<Btn variant="primary" icon={Icon.plus} onClick={() => openDraft(EMPTY)}>
+        sub="Staff accounts and what each role can see and do — invite, change roles, preview as a role." primary={<Btn variant="primary" icon={Icon.plus} onClick={() => openDraft({ ...EMPTY, roles: defaultRoles(roleOn) })}>
             Add user
           </Btn>}
       />
@@ -229,7 +231,7 @@ export function AdminRbac() {
                 onChange={(e) => setRoleF(e.target.value as "all" | StaffRole)}
                 options={[
                   { v: "all", l: "All roles" },
-                  ...STAFF_ROLES.map((r) => ({ v: r.id, l: r.label })),
+                  ...STAFF_ROLES.map((r) => ({ v: r.id, l: roleOn(r.id) ? r.label : `${r.label} (off)` })),
                 ]}
               />
             </Field>
@@ -283,13 +285,7 @@ export function AdminRbac() {
                   <div className="text-[12px] text-slate-500">{u.email}</div>
                 </div>,
                 <span className="tnum whitespace-nowrap">{u.phone || "—"}</span>,
-                <div className="flex flex-wrap gap-1 min-w-[7rem]">
-                  {u.roles.map((r) => (
-                    <Badge key={r} tone={r === "admin" ? "indigo" : "slate"}>
-                      {roleLabel(r)}
-                    </Badge>
-                  ))}
-                </div>,
+                <RoleBadges roles={u.roles} roleOn={roleOn} beach={beach} />,
                 <div className="leading-tight">
                   <Badge tone={st.tone}>
                     <StIcon size={10} /> {st.label}
@@ -304,13 +300,15 @@ export function AdminRbac() {
                 <div className="flex items-center justify-end gap-1">
                   <button
                     type="button"
-                    disabled={u.status !== "active"}
+                    disabled={u.status !== "active" || usable(u).length === 0}
                     onClick={() => startViewAs(u.id)}
                     aria-label={`View as ${u.name}`}
                     title={
-                      u.status === "active"
-                        ? "View as this user"
-                        : "Only active users can be previewed"
+                      u.status !== "active"
+                        ? "Only active users can be previewed"
+                        : usable(u).length === 0
+                          ? `None of their roles is used at ${beach}`
+                          : "View as this user"
                     }
                     className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-xl px-2.5 h-9 text-[12.5px] font-semibold text-navy-900 hover:bg-slate-100 disabled:opacity-35 disabled:hover:bg-transparent transition"
                   >
@@ -367,7 +365,7 @@ export function AdminRbac() {
             that role sees it.
           </p>
           <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
-            {STAFF_ROLES.map((r) => (
+            {STAFF_ROLES.filter((r) => roleOn(r.id)).map((r) => (
               <div
                 key={r.id}
                 className="rounded-2xl ring-1 ring-slate-200 bg-white/70 p-3.5 flex flex-col"
@@ -413,6 +411,20 @@ export function AdminRbac() {
               </div>
             ))}
           </div>
+          {STAFF_ROLES.some((r) => !roleOn(r.id)) && (
+            <div className="mt-3 rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-2 text-[12px] text-slate-600 flex items-start gap-1.5">
+              <Icon.lock size={13} className="mt-px shrink-0" aria-hidden />
+              <span>
+                Not used at {beach}:{" "}
+                <b className="font-semibold text-navy-900">
+                  {STAFF_ROLES.filter((r) => !roleOn(r.id))
+                    .map((r) => r.label)
+                    .join(", ")}
+                </b>
+                . Slaice turns roles on or off for your beach — ask your account manager.
+              </span>
+            </div>
+          )}
           <div className="mt-3 text-[11.5px] text-slate-500 flex items-center gap-1.5">
             <Icon.info size={12} /> Platform / Slaice is the platform back office, not a role you
             can assign here.
@@ -490,55 +502,12 @@ export function AdminRbac() {
                 />
               </Field>
             </div>
-            <fieldset aria-describedby="staff-roles-hint">
-              <legend className="text-[12px] font-semibold text-slate-700 mb-0.5">Roles</legend>
-              <p id="staff-roles-hint" className="text-[11.5px] text-slate-500 mb-1.5">
-                Pick one or more. Someone with several roles switches between them from their
-                account menu (top right).
-              </p>
-              <div className="grid sm:grid-cols-2 gap-2">
-                {STAFF_ROLES.map((r) => {
-                  const on = draft.roles.includes(r.id);
-                  return (
-                    <label
-                      key={r.id}
-                      className={`flex items-start gap-2.5 rounded-xl ring-1 px-3 py-2.5 cursor-pointer transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-teal-500 ${on ? "ring-2 ring-teal-500 bg-teal-50/40" : "ring-slate-200 hover:ring-slate-300"}`}
-                    >
-                      <input
-                        type="checkbox"
-                        name="staff-roles"
-                        value={r.id}
-                        checked={on}
-                        onChange={() => {
-                          if (on && draft.roles.length === 1) {
-                            setLastRoleWarn(true);
-                            return;
-                          }
-                          setLastRoleWarn(false);
-                          setDraft({
-                            ...draft,
-                            roles: on ? draft.roles.filter((x) => x !== r.id) : [...draft.roles, r.id],
-                          });
-                        }}
-                        className="mt-0.5 w-4 h-4 accent-teal-600"
-                      />
-                      <span className="text-[13px] font-semibold text-navy-900">
-                        {r.label}
-                        <span className="block font-normal text-[11.5px] text-slate-500 leading-snug">
-                          {r.blurb}
-                        </span>
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-              {lastRoleWarn && (
-                <div role="alert" className="mt-1.5 text-[12px] text-rose-700 flex items-center gap-1.5">
-                  <Icon.info size={12} /> A user needs at least one role — tick another role before
-                  removing this one.
-                </div>
-              )}
-            </fieldset>
+            <RolePicker
+              value={draft.roles}
+              onChange={(roles) => setDraft({ ...draft, roles })}
+              roleOn={roleOn}
+              beach={beach}
+            />
             {sellsAtTill(draft.roles) && (
               <Field
                 label="Till PIN (4 digits)"

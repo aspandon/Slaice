@@ -6,6 +6,7 @@ import type { PersonaId } from "../../domain/types";
 import { SceneControls } from "../SceneDemoPanel";
 import { readHashQuery } from "../../app/router";
 import { useDemoFlag } from "../../lib/useDemoFlag";
+import { useTenantFeatures } from "../../lib/useFeatures";
 
 /* ---------- Persona switcher ----------
    The "view as another persona" control, shared by two surfaces:
@@ -32,6 +33,7 @@ export function PersonaSwitcher({
   const [economics, setEconomics] = useDemoFlag("economics");
   const [newGuest, setNewGuest] = useDemoFlag("newGuest");
   const { inventory, setInventory, sceneFx, showPreviews, setShowPreviews, till } = useApp();
+  const { role: roleOn, tenant } = useTenantFeatures();
   const cur = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[0];
   const momentPreview = readHashQuery().get("moment") ?? "";
   const origin = side === "top" ? "origin-bottom-right" : "origin-top-right";
@@ -65,21 +67,29 @@ export function PersonaSwitcher({
       <DropdownMenu.Portal>
         <DropdownMenu.Content side={side} align="end" sideOffset={8} className={`glass w-72 text-ink rounded-xl p-1.5 z-[60] shadow-float ${origin} data-[state=open]:animate-scale-in`}>
           <DropdownMenu.Label className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{t("View as persona")}</DropdownMenu.Label>
-          {PERSONAS.map((p) => (
-            <DropdownMenu.Item
-              key={p.id}
-              onSelect={() => setPersona(p.id)}
-              className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none ${persona === p.id ? "bg-slate-100" : ""} hover:bg-slate-100 data-[highlighted]:bg-slate-100`}
-            >
-              <span className="w-7 h-7 rounded-lg grid place-items-center text-white shrink-0 mt-0.5" style={{ background: p.color }}>
-                {(() => { const I = Icon[p.icon]; return I ? <I size={14} /> : null; })()}
-              </span>
-              <span className="text-left">
-                <span className="font-semibold flex items-center gap-1.5">{t(p.label)}{persona === p.id && <Icon.check size={14} />}</span>
-                <span className="block text-[11px] text-slate-500 leading-tight">{t(p.blurb)}</span>
-              </span>
-            </DropdownMenu.Item>
-          ))}
+          {PERSONAS.map((p) => {
+            // A role the demo beach doesn't use (AENR-716) stays reachable, greyed, and opens an explanation.
+            const off = !roleOn(p.id);
+            return (
+              <DropdownMenu.Item
+                key={p.id}
+                onSelect={() => setPersona(p.id)}
+                className={`w-full flex items-start gap-2.5 px-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none ${persona === p.id ? "bg-slate-100" : ""} hover:bg-slate-100 data-[highlighted]:bg-slate-100`}
+              >
+                <span className={`w-7 h-7 rounded-lg grid place-items-center text-white shrink-0 mt-0.5 ${off ? "grayscale opacity-50" : ""}`} style={{ background: p.color }}>
+                  {(() => { const I = Icon[p.icon]; return I ? <I size={14} /> : null; })()}
+                </span>
+                <span className="text-left min-w-0">
+                  <span className={`font-semibold flex items-center gap-1.5 ${off ? "text-slate-500" : ""}`}>{t(p.label)}{persona === p.id && <Icon.check size={14} />}</span>
+                  {off ? (
+                    <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500 leading-tight"><Icon.lock size={11} aria-hidden /> {t("Disabled for")} {tenant?.name ?? t("this beach")}</span>
+                  ) : (
+                    <span className="block text-[11px] text-slate-500 leading-tight">{t(p.blurb)}</span>
+                  )}
+                </span>
+              </DropdownMenu.Item>
+            );
+          })}
           {/* Roadmap previews (AENR-618): off by default so the menus show only what works today. */}
           {persona !== "customer" && (
             <>

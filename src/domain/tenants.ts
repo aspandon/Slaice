@@ -5,6 +5,7 @@
 
 import type { ModuleOverride, LimitId } from "./plans";
 import type { TenantFeatureId } from "./features";
+import type { StaffRole, StaffUser } from "./types";
 
 export type Lifecycle =
   | "onboarding"
@@ -152,6 +153,11 @@ export interface TenantRecord {
   beta: string[];
   /** Per-tenant feature switches (Platform › tenant › Features, AENR-677 / 721); missing = the feature's default. */
   features?: Partial<Record<TenantFeatureId, boolean>>;
+  /** Staff roles the tenant uses (Platform › tenant › Roles, AENR-716); missing = on. Manager / Admin is always on. */
+  roles?: Partial<Record<StaffRole, boolean>>;
+  /** Staff accounts of a tenant other than the demo beach (Platform › tenant › Users & roles, AENR-718).
+   *  The demo beach's staff live in the app store (Team & roles); missing = seeded from the contacts. */
+  staff?: StaffUser[];
   releaseChannel: "stable" | "beta" | "preview";
   stripe: {
     details: boolean;

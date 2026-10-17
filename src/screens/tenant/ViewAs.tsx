@@ -6,6 +6,7 @@ import { usePlatform } from "../../lib/usePlatform";
 import { useNow } from "../../lib/useLiveSlots";
 import { DEFAULT_PAGE } from "../../data/personas";
 import { fmtDay } from "../../domain/period";
+import { tenantRoleOn } from "../../domain/features";
 import type { TenantRecord, ViewAsSession, ViewScope } from "../../domain/tenants";
 
 /* ============ View as tenant (AENR-515) ============
@@ -208,7 +209,7 @@ export function ViewAsDialog({ t, onClose }: { t: TenantRecord; onClose: () => v
               <Select
                 value={role}
                 onChange={(e) => setRole(e.target.value as ViewAsSession["role"])}
-                options={ROLES}
+                options={ROLES.filter((r) => tenantRoleOn(t, r.v))}
               />
             </Field>
             <Field label="Duration">

@@ -10,6 +10,7 @@ import { PERSONAS, NAV } from "../../data/personas";
 import { LANGUAGES, useApp, useT } from "../../app/store";
 import { deviceLang } from "../../app/i18n";
 import { useInbox } from "../../lib/useInbox";
+import { useTenantFeatures } from "../../lib/useFeatures";
 import type { CartItem, LangCode, PersonaId } from "../../domain/types";
 import { NavSheet } from "./Nav";
 import { PersonaSwitcher } from "./PersonaSwitcher";
@@ -103,7 +104,9 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
     : staffMe(persona, staffUsers, viewAs?.name ?? (persona === "cashier" ? till.active ?? till.shift?.cashier : undefined), staffMeId);
   // The signed-in staff member's roles (AENR-717) — a switcher only when they hold more than one.
   const meUser = "user" in me ? me.user : undefined;
-  const myRoles = meUser?.roles ?? [];
+  // Roles the beach doesn't use (AENR-716) aren't offered.
+  const { role: roleOn } = useTenantFeatures();
+  const myRoles = (meUser?.roles ?? []).filter((r) => roleOn(r));
   const cartCount = (cart || []).length;
   const cartTotal = (cart || []).reduce((a, b) => a + b.price, 0);
   // Basket + notifications are controlled Popovers so their in-panel CTAs can

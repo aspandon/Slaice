@@ -1,6 +1,7 @@
 // Seed staff accounts for the tenant (RBAC demo). Roles map to personas: a
 // user signed in with a role sees exactly that persona's pages (NAV).
 import type { StaffAuditEntry, StaffRole, StaffUser } from "../domain/types";
+import type { TenantRecord } from "../domain/tenants";
 
 export const STAFF_ROLES: { id: StaffRole; label: string; blurb: string }[] = [
   {
@@ -149,6 +150,51 @@ export const DEFAULT_STAFF_AUDIT: StaffAuditEntry[] = [
   },
   { at: "2026-05-28T09:00:00", by: "Eleni Markou", action: "Added Eleni Sava as Cashier" },
 ];
+
+/** The tenant whose staff live in the app store (Team & roles) — the demo beach. */
+export const DEMO_STAFF_TENANT = "akti";
+/** A tenant's staff (AENR-716 / 718): the demo beach's come from the app store; any
+ *  other tenant keeps its own on the tenant record, seeded from its contacts. */
+export function tenantStaff(t: TenantRecord, demoStaff: readonly StaffUser[]): StaffUser[] {
+  if (t.id === DEMO_STAFF_TENANT) return [...demoStaff];
+  if (t.staff) return t.staff;
+  const owner = t.contacts.find((c) => c.role === "owner") ?? t.contacts[0];
+  const domain = owner?.email.split("@")[1] ?? `${t.subdomain}.gr`;
+  const created = t.goLive ?? "2026-04-01";
+  const live = t.lifecycle === "live";
+  return [
+    {
+      id: `${t.id}-u1`,
+      name: owner?.name ?? `${t.name} owner`,
+      email: owner?.email ?? `owner@${domain}`,
+      phone: owner?.phone ?? "",
+      roles: ["admin"],
+      status: "active",
+      lastSignIn: live ? "2026-07-19T08:10:00" : null,
+      created,
+    },
+    {
+      id: `${t.id}-u2`,
+      name: "Front desk",
+      email: `frontdesk@${domain}`,
+      phone: "+30 694 300 0011",
+      roles: ["cashier"],
+      status: "active",
+      lastSignIn: live ? "2026-07-19T09:00:00" : null,
+      created,
+    },
+    {
+      id: `${t.id}-u3`,
+      name: "Gate staff",
+      email: `gate@${domain}`,
+      phone: "+30 694 300 0012",
+      roles: ["controller"],
+      status: live ? "active" : "invited",
+      lastSignIn: live ? "2026-07-18T18:40:00" : null,
+      created,
+    },
+  ];
+}
 
 /** Saved state from before AENR-717 holds a single `role`: lift it into `roles`.
  *  A seed user still on its legacy role picks up the demo's multi-role seed
