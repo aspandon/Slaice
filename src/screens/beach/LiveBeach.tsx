@@ -10,7 +10,7 @@ import { useApp } from "../../app/store";
 import { readHashQuery, writeHashQuery } from "../../app/router";
 import { ZONES } from "../../data/beach";
 import { summarize } from "../../data/analytics";
-import { DEMO_TODAY, addDays, rangeLabel, resolveRange } from "../../domain/period";
+import { DEMO_TODAY, addDays, fmtDay, rangeLabel, resolveRange } from "../../domain/period";
 import { NO_SHOW_CUTOFF, OPS_LABEL, type OpsStatus } from "../../domain/sunbedOps";
 import { usePeriod } from "../../lib/usePeriod";
 import { useLiveSlots } from "../../lib/useLiveSlots";
@@ -230,6 +230,27 @@ export function AdminLiveBeach() {
               {l}
             </button>
           ))}
+          {/* Any other day of the season (AENR-674): highlighted when it is the one shown. */}
+          <label
+            className={`relative inline-flex items-center gap-1.5 px-3 min-h-[44px] text-sm font-semibold border-l border-slate-200 cursor-pointer focus-within:ring-2 focus-within:ring-inset focus-within:ring-teal-500 ${date !== DEMO_TODAY && date !== addDays(DEMO_TODAY, 1) ? "bg-navy-900 text-white" : "bg-white text-navy-900"}`}
+          >
+            <Icon.calendar size={15} />
+            <span>{date !== DEMO_TODAY && date !== addDays(DEMO_TODAY, 1) ? fmtDay(date) : "Pick a date"}</span>
+            <input
+              type="date"
+              aria-label="Show a specific date"
+              value={date}
+              min={`${DEMO_TODAY.slice(0, 4)}-05-01`}
+              max={`${DEMO_TODAY.slice(0, 4)}-09-30`}
+              onChange={(e) => {
+                if (!e.target.value) return;
+                setDate(e.target.value);
+                setSel(new Set());
+              }}
+              onClick={(e) => e.currentTarget.showPicker?.()}
+              className="absolute inset-0 opacity-0 cursor-pointer"
+            />
+          </label>
         </div>
         {/* The view switch sits beside Today / Tomorrow, above the zones (AENR-675). */}
         {!overview && (

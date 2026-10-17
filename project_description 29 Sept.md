@@ -1260,7 +1260,7 @@ offer, receipt ready (ΑΠΥ transmitted). Mark individual / all as read; open s
 ### A-04a · Live beach [MVP] (AENR-580)
 
 ```text
- [Today | Tomorrow] [Live state | Heatmap]          (view switch beside the dates — AENR-675)
+ [Today | Tomorrow | 📅 Pick a date] [Live state | Heatmap]   (any season day — AENR-674; view switch beside the dates — AENR-675)
  [All zones 98 free][Akanthus 24 free · 22 booked][Central …]…
  All zones: a card per zone — mini map of dots · 24 free · 5 booked · 17 in use · "5 to act on" → tap to zoom in
  Legend: Free 19 · Booked 21 · ✓ Checked in · € Unpaid · N No-show · H Held · ✕ Out of service (counts)
@@ -1510,18 +1510,18 @@ all three; **Export CSV** and **Export PDF** (a one-page PDF with the key figure
 
 ```text
  ‹ period ›                                                                        [Export]
+ KPIs: Needs decision (n past SLA) · Refunded · Refund rate · Top reason   (tiles first — AENR-676)
  ┌─ Needs decision 4 ─ oldest first · decide within 48 h              [Rules] ────┐
  │ Marina Georgiou · #TX-87601            Refund requested · €15 · Double booking │
  │   by Call Center · 3 days ago   [Past 48 h SLA]  [Approve €15] [Decline…] Partial… │
  │ Anna Mavridi · #TX-88216 · #BK-10419   … 9 min ago  [Within SLA] …             │
  └────────────────────────────────────────────────────────────────────────────────┘
- KPIs: Needs decision (n past SLA) · Refunded · Refund rate · Top reason
  History · 1 – 19 Jul 2026:  Transaction · Date · Guest · Amount · Reason (decided by) · Refunded / Declined
 ```
 
 - **Decision queue (AENR-583):** every pending request, oldest first, whatever the period, with its
   age and the **48 h SLA** (Within SLA / SLA due soon / Past 48 h SLA). Calm decisions (AENR-652): the
-  queue comes first, then the KPIs; cards are neutral and red appears only on the “Past 48 h SLA” tag;
+  four KPI tiles lead, then the queue (AENR-676 — the owner wants the totals first); cards are neutral and red appears only on the “Past 48 h SLA” tag;
   **Approve €X** is the brand primary button for the full amount, **Partial…** reveals the amount field;
   the refund policy (X-35) sits behind **Rules**. **Approve** (full or a lower
   amount) issues the Stripe refund and credit note; **Decline…** needs a reason told to the guest

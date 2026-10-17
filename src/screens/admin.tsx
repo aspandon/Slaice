@@ -562,6 +562,14 @@ export function AdminRefunds() {
       <PageHead title="Refunds" sub="Decide refund requests first, then the history — full or partial via Stripe, with reason logging and an automatic credit note (myDATA)." badge={<Badge tone="mvp">MVP</Badge>}
         actions={<PeriodPicker value={period} onChange={setPeriod} presets={["day", "week", "month", "season"]} allowAll resetTo={{ kind: "preset", preset: "month", offset: 0 }} />} primary={<ExportMenu onExport={exportRefunds} what="refunds" />} />
       {!agent && rulesOpen && <RefundPolicyCard />}
+      {/* The four tiles lead, above the queue (AENR-676). */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <StatCard label="Needs decision" value={queue.length} sub={overdue ? `${overdue} past the 48 h SLA` : "all within the 48 h SLA"} tone={overdue ? "rose" : "amber"} />
+        <StatCard label={`Refunded · ${noun}`} value={fmtEUR(stats.amount)} sub={`${fmtInt(stats.count)} refund${stats.count === 1 ? "" : "s"} in the history below`} tone="teal" trend={hasPrev ? trendPct(stats.amount, prevStats.amount) : undefined} compare={prevRange ? `vs ${rangeLabel(prevRange)}` : undefined} />
+        <StatCard label="Refund rate" value={fmtPct(refundRate, 1)} sub={`of ${fmtEUR(sales)} sales`} compare={prevRange ? `vs ${rangeLabel(prevRange)}` : undefined} trend={hasPrev ? `${refundRate - prevRate >= 0 ? "+" : "−"}${Math.abs((refundRate - prevRate) * 100).toFixed(1)}pp` : undefined} />
+        <StatCard label="Top reason" value={stats.top ? stats.top.reason : "—"} sub={stats.top ? `${Math.round(stats.top.share * 100)}% of refunds` : "no refunds yet"} tone="indigo" />
+      </div>
+
       <Card className="p-4 mb-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
           <h2 className="font-display font-bold text-navy-900 text-lg">Needs decision <span className="text-slate-400 tnum">{queue.length}</span></h2>
@@ -584,13 +592,6 @@ export function AdminRefunds() {
           </ul>
         )}
       </Card>
-
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <StatCard label="Needs decision" value={queue.length} sub={overdue ? `${overdue} past the 48 h SLA` : "all within the 48 h SLA"} tone={overdue ? "rose" : "amber"} />
-        <StatCard label={`Refunded · ${noun}`} value={fmtEUR(stats.amount)} sub={`${fmtInt(stats.count)} refund${stats.count === 1 ? "" : "s"} in the history below`} tone="teal" trend={hasPrev ? trendPct(stats.amount, prevStats.amount) : undefined} compare={prevRange ? `vs ${rangeLabel(prevRange)}` : undefined} />
-        <StatCard label="Refund rate" value={fmtPct(refundRate, 1)} sub={`of ${fmtEUR(sales)} sales`} compare={prevRange ? `vs ${rangeLabel(prevRange)}` : undefined} trend={hasPrev ? `${refundRate - prevRate >= 0 ? "+" : "−"}${Math.abs((refundRate - prevRate) * 100).toFixed(1)}pp` : undefined} />
-        <StatCard label="Top reason" value={stats.top ? stats.top.reason : "—"} sub={stats.top ? `${Math.round(stats.top.share * 100)}% of refunds` : "no refunds yet"} tone="indigo" />
-      </div>
 
       <Card className="p-2">
         <h2 className="font-display font-bold text-navy-900 px-2 pt-2 pb-1">History · {label}</h2>
