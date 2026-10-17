@@ -1780,7 +1780,8 @@ Roles: the tenant (beach operator) is the **controller**; Slaice is the **proces
 > AENR-654: **the till uses the whole screen** — no sidebar for the Cashier: **Sell · Sales · Register** are tabs across the top on every width (they replace the phone tab bar); no page description; the shift strip and a “…” menu (Today’s transactions, Open live display) share one row. Tablets keep the basket as the right column; phones keep a pinned bar with the total and **Charge €X** (tap the total to jump to the basket) — it hides only when most of the basket is on screen. The pinned bar is drawn on the page body, so the page’s entrance animation can no longer push it below the screen.
 
 ```text
- shift strip: SH-0205 · cashier · till · since 09:00 [Switch cashier]   ● Offline (n queued) — only while offline
+ top bar: Kostas Leontis · Main entrance · since 09:00 [👥 Switch cashier] [search] …  (AENR-697)
+ strip under it only for problems: No open shift · ● Offline (n queued)
  ┌─ Quick keys ─────────────────────────────────────────────┐   ┌─ Basket ─────────────────────┐
  │ [1 Adult €10] [2 Adults €20] [Adult+Child €15] [2 Res €12] [1 set from €40]   │ 2 × Adult              €20   │
  │ [↻ Repeat last sale · 2× Normal, 1× set           €60]   │
@@ -1900,8 +1901,9 @@ Agent also works, and lockers are sold in Sell. Old links redirect — `#/cashie
   tolerance a note is required. The Z report is shown and the shift is locked; selling needs a new shift.
 - **Past shifts** with variance and their Z reports; managers also see them in Admin › Reporting ›
   Operations.
-- **Switch cashier** (AENR-608): on a shared till the shift strip shows who is selling now and a
-  **Switch cashier** button. The next person (an active Cashier or Support Agent) types their own
+- **Switch cashier** (AENR-608): on a shared till the **top bar** (AENR-697 — left of search, always
+  visible) shows who is selling, the till and since when, next to a prominent **Switch cashier** button
+  (icon-only on phones). The next person (an active Cashier or Support Agent) types their own
   4-digit till PIN (set in Team & roles; demo: Kostas 1111, Eleni 2222, Dimitris 3333) — no signing out.
   The shift and drawer carry on; sales from then on are recorded under the new name, and the hand-over
   can record a drawer count (expected vs counted, shown in the toast). Five wrong PINs lock the switch

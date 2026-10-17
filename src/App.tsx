@@ -51,7 +51,7 @@ import { DEFAULT_CLOSED_STORES } from "./data/beach";
 import { DEFAULT_TILL } from "./data/till";
 import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "./data/beach";
 import type { SceneFx, WeatherKind } from "./data/beach";
-import { OfflineBanner } from "./screens/cashier/TillStatus";
+import { OfflineBanner, ShiftSwitch } from "./screens/cashier/TillStatus";
 import { CommandPalette } from "./components/CommandPalette";
 import { migrateLegacySegments, stripLegacyTags, visitSegmentName } from "./domain/segments";
 
@@ -494,7 +494,7 @@ export default function App() {
               <button type="button" onClick={() => setPlatformState((p) => ({ ...p, siteTenant: "akti" }))} className="ml-auto rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1 font-semibold">Back to Akti tou Iliou</button>
             </div>
           )}
-          <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} previewing={!!viewAs} />
+          <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} previewing={!!viewAs} lead={persona === "cashier" ? <ShiftSwitch /> : undefined} />
           {persona === "customer" ? (
             // flex-1 lets the content region grow so the SiteFooter is pushed to
             // the bottom of the viewport (the beach backdrop's green band)

@@ -14,27 +14,14 @@ const hhmm = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: 
    demo toggle or the browser losing its connection) raises the offline banner,
    which owns reconnecting (AENR-585). */
 export function TillStatus() {
-  const { viewAs } = useApp();
   const t = useTill();
-  const [switching, setSwitching] = useState(false);
   const queued = t.till.sales.filter((s) => s.offline).length;
   const shift = t.till.shift;
+  // The shift and Switch cashier live in the top bar now (AENR-697); only problems show here.
+  if (shift && !t.till.offline) return null;
   return (
     <div className="flex flex-wrap items-center gap-2 mb-4 text-[12.5px]">
-      {shift ? (
-        <span className="inline-flex flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-full bg-white/70 ring-1 ring-slate-200 pl-3 pr-1 py-1 text-slate-700">
-          <Icon.cash size={13} className="text-teal-600" /> <span className="whitespace-nowrap">Shift <b className="text-navy-900">{shift.id}</b></span> · <b className="text-navy-900">{t.cashier}</b> · {shift.till} · <span className="whitespace-nowrap">since {hhmm(shift.openedAt)}</span>
-          {!viewAs && (
-            <button
-              type="button"
-              onClick={() => setSwitching(true)}
-              className="ml-1 inline-flex items-center gap-1 rounded-full bg-navy-900 text-white px-2.5 py-1 text-[12px] font-semibold hover:bg-navy-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-1"
-            >
-              <Icon.users size={12} /> Switch cashier
-            </button>
-          )}
-        </span>
-      ) : (
+      {!shift && (
         <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 ring-1 ring-amber-600/20 px-3 py-1.5 text-amber-800"><Icon.alert size={13} /> No open shift</span>
       )}
       {/* Online is the normal state, so it isn't shown; offline gets the banner below (AENR-607). */}
@@ -44,6 +31,34 @@ export function TillStatus() {
           Offline{queued ? ` · ${queued} queued` : ""}
         </span>
       )}
+    </div>
+  );
+}
+
+/* ============ Shift + Switch cashier in the top bar (AENR-697) ============
+   Who is selling, on which till and since when, next to a prominent Switch cashier
+   button — left of search, where the cashier always sees it. */
+export function ShiftSwitch() {
+  const { viewAs } = useApp();
+  const t = useTill();
+  const [switching, setSwitching] = useState(false);
+  const shift = t.till.shift;
+  if (!shift || viewAs) return null;
+  return (
+    <div className="flex items-center gap-2 mr-1">
+      <span className="hidden lg:inline-flex items-center gap-1.5 text-[12.5px] text-slate-600 whitespace-nowrap">
+        <Icon.cash size={14} className="text-teal-600" />
+        <b className="text-navy-900">{t.cashier}</b> · {shift.till} · since {hhmm(shift.openedAt)}
+      </span>
+      <button
+        type="button"
+        onClick={() => setSwitching(true)}
+        title={`Shift ${shift.id} · ${t.cashier} · ${shift.till} · since ${hhmm(shift.openedAt)}`}
+        className="inline-flex items-center gap-2 rounded-xl bg-navy-900 text-white px-3 sm:px-4 min-h-[44px] min-w-[44px] justify-center text-[13.5px] font-semibold shadow-btn-primary hover:bg-navy-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
+      >
+        <Icon.users size={16} />
+        <span className="sr-only sm:not-sr-only">Switch cashier</span>
+      </button>
       {switching && <SwitchCashierModal onClose={() => setSwitching(false)} />}
     </div>
   );

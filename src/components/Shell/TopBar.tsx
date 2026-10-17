@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import * as Popover from "@radix-ui/react-popover";
 import { usePageHelp } from "../../lib/pageHelp";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
@@ -92,7 +92,7 @@ function staffMe(persona: PersonaId, staff: readonly StaffUser[], name?: string,
 }
 
 /* ---------- Top bar ---------- */
-export function TopBar({ persona, setPersona, page, setPage, previewing = false }: NavProps & { setPersona: (p: PersonaId) => void; previewing?: boolean }) {
+export function TopBar({ persona, setPersona, page, setPage, previewing = false, lead }: NavProps & { setPersona: (p: PersonaId) => void; previewing?: boolean; /** A persona-specific control left of search (e.g. Switch cashier, AENR-697). */ lead?: ReactNode }) {
   const { setSignedIn, go, toast, cart, removeFromCart, addToCart, clearCart, staffUsers, till, viewAs, staffMeId, switchRole } = useApp();
   const t = useT();
   // Who is signed in (AENR-646): the guest on the customer side; elsewhere the demo
@@ -253,6 +253,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
         </Popover.Root>
         )}
 
+        {lead}
         {["admin", "callcenter", "cashier", "controller", "accountant", "support"].includes(persona) && (
           <button type="button" onClick={() => window.dispatchEvent(new Event("slaice:command"))} aria-label="Search and commands (⌘K)" title="Search and commands (⌘K)"
             className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 transition">
