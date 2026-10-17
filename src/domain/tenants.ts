@@ -6,6 +6,7 @@
 import type { ModuleOverride, LimitId } from "./plans";
 import type { TenantFeatureId } from "./features";
 import type { StaffRole, StaffUser } from "./types";
+import type { TicketCat } from "./extras";
 
 export type Lifecycle =
   | "onboarding"
@@ -158,6 +159,9 @@ export interface TenantRecord {
   /** Staff accounts of a tenant other than the demo beach (Platform › tenant › Users & roles, AENR-718).
    *  The demo beach's staff live in the app store (Team & roles); missing = seeded from the contacts. */
   staff?: StaffUser[];
+  /** Entry-ticket categories of a tenant other than the demo beach (Platform › tenant › Entry tickets,
+   *  AENR-711); missing = the default list. The demo beach's live list is the app store's extras. */
+  ticketCats?: TicketCat[];
   releaseChannel: "stable" | "beta" | "preview";
   stripe: {
     details: boolean;

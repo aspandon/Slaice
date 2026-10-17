@@ -12,6 +12,7 @@ import {
 import { SectionCtx, confirmLeave, type SectionProps } from "./kit";
 import { Billing, Contract, Overview, Profile, Usage } from "./AccountSections";
 import { Branding, Features, Localisation, Locations, Modules } from "./ProductSections";
+import { EntryTickets } from "./TicketSection";
 import { Compliance, Integrations, Invoicing, Payments, Security, Users } from "./AccessSections";
 import { Audit, DataExport, Health, Support } from "./SupportSections";
 import { Roles } from "./RolesSection";
@@ -85,6 +86,15 @@ export const SECTIONS: SectionDef[] = [
     group: "Product",
     edit: "admin",
     render: (p) => <Modules {...p} />,
+  },
+  {
+    // Which entry-ticket categories the beach sells (AENR-711).
+    id: "tickets",
+    label: "Entry tickets",
+    icon: Icon.ticket,
+    group: "Product",
+    edit: "admin",
+    render: (p) => <EntryTickets {...p} />,
   },
   {
     // Per-tenant feature switches (AENR-677 / 721) — the permanent home for new ones.

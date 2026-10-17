@@ -409,53 +409,86 @@ function RulesAndPreview({
   );
 }
 
-export function TicketsAdmin() {
-  const d = useDraft();
-  const { draft, setDraft } = d;
-  const patch = (id: string, p: Partial<TicketCat>) =>
-    setDraft((s) => ({ ...s, tickets: s.tickets.map((t) => (t.id === id ? { ...t, ...p } : t)) }));
-  const sorted = [...draft.tickets].sort((a, b) => a.order - b.order);
-  const saved = [...d.extras.tickets].sort((a, b) => a.order - b.order);
+/** A new, empty ticket category placed last (AENR-711). */
+export function newTicketCat(list: readonly TicketCat[]): TicketCat {
+  return { id: uid("tk"), name: "New category", short: "New", active: true, order: Math.max(0, ...list.map((t) => t.order)) + 1, price: 0 };
+}
+
+/* The ticket-category editor (AENR-711), shared by Admin › Products › Entry tickets
+   and Platform › tenant › Entry tickets: name, short label, short description,
+   base price, on sale, order, remove. At least one category stays on sale. */
+export function TicketCategoryEditor({ tickets, onChange }: { tickets: readonly TicketCat[]; onChange: (next: TicketCat[]) => void }) {
+  const sorted = [...tickets].sort((a, b) => a.order - b.order);
+  const activeCount = tickets.filter((t) => t.active).length;
+  const patch = (id: string, p: Partial<TicketCat>) => onChange(tickets.map((t) => (t.id === id ? { ...t, ...p } : t)));
   const move = (id: string, dir: -1 | 1) => {
     const i = sorted.findIndex((t) => t.id === id);
     const j = i + dir;
     if (j < 0 || j >= sorted.length) return;
     const a = sorted[i],
       b = sorted[j];
-    setDraft((s) => ({
-      ...s,
-      tickets: s.tickets.map((t) =>
-        t.id === a.id ? { ...t, order: b.order } : t.id === b.id ? { ...t, order: a.order } : t,
-      ),
-    }));
+    onChange(tickets.map((t) => (t.id === a.id ? { ...t, order: b.order } : t.id === b.id ? { ...t, order: a.order } : t)));
   };
+  return (
+    <ul className="space-y-2">
+      {sorted.map((t, i) => {
+        const lastOn = t.active && activeCount === 1;
+        return (
+          <li key={t.id} className={`rounded-xl ring-1 ring-slate-200 p-2.5 grid sm:grid-cols-12 gap-2 items-end ${t.active ? "" : "opacity-60"}`}>
+            <div className="sm:col-span-3">
+              <Field label="Name">
+                <Input value={t.name} onChange={(e) => patch(t.id, { name: e.target.value })} aria-invalid={!t.name.trim()} />
+              </Field>
+            </div>
+            <div className="sm:col-span-2">
+              <Field label="Short label">
+                <Input value={t.short} onChange={(e) => patch(t.id, { short: e.target.value })} aria-invalid={!t.short.trim()} />
+              </Field>
+            </div>
+            <div className="sm:col-span-3">
+              <Field label="Short description (shown to guests)">
+                <Input value={t.note ?? ""} placeholder="e.g. Proof of residence at the gate" onChange={(e) => patch(t.id, { note: e.target.value })} />
+              </Field>
+            </div>
+            <div className="sm:col-span-2">
+              <Field label="Price €">
+                <Input type="number" min={0} step="0.5" value={t.price} onChange={(e) => patch(t.id, { price: Number(e.target.value) })} aria-invalid={!(t.price >= 0)} />
+              </Field>
+            </div>
+            <div className="sm:col-span-2 flex items-center gap-1 pb-1">
+              <Toggle on={t.active} disabled={lastOn} onChange={(v) => patch(t.id, { active: v })} ariaLabel={`${t.name} on sale`} />
+              <button type="button" aria-label={`Move ${t.name} up`} disabled={i === 0} onClick={() => move(t.id, -1)}
+                className="w-9 h-9 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                <Icon.chevD size={14} className="rotate-180" />
+              </button>
+              <button type="button" aria-label={`Move ${t.name} down`} disabled={i === sorted.length - 1} onClick={() => move(t.id, 1)}
+                className="w-9 h-9 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                <Icon.chevD size={14} />
+              </button>
+              <button type="button" aria-label={`Remove ${t.name}`} disabled={lastOn} onClick={() => onChange(tickets.filter((x) => x.id !== t.id))}
+                title={lastOn ? "At least one category stays on sale" : "Remove — past sales keep their label"}
+                className="w-9 h-9 grid place-items-center rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                <Icon.trash size={14} />
+              </button>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+export function TicketsAdmin() {
+  const d = useDraft();
+  const { draft, setDraft } = d;
+  const saved = [...d.extras.tickets].sort((a, b) => a.order - b.order);
   return (
     <div className="space-y-4">
       <Card className="p-4">
         <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
           <h2 className="font-display font-bold text-navy-900">Ticket categories</h2>
           <EditControls d={d}>
-          <Btn
-            size="sm"
-            variant="outline"
-            icon={Icon.plus}
-            onClick={() =>
-              setDraft((s) => ({
-                ...s,
-                tickets: [
-                  ...s.tickets,
-                  {
-                    id: uid("tk"),
-                    name: "New category",
-                    short: "New",
-                    active: true,
-                    order: Math.max(0, ...s.tickets.map((t) => t.order)) + 1,
-                    price: 0,
-                  },
-                ],
-              }))
-            }
-          >
+          <Btn size="sm" variant="outline" icon={Icon.plus} onClick={() => setDraft((s) => ({ ...s, tickets: [...s.tickets, newTicketCat(s.tickets)] }))}>
             Add category
           </Btn>
           </EditControls>
@@ -472,79 +505,16 @@ export function TicketsAdmin() {
                   {t.note && <div className="text-[12.5px] text-slate-600 truncate">{t.note}</div>}
                 </div>
                 <div className="font-display font-bold text-navy-900 tnum">€{t.price}</div>
-                <Toggle on={t.active} onChange={(v) => d.setActive("ticket", t.id, v)} ariaLabel={`${t.name} on sale`} />
+                <Toggle on={t.active} disabled={t.active && saved.filter((x) => x.active).length === 1} onChange={(v) => d.setActive("ticket", t.id, v)} ariaLabel={`${t.name} on sale`} />
               </li>
             ))}
           </ul>
         ) : (
-        <ul className="space-y-2">
-          {sorted.map((t, i) => (
-            <li
-              key={t.id}
-              className={`rounded-xl ring-1 ring-slate-200 p-2.5 grid sm:grid-cols-12 gap-2 items-end ${t.active ? "" : "opacity-60"}`}
-            >
-              <div className="sm:col-span-3">
-                <Field label="Name">
-                  <Input value={t.name} onChange={(e) => patch(t.id, { name: e.target.value })} />
-                </Field>
-              </div>
-              <div className="sm:col-span-2">
-                <Field label="Short label">
-                  <Input value={t.short} onChange={(e) => patch(t.id, { short: e.target.value })} />
-                </Field>
-              </div>
-              <div className="sm:col-span-4">
-                <Field label="Eligibility note (shown to guests)">
-                  <Input
-                    value={t.note ?? ""}
-                    onChange={(e) => patch(t.id, { note: e.target.value })}
-                  />
-                </Field>
-              </div>
-              <div className="sm:col-span-1">
-                <Field label="Base €">
-                  <Input
-                    type="number"
-                    min={0}
-                    step="0.5"
-                    value={t.price}
-                    onChange={(e) => patch(t.id, { price: Number(e.target.value) })}
-                    aria-invalid={!(t.price >= 0)}
-                  />
-                </Field>
-              </div>
-              <div className="sm:col-span-2 flex items-center gap-1 pb-1">
-                <Toggle
-                  on={t.active}
-                  onChange={(v) => patch(t.id, { active: v })}
-                  ariaLabel={`${t.name} active`}
-                />
-                <button
-                  type="button"
-                  aria-label={`Move ${t.name} up`}
-                  disabled={i === 0}
-                  onClick={() => move(t.id, -1)}
-                  className="w-8 h-8 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"
-                >
-                  <Icon.chevD size={14} className="rotate-180" />
-                </button>
-                <button
-                  type="button"
-                  aria-label={`Move ${t.name} down`}
-                  disabled={i === sorted.length - 1}
-                  onClick={() => move(t.id, 1)}
-                  className="w-8 h-8 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30"
-                >
-                  <Icon.chevD size={14} />
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
+          <TicketCategoryEditor tickets={draft.tickets} onChange={(next) => setDraft((s) => ({ ...s, tickets: next }))} />
         )}
         <p className="mt-2 text-[11.5px] text-slate-500">
-          Switched-off categories disappear from the booking wizard and the till; past sales keep
-          their label.
+          Switched-off or removed categories disappear from the booking wizard and the till; past sales keep
+          their label. Slaice can edit the same list from Platform › tenant › Entry tickets.
         </p>
       </Card>
       <RulesAndPreview kind="ticket" draft={d.editing ? draft : d.extras} setDraft={setDraft} editing={d.editing} />
