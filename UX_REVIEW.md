@@ -509,6 +509,7 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-670 — your zone stays on the sand.** Who and Pay show the zone you booked in with your sets; the zone row sits mid-sand.
 - **AENR-671 — the beach logo in the wizard.** Shown large over the sea on desktop, as on Home.
 - **AENR-672 — the logo glides with the sand.** From the Home header to its place over the sea and back.
+- **AENR-681 — no deposit option.** Checkout always takes the full amount; one fewer decision before paying.
 - **AENR-703 — Show QR on desktop opens a modal**, not a white full screen; phones keep the full screen for the gate.
 - **AENR-704 — Add a locker or parking shows only those two**; entry tickets stay in My bookings › Add extras.
 - **AENR-673 — four steps: When, Where, Who, Pay.** The day gets its own step; Where never lets a guest continue without a set unexplained — an inline notice says what to tap, with Pick for me and Entry tickets only.

@@ -7,7 +7,7 @@ import { addDays } from "../../domain/period";
 import { todayISO } from "../../data/beach";
 
 /* Guest policies (AENR-569 / 574 / 578): the rules every guest sees before
-   paying — free-cancellation window and refund, the deposit option, and the
+   paying — free-cancellation window and refund, and the
    season-pass "Release my day" deadline and credit. Read first; Edit opens the
    fields on a draft and Done applies them (AENR-616). */
 
@@ -29,14 +29,6 @@ const FIELDS: { k: keyof GuestPolicy; l: string; hint: string; min: number; max:
     max: 100,
   },
   { k: "lateRefundPct", unit: "%", l: "Refund after the window (%)", hint: "0 = no refund", min: 0, max: 100 },
-  {
-    k: "depositPct",
-    unit: "%",
-    l: "Deposit online (%)",
-    hint: "0 hides “Pay a deposit” at checkout",
-    min: 0,
-    max: 90,
-  },
   {
     k: "releaseHours",
     unit: "h",

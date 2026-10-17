@@ -81,12 +81,9 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
   // Beach credit (refunds as credit, released days) is used first, automatically (AENR-577/578).
   const creditUsed = round2(Math.min(account.credit.balance, afterPasses));
   const fullDue = round2(afterPasses - creditUsed); // paid via Stripe at full price
-  // Pay in full, or a deposit now and the rest on site (AENR-574).
+  // Always paid in full online — no deposit option (AENR-681, retiring AENR-574's deposit).
   const policy = ex.extras.policy;
-  const [plan, setPlan] = useState<"full" | "deposit">("full");
-  const depositAmt = round2((fullDue * policy.depositPct) / 100);
-  const cashDue = plan === "deposit" && policy.depositPct > 0 ? depositAmt : fullDue;
-  const onSite = round2(fullDue - cashDue);
+  const cashDue = fullDue;
   const passApplied = rewardOff > 0 || seasonCovered > 0 || vipCover > 0 || creditUsed > 0;
   // The exact free-cancellation line for the earliest day in the basket (AENR-569).
   const firstDay = cart.map((i) => i.date).filter(Boolean).sort()[0] ?? todayISO();
@@ -96,7 +93,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
   // if asked), clear the basket and land on the confirmation.
   const finish = (card?: { save: boolean; last4: string } | null, method: "card" | "apple" | "google" = "card") => {
     if (vipDebit > 0) spendVipCredit(vipDebit);
-    const booking: PlacedBooking = { ref: bookingRefFor(account.bookings.length), at: new Date().toISOString(), items: [...cart], fees: sf.lines, total: fullDue, guest: PROFILE, method, deposit: onSite > 0 ? cashDue : undefined,
+    const booking: PlacedBooking = { ref: bookingRefFor(account.bookings.length), at: new Date().toISOString(), items: [...cart], fees: sf.lines, total: fullDue, guest: PROFILE, method, 
       card: method === "apple" ? "Apple Pay" : method === "google" ? "Google Pay" : card ? `Visa ···· ${card.last4}` : undefined };
     setAccount((a) => ({
       ...a,
@@ -279,19 +276,6 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
           <div className="h-px bg-slate-100 my-2" />
           <Row l={passApplied ? t("To pay") : t("Total")} v={`€${fullDue.toFixed(2)}`} bold />
           <div className="text-[11px] text-slate-500 mt-1">{t("All-in: VAT and fees included.")}</div>
-          {policy.depositPct > 0 && fullDue > 0 && (
-            <fieldset className="mt-3 space-y-1.5">
-              <legend className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1">{t("How to pay")}</legend>
-              {(["full", "deposit"] as const).map((k) => (
-                <label key={k} className={`flex items-center gap-2.5 rounded-xl ring-1 px-3 min-h-[48px] cursor-pointer text-[13.5px] ${plan === k ? "ring-navy-900 bg-slate-50" : "ring-slate-200"}`}>
-                  <input type="radio" name="pay-plan" className="accent-teal-600 w-4 h-4" checked={plan === k} onChange={() => setPlan(k)} />
-                  <span className="flex-1">{k === "full" ? t("Pay in full now") : `${t("Pay a")} ${policy.depositPct}% ${t("deposit now")}`}</span>
-                  <span className="tnum font-semibold text-navy-900">€{(k === "full" ? fullDue : depositAmt).toFixed(2)}</span>
-                </label>
-              ))}
-              {plan === "deposit" && <div className="text-[12px] text-slate-600 px-1">{t("Now")} <b className="text-navy-900">€{cashDue.toFixed(2)}</b> · {t("on site")} <b className="text-navy-900">€{onSite.toFixed(2)}</b> {t("(cash or card at the gate)")}</div>}
-            </fieldset>
-          )}
           {vipCover > 0 && (
             <div className="mt-2 rounded-xl bg-sky-50 ring-1 ring-sky-600/15 px-3 py-2 text-[11.5px] text-sky-800 leading-snug">
               <Icon.sparkles size={12} className="inline align-[-1px] mr-1" />{t("VIP credit used")} €{vipDebit.toFixed(2)} · {t("you saved")} €{vipSaved.toFixed(2)} ({Math.round(disc * 100)}%). {t("Balance")} €{vipBalance.toFixed(2)} → €{round2(vipBalance - vipDebit).toFixed(2)}.

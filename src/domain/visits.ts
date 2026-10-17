@@ -4,7 +4,7 @@
 // this one model: the account's sample history plus bookings placed on this
 // device, grouped by date, with the guest's self-service changes (cancel,
 // move, add extras, release a day) applied. The tenant's guest policy
-// (cancellation window, refund, deposit, release credit) lives here too.
+// (cancellation window, refund, release credit) lives here too.
 
 import type { CartItem, CustomerBooking } from "./types";
 import type { PlacedBooking } from "./account";
@@ -18,8 +18,6 @@ export interface GuestPolicy {
   refundPct: number;
   /** Refund after the window closes, % (0 = no refund). */
   lateRefundPct: number;
-  /** Deposit share when the guest pays a deposit online, %; 0 hides the option. */
-  depositPct: number;
   /** Pass holders can release a reserved day until this many hours before opening. */
   releaseHours: number;
   /** Credit to the pass holder when a released set resells, % of its price. */
@@ -29,7 +27,6 @@ export const DEFAULT_POLICY: GuestPolicy = {
   cancelHours: 24,
   refundPct: 100,
   lateRefundPct: 0,
-  depositPct: 30,
   releaseHours: 12,
   releaseCreditPct: 50,
 };
