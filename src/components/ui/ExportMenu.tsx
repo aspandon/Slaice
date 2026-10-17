@@ -25,6 +25,7 @@ export function ExportMenu({
   size = "md",
   variant = "outline",
   what,
+  extra = [],
 }: {
   onExport: (format: "pdf" | "csv") => void;
   label?: string;
@@ -33,6 +34,8 @@ export function ExportMenu({
   variant?: "outline" | "primary" | "ghost";
   /** What is exported, for the accessible name (e.g. "bookings"). */
   what?: string;
+  /** More exports of the same data, listed under the two formats (e.g. "CSV per line"). */
+  extra?: { label: string; hint: string; onSelect: () => void }[];
 }) {
   const id = what ?? label;
   const [, bump] = useState(0);
@@ -115,6 +118,16 @@ export function ExportMenu({
               </span>
             </span>
           </DropdownMenu.Item>
+          {extra.length > 0 && <DropdownMenu.Separator className="my-1 h-px bg-slate-100" />}
+          {extra.map((x) => (
+            <DropdownMenu.Item key={x.label} className={item} onSelect={x.onSelect}>
+              <Icon.list size={16} className="mt-0.5 text-emerald-700 shrink-0" />
+              <span>
+                <span className="block text-sm font-semibold text-navy-900">{x.label}</span>
+                <span className="block text-[12px] text-slate-500">{x.hint}</span>
+              </span>
+            </DropdownMenu.Item>
+          ))}
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>

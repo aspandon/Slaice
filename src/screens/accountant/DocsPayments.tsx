@@ -9,7 +9,7 @@ import {
   PeriodPicker,
   Select,
   Table, DensityToggle,
-  Tabs, ExportMenu } from "../../components/ui";
+  Tabs, ExportMenu, CompactList, CompactRow } from "../../components/ui";
 import { Pager } from "../../components/TableTools";
 import { useListUrl } from "../../lib/useUrlState";
 import { useApp } from "../../app/store";
@@ -38,6 +38,14 @@ import { TENANT } from "../../data/beach";
 
 const PAGE = 25;
 const TYPES: DocType[] = ["ΑΠΥ", "ΤΠΥ", "ΠΑΠΥ", "ΠΤΠΥ", "Cancellation"];
+// What each myDATA code means, under the count tiles (AENR-701).
+const TYPE_HINT: Record<DocType, string> = {
+  ΑΠΥ: "Receipts (B2C)",
+  ΤΠΥ: "Invoices (B2B)",
+  ΠΑΠΥ: "Credit notes on receipts",
+  ΠΤΠΥ: "Credit notes on invoices",
+  Cancellation: "Cancelled documents",
+};
 const STATUS_TONE = { sent: "green", pending: "amber", failed: "red" } as const;
 const TX_TONE = {
   captured: "blue",
@@ -78,9 +86,9 @@ export function DocsPayments({ only }: { only?: "documents" | "payments" } = {})
     [range, section, till.sales, fin.flow.stripePct],
   );
   const qq = q.trim().toLowerCase().replace(",", ".");
-  const docRows = docs.filter(
+  // Everything but the type filter — the type tiles count from this (AENR-701).
+  const docBase = docs.filter(
     (d) =>
-      (!type || d.type === type) &&
       (!status || d.status === status) &&
       (!channel || d.channel === channel) &&
       (!qq ||
@@ -94,6 +102,7 @@ export function DocsPayments({ only }: { only?: "documents" | "payments" } = {})
           d.ref ?? "",
         ].some((v) => v.toLowerCase().includes(qq))),
   );
+  const docRows = type ? docBase.filter((d) => d.type === type) : docBase;
   const txRows = txs.filter(
     (t) =>
       (!status || t.status === status) &&
@@ -283,24 +292,30 @@ export function DocsPayments({ only }: { only?: "documents" | "payments" } = {})
             reset();
           }}
         />}
-        <span className="ml-auto"><DensityToggle /></span>
-        <Badge tone="slate">Read-only</Badge>
-        <div className="ml-auto flex flex-wrap gap-2">
-          {tab === "documents" && (
-            <Btn variant="outline" icon={Icon.download} onClick={() => exportCsv(true)}>
-              CSV per line
-            </Btn>
-          )}
-          <ExportMenu variant="primary" what={tab} onExport={(f) => (f === "pdf" ? exportPdf() : exportCsv())} />
+        {/* One toolbar (AENR-701): read-only state, density and every export sit together on the right. */}
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <span
+            className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 min-h-[32px] text-[12.5px] font-semibold text-slate-600"
+            title="The accountant sees and exports; changes are made by the manager or the till."
+          >
+            <Icon.lock size={13} /> Read-only
+          </span>
+          <DensityToggle />
+          <ExportMenu
+            variant="primary"
+            what={tab}
+            onExport={(f) => (f === "pdf" ? exportPdf() : exportCsv())}
+            extra={tab === "documents" ? [{ label: "CSV per line", hint: "One row per document line, with its VAT rate", onSelect: () => exportCsv(true) }] : []}
+          />
         </div>
       </div>
-      <div className="flex items-start gap-2.5 rounded-2xl bg-amber-50/70 ring-1 ring-amber-600/15 px-3.5 py-2.5 text-[12px] text-amber-800">
-        <Icon.shieldAlert size={15} className="shrink-0 mt-0.5 text-amber-600" />
-        <span className="leading-snug">
-          <b>GDPR &amp; tax law:</b> issued documents and their myDATA records are kept for{" "}
-          <b>5 years</b> and are exempt from erasure requests (legal obligation).
+      <p className="flex items-center gap-2 text-[12.5px] text-slate-600">
+        <Icon.shieldAlert size={14} className="shrink-0 text-amber-600" />
+        <span>
+          <b className="text-navy-900">Kept 5 years.</b> Issued documents and their myDATA records are a legal
+          obligation (GDPR &amp; tax law) and are exempt from erasure requests.
         </span>
-      </div>
+      </p>
       <PeriodPicker
         value={period}
         onChange={(p) => {
@@ -388,18 +403,34 @@ export function DocsPayments({ only }: { only?: "documents" | "payments" } = {})
       </div>
 
       {tab === "documents" ? (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[12.5px]">
-          {TYPES.map((t) => (
-            <div key={t} className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2">
-              <div className="text-slate-500">{t}</div>
-              <div className="font-display text-lg font-bold text-navy-900 tnum">
-                {docRows.filter((d) => d.type === t).length.toLocaleString("en-GB")}
-              </div>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+          {/* Each tile is also the quickest type filter: tap to show only that type, tap again for all. */}
+          {TYPES.map((t) => {
+            const on = type === t;
+            return (
+              <button
+                key={t}
+                type="button"
+                aria-pressed={on}
+                onClick={() => {
+                  setType(on ? "" : t);
+                  reset();
+                }}
+                className={`text-left rounded-xl px-3 py-2.5 ring-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${
+                  on ? "bg-navy-900 ring-navy-900 text-white" : "bg-white/80 ring-slate-200 hover:ring-slate-300"
+                } ${t === "Cancellation" ? "col-span-2 sm:col-span-1" : ""}`}
+              >
+                <span className={`block text-[12.5px] font-semibold ${on ? "text-white" : "text-navy-900"}`}>{t === "Cancellation" ? "Cancellations" : t}</span>
+                <span className={`block text-[12px] ${on ? "text-white/75" : "text-slate-500"}`}>{TYPE_HINT[t]}</span>
+                <span className={`mt-1 block font-display text-xl font-bold tnum ${on ? "text-white" : "text-navy-900"}`}>
+                  {docBase.filter((d) => d.type === t).length.toLocaleString("en-GB")}
+                </span>
+              </button>
+            );
+          })}
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[12.5px]">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[13px]">
           {[
             ["Transactions", txRows.length.toLocaleString("en-GB")],
             ["Amount", eur(txTotal)],
@@ -408,11 +439,11 @@ export function DocsPayments({ only }: { only?: "documents" | "payments" } = {})
           ].map(([l, v]) => (
             <div key={l} className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2">
               <div className="text-slate-500">{l}</div>
-              <div className="font-display text-lg font-bold text-navy-900 tnum">{v}</div>
+              <div className="font-display text-xl font-bold text-navy-900 tnum">{v}</div>
             </div>
           ))}
           {!status && !channel && !qq && (
-            <div className="col-span-2 sm:col-span-4 text-[11.5px] text-slate-500 flex items-center gap-1.5">
+            <div className="col-span-2 sm:col-span-4 text-[12.5px] text-slate-500 flex items-center gap-1.5">
               <Icon.checkCircle size={12} className="text-teal-600" /> Matches Reporting › Payments
               for {label}: {fin.rep.total.tx.toLocaleString("en-GB")} transactions ·{" "}
               {eur(fin.rep.total.captured)} captured.
@@ -430,14 +461,37 @@ export function DocsPayments({ only }: { only?: "documents" | "payments" } = {})
             body="Try another period, type or status."
           />
         ) : tab === "documents" ? (
+          <>
+          <div className="xl:hidden">
+            <CompactList label="Documents">
+              {docRows.slice(safe * PAGE, safe * PAGE + PAGE).map((d) => (
+                <CompactRow
+                  key={d.id}
+                  onOpen={() => setView(d)}
+                  openLabel={`Open ${d.type} ${docNo(d)}`}
+                  title={`${d.type} ${docNo(d)}`}
+                  reference={d.time}
+                  sub={`${fmtDay(d.date)} · ${d.counterparty} · ${sectionName(d.section)} · ${d.channel}`}
+                  badges={
+                    <>
+                      <Badge tone={STATUS_TONE[d.status]}>{d.status}</Badge>
+                      {d.live && <Badge tone="indigo">Live</Badge>}
+                      <span className="text-[12.5px] text-slate-500">{d.method}</span>
+                    </>
+                  }
+                  amount={<span className={d.total < 0 ? "text-rose-600" : undefined}>{eur(d.total)}</span>}
+                />
+              ))}
+            </CompactList>
+          </div>
+          <div className="hidden xl:block">
           <Table
             rowLink
             dense
             cols={[
               "Date",
               "Document",
-              "Counterparty",
-              "Zone · channel",
+              "Counterparty · zone",
               "Net",
               "VAT",
               "Total",
@@ -446,7 +500,7 @@ export function DocsPayments({ only }: { only?: "documents" | "payments" } = {})
               "Status",
               "",
             ]}
-            right={[4, 5, 6]}
+            right={[3, 4, 5]}
             rows={docRows.slice(safe * PAGE, safe * PAGE + PAGE).map((d) => [
               <span className="whitespace-nowrap">
                 {fmtDay(d.date)} <span className="text-slate-400">{d.time}</span>
@@ -458,44 +512,70 @@ export function DocsPayments({ only }: { only?: "documents" | "payments" } = {})
                     Live
                   </Badge>
                 )}
-                {d.ref && <span className="block text-[11px] text-slate-500">{d.ref}</span>}
+                {d.ref && <span className="block text-[12px] text-slate-500">{d.ref}</span>}
                 {d.original && (
-                  <span className="block text-[11px] text-slate-500">on {d.original}</span>
+                  <span className="block text-[12px] text-slate-500">on {d.original}</span>
                 )}
                 {d.credits?.length ? (
-                  <span className="block text-[11px] text-rose-600">
+                  <span className="block text-[12px] text-rose-600">
                     credited: {d.credits.join(", ")}
                   </span>
                 ) : null}
               </span>,
-              <span>
-                {d.counterparty}
-                {d.vatNo && <span className="block text-[11px] text-slate-500">{d.vatNo}</span>}
-              </span>,
               <span className="whitespace-nowrap">
-                {sectionName(d.section)} · {d.channel}
+                {d.counterparty}
+                {d.vatNo && <span className="text-[12px] text-slate-500"> · {d.vatNo}</span>}
+                <span className="block text-[12px] text-slate-500">
+                  {sectionName(d.section)} · {d.channel}
+                </span>
               </span>,
               <span className="tnum">{eur(d.net)}</span>,
               <span className="tnum">{eur(d.vat)}</span>,
               <b className={`tnum ${d.total < 0 ? "text-rose-600" : "text-navy-900"}`}>
                 {eur(d.total)}
               </b>,
-              <span className="whitespace-nowrap text-[12px]">{d.method}</span>,
-              <span className="font-mono text-[11.5px]">
+              <span className="text-[13px]">{d.method}</span>,
+              <span className="font-mono text-[12px] whitespace-nowrap" title={d.mark || undefined}>
                 {d.mark ? `${d.mark.slice(0, 6)}…${d.mark.slice(-4)}` : "—"}
               </span>,
               <Badge tone={STATUS_TONE[d.status]}>{d.status}</Badge>,
               <button
                 type="button"
-                className="row-link inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[13px] font-semibold text-navy-900 hover:text-teal-700"
+                className="row-link grid place-items-center w-8 h-8 rounded-lg text-slate-500 ring-1 ring-slate-200 bg-white hover:text-navy-900 hover:bg-slate-50 hover:ring-slate-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
                 onClick={() => setView(d)}
-                aria-label={`View ${docNo(d)}`}
+                aria-label={`Open ${docNo(d)}`}
+                title="Open"
               >
-                <Icon.eye size={14} /> View
+                <Icon.chevR size={15} />
               </button>,
             ])}
           />
+          </div>
+          </>
         ) : (
+          <>
+          <div className="xl:hidden">
+            <CompactList label="Card charges">
+              {(txRows.slice(safe * PAGE, safe * PAGE + PAGE) as Txn[]).map((t) => (
+                <CompactRow
+                  key={t.id}
+                  title={t.ref}
+                  reference={t.time}
+                  sub={`${fmtDay(t.date)} · ${sectionName(t.section)} · ${t.channel} · ${t.method}`}
+                  badges={
+                    <>
+                      <Badge tone={TX_TONE[t.status]}>{t.status}</Badge>
+                      <span className="text-[12.5px] text-slate-500 tnum">
+                        fee {eur(t.fee)} · payout {fmtDay(t.payout)}
+                      </span>
+                    </>
+                  }
+                  amount={eur(t.amount)}
+                />
+              ))}
+            </CompactList>
+          </div>
+          <div className="hidden xl:block">
           <Table
             dense
             cols={[
@@ -527,9 +607,9 @@ export function DocsPayments({ only }: { only?: "documents" | "payments" } = {})
               <span className="whitespace-nowrap">
                 {sectionName(t.section)} · {t.channel}
               </span>,
-              <span className="whitespace-nowrap text-[12px]">
+              <span className="whitespace-nowrap text-[13px]">
                 {t.method}
-                {t.terminal ? ` · ${t.terminal}` : ""}
+                {t.terminal && <span className="block text-[12px] text-slate-500">{t.terminal}</span>}
               </span>,
               <b className="tnum text-navy-900">{eur(t.amount)}</b>,
               <span className="tnum">{eur(t.fee)}</span>,
@@ -538,6 +618,8 @@ export function DocsPayments({ only }: { only?: "documents" | "payments" } = {})
               <Badge tone={TX_TONE[t.status]}>{t.status}</Badge>,
             ])}
           />
+          </div>
+          </>
         )}
         {pageCount > 1 && (
           <Pager

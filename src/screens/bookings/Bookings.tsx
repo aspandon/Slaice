@@ -16,6 +16,8 @@ import {
   filterCount,
   ExportMenu,
   useMockLoad,
+  CompactList,
+  CompactRow,
 } from "../../components/ui";
 import type { TabEntry } from "../../components/ui";
 import { Pager, SortHeader, cmpVal, dateVal } from "../../components/TableTools";
@@ -406,41 +408,34 @@ export function AdminBookings() {
           <>
             {/* Phones and portrait tablets (AENR-700): one compact, fully tappable row per booking instead of a tall
                 key/value card — ref and guest, what was booked, status and amount. */}
-            <ul className="lg:hidden -mx-1 divide-y divide-slate-100" aria-label="Bookings">
+            <div className="lg:hidden">
+            <CompactList label="Bookings">
               {pageRows.map((b) => {
                 const pending = ops.pendingRefund(b.id);
                 const escalated = bookingNotes[b.id]?.some((n) => n.escalated);
                 return (
-                  <li key={b.id}>
-                    <button
-                      type="button"
-                      onClick={() => setOpenId(b.id)}
-                      aria-label={`Open booking ${b.id} · ${b.who} ${b.surname}`}
-                      className="w-full text-left px-2 py-3 min-h-[72px] rounded-xl flex items-start gap-3 active:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500"
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-baseline gap-2">
-                          <span className="font-semibold text-navy-900 text-[15px] truncate">{b.who} {b.surname}</span>
-                          <span className="font-mono text-[12px] text-slate-500 shrink-0">{b.id}</span>
-                        </span>
-                        <span className="block text-[13px] text-slate-600 truncate">{itemSummary(b.items)} · {b.date}</span>
-                        <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                          <StatusBadge status={b.status} />
-                          {tab === "today" && arrivalBadge(b)}
-                          <Badge tone={chan(b.channel)}>{b.channel}</Badge>
-                          {pending && <Badge tone="amber"><Icon.refund size={10} /> Refund pending</Badge>}
-                          {escalated && <Badge tone="red"><Icon.bell size={10} /> Escalated</Badge>}
-                        </span>
-                      </span>
-                      <span className="shrink-0 flex items-center gap-1 pt-0.5">
-                        <span className="font-display font-bold text-navy-900 tnum text-[16px]">€{b.amount}</span>
-                        <Icon.chevR size={16} className="text-slate-400" />
-                      </span>
-                    </button>
-                  </li>
+                  <CompactRow
+                    key={b.id}
+                    onOpen={() => setOpenId(b.id)}
+                    openLabel={`Open booking ${b.id} · ${b.who} ${b.surname}`}
+                    title={`${b.who} ${b.surname}`}
+                    reference={b.id}
+                    sub={`${itemSummary(b.items)} · ${b.date}`}
+                    badges={
+                      <>
+                        <StatusBadge status={b.status} />
+                        {tab === "today" && arrivalBadge(b)}
+                        <Badge tone={chan(b.channel)}>{b.channel}</Badge>
+                        {pending && <Badge tone="amber"><Icon.refund size={10} /> Refund pending</Badge>}
+                        {escalated && <Badge tone="red"><Icon.bell size={10} /> Escalated</Badge>}
+                      </>
+                    }
+                    amount={`€${b.amount}`}
+                  />
                 );
               })}
-            </ul>
+            </CompactList>
+            </div>
             <div className="hidden lg:block">
             <Table
               rowLink

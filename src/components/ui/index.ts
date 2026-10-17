@@ -13,3 +13,4 @@ export { GuardCtx, useGuard, textOf } from "./guard";
 export { DateInput, fmtDateGB } from "./DateInput";
 export { ExportMenu } from "./ExportMenu";
 export { ActionsMenu, useLongPress, type MenuAction } from "./ActionsMenu";
+export { CompactList, CompactRow } from "./CompactList";
