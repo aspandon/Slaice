@@ -277,7 +277,7 @@ export function CommandPalette() {
             className="fixed z-[71] left-1/2 top-[12vh] -translate-x-1/2 w-[min(640px,calc(100vw-2rem))] rounded-2xl bg-white shadow-overlay ring-1 ring-slate-200 overflow-hidden"
           >
             <Dialog.Title className="sr-only">Search and commands</Dialog.Title>
-            <div className="flex items-center gap-2 px-4 border-b border-slate-200">
+            <div className="flex items-center gap-2 px-4 border-b-2 border-slate-200 focus-within:border-teal-500 transition-colors">
               <Icon.search size={18} className="text-slate-500" />
               <input
                 value={q}
@@ -303,7 +303,7 @@ export function CommandPalette() {
                 aria-expanded="true"
                 aria-controls="cmd-list"
                 aria-activedescendant={items[i] ? `cmd-${items[i].id}` : undefined}
-                className="flex-1 h-14 text-[15px] outline-none bg-transparent"
+                className="flex-1 h-14 text-[15px] outline-none focus-visible:outline-none bg-transparent"
               />
               <kbd className="text-[11px] text-slate-500 ring-1 ring-slate-200 rounded px-1.5 py-0.5">
                 Esc

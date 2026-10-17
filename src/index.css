@@ -65,6 +65,12 @@ body::before {
 *:focus:not(:focus-visible) {
   outline: none;
 }
+/* Text fields draw the focus outline inside their box (AENR-695): an outside ring was
+   clipped by overflow-hidden panels — e.g. the search palette — and looked cut off. */
+input:focus-visible,
+textarea:focus-visible {
+  outline-offset: -2px;
+}
 
 ::selection {
   background: rgba(13, 148, 136, 0.20);
