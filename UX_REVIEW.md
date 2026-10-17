@@ -509,6 +509,7 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-670 — your zone stays on the sand.** Who and Pay show the zone you booked in with your sets; the zone row sits mid-sand.
 - **AENR-671 — the beach logo in the wizard.** Shown large over the sea on desktop, as on Home.
 - **AENR-672 — the logo glides with the sand.** From the Home header to its place over the sea and back.
+- **AENR-686 — Wallet: passes first, then upcoming entry QRs**, one centred column, rewards marked FUTURE.
 - **AENR-712 — Who starts with 2 tickets per set** (5 sets → 10), the usual party one tap away.
 - **AENR-713 — Quick picks: Solo, Adult ×2, ×3, ×4.**
 - **AENR-708 — no landmark badges on the sand** (lifeguard, entrance, showers…) in the wizard or the staff maps; they stay in the layout editor.
