@@ -336,7 +336,6 @@ function WizardInner() {
   const ctx = { bookedOn: today, time: nowTime, stayDays: selDates.length };
   const bedPrice = (b: BedPick, iso: string, withCtx = true) => { const s = (pickSlots[b.zoneId] ?? slots).find((x) => x.id === b.id); return s ? resolvePrice(s, b.zoneId, iso, beachPricing, priceRules, withCtx ? ctx : undefined).price : 0; };
   const setSubtotal = bedSel.reduce((a, b) => a + selDates.reduce((x, iso) => x + bedPrice(b, iso), 0), 0);
-  const bookingAdj = setSubtotal - bedSel.reduce((a, b) => a + selDates.reduce((x, iso) => x + bedPrice(b, iso, false), 0), 0);
   // Switched-off categories drop out; each day is priced on its own (weekday / weekend, periods).
   const ticketBreak = ex.tickets.map((tc) => { const n = people[tc.id] ?? 0; return { k: tc.id, n, t: TICKET[tc.id], total: selDates.reduce((a, iso) => a + n * ex.ticketPrice(tc.id, iso), 0) }; });
   const ticketSubtotal = includeTickets ? ticketBreak.reduce((a, b) => a + b.total, 0) : 0;
@@ -526,7 +525,6 @@ function WizardInner() {
   const [finance] = useFinance();
   const feeTotal = grandTotal > 0 ? serviceFees(buildItems(), finance.fees, todayISO()).total : 0;
   const allIn = Math.round((grandTotal + feeTotal) * 100) / 100;
-  const [showBreak, setShowBreak] = useState(false);
 
   // The Pay step pays (AENR-640): this visit's items are kept in the basket while the guest is on
   // Pay (replacing the ones from an earlier pass), and the checkout panel below takes the payment.
@@ -726,15 +724,6 @@ function WizardInner() {
             )}
           </div>
 
-          {showBreak && sheetOpen && (
-            <div className="px-4 sm:px-5 pt-2 text-[12.5px] text-slate-700 border-t border-slate-200/70 shrink-0" aria-label={tr("Price breakdown")}>
-              {[[tr("Sunbeds"), setSubtotal], [tr("Entry tickets"), ticketSubtotal], [tr("Lockers"), lockerSubtotal], [tr("Parking"), parkingSubtotal], [tr("Service fee"), feeTotal]].filter(([, v]) => (v as number) > 0).map(([l, v]) => (
-                <div key={l as string} className="flex justify-between py-0.5"><span>{l}</span><span className="tnum">€{(v as number).toFixed(2)}</span></div>
-              ))}
-              {bookingAdj !== 0 && <div className="flex justify-between py-0.5 text-teal-700"><span>{tr("incl.")} {bookingAdj < 0 ? tr("booking discount") : tr("same-day supplement")}</span><span className="tnum">{bookingAdj < 0 ? "−" : "+"}€{Math.abs(Math.round(bookingAdj * 100) / 100)}</span></div>}
-              <div className="text-[11px] text-slate-500 pb-1">{tr("VAT included. You pay exactly this at checkout.")}</div>
-            </div>
-          )}
           {/* Pinned footer — live total + nav. */}
           {noSet && step.id === "beach" && bedSel.length === 0 && (
             <div role="alert" className="mx-4 sm:mx-5 mb-2 rounded-xl bg-amber-50 ring-1 ring-amber-600/25 px-3 py-2.5 text-[12.5px] text-amber-900 shrink-0">
@@ -768,14 +757,9 @@ function WizardInner() {
                 {step.id === "when" ? tr("Pick your day, then choose where to sit.") : step.id === "beach" ? (phase === "zones" ? tr("Pick a zone, then your sets.") : tr("Tap a set to add it.")) : tr("Add a set or a ticket to see the price.")}
               </div>
             ) : (
+            // Just the total (AENR-682): the truncated set/day line and the "all-in" toggle are gone.
             <div className="leading-tight min-w-0">
-              <div className="text-[11px] text-slate-600 truncate">
-                {bedSel.length ? `${bedSel.map((b) => b.id).join(", ")} · ` : ""}{selDates.length === 1 ? chipLabel(selDates[0], localeFor(lang)).sub : `${selDates.length} ${tr("days")}`}{totalPeople ? ` · ${totalPeople} ${totalPeople === 1 ? tr("guest") : tr("guests")}` : ""}
-              </div>
-              <button type="button" onClick={() => setShowBreak((v) => !v)} aria-expanded={showBreak} className="flex items-baseline gap-1.5 text-left rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
-                <span className="font-display text-2xl font-bold text-navy-900 tnum leading-none" data-wizard-total>€<LiveEuro value={allIn} /></span>
-                <span className="text-[11px] font-semibold text-slate-600 inline-flex items-center gap-0.5">{tr("all-in")} <Icon.chevD size={12} className={showBreak ? "rotate-180 transition" : "transition"} /></span>
-              </button>
+              <span className="font-display text-2xl font-bold text-navy-900 tnum leading-none" data-wizard-total>€<LiveEuro value={allIn} /></span>
             </div>
             )}
             <div className="flex items-center gap-2">
