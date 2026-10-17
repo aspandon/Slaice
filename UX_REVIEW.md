@@ -509,6 +509,7 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-670 — your zone stays on the sand.** Who and Pay show the zone you booked in with your sets; the zone row sits mid-sand.
 - **AENR-671 — the beach logo in the wizard.** Shown large over the sea on desktop, as on Home.
 - **AENR-672 — the logo glides with the sand.** From the Home header to its place over the sea and back.
+- **AENR-726 — Passes no longer scrolls sideways on phones** (found in the AENR-694 review).
 - **AENR-698 — touch-ready till**: bigger keys and text, split ticket keys with a count/− strip, 44 px+ targets, 48 px fields.
 - **AENR-693 — phones: the zone is a step**: Where lists the zones inside the panel (Zone → Sets), then lowers onto the map.
 - **AENR-721 — till: one Quick tab** with a key per ticket category (ΑμεΑ, Child, Resident…) and more combos.

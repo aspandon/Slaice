@@ -1043,7 +1043,7 @@ function PassDesignerPanel() {
 
   return (
     <div className="grid lg:grid-cols-[1fr_320px] gap-4 items-start">
-      <Card className="p-4">
+      <Card className="p-4 min-w-0">
         {/* Card list */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-1 px-1">
           {cards.map((c) => (
