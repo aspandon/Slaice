@@ -104,6 +104,22 @@ export const PROFILE = {
 const r2 = (n: number) => Math.round(n * 100) / 100;
 export const cartKey = (i: Pick<CartItem, "kind" | "id">) => `${i.kind}:${i.id}`;
 
+/** What checkout takes off the all-in total, in order: the earned reward, the season pass's entry,
+ *  VIP credit (€B of credit at a `discount` settles B/(1−discount) of the order), then beach credit
+ *  (refunds as credit, released days — AENR-577/578). `fullDue` is what the card pays. */
+export function settleCheckout(
+  total: number,
+  o: { rewardOff: number; seasonCovered: number; vip: { balance: number; discount: number } | null; credit: number },
+) {
+  const afterSeason = r2(Math.max(0, total - o.rewardOff - o.seasonCovered));
+  const vipCover = o.vip ? Math.min(afterSeason, r2(o.vip.balance / (1 - o.vip.discount))) : 0; // order value the credit settles
+  const vipDebit = r2(vipCover * (1 - (o.vip?.discount ?? 0))); // charged to the balance
+  const vipSaved = r2(vipCover - vipDebit);
+  const afterPasses = r2(afterSeason - vipCover);
+  const creditUsed = r2(Math.min(o.credit, afterPasses));
+  return { vipCover, vipDebit, vipSaved, creditUsed, fullDue: r2(afterPasses - creditUsed) };
+}
+
 /** Service fees the guest pays on top of the beach prices, per item and as totals. */
 export function serviceFees(cart: readonly CartItem[], fees: readonly FeeLine[], today: string) {
   const lines = fees.filter((f) => f.active && f.payer === "customer" && f.from <= today);

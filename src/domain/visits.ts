@@ -256,27 +256,80 @@ export function resolveVisits(visits: readonly Visit[], ss: SelfService, today: 
 export const nextVisit = (visits: readonly Visit[]) =>
   visits.find((v) => v.status === "today" || v.status === "upcoming") ?? null;
 
-/** Their usual: the zone they booked most and its most-booked set. */
-/** The guest's usual booking (AENR-611): their most-booked zone, the usual number of sets, and — from the
- *  latest visit there — the set ids and how many lockers / parking spots came along. */
-export interface UsualBooking { zone: string; sets: number; setIds: string[]; lockers: number; parking: number }
-export function usual(visits: readonly Visit[]): UsualBooking | null {
-  const counts = new Map<string, number>();
-  for (const v of visits)
-    if (v.zone && v.status !== "cancelled") counts.set(v.zone, (counts.get(v.zone) ?? 0) + 1);
-  const top = [...counts.entries()].sort((a, b) => b[1] - a[1])[0];
-  if (!top) return null;
-  const withZone = visits.filter((v) => v.zone === top[0] && v.sets.length && v.status !== "cancelled");
-  const sets = Math.round(
-    withZone.reduce((a, v) => a + v.sets.length, 0) / Math.max(1, withZone.length),
+/** The guest's usual booking (AENR-611 / 705) — the most common pattern in their own visits: their
+ *  most-booked zone, the number of sets they book most often, those sets ranked by how often they had
+ *  them, the party that usually came and the lockers / parking spots that usually came along. A tie
+ *  always goes to the latest visit. */
+export interface UsualBooking {
+  zone: string;
+  sets: number;
+  /** Their sets in that zone, most-booked first. */
+  setIds: string[];
+  lockers: number;
+  parking: number;
+  /** Entry tickets per category id (e.g. { adult: 2, child: 1 }) when the visits say who came. */
+  party?: Record<string, number>;
+}
+/** A ticket category as the party parser needs it. */
+export interface PartyCat { id: string; name: string; short: string }
+
+/** "Adult ×2 + Child" / "Normal (13+) × 2" → { adult: 2, child: 1 }; names it can't place are skipped. */
+export function partyFromTickets(lines: readonly string[], cats: readonly PartyCat[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  const norm = (x: string) => x.toLowerCase().replace(/\s+/g, " ").trim();
+  const catOf = (name: string) => {
+    const n = norm(name);
+    return (
+      cats.find((c) => [c.id, c.name, c.short].some((k) => norm(k) === n)) ??
+      cats.find((c) => n.startsWith(norm(c.id)) || n.startsWith(norm(c.short)))
+    );
+  };
+  for (const line of lines)
+    for (const part of line.split(/\s\+\s|,/)) {
+      const m = /^(.*?)\s*[×x]\s*(\d+)\s*$/.exec(part.trim());
+      const c = catOf(m ? m[1] : part);
+      if (c) out[c.id] = (out[c.id] ?? 0) + (m ? Number(m[2]) : 1);
+    }
+  return out;
+}
+
+/** The most frequent value; a tie goes to the one seen first (callers pass the latest first). */
+function mode<T>(values: readonly T[], key: (v: T) => string = String): T | undefined {
+  const seen = new Map<string, { v: T; c: number; i: number }>();
+  values.forEach((v, i) => {
+    const e = seen.get(key(v));
+    if (e) e.c++;
+    else seen.set(key(v), { v, c: 1, i });
+  });
+  return [...seen.values()].sort((a, b) => b.c - a.c || a.i - b.i)[0]?.v;
+}
+
+export function usual(visits: readonly Visit[], cats: readonly PartyCat[] = []): UsualBooking | null {
+  const live = visits
+    .filter((v) => v.zone && v.status !== "cancelled")
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const zone = mode(live.map((v) => v.zone));
+  if (!zone) return null;
+  const withZone = live.filter((v) => v.zone === zone && v.sets.length);
+  // Sets ranked by how often they were booked here, the latest visit's first on a tie.
+  const rank = new Map<string, { c: number; i: number }>();
+  withZone.forEach((v, i) =>
+    v.sets.forEach((id) => {
+      const e = rank.get(id);
+      if (e) e.c++;
+      else rank.set(id, { c: 1, i });
+    }),
   );
-  const latest = [...withZone].sort((a, b) => b.date.localeCompare(a.date))[0];
+  const setIds = [...rank.entries()].sort((a, b) => b[1].c - a[1].c || a[1].i - b[1].i).map(([id]) => id);
+  const parties = withZone.map((v) => partyFromTickets(v.tickets, cats)).filter((p) => Object.keys(p).length > 0);
+  const party = mode(parties, (p) => JSON.stringify(Object.entries(p).sort()));
   return {
-    zone: top[0],
-    sets: Math.max(1, sets),
-    setIds: latest?.sets ?? [],
-    lockers: latest?.lockers.length ?? 0,
-    parking: latest?.parking.length ?? 0,
+    zone,
+    sets: Math.max(1, mode(withZone.map((v) => v.sets.length)) ?? 1),
+    setIds,
+    lockers: mode(withZone.map((v) => v.lockers.length)) ?? 0,
+    parking: mode(withZone.map((v) => v.parking.length)) ?? 0,
+    ...(party ? { party } : {}),
   };
 }
 

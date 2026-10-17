@@ -14,7 +14,7 @@ import { round2 } from "../data/passes";
 import { useApp, useT } from "../app/store";
 import type { CartItem } from "../domain/types";
 import { SLAICE_FEE_RATE, STRIPE_FEE_RATE } from "../domain/pricing";
-import { PROFILE, cartKey, serviceFees, type PlacedBooking } from "../domain/account";
+import { PROFILE, cartKey, serviceFees, settleCheckout, type PlacedBooking } from "../domain/account";
 import { ARRIVAL_WINDOW, cancelLine, placedVisits, usual } from "../domain/visits";
 import { fmtDay, fmtWeekday } from "../domain/period";
 import { FullscreenQR, downloadVisitIcs, shareVisit } from "./customer/VisitTicket";
@@ -69,17 +69,14 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
   const entryTotal = cart.filter((i) => i.kind === "ticket").reduce((a, b) => a + b.price, 0);
   // Season pass: one entry covered per visit (the holder's), valued at a standard adult entry.
   const seasonCovered = hasSeason && applySeason && entryTotal > 0 ? Math.min(ex.ticketPrice("adult", todayISO()), entryTotal) : 0;
-  const afterSeason = round2(Math.max(0, total - rewardOff - seasonCovered));
   const vipBalance = passes.vip?.balance ?? 0;
-  // €B of credit, at a `disc` discount, settles B/(1−disc) of the order.
-  const vipMaxCover = round2(vipBalance / (1 - disc));
-  const vipCover = hasVip && applyVip ? Math.min(afterSeason, vipMaxCover) : 0; // order value the card settles
-  const vipDebit = round2(vipCover * (1 - disc)); // charged to the balance
-  const vipSaved = round2(vipCover - vipDebit); // the 20% the guest didn't pay
-  const afterPasses = round2(afterSeason - vipCover);
-  // Beach credit (refunds as credit, released days) is used first, automatically (AENR-577/578).
-  const creditUsed = round2(Math.min(account.credit.balance, afterPasses));
-  const fullDue = round2(afterPasses - creditUsed); // paid via Stripe at full price
+  // Reward → season entry → VIP credit at its discount → beach credit (shared with Home's rebook tile, AENR-705).
+  const { vipCover, vipDebit, vipSaved, creditUsed, fullDue } = settleCheckout(total, {
+    rewardOff,
+    seasonCovered,
+    vip: hasVip && applyVip ? { balance: vipBalance, discount: disc } : null,
+    credit: account.credit.balance,
+  });
   // Always paid in full online — no deposit option (AENR-681, retiring AENR-574's deposit).
   const policy = ex.extras.policy;
   const cashDue = fullDue;

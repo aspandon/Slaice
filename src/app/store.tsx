@@ -25,7 +25,7 @@ import { DEFAULT_DISPLAY, type DisplayConfig } from "../domain/display";
 import { DEFAULT_LAYOUT_STATE, type LayoutState } from "../domain/layoutVersions";
 import { DEFAULT_EXTRAS, type ExtrasState } from "../domain/extras";
 import { DEFAULT_ACCOUNT, type AccountState } from "../domain/account";
-import type { UsualBooking } from "../domain/visits";
+import type { RebookHint } from "../domain/rebook";
 import { emptyPlatform, type PlatformState } from "../domain/platform";
 import { DEFAULT_COMMS, type CommsState } from "../data/comms";
 import { DEFAULT_PRIVACY, type PrivacyState } from "../data/gdpr";
@@ -46,7 +46,7 @@ export interface SpotlightHint {
   /** Guest details to pre-fill a manual / phone booking (from the guest profile). */
   prefill?: { name: string; email: string; phone: string };
   /** Open the booking wizard on Pay with the guest's usual booking filled in (AENR-611). */
-  rebook?: UsualBooking;
+  rebook?: RebookHint;
   ts?: number;
 }
 

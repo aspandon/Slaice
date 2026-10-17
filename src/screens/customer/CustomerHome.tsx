@@ -6,10 +6,13 @@ import { Badge, Btn, NotMvpBadge } from "../../components/ui";
 import { PassCard } from "../../components/PassCard";
 import { gsap, motionOK, DUR, EASE, useMagnetic, useCardTilt } from "../../lib/fx";
 import { useCountUp } from "../../lib/motion";
-import { ZONES, zoneLayout, WEATHER_DEMO, TENANT, forecastFor, todayISO } from "../../data/beach";
+import { ZONES, zoneLayout, WEATHER_DEMO, TENANT, forecastFor, todayISO, chipLabel } from "../../data/beach";
 import { QR } from "../../components/charts";
 import { useVisits } from "../../lib/useVisits";
-import { ARRIVAL_ENDS, ARRIVAL_WINDOW, homeMoment, usual, type MomentKind, type UsualBooking, type Visit } from "../../domain/visits";
+import { ARRIVAL_ENDS, ARRIVAL_WINDOW, homeMoment, type MomentKind, type Visit } from "../../domain/visits";
+import { useRebook, type Rebook } from "../../lib/useRebook";
+import { partyLabel } from "../../domain/account";
+import { localeFor } from "../../app/i18n";
 import { fmtDay, fmtWeekday } from "../../domain/period";
 import { VisitQR, receiptForVisit, visitPass } from "./VisitTicket";
 import { ExtrasDialog } from "./CustomerBookings";
@@ -40,7 +43,7 @@ const CARD = "glass-flat rounded-3xl overflow-hidden relative";
 let homeIntroPlayed = false;
 
 export function CustomerHome() {
-  const { dive, go, loyalty, beachLayout, weather, dayTime, sceneFx } = useApp();
+  const { dive, loyalty, beachLayout, weather, dayTime, sceneFx } = useApp();
   const { visits } = useVisits();
   const t = useT();
   // The hero chip mirrors the demo scene: weather icon/label/temp plus a
@@ -107,7 +110,7 @@ export function CustomerHome() {
   const clock = new Date(useDemoNow()).toTimeString().slice(0, 5);
   const moment = homeMoment(visits, todayISO(), clock, (force || undefined) as MomentKind | undefined);
   const next = moment.kind === "morning" || moment.kind === "upcoming" ? moment.v : null;
-  const mine = usual(visits);
+  const rebook = useRebook(visits, rewards);
   const hero = (
       <button onClick={() => dive()} className="text-left group block w-full" data-home-card>
         <div className={`${CARD} p-6 sm:p-9 pressable cursor-pointer transition duration-300 ease-spring hover:-translate-y-1 hover:bg-white/80`}>
@@ -147,26 +150,28 @@ export function CustomerHome() {
       {moment.kind !== "none" && <h1 className="sr-only">{t("Home")}</h1>}
       {next ? <NextVisitCard v={next} qrFirst={moment.kind === "morning"} />
         : moment.kind === "during" ? <AtBeachCard v={moment.v} />
-        : moment.kind === "after" ? <AfterVisitCard v={moment.v} mine={mine} />
+        : moment.kind === "after" ? <AfterVisitCard v={moment.v} rebook={rebook} />
         : moment.kind === "offseason" ? <OffSeasonCard opens={moment.opens} />
         : hero}
 
       <div className="grid sm:grid-cols-2 gap-4 items-stretch">
         {/* Rebook your usual — from the guest's own visits (the after-visit card already offers it) */}
         {moment.kind !== "after" && <>
-        {/* "Book again" opens Pay with the usual filled in (AENR-611); first-timers get the guided booking. */}
-        <button onClick={() => (mine ? go("customer", "plan", { rebook: mine }) : dive())} className={`${CARD} p-5 flex flex-col gap-2.5 text-left hover:bg-white/80 transition-colors group`} data-home-card>
-          <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
-            <div className="min-w-0">
-              <div className="font-semibold text-navy-900 text-[15px] leading-tight">{next ? t("Plan another visit") : t("Rebook your usual")}</div>
-              <div className="text-[12.5px] text-slate-600 mt-0.5 leading-snug">
-                {mine ? `${mine.zone} · ${mine.sets} ${mine.sets === 1 ? t("sunbed") : t("sunbeds")} — ${t("your usual")}` : `${freeDisplay} ${t("sunbeds free today")} · ${t("from")} €${fromPrice}`}
+        {/* "Book again" opens Pay with exactly this proposal filled in (AENR-611 / 705); first-timers get the guided booking. */}
+        {rebook.status === "none" ? (
+          <button onClick={() => dive()} className={`${CARD} p-5 flex flex-col gap-2.5 text-left hover:bg-white/80 transition-colors group`} data-home-card>
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
+              <div className="min-w-0">
+                <div className="font-semibold text-navy-900 text-[15px] leading-tight">{next ? t("Plan another visit") : t("Rebook your usual")}</div>
+                <div className="text-[12.5px] text-slate-600 mt-0.5 leading-snug">{`${freeDisplay} ${t("sunbeds free today")} · ${t("from")} €${fromPrice}`}</div>
               </div>
             </div>
-          </div>
-          <div className="self-start flex items-center gap-1 text-teal-700 text-[13px] font-semibold px-3 py-1.5 -ml-3">{mine ? t("Book again") : t("Start guided booking")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" /></div>
-        </button>
+            <div className="self-start flex items-center gap-1 text-teal-700 text-[13px] font-semibold px-3 py-1.5 -ml-3">{t("Start guided booking")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" /></div>
+          </button>
+        ) : (
+          <RebookTile rebook={rebook} title={next ? t("Plan another visit") : t("Rebook your usual")} />
+        )}
         </>}
         <div className="min-w-0">
           {!promoDismissed && (
@@ -318,12 +323,97 @@ function WeatherNow({ kind }: { kind: keyof typeof WEATHER_DEMO }) {
   );
 }
 
+/* "Rebook your usual" (AENR-705): exactly what "Book again" will book — the day, zone, sets, party and
+   extras, checked free — and the all-in total Pay will show. When the day the guest would go doesn't
+   work it says why and offers the next one; when nothing works soon it falls back to planning a visit. */
+const euro = (n: number) => `€${Math.round(n * 100) % 100 ? n.toFixed(2) : Math.round(n)}`;
+
+function useRebookText(rebook: Rebook) {
+  const { lang } = useApp();
+  const t = useT();
+  const day = (iso: string) => {
+    const c = chipLabel(iso, localeFor(lang), t);
+    return `${c.label}, ${c.sub}`;
+  };
+  const missWhy = (m: { kind: string; label: string }) => (m.kind === "soldOut" ? t("sold out") : m.kind === "stopSell" ? t("not sold online") : t(m.label));
+  const miss = rebook.status !== "none" && rebook.plan.miss && rebook.plan.wanted ? { day: day(rebook.plan.wanted), why: missWhy(rebook.plan.miss) } : null;
+  if (rebook.status !== "ok") return { miss, ok: null };
+  const { plan, zone } = rebook;
+  const names = { adult: t("adult"), child: t("child"), resident: t("resident"), senior: t("senior") };
+  const bits = [
+    `${plan.setIds.length === 1 ? t("Set") : t("Sets")} ${plan.setIds.join(", ")}`,
+    partyLabel(plan.party, names, t),
+    plan.lockers ? `${plan.lockers} ${plan.lockers === 1 ? t("locker") : t("lockers")}` : "",
+    plan.parking ? `${plan.parking} ${plan.parking === 1 ? t("parking spot") : t("parking spots")}` : "",
+  ].filter(Boolean);
+  return { miss, ok: { day: day(plan.date), where: zone.name, what: bits.join(" · ") } };
+}
+
+function RebookTile({ rebook, title }: { rebook: Exclude<Rebook, { status: "none" }>; title: string }) {
+  const { go, dive } = useApp();
+  const t = useT();
+  const { miss, ok: text } = useRebookText(rebook);
+
+  if (rebook.status === "usual" || !text)
+    return (
+      <div className={`${CARD} p-5 flex flex-col gap-2.5`} data-home-card>
+        <div className="flex items-center gap-3">
+          <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
+          <div className="min-w-0">
+            <h2 className="font-semibold text-navy-900 text-[15px] leading-tight">{title}</h2>
+            <p className="text-[12.5px] text-slate-600 mt-0.5 leading-snug">
+              {rebook.usual.zone} · {rebook.usual.sets} {rebook.usual.sets === 1 ? t("set") : t("sets")} — {t("your usual isn't free in the next 3 weeks.")}
+              {miss ? ` ${miss.day}: ${miss.why}.` : ""}
+            </p>
+          </div>
+        </div>
+        <Btn variant="teal" size="sm" className="self-start" icon={Icon.sparkles} onClick={() => dive()}>{t("Plan a visit")}</Btn>
+      </div>
+    );
+
+  const { plan, quote, usual, hint, due } = rebook;
+  const swapped = usual.setIds.length > 0 && plan.usualKept < plan.setIds.length;
+  return (
+    <section aria-labelledby="rebook-usual" className={`${CARD} p-5 flex flex-col gap-3`} data-home-card>
+      <div className="flex items-start gap-3">
+        <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
+        <div className="min-w-0 flex-1">
+          <h2 id="rebook-usual" className="font-semibold text-navy-900 text-[15px] leading-tight">{title}</h2>
+          <p className="text-[12.5px] text-slate-600 mt-0.5 leading-snug">{t("What you book most — checked free for you.")}</p>
+        </div>
+      </div>
+      {miss && (
+        <p className="rounded-xl bg-amber-50 ring-1 ring-amber-600/25 px-3 py-2 text-[12.5px] text-amber-900 leading-snug flex items-start gap-2">
+          <Icon.info size={14} className="shrink-0 mt-0.5 text-amber-700" />
+          <span><b>{miss.day}</b> {t("doesn't work")} ({miss.why}) — {t("the next day that does:")}</span>
+        </p>
+      )}
+      <div className="rounded-2xl bg-white/60 ring-1 ring-slate-200/80 px-3.5 py-3 flex items-end justify-between gap-3">
+        <div className="min-w-0 text-[13px] leading-snug">
+          <div className="font-semibold text-navy-900">{text.day} · {text.where}</div>
+          <div className="text-slate-700 mt-0.5">{text.what}</div>
+          {swapped && <div className="text-[11.5px] text-slate-600 mt-0.5">{t("Your usual set is taken that day — the next free one instead.")}</div>}
+        </div>
+        <div className="text-right shrink-0">
+          <div className="font-display text-xl font-bold text-navy-900 tnum leading-none">{euro(due.toPay)}</div>
+          <div className="text-[11px] text-slate-600 mt-1">{due.deducted ? <>{t("to pay")} · <s className="tnum">{euro(quote.total)}</s></> : t("all-in")}</div>
+        </div>
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <Btn variant="teal" size="sm" icon={Icon.refresh} onClick={() => go("customer", "plan", { rebook: hint })}>{t("Book again")}</Btn>
+        <span className="text-[11.5px] text-slate-600">{t("Check or change anything before you pay.")}</span>
+      </div>
+    </section>
+  );
+}
+
 /* After the visit (AENR-610): the receipt and the same day again, one tap each. */
-function AfterVisitCard({ v, mine }: { v: Visit; mine: UsualBooking | null }) {
+function AfterVisitCard({ v, rebook }: { v: Visit; rebook: Rebook }) {
   const { go, dive } = useApp();
   const t = useT();
   const [doc, setDoc] = useState(false);
   const today = v.date === todayISO();
+  const { ok: again } = useRebookText(rebook);
   return (
     <section aria-labelledby="after-visit" className={`${CARD} p-5 sm:p-7`} data-home-card>
       <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700"><Icon.checkCircle size={13} /> {t("Thanks for coming")}</div>
@@ -332,9 +422,12 @@ function AfterVisitCard({ v, mine }: { v: Visit; mine: UsualBooking | null }) {
         {fmtWeekday(v.date)} {fmtDay(v.date)}{v.zone ? ` · ${v.zone}` : ""} · €{v.total} {t("paid")}
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
-        <Btn variant="primary" icon={Icon.refresh} onClick={() => (mine ? go("customer", "plan", { rebook: mine }) : dive())}>{t("Book again")}</Btn>
+        <Btn variant="primary" icon={Icon.refresh} onClick={() => (rebook.status === "ok" ? go("customer", "plan", { rebook: rebook.hint }) : dive())}>{t("Book again")}</Btn>
         <Btn variant="outline" icon={Icon.receipt} onClick={() => setDoc(true)}>{t("Receipt")}</Btn>
       </div>
+      {again && rebook.status === "ok" && (
+        <p className="mt-2 text-[12.5px] text-slate-600">{t("Book again")}: {again.day} · {again.where} · {again.what} · <b className="text-navy-900 tnum">{euro(rebook.due.toPay)}</b> {rebook.due.deducted ? t("to pay") : t("all-in")}</p>
+      )}
       {doc && <ReceiptModal doc={receiptForVisit(v)} onClose={() => setDoc(false)} />}
     </section>
   );

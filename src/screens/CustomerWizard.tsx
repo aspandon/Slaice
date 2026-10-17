@@ -188,14 +188,17 @@ function WizardInner() {
     const z = u && ZONES.find((x) => x.name === u.zone || x.id === u.zone);
     if (!u || !z) return null;
     const time = new Date().toTimeString().slice(0, 5);
+    // AENR-705: Home already checked the proposed day free — start there (it re-checks, in case it changed).
+    const start = u.date && u.date >= todayISO() ? u.date : todayISO();
     for (let i = 0; i < 21; i++) {
-      const iso = addDays(todayISO(), i);
+      const iso = addDays(start, i);
       if (dateBlock(z.id, iso, calendar.restrictions, todayISO(), time) || stopSellFor(inventory, z.id, [iso])) continue;
       const free = liveSlots(z, [iso]).filter((x) => x.state === "a");
       if (free.length < u.sets) continue;
-      // The sets they had last time when they're free, then the next free ones.
-      const picks = [...free.filter((x) => u.setIds.includes(x.id)), ...free.filter((x) => !u.setIds.includes(x.id))].slice(0, u.sets);
-      return { zoneId: z.id, date: iso, picks: picks.map((x): BedPick => ({ id: x.id, price: x.price, zoneId: z.id })), lockers: u.lockers, parking: u.parking };
+      // The sets they had before when they're free (most-booked first), then the next free ones.
+      const fav = u.setIds.flatMap((id) => free.filter((x) => x.id === id));
+      const picks = [...fav, ...free.filter((x) => !u.setIds.includes(x.id))].slice(0, u.sets);
+      return { zoneId: z.id, date: iso, picks: picks.map((x): BedPick => ({ id: x.id, price: x.price, zoneId: z.id })), lockers: u.lockers, parking: u.parking, party: u.party };
     }
     return null;
   });
@@ -224,7 +227,7 @@ function WizardInner() {
   const [stepIdx, setStepIdx] = useState(initialStep);
   // Who starts with as many tickets as the chosen sets seat — 2 per set (AENR-712); "Your usual"
   // (AENR-613) is one tap away. A one-tap rebook of the usual keeps that party.
-  const [people, setPeople] = useState<People>(() => (plan ? account.party ?? { adult: plan.picks.length * 2, resident: 0, child: 0, senior: 0 } : { adult: 0, resident: 0, child: 0, senior: 0 }));
+  const [people, setPeople] = useState<People>(() => (plan ? plan.party ?? account.party ?? { adult: plan.picks.length * 2, resident: 0, child: 0, senior: 0 } : { adult: 0, resident: 0, child: 0, senior: 0 }));
   const [includeTickets, setIncludeTickets] = useState(true);
   // Track whether the guest has hand-edited the headcount. Until they do, we
   // pre-fill it from the chosen sets (2 entry tickets per set — see below).
