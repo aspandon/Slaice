@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useApp } from "../app/store";
 import { listCustomerBookings } from "../api";
 import { useAsync } from "./useAsync";
+import { useDemoFlag } from "./useDemoFlag";
 import { ZONES, todayISO } from "../data/beach";
 import {
   historyVisits,
@@ -24,9 +25,11 @@ export function useVisits() {
   const { account, setAccount, extras } = useApp();
   const history = useAsync(listCustomerBookings);
   const today = todayISO();
+  // Demo › "Simulate a first-time guest" (AENR-702): no bookings at all, everywhere.
+  const [newGuest] = useDemoFlag("newGuest");
   const visits: Visit[] = useMemo(
     () =>
-      resolveVisits(
+      newGuest ? [] : resolveVisits(
         [
           ...placedVisits(account.bookings, zoneName),
           ...(history.status === "success" ? historyVisits(history.data) : []),
@@ -34,7 +37,7 @@ export function useVisits() {
         account.selfService,
         today,
       ),
-    [account.bookings, account.selfService, history, today],
+    [account.bookings, account.selfService, history, today, newGuest],
   );
   const policy = extras.policy;
 

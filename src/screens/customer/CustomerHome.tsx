@@ -253,26 +253,68 @@ function NextVisitCard({ v, qrFirst = false }: { v: Visit; qrFirst?: boolean }) 
 
 /* At the beach (AENR-610): the day is on — extras first, the QR one tap away for re-entry. */
 function AtBeachCard({ v }: { v: Visit }) {
-  const { go } = useApp();
+  const { go, dive, weather } = useApp();
   const t = useT();
   const [qr, setQr] = useState(false);
   const [extras, setExtras] = useState(false);
   const has = [...v.parking.map((x) => `${t("Parking")} ${x}`), ...v.lockers.map((x) => `${t("Locker")} ${x}`)];
   return (
     <section aria-labelledby="at-beach" className={`${CARD} p-5 sm:p-7`} data-home-card>
-      <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700"><Icon.umbrella size={13} /> {t("You're at the beach")}{v.zone ? ` · ${v.zone}` : ""}</div>
-      <h2 id="at-beach" className="mt-1.5 font-display font-bold text-[26px] sm:text-[32px] leading-tight text-navy-900">{t("Enjoy your day")}</h2>
-      <p className="mt-1 text-[14px] text-slate-700">
-        {v.sets.length ? `${t("Sunbeds")} ${v.sets.join(", ")}` : t("Entry tickets")}{has.length ? ` · ${has.join(" · ")}` : ""}
-      </p>
-      <div className="mt-4 flex flex-wrap gap-2">
-        <Btn variant="primary" icon={Icon.plus} onClick={() => setExtras(true)}>{t("Add a locker or parking")}</Btn>
-        <Btn variant="outline" icon={Icon.qr} onClick={() => setQr(true)}>{t("Show QR")}</Btn>
-        <Btn variant="ghost" onClick={() => go("customer", "mybookings")}>{t("Manage booking")}</Btn>
+      <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
+        <div className="min-w-0 flex-1">
+          <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700"><Icon.umbrella size={13} /> {t("You're at the beach")}{v.zone ? ` · ${v.zone}` : ""}</div>
+          <h2 id="at-beach" className="mt-1.5 font-display font-bold text-[26px] sm:text-[32px] leading-tight text-navy-900">{t("Enjoy your day")}</h2>
+          <p className="mt-1 text-[14px] text-slate-700">
+            {v.sets.length ? `${t("Sunbeds")} ${v.sets.join(", ")}` : t("Entry tickets")}{has.length ? ` · ${has.join(" · ")}` : ""}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Btn variant="primary" icon={Icon.plus} onClick={() => setExtras(true)}>{t("Add a locker or parking")}</Btn>
+            <Btn variant="outline" icon={Icon.qr} onClick={() => setQr(true)}>{t("Show QR")}</Btn>
+            {/* Already here today — and planning the next one (AENR-702). */}
+            <Btn variant="outline" icon={Icon.sparkles} onClick={() => dive()}>{t("Plan another visit")}</Btn>
+            <Btn variant="ghost" onClick={() => go("customer", "mybookings")}>{t("Manage booking")}</Btn>
+          </div>
+        </div>
+        <WeatherNow kind={weather} />
       </div>
       {extras && <ExtrasDialog v={v} only="extras" onClose={() => setExtras(false)} />}
       {qr && <VisitQR v={v} onClose={() => setQr(false)} />}
     </section>
+  );
+}
+
+/* The beach's weather right now (AENR-702) — a calm sky panel beside "Enjoy your day":
+   condition and temperature first, then wind, sea and UV. Demo values per condition. */
+const WEATHER_EXTRA: Record<keyof typeof WEATHER_DEMO, { windKmh: number; sea: number; uv: number; note: string }> = {
+  sunny: { windKmh: 9, sea: 24, uv: 8, note: "Sunscreen on — high UV until 16:00." },
+  windy: { windKmh: 32, sea: 22, uv: 7, note: "Breezy — umbrellas stay tied down." },
+  overcast: { windKmh: 14, sea: 22, uv: 4, note: "Soft light, calm sea." },
+  rainy: { windKmh: 20, sea: 21, uv: 2, note: "Showers passing — the bar is open." },
+};
+function WeatherNow({ kind }: { kind: keyof typeof WEATHER_DEMO }) {
+  const t = useT();
+  const w = WEATHER_DEMO[kind];
+  const x = WEATHER_EXTRA[kind];
+  const W = Icon[w.icon] ?? Icon.sun;
+  return (
+    <aside aria-label={t("Weather at the beach now")} className="sm:w-[240px] shrink-0 rounded-2xl bg-gradient-to-br from-sky-50 via-white to-teal-50 ring-1 ring-sky-100 p-4">
+      <div className="flex items-center gap-3">
+        <span className="w-12 h-12 rounded-2xl bg-white ring-1 ring-sky-100 shadow-sm grid place-items-center text-amber-500 shrink-0"><W size={26} /></span>
+        <div className="min-w-0">
+          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{t("Now at the beach")}</div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="font-display font-bold text-[30px] leading-none text-navy-900 tnum">{w.tempC}°</span>
+            <span className="text-[14px] font-semibold text-slate-700">{t(w.label)}</span>
+          </div>
+        </div>
+      </div>
+      <dl className="mt-3 grid grid-cols-3 gap-1.5 text-center">
+        <div className="rounded-xl bg-white/80 px-1.5 py-1.5"><dt className="text-[10.5px] text-slate-500">{t("Wind")}</dt><dd className="text-[13px] font-semibold text-navy-900 tnum">{x.windKmh} km/h</dd></div>
+        <div className="rounded-xl bg-white/80 px-1.5 py-1.5"><dt className="text-[10.5px] text-slate-500">{t("Sea")}</dt><dd className="text-[13px] font-semibold text-navy-900 tnum">{x.sea}°</dd></div>
+        <div className="rounded-xl bg-white/80 px-1.5 py-1.5"><dt className="text-[10.5px] text-slate-500">UV</dt><dd className="text-[13px] font-semibold text-navy-900 tnum">{x.uv}</dd></div>
+      </dl>
+      <p className="mt-2 text-[12px] text-slate-600 leading-snug">{t(x.note)}</p>
+    </aside>
   );
 }
 

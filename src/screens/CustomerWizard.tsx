@@ -22,6 +22,7 @@ import { useSiteStatus } from "../lib/usePlatform";
 import { Checkout } from "./Checkout";
 import { bestSets } from "../domain/bestSets";
 import { ZoomBox } from "../components/ZoomBox";
+import { useDemoFlag } from "../lib/useDemoFlag";
 
 type People = Record<string, number>;
 interface BedPick { id: string; price: number; zoneId: string }
@@ -176,6 +177,7 @@ export function CustomerWizard() {
 function WizardInner() {
   const tr = useT();
   const { go, toast, addToCart, removeFromCart, hint, lang, beachPricing, priceRules, calendar, inventory, weather, account, setAccount } = useApp();
+  const [newGuest] = useDemoFlag("newGuest"); // Demo › first-time guest (AENR-702)
   useSpotlight("customer", "plan");
   const liveSlots = useLiveSlots();
 
@@ -419,7 +421,7 @@ function WizardInner() {
   // party (two guests a set) — side by side, cheapest, nearest the sea — the way an
   // airline app assigns seats. Tapping a set swaps it; the pick follows the party
   // size until the guest edits it by hand.
-  const usualSize = account.party ? Object.values(account.party).reduce((a, b) => a + b, 0) : 2;
+  const usualSize = account.party && !newGuest ? Object.values(account.party).reduce((a, b) => a + b, 0) : 2;
   const wantSets = Math.max(1, Math.ceil((peopleTouched ? totalPeople : usualSize) / 2));
   const [auto, setAuto] = useState<{ zoneId: string; ids: string[]; together: boolean; rowIdx: number; edited: boolean } | null>(null);
   const autoPick = (id: string, n = wantSets, onlyRow?: number, replace = false) => {
@@ -651,7 +653,7 @@ function WizardInner() {
                 pickedSets={bedSel.length}
                 autoFilled={!peopleTouched}
                 onPreset={(v) => editPeople(v)}
-                usualParty={account.party}
+                usualParty={newGuest ? null : account.party}
               />
             )}
             {step.id === "review" && plan && (

@@ -30,6 +30,7 @@ export function PersonaSwitcher({
 }) {
   const t = useT();
   const [economics, setEconomics] = useDemoFlag("economics");
+  const [newGuest, setNewGuest] = useDemoFlag("newGuest");
   const { inventory, setInventory, sceneFx, showPreviews, setShowPreviews, till } = useApp();
   const cur = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[0];
   const momentPreview = readHashQuery().get("moment") ?? "";
@@ -128,6 +129,24 @@ export function PersonaSwitcher({
               </span>
               <span aria-hidden className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${economics ? "bg-teal-600" : "bg-slate-300"}`}>
                 <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${economics ? "left-[18px]" : "left-0.5"}`} />
+              </span>
+            </DropdownMenu.CheckboxItem>
+          )}
+          {/* Demo: a guest who has never booked (AENR-702) — Home, My bookings, Wallet and the
+              wizard behave as for a first visit. */}
+          {persona === "customer" && (
+            <DropdownMenu.CheckboxItem
+              checked={newGuest}
+              onCheckedChange={(v) => setNewGuest(v === true)}
+              onSelect={(e) => e.preventDefault()}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"
+            >
+              <span className="flex-1 min-w-0">
+                <span className="block font-semibold">{t("Simulate a first-time guest")}</span>
+                <span className="block text-[11px] text-slate-500 leading-tight">{t("No previous bookings — see the app as a new guest does.")}</span>
+              </span>
+              <span aria-hidden className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${newGuest ? "bg-teal-600" : "bg-slate-300"}`}>
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${newGuest ? "left-[18px]" : "left-0.5"}`} />
               </span>
             </DropdownMenu.CheckboxItem>
           )}
