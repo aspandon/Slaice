@@ -52,6 +52,9 @@ const GUEST_HISTORY: AdminBooking[] = CUSTOMER_BOOKINGS.filter((r) => !ADMIN_BOO
   amount: r.price,
 }));
 
+/** The signed-in call-centre agent in the demo (AENR-646). */
+export const CALL_CENTER_AGENT = "Maria Kontou";
+
 /** "Now" on the demo calendar: the demo day at the real time of day. */
 export const opsNow = () => `${DEMO_TODAY}T${new Date().toTimeString().slice(0, 5)}`;
 
@@ -69,6 +72,8 @@ export function useBookingOps() {
     viewAs,
   } = useApp();
   const by = viewAs?.name ?? (persona === "callcenter" ? "Call Center" : "Manager / Admin");
+  // A call-centre request carries the agent's name to the manager's queue (AENR-719).
+  const requester = persona === "callcenter" ? `Call Center · ${viewAs?.name ?? CALL_CENTER_AGENT}` : by;
 
   const bookings: OpsBooking[] = useMemo(() => {
     const all = [
@@ -264,6 +269,7 @@ export function useBookingOps() {
     amount: number,
     reason: string,
     seq: number,
+    note?: string,
   ): RefundRequest => ({
     id: `RR-${seq + 1}`,
     bookingId: b.id,
@@ -271,8 +277,9 @@ export function useBookingOps() {
     who: b.who,
     amount,
     reason,
+    ...(note ? { note } : {}),
     requestedAt: opsNow(),
-    requestedBy: by,
+    requestedBy: requester,
     status: "pending",
   });
   /** A request for a manager's decision (Call Center, or a guest's ask). */
@@ -280,11 +287,12 @@ export function useBookingOps() {
     b: Pick<OpsBooking, "id" | "who" | "amount">,
     amount: number,
     reason: string,
+    note?: string,
   ) =>
     setBookingOps((o) => ({
       ...o,
       seq: o.seq + 1,
-      refunds: [newRequest(b, amount, reason, o.seq), ...o.refunds],
+      refunds: [newRequest(b, amount, reason, o.seq, note), ...o.refunds],
       events: {
         ...o.events,
         [b.id]: [
@@ -292,8 +300,8 @@ export function useBookingOps() {
           {
             at: opsNow(),
             kind: "refund_requested",
-            text: `Refund of €${amount} requested · ${reason}`,
-            by,
+            text: `Refund of €${amount} requested · ${reason}${note ? ` — ${note}` : ""}`,
+            by: requester,
           },
         ],
       },
@@ -373,6 +381,7 @@ export function useBookingOps() {
   return {
     bookings,
     by,
+    requester,
     timelineOf,
     resendQr,
     move,

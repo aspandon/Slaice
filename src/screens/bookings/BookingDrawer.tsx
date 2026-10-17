@@ -581,6 +581,7 @@ export function PendingRefund({
           <div className="text-[12.5px] text-slate-600">
             {r.reason} · by {r.requestedBy} · {ageLabel(r.requestedAt, opsNow())} ago
           </div>
+          {r.note && <p className="mt-1 text-[12.5px] text-slate-700 italic">“{r.note}”</p>}
         </div>
         <Badge tone={sla === "overdue" ? "red" : sla === "due" ? "amber" : "slate"}>
           {sla === "overdue" ? "Past 48 h SLA" : sla === "due" ? "SLA due soon" : "Within SLA"}

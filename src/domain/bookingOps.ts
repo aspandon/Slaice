@@ -35,6 +35,8 @@ export interface RefundRequest {
   who: string;
   amount: number;
   reason: string;
+  /** Free-text detail from whoever asked (AENR-719). */
+  note?: string;
   requestedAt: string;
   requestedBy: string;
   status: RefundStatus;
@@ -87,6 +89,55 @@ export const POLICY_BY = "Refund policy";
 /** A pending request the policy approves without a person. */
 export function policyCovers(p: RefundPolicy, r: Pick<RefundRequest, "amount" | "reason" | "status">): boolean {
   return p.on && r.status === "pending" && r.amount <= p.cap && p.reasons.some((x) => r.reason.toLowerCase().startsWith(x.toLowerCase()));
+}
+
+/* ---------- Requests from the call centre (AENR-719) ---------- */
+/** Where a request stands for the person who asked: a partial approval is its own outcome. */
+export type RefundOutcome = "pending" | "approved" | "partial" | "declined";
+export const refundOutcome = (r: Pick<RefundRequest, "status" | "amount" | "refundAmount">): RefundOutcome =>
+  r.status === "approved" && r.refundAmount != null && r.refundAmount < r.amount ? "partial" : r.status;
+export const OUTCOME_LABEL: Record<RefundOutcome, string> = {
+  pending: "Pending",
+  approved: "Approved",
+  partial: "Partially approved",
+  declined: "Declined",
+};
+/** Reasons an agent picks from; "Other" needs a note. */
+export const REQUEST_REASONS = ["Weather", "Beach closure", "Double booking", "Customer request", "Service issue", "Other"];
+
+/** Whether a booking can get a new refund request, and if not, why. */
+export type RefundEligibility =
+  | { ok: true }
+  | { ok: false; why: "pending"; request: RefundRequest }
+  | { ok: false; why: "refunded" | "unpaid" | "cancelled" };
+export function refundEligibility(
+  b: { id: string; status: string },
+  refunds: readonly RefundRequest[],
+): RefundEligibility {
+  const pending = refunds.find((r) => r.bookingId === b.id && r.status === "pending");
+  if (pending) return { ok: false, why: "pending", request: pending };
+  if (b.status === "Refunded") return { ok: false, why: "refunded" };
+  if (b.status === "Cancelled") return { ok: false, why: "cancelled" };
+  if (b.status !== "Confirmed" && b.status !== "Used") return { ok: false, why: "unpaid" };
+  return { ok: true };
+}
+
+export interface RequestErrors {
+  amount?: string;
+  reason?: string;
+  note?: string;
+}
+/** Field errors for a refund request: amount above 0 and up to what was paid, a reason, a note for "Other". */
+export function validateRefundRequest(v: { amount: string; paid: number; reason: string; note: string }): RequestErrors {
+  const e: RequestErrors = {};
+  const n = Number(v.amount);
+  if (v.amount.trim() === "" || !Number.isFinite(n)) e.amount = "Enter the amount to refund.";
+  else if (n <= 0) e.amount = "The amount must be more than €0.";
+  else if (n > v.paid) e.amount = `The guest paid €${v.paid} — a refund can't be more than that.`;
+  else if (Math.round(n * 100) !== n * 100) e.amount = "Use at most two decimals (cents).";
+  if (!v.reason) e.reason = "Choose a reason.";
+  else if (v.reason === "Other" && !v.note.trim()) e.note = "Say what happened — the manager needs it to decide.";
+  return e;
 }
 
 /* ---------- Refund SLA ---------- */

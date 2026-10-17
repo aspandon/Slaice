@@ -60,6 +60,8 @@ export const NAV: Record<PersonaId, NavItem[]> = {
   callcenter: [
     { k: "newbooking", label: "New booking", short: "New", icon: "plus", badge: "MVP" },
     { k: "bookings", label: "Bookings", short: "Bookings", icon: "grid", badge: "MVP" },
+    // The agent asks, a manager decides in Refunds (AENR-719).
+    { k: "refunds", label: "Refund requests", short: "Refunds", icon: "refund", badge: "MVP" },
   ],
   cashier: [
     // One place to sell (AENR-605): lockers are sold in Sell, tickets are redeemed at the gate.
