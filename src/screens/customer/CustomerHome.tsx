@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useGuestRecord } from "../../lib/useGuestRecord";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
-import { Badge, Btn, NotMvpBadge } from "../../components/ui";
+import { Badge, Btn, Modal, NotMvpBadge } from "../../components/ui";
 import { PassCard } from "../../components/PassCard";
 import { gsap, motionOK, DUR, EASE, useMagnetic, useCardTilt } from "../../lib/fx";
 import { useCountUp } from "../../lib/motion";
@@ -246,8 +246,28 @@ function NextVisitCard({ v, qrFirst = false }: { v: Visit; qrFirst?: boolean }) 
           <span className="block mt-1 font-mono text-[12px] font-semibold text-navy-900">{v.refs[0]}</span>
         </button>
       </div>
-      {qr && <FullscreenQR code={v.refs[0]} caption={`${fmtWeekday(v.date)} ${fmtDay(v.date)}${v.sets.length ? ` · ${v.sets.join(", ")}` : ""}`} onClose={() => setQr(false)} />}
+      {qr && <VisitQR v={v} onClose={() => setQr(false)} />}
     </section>
+  );
+}
+
+/* Show QR from Home (AENR-703): on a phone the white full screen for the gate scanner; on
+   larger screens a modal with the code, the wallet and a full-screen option. */
+function VisitQR({ v, onClose }: { v: Visit; onClose: () => void }) {
+  const t = useT();
+  const [full, setFull] = useState(() => !window.matchMedia("(min-width: 768px)").matches);
+  const caption = `${fmtWeekday(v.date)} ${fmtDay(v.date)}${v.sets.length ? ` · ${v.sets.join(", ")}` : ""}`;
+  if (full) return <FullscreenQR code={v.refs[0]} caption={caption} onClose={onClose} />;
+  return (
+    <Modal open onClose={onClose} title={`${t("Entry QR")} · ${v.refs[0]}`}>
+      <div className="text-center">
+        <div className="mx-auto grid place-items-center"><QR size={240} seed={v.refs[0]} /></div>
+        <div className="mt-2 font-mono text-[15px] font-bold text-navy-900">{v.refs[0]}</div>
+        <div className="text-[13px] text-slate-600">{caption}</div>
+        <WalletButtons className="mt-4 pt-4 border-t border-slate-100" pass={visitPass(v)} />
+        <Btn variant="outline" full className="mt-4" icon={Icon.qr} onClick={() => setFull(true)}>{t("Show full screen")}</Btn>
+      </div>
+    </Modal>
   );
 }
 
@@ -270,8 +290,8 @@ function AtBeachCard({ v }: { v: Visit }) {
         <Btn variant="outline" icon={Icon.qr} onClick={() => setQr(true)}>{t("Show QR")}</Btn>
         <Btn variant="ghost" onClick={() => go("customer", "mybookings")}>{t("Manage booking")}</Btn>
       </div>
-      {extras && <ExtrasDialog v={v} onClose={() => setExtras(false)} />}
-      {qr && <FullscreenQR code={v.refs[0]} caption={`${fmtWeekday(v.date)} ${fmtDay(v.date)}${v.sets.length ? ` · ${v.sets.join(", ")}` : ""}`} onClose={() => setQr(false)} />}
+      {extras && <ExtrasDialog v={v} only="extras" onClose={() => setExtras(false)} />}
+      {qr && <VisitQR v={v} onClose={() => setQr(false)} />}
     </section>
   );
 }

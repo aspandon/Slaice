@@ -243,7 +243,7 @@ function MoveDialog({ v, onClose }: { v: Visit; onClose: () => void }) {
 }
 
 /* Add tickets, parking or a locker to a booked visit — charged to the saved card. */
-export function ExtrasDialog({ v, onClose }: { v: Visit; onClose: () => void }) {
+export function ExtrasDialog({ v, only, onClose }: { v: Visit; /** "extras" = locker and parking only (AENR-704). */ only?: "extras"; onClose: () => void }) {
   const t = useT();
   const { toast, account } = useApp();
   const { addExtra } = useVisits();
@@ -261,9 +261,10 @@ export function ExtrasDialog({ v, onClose }: { v: Visit; onClose: () => void }) 
   const total = lines.reduce((a, l) => a + l.amount, 0);
   const card = account.savedCard ? `${account.savedCard.brand} ···· ${account.savedCard.last4}` : "Visa ···· 4242";
   return (
-    <Modal open onClose={onClose} title={`${t("Add to")} ${fmtWeekday(v.date)} ${fmtDay(v.date)}`}
+    <Modal open onClose={onClose} title={only === "extras" ? `${t("Add a locker or parking")} · ${fmtWeekday(v.date)} ${fmtDay(v.date)}` : `${t("Add to")} ${fmtWeekday(v.date)} ${fmtDay(v.date)}`}
       footer={<><Btn variant="ghost" onClick={onClose}>{t("Cancel")}</Btn><Btn variant="primary" icon={Icon.card} loading={busy} disabled={!lines.length} onClick={() => { setBusy(true); window.setTimeout(() => { lines.forEach((l) => addExtra(v, l)); toast(`${t("Added")} · €${total} ${t("charged to")} ${card}. ${t("Your QR now includes them.")}`, { tone: "success" }); onClose(); }, 900); }}>{`${t("Pay")} €${total}`}</Btn></>}>
       <div className="space-y-2.5">
+        {only !== "extras" && <>
         <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Entry tickets")}</div>
         {ex.tickets.map((c) => (
           <div key={c.id} className="flex items-center justify-between text-sm">
@@ -272,6 +273,7 @@ export function ExtrasDialog({ v, onClose }: { v: Visit; onClose: () => void }) 
           </div>
         ))}
         <div className="pt-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Extras")}</div>
+        </>}
         <div className="flex items-center justify-between text-sm"><span>{t("Parking")} <span className="text-slate-500">€{PARKING_PRICE}</span></span><Stepper label={t("Parking spots")} value={parking} onChange={setParking} /></div>
         {bank && <div className="flex items-center justify-between text-sm"><span>{bank.name} <span className="text-slate-500">€{ex.lockerPrice(bank.id, v.date)}</span></span><Stepper label={t("Lockers")} value={locker} onChange={setLocker} /></div>}
         <p className="text-[12px] text-slate-500 pt-1">{t("Paid with")} {card}. {t("Free cancellation follows your booking.")}</p>
