@@ -197,8 +197,42 @@ export function AdminToday() {
           )}
         </div>
       )}
-      {/* The to-do comes first (AENR-630): Needs attention is the main column, first on phones;
-          the numbers, occupancy and weather sit beside it. */}
+      {/* The four numbers lead (AENR-692), then the to-do (AENR-630): Needs attention is the main
+          column; occupancy by zone and weather sit beside it. */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4" aria-label="Today in numbers">
+        <StatCard
+          instant
+          label="Occupancy now"
+          value={`${total ? Math.round((taken / total) * 100) : 0}%`}
+          sub={`${taken} of ${total} sets taken`}
+          tone="teal"
+        />
+        <StatCard
+          instant
+          label="Bookings for today"
+          value={String(arrivals.length)}
+          sub={`${checkedIn} set${checkedIn === 1 ? "" : "s"} checked in so far${expected > 0 ? ` · ${expected} still expected` : ""}`}
+        />
+        <StatCard
+          instant
+          label="No-shows"
+          value={String(noShows.length)}
+          sub={
+            noShows.length
+              ? `booked sets not checked in by ${NO_SHOW_CUTOFF}`
+              : beforeCutoff
+                ? `counted from ${NO_SHOW_CUTOFF} — arrivals until then are on time`
+                : "everyone expected has arrived"
+          }
+          tone={noShows.length ? "amber" : "navy"}
+        />
+        <StatCard
+          instant
+          label="Gate"
+          value={clock < "09:00" ? "—" : `${Math.round(scanned / hoursOpen)}/hr`}
+          sub={clock < "09:00" ? "gates open at 09:00" : `${scanned.toLocaleString("en-GB")} scanned today · since 09:00`}
+        />
+      </div>
       <div className="grid lg:grid-cols-[minmax(0,1fr)_400px] gap-4 items-start">
         <div className="min-w-0">
           <Card className="p-5 sm:p-6">
@@ -296,41 +330,6 @@ export function AdminToday() {
           </Card>
         </div>
         <div className="space-y-4 min-w-0">
-          <div className="grid grid-cols-2 gap-3" aria-label="Today in numbers">
-            <StatCard
-              instant
-              label="Occupancy now"
-              value={`${total ? Math.round((taken / total) * 100) : 0}%`}
-              sub={`${taken} of ${total} sets taken`}
-              tone="teal"
-            />
-            <StatCard
-              instant
-              label="Bookings for today"
-              value={String(arrivals.length)}
-              sub={`${checkedIn} set${checkedIn === 1 ? "" : "s"} checked in so far${expected > 0 ? ` · ${expected} still expected` : ""}`}
-            />
-            <StatCard
-              instant
-              label="No-shows"
-              value={String(noShows.length)}
-              sub={
-                noShows.length
-                  ? `booked sets not checked in by ${NO_SHOW_CUTOFF}`
-                  : beforeCutoff
-                    ? `counted from ${NO_SHOW_CUTOFF} — arrivals until then are on time`
-                    : "everyone expected has arrived"
-              }
-              tone={noShows.length ? "amber" : "navy"}
-            />
-            <StatCard
-              instant
-              label="Gate"
-              value={clock < "09:00" ? "—" : `${Math.round(scanned / hoursOpen)}/hr`}
-              sub={clock < "09:00" ? "gates open at 09:00" : `${scanned.toLocaleString("en-GB")} scanned today · since 09:00`}
-            />
-          </div>
-
           <Card className="p-5">
             <div className="flex items-center justify-between gap-2 mb-3">
               <h2 className="font-display font-bold text-navy-900">Occupancy now by zone</h2>
