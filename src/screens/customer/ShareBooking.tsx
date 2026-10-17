@@ -136,7 +136,7 @@ export function ShareSheet({ v, onClose }: { v: Visit; onClose: () => void }) {
           <span className="w-10 h-10 rounded-xl bg-teal-600 text-white grid place-items-center shrink-0">
             <Icon.users size={18} />
           </span>
-          <p className="text-[13.5px] text-slate-700 leading-snug">
+          <p className="text-guest-meta text-slate-700 leading-snug">
             <b className="text-navy-900">{t("One QR for everyone")}</b> — {s.total}{" "}
             {s.total === 1 ? t("entry") : t("entries")}
             {sets ? ` · ${sets} ${sets === 1 ? t("set") : t("sets")}` : ""}.{" "}
@@ -184,17 +184,17 @@ export function ShareSheet({ v, onClose }: { v: Visit; onClose: () => void }) {
         </div>
 
         <label className="block">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+          <span className="text-guest-over font-semibold uppercase tracking-wider text-slate-500">
             {t("Link to the pass")}
           </span>
           <input
             readOnly
             value={s.url}
             onFocus={(e) => e.currentTarget.select()}
-            className="mt-1 glass-input w-full rounded-xl px-3 py-2.5 text-[13px] font-mono text-slate-700 truncate outline-none focus:ring-2 focus:ring-teal-500/70"
+            className="mt-1 glass-input w-full rounded-xl px-3 py-2.5 text-guest-meta font-mono text-slate-700 truncate outline-none focus:ring-2 focus:ring-teal-500/70"
           />
         </label>
-        <p className="flex items-start gap-2 text-[12px] text-slate-500 leading-snug">
+        <p className="flex items-start gap-2 text-guest-caption text-slate-500 leading-snug">
           <Icon.shield size={14} className="shrink-0 mt-0.5 text-teal-600" />
           {t(
             "The message opens in your own app — Slaice doesn't send it. Anyone with the link can show the QR, so share it only with the people coming.",

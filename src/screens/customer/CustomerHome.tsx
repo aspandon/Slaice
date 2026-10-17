@@ -124,7 +124,7 @@ export function CustomerHome() {
       <button onClick={() => dive()} className="text-left group block w-full" data-home-card>
         <div className={`${CARD} p-6 sm:p-9 pressable cursor-pointer transition duration-300 ease-spring hover:-translate-y-1 hover:bg-white/80`}>
           <div className="relative">
-            <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700" data-hero-chip>
+            <div className="inline-flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-700" data-hero-chip>
               <span className={`w-6 h-6 rounded-full grid place-items-center bg-gradient-to-br ${chipBubble} text-white shadow-sm`}>
                 <WIcon size={11} />
               </span>
@@ -134,21 +134,21 @@ export function CustomerHome() {
                 are wider, so on large screens we lift the width cap and ease the
                 size a touch (32px) so the line uses the available space instead
                 of wrapping. */}
-            <h1 className="mt-3 font-display font-bold text-[28px] sm:text-[36px] lg:text-[32px] leading-[1.05] tracking-tight text-navy-900 max-w-2xl lg:max-w-none">
+            <h1 className="mt-3 font-display font-bold text-guest-title leading-[1.05] tracking-tight text-navy-900 max-w-2xl lg:max-w-none">
               <KineticWords text={t("Plan your full beach day")} />{" "}
               <span className="text-shimmer inline-block" data-hero-word>{t("in 60 seconds")}</span>
             </h1>
-            <div className="text-[14px] text-slate-700 mt-3 max-w-xl" data-hero-sub>
+            <div className="text-guest-body text-slate-700 mt-3 max-w-xl" data-hero-sub>
               {extrasLine === "both" ? t("Guests, dates, sunbeds, locker, parking — one guided flow with a live total.")
                 : extrasLine === "locker" ? t("Guests, dates, sunbeds, locker — one guided flow with a live total.")
                 : extrasLine === "parking" ? t("Guests, dates, sunbeds, parking — one guided flow with a live total.")
                 : t("Guests, dates, sunbeds — one guided flow with a live total.")}
             </div>
-            <div className="mt-4 flex items-center gap-2.5 text-[13px] font-semibold text-navy-900" data-hero-live>
+            <div className="mt-4 flex items-center gap-2.5 text-guest-meta font-semibold text-navy-900" data-hero-live>
               <span aria-hidden="true" className="live-dot relative w-2 h-2 rounded-full bg-teal-500 text-teal-500 shrink-0" />
               <span><b className="tnum">{freeDisplay}</b> {t("sunbeds free today")} · {t("from")} €{fromPrice}</span>
             </div>
-            <span ref={cta} className="cta-breathe mt-5 inline-flex items-center gap-2 rounded-[14px] px-5 py-2.5 text-sm font-semibold bg-navy-900 text-white shadow-btn-primary" data-hero-cta>
+            <span ref={cta} className="cta-breathe mt-5 inline-flex items-center gap-2 rounded-[14px] px-5 py-2.5 text-guest-body font-semibold bg-navy-900 text-white shadow-btn-primary" data-hero-cta>
               <Icon.sparkles size={16} /> {t("Start guided booking")} <Icon.arrowR size={16} />
             </span>
           </div>
@@ -177,11 +177,11 @@ export function CustomerHome() {
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
               <div className="min-w-0">
-                <div className="font-semibold text-navy-900 text-[15px] leading-tight">{next ? t("Plan another visit") : t("Your first visit")}</div>
-                <div className="text-[12.5px] text-slate-600 mt-0.5 leading-snug">{`${freeDisplay} ${t("sunbeds free today")} · ${t("from")} €${fromPrice}`}</div>
+                <div className="font-semibold text-navy-900 text-guest-body leading-tight">{next ? t("Plan another visit") : t("Your first visit")}</div>
+                <div className="text-guest-meta text-slate-600 mt-0.5 leading-snug">{`${freeDisplay} ${t("sunbeds free today")} · ${t("from")} €${fromPrice}`}</div>
               </div>
             </div>
-            <div className="self-start flex items-center gap-1 text-teal-700 text-[13px] font-semibold px-3 py-1.5 -ml-3">{t("Start guided booking")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" /></div>
+            <div className="self-start flex items-center gap-1 text-teal-700 text-guest-meta font-semibold px-3 py-1.5 -ml-3">{t("Start guided booking")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" /></div>
           </button>
         ) : (
           <RebookTile rebook={rebook} title={next ? t("Plan another visit") : t("Rebook your usual")} />
@@ -195,12 +195,12 @@ export function CustomerHome() {
               <div className="flex items-center gap-3 pr-7">
                 <span className="w-10 h-10 rounded-xl grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm"><Icon.bolt size={18} /></span>
                 <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-navy-900 text-[15px] leading-tight"><b>{t("20% off")}</b> {t("front-row sunbeds")}</div>
-                  <div className="text-[12.5px] text-slate-600 mt-0.5 leading-snug">{t("This weekend only · gates open 09:00–20:00")}</div>
+                  <div className="font-semibold text-navy-900 text-guest-body leading-tight"><b>{t("20% off")}</b> {t("front-row sunbeds")}</div>
+                  <div className="text-guest-meta text-slate-600 mt-0.5 leading-snug">{t("This weekend only · gates open 09:00–20:00")}</div>
                 </div>
                 <NotMvpBadge className="ml-auto self-start" />
               </div>
-              <button onClick={() => dive()} className="self-start text-[13px] font-semibold text-teal-700 hover:text-teal-800 rounded-lg px-3 py-1.5 hover:bg-white/50 transition -ml-3">{t("Book this weekend")} →</button>
+              <button onClick={() => dive()} className="self-start text-guest-meta font-semibold text-teal-700 hover:text-teal-800 rounded-lg px-3 py-1.5 hover:bg-white/50 transition -ml-3">{t("Book this weekend")} →</button>
             </div>
           )}
         </div>
@@ -234,17 +234,17 @@ function NextVisitCard({ v, qrFirst = false }: { v: Visit; qrFirst?: boolean }) 
     <section aria-labelledby="next-visit" className={`${CARD} p-5 sm:p-7`} data-home-card>
       <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
         <div className="min-w-0 flex-1">
-          <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700">
+          <div className="inline-flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-700">
             <Icon.calendar size={13} /> {days <= 0 ? (qrFirst ? `${t("Today")} · ${t("arrive by")} ${ARRIVAL_ENDS}` : t("Today")) : days === 1 ? t("Tomorrow") : `${t("In")} ${days} ${t("days")}`}
           </div>
-          <h2 id="next-visit" className="mt-1.5 font-display font-bold text-[26px] sm:text-[32px] leading-tight text-navy-900">
+          <h2 id="next-visit" className="mt-1.5 font-display font-bold text-guest-title leading-tight text-navy-900">
             {fmtWeekday(v.date)} {fmtDay(v.date)}{v.zone ? ` · ${v.zone}` : ""}
           </h2>
-          <p className="mt-1 text-[14px] text-slate-700">
+          <p className="mt-1 text-guest-body text-slate-700">
             {v.sets.length ? `${t("Sunbeds")} ${v.sets.join(", ")}` : t("Entry tickets")}
             {extras.length ? ` · ${extras.join(" · ")}` : ""}
           </p>
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[13px] text-slate-700">
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-guest-meta text-slate-700">
             <span className="inline-flex items-center gap-1.5"><W size={16} className="text-teal-700" /> {t(WEATHER_DEMO[fc.kind].label)} · {fc.tempC}°C</span>
             <span className="inline-flex items-center gap-1.5"><Icon.clock size={15} className="text-teal-700" /> {t("Arrive")} {ARRIVAL_WINDOW}</span>
           </div>
@@ -257,7 +257,7 @@ function NextVisitCard({ v, qrFirst = false }: { v: Visit; qrFirst?: boolean }) 
               href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${TENANT.name} ${TENANT.place}`)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-[14px] px-4 min-h-[44px] text-sm font-semibold ring-1 ring-slate-200 bg-white/80 text-navy-900 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+              className="inline-flex items-center gap-2 rounded-[14px] px-4 min-h-[44px] text-guest-body font-semibold ring-1 ring-slate-200 bg-white/80 text-navy-900 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
             >
               <Icon.map size={16} /> {t("Directions")}
               <span className="sr-only">({t("opens in a new tab")})</span>
@@ -268,7 +268,7 @@ function NextVisitCard({ v, qrFirst = false }: { v: Visit; qrFirst?: boolean }) 
         {/* The morning of the visit the QR leads, also on phones. */}
         <button type="button" onClick={() => setQr(true)} aria-label={`${t("Show QR")} ${v.refs[0]}`} className={`${qrFirst ? "order-first sm:order-none" : ""} self-center shrink-0 rounded-2xl bg-white p-2.5 ring-1 ring-slate-200 shadow-soft hover:shadow-lift transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500`}>
           <QR size={qrFirst ? 168 : 132} seed={qrCode(v.refs[0])} />
-          <span className="block mt-1 font-mono text-[12px] font-semibold text-navy-900">{v.refs[0]}</span>
+          <span className="block mt-1 font-mono text-guest-caption font-semibold text-navy-900">{v.refs[0]}</span>
         </button>
       </div>
       {qr && <VisitQR v={v} onClose={() => setQr(false)} />}
@@ -291,9 +291,9 @@ function AtBeachCard({ v }: { v: Visit }) {
     <section aria-labelledby="at-beach" className={`${CARD} p-5 sm:p-7`} data-home-card>
       <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
         <div className="min-w-0 flex-1">
-          <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700"><Icon.umbrella size={13} /> {t("You're at the beach")}{v.zone ? ` · ${v.zone}` : ""}</div>
-          <h2 id="at-beach" className="mt-1.5 font-display font-bold text-[26px] sm:text-[32px] leading-tight text-navy-900">{t("Enjoy your day")}</h2>
-          <p className="mt-1 text-[14px] text-slate-700">
+          <div className="inline-flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-700"><Icon.umbrella size={13} /> {t("You're at the beach")}{v.zone ? ` · ${v.zone}` : ""}</div>
+          <h2 id="at-beach" className="mt-1.5 font-display font-bold text-guest-title leading-tight text-navy-900">{t("Enjoy your day")}</h2>
+          <p className="mt-1 text-guest-body text-slate-700">
             {v.sets.length ? `${t("Sunbeds")} ${v.sets.join(", ")}` : t("Entry tickets")}{has.length ? ` · ${has.join(" · ")}` : ""}
           </p>
           <div className="mt-4 flex flex-wrap gap-2">
@@ -330,19 +330,19 @@ function WeatherNow({ kind }: { kind: keyof typeof WEATHER_DEMO }) {
       <div className="flex items-center gap-3">
         <span className="w-12 h-12 rounded-2xl bg-white ring-1 ring-sky-100 shadow-sm grid place-items-center text-amber-500 shrink-0"><W size={26} /></span>
         <div className="min-w-0">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">{t("Now at the beach")}</div>
+          <div className="text-guest-over font-semibold uppercase tracking-[0.14em] text-slate-500">{t("Now at the beach")}</div>
           <div className="flex items-baseline gap-1.5">
             <span className="font-display font-bold text-[30px] leading-none text-navy-900 tnum">{w.tempC}°</span>
-            <span className="text-[14px] font-semibold text-slate-700">{t(w.label)}</span>
+            <span className="text-guest-body font-semibold text-slate-700">{t(w.label)}</span>
           </div>
         </div>
       </div>
       <dl className="mt-3 grid grid-cols-3 gap-1.5 text-center">
-        <div className="rounded-xl bg-white/80 px-1.5 py-1.5"><dt className="text-[10.5px] text-slate-500">{t("Wind")}</dt><dd className="text-[13px] font-semibold text-navy-900 tnum">{x.windKmh} km/h</dd></div>
-        <div className="rounded-xl bg-white/80 px-1.5 py-1.5"><dt className="text-[10.5px] text-slate-500">{t("Sea")}</dt><dd className="text-[13px] font-semibold text-navy-900 tnum">{x.sea}°</dd></div>
-        <div className="rounded-xl bg-white/80 px-1.5 py-1.5"><dt className="text-[10.5px] text-slate-500">UV</dt><dd className="text-[13px] font-semibold text-navy-900 tnum">{x.uv}</dd></div>
+        <div className="rounded-xl bg-white/80 px-1.5 py-1.5"><dt className="text-guest-caption text-slate-500">{t("Wind")}</dt><dd className="text-guest-meta font-semibold text-navy-900 tnum">{x.windKmh} km/h</dd></div>
+        <div className="rounded-xl bg-white/80 px-1.5 py-1.5"><dt className="text-guest-caption text-slate-500">{t("Sea")}</dt><dd className="text-guest-meta font-semibold text-navy-900 tnum">{x.sea}°</dd></div>
+        <div className="rounded-xl bg-white/80 px-1.5 py-1.5"><dt className="text-guest-caption text-slate-500">UV</dt><dd className="text-guest-meta font-semibold text-navy-900 tnum">{x.uv}</dd></div>
       </dl>
-      <p className="mt-2 text-[12px] text-slate-600 leading-snug">{t(x.note)}</p>
+      <p className="mt-2 text-guest-caption text-slate-600 leading-snug">{t(x.note)}</p>
     </aside>
   );
 }
@@ -384,8 +384,8 @@ function RebookTile({ rebook, title }: { rebook: Exclude<Rebook, { status: "none
         <div className="flex items-center gap-3">
           <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
           <div className="min-w-0">
-            <h2 className="font-semibold text-navy-900 text-[15px] leading-tight">{title}</h2>
-            <p className="text-[12.5px] text-slate-600 mt-0.5 leading-snug">
+            <h2 className="font-semibold text-navy-900 text-guest-body leading-tight">{title}</h2>
+            <p className="text-guest-meta text-slate-600 mt-0.5 leading-snug">
               {rebook.usual.zone} · {rebook.usual.sets} {rebook.usual.sets === 1 ? t("set") : t("sets")} — {t("your usual isn't free in the next 3 weeks.")}
               {miss ? ` ${miss.day}: ${miss.why}.` : ""}
             </p>
@@ -402,30 +402,30 @@ function RebookTile({ rebook, title }: { rebook: Exclude<Rebook, { status: "none
       <div className="flex items-start gap-3">
         <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
         <div className="min-w-0 flex-1">
-          <h2 id="rebook-usual" className="font-semibold text-navy-900 text-[15px] leading-tight">{title}</h2>
-          <p className="text-[12.5px] text-slate-600 mt-0.5 leading-snug">{t("What you book most — checked free for you.")}</p>
+          <h2 id="rebook-usual" className="font-semibold text-navy-900 text-guest-body leading-tight">{title}</h2>
+          <p className="text-guest-meta text-slate-600 mt-0.5 leading-snug">{t("What you book most — checked free for you.")}</p>
         </div>
       </div>
       {miss && (
-        <p className="rounded-xl bg-amber-50 ring-1 ring-amber-600/25 px-3 py-2 text-[12.5px] text-amber-900 leading-snug flex items-start gap-2">
+        <p className="rounded-xl bg-amber-50 ring-1 ring-amber-600/25 px-3 py-2 text-guest-meta text-amber-900 leading-snug flex items-start gap-2">
           <Icon.info size={14} className="shrink-0 mt-0.5 text-amber-700" />
           <span><b>{miss.day}</b> {t("doesn't work")} ({miss.why}) — {t("the next day that does:")}</span>
         </p>
       )}
       <div className="rounded-2xl bg-white/60 ring-1 ring-slate-200/80 px-3.5 py-3 flex items-end justify-between gap-3">
-        <div className="min-w-0 text-[13px] leading-snug">
+        <div className="min-w-0 text-guest-meta leading-snug">
           <div className="font-semibold text-navy-900">{text.day} · {text.where}</div>
           <div className="text-slate-700 mt-0.5">{text.what}</div>
-          {swapped && <div className="text-[11.5px] text-slate-600 mt-0.5">{t("Your usual set is taken that day — the next free one instead.")}</div>}
+          {swapped && <div className="text-guest-caption text-slate-600 mt-0.5">{t("Your usual set is taken that day — the next free one instead.")}</div>}
         </div>
         <div className="text-right shrink-0">
           <div className="font-display text-xl font-bold text-navy-900 tnum leading-none">{euro(due.toPay)}</div>
-          <div className="text-[11px] text-slate-600 mt-1">{due.deducted ? <>{t("to pay")} · <s className="tnum">{euro(quote.total)}</s></> : t("all-in")}</div>
+          <div className="text-guest-caption text-slate-600 mt-1">{due.deducted ? <>{t("to pay")} · <s className="tnum">{euro(quote.total)}</s></> : t("all-in")}</div>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <Btn variant="teal" size="sm" icon={Icon.refresh} onClick={() => go("customer", "plan", { rebook: hint })}>{t("Book again")}</Btn>
-        <span className="text-[11.5px] text-slate-600">{t("Check or change anything before you pay.")}</span>
+        <span className="text-guest-caption text-slate-600">{t("Check or change anything before you pay.")}</span>
       </div>
     </section>
   );
@@ -440,9 +440,9 @@ function AfterVisitCard({ v, rebook }: { v: Visit; rebook: Rebook }) {
   const { ok: again } = useRebookText(rebook);
   return (
     <section aria-labelledby="after-visit" className={`${CARD} p-5 sm:p-7`} data-home-card>
-      <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700"><Icon.checkCircle size={13} /> {t("Thanks for coming")}</div>
-      <h2 id="after-visit" className="mt-1.5 font-display font-bold text-[26px] sm:text-[32px] leading-tight text-navy-900">{today ? t("How was today?") : `${t("How was")} ${fmtWeekday(v.date)}?`}</h2>
-      <p className="mt-1 text-[14px] text-slate-700">
+      <div className="inline-flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-700"><Icon.checkCircle size={13} /> {t("Thanks for coming")}</div>
+      <h2 id="after-visit" className="mt-1.5 font-display font-bold text-guest-title leading-tight text-navy-900">{today ? t("How was today?") : `${t("How was")} ${fmtWeekday(v.date)}?`}</h2>
+      <p className="mt-1 text-guest-body text-slate-700">
         {fmtWeekday(v.date)} {fmtDay(v.date)}{v.zone ? ` · ${v.zone}` : ""} · €{v.total} {t("paid")}
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
@@ -450,7 +450,7 @@ function AfterVisitCard({ v, rebook }: { v: Visit; rebook: Rebook }) {
         <Btn variant="outline" icon={Icon.receipt} onClick={() => setDoc(true)}>{t("Receipt")}</Btn>
       </div>
       {again && rebook.status === "ok" && (
-        <p className="mt-2 text-[12.5px] text-slate-600">{t("Book again")}: {again.day} · {again.where} · {again.what} · <b className="text-navy-900 tnum">{euro(rebook.due.toPay)}</b> {rebook.due.deducted ? t("to pay") : t("all-in")}</p>
+        <p className="mt-2 text-guest-meta text-slate-600">{t("Book again")}: {again.day} · {again.where} · {again.what} · <b className="text-navy-900 tnum">{euro(rebook.due.toPay)}</b> {rebook.due.deducted ? t("to pay") : t("all-in")}</p>
       )}
       {doc && <ReceiptModal doc={receiptForVisit(v)} onClose={() => setDoc(false)} />}
     </section>
@@ -464,9 +464,9 @@ function OffSeasonCard({ opens }: { opens: string }) {
   const [asked, setAsked] = useState(false);
   return (
     <section aria-labelledby="off-season" className={`${CARD} p-5 sm:p-7`} data-home-card>
-      <div className="inline-flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-700"><Icon.sun size={13} /> {t("See you next summer")}</div>
-      <h2 id="off-season" className="mt-1.5 font-display font-bold text-[26px] sm:text-[32px] leading-tight text-navy-900">{t("The beach opens on")} {fmtWeekday(opens)} {fmtDay(opens)} {opens.slice(0, 4)}</h2>
-      <p className="mt-1 text-[14px] text-slate-700">{t("Bookings for the new season open a few weeks before. We can tell you the day they do.")}</p>
+      <div className="inline-flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-700"><Icon.sun size={13} /> {t("See you next summer")}</div>
+      <h2 id="off-season" className="mt-1.5 font-display font-bold text-guest-title leading-tight text-navy-900">{t("The beach opens on")} {fmtWeekday(opens)} {fmtDay(opens)} {opens.slice(0, 4)}</h2>
+      <p className="mt-1 text-guest-body text-slate-700">{t("Bookings for the new season open a few weeks before. We can tell you the day they do.")}</p>
       <div className="mt-4">
         <Btn variant="primary" icon={asked ? Icon.check : Icon.bell} disabled={asked} onClick={() => { setAsked(true); toast(t("We'll e-mail you when bookings open."), { tone: "success" }); }}>{asked ? t("We'll let you know") : t("Remind me")}</Btn>
       </div>
@@ -486,7 +486,7 @@ function RewardsStrip({ rewards, ready }: { rewards: ReturnType<typeof activeRew
     <button type="button" onClick={() => go("customer", "wallet")} className={`${CARD} px-5 py-4 text-left flex flex-wrap items-center gap-x-4 gap-y-2 hover:bg-white/80 transition-colors group`} data-home-card>
       <span className="w-9 h-9 rounded-xl grid place-items-center bg-teal-600 text-white shrink-0"><Icon.gift size={17} /></span>
       <span className="min-w-0 flex-1 basis-[12rem]">
-        <span className="flex flex-wrap items-center gap-2 font-semibold text-navy-900 text-[14px]">
+        <span className="flex flex-wrap items-center gap-2 font-semibold text-navy-900 text-guest-body">
           {st.kind === "progress" ? `${st.current}/${st.target} ${t(st.unit)} ${t("to")} ${st.reward}` : `${t(top.title)} · ${st.reward}`}
           {/* Loyalty rewards are a roadmap feature (AENR-679). */}
           <NotMvpBadge />
@@ -496,7 +496,7 @@ function RewardsStrip({ rewards, ready }: { rewards: ReturnType<typeof activeRew
         </span>
       </span>
       {ready > 0 && <Badge tone="green">{ready} {t("ready · applied for you")}</Badge>}
-      <span className="text-[13px] font-semibold text-teal-700 inline-flex items-center gap-1">{t("Wallet")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" /></span>
+      <span className="text-guest-meta font-semibold text-teal-700 inline-flex items-center gap-1">{t("Wallet")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" /></span>
     </button>
   );
 }
@@ -519,11 +519,11 @@ export function VipTile() {
         <PassCard kind="vip" holder={me.cardName} subtitle={vip ? `€${vip.balance.toLocaleString()} CREDIT` : `MEMBER · ${disc}% OFF`} validUntil={SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
       </button>
       <div className="mt-auto flex items-center justify-between gap-2 px-4 py-3">
-        <button onClick={() => go("customer", "vip")} className="inline-flex items-center gap-1 text-sky-700 hover:text-sky-800 text-[13px] font-semibold">
+        <button onClick={() => go("customer", "vip")} className="inline-flex items-center gap-1 text-sky-700 hover:text-sky-800 text-guest-meta font-semibold">
           {t("Get VIP pass")} — {t("from")} €{from.toLocaleString()} <Icon.chevR size={14} />
         </button>
         <div className="flex items-center gap-2 shrink-0">
-          {vip && <button onClick={() => clearPass("vip")} className="text-[11px] text-slate-400 hover:text-rose-600">{t("Reset")}</button>}
+          {vip && <button onClick={() => clearPass("vip")} className="text-guest-caption text-slate-400 hover:text-rose-600">{t("Reset")}</button>}
           <NotMvpBadge />
         </div>
       </div>
@@ -547,11 +547,11 @@ export function SeasonTile() {
         <PassCard kind="season" holder={me.cardName} subtitle={season && season.plan === "monthly" ? "MONTHLY 2026" : "SUMMER 2026"} validUntil={season ? dateOf(season.validUntil) : SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
       </button>
       <div className="mt-auto flex items-center justify-between gap-2 px-4 py-3">
-        <button onClick={() => go("customer", "season")} className="inline-flex items-center gap-1 text-teal-700 hover:text-teal-800 text-[13px] font-semibold">
+        <button onClick={() => go("customer", "season")} className="inline-flex items-center gap-1 text-teal-700 hover:text-teal-800 text-guest-meta font-semibold">
           {season ? t("Manage pass") : `${t("Get Season pass")} — ${t("from")} €${from.toLocaleString()}`} <Icon.chevR size={14} />
         </button>
         <div className="flex items-center gap-2 shrink-0">
-          {season && <button onClick={() => clearPass("season")} className="text-[11px] text-slate-400 hover:text-rose-600">{t("Reset")}</button>}
+          {season && <button onClick={() => clearPass("season")} className="text-guest-caption text-slate-400 hover:text-rose-600">{t("Reset")}</button>}
           <NotMvpBadge />
         </div>
       </div>
@@ -573,7 +573,7 @@ export function BadgesTile() {
     <div className={`${CARD} p-5 flex flex-col gap-3`} data-home-card>
       <div className="flex items-center gap-2.5">
         <span className="w-9 h-9 rounded-xl grid place-items-center bg-gradient-to-br from-amber-300 to-amber-500 text-white shrink-0 shadow-sm"><Icon.star size={17} /></span>
-        <div className="font-semibold text-navy-900 text-[15px] flex-1 min-w-0">{t("Your badges")}</div>
+        <div className="font-semibold text-navy-900 text-guest-body flex-1 min-w-0">{t("Your badges")}</div>
         <Badge tone="amber">{earnedCount}/{achievements.length}</Badge>
         <NotMvpBadge />
       </div>
@@ -588,7 +588,7 @@ export function BadgesTile() {
                 <Glyph size={18} />
                 {!earned && <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-white ring-1 ring-slate-200 grid place-items-center"><Icon.lock size={8} className="text-slate-400" /></span>}
               </span>
-              <span className={`text-[9px] text-center leading-tight w-full truncate ${earned ? "text-navy-900 font-semibold" : "text-slate-400"}`}>{a.name}</span>
+              <span className={`text-guest-caption text-center leading-tight w-full truncate ${earned ? "text-navy-900 font-semibold" : "text-slate-400"}`}>{a.name}</span>
             </div>
           );
         })}
@@ -638,14 +638,14 @@ export function RewardRow({ icon, title, state, used = false }: { icon: IconRend
     <div className={`rounded-xl p-3 ring-1 transition ${claim ? "ring-teal-300 bg-teal-50/60" : "ring-slate-200 bg-white/60"}`}>
       <div className="flex items-center gap-2.5">
         <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${claim ? "bg-teal-600 text-white" : "bg-sky-50 text-sky-800"}`}><SIcon size={15} /></span>
-        <div className="font-semibold text-navy-900 text-[13.5px] flex-1 min-w-0 truncate">{t(title)}</div>
+        <div className="font-semibold text-navy-900 text-guest-meta flex-1 min-w-0 truncate">{t(title)}</div>
         {claim && <Badge tone="green"><Icon.checkCircle size={10} /> {t("Ready")}</Badge>}
         {used && <Badge tone="neutral">{t("Used")}</Badge>}
       </div>
-      <div className="text-[12.5px] text-navy-900 mt-1.5 leading-snug">{state.reward}</div>
+      <div className="text-guest-meta text-navy-900 mt-1.5 leading-snug">{state.reward}</div>
       {state.kind === "progress" && (
         <div className="mt-2">
-          <div className="flex items-center justify-between text-[11px] text-slate-500 mb-1 gap-2">
+          <div className="flex items-center justify-between text-guest-caption text-slate-500 mb-1 gap-2">
             <span className="tnum shrink-0">{state.current}/{state.target} {t(state.unit)}</span>
             {state.note && <span className="truncate">{state.note}</span>}
           </div>
@@ -654,15 +654,15 @@ export function RewardRow({ icon, title, state, used = false }: { icon: IconRend
       )}
       {/* Nothing to claim (AENR-619): discounts come off at checkout, treats ride on the visit's QR. */}
       {claim && (
-        <div className="mt-2 text-[11.5px] text-teal-800 leading-snug">
+        <div className="mt-2 text-guest-caption text-teal-800 leading-snug">
           {appliesAtCheckout(state.reward) ? t("Comes off your next booking automatically.") : t("On your next visit's QR — just ask at the bar.")}
           {state.note && <span className="block text-slate-500">{state.note}</span>}
         </div>
       )}
       {state.kind === "perk" && (
         <div className="mt-2 flex items-center justify-between gap-2">
-          {state.note && <span className="text-[11px] text-slate-500 truncate">{state.note}</span>}
-          <button onClick={() => dive()} className="text-[12px] font-semibold text-teal-700 hover:text-teal-800 shrink-0 inline-flex items-center gap-1">{t("Use it")} <Icon.chevR size={13} /></button>
+          {state.note && <span className="text-guest-caption text-slate-500 truncate">{state.note}</span>}
+          <button onClick={() => dive()} className="text-guest-caption font-semibold text-teal-700 hover:text-teal-800 shrink-0 inline-flex items-center gap-1">{t("Use it")} <Icon.chevR size={13} /></button>
         </div>
       )}
     </div>

@@ -65,8 +65,8 @@ export function CustomerDocs() {
       ) : (
         <Table cols={[t("Document"), t("For"), t("Date"), t("Amount"), ""]} right={[3]}
           rows={filtered.map((d) => [
-            <span><b className="text-navy-900">{t(docKind(d.id))}</b><span className="block text-[11.5px] text-slate-500 font-mono">{d.id}</span></span>,
-            <span>{d.for}{d.billTo && <span className="block text-[11.5px] text-slate-500">{d.billTo.company}</span>}</span>, d.date, d.amt,
+            <span><b className="text-navy-900">{t(docKind(d.id))}</b><span className="block text-guest-caption text-slate-500 font-mono">{d.id}</span></span>,
+            <span>{d.for}{d.billTo && <span className="block text-guest-caption text-slate-500">{d.billTo.company}</span>}</span>, d.date, d.amt,
             <span className="flex gap-1 justify-end">
               <Btn size="sm" variant="ghost" icon={Icon.doc} onClick={() => setView(d)}>{t("View")}</Btn>
               <Btn size="sm" variant="ghost" icon={Icon.download} onClick={() => download(d)} aria-label={`${t("Download")} ${d.id} PDF`}>PDF</Btn>
@@ -93,28 +93,28 @@ export function ReceiptModal({ doc: view, onClose, extra, issued }: { doc: Custo
         {view && <Btn variant="primary" icon={Icon.download} onClick={() => { downloadCustomerDoc(view); toast(`${t("Downloaded")} ${view.id}.pdf`, { tone: "success" }); }}>{dlLabel}</Btn>}
       </>}>
       {view && (
-        <div className="text-sm">
+        <div className="text-guest-body">
           {issued && (
-            <div role="status" className="mb-3 flex items-start gap-2 rounded-xl bg-emerald-50 ring-1 ring-emerald-600/20 px-3 py-2.5 text-[13px] text-emerald-900">
+            <div role="status" className="mb-3 flex items-start gap-2 rounded-xl bg-emerald-50 ring-1 ring-emerald-600/20 px-3 py-2.5 text-guest-meta text-emerald-900">
               <Icon.check size={16} className="mt-0.5 shrink-0" />
               <span>{t("Your invoice is ready. It replaces the receipt for this visit — download the PDF for your records.")}</span>
             </div>
           )}
           <div className="border-b border-slate-100 pb-3 mb-3">
             <div className="font-display font-bold text-navy-900">{OPERATOR.legal}</div>
-            <div className="text-slate-500 text-[12px]">{view.for} · {view.date} · {t("No.")} {view.id.replace(/^\D+-/, "")}</div>
+            <div className="text-slate-500 text-guest-caption">{view.for} · {view.date} · {t("No.")} {view.id.replace(/^\D+-/, "")}</div>
           </div>
           {view.billTo && (
-            <div className="mb-3 rounded-xl bg-slate-50 px-3 py-2.5 text-[13px]">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{t("Billed to")}</div>
+            <div className="mb-3 rounded-xl bg-slate-50 px-3 py-2.5 text-guest-meta">
+              <div className="text-guest-over font-semibold uppercase tracking-wide text-slate-500">{t("Billed to")}</div>
               <div className="font-semibold text-navy-900">{view.billTo.company}</div>
               <div className="text-slate-600">{t("VAT")} {view.billTo.vatNo} · {view.billTo.address}</div>
             </div>
           )}
-          <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 text-[11px] font-semibold uppercase tracking-wide text-slate-500 pb-1">
+          <div className="grid grid-cols-[1fr_auto_auto] gap-x-3 text-guest-over font-semibold uppercase tracking-wide text-slate-500 pb-1">
             <span>{t("Item")}</span><span className="text-right">{t("VAT")}</span><span className="text-right">{t("Price")}</span>
           </div>
-          <div className="space-y-1 text-[13px]">
+          <div className="space-y-1 text-guest-meta">
             {view.lines.map(([l, , v, gross], i) => (
               <div key={i} className="grid grid-cols-[1fr_auto_auto] gap-x-3 text-slate-700">
                 <span>{l}</span><span className="tnum text-slate-500 text-right">{v}</span><span className="tnum font-semibold text-navy-900 text-right">{gross}</span>
@@ -122,7 +122,7 @@ export function ReceiptModal({ doc: view, onClose, extra, issued }: { doc: Custo
             ))}
           </div>
           <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between font-semibold text-navy-900"><span>{kind === "Credit note" ? t("Total refunded") : t("Total paid")}</span><span className="tnum">{view.amt}</span></div>
-          <p className="mt-2 text-[12px] text-slate-500">{t("Prices include VAT. The PDF carries the tax authority’s verification code.")}</p>
+          <p className="mt-2 text-guest-caption text-slate-500">{t("Prices include VAT. The PDF carries the tax authority’s verification code.")}</p>
         </div>
       )}
     </Modal>

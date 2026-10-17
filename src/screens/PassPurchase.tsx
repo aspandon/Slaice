@@ -65,10 +65,10 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
     return (
       <div className="animate-fade-in grid place-items-center min-h-[60dvh]">
         <Card className="p-10 max-w-md w-full text-center">
-          <div className="flex items-center justify-center gap-2 text-[#635bff] font-bold text-lg"><Icon.stripe size={22} /> stripe</div>
-          <div className="mt-4 text-sm text-slate-500">{t("Redirecting to")} {TENANT.name}{t("'s secure Stripe Checkout…")}</div>
+          <div className="flex items-center justify-center gap-2 text-[#635bff] font-bold text-guest-head"><Icon.stripe size={22} /> stripe</div>
+          <div className="mt-4 text-guest-body text-slate-500">{t("Redirecting to")} {TENANT.name}{t("'s secure Stripe Checkout…")}</div>
           <div className="mt-5 mx-auto w-10 h-10 rounded-full border-2 border-slate-200 border-t-[#635bff] animate-spin" />
-          <div className="mt-5 text-[12px] text-slate-600 flex items-center justify-center gap-1.5"><Icon.lock size={12} /> {t("Secure payment on")} {TENANT.name}{t("'s account · powered by Stripe")}</div>
+          <div className="mt-5 text-guest-caption text-slate-600 flex items-center justify-center gap-1.5"><Icon.lock size={12} /> {t("Secure payment on")} {TENANT.name}{t("'s account · powered by Stripe")}</div>
           <Btn variant="primary" full size="lg" className="mt-5" onClick={complete}>{t("Simulate successful payment")}</Btn>
         </Card>
       </div>
@@ -91,8 +91,8 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
       <div className="animate-fade-up max-w-xl mx-auto">
         <Card className="p-6 sm:p-8 text-center">
           <div className={`w-16 h-16 mx-auto rounded-2xl text-white grid place-items-center animate-pop ${vip ? "bg-navy-900" : "bg-teal-600"}`}><Icon.check size={34} /></div>
-          <h2 className="mt-4 font-display font-bold text-2xl text-navy-900">{t("Payment successful")}</h2>
-          <p className="text-sm text-slate-500 mt-1">
+          <h2 className="mt-4 font-display font-bold text-guest-title text-navy-900">{t("Payment successful")}</h2>
+          <p className="text-guest-body text-slate-500 mt-1">
             {vip
               ? `${t("You're now a VIP member.")} ${t("Your credit is ready to spend at checkout with")} ${discPct}% ${t("off")}.`
               : `${t("You're now a Season-pass holder.")} ${t("Your entry is covered every visit.")}`}
@@ -100,7 +100,7 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
 
           <div className="my-6"><WalletButtons pass={{ ref, variant: kind, holder: "Elena M.", title: vip ? t("VIP credit pass") : t("Season pass"), total: `€${price.toLocaleString()}`, validUntil: vip ? SEASON_END_LABEL : dateOf(passes.season?.validUntil ?? seasonValidUntil(plan)), fields }} className="" /></div>
 
-          <div className="grid sm:grid-cols-3 gap-2 text-[12px]">
+          <div className="grid sm:grid-cols-3 gap-2 text-guest-caption">
             <Pill icon={Icon.checkCircle} t={t("Stripe paid")} />
             <Pill icon={vip ? Icon.wallet : Icon.ticket} t={vip ? t("Credit added") : t("Entry covered")} />
             <Pill icon={Icon.receipt} t={t("ΑΠΥ → MyDATA ✓")} />
@@ -111,7 +111,7 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
             <Btn variant="outline" icon={Icon.sparkles} onClick={() => go("customer", "plan")}>{t("Plan a visit")}</Btn>
           </div>
         </Card>
-        <div className="text-center mt-3 text-[11px] text-slate-600 flex items-center justify-center gap-1.5">{t("powered by")} <SlaiceLogo size={18} withText /></div>
+        <div className="text-center mt-3 text-guest-caption text-slate-600 flex items-center justify-center gap-1.5">{t("powered by")} <SlaiceLogo size={18} withText /></div>
       </div>
     );
   }
@@ -135,34 +135,34 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
         ];
     return (
       <div className="animate-fade-up max-w-2xl mx-auto">
-        <button onClick={() => setPhase("select")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-600 hover:text-navy-900 mb-3"><Icon.arrowL size={15} /> {t("Back")}</button>
+        <button onClick={() => setPhase("select")} className="inline-flex items-center gap-1.5 text-guest-meta font-semibold text-slate-600 hover:text-navy-900 mb-3"><Icon.arrowL size={15} /> {t("Back")}</button>
         <Card className="overflow-hidden">
           <div className={`${vip ? "bg-gradient-to-br from-gold-300 via-gold-400 to-gold-500 text-navy-900" : "grad-sea text-white"} p-5 sm:p-6`}>
-            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] opacity-80"><Icon.shield size={12} /> {t("Please read & accept")}</div>
-            <h1 className="mt-1.5 font-display font-bold text-xl sm:text-2xl">{vip ? t("VIP Pass — terms") : t("Season Pass — terms")}</h1>
+            <div className="flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] opacity-80"><Icon.shield size={12} /> {t("Please read & accept")}</div>
+            <h1 className="mt-1.5 font-display font-bold text-guest-title">{vip ? t("VIP Pass — terms") : t("Season Pass — terms")}</h1>
           </div>
           <div className="p-5 sm:p-6 space-y-4">
             <ul className="space-y-2.5">
               {points.map((p, i) => (
-                <li key={i} className="flex items-start gap-2.5 text-[13.5px] text-slate-700 leading-snug">
+                <li key={i} className="flex items-start gap-2.5 text-guest-meta text-slate-700 leading-snug">
                   <Icon.check size={15} className="text-teal-600 shrink-0 mt-0.5" /><span>{p}</span>
                 </li>
               ))}
             </ul>
             <label className="flex items-start gap-3 rounded-xl ring-1 ring-slate-200 bg-slate-50 px-3.5 py-3 cursor-pointer hover:ring-teal-300 transition">
               <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 w-[18px] h-[18px] accent-teal-600 shrink-0" />
-              <span className="text-[13px] text-navy-900 font-medium leading-snug">{vip ? t("I have read and agree to the VIP Pass terms above.") : t("I have read and agree to the Season Pass terms above.")}</span>
+              <span className="text-guest-meta text-navy-900 font-medium leading-snug">{vip ? t("I have read and agree to the VIP Pass terms above.") : t("I have read and agree to the Season Pass terms above.")}</span>
             </label>
           </div>
           <div className="px-5 sm:px-6 py-4 border-t border-slate-200/70 flex items-center justify-between gap-3">
-            <div className="text-[12px] text-slate-500">{t("Total")} · <b className="text-navy-900 tnum">€{price.toLocaleString()}</b></div>
+            <div className="text-guest-caption text-slate-500">{t("Total")} · <b className="text-navy-900 tnum">€{price.toLocaleString()}</b></div>
             <div className="flex items-center gap-2">
               <Btn variant="ghost" onClick={() => setPhase("select")}>{t("Back")}</Btn>
               <Btn variant="primary" icon={Icon.stripe} disabled={!agreed} onClick={() => setPhase("redirect")}>{t("Pay with Stripe")}</Btn>
             </div>
           </div>
         </Card>
-        <div className="mt-3 text-[11px] text-slate-500 flex items-start gap-1.5">
+        <div className="mt-3 text-guest-caption text-slate-500 flex items-start gap-1.5">
           <Icon.lock size={12} className="shrink-0 mt-0.5" /> {t("You'll only be charged after you accept and confirm on the next step.")}
         </div>
       </div>
@@ -171,19 +171,19 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
 
   return (
     <div className="animate-fade-up max-w-2xl mx-auto">
-      <button onClick={() => go("customer", "home")} className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-slate-600 hover:text-navy-900 mb-3"><Icon.arrowL size={15} /> {t("Home")}</button>
+      <button onClick={() => go("customer", "home")} className="inline-flex items-center gap-1.5 text-guest-meta font-semibold text-slate-600 hover:text-navy-900 mb-3"><Icon.arrowL size={15} /> {t("Home")}</button>
 
       <Card className={`overflow-hidden ${vip ? "" : ""}`}>
         {/* The beach's own brand (AENR-576): VIP in its sun gold, Season in its sea. */}
         <div className={`${vip ? "bg-gradient-to-br from-gold-300 via-gold-400 to-gold-500 text-navy-900" : "grad-sea text-white"} p-6 sm:p-7`}>
-          <div className={`flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] ${vip ? "text-navy-900/80" : "text-white/80"}`}>
+          <div className={`flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] ${vip ? "text-navy-900/80" : "text-white/80"}`}>
             <TenantLogo size={26} />
             {TENANT.name} · {vip ? t("VIP Pass") : t("Season Pass")}
           </div>
-          <h1 className="mt-2 font-display font-bold text-2xl sm:text-3xl leading-tight">
+          <h1 className="mt-2 font-display font-bold text-guest-title leading-tight">
             {vip ? t("Prepay credit, save on everything") : t("Free entry, all season long")}
           </h1>
-          <p className={`text-[13.5px] mt-2 max-w-md ${vip ? "text-navy-900/85" : "text-white/85"}`}>
+          <p className={`text-guest-meta mt-2 max-w-md ${vip ? "text-navy-900/85" : "text-white/85"}`}>
             {vip
               ? `${t("Top up once and spend it on sunbeds, tickets, lockers or parking with")} ${discPct}% ${t("off — valid to the end of the season.")}`
               : t("Your entry ticket is covered on every visit — pick a month or the whole summer.")}
@@ -192,12 +192,12 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
 
         <div className="p-5 sm:p-6 space-y-4">
           {saved > 0 && (
-            <div className="rounded-2xl bg-emerald-50 ring-1 ring-emerald-600/20 px-4 py-3 text-[13.5px] text-emerald-900 flex items-start gap-2">
+            <div className="rounded-2xl bg-emerald-50 ring-1 ring-emerald-600/20 px-4 py-3 text-guest-meta text-emerald-900 flex items-start gap-2">
               <Icon.sparkles size={16} className="shrink-0 mt-0.5" />
               <span>{vip ? t("With VIP this season you would have saved") : t("With a Season pass this season you would have saved")} <b>€{saved}</b> — {t("based on your")} {usedVisits} {usedVisits === 1 ? t("visit") : t("visits")}.</span>
             </div>
           )}
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{vip ? t("Choose a credit pack") : t("Choose a plan")}</div>
+          <div className="text-guest-over font-semibold uppercase tracking-wide text-slate-500">{vip ? t("Choose a credit pack") : t("Choose a plan")}</div>
           <div className="grid sm:grid-cols-2 gap-3">
             {vip
               ? passPricing.vipTiers.map((amt) => (
@@ -219,18 +219,18 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
 
           <div className="rounded-2xl ring-1 ring-slate-200 bg-slate-50/70 p-4 flex items-center justify-between gap-3">
             <div>
-              <div className="text-[11px] uppercase font-bold tracking-wider text-slate-500">{t("Total")}</div>
+              <div className="text-guest-over uppercase font-bold tracking-wider text-slate-500">{t("Total")}</div>
               <div className="font-display text-2xl font-bold text-navy-900 tnum leading-none">€{price.toLocaleString()}</div>
-              <div className="text-[11px] text-slate-500 mt-1">{vip ? `${t("One-off · credit never expires before")} ${SEASON_END_LABEL}` : t("One-off · auto-applies at checkout")}</div>
+              <div className="text-guest-caption text-slate-500 mt-1">{vip ? `${t("One-off · credit never expires before")} ${SEASON_END_LABEL}` : t("One-off · auto-applies at checkout")}</div>
             </div>
             <Btn variant="primary" size="lg" onClick={() => setPhase("terms")}>{t("Continue")} <Icon.arrowR size={15} /></Btn>
           </div>
 
-          <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-500"><Icon.lock size={12} /> {t("Secured by Stripe · we never store card details")}</div>
+          <div className="flex items-center justify-center gap-1.5 text-guest-caption text-slate-500"><Icon.lock size={12} /> {t("Secured by Stripe · we never store card details")}</div>
         </div>
       </Card>
 
-      <div className="mt-3 text-[12px] text-slate-600 flex items-start gap-1.5">
+      <div className="mt-3 text-guest-caption text-slate-600 flex items-start gap-1.5">
         <Icon.info size={13} className="shrink-0 mt-0.5 text-slate-400" />
         {vip
           ? t("At checkout, the VIP discount applies to whatever your credit pays for; anything left is paid as usual.")
@@ -245,9 +245,9 @@ function SelectCard({ on, onClick, title, sub, foot, accent }: { on: boolean; on
   return (
     <button onClick={onClick} aria-pressed={on}
       className={`relative text-left rounded-2xl p-4 ring-1 transition ${on ? `ring-2 ${ring} bg-white shadow-lift` : "ring-slate-200 bg-white/70 hover:ring-slate-300"}`}>
-      <div className="font-display font-bold text-navy-900 text-lg">{title}</div>
-      <div className="text-[12.5px] text-slate-600 mt-0.5">{sub}</div>
-      <div className="text-[11px] text-slate-400 mt-1.5">{foot}</div>
+      <div className="font-display font-bold text-navy-900 text-guest-head">{title}</div>
+      <div className="text-guest-meta text-slate-600 mt-0.5">{sub}</div>
+      <div className="text-guest-caption text-slate-400 mt-1.5">{foot}</div>
       {on && <span className={`absolute top-3 right-3 w-5 h-5 rounded-full text-white grid place-items-center ${accent === "gold" ? "bg-navy-900" : "bg-teal-600"}`}><Icon.check size={12} /></span>}
     </button>
   );

@@ -52,11 +52,11 @@ export function GuestPass() {
               window.location.hash = "#/customer/home";
               window.location.reload();
             }}
-            className="inline-flex items-center gap-1.5 rounded-xl glass-card-solid px-4 min-h-[44px] text-[14px] font-semibold text-navy-900 hover:shadow-lift transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+            className="inline-flex items-center gap-1.5 rounded-xl glass-card-solid px-4 min-h-[44px] text-guest-body font-semibold text-navy-900 hover:shadow-lift transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
           >
             <Icon.sparkles size={16} className="text-teal-600" /> {t("Book your own visit")}
           </a>
-          <p className="mx-auto w-fit flex items-center gap-1.5 rounded-full glass-card-solid px-3 py-1 text-[11.5px] text-slate-700">
+          <p className="mx-auto w-fit flex items-center gap-1.5 rounded-full glass-card-solid px-3 py-1 text-guest-caption text-slate-700">
             {t("powered by")}{" "}
             <span className="font-bold text-navy-900">
               SLA<span className="text-gold-600">i</span>CE
@@ -75,10 +75,10 @@ function BrokenLink({ why }: { why: "missing" | "changed" | "unreadable" }) {
       <span className="mx-auto w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 grid place-items-center">
         <Icon.alert size={26} />
       </span>
-      <h1 className="mt-3 font-display font-bold text-xl text-navy-900">
+      <h1 className="mt-3 font-display font-bold text-guest-head text-navy-900">
         {t("This link doesn't open a pass")}
       </h1>
-      <p className="mt-1.5 text-[14px] text-slate-600 leading-relaxed">
+      <p className="mt-1.5 text-guest-body text-slate-600 leading-relaxed">
         {why === "changed"
           ? t(
               "It was changed after it was shared, so it can't be trusted. Ask the person who booked to send it again.",
@@ -87,7 +87,7 @@ function BrokenLink({ why }: { why: "missing" | "changed" | "unreadable" }) {
               "It looks incomplete. Ask the person who booked to send the link again — or to show you the QR.",
             )}
       </p>
-      <p className="mt-3 text-[12.5px] text-slate-500">
+      <p className="mt-3 text-guest-meta text-slate-500">
         {t("Help")}:{" "}
         <a
           className="underline hover:text-navy-900"
@@ -169,7 +169,7 @@ function SharedPass({ b }: { b: SharedBooking }) {
 
   return (
     <>
-      <p className="text-center text-[15px] font-semibold text-white drop-shadow-[0_1px_4px_rgba(0,30,60,0.45)]">
+      <p className="text-center text-guest-body font-semibold text-white drop-shadow-[0_1px_4px_rgba(0,30,60,0.45)]">
         {b.from} {t("shared a beach day with you")}
       </p>
 
@@ -179,10 +179,10 @@ function SharedPass({ b }: { b: SharedBooking }) {
       >
         <div className="grad-sea text-white px-6 py-5">
           <div className="flex items-center justify-between gap-3">
-            <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-100">
+            <div className="text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-100">
               {TENANT.name}
             </div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-teal-100">
+            <div className="text-guest-over font-semibold uppercase tracking-[0.12em] text-teal-100">
               {days === 0
                 ? t("Today")
                 : days === 1
@@ -192,8 +192,8 @@ function SharedPass({ b }: { b: SharedBooking }) {
                     : ""}
             </div>
           </div>
-          <h1 className="mt-1 font-display font-bold text-[26px] leading-tight">{day}</h1>
-          <div className="text-[14px] text-white/90">
+          <h1 className="mt-1 font-display font-bold text-guest-title leading-tight">{day}</h1>
+          <div className="text-guest-body text-white/90">
             {b.sets.length ? b.sets.map((s) => `${s.zone} ${s.id}`).join(" · ") : t("Entry")}
           </div>
         </div>
@@ -206,7 +206,7 @@ function SharedPass({ b }: { b: SharedBooking }) {
           {B && BIcon && (
             <div
               role="status"
-              className={`mb-4 flex items-start gap-2 rounded-xl ring-1 px-3 py-2.5 text-left text-[13.5px] font-semibold ${B.tone}`}
+              className={`mb-4 flex items-start gap-2 rounded-xl ring-1 px-3 py-2.5 text-left text-guest-meta font-semibold ${B.tone}`}
             >
               <BIcon size={17} className="shrink-0 mt-0.5" /> {B.text}
             </div>
@@ -226,23 +226,23 @@ function SharedPass({ b }: { b: SharedBooking }) {
               <QR size={208} seed={b.ref} />
             </button>
           )}
-          <div className="mt-1 font-mono text-[15px] font-bold text-navy-900">#{b.ref}</div>
+          <div className="mt-1 font-mono text-guest-body font-bold text-navy-900">#{b.ref}</div>
           {phase === "ok" && (
-            <div className="text-[12.5px] text-slate-500">
+            <div className="text-guest-meta text-slate-500">
               {t("Show it at the gate — tap for full screen.")}
             </div>
           )}
-          <dl className="mt-4 grid grid-cols-2 gap-3 text-left text-[13px]">
+          <dl className="mt-4 grid grid-cols-2 gap-3 text-left text-guest-meta">
             <div className="rounded-xl bg-slate-50 px-3 py-2">
-              <dt className="text-slate-500 text-[11.5px]">{t("Arrive")}</dt>
+              <dt className="text-slate-500 text-guest-caption">{t("Arrive")}</dt>
               <dd className="font-semibold text-navy-900">{ARRIVAL_WINDOW}</dd>
             </div>
             <div className="rounded-xl bg-slate-50 px-3 py-2">
-              <dt className="text-slate-500 text-[11.5px]">{t("Booked by")}</dt>
+              <dt className="text-slate-500 text-guest-caption">{t("Booked by")}</dt>
               <dd className="font-semibold text-navy-900">{b.from}</dd>
             </div>
             <div className="rounded-xl bg-slate-50 px-3 py-2 col-span-2">
-              <dt className="text-slate-500 text-[11.5px]">{t("Entrance")}</dt>
+              <dt className="text-slate-500 text-guest-caption">{t("Entrance")}</dt>
               <dd className="font-semibold text-navy-900 flex items-center justify-between gap-2">
                 <span>
                   {t("Main gate")} · {OPERATOR.address}
@@ -269,10 +269,10 @@ function SharedPass({ b }: { b: SharedBooking }) {
           className="glass-card-solid rounded-3xl p-5 space-y-3"
         >
           <div className="flex items-baseline justify-between gap-3">
-            <h2 id="pass-entries" className="font-display font-bold text-navy-900 text-lg">
+            <h2 id="pass-entries" className="font-display font-bold text-navy-900 text-guest-head">
               {t("Entries")}
             </h2>
-            <span className="text-[15px] font-bold text-navy-900 tnum">
+            <span className="text-guest-body font-bold text-navy-900 tnum">
               {left} {t("of")} {total} {t("left")}
             </span>
           </div>
@@ -300,15 +300,15 @@ function SharedPass({ b }: { b: SharedBooking }) {
                     style={{ background: color(s.zone) }}
                   />
                   <div className="min-w-0 flex-1">
-                    <div className="text-[14.5px] font-semibold text-navy-900">
+                    <div className="text-guest-body font-semibold text-navy-900">
                       {s.zone} · <span className="font-mono">{s.id}</span>
                     </div>
-                    <div className="text-[12.5px] text-slate-500">
+                    <div className="text-guest-meta text-slate-500">
                       {t("Sunbed set")} · {s.seats} {t("seats")}
                     </div>
                   </div>
                   {u && (
-                    <span className="text-[12.5px] font-semibold text-slate-700 tnum">
+                    <span className="text-guest-meta font-semibold text-slate-700 tnum">
                       {u.taken ? `${u.taken} ${t("of")} ${u.seats} ${t("here")}` : t("Nobody yet")}
                     </span>
                   )}
@@ -320,17 +320,17 @@ function SharedPass({ b }: { b: SharedBooking }) {
               return (
                 <li key={x.cat} className="flex items-center gap-3 py-2.5">
                   <Icon.ticket size={16} className="text-teal-600 shrink-0" />
-                  <div className="min-w-0 flex-1 text-[14.5px] font-semibold text-navy-900">
+                  <div className="min-w-0 flex-1 text-guest-body font-semibold text-navy-900">
                     {t(x.label)}
                   </div>
-                  <span className="text-[12.5px] font-semibold text-slate-700 tnum">
+                  <span className="text-guest-meta font-semibold text-slate-700 tnum">
                     {u ? `${u.left} ${t("of")} ${x.qty} ${t("left")}` : `× ${x.qty}`}
                   </span>
                 </li>
               );
             })}
           </ul>
-          <p className="flex items-start gap-2 text-[12px] text-slate-500 leading-snug">
+          <p className="flex items-start gap-2 text-guest-caption text-slate-500 leading-snug">
             <Icon.info size={14} className="shrink-0 mt-0.5" />
             {live
               ? t(

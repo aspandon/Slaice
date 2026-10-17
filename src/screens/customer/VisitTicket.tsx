@@ -56,8 +56,8 @@ export function FullscreenQR({
           <QR size={Math.min(420, Math.round(window.innerWidth * 0.82))} seed={qrCode(code)} />
         </div>
         <div className="mt-4 font-mono text-2xl font-bold text-navy-900">{code}</div>
-        <div className="mt-1 text-[15px] text-slate-600">{caption}</div>
-        <div className="mt-1 text-[13px] text-slate-500">
+        <div className="mt-1 text-guest-body text-slate-600">{caption}</div>
+        <div className="mt-1 text-guest-meta text-slate-500">
           {t("Turn your screen brightness up at the gate.")}
         </div>
         <button
@@ -87,8 +87,8 @@ export function VisitQR({ v, onClose }: { v: Visit; onClose: () => void }) {
         <div className="mx-auto grid place-items-center">
           <QR size={240} seed={qrCode(v.refs[0])} />
         </div>
-        <div className="mt-2 font-mono text-[15px] font-bold text-navy-900">{v.refs[0]}</div>
-        <div className="text-[13px] text-slate-600">{caption}</div>
+        <div className="mt-2 font-mono text-guest-body font-bold text-navy-900">{v.refs[0]}</div>
+        <div className="text-guest-meta text-slate-600">{caption}</div>
         <WalletButtons className="mt-4 pt-4 border-t border-slate-100" pass={visitPass(v)} />
         <Btn variant="outline" full className="mt-4" icon={Icon.qr} onClick={() => setFull(true)}>
           {t("Show full screen")}

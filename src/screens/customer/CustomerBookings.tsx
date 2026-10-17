@@ -73,16 +73,16 @@ export function CustomerBookings() {
           <div className="flex items-start gap-3 min-w-0">
             <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.sparkles size={18} /></span>
             <div className="min-w-0">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">{t("Your season in review")}</div>
-              <div className="mt-0.5 font-display font-bold text-xl text-navy-900">{t("You've had a sunny summer, Elena ☀️")}</div>
-              <div className="text-[13px] text-slate-600 mt-0.5">{used.length} {t("visits")} · {t("favourite zone")} <b className="text-navy-900">{fav}</b></div>
+              <div className="text-guest-over font-semibold uppercase tracking-wider text-teal-700">{t("Your season in review")}</div>
+              <div className="mt-0.5 font-display font-bold text-guest-head text-navy-900">{t("You've had a sunny summer, Elena ☀️")}</div>
+              <div className="text-guest-meta text-slate-600 mt-0.5">{used.length} {t("visits")} · {t("favourite zone")} <b className="text-navy-900">{fav}</b></div>
             </div>
           </div>
           <div className="flex items-center gap-5 shrink-0 sm:pl-0 pl-[52px]">
-            <div className="text-center"><div className="text-2xl font-bold font-display tnum text-navy-900">{used.length}</div><div className="text-[11px] text-slate-500">{t("visits")}</div></div>
-            <div className="text-center"><div className="text-2xl font-bold font-display tnum text-navy-900">€{spent}</div><div className="text-[11px] text-slate-500">{t("spent")}</div></div>
+            <div className="text-center"><div className="text-2xl font-bold font-display tnum text-navy-900">{used.length}</div><div className="text-guest-caption text-slate-500">{t("visits")}</div></div>
+            <div className="text-center"><div className="text-2xl font-bold font-display tnum text-navy-900">€{spent}</div><div className="text-guest-caption text-slate-500">{t("spent")}</div></div>
             <div className="w-px h-10 bg-slate-200" />
-            <div className="w-28"><Sparkline data={[1, 2, 1, 3, 2, 4, 3, 5]} color="#0D9488" width={112} height={36} /><div className="text-[10px] text-slate-500 text-center mt-1">{t("visits / month")}</div></div>
+            <div className="w-28"><Sparkline data={[1, 2, 1, 3, 2, 4, 3, 5]} color="#0D9488" width={112} height={36} /><div className="text-guest-caption text-slate-500 text-center mt-1">{t("visits / month")}</div></div>
           </div>
         </div>
       </Card>
@@ -90,7 +90,7 @@ export function CustomerBookings() {
       <div className="flex items-center justify-between gap-2 flex-wrap rounded-2xl glass-card-solid p-1.5">
         <Tabs tabs={[["upcoming", `${t("Upcoming")} ${count("upcoming")}`], ["past", `${t("Past")} ${count("past")}`], ["cancelled", `${t("Cancelled")} ${count("cancelled")}`]]} value={filter} onChange={setFilter} />
         {account.credit.balance > 0 && (
-          <button type="button" onClick={() => go("customer", "wallet")} className="text-[12.5px] font-semibold text-teal-700 hover:underline px-2">
+          <button type="button" onClick={() => go("customer", "wallet")} className="text-guest-meta font-semibold text-teal-700 hover:underline px-2">
             {t("Beach credit")} €{account.credit.balance.toFixed(2)} →
           </button>
         )}
@@ -125,7 +125,7 @@ export function CustomerBookings() {
             <button type="button" onClick={() => setDlg({ kind: "full", v: dlg.v })} className="mx-auto grid place-items-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500" aria-label={t("Show the QR full screen")}>
               <QR size={200} seed={qrCode(dlg.v.refs[0])} />
             </button>
-            <div className="mt-2 text-[12px] text-slate-600">{t("Tap the code to show it full screen at the gate.")}</div>
+            <div className="mt-2 text-guest-caption text-slate-600">{t("Tap the code to show it full screen at the gate.")}</div>
             <WalletButtons className="mt-4 pt-4 border-t border-slate-100" pass={visitPass(dlg.v)} />
             <div className="mt-4 grid grid-cols-2 gap-2">
               <Btn variant="teal" icon={Icon.send} onClick={() => setDlg({ kind: "share", v: dlg.v })}>{t("Share")}</Btn>
@@ -187,9 +187,9 @@ function VisitCard({ v, deadline, onOpen }: { v: Visit; deadline: string; onOpen
     <Card surface="raised" className={`p-4 sm:p-5 ${v.status === "today" ? "ring-2 ring-teal-500" : ""}`}>
       <div className="flex items-start gap-3">
         <div className="w-14 shrink-0 rounded-xl bg-slate-50 ring-1 ring-slate-200 text-center py-1.5" aria-hidden>
-          <div className="text-[11px] font-semibold uppercase text-slate-500">{fmtWeekday(v.date)}</div>
+          <div className="text-guest-over font-semibold uppercase text-slate-500">{fmtWeekday(v.date)}</div>
           <div className="font-display font-bold text-xl text-navy-900 leading-none tnum">{Number(v.date.slice(8, 10))}</div>
-          <div className="text-[11px] text-slate-500">{fmtDay(v.date).split(" ")[1]}</div>
+          <div className="text-guest-caption text-slate-500">{fmtDay(v.date).split(" ")[1]}</div>
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
@@ -197,10 +197,10 @@ function VisitCard({ v, deadline, onOpen }: { v: Visit; deadline: string; onOpen
               {fmtWeekday(v.date)} {fmtDay(v.date)}{v.zone ? ` · ${v.zone}` : ""}
             </h2>
             <Badge tone={chip.tone}>{t(chip.label)}</Badge>
-            {v.movedFrom && <span className="text-[12px] text-slate-500">{t("moved from")} {fmtDay(v.movedFrom)}</span>}
+            {v.movedFrom && <span className="text-guest-caption text-slate-500">{t("moved from")} {fmtDay(v.movedFrom)}</span>}
           </div>
-          <p className="mt-0.5 text-[13.5px] text-slate-700">{what.join(" · ") || t("Beach day")}</p>
-          <p className="mt-1 text-[12.5px] text-slate-600">
+          <p className="mt-0.5 text-guest-meta text-slate-700">{what.join(" · ") || t("Beach day")}</p>
+          <p className="mt-1 text-guest-meta text-slate-600">
             {v.status === "cancelled" && v.cancelled
               ? v.cancelled.refund > 0
                 ? `${t("Cancelled")} · €${v.cancelled.refund.toFixed(2)} ${v.cancelled.to === "credit" ? t("added to your beach credit") : t("refunded to your card")}`
@@ -212,7 +212,7 @@ function VisitCard({ v, deadline, onOpen }: { v: Visit; deadline: string; onOpen
         </div>
         <div className="text-right shrink-0">
           <div className="font-display font-bold text-navy-900 text-lg tnum">€{v.total}</div>
-          {invoice && <div className="text-[11px] text-slate-500">{t("Invoice issued")}</div>}
+          {invoice && <div className="text-guest-caption text-slate-500">{t("Invoice issued")}</div>}
         </div>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-1.5 sm:pl-[68px]">
@@ -249,11 +249,11 @@ function MoveDialog({ v, onClose }: { v: Visit; onClose: () => void }) {
     <Modal open onClose={onClose} title={t("Move to another day")}
       footer={<><Btn variant="ghost" onClick={onClose}>{t("Keep the date")}</Btn><Btn variant="primary" icon={Icon.calendar} disabled={!ok} onClick={() => { move(v, date); toast(`${t("Moved to")} ${fmtWeekday(date)} ${fmtDay(date)} — ${t("your QR stays the same.")}`, { tone: "success" }); onClose(); }}>{t("Move")}</Btn></>}>
       <div className="space-y-3">
-        <p className="text-[13.5px] text-slate-600">{v.sets.length ? `${t("Your sunbeds")} ${v.sets.join(", ")} ${t("move with you if they are free that day.")}` : t("Your tickets move with you.")} {t("No fee.")}</p>
+        <p className="text-guest-meta text-slate-600">{v.sets.length ? `${t("Your sunbeds")} ${v.sets.join(", ")} ${t("move with you if they are free that day.")}` : t("Your tickets move with you.")} {t("No fee.")}</p>
         <Field label={t("New date")}>
           <DateInput aria-label={t("New date")} value={date} onChange={setDate} min={addDays(todayISO(), 1)} max={SEASON_END} required />
         </Field>
-        {taken.length > 0 && <div role="alert" className="rounded-lg bg-amber-50 text-amber-900 ring-1 ring-amber-600/20 px-3 py-2 text-[13px]">{taken.join(", ")} {t("is taken that day — try another date.")}</div>}
+        {taken.length > 0 && <div role="alert" className="rounded-lg bg-amber-50 text-amber-900 ring-1 ring-amber-600/20 px-3 py-2 text-guest-meta">{taken.join(", ")} {t("is taken that day — try another date.")}</div>}
       </div>
     </Modal>
   );
@@ -286,18 +286,18 @@ export function ExtrasDialog({ v, only, onClose }: { v: Visit; /** "extras" = lo
       footer={<><Btn variant="ghost" onClick={onClose}>{t("Cancel")}</Btn><Btn variant="primary" icon={Icon.card} loading={busy} disabled={!lines.length} onClick={() => { setBusy(true); window.setTimeout(() => { lines.forEach((l) => addExtra(v, l)); toast(`${t("Added")} · €${total} ${t("charged to")} ${card}. ${t("Your QR now includes them.")}`, { tone: "success" }); onClose(); }, 900); }}>{`${t("Pay")} €${total}`}</Btn></>}>
       <div className="space-y-2.5">
         {only !== "extras" && <>
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Entry tickets")}</div>
+        <div className="text-guest-over font-semibold uppercase tracking-wider text-slate-500">{t("Entry tickets")}</div>
         {ex.tickets.map((c) => (
-          <div key={c.id} className="flex items-center justify-between text-sm">
+          <div key={c.id} className="flex items-center justify-between text-guest-body">
             <span>{ex.ticketLabel(c.id)} <span className="text-slate-500">€{ex.ticketPrice(c.id, v.date)}</span></span>
             <Stepper label={`${ex.ticketLabel(c.id)} ${t("tickets")}`} value={qty[c.id] ?? 0} onChange={(n) => setQty((q) => ({ ...q, [c.id]: n }))} />
           </div>
         ))}
-        {kind !== "none" && <div className="pt-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Extras")}</div>}
+        {kind !== "none" && <div className="pt-1 text-guest-over font-semibold uppercase tracking-wider text-slate-500">{t("Extras")}</div>}
         </>}
-        {canParking && <div className="flex items-center justify-between text-sm"><span>{t("Parking")} <span className="text-slate-500">€{PARKING_PRICE}</span></span><Stepper label={t("Parking spots")} value={parking} onChange={setParking} /></div>}
-        {bank && <div className="flex items-center justify-between text-sm"><span>{bank.name} <span className="text-slate-500">€{ex.lockerPrice(bank.id, v.date)}</span></span><Stepper label={t("Lockers")} value={locker} onChange={setLocker} /></div>}
-        <p className="text-[12px] text-slate-500 pt-1">{t("Paid with")} {card}. {t("Free cancellation follows your booking.")}</p>
+        {canParking && <div className="flex items-center justify-between text-guest-body"><span>{t("Parking")} <span className="text-slate-500">€{PARKING_PRICE}</span></span><Stepper label={t("Parking spots")} value={parking} onChange={setParking} /></div>}
+        {bank && <div className="flex items-center justify-between text-guest-body"><span>{bank.name} <span className="text-slate-500">€{ex.lockerPrice(bank.id, v.date)}</span></span><Stepper label={t("Lockers")} value={locker} onChange={setLocker} /></div>}
+        <p className="text-guest-caption text-slate-500 pt-1">{t("Paid with")} {card}. {t("Free cancellation follows your booking.")}</p>
       </div>
     </Modal>
   );
@@ -313,7 +313,7 @@ function CancelDialog({ v, onClose }: { v: Visit; onClose: () => void }) {
   return (
     <Modal open onClose={onClose} title={t("Cancel this visit?")}
       footer={<><Btn variant="ghost" onClick={onClose}>{t("Keep my booking")}</Btn><Btn variant="danger" icon={Icon.x} onClick={() => { cancel(v, to); toast(q.refund > 0 ? `${t("Cancelled")} — €${q.refund.toFixed(2)} ${to === "card" ? t("back to your card in 5–10 days.") : t("added to your beach credit.")}` : t("Cancelled — your sunbeds are free for others."), { tone: "success" }); onClose(); }}>{q.refund > 0 ? `${t("Cancel and refund")} €${q.refund.toFixed(2)}` : t("Cancel without refund")}</Btn></>}>
-      <div className="space-y-3 text-[13.5px]">
+      <div className="space-y-3 text-guest-meta">
         <p className="text-slate-700"><b className="text-navy-900">{fmtWeekday(v.date)} {fmtDay(v.date)}{v.zone ? ` · ${v.zone}` : ""}</b> · €{v.total}</p>
         <div className={`rounded-xl px-3 py-2.5 ring-1 ${q.inWindow ? "bg-emerald-50 ring-emerald-600/20 text-emerald-900" : "bg-amber-50 ring-amber-600/20 text-amber-900"}`}>
           {q.inWindow
@@ -322,7 +322,7 @@ function CancelDialog({ v, onClose }: { v: Visit; onClose: () => void }) {
         </div>
         {q.refund > 0 && (
           <fieldset className="space-y-1.5">
-            <legend className="text-[12px] font-semibold text-slate-700 mb-1">{t("Refund to")}</legend>
+            <legend className="text-guest-caption font-semibold text-slate-700 mb-1">{t("Refund to")}</legend>
             {(["card", "credit"] as const).map((k) => (
               <label key={k} className={`flex items-center gap-2.5 rounded-xl ring-1 px-3 min-h-[48px] cursor-pointer ${to === k ? "ring-navy-900 bg-slate-50" : "ring-slate-200"}`}>
                 <input type="radio" name="refund-to" className="accent-teal-600 w-4 h-4" checked={to === k} onChange={() => setTo(k)} />
@@ -355,7 +355,7 @@ function InvoiceDialog({ v, onClose, onIssued }: { v: Visit; onClose: () => void
     <Modal open onClose={onClose} title={t("Request an invoice")}
       footer={<><Btn variant="ghost" onClick={onClose}>{t("Cancel")}</Btn><Btn variant="primary" icon={Icon.receipt} disabled={!ok} onClick={issue}>{t("Issue invoice")}</Btn></>}>
       <div className="space-y-3">
-        <p className="text-[13px] text-slate-600">{t("For a business trip? We issue an invoice with your company details instead of the receipt.")}</p>
+        <p className="text-guest-meta text-slate-600">{t("For a business trip? We issue an invoice with your company details instead of the receipt.")}</p>
         <Field label={t("Company name")}><Input value={company} onChange={(e) => setCompany(e.target.value)} autoComplete="organization" /></Field>
         <Field label={t("VAT number")} hint={t("9 digits, e.g. EL123456789")}><Input value={vatNo} onChange={(e) => setVatNo(e.target.value)} aria-invalid={!!vatNo && !vatOk} /></Field>
         <Field label={t("Billing address")}><Input value={address} onChange={(e) => setAddress(e.target.value)} autoComplete="street-address" /></Field>

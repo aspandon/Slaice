@@ -83,7 +83,7 @@ export function CustomerWallet() {
             {owned.includes("season") && <SeasonTile />}
           </div>
           <p className="mt-3 text-center">
-            <span className="inline-flex items-center gap-1.5 rounded-lg glass-card-solid px-2.5 py-1 text-[12.5px] text-slate-700">
+            <span className="inline-flex items-center gap-1.5 rounded-lg glass-card-solid px-2.5 py-1 text-guest-meta text-slate-700">
               <Icon.qr size={13} className="text-teal-700" />
               {t("Each pass card carries your gate QR — show it at the entrance.")}
             </span>
@@ -189,10 +189,10 @@ function BeachCredit() {
           <div className="font-display font-bold text-3xl text-navy-900 tnum">
             €{account.credit.balance.toFixed(2)}
           </div>
-          <div className="text-[12.5px] text-slate-600">{t("Used automatically at checkout.")}</div>
+          <div className="text-guest-meta text-slate-600">{t("Used automatically at checkout.")}</div>
         </div>
         {account.credit.log.length > 0 && (
-          <ul className="flex-1 min-w-0 divide-y divide-slate-100 text-[13px]">
+          <ul className="flex-1 min-w-0 divide-y divide-slate-100 text-guest-meta">
             {account.credit.log.slice(0, 5).map((e, i) => (
               <li key={i} className="py-1.5 flex justify-between gap-3">
                 <span className="text-slate-700 min-w-0">
@@ -233,7 +233,7 @@ function UpcomingEntries() {
             <button
               type="button"
               onClick={() => go("customer", "mybookings")}
-              className="inline-flex items-center gap-1 rounded-lg glass-card-solid px-2.5 py-1 text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+              className="inline-flex items-center gap-1 rounded-lg glass-card-solid px-2.5 py-1 text-guest-meta font-semibold text-teal-700 hover:text-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
             >
               {more > 0 ? `${t("All")} ${ahead.length} ${t("in My bookings")}` : t("My bookings")}
               <Icon.chevR size={13} />
@@ -300,17 +300,17 @@ function EntryTicket({ v, onShow }: { v: Visit; onShow: () => void }) {
     >
       <div className="flex-1 min-w-0 p-4 sm:p-5 flex flex-col">
         <div
-          className={`inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] ${days <= 0 ? "text-amber-700" : "text-teal-700"}`}
+          className={`inline-flex items-center gap-1.5 text-guest-over font-semibold uppercase tracking-[0.14em] ${days <= 0 ? "text-amber-700" : "text-teal-700"}`}
         >
           <Icon.calendar size={12} /> {when}
         </div>
-        <h3 className="mt-1 font-display font-bold text-[19px] leading-tight text-navy-900">
+        <h3 className="mt-1 font-display font-bold text-guest-head leading-tight text-navy-900">
           {fmtWeekday(v.date)} {fmtDay(v.date)}
         </h3>
-        <p className="mt-0.5 text-[13px] font-semibold text-navy-900 truncate">
+        <p className="mt-0.5 text-guest-meta font-semibold text-navy-900 truncate">
           {v.zone || TENANT.name}
         </p>
-        <p className="text-[13px] text-slate-600 truncate">
+        <p className="text-guest-meta text-slate-600 truncate">
           {v.sets.length ? `${t("Sunbeds")} ${v.sets.join(", ")}` : t("Entry tickets")}
         </p>
         {extras.length > 0 && (
@@ -318,14 +318,14 @@ function EntryTicket({ v, onShow }: { v: Visit; onShow: () => void }) {
             {extras.map((x) => (
               <li
                 key={x}
-                className="rounded-md bg-white/80 ring-1 ring-slate-200 px-1.5 py-0.5 text-[11px] text-slate-700"
+                className="rounded-md bg-white/80 ring-1 ring-slate-200 px-1.5 py-0.5 text-guest-caption text-slate-700"
               >
                 {x}
               </li>
             ))}
           </ul>
         )}
-        <div className="mt-auto pt-3 inline-flex items-center gap-1.5 text-[12px] text-slate-600">
+        <div className="mt-auto pt-3 inline-flex items-center gap-1.5 text-guest-caption text-slate-600">
           <Icon.clock size={13} className="text-teal-700" /> {t("Arrive")} {ARRIVAL_WINDOW}
         </div>
       </div>
@@ -340,8 +340,8 @@ function EntryTicket({ v, onShow }: { v: Visit; onShow: () => void }) {
         <span className="rounded-xl bg-white p-1.5 ring-1 ring-slate-200 shadow-soft transition group-hover:shadow-lift">
           <QR size={84} seed={qrCode(v.refs[0])} />
         </span>
-        <span className="font-mono text-[11.5px] font-semibold text-navy-900">{v.refs[0]}</span>
-        <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-teal-700">
+        <span className="font-mono text-guest-caption font-semibold text-navy-900">{v.refs[0]}</span>
+        <span className="inline-flex items-center gap-1 text-guest-caption font-semibold text-teal-700">
           <Icon.qr size={12} /> {t("Tap to enlarge")}
         </span>
       </button>
@@ -403,7 +403,7 @@ function ReleaseMyDay() {
         {t("Your season set")} · {zone.name} {setId}
       </SectionHead>
       <div className="glass-flat rounded-3xl p-4">
-        <p className="text-[13px] text-slate-700 mb-3">
+        <p className="text-guest-meta text-slate-700 mb-3">
           {t(
             "Not coming one day? Release it and the set goes on sale for that day. When it sells, you get",
           )}{" "}
@@ -421,10 +421,10 @@ function ReleaseMyDay() {
                 className="rounded-xl bg-white/80 ring-1 ring-slate-200 px-3 py-2.5 flex items-center gap-3"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-navy-900 text-[13.5px]">
+                  <div className="font-semibold text-navy-900 text-guest-meta">
                     {fmtWeekday(d)} {fmtDay(d)}
                   </div>
-                  <div className="text-[12px] text-slate-600">
+                  <div className="text-guest-caption text-slate-600">
                     {r?.resold
                       ? `${t("Resold")} · +€${r.resold.credit.toFixed(2)} ${t("credit")}`
                       : r
@@ -483,8 +483,8 @@ function PassOffer({
         {tone === "vip" ? <Icon.star size={16} /> : <Icon.umbrella size={16} />}
       </span>
       <span className="flex-1 min-w-0">
-        <span className="block text-[14px] font-semibold text-navy-900">{title}</span>
-        <span className="block text-[12.5px] text-slate-600">{sub}</span>
+        <span className="block text-guest-body font-semibold text-navy-900">{title}</span>
+        <span className="block text-guest-meta text-slate-600">{sub}</span>
       </span>
       <NotMvpBadge />
       <Icon.chevR size={15} className="text-slate-400 shrink-0" />

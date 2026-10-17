@@ -58,10 +58,10 @@ export function CustomerAccount() {
   if (section) {
     return (
       <div className="animate-fade-up max-w-2xl mx-auto">
-        <button type="button" onClick={() => open("")} className="mb-2 inline-flex min-h-[44px] items-center gap-1 rounded-lg px-2 -ml-2 text-[14px] font-semibold text-teal-700 hover:bg-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+        <button type="button" onClick={() => open("")} className="mb-2 inline-flex min-h-[44px] items-center gap-1 rounded-lg px-2 -ml-2 text-guest-body font-semibold text-teal-700 hover:bg-white/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
           <Icon.chevL size={18} /> {t("Account")}
         </button>
-        <h1 className="font-display font-bold text-[26px] text-navy-900 mb-4">{titleOf(section, t)}</h1>
+        <h1 className="font-display font-bold text-guest-title text-navy-900 mb-4">{titleOf(section, t)}</h1>
         {section === "profile" && <ProfilePage />}
         {section === "companions" && <CompanionsPage />}
         {section === "payment" && <PaymentPage />}
@@ -78,12 +78,12 @@ export function CustomerAccount() {
     <div className="animate-fade-up max-w-2xl mx-auto space-y-5">
       <h1 className="sr-only">{t("Account")}</h1>
       <button type="button" onClick={() => open("profile")} className="w-full glass-flat rounded-3xl p-4 sm:p-5 flex items-center gap-4 text-left hover:bg-white/80 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
-        <span aria-hidden className="w-14 h-14 rounded-2xl grid place-items-center text-white text-lg font-bold shrink-0" style={{ background: "linear-gradient(135deg,#f7b535,#e8920e)" }}>
+        <span aria-hidden className="w-14 h-14 rounded-2xl grid place-items-center text-white text-guest-head font-bold shrink-0" style={{ background: "linear-gradient(135deg,#f7b535,#e8920e)" }}>
           {PROFILE.first[0]}{PROFILE.last[0]}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block font-display font-bold text-[19px] text-navy-900">{PROFILE.first} {PROFILE.last}</span>
-          <span className="block text-[13px] text-slate-600 truncate">{PROFILE.email} · {PROFILE.phone}</span>
+          <span className="block font-display font-bold text-guest-head text-navy-900">{PROFILE.first} {PROFILE.last}</span>
+          <span className="block text-guest-meta text-slate-600 truncate">{PROFILE.email} · {PROFILE.phone}</span>
         </span>
         <Icon.chevR size={18} className="text-slate-400 shrink-0" />
       </button>
@@ -102,7 +102,7 @@ export function CustomerAccount() {
         <Row icon={Icon.lock} tone="bg-slate-600" label={t("Sign-in & security")} onClick={() => open("security")} />
       </Group>
       <Group>
-        <button type="button" onClick={() => { setSignedIn(false); toast(t("Signed out (demo).")); }} className="w-full min-h-[52px] px-4 text-left text-[15px] font-semibold text-rose-700 hover:bg-rose-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500">
+        <button type="button" onClick={() => { setSignedIn(false); toast(t("Signed out (demo).")); }} className="w-full min-h-[52px] px-4 text-left text-guest-body font-semibold text-rose-700 hover:bg-rose-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500">
           {t("Sign out")}
         </button>
       </Group>
@@ -118,8 +118,8 @@ function Row({ icon: I, tone, label, value, onClick }: { icon: IconRenderer; ton
   return (
     <button type="button" onClick={onClick} className="w-full min-h-[52px] px-4 py-2.5 flex items-center gap-3 text-left hover:bg-white/70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500">
       <span aria-hidden className={`w-8 h-8 rounded-lg grid place-items-center text-white shrink-0 ${tone}`}><I size={16} /></span>
-      <span className="flex-1 min-w-0 text-[15px] font-medium text-navy-900">{label}</span>
-      {value && <span className="text-[13.5px] text-slate-500 truncate max-w-[45%] text-right">{value}</span>}
+      <span className="flex-1 min-w-0 text-guest-body font-medium text-navy-900">{label}</span>
+      {value && <span className="text-guest-meta text-slate-500 truncate max-w-[45%] text-right">{value}</span>}
       <Icon.chevR size={16} className="text-slate-400 shrink-0" />
     </button>
   );
@@ -153,11 +153,11 @@ function CompanionsPage() {
   const setN = (id: string, n: number) => setAccount((a) => ({ ...a, party: { ...(a.party ?? {}), [id]: n } }));
   return (
     <div className="space-y-3">
-      <p className="text-[14px] text-slate-700">{t("Every booking starts with these people — change them for one visit in the booking itself.")}</p>
+      <p className="text-guest-body text-slate-700">{t("Every booking starts with these people — change them for one visit in the booking itself.")}</p>
       <div className={`${PAGE} space-y-2.5`}>
         {ex.tickets.map((c) => (
           <div key={c.id} className="flex items-center justify-between gap-3 min-h-[44px]">
-            <span className="text-[14.5px] text-navy-900">{ex.ticketLabel(c.id)}{c.id === "adult" && <span className="block text-[12px] text-slate-500">{t("Including you")}</span>}</span>
+            <span className="text-guest-body text-navy-900">{ex.ticketLabel(c.id)}{c.id === "adult" && <span className="block text-guest-caption text-slate-500">{t("Including you")}</span>}</span>
             <Stepper label={ex.ticketLabel(c.id)} value={party[c.id] ?? 0} onChange={(n) => setN(c.id, n)} />
           </div>
         ))}
@@ -180,16 +180,16 @@ function PaymentPage() {
       <div className={`${PAGE} space-y-2`}>
         <div className="flex items-center gap-3 min-h-[44px]">
           <span aria-hidden className="w-10 h-7 rounded-md bg-black text-white grid place-items-center"><AppleLogo size={14} /></span>
-          <span className="flex-1 text-[14.5px] text-navy-900">Apple Pay · Google Pay<span className="block text-[12px] text-slate-500">{t("Offered first at checkout on this device")}</span></span>
+          <span className="flex-1 text-guest-body text-navy-900">Apple Pay · Google Pay<span className="block text-guest-caption text-slate-500">{t("Offered first at checkout on this device")}</span></span>
         </div>
         {c ? (
           <div className="flex items-center gap-3 min-h-[44px] border-t border-slate-200/70 pt-2">
-            <span aria-hidden className="w-10 h-7 rounded-md bg-gradient-to-br from-navy-800 to-navy-950 text-white text-[10px] font-bold grid place-items-center">{c.brand.slice(0, 4).toUpperCase()}</span>
-            <span className="flex-1 text-[14.5px] text-navy-900">•••• {c.last4}<span className="block text-[12px] text-slate-500">{t("Exp")} {c.exp}</span></span>
+            <span aria-hidden className="w-10 h-7 rounded-md bg-gradient-to-br from-navy-800 to-navy-950 text-white text-guest-caption font-bold grid place-items-center">{c.brand.slice(0, 4).toUpperCase()}</span>
+            <span className="flex-1 text-guest-body text-navy-900">•••• {c.last4}<span className="block text-guest-caption text-slate-500">{t("Exp")} {c.exp}</span></span>
             <Btn variant="ghost" size="sm" className="text-rose-700" onClick={() => { setAccount((a) => ({ ...a, savedCard: null })); toast(`${t("Removed card ending")} ${c.last4}.`, { action: { label: t("Undo"), onClick: () => setAccount((a) => ({ ...a, savedCard: c })) } }); }}>{t("Remove")}</Btn>
           </div>
         ) : (
-          <p className="text-[13px] text-slate-600 border-t border-slate-200/70 pt-2">{t("No saved card. Tick “Save this card” when you pay and it appears here.")}</p>
+          <p className="text-guest-meta text-slate-600 border-t border-slate-200/70 pt-2">{t("No saved card. Tick “Save this card” when you pay and it appears here.")}</p>
         )}
       </div>
       <Btn variant="outline" icon={Icon.plus} onClick={() => toast(t("Demo — Stripe SetupIntent flow."))}>{t("Add card")}</Btn>
@@ -201,14 +201,14 @@ function NotificationsPage({ prefs, setPrefs }: { prefs: Record<string, boolean>
   const t = useT();
   const row = (k: string, label: string, sub: string) => (
     <div key={k} className="flex items-center justify-between gap-3 min-h-[52px] py-1.5">
-      <span className="min-w-0"><span className="block text-[14.5px] text-navy-900">{label}</span><span className="block text-[12px] text-slate-500">{sub}</span></span>
+      <span className="min-w-0"><span className="block text-guest-body text-navy-900">{label}</span><span className="block text-guest-caption text-slate-500">{sub}</span></span>
       <Toggle on={prefs[k]} onChange={(v) => setPrefs((p) => ({ ...p, [k]: v }))} ariaLabel={label} />
     </div>
   );
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 px-1">{t("How")}</h2>
+        <h2 className="text-guest-over font-semibold uppercase tracking-wide text-slate-500 mb-1.5 px-1">{t("How")}</h2>
         <div className={`${PAGE} py-1 divide-y divide-slate-200/70`}>
           {row("push", t("Push"), t("Alerts on this device."))}
           {row("email", t("E-mail"), `${t("A copy to")} ${PROFILE.email}.`)}
@@ -216,7 +216,7 @@ function NotificationsPage({ prefs, setPrefs }: { prefs: Record<string, boolean>
         </div>
       </div>
       <div>
-        <h2 className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 px-1">{t("About")}</h2>
+        <h2 className="text-guest-over font-semibold uppercase tracking-wide text-slate-500 mb-1.5 px-1">{t("About")}</h2>
         <div className={`${PAGE} py-1 divide-y divide-slate-200/70`}>
           {row("bookings", t("Booking updates"), t("Confirmations, gate scans, refunds."))}
           {row("weather", t("Weather alerts"), t("Wind or conditions affecting your visit."))}
@@ -239,13 +239,13 @@ function LanguagePage() {
       {/* Automatic follows this device's language (AENR-626). */}
       <label className="flex items-center gap-3 min-h-[52px] cursor-pointer">
         <input type="radio" name="account-lang" className="sr-only peer" checked={langAuto} onChange={setLangAuto} />
-        <span className="flex-1 text-[14.5px] text-navy-900 rounded peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500">{t("Automatic")}<span className="block text-[12px] text-slate-500">{t("Same as this device")} · {LANGUAGES.find((l) => l.code === deviceLang())?.native}</span></span>
+        <span className="flex-1 text-guest-body text-navy-900 rounded peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500">{t("Automatic")}<span className="block text-guest-caption text-slate-500">{t("Same as this device")} · {LANGUAGES.find((l) => l.code === deviceLang())?.native}</span></span>
         {langAuto && <Icon.check size={18} className="text-teal-600" />}
       </label>
       {langs.map((l) => (
         <label key={l.code} className="flex items-center gap-3 min-h-[52px] cursor-pointer">
           <input type="radio" name="account-lang" className="sr-only peer" checked={!langAuto && lang === l.code} onChange={() => setLang(l.code)} />
-          <span className="flex-1 text-[14.5px] text-navy-900 rounded peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500">{l.native}<span className="block text-[12px] text-slate-500">{l.label}{l.mvp || !showPreviews ? "" : ` · ${t("FUTURE")}`}</span></span>
+          <span className="flex-1 text-guest-body text-navy-900 rounded peer-focus-visible:ring-2 peer-focus-visible:ring-teal-500">{l.native}<span className="block text-guest-caption text-slate-500">{l.label}{l.mvp || !showPreviews ? "" : ` · ${t("FUTURE")}`}</span></span>
           {!langAuto && lang === l.code && <Icon.check size={18} className="text-teal-600" />}
         </label>
       ))}
@@ -263,7 +263,7 @@ function PrivacyPage() {
         <Row icon={Icon.shieldCheck} tone="bg-emerald-600" label={t("Privacy Centre")} value={t("Your data")} onClick={() => setPrivacy(true)} />
         <Row icon={Icon.shield} tone="bg-slate-600" label={t("Cookie choices")} onClick={reopenConsent} />
       </Group>
-      <p className="mt-2 px-1 text-[12.5px] text-slate-600">{t("Export your data, manage consents, see who processes it, or delete your account.")}</p>
+      <p className="mt-2 px-1 text-guest-meta text-slate-600">{t("Export your data, manage consents, see who processes it, or delete your account.")}</p>
       <PrivacyCenter open={privacy} onClose={() => setPrivacy(false)} />
     </>
   );

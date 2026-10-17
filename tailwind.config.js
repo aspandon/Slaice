@@ -28,6 +28,16 @@ export default {
         // Elevation by role (AENR-549): data sits on solid surfaces; glass is for chrome.
         surface: { DEFAULT: "#F4F6F9", raised: "#FFFFFF", overlay: "#FFFFFF" },
       },
+      // Customer type scale (AENR-706): every guest-facing page reads at the
+      // Account page's sizes. Back-office roles keep the default scale.
+      fontSize: {
+        "guest-title": ["26px", { lineHeight: "1.15" }],
+        "guest-head": ["19px", { lineHeight: "1.25" }],
+        "guest-body": ["15px", { lineHeight: "1.45" }],
+        "guest-meta": ["13.5px", { lineHeight: "1.4" }],
+        "guest-caption": ["12px", { lineHeight: "1.35" }],
+        "guest-over": ["11px", { lineHeight: "1.3" }],
+      },
       borderRadius: {
         "4xl": "2rem",
       },
