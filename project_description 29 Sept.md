@@ -583,7 +583,7 @@ Entrance motion: full choreography once per session, then a quick card stagger o
    summary: "2 umbrella sets · CE-01, CE-04 · €50 × 1 day"  [Clear]
 
  (2) WHO ─ "Tell us who's coming"
-   Quick picks  [Solo] [Couple] [Family · 4] [Group · 6]      [+ Add Entry tickets]
+   Quick picks  [Solo] [Adult ×2] [Adult ×3] [Adult ×4]      [+ Add Entry tickets]
    Individual 13+  €10   [−] 4 [+]      ◀── auto: 2 adults per picked set,
    Alimos resident  €6   [−] 0 [+]          until the guest edits
    Child 6–12       €5   [−] 0 [+]
@@ -669,12 +669,11 @@ back; forward only via Continue). Footer: live **Total €** (animated) + **Back
 - Categories with steppers: **Individual (13+)** €10 · **Alimos resident** €6 (proof required at gate)
   · **Child (6–12)** €5 (under 6 free) · **Senior 65+** €7 (ID required).
 - **Remembers who's coming** (AENR-613): every booking saves the party on the account (`account.party`);
-  the next booking starts with it, offered first as the **Your usual** quick pick (“You + 1 adult + 2
+  it is offered first as the **Your usual** quick pick (and a one-tap rebook keeps it) (“You + 1 adult + 2
   children”) with “Same people as last time. Change the headcount below if someone else is coming.”
-- **Auto-fill** (first booking only): until the guest edits the numbers, headcount = **2 adults per picked set** ("We
+- **Auto-fill** (every booking, AENR-712): until the guest edits the numbers, headcount = **2 adults per picked set** (5 sets → 10 tickets) ("We
   pre-filled 2 per set. Change the headcount below if you need to.").
-- **Quick picks:** Solo (1 adult), Couple (2 adults), Family · 4 (2 adults + 2 kids), Group · 6
-  (6 adults, "Friends day").
+- **Quick picks** (AENR-713): Solo (1 adult), Adult ×2, Adult ×3, Adult ×4.
 - Toggle **Add Entry tickets** (one ticket per guest) — or continue without tickets.
 - Warning when guests > 2 × sets: "That's fewer seats than guests — add a set on the Beach step if you
   need more."

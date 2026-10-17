@@ -220,12 +220,13 @@ function WizardInner() {
   }, [extrasOpen]);
 
   const [stepIdx, setStepIdx] = useState(initialStep);
-  // The party starts as the one they brought last time (AENR-613); first-timers get 2 per set.
-  const [people, setPeople] = useState<People>(() => account.party ?? (plan ? { adult: plan.picks.length * 2, resident: 0, child: 0, senior: 0 } : { adult: 0, resident: 0, child: 0, senior: 0 }));
+  // Who starts with as many tickets as the chosen sets seat — 2 per set (AENR-712); "Your usual"
+  // (AENR-613) is one tap away. A one-tap rebook of the usual keeps that party.
+  const [people, setPeople] = useState<People>(() => (plan ? account.party ?? { adult: plan.picks.length * 2, resident: 0, child: 0, senior: 0 } : { adult: 0, resident: 0, child: 0, senior: 0 }));
   const [includeTickets, setIncludeTickets] = useState(true);
   // Track whether the guest has hand-edited the headcount. Until they do, we
   // pre-fill it from the chosen sets (2 entry tickets per set — see below).
-  const [peopleTouched, setPeopleTouched] = useState(!!account.party || !!plan);
+  const [peopleTouched, setPeopleTouched] = useState(!!plan);
   const [selDates, setSelDates] = useState([plan?.date ?? todayISO()]);
   const [multiDate, setMultiDate] = useState(false);
   const [zoneId, setZoneId] = useState(plan?.zoneId ?? "central");
@@ -418,7 +419,8 @@ function WizardInner() {
   // party (two guests a set) — side by side, cheapest, nearest the sea — the way an
   // airline app assigns seats. Tapping a set swaps it; the pick follows the party
   // size until the guest edits it by hand.
-  const wantSets = Math.max(1, Math.ceil((peopleTouched ? totalPeople : 2) / 2));
+  const usualSize = account.party ? Object.values(account.party).reduce((a, b) => a + b, 0) : 2;
+  const wantSets = Math.max(1, Math.ceil((peopleTouched ? totalPeople : usualSize) / 2));
   const [auto, setAuto] = useState<{ zoneId: string; ids: string[]; together: boolean; rowIdx: number; edited: boolean } | null>(null);
   const autoPick = (id: string, n = wantSets, onlyRow?: number, replace = false) => {
     const z = ZONES.find((x) => x.id === id);
@@ -1467,10 +1469,11 @@ function PeopleStep({ tickets: TICKET, people, setPeople, includeTickets, setInc
   const isUsual = !!usualParty && same(people, usualParty);
   const presets = [
     ...(usualParty ? [{ id: "usual", label: tr("Your usual"), sub: partyLabel(usualParty, Object.fromEntries(Object.entries(TICKET).map(([k, t]) => [k, t.label.toLowerCase()])), tr), v: usualParty }] : []),
-    { id: "solo",   label: tr("Solo"),       sub: tr("1 person"),     v: { adult: 1, resident: 0, child: 0, senior: 0 } },
-    { id: "couple", label: tr("Couple"),     sub: tr("2 people"),     v: { adult: 2, resident: 0, child: 0, senior: 0 } },
-    { id: "family", label: tr("Family · 4"), sub: tr("2 adults + 2 kids"), v: { adult: 2, resident: 0, child: 2, senior: 0 } },
-    { id: "group",  label: tr("Group · 6"),  sub: tr("Friends day"),  v: { adult: 6, resident: 0, child: 0, senior: 0 } },
+    // Plain adult counts (AENR-713): Solo, Adult ×2, ×3, ×4.
+    { id: "solo", label: tr("Solo"),     sub: tr("1 adult"),  v: { adult: 1, resident: 0, child: 0, senior: 0 } },
+    { id: "a2",   label: `${tr("Adult")} ×2`, sub: tr("2 adults"), v: { adult: 2, resident: 0, child: 0, senior: 0 } },
+    { id: "a3",   label: `${tr("Adult")} ×3`, sub: tr("3 adults"), v: { adult: 3, resident: 0, child: 0, senior: 0 } },
+    { id: "a4",   label: `${tr("Adult")} ×4`, sub: tr("4 adults"), v: { adult: 4, resident: 0, child: 0, senior: 0 } },
   ];
   return (
     <div className="space-y-4">
