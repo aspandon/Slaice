@@ -61,19 +61,23 @@ export function CustomerBookings() {
   return (
     <div className="space-y-4 max-w-4xl mx-auto">
       <h1 className="sr-only">{t("My bookings")}</h1>
-      {/* Season in review — from the guest's own visits */}
+      {/* Season in review — from the guest's own visits. Light glass like the rest of the
+          guest app, not a dark band (AENR-688). */}
       <Card className="overflow-hidden">
-        <div className="grad-sea text-white p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
-          <div>
-            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-teal-200"><Icon.sparkles size={13} /> {t("Your season in review")}</div>
-            <div className="mt-1 font-display font-bold text-xl">{t("You've had a sunny summer, Elena ☀️")}</div>
-            <div className="text-[13px] text-white/80 mt-0.5">{used.length} {t("visits")} · {t("favourite zone")} <b className="text-white">{fav}</b></div>
+        <div className="p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+          <div className="flex items-start gap-3 min-w-0">
+            <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.sparkles size={18} /></span>
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">{t("Your season in review")}</div>
+              <div className="mt-0.5 font-display font-bold text-xl text-navy-900">{t("You've had a sunny summer, Elena ☀️")}</div>
+              <div className="text-[13px] text-slate-600 mt-0.5">{used.length} {t("visits")} · {t("favourite zone")} <b className="text-navy-900">{fav}</b></div>
+            </div>
           </div>
-          <div className="flex items-center gap-5 shrink-0">
-            <div className="text-center"><div className="text-2xl font-bold font-display tnum">{used.length}</div><div className="text-[11px] text-white/70">{t("visits")}</div></div>
-            <div className="text-center"><div className="text-2xl font-bold font-display tnum">€{spent}</div><div className="text-[11px] text-white/70">{t("spent")}</div></div>
-            <div className="w-px h-10 bg-white/20" />
-            <div className="w-28"><Sparkline data={[1, 2, 1, 3, 2, 4, 3, 5]} color="#5EEAD4" width={112} height={36} /><div className="text-[10px] text-white/70 text-center mt-1">{t("visits / month")}</div></div>
+          <div className="flex items-center gap-5 shrink-0 sm:pl-0 pl-[52px]">
+            <div className="text-center"><div className="text-2xl font-bold font-display tnum text-navy-900">{used.length}</div><div className="text-[11px] text-slate-500">{t("visits")}</div></div>
+            <div className="text-center"><div className="text-2xl font-bold font-display tnum text-navy-900">€{spent}</div><div className="text-[11px] text-slate-500">{t("spent")}</div></div>
+            <div className="w-px h-10 bg-slate-200" />
+            <div className="w-28"><Sparkline data={[1, 2, 1, 3, 2, 4, 3, 5]} color="#0D9488" width={112} height={36} /><div className="text-[10px] text-slate-500 text-center mt-1">{t("visits / month")}</div></div>
           </div>
         </div>
       </Card>

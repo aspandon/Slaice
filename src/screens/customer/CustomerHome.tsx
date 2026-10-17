@@ -347,8 +347,10 @@ function RewardsStrip({ rewards, ready }: { rewards: ReturnType<typeof activeRew
     <button type="button" onClick={() => go("customer", "wallet")} className={`${CARD} px-5 py-4 text-left flex flex-wrap items-center gap-x-4 gap-y-2 hover:bg-white/80 transition-colors group`} data-home-card>
       <span className="w-9 h-9 rounded-xl grid place-items-center bg-teal-600 text-white shrink-0"><Icon.gift size={17} /></span>
       <span className="min-w-0 flex-1 basis-[12rem]">
-        <span className="block font-semibold text-navy-900 text-[14px]">
+        <span className="flex flex-wrap items-center gap-2 font-semibold text-navy-900 text-[14px]">
           {st.kind === "progress" ? `${st.current}/${st.target} ${t(st.unit)} ${t("to")} ${st.reward}` : `${t(top.title)} · ${st.reward}`}
+          {/* Loyalty rewards are a roadmap feature (AENR-679). */}
+          <NotMvpBadge />
         </span>
         <span className="mt-1.5 block h-1.5 rounded-full bg-slate-200 overflow-hidden max-w-md" aria-hidden>
           <span className="block h-full rounded-full bg-gradient-to-r from-navy-700 to-teal-500" style={{ width: `${pct}%` }} />

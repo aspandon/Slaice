@@ -231,8 +231,7 @@ export function AdminLiveBeach() {
             </button>
           ))}
         </div>
-        <ZoneChips value={zoneId} onChange={pickZone} className="w-full" all={{ sub: `${stats.reduce((a, x) => a + (x.closed ? 0 : x.free), 0)} free` }}
-          info={(id) => { const x = stats.find((z) => z.zone.id === id); return !x ? {} : x.closed ? { sub: "Closed", off: true } : { sub: `${x.free} free · ${x.booked + x.inUse} booked`, off: x.free === 0 }; }} />
+        {/* The view switch sits beside Today / Tomorrow, above the zones (AENR-675). */}
         {!overview && (
         <div
           role="radiogroup"
@@ -258,6 +257,8 @@ export function AdminLiveBeach() {
           ))}
         </div>
         )}
+        <ZoneChips value={zoneId} onChange={pickZone} className="w-full" all={{ sub: `${stats.reduce((a, x) => a + (x.closed ? 0 : x.free), 0)} free` }}
+          info={(id) => { const x = stats.find((z) => z.zone.id === id); return !x ? {} : x.closed ? { sub: "Closed", off: true } : { sub: `${x.free} free · ${x.booked + x.inUse} booked`, off: x.free === 0 }; }} />
       </div>
 
       {overview ? (

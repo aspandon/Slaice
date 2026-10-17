@@ -509,6 +509,9 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-670 — your zone stays on the sand.** Who and Pay show the zone you booked in with your sets; the zone row sits mid-sand.
 - **AENR-671 — the beach logo in the wizard.** Shown large over the sea on desktop, as on Home.
 - **AENR-672 — the logo glides with the sand.** From the Home header to its place over the sea and back.
+- **AENR-675 — Live beach: Live state / Heatmap beside Today / Tomorrow**, above the zone chips.
+- **AENR-679 — rewards strip on Home marked FUTURE.**
+- **AENR-688 — My bookings "season in review" in the app's light card style.**
 - **AENR-681 — no deposit option.** Checkout always takes the full amount; one fewer decision before paying.
 - **AENR-703 — Show QR on desktop opens a modal**, not a white full screen; phones keep the full screen for the gate.
 - **AENR-704 — Add a locker or parking shows only those two**; entry tickets stay in My bookings › Add extras.
