@@ -30,6 +30,8 @@ export const QUICK_KEYS: QuickKey[] = [
   { id: "q-2a", label: "2 Adults", tickets: { adult: 2 } },
   { id: "q-ac", label: "Adult + Child", tickets: { adult: 1, child: 1 } },
   { id: "q-res", label: "2 Residents", tickets: { resident: 2 } },
+  { id: "q-fam", label: "2 Adults + 2 Children", tickets: { adult: 2, child: 2 } },
+  { id: "q-sen", label: "2 Seniors", tickets: { senior: 2 } },
   { id: "q-set", label: "1 set (any free)", tickets: {}, sets: 1 },
 ];
 

@@ -30,10 +30,10 @@ import { useTenantFeatures } from "../../lib/useFeatures";
    Payment: card / cash / voucher, split as needed. Every sale → ΑΠΥ to myDATA. */
 
 type Pin = { reason: string; then: (manager: string) => void };
-type ProductTab = "quick" | "tickets" | "sunbeds" | "lockers" | "parking";
+type ProductTab = "quick" | "sunbeds" | "lockers" | "parking";
+// Quick and Tickets are one tab (AENR-721): the Quick look, with a key per ticket category.
 const PRODUCT_TABS: { id: ProductTab; label: string; icon: IconRenderer }[] = [
   { id: "quick", label: "Quick", icon: Icon.bolt },
-  { id: "tickets", label: "Tickets", icon: Icon.ticket },
   { id: "sunbeds", label: "Sunbeds", icon: Icon.umbrella },
   { id: "lockers", label: "Lockers", icon: Icon.lock },
   { id: "parking", label: "Parking", icon: Icon.car },
@@ -81,12 +81,13 @@ function IssueInner() {
   const [tabPick, setTab] = useState<ProductTab>("quick");
   // The Sell tabs the tenant switched on (AENR-721), each also needing its module (AENR-696).
   const { feature } = useTenantFeatures();
-  const tabs = PRODUCT_TABS.filter((x) => feature(`till.${x.id}`));
+  const tabs = PRODUCT_TABS.filter((x) => (x.id === "quick" ? feature("till.quick") || feature("till.tickets") : feature(`till.${x.id}`)));
+  const canQuick = feature("till.quick");
   const tab: ProductTab | undefined = tabs.some((x) => x.id === tabPick) ? tabPick : tabs[0]?.id;
   const canTickets = feature("till.tickets");
   const canSets = feature("till.sunbeds");
-  const quickKeys = QUICK_KEYS.filter((q) => (canTickets || !Object.values(q.tickets).some((n) => (n ?? 0) > 0)) && (canSets || !q.sets));
-  const bundles = canTickets && canSets ? BUNDLES : [];
+  const quickKeys = !canQuick ? [] : QUICK_KEYS.filter((q) => (canTickets || !Object.values(q.tickets).some((n) => (n ?? 0) > 0)) && (canSets || !q.sets));
+  const bundles = canQuick && canTickets && canSets ? BUNDLES : [];
 
   const zone = ZONES.find((z) => z.id === zoneId) ?? ZONES[0];
   const priceOf = (s: SunbedSlot, zId = zone.id) => resolvePrice(s, zId, t.day, beachPricing, priceRules).price;
@@ -209,7 +210,7 @@ function IssueInner() {
     document.getElementById(`till-tab-${id}`)?.focus();
   };
   const tabCount = (id: ProductTab) =>
-    id === "tickets" ? lines.filter((l) => l.kind === "ticket").reduce((a, l) => a + l.qty, 0)
+    id === "quick" ? lines.filter((l) => l.kind === "ticket").reduce((a, l) => a + l.qty, 0)
     : id === "sunbeds" ? inBasket.size
     : id === "lockers" ? lines.filter((l) => l.kind === "locker").reduce((a, l) => a + l.qty, 0)
     : id === "parking" ? parkingQty
@@ -363,7 +364,36 @@ function IssueInner() {
               {!tab && <EmptyState compact icon={Icon.ticket} title="Nothing to sell here" body="Every product on the till is switched off for this beach. Slaice sets them in Platform › Tenants › Features." />}
               {tab === "quick" && (
                 <>
-                  {quickKeys.length > 0 && <h2 className="font-display font-bold text-navy-900 mb-2">Quick keys</h2>}
+                  {canTickets && <>
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 mb-2">
+                    <h2 className="font-display font-bold text-navy-900">Entry tickets</h2>
+                    <span className="text-[12px] text-slate-500">Tap to add one · anonymous</span>
+                  </div>
+                  {/* One key per category the beach sells (AENR-721): tap adds one, the badge counts
+                      what is in the basket, − takes one back. Replaces the old Tickets tab steppers. */}
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 mb-4">
+                    {ex.tickets.map((c) => {
+                      const n = ticketQty(c.id);
+                      const price = ex.ticketPrice(c.id, t.day);
+                      return (
+                        <div key={c.id} className="relative">
+                          <button type="button" onClick={() => setTicketQty(c.id, n + 1)} title={c.note}
+                            aria-label={`Add 1 ${c.short} ticket, ${price === 0 ? "free" : eur(price)}${n ? ` — ${n} in basket` : ""}`}
+                            className="w-full min-h-[56px] rounded-xl bg-navy-900 text-white px-4 py-1.5 font-semibold text-sm shadow-sm hover:bg-navy-800 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2">
+                            <span className="block">1 {c.short}</span>
+                            <span className="block text-[12px] font-medium text-white/70 tnum">{price === 0 ? "Free" : eur(price)}</span>
+                          </button>
+                          {n > 0 && <>
+                            <span aria-hidden className="pointer-events-none absolute top-1.5 right-1.5 min-w-[22px] h-[22px] px-1.5 rounded-full bg-teal-500 text-white text-[12px] font-bold grid place-items-center tnum">{n}</span>
+                            <button type="button" onClick={() => setTicketQty(c.id, n - 1)} aria-label={`Remove 1 ${c.short} ticket`}
+                              className="absolute bottom-1.5 left-1.5 w-7 h-7 rounded-full bg-white/95 text-navy-900 shadow grid place-items-center hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"><Icon.minus size={13} /></button>
+                          </>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  </>}
+                  {quickKeys.length > 0 && <h2 className="font-display font-bold text-navy-900 mb-2">Combos</h2>}
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
                     {quickKeys.map((q) => (
                       <button key={q.id} type="button" onClick={() => quick(q)}
@@ -394,26 +424,6 @@ function IssueInner() {
                   </div>
                   </>}
                   {canSets && <p className="mt-3 text-[12px] text-slate-500">Sets go in the zone picked under <button type="button" className="font-semibold text-teal-700 hover:underline" onClick={() => setTab("sunbeds")}>Sunbeds</button> (now {zone.name}).</p>}
-                </>
-              )}
-
-              {tab === "tickets" && (
-                <>
-                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 mb-2">
-                    <h2 className="font-display font-bold text-navy-900">Entry tickets</h2>
-                    <span className="text-[12px] text-slate-500">Anonymous · skip for a sunbed-only sale</span>
-                  </div>
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(250px,1fr))] gap-2">
-                    {ex.tickets.map((c) => (
-                      <div key={c.id} className="flex items-center justify-between gap-2 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2">
-                        <div className="min-w-0">
-                          <div className="font-semibold text-navy-900 text-sm" title={c.note}>{c.short}</div>
-                          <div className="text-[12px] text-slate-600">{ex.ticketPrice(c.id, t.day) === 0 ? "Free" : `€${ex.ticketPrice(c.id, t.day)} each`}{c.note ? <span className="block text-[11px] text-slate-500">{c.note}</span> : null}</div>
-                        </div>
-                        <Stepper size="lg" label={`${c.short} tickets`} value={ticketQty(c.id)} onChange={(v) => setTicketQty(c.id, v)} />
-                      </div>
-                    ))}
-                  </div>
                 </>
               )}
 

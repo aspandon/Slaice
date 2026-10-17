@@ -95,14 +95,14 @@ export const TENANT_FEATURES: readonly TenantFeatureDef[] = [
     key: "till.quick",
     label: "Quick keys",
     description:
-      "The Quick tab on the cashier's Sell page — one-tap keys, Repeat last sale and bundles.",
+      "Combos, Repeat last sale and bundles on the cashier's Quick tab.",
     group: "Cashier till",
     default: true,
   },
   {
     key: "till.tickets",
-    label: "Tickets",
-    description: "Entry tickets sold at the till.",
+    label: "Entry tickets",
+    description: "Entry tickets sold at the till — a key per category on the Quick tab (AENR-721).",
     group: "Cashier till",
     default: true,
     module: "Entry Ticket",
