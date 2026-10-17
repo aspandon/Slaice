@@ -4,7 +4,7 @@ import { QR } from "../../components/charts";
 import { useApp } from "../../app/store";
 import { readHashQuery } from "../../app/router";
 import { TENANT, WEATHER_DEMO, ZONES, todayISO } from "../../data/beach";
-import { DISPLAY_TEXT, PAIR_CODE_TTL, newPairCode, readPending, writePending, type PendingCode, availLevel, effectiveTheme, type AvailLevel, type DisplayTheme } from "../../domain/display";
+import { DISPLAY_TEXT, displayLangs, type DisplayText, PAIR_CODE_TTL, newPairCode, readPending, writePending, type PendingCode, availLevel, effectiveTheme, type AvailLevel, type DisplayTheme } from "../../domain/display";
 import type { SunbedSlot, Zone } from "../../domain/types";
 import { useClosure, useLiveSlots, useNow } from "../../lib/useLiveSlots";
 
@@ -122,14 +122,16 @@ function DisplayBoard() {
         ? ["overview", ...zones.map((z) => z.id)]
         : ["overview"];
   const [step, setStep] = useState(0);
-  const cycles = views.length > 1 || cfg.langs.length > 1;
+  // Exactly the chosen languages, in the manager's order (AENR-678); one = no rotation.
+  const langs = displayLangs(cfg.langs);
+  const cycles = views.length > 1 || langs.length > 1;
   useEffect(() => {
     if (!cycles) return;
     const id = window.setInterval(() => setStep((s) => s + 1), Math.max(4, cfg.interval) * 1000);
     return () => window.clearInterval(id);
   }, [cycles, cfg.interval]);
   const view = views[step % views.length];
-  const lang = cfg.langs.length ? cfg.langs[step % cfg.langs.length] : "en";
+  const lang = langs[step % langs.length];
   const T = DISPLAY_TEXT[lang];
 
   // "Updated" heartbeat: any change to availability, or a successful 30 s tick while online.
@@ -320,7 +322,7 @@ function DisplayBoard() {
   );
 }
 
-type Txt = (typeof DISPLAY_TEXT)["en"] | (typeof DISPLAY_TEXT)["el"];
+type Txt = DisplayText;
 type Th = (typeof THEME)["dark"];
 
 /* Every zone in its place on the beach (portrait: a list), with free / total and a labelled fill bar. */

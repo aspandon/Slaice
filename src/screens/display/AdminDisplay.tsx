@@ -2,8 +2,9 @@ import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, Field, Input, Select, Toggle } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { ZONES } from "../../data/beach";
-import { DEFAULT_DISPLAY, THEME_LABEL, readPending, writePending, displayUrl, effectiveTheme, openDisplay, type DisplayConfig } from "../../domain/display";
-import { useState } from "react";
+import { DEFAULT_DISPLAY, DISPLAY_LANGS, THEME_LABEL, displayLangs, type DisplayLang, readPending, writePending, displayUrl, effectiveTheme, openDisplay, type DisplayConfig } from "../../domain/display";
+import { useEffect, useRef, useState } from "react";
+import { LANGUAGES } from "../../app/i18n";
 import { useUndoToast } from "../../lib/useUndo";
 import { useNow } from "../../lib/useLiveSlots";
 
@@ -149,20 +150,8 @@ export function AdminDisplay() {
               onChange={(v) => set({ showWeather: v })}
               label="Weather"
             />
-            <Field label="Languages">
-              <Select
-                value={cfg.langs.join("+")}
-                onChange={(e) =>
-                  set({ langs: e.target.value.split("+") as DisplayConfig["langs"] })
-                }
-                options={[
-                  { v: "en+el", l: "English ↔ Greek (rotate)" },
-                  { v: "en", l: "English" },
-                  { v: "el", l: "Greek" },
-                ]}
-              />
-            </Field>
           </section>
+          <DisplayLanguages />
           {/* Day / Night / Auto (AENR-594): applies to every open display window at once. */}
           <fieldset>
             <legend className="text-[12px] font-semibold text-slate-700 mb-1.5">Look</legend>
@@ -239,6 +228,123 @@ export function AdminDisplay() {
         </Card>
       </div>
     </div>
+  );
+}
+
+/* ============ Languages on the screen (AENR-678) ============
+   Any combination of the app's languages, in the order the manager sets.
+   The screen moves to the next one with every view change; one language =
+   no language rotation. At least one stays ticked. */
+const LANG_NAME = Object.fromEntries(LANGUAGES.map((l) => [l.code, l])) as Record<string, (typeof LANGUAGES)[number] | undefined>;
+function DisplayLanguages() {
+  const { display: cfg, setDisplay } = useApp();
+  const langs = displayLangs(cfg.langs);
+  const chosen = new Set<DisplayLang>(langs);
+  const [note, setNote] = useState("");
+  const [live, setLive] = useState("");
+  const listRef = useRef<HTMLUListElement>(null);
+  const refocus = useRef<{ code: DisplayLang; dir: "up" | "down" } | null>(null);
+  const native = (c: DisplayLang) => LANG_NAME[c]?.native ?? c.toUpperCase();
+  const save = (next: DisplayLang[]) => setDisplay((c) => ({ ...c, langs: next }));
+  const toggle = (code: DisplayLang, on: boolean) => {
+    if (!on && langs.length === 1) {
+      setNote(`Keep at least one language — the screen needs one to show. Tick another first to replace ${native(code)}.`);
+      return;
+    }
+    setNote("");
+    save(on ? [...langs, code] : langs.filter((x) => x !== code));
+  };
+  const move = (code: DisplayLang, d: -1 | 1) => {
+    const i = langs.indexOf(code);
+    const j = i + d;
+    if (i < 0 || j < 0 || j >= langs.length) return;
+    const next = [...langs];
+    [next[i], next[j]] = [next[j], next[i]];
+    refocus.current = { code, dir: d < 0 ? "up" : "down" };
+    setLive(`${native(code)} moved to position ${j + 1} of ${next.length}.`);
+    save(next);
+  };
+  // Reordering moves the row in the DOM; keep keyboard focus on the button that was pressed
+  // (or its partner once the row reaches the top / bottom).
+  useEffect(() => {
+    const f = refocus.current;
+    if (!f) return;
+    refocus.current = null;
+    const q = (dir: string) => listRef.current?.querySelector<HTMLButtonElement>(`[data-move="${f.code}-${dir}"]`);
+    const btn = q(f.dir);
+    (btn && !btn.disabled ? btn : q(f.dir === "up" ? "down" : "up"))?.focus();
+  }, [cfg.langs]);
+  const listed = [...langs, ...DISPLAY_LANGS.filter((c) => !chosen.has(c))];
+  return (
+    <section aria-labelledby="display-langs-h">
+      <h2 id="display-langs-h" className="font-semibold text-navy-900 mb-1">Languages</h2>
+      <p className="text-[12px] text-slate-500 mb-2">
+        Tick the languages to show and set their order.{" "}
+        {langs.length === 1
+          ? `The screen stays in ${native(langs[0])}.`
+          : `The screen rotates ${langs.map(native).join(" → ")}, changing with every view (${cfg.interval} s).`}
+      </p>
+      <ul ref={listRef} className="space-y-1">
+        {listed.map((code) => {
+          const i = langs.indexOf(code);
+          const on = i >= 0;
+          const l = LANG_NAME[code];
+          return (
+            <li key={code} className={`flex items-center gap-2 rounded-lg ring-1 px-2 py-1 ${on ? "ring-teal-300 bg-teal-50/60" : "ring-slate-200"}`}>
+              <label className="flex-1 min-w-0 flex items-center gap-2 min-h-[40px] text-sm">
+                <input
+                  type="checkbox"
+                  className="accent-teal-600 w-4 h-4"
+                  checked={on}
+                  aria-describedby={note && on ? "display-langs-note" : undefined}
+                  onChange={(e) => toggle(code, e.target.checked)}
+                />
+                <span
+                  aria-hidden
+                  className={`w-5 h-5 shrink-0 grid place-items-center rounded-full text-[11px] font-bold tnum ${on ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-400"}`}
+                >
+                  {on ? i + 1 : "–"}
+                </span>
+                <span lang={l?.html} className="font-semibold text-navy-900">{l?.native ?? code}</span>
+                {l && l.native !== l.label && (
+                  <span className="text-[12px] text-slate-500 truncate">{l.label}</span>
+                )}
+              </label>
+              {on && langs.length > 1 && (
+                <>
+                  <button
+                    type="button"
+                    data-move={`${code}-up`}
+                    aria-label={`Move ${l?.label ?? code} up`}
+                    disabled={i === 0}
+                    onClick={() => move(code, -1)}
+                    className="w-8 h-8 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                  >
+                    <Icon.chevD size={14} className="rotate-180" />
+                  </button>
+                  <button
+                    type="button"
+                    data-move={`${code}-down`}
+                    aria-label={`Move ${l?.label ?? code} down`}
+                    disabled={i === langs.length - 1}
+                    onClick={() => move(code, 1)}
+                    className="w-8 h-8 grid place-items-center rounded-lg text-slate-500 hover:bg-slate-100 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                  >
+                    <Icon.chevD size={14} />
+                  </button>
+                </>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {note && (
+        <p id="display-langs-note" role="alert" className="mt-1.5 text-[12px] text-amber-800">
+          {note}
+        </p>
+      )}
+      <p aria-live="polite" className="sr-only">{live}</p>
+    </section>
   );
 }
 

@@ -32,7 +32,7 @@ import { DEFAULT_SUNBED_OPS, type SunbedOpsState } from "./domain/sunbedOps";
 import { DEFAULT_BOOKING_OPS } from "./data/bookingOps";
 import type { BookingOpsState } from "./domain/bookingOps";
 import type { PayLink } from "./domain/payLink";
-import { DEFAULT_DISPLAY, type DisplayConfig } from "./domain/display";
+import { DEFAULT_DISPLAY, displayLangs, type DisplayConfig } from "./domain/display";
 import { lazyWithReload } from "./lib/staleChunk";
 import { GuardCtx } from "./components/ui";
 import { ViewAsBanner } from "./screens/tenant/ViewAs";
@@ -199,7 +199,11 @@ export default function App() {
   const setBookingOps = useCallback((u: (s: BookingOpsState) => BookingOpsState) => setBookingOpsState(u), []);
   const [payLinks, setPayLinksState] = useState<PayLink[]>(saved.payLinks || []);
   const setPayLinks = useCallback((u: (s: PayLink[]) => PayLink[]) => setPayLinksState(u), []);
-  const [display, setDisplayState] = useState<DisplayConfig>({ ...DEFAULT_DISPLAY, ...(saved.display || {}) });
+  const [display, setDisplayState] = useState<DisplayConfig>(() => {
+    const d = { ...DEFAULT_DISPLAY, ...(saved.display || {}) };
+    // AENR-678: older saves held "en+el" / "en" / "el"; keep them, drop anything unknown.
+    return { ...d, langs: displayLangs(d.langs) };
+  });
   const setDisplay = useCallback((u: (s: DisplayConfig) => DisplayConfig) => setDisplayState(u), []);
   const [layouts, setLayoutsState] = useState<LayoutState>({ ...DEFAULT_LAYOUT_STATE, ...(saved.layouts || {}) });
   const setLayouts = useCallback((u: (s: LayoutState) => LayoutState) => setLayoutsState(u), []);

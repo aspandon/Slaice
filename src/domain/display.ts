@@ -4,6 +4,16 @@
 /** Night = the dark theme, Day = light; Auto follows the tenant's sunrise / sunset (AENR-594). */
 export type DisplayTheme = "dark" | "light" | "auto" | "contrast";
 export const THEME_LABEL: Record<DisplayTheme, string> = { light: "Day", dark: "Night", auto: "Auto", contrast: "High contrast" };
+/** Languages the signage is written in — every language the app offers (AENR-678). */
+export const DISPLAY_LANGS = ["en", "el", "de", "fr", "es", "it"] as const;
+export type DisplayLang = (typeof DISPLAY_LANGS)[number];
+const isDisplayLang = (x: unknown): x is DisplayLang => DISPLAY_LANGS.some((l) => l === x);
+/** A saved language list made safe to render: known codes only, no repeats, never empty. */
+export function displayLangs(saved: unknown): DisplayLang[] {
+  const list = Array.isArray(saved) ? saved.filter(isDisplayLang) : [];
+  const unique = [...new Set(list)];
+  return unique.length ? unique : ["en"];
+}
 export interface DisplayConfig {
   /** Zones to show, in order; empty = every zone in the default order. */
   zones: string[];
@@ -13,8 +23,8 @@ export interface DisplayConfig {
   showPrices: boolean;
   showQr: boolean;
   showWeather: boolean;
-  /** Languages to rotate through (en / el). */
-  langs: ("en" | "el")[];
+  /** Languages the screen rotates through, in this order (AENR-678); one = no rotation. */
+  langs: DisplayLang[];
   theme: DisplayTheme;
   /** Auto switches to Day at sunrise and to Night at sunset (HH:mm, local). */
   sunrise: string;
@@ -80,8 +90,21 @@ export function availLevel(free: number, total: number, closed = false): AvailLe
   return r >= 0.5 ? "plenty" : r >= 0.2 ? "filling" : "almost";
 }
 
-/** Signage copy — English and Greek (the display rotates between them). */
-export const DISPLAY_TEXT = {
+/** Signage copy, one entry per display language (the screen rotates through the chosen ones). */
+export interface DisplayText {
+  freeNow: (n: number) => string;
+  from: (p: number) => string;
+  free: string;
+  of: string;
+  level: Record<AvailLevel, string>;
+  legend: { a: string; h: string; u: string; b: string };
+  book: string;
+  updated: (t: string) => string;
+  stale: (t: string) => string;
+  overview: string;
+  prices: string;
+}
+export const DISPLAY_TEXT: Record<DisplayLang, DisplayText> = {
   en: {
     freeNow: (n: number) => `${n} sunbed set${n === 1 ? "" : "s"} free now`,
     from: (p: number) => `from €${p}`,
@@ -120,7 +143,85 @@ export const DISPLAY_TEXT = {
     overview: "Όλα τα καταστήματα",
     prices: "Τιμές σήμερα",
   },
-} as const;
+  de: {
+    freeNow: (n: number) => `${n} Liegen-Set${n === 1 ? "" : "s"} jetzt frei`,
+    from: (p: number) => `ab ${p} €`,
+    free: "frei",
+    of: "von",
+    level: {
+      plenty: "Viel frei",
+      filling: "Füllt sich",
+      almost: "Fast voll",
+      full: "Voll",
+      closed: "Heute geschlossen",
+    },
+    legend: { a: "Frei", h: "Reserviert", u: "Belegt", b: "Außer Betrieb" },
+    book: "Liege bequem per Handy buchen",
+    updated: (t: string) => `Aktualisiert ${t}`,
+    stale: (t: string) => `Offline — Verfügbarkeit von ${t}`,
+    overview: "Alle Zonen",
+    prices: "Preise heute",
+  },
+  fr: {
+    freeNow: (n: number) =>
+      n === 1 ? `${n} ensemble de transats libre maintenant` : `${n} ensembles de transats libres maintenant`,
+    from: (p: number) => `dès ${p} €`,
+    free: "libres",
+    of: "sur",
+    level: {
+      plenty: "Beaucoup de places",
+      filling: "Se remplit",
+      almost: "Presque complet",
+      full: "Complet",
+      closed: "Fermé aujourd’hui",
+    },
+    legend: { a: "Libre", h: "En attente", u: "Occupé", b: "Hors service" },
+    book: "Réservez votre transat sur votre téléphone",
+    updated: (t: string) => `Mis à jour ${t}`,
+    stale: (t: string) => `Hors ligne — disponibilité de ${t}`,
+    overview: "Toutes les zones",
+    prices: "Prix du jour",
+  },
+  es: {
+    freeNow: (n: number) =>
+      n === 1 ? `${n} set de tumbonas libre ahora` : `${n} sets de tumbonas libres ahora`,
+    from: (p: number) => `desde ${p} €`,
+    free: "libres",
+    of: "de",
+    level: {
+      plenty: "Muchas libres",
+      filling: "Se está llenando",
+      almost: "Casi lleno",
+      full: "Lleno",
+      closed: "Cerrado hoy",
+    },
+    legend: { a: "Libre", h: "En espera", u: "Ocupado", b: "Fuera de servicio" },
+    book: "Reserva tu tumbona desde el móvil",
+    updated: (t: string) => `Actualizado ${t}`,
+    stale: (t: string) => `Sin conexión — disponibilidad de las ${t}`,
+    overview: "Todas las zonas",
+    prices: "Precios de hoy",
+  },
+  it: {
+    freeNow: (n: number) => `${n} set di lettini liber${n === 1 ? "o" : "i"} ora`,
+    from: (p: number) => `da ${p} €`,
+    free: "liberi",
+    of: "su",
+    level: {
+      plenty: "Molti liberi",
+      filling: "Si sta riempiendo",
+      almost: "Quasi pieno",
+      full: "Pieno",
+      closed: "Chiuso oggi",
+    },
+    legend: { a: "Libero", h: "In attesa", u: "Occupato", b: "Fuori servizio" },
+    book: "Prenota il tuo lettino dal telefono",
+    updated: (t: string) => `Aggiornato ${t}`,
+    stale: (t: string) => `Offline — disponibilità delle ${t}`,
+    overview: "Tutte le zone",
+    prices: "Prezzi di oggi",
+  },
+};
 
 export const displayUrl = () => `${window.location.pathname}#/display`;
 /** Open the chrome-less display in its own window (for a second monitor). */
