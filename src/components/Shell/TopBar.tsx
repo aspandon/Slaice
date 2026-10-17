@@ -142,7 +142,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false 
   const navItems = NAV[persona] || [];
   const pageHelp = usePageHelp();
   // Pages outside the nav (e.g. a tenant page, AENR-500) get a plain title.
-  const currentItem = navItems.find((it) => it.k === page) ?? (page === "tenant" ? { k: "tenant", label: "Tenant", short: "Tenant", icon: "building" } : undefined);
+  const currentItem = navItems.find((it) => it.k === page) ?? (page === "tenant" ? { k: "tenant", label: "Tenant", short: "Tenant", icon: "building" } : page === "onboarding" ? { k: "onboarding", label: "Onboard tenant", short: "Onboard", icon: "bolt" } : undefined);
   const CurrentIcon = currentItem && Icon[currentItem.icon];
   return (
     <header

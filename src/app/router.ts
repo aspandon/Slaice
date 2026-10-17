@@ -17,7 +17,8 @@ export interface Route {
 const EXTRA_PAGES: Partial<Record<PersonaId, string[]>> = {
   customer: ["checkout", "confirm", "vip", "season"],
   // Per-tenant pages: #/platform/tenant/<tenantId>/<section> (AENR-500).
-  platform: ["tenant"],
+  // The onboarding wizard (Onboard tenant / resume a draft) — out of the sidebar, reached from Tenants (AENR-724).
+  platform: ["tenant", "onboarding"],
 };
 
 // Retired pages that now live elsewhere — old links keep working.
@@ -33,8 +34,7 @@ const PAGE_ALIASES: Partial<Record<PersonaId, Record<string, string>>> = {
   controller: { walkin: "beach" },
   // Sell Locker and Redeem Ticket left the till (AENR-605): lockers sell in Sell.
   cashier: { redeem: "issue", locker: "issue" },
-  platform: { onboarding: "tenants" },
-  customer: { mydocs: "account" }, // receipts moved into Account (AENR-563) // onboarding is a tenant state: Tenants › In onboarding (AENR-566)
+  customer: { mydocs: "account" }, // receipts moved into Account (AENR-563)
   // e-Invoicing & MyDATA merged into Documents (AENR-526); Commission & Payouts became Payments & payouts (AENR-642).
   accountant: { invoicing: "documents", commission: "payments" },
 };

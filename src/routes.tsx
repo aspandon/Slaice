@@ -85,6 +85,7 @@ const MAP: Record<string, () => ReactElement> = {
   // platform
   "platform.tenants": () => <PO.PlatformTenants />,
   "platform.tenant": () => <TenantPage />,
+  "platform.onboarding": () => <PO.PlatformOnboarding />,
   "platform.superadmin": () => <PO.PlatformSuperAdmin />,
   "platform.compliance": () => <P.PlatformCompliance />,
   "platform.verticals": () => <P.PlatformVerticals />,
