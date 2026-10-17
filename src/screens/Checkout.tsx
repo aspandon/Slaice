@@ -9,7 +9,7 @@ import { Card, Btn, EmptyState, SwipeRow, Toggle } from "../components/ui";
 import { QR } from "../components/charts";
 import { TenantLogo } from "../components/Brand";
 import { AppleLogo, WalletButtons } from "../components/WalletPass";
-import { TENANT, ZONES, todayISO } from "../data/beach";
+import { OPERATOR, TENANT, ZONES, todayISO } from "../data/beach";
 import { round2 } from "../data/passes";
 import { useApp, useT } from "../app/store";
 import type { CartItem } from "../domain/types";
@@ -30,7 +30,6 @@ import { ActionsMenu } from "../components/ui/ActionsMenu";
 // never collide with sample or staff bookings, and survive a reload (AENR-597).
 const bookingRefFor = (n: number) => `BK-${30001 + n}`;
 /** The operator behind the beach — shown at checkout (AENR-574). */
-export const OPERATOR = { legal: "Akti tou Iliou AE", vat: "EL123456789", address: "Leof. Poseidonos 1, 174 55 Alimos", phone: "+30 210 980 0000", email: "help@aktitouiliou.gr" };
 
 /* `embedded` (AENR-640): the booking wizard's Pay step shows only the summary and the
    payment buttons, and a paid booking goes straight to the confirmation. */

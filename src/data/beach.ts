@@ -231,6 +231,9 @@ export const TENANT = {
   subdomain: "aktitouiliou.slaice.app",
 };
 
+/** The legal operator behind the beach — on checkout and on every tax document (receipts, invoices). */
+export const OPERATOR = { legal: "Akti tou Iliou AE", vat: "EL123456789", taxOffice: "Glyfada", address: "Leof. Poseidonos 1, 174 55 Alimos", phone: "+30 210 980 0000", email: "help@aktitouiliou.gr" };
+
 /** Default zones closed for the day (demo seed) — the live list is the app
  *  zone's `closedStores`, edited in Beach, Availability & Pricing. */
 export const DEFAULT_CLOSED_STORES: Record<string, string> = { bolivar: "Closed today — private event" };

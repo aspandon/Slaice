@@ -34,7 +34,7 @@ const CHIP: Record<VisitStatus, { tone: string; label: string }> = {
 type Dialog =
   | { kind: "qr"; v: Visit }
   | { kind: "full"; v: Visit }
-  | { kind: "receipt"; v: Visit; doc: CustomerDocument }
+  | { kind: "receipt"; v: Visit; doc: CustomerDocument; issued?: boolean }
   | { kind: "invoice"; v: Visit }
   | { kind: "move"; v: Visit }
   | { kind: "extras"; v: Visit }
@@ -130,11 +130,12 @@ export function CustomerBookings() {
       {dlg?.kind === "receipt" && (
         <ReceiptModal
           doc={dlg.doc}
+          issued={dlg.issued}
           onClose={close}
           extra={!account.invoices.some((i) => i.visitKey === dlg.v.key) && dlg.v.status !== "cancelled" ? <Btn variant="outline" icon={Icon.building} onClick={() => setDlg({ kind: "invoice", v: dlg.v })}>{t("Request an invoice")}</Btn> : undefined}
         />
       )}
-      {dlg?.kind === "invoice" && <InvoiceDialog v={dlg.v} onClose={close} onIssued={(doc) => setDlg({ kind: "receipt", v: dlg.v, doc })} />}
+      {dlg?.kind === "invoice" && <InvoiceDialog v={dlg.v} onClose={close} onIssued={(doc) => setDlg({ kind: "receipt", v: dlg.v, doc, issued: true })} />}
       {dlg?.kind === "move" && <MoveDialog v={dlg.v} onClose={close} />}
       {dlg?.kind === "extras" && <ExtrasDialog v={dlg.v} onClose={close} />}
       {dlg?.kind === "cancel" && <CancelDialog v={dlg.v} onClose={close} />}
@@ -331,7 +332,7 @@ function InvoiceDialog({ v, onClose, onIssued }: { v: Visit; onClose: () => void
   const issue = () => {
     const req: InvoiceRequest = { id: `INV-${Date.now().toString().slice(-6)}`, visitKey: v.key, company: company.trim(), vatNo: vatNo.replace(/\s/g, "").toUpperCase(), address: address.trim(), amount: v.total, at: guestNow() };
     setAccount((a) => ({ ...a, invoices: [req, ...a.invoices] }));
-    toast(t("Invoice issued — it replaces the receipt for this visit."), { tone: "success" });
+    toast(t("Invoice issued — download it as a PDF."), { tone: "success" });
     onIssued(invoiceForVisit(v, req));
   };
   return (

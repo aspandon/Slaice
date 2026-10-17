@@ -138,7 +138,7 @@ function toWinAnsi(s: string): number[] {
 }
 
 // Build a PDF string literal — wraps in () and escapes ( ) \ .
-function pdfStr(s: string): string {
+export function pdfStr(s: string): string {
   const bs = toWinAnsi(s);
   let out = "(";
   for (const b of bs) {
@@ -197,12 +197,20 @@ const HELV = [
   667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556, 333, 556, 556, 500, 556, 556, 278, 556,
   556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584,
 ];
-function textWidth(s: string, size: number, bold = false): number {
+// Helvetica-Bold advance widths — exact, so bold figures right-align on the same edge as regular ones.
+const HELV_B = [
+  278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556,
+  556, 556, 333, 333, 584, 584, 584, 611, 975, 722, 722, 722, 722, 667, 611, 778, 722, 278, 556, 722, 611, 833, 722, 778,
+  667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 333, 278, 333, 584, 556, 333, 556, 611, 556, 611, 556, 333, 611,
+  611, 278, 278, 556, 278, 889, 611, 611, 611, 611, 389, 556, 333, 611, 556, 778, 556, 556, 500, 389, 280, 389, 584,
+];
+export function textWidth(s: string, size: number, bold = false): number {
+  const table = bold ? HELV_B : HELV;
   let w = 0;
-  for (const b of toWinAnsi(s)) w += b >= 32 && b <= 126 ? HELV[b - 32] : b === 0x80 ? 556 : b === 0x85 ? 1000 : b === 0x96 ? 556 : b === 0x97 ? 1000 : 556;
-  return (w / 1000) * size * (bold ? 1.05 : 1);
+  for (const b of toWinAnsi(s)) w += b >= 32 && b <= 126 ? table[b - 32] : b === 0x80 ? 556 : b === 0x85 ? 1000 : b === 0x96 ? 556 : b === 0x97 ? 1000 : 556;
+  return (w / 1000) * size;
 }
-function fitText(s: string, max: number, size: number, bold = false): string {
+export function fitText(s: string, max: number, size: number, bold = false): string {
   if (textWidth(s, size, bold) <= max + 0.5) return s;
   let t = s;
   while (t.length > 1 && textWidth(`${t}…`, size, bold) > max) t = t.slice(0, -1);
@@ -472,7 +480,11 @@ export function buildPDFBytes(doc: PdfDoc): Uint8Array {
     text(R - textWidth(pn, 7.5), 26, pn);
   });
 
-  // --- assemble PDF objects ----------------------------------------------
+  return assemblePDF(pages.map((p) => p.join("\n")), W, H, doc.title ?? "Report");
+}
+
+/** Wrap page content streams (Helvetica F1 / Helvetica-Bold F2) into PDF 1.4 bytes. */
+export function assemblePDF(pages: string[], W: number, H: number, title: string): Uint8Array {
   const n = pages.length;
   const objects: string[] = [];
   objects[1] = `<< /Type /Catalog /Pages 2 0 R >>`;
@@ -484,7 +496,7 @@ export function buildPDFBytes(doc: PdfDoc): Uint8Array {
     const contentId = pageId + 1;
     kids.push(`${pageId} 0 R`);
     objects[pageId] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentId} 0 R >>`;
-    const content = p.join("\n");
+    const content = p;
     objects[contentId] = `<< /Length ${content.length} >>\nstream\n${content}\nendstream`;
   });
   objects[2] = `<< /Type /Pages /Kids [${kids.join(" ")}] /Count ${n} >>`;
@@ -498,7 +510,7 @@ export function buildPDFBytes(doc: PdfDoc): Uint8Array {
   const xrefStart = body.length;
   body += `xref\n0 ${last + 1}\n0000000000 65535 f \n`;
   for (let i = 1; i <= last; i++) body += String(offsets[i]).padStart(10, "0") + " 00000 n \n";
-  body += `trailer\n<< /Size ${last + 1} /Root 1 0 R /Info << /Title ${pdfStr(doc.title ?? "Report")} /Producer (Slaice) >> >>\nstartxref\n${xrefStart}\n%%EOF`;
+  body += `trailer\n<< /Size ${last + 1} /Root 1 0 R /Info << /Title ${pdfStr(title)} /Producer (Slaice) >> >>\nstartxref\n${xrefStart}\n%%EOF`;
   const out = new Uint8Array(body.length);
   for (let i = 0; i < body.length; i++) out[i] = body.charCodeAt(i) & 0xff;
   return out;

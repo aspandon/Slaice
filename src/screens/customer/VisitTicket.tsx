@@ -156,6 +156,7 @@ export function receiptForVisit(v: Visit): CustomerDocument {
     for: visitTitle(v),
     date: fmtDay(v.date, true),
     amt: `€${v.total}`,
+    ref: v.refs[0],
     mark: `4000010203040${n.slice(-5)}`,
     lines: v.lines.map((l) => {
       const net = Math.round((l.amount / 1.24) * 100) / 100;
@@ -166,7 +167,7 @@ export function receiptForVisit(v: Visit): CustomerDocument {
 /** The invoice issued instead of the receipt when the guest asks with VAT details (ΤΠΥ). */
 export function invoiceForVisit(v: Visit, r: InvoiceRequest): CustomerDocument {
   const base = receiptForVisit(v);
-  return { ...base, id: `ΤΠΥ-2026-${num(r.id)}`, for: `${r.company} · VAT ${r.vatNo}` };
+  return { ...base, id: `ΤΠΥ-2026-${num(r.id)}`, billTo: { company: r.company, vatNo: r.vatNo, address: r.address } };
 }
 export const visitTitle = (v: Visit) =>
   [

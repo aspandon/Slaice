@@ -60,14 +60,14 @@ export const CUSTOMER_DOCS: CustomerDocument[] = [
   { id: "ΑΠΥ-2026-004280", for: "Locker + Parking", date: "19 Jul 2026", amt: "€20", mark: "400001020304002280", lines: [["Locker A07", "€4.03", "€0.97", "€5.00"], ["Parking P12", "€12.10", "€2.90", "€15.00"]] },
   { id: "ΑΠΥ-2026-004102", for: "Entry tickets ×3", date: "12 Jul 2026", amt: "€25", mark: "400001020304002102", lines: [["Adult ×2", "€16.13", "€3.87", "€20.00"], ["Child ×1", "€4.03", "€0.97", "€5.00"]] },
   { id: "ΑΠΥ-2026-003988", for: "Sunbed booking", date: "06 Jul 2026", amt: "€30", mark: "400001020304003988", lines: [["Sunbed AK-31", "€24.19", "€5.81", "€30.00"]] },
-  { id: "ΤΠΥ-2026-000118", for: "Group ticket (B2B)", date: "06 Jul 2026", amt: "€120", mark: "400001020304000118", lines: [["Adult ×12", "€96.77", "€23.23", "€120.00"]] },
+  { id: "ΤΠΥ-2026-000118", for: "Group ticket (B2B)", date: "06 Jul 2026", amt: "€120", mark: "400001020304000118", lines: [["Adult ×12", "€96.77", "€23.23", "€120.00"]], billTo: { company: "Nereus Travel IKE", vatNo: "EL801445920", address: "Syngrou Ave 112, 117 41 Athens" } },
   { id: "ΑΠΥ-2026-003774", for: "Sunbed + extras", date: "28 Jun 2026", amt: "€38", mark: "400001020304003774", lines: [["Sunbed MA-08", "€22.58", "€5.42", "€28.00"], ["Locker B12", "€4.03", "€0.97", "€5.00"], ["Parking P22", "€4.03", "€0.97", "€5.00"]] },
   { id: "ΑΠΥ-2026-003590", for: "Sunbed booking", date: "15 Jun 2026", amt: "€35", mark: "400001020304003590", lines: [["Sunbed MC-09", "€28.23", "€6.77", "€35.00"]] },
   { id: "ΑΠΥ-2026-003421", for: "Day locker", date: "15 Jun 2026", amt: "€5", mark: "400001020304003421", lines: [["Locker C04", "€4.03", "€0.97", "€5.00"]] },
   { id: "ΑΠΥ-2026-003388", for: "Sunbed booking", date: "07 Jun 2026", amt: "€25", mark: "400001020304003388", lines: [["Sunbed CE-12", "€20.16", "€4.84", "€25.00"]] },
   { id: "ΑΠΥ-2026-003201", for: "Entry tickets ×2", date: "01 Jun 2026", amt: "€16", mark: "400001020304003201", lines: [["Resident ×2", "€12.90", "€3.10", "€16.00"]] },
   { id: "ΑΠΥ-2026-003044", for: "Sunbed + parking", date: "24 May 2026", amt: "€43", mark: "400001020304003044", lines: [["Sunbed BO-05", "€14.52", "€3.48", "€18.00"], ["Parking P09", "€20.16", "€4.84", "€25.00"]] },
-  { id: "ΤΠΥ-2026-000092", for: "Corporate day (B2B)", date: "20 May 2026", amt: "€240", mark: "400001020304000092", lines: [["Adult ×24", "€193.55", "€46.45", "€240.00"]] },
+  { id: "ΤΠΥ-2026-000092", for: "Corporate day (B2B)", date: "20 May 2026", amt: "€240", mark: "400001020304000092", lines: [["Adult ×24", "€193.55", "€46.45", "€240.00"]], billTo: { company: "Aegean Logic SA", vatNo: "EL094312876", address: "Kifisias Ave 44, 151 25 Marousi" } },
   { id: "ΠΙΣ-2026-000012", for: "Refund · Double booking", date: "21 Jun 2026", amt: "−€22", mark: "400001020304000012", lines: [["Sunbed BE-14 refund", "−€17.74", "−€4.26", "−€22.00"]] },
 ];
 

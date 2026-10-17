@@ -268,6 +268,10 @@ export interface CustomerDocument {
   mark: string;
   /** [description, net, vat, gross] rows. */
   lines: string[][];
+  /** Booking reference the document is for, e.g. "#40281". */
+  ref?: string;
+  /** Invoices: the company billed (AENR-685). */
+  billTo?: { company: string; vatNo: string; address: string };
 }
 
 /* ---------- CRM ---------- */
