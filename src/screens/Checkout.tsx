@@ -5,7 +5,7 @@ import { AgeCheck } from "../components/AgeCheck";
 import { QuickSignIn } from "../components/QuickSignIn";
 import type { IconRenderer } from "../lib/icons";
 import { gsap, motionOK, takeFlip, Flip, EASE, burstConfetti } from "../lib/fx";
-import { Card, Btn, EmptyState, SwipeRow, Toggle } from "../components/ui";
+import { Card, Btn, EmptyState, NotMvpBadge, SwipeRow, Toggle } from "../components/ui";
 import { QR } from "../components/charts";
 import { TenantLogo } from "../components/Brand";
 import { AppleLogo, WalletButtons } from "../components/WalletPass";
@@ -319,14 +319,22 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
           {!account.adultConfirmed && <div className="mt-4"><AgeCheck checked={adult} onChange={(v) => { setAdult(v); if (v) setAgeTried(false); }} invalid={ageTried && !adult} /></div>}
           {cashDue > 0 ? (
             <div className="mt-4 space-y-2">
-              <button type="button" onClick={() => walletPay("apple")} disabled={!!wallet} className="w-full min-h-[48px] rounded-[14px] bg-black text-white font-semibold text-[15px] inline-flex items-center justify-center gap-1.5 hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 disabled:opacity-70" aria-label={`${t("Pay with Apple Pay")} €${cashDue.toFixed(2)}`}>
-                {wallet === "apple" ? t("Confirming…") : <><AppleLogo size={17} /> Pay</>}
-              </button>
-              <button type="button" onClick={() => walletPay("google")} disabled={!!wallet} className="w-full min-h-[48px] rounded-[14px] bg-white ring-1 ring-slate-300 text-navy-900 font-semibold text-[15px] inline-flex items-center justify-center gap-1.5 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:opacity-70" aria-label={`${t("Pay with Google Pay")} €${cashDue.toFixed(2)}`}>
-                {wallet === "google" ? t("Confirming…") : <><b className="text-[#4285F4]">G</b> Pay</>}
-              </button>
-              <div className="flex items-center gap-2 text-[11px] text-slate-500"><span className="h-px flex-1 bg-slate-200" />{t("or")}<span className="h-px flex-1 bg-slate-200" /></div>
+              {/* Card is the way to pay today; Apple Pay, Google Pay (AENR-683) and Klarna (AENR-684)
+                  are roadmap — shown with the FUTURE badge. */}
               <Btn variant="indigo" full size="lg" icon={Icon.card} onClick={pay}>{`${t("Pay by card")} · €${cashDue.toFixed(2)}`}</Btn>
+              <div className="flex items-center gap-2 text-[11px] text-slate-500"><span className="h-px flex-1 bg-slate-200" />{t("or")}<span className="h-px flex-1 bg-slate-200" /></div>
+              <button type="button" onClick={() => walletPay("apple")} disabled={!!wallet} className="relative w-full min-h-[48px] rounded-[14px] bg-black text-white font-semibold text-[15px] inline-flex items-center justify-center gap-1.5 hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 disabled:opacity-70" aria-label={`${t("Pay with Apple Pay")} €${cashDue.toFixed(2)} · ${t("coming soon")}`}>
+                {wallet === "apple" ? t("Confirming…") : <><AppleLogo size={17} /> Pay</>}
+                <NotMvpBadge className="absolute right-2.5 top-1/2 -translate-y-1/2" />
+              </button>
+              <button type="button" onClick={() => walletPay("google")} disabled={!!wallet} className="relative w-full min-h-[48px] rounded-[14px] bg-white ring-1 ring-slate-300 text-navy-900 font-semibold text-[15px] inline-flex items-center justify-center gap-1.5 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:opacity-70" aria-label={`${t("Pay with Google Pay")} €${cashDue.toFixed(2)} · ${t("coming soon")}`}>
+                {wallet === "google" ? t("Confirming…") : <><b className="text-[#4285F4]">G</b> Pay</>}
+                <NotMvpBadge className="absolute right-2.5 top-1/2 -translate-y-1/2" />
+              </button>
+              <button type="button" onClick={() => toast(t("Klarna — pay in 3 interest-free instalments — is coming soon."), { tone: "info" })} className="relative w-full min-h-[48px] rounded-[14px] bg-[#FFA8CD] text-black font-bold text-[15px] inline-flex items-center justify-center gap-1.5 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2" aria-label={`${t("Pay with Klarna in 3 instalments")} · ${t("coming soon")}`}>
+                Klarna. <span className="font-semibold text-[13px]">{t("Pay in 3")}</span>
+                <NotMvpBadge className="absolute right-2.5 top-1/2 -translate-y-1/2" />
+              </button>
             </div>
           ) : (
             <Btn variant="indigo" full size="lg" className="mt-4" icon={Icon.check} onClick={pay}>{t("Confirm · nothing to pay")}</Btn>

@@ -509,6 +509,7 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-670 — your zone stays on the sand.** Who and Pay show the zone you booked in with your sets; the zone row sits mid-sand.
 - **AENR-671 — the beach logo in the wizard.** Shown large over the sea on desktop, as on Home.
 - **AENR-672 — the logo glides with the sand.** From the Home header to its place over the sea and back.
+- **AENR-683 / 684 — Pay: card first; Apple Pay, Google Pay and Klarna marked FUTURE.**
 - **AENR-678 — Live display rotates any combination of languages**, in an order the manager sets.
 - **AENR-707 — a slim set card**: zone as title, the view, row and "2 sunbeds + 1 umbrella".
 - **AENR-709 — “Book in more than one zone” always visible** on Where.
