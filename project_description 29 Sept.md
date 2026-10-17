@@ -2143,7 +2143,7 @@ For a guest who isn't at the beach yet — Support Agent, Call Center and Admin 
 - **Sections** come from a registry (id, label, icon, group, edit permission, badge): _Account_ — Overview
   (Actions required ordered by severity with Send link / Tenant completed it, KPIs, health, activity), Profile
   (+ contacts by role, ownership transfer), Contract & account, Subscription & billing, Usage & limits;
-  _Product_ — Modules, Locations & capacity, Branding & domain (DNS verify), Localisation, Release channel;
+  _Product_ — Modules, Locations & capacity, Branding & domain (DNS verify), Localisation (the Release channel section was removed in AENR-690);
   _Money_ — Payments (Stripe flags and requirements, fees & POS terminals, payout schedule), Invoicing & tax;
   _Access & trust_ — Users & roles (+ Slaice access, support grant, View-as history), Security, Compliance,
   Integrations; _Support_ — Support (tickets, internal notes, one timeline), Health score (transparent 0–100

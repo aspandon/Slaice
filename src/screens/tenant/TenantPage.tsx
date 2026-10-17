@@ -11,7 +11,7 @@ import {
 } from "../../domain/tenants";
 import { SectionCtx, confirmLeave, type SectionProps } from "./kit";
 import { Billing, Contract, Overview, Profile, Usage } from "./AccountSections";
-import { Branding, Localisation, Locations, Modules, Release } from "./ProductSections";
+import { Branding, Localisation, Locations, Modules } from "./ProductSections";
 import { Compliance, Integrations, Invoicing, Payments, Security, Users } from "./AccessSections";
 import { Audit, DataExport, Health, Support } from "./SupportSections";
 import { DangerZone } from "./Lifecycle";
@@ -108,14 +108,6 @@ export const SECTIONS: SectionDef[] = [
     group: "Product",
     edit: "support",
     render: (p) => <Localisation {...p} />,
-  },
-  {
-    id: "release",
-    label: "Release channel",
-    icon: Icon.bolt,
-    group: "Product",
-    edit: "admin",
-    render: (p) => <Release {...p} />,
   },
   {
     id: "payments",
