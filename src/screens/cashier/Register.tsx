@@ -32,7 +32,7 @@ export function CashierRegister() {
   const tot = shift ? shiftTotals(shift, t.till.sales) : null;
 
   return (
-    <div className="animate-fade-up">
+    <div className="touch-ui animate-fade-up">
       {/* Part of the MVP till (AENR-636): open / close the shift, X and Z reports. */}
       <PageHead title="Cash Register" />
       <TillStatus />
@@ -54,9 +54,9 @@ export function CashierRegister() {
               <div className="flex flex-wrap items-center gap-2 justify-between mb-3">
                 <h2 className="font-display font-bold text-navy-900">Shift {shift.id} · {shift.cashier}</h2>
                 <div className="flex flex-wrap gap-2">
-                  <Btn size="sm" variant="outline" icon={Icon.plus} onClick={() => setMove("in")}>Paid in</Btn>
-                  <Btn size="sm" variant="outline" icon={Icon.minus} onClick={() => setMove("out")}>Paid out</Btn>
-                  <Btn size="sm" variant="outline" icon={Icon.lock} onClick={() => setMove("nosale")}>No sale</Btn>
+                  <Btn variant="outline" icon={Icon.plus} onClick={() => setMove("in")}>Paid in</Btn>
+                  <Btn variant="outline" icon={Icon.minus} onClick={() => setMove("out")}>Paid out</Btn>
+                  <Btn variant="outline" icon={Icon.lock} onClick={() => setMove("nosale")}>No sale</Btn>
                 </div>
               </div>
               <TenderMix tot={tot} />
@@ -282,7 +282,7 @@ function ShiftHistory({ onOpen }: { onOpen: (s: TillShift) => void }) {
               <span className="font-mono text-[12px] text-navy-900">{s.id}</span>, s.cashier, s.till, `${hhmm(s.openedAt)}–${s.closedAt ? hhmm(s.closedAt) : ""}`,
               <span className="tnum">{eur(tot.cash)}</span>, <span className="tnum">{eur(tot.card)}</span>,
               <span className={`tnum ${Math.abs(v) > VARIANCE_TOLERANCE ? "text-rose-600 font-semibold" : ""}`}>{v > 0 ? "+" : v < 0 ? "−" : ""}{eur(Math.abs(v))}</span>,
-              <Btn size="sm" variant="ghost" icon={Icon.doc} onClick={() => onOpen(s)}>Z report</Btn>,
+              <Btn variant="ghost" icon={Icon.doc} onClick={() => onOpen(s)}>Z report</Btn>,
             ];
           }),
           ...CASHIER_PAST_SESSIONS.slice(0, 4).map((s) => [<span className="font-mono text-[12px] text-slate-500">{s.id.replace("#CS-", "SH-0")}</span>, s.cashier, "Main entrance", s.date, <span className="tnum">{s.cash}</span>, <span className="tnum">{s.card}</span>, <span className="tnum">€0</span>, <Badge tone="slate">Archived</Badge>]),

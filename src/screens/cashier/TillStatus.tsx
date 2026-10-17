@@ -241,8 +241,8 @@ export function OfflineBanner() {
         </div>
         {!syncing && (
           <div className="flex gap-2">
-            <Btn size="sm" variant="ghost" icon={Icon.info} onClick={() => setHelp(true)}>What still works</Btn>
-            <Btn size="sm" variant="primary" icon={Icon.refresh} onClick={reconnect}>Reconnect</Btn>
+            <Btn variant="ghost" icon={Icon.info} onClick={() => setHelp(true)}>What still works</Btn>
+            <Btn variant="primary" icon={Icon.refresh} onClick={reconnect}>Reconnect</Btn>
           </div>
         )}
       </div>

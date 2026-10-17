@@ -189,9 +189,9 @@ export function TenderModal({ total, initial, offline, offlineSales, vouchers, o
                     <div className="font-semibold text-rose-800 flex items-center gap-2"><Icon.alert size={16} />{phase === "declined" ? "Card declined — insufficient funds (51)" : "Terminal didn’t respond — timed out"}</div>
                     <div className="text-[12.5px] text-rose-700/90 mt-0.5">Nothing was charged. The sets stay on hold while you retry.</div>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <Btn size="sm" variant="primary" icon={Icon.refund} onClick={() => { setOutcome("approve"); setPhase("idle"); }}>Retry</Btn>
-                      <Btn size="sm" variant="outline" icon={Icon.cash} onClick={() => { setPhase("idle"); setMethod("cash"); }}>Pay cash</Btn>
-                      <Btn size="sm" variant="ghost" onClick={() => onCancel(tenders)}>Cancel sale</Btn>
+                      <Btn variant="primary" icon={Icon.refund} onClick={() => { setOutcome("approve"); setPhase("idle"); }}>Retry</Btn>
+                      <Btn variant="outline" icon={Icon.cash} onClick={() => { setPhase("idle"); setMethod("cash"); }}>Pay cash</Btn>
+                      <Btn variant="ghost" onClick={() => onCancel(tenders)}>Cancel sale</Btn>
                     </div>
                   </div>
                 )}

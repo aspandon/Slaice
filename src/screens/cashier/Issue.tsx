@@ -74,6 +74,7 @@ function IssueInner() {
   const [pin, setPin] = useState<Pin | null>(null);
   const [discOpen, setDiscOpen] = useState(false);
   const [promo, setPromo] = useState("");
+  const [promoOpen, setPromoOpen] = useState(false);
   const [promoErr, setPromoErr] = useState("");
   const [custOpen, setCustOpen] = useState(false);
   const [err, setErr] = useState("");
@@ -329,7 +330,7 @@ function IssueInner() {
   const plain = lines.filter((l) => !l.bundle);
 
   return (
-    <div className="animate-fade-up pb-24 lg:pb-0">
+    <div className="touch-ui animate-fade-up pb-24 lg:pb-0">
       {/* Shift strip and the few extras share one row: the till keeps its space for selling (AENR-654). */}
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1"><TillStatus /></div>
@@ -371,41 +372,42 @@ function IssueInner() {
                   </div>
                   {/* One key per category the beach sells (AENR-721): tap adds one, the badge counts
                       what is in the basket, − takes one back. Replaces the old Tickets tab steppers. */}
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2 mb-4">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2.5 mb-4">
                     {ex.tickets.map((c) => {
                       const n = ticketQty(c.id);
                       const price = ex.ticketPrice(c.id, t.day);
                       return (
-                        <div key={c.id} className="relative">
+                        <div key={c.id} className="flex items-stretch rounded-2xl bg-navy-900 text-white shadow-sm overflow-hidden min-h-[68px]">
+                          {n > 0 && (
+                            <button type="button" onClick={() => setTicketQty(c.id, n - 1)} aria-label={`Remove 1 ${c.short} ticket`}
+                              className="w-12 shrink-0 flex flex-col items-center justify-center gap-0.5 bg-teal-600 border-r border-white/15 hover:bg-teal-700 active:bg-teal-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white">
+                              <span className="text-[17px] font-bold leading-none tnum">{n}</span><Icon.minus size={16} />
+                            </button>
+                          )}
                           <button type="button" onClick={() => setTicketQty(c.id, n + 1)} title={c.note}
                             aria-label={`Add 1 ${c.short} ticket, ${price === 0 ? "free" : eur(price)}${n ? ` — ${n} in basket` : ""}`}
-                            className="w-full min-h-[56px] rounded-xl bg-navy-900 text-white px-4 py-1.5 font-semibold text-sm shadow-sm hover:bg-navy-800 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2">
-                            <span className="block">1 {c.short}</span>
-                            <span className="block text-[12px] font-medium text-white/70 tnum">{price === 0 ? "Free" : eur(price)}</span>
+                            className="relative flex-1 min-w-0 px-3 py-2 font-semibold text-[16px] hover:bg-navy-800 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-400">
+                            <span className="block truncate">1 {c.short}</span>
+                            <span className="block text-[14px] font-medium text-white/75 tnum">{price === 0 ? "Free" : eur(price)}</span>
                           </button>
-                          {n > 0 && <>
-                            <span aria-hidden className="pointer-events-none absolute top-1.5 right-1.5 min-w-[22px] h-[22px] px-1.5 rounded-full bg-teal-500 text-white text-[12px] font-bold grid place-items-center tnum">{n}</span>
-                            <button type="button" onClick={() => setTicketQty(c.id, n - 1)} aria-label={`Remove 1 ${c.short} ticket`}
-                              className="absolute bottom-1.5 left-1.5 w-7 h-7 rounded-full bg-white/95 text-navy-900 shadow grid place-items-center hover:bg-rose-50 hover:text-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"><Icon.minus size={13} /></button>
-                          </>}
                         </div>
                       );
                     })}
                   </div>
                   </>}
                   {quickKeys.length > 0 && <h2 className="font-display font-bold text-navy-900 mb-2">Combos</h2>}
-                  <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
+                  <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2.5">
                     {quickKeys.map((q) => (
                       <button key={q.id} type="button" onClick={() => quick(q)}
-                        className="min-h-[56px] rounded-xl bg-navy-900 text-white px-4 py-1.5 font-semibold text-sm shadow-sm hover:bg-navy-800 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2">
+                        className="min-h-[68px] rounded-2xl bg-navy-900 text-white px-4 py-2 font-semibold text-[16px] shadow-sm hover:bg-navy-800 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2">
                         <span className="block">{q.label}</span>
-                        <span className="block text-[12px] font-medium text-white/70 tnum">{q.sets ? "from " : ""}{eur(quickPrice(q))}</span>
+                        <span className="block text-[14px] font-medium text-white/75 tnum">{q.sets ? "from " : ""}{eur(quickPrice(q))}</span>
                       </button>
                     ))}
                   </div>
                   {lastSale && (
                     <button type="button" onClick={repeatLast}
-                      className="mt-2 w-full min-h-[48px] rounded-xl ring-1 ring-slate-200 bg-white/80 px-4 flex items-center gap-2 text-left text-sm hover:ring-teal-400 active:scale-[.99] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                      className="mt-2.5 w-full min-h-[56px] rounded-2xl ring-1 ring-slate-200 bg-white/80 px-4 flex items-center gap-2 text-left text-[15px] hover:ring-teal-400 active:scale-[.99] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
                       <Icon.refund size={16} className="text-teal-700 shrink-0" />
                       <span className="flex-1 min-w-0"><b className="text-navy-900">Repeat last sale</b> <span className="text-slate-600">· {lastSale.lines.map((l) => `${l.qty}× ${l.kind === "sunbed" ? "set" : l.label}`).join(", ")}</span></span>
                       <span className="font-semibold text-navy-900 tnum">{eur(lastSale.total)}</span>
@@ -416,14 +418,14 @@ function IssueInner() {
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-2">
                     {bundles.map((b) => (
                       <button key={b.id} type="button" onClick={() => addBundle(b)}
-                        className="min-h-[56px] rounded-xl bg-teal-50 text-teal-800 ring-1 ring-teal-600/25 px-4 py-2 text-left text-sm hover:bg-teal-100 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                        className="min-h-[68px] rounded-2xl bg-teal-50 text-teal-800 ring-1 ring-teal-600/25 px-4 py-2.5 text-left text-[15px] hover:bg-teal-100 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
                         <span className="font-semibold">{b.label}</span>
                         <span className="block text-[11.5px] text-teal-700/90">{Object.entries(b.tickets).map(([c, n]) => `${n} ${ex.ticketLabel(c)}`).join(" + ")} + {b.sets} set{b.sets > 1 ? "s" : ""} · save €{b.saving}</span>
                       </button>
                     ))}
                   </div>
                   </>}
-                  {canSets && <p className="mt-3 text-[12px] text-slate-500">Sets go in the zone picked under <button type="button" className="font-semibold text-teal-700 hover:underline" onClick={() => setTab("sunbeds")}>Sunbeds</button> (now {zone.name}).</p>}
+                  {canSets && <div className="mt-3 flex flex-wrap items-center gap-2 text-[13px] text-slate-600">Sets go in <b className="text-navy-900">{zone.name}</b> <Btn variant="outline" icon={Icon.umbrella} onClick={() => setTab("sunbeds")}>Change zone</Btn></div>}
                 </>
               )}
 
@@ -439,8 +441,8 @@ function IssueInner() {
                   <div className="flex flex-wrap items-center gap-2 justify-between my-2">
                     <h2 className="font-display font-bold text-navy-900">Sunbeds · {zone.name}</h2>
                     <div className="flex gap-2">
-                      <Btn size="sm" variant="outline" icon={Icon.qr} onClick={() => setScanOpen(true)}>Scan set QR</Btn>
-                      <Btn size="sm" variant="outline" icon={Icon.sparkles} disabled={!!closure(zone.id, t.day)} onClick={() => anyFree(1)}>Any free set</Btn>
+                      <Btn variant="outline" icon={Icon.qr} onClick={() => setScanOpen(true)}>Scan set QR</Btn>
+                      <Btn variant="outline" icon={Icon.sparkles} disabled={!!closure(zone.id, t.day)} onClick={() => anyFree(1)}>Any free set</Btn>
                     </div>
                   </div>
                   {t.till.offline && (
@@ -478,7 +480,7 @@ function IssueInner() {
                         return (
                           <div key={b.id} className={`flex items-center justify-between gap-2 rounded-xl ring-1 px-3 py-2 ${avail === 0 && q === 0 ? "ring-slate-200 bg-slate-50 opacity-70" : "ring-slate-200 bg-white/70"}`}>
                             <div className="min-w-0">
-                              <div className="font-semibold text-navy-900 text-sm">{b.name}</div>
+                              <div className="font-semibold text-navy-900 text-[15px]">{b.name}</div>
                               <div className="text-[12px] text-slate-600">€{ex.lockerPrice(b.id, t.day)} · {b.size} · <span className={avail === 0 ? "text-rose-700 font-semibold" : ""}>{avail === 0 ? "none free" : `${avail} free`}</span></div>
                             </div>
                             <Stepper size="lg" label={`${b.name} lockers`} value={q} onChange={(v) => setLockerQty(b.id, Math.min(v, avail))} />
@@ -498,7 +500,7 @@ function IssueInner() {
                   </div>
                   <div className="flex items-center justify-between gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 max-w-md">
                     <div className="min-w-0">
-                      <div className="font-semibold text-navy-900 text-sm">Car park · day spot</div>
+                      <div className="font-semibold text-navy-900 text-[15px]">Car park · day spot</div>
                       <div className="text-[12px] text-slate-600">€{PARKING_PRICE} · <span className={parkingFree === 0 ? "text-rose-700 font-semibold" : ""}>{parkingFree === 0 ? "car park full" : `${parkingFree} of ${PARKING_LOT.spots} free`}</span></div>
                     </div>
                     <Stepper size="lg" label="parking spots" value={parkingQty} onChange={(v) => setParkingQty(Math.min(v, parkingQty + parkingFree))} />
@@ -518,24 +520,24 @@ function IssueInner() {
                 <>
                   <div className="flex items-center justify-between mb-2">
                     <h2 className="font-display font-bold text-navy-900">Basket</h2>
-                    {lines.length > 0 && <Btn size="sm" variant="ghost" icon={Icon.trash} onClick={clear}>Clear</Btn>}
+                    {lines.length > 0 && <Btn variant="ghost" icon={Icon.trash} onClick={clear}>Clear</Btn>}
                   </div>
                   {lines.length === 0 ? (
                     <div className="rounded-xl bg-slate-50 ring-1 ring-dashed ring-slate-300 px-4 py-6 text-center text-[13px] text-slate-600">
                       Tap a quick key, add tickets or pick sets on the map.
                     </div>
                   ) : (
-                    <ul className="divide-y divide-slate-100 md:flex-1 md:min-h-[72px] md:overflow-y-auto -mx-1 px-1">
+                    <ul className="divide-y divide-slate-100 md:flex-1 md:min-h-[132px] md:overflow-y-auto -mx-1 px-1">
                       {bundleTags.map((b) => {
                         const ls = lines.filter((l) => l.bundle === b);
                         return (
                           <li key={b} className="py-2 flex items-start gap-2">
                             <div className="min-w-0 flex-1">
-                              <div className="font-semibold text-navy-900 text-sm">{b.replace(/ #\d+$/, "")}</div>
-                              <div className="text-[11.5px] text-slate-500">{ls.map((l) => (l.setId ? l.setId : `${l.qty} ${l.label}`)).join(" · ")}</div>
+                              <div className="font-semibold text-navy-900 text-[15px]">{b.replace(/ #\d+$/, "")}</div>
+                              <div className="text-[12.5px] text-slate-500">{ls.map((l) => (l.setId ? l.setId : `${l.qty} ${l.label}`)).join(" · ")}</div>
                               {ls.some((l) => l.setId) && <HoldChip ms={Math.min(...ls.filter((l) => l.setId).map((l) => holdLeft(l.setId as string)))} />}
                             </div>
-                            <span className="tnum font-semibold text-sm">{eur(ls.reduce((a, l) => a + lineGross(l), 0))}</span>
+                            <span className="tnum font-semibold text-[15px]">{eur(ls.reduce((a, l) => a + lineGross(l), 0))}</span>
                             <RemoveBtn label={`Remove ${b}`} onClick={() => removeBundle(b)} />
                           </li>
                         );
@@ -543,18 +545,18 @@ function IssueInner() {
                       {plain.map((l) => (
                         <li key={l.id} className="py-2 flex items-start gap-2">
                           <div className="min-w-0 flex-1">
-                            <div className="font-semibold text-navy-900 text-sm">{l.kind !== "sunbed" ? `${l.qty} × ${l.label}` : l.label}</div>
-                            <div className="text-[11.5px] text-slate-500">{l.kind !== "sunbed" ? `€${l.unit} each${l.codes?.length ? ` · ${l.codes.join(", ")}` : ""}` : `Today’s price €${l.unit}`}</div>
+                            <div className="font-semibold text-navy-900 text-[15px]">{l.kind !== "sunbed" ? `${l.qty} × ${l.label}` : l.label}</div>
+                            <div className="text-[12.5px] text-slate-500">{l.kind !== "sunbed" ? `€${l.unit} each${l.codes?.length ? ` · ${l.codes.join(", ")}` : ""}` : `Today’s price €${l.unit}`}</div>
                             {l.setId && <HoldChip ms={holdLeft(l.setId)} />}
                           </div>
-                          <span className="tnum font-semibold text-sm">{eur(lineGross(l))}</span>
+                          <span className="tnum font-semibold text-[15px]">{eur(lineGross(l))}</span>
                           <RemoveBtn label={`Remove ${l.label}`} onClick={() => removeLines([l.id])} />
                         </li>
                       ))}
                       {discounts.map((d) => (
                         <li key={d.id} className="py-2 flex items-start gap-2 text-emerald-700">
                           <div className="min-w-0 flex-1 text-sm"><div className="font-semibold">{d.label}</div><div className="text-[11.5px] text-emerald-700/80">{d.reason}{d.approver ? ` · approved by ${d.approver}` : ""}</div></div>
-                          <span className="tnum font-semibold text-sm">−{eur(discountAmount(d, lines))}</span>
+                          <span className="tnum font-semibold text-[15px]">−{eur(discountAmount(d, lines))}</span>
                           {d.reason !== "Bundle" && <RemoveBtn label={`Remove ${d.label}`} onClick={() => setDiscounts((ds) => ds.filter((x) => x.id !== d.id))} />}
                         </li>
                       ))}
@@ -563,15 +565,30 @@ function IssueInner() {
 
                   {lines.length > 0 && (
                     <div className="mt-2 space-y-2">
-                      <form className="flex flex-wrap gap-2 items-start" onSubmit={(e) => { e.preventDefault(); if (promo.trim()) applyPromo(); }}>
-                        <div className="flex-1 min-w-[150px]">
-                          <Input aria-label="Promo code" placeholder="Promo code" value={promo} onChange={(e) => { setPromo(e.target.value.toUpperCase()); setPromoErr(""); }} aria-invalid={!!promoErr} />
-                        </div>
-                        <Btn type="submit" variant="outline" disabled={!promo.trim()}>Apply</Btn>
-                        <Btn variant="ghost" icon={Icon.tag} onClick={() => setDiscOpen(true)}>Discount</Btn>
-                      </form>
-                      {promoErr && <div role="alert" className="text-[12px] text-rose-700">{promoErr}</div>}
-                      <CustomerAttach open={custOpen} setOpen={setCustOpen} customer={customer} setCustomer={setCustomer} needed={hasSets} />
+                      {/* Touch till (AENR-698): promo, discount and guest are one row of big buttons;
+                          each opens only when needed, so the basket keeps its room. */}
+                      <div className="grid grid-cols-3 gap-2">
+                        {([
+                          ["promo", "Promo", Icon.ticket, promoOpen, () => setPromoOpen((v) => !v)],
+                          ["disc", "Discount", Icon.tag, false, () => setDiscOpen(true)],
+                          ["guest", customer ? "Guest ✓" : "Guest", Icon.users, custOpen || !!customer, () => setCustOpen(!custOpen)],
+                        ] as const).map(([k, label, I, on, act]) => (
+                          <button key={k} type="button" onClick={act} aria-expanded={k === "disc" ? undefined : on}
+                            className={`min-h-[56px] rounded-xl flex flex-col items-center justify-center gap-0.5 text-[13px] font-semibold ring-1 transition active:scale-[.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white text-navy-900 ring-slate-200 hover:ring-teal-400"}`}>
+                            <I size={18} />{label}
+                          </button>
+                        ))}
+                      </div>
+                      {promoOpen && (
+                        <form className="flex gap-2 items-start" onSubmit={(e) => { e.preventDefault(); if (promo.trim()) applyPromo(); }}>
+                          <div className="flex-1 min-w-0">
+                            <Input aria-label="Promo code" placeholder="Promo code" value={promo} onChange={(e) => { setPromo(e.target.value.toUpperCase()); setPromoErr(""); }} aria-invalid={!!promoErr} className="!min-h-[48px] !text-[16px]" />
+                          </div>
+                          <Btn size="lg" type="submit" variant="outline" disabled={!promo.trim()}>Apply</Btn>
+                        </form>
+                      )}
+                      {promoErr && <div role="alert" className="text-[13px] text-rose-700">{promoErr}</div>}
+                      {(custOpen || customer) && <CustomerAttach open={custOpen} setOpen={setCustOpen} customer={customer} setCustomer={setCustomer} needed={hasSets} />}
                     </div>
                   )}
 
@@ -600,7 +617,7 @@ function IssueInner() {
               <div className="rounded-xl bg-white/70 ring-1 ring-slate-200 px-3 py-2 flex items-center gap-2 text-[12.5px]">
                 <Icon.receipt size={14} className="text-slate-500" />
                 <span className="flex-1 min-w-0 truncate">Last sale <b className="text-navy-900">{last.sale.id}</b> · {eur(last.sale.total)}</span>
-                <Btn size="sm" variant="ghost" icon={Icon.print} onClick={() => { t.reprint(last.sale.id); setReprint(last.sale); }}>Reprint</Btn>
+                <Btn variant="ghost" icon={Icon.print} onClick={() => { t.reprint(last.sale.id); setReprint(last.sale); }}>Reprint</Btn>
               </div>
             )}
           </div>
@@ -613,7 +630,7 @@ function IssueInner() {
         <StickyActionBar noTabBar>
           <div className="flex items-center gap-3">
             <button type="button" onClick={() => document.getElementById("till-basket")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="min-w-0 flex-1 text-left rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
-              <div className="text-[11.5px] text-slate-500">{lines.length ? `${lines.reduce((a, l) => a + l.qty, 0)} item${lines.reduce((a, l) => a + l.qty, 0) === 1 ? "" : "s"} in basket · view` : "Basket is empty"}</div>
+              <div className="text-[12.5px] text-slate-500">{lines.length ? `${lines.reduce((a, l) => a + l.qty, 0)} item${lines.reduce((a, l) => a + l.qty, 0) === 1 ? "" : "s"} in basket · view` : "Basket is empty"}</div>
               <div className="font-display text-xl font-bold text-navy-900 tnum">{eur(totals.total)}</div>
             </button>
             <Btn variant="teal" icon={Icon.card} disabled={!lines.length} onClick={() => startPay(t.till.lastTender ?? "card")}>{lines.length ? `Charge ${eur(totals.total)}` : "Charge"}</Btn>
@@ -649,8 +666,8 @@ function HoldChip({ ms }: { ms: number }) {
 
 function RemoveBtn({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button type="button" aria-label={label} onClick={onClick} className="w-9 h-9 -my-1 rounded-lg grid place-items-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 shrink-0">
-      <Icon.x size={15} />
+    <button type="button" aria-label={label} onClick={onClick} className="w-11 h-11 -my-2 -mr-1 rounded-xl grid place-items-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 shrink-0">
+      <Icon.x size={18} />
     </button>
   );
 }
@@ -695,8 +712,8 @@ function CustomerAttach({ open, setOpen, customer, setCustomer, needed }: { open
       <form className="grid grid-cols-2 gap-2 items-end" onSubmit={(e) => { e.preventDefault(); if (name.trim() && phone.trim()) { setCustomer({ name: name.trim(), phone: phone.trim() }); setOpen(false); } }}>
         <Field label="Walk-in name"><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
         <Field label="Mobile"><Input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
-        <Btn type="submit" size="sm" variant="outline" disabled={!name.trim() || !phone.trim()}>Attach</Btn>
-        <Btn size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancel</Btn>
+        <Btn type="submit" variant="outline" disabled={!name.trim() || !phone.trim()}>Attach</Btn>
+        <Btn variant="ghost" onClick={() => setOpen(false)}>Cancel</Btn>
       </form>
     </div>
   );

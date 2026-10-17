@@ -34,7 +34,7 @@ export function CashierTransactions() {
   const failed = today.filter((s) => s.mydata === "failed").length;
 
   return (
-    <div className="animate-fade-up">
+    <div className="touch-ui animate-fade-up">
       <PageHead title="Transactions" actions={<Toggle label="Demo: fail next myDATA transmission" on={t.till.failNextMydata} onChange={t.setFailNext} />} />
       <TillStatus />
       {conflicts.map((s) => <ConflictCard key={s.id} sale={s} />)}
@@ -60,7 +60,7 @@ export function CashierTransactions() {
               RECEIPT_LABEL[s.receipt],
               <SaleStatusBadge sale={s} />,
               <MyDataBadge s={s} />,
-              <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => { setOpenId(s.id); setCopy(false); }}>Open</Btn>,
+              <Btn variant="ghost" icon={Icon.eye} onClick={() => { setOpenId(s.id); setCopy(false); }}>Open</Btn>,
             ])} />
         )}
       </Card>
@@ -79,7 +79,7 @@ export function CashierTransactions() {
             {(open.mydata === "failed" || (open.mydata === "pending" && !t.till.offline)) && (
               <div className="rounded-xl bg-rose-50 ring-1 ring-rose-600/20 px-3 py-2 text-[12.5px] text-rose-800 flex items-center gap-2" role="alert">
                 <Icon.alert size={14} /> {open.mydata === "failed" ? "myDATA rejected the transmission (timeout)." : "Not yet sent to myDATA."}
-                <Btn size="sm" variant="outline" className="ml-auto" onClick={() => { t.retryMydata(open.id); toast(`${open.apy} transmitted — MARK received.`, { tone: "success" }); }}>Retry</Btn>
+                <Btn variant="outline" className="ml-auto" onClick={() => { t.retryMydata(open.id); toast(`${open.apy} transmitted — MARK received.`, { tone: "success" }); }}>Retry</Btn>
               </div>
             )}
             {open.refunds.length > 0 && (
@@ -220,8 +220,8 @@ function ConflictCard({ sale }: { sale: TillSale }) {
       <div className="flex-1 min-w-[220px] text-[13px] text-amber-900">
         <b>Sync conflict · {sale.id}</b> — {line.setId} in {zone.name} was booked online while the till was offline.
       </div>
-      {alt && <Btn size="sm" variant="primary" onClick={() => { t.moveLine(sale.id, line.id, alt.id, `Sunbed set ${alt.id} · ${zone.name}`); toast(`Moved to ${alt.id} — tell the guest their new set.`, { tone: "success" }); }}>Move to {alt.id}</Btn>}
-      <Btn size="sm" variant="outline" onClick={() => setRefunding(true)}>Refund the set</Btn>
+      {alt && <Btn variant="primary" onClick={() => { t.moveLine(sale.id, line.id, alt.id, `Sunbed set ${alt.id} · ${zone.name}`); toast(`Moved to ${alt.id} — tell the guest their new set.`, { tone: "success" }); }}>Move to {alt.id}</Btn>}
+      <Btn variant="outline" onClick={() => setRefunding(true)}>Refund the set</Btn>
       {refunding && (
         <ManagerPinModal reason={`Refund ${line.setId} (${eur(line.unit)}) — booked online while offline.`} onClose={() => setRefunding(false)}
           onApproved={(m) => { setRefunding(false); const card = sale.tenders.some((x) => x.kind === "card"); t.refund(sale.id, { kind: "refund", lines: { [line.id]: 1 }, amount: refundValue(sale, { [line.id]: 1 }), tender: card ? "card" : "cash", reason: "Duplicate charge", note: "Booked online while offline", approver: m }); t.clearConflict(sale.id); toast(`${line.setId} refunded.`, { tone: "success" }); }} />
