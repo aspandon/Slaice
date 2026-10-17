@@ -10,7 +10,7 @@ import { gsap, Flip, motionOK, stashFlip, EASE } from "../lib/fx";
 import { Sunbed, SunbedMark } from "../components/Beach";
 import { ZONES, ZONE_BLOCKS, todayISO, chipLabel, forecastFor, WEATHER_DEMO } from "../data/beach";
 import { addDays } from "../domain/period";
-import { useLiveSlots } from "../lib/useLiveSlots";
+import { useClosure, useLiveSlots } from "../lib/useLiveSlots";
 import { checkRestrictions, dateBlock, resolvePrice } from "../domain/pricing";
 import { stopSellFor } from "../domain/inventory";
 import type { CartItem, SunbedSlot } from "../domain/types";
@@ -591,7 +591,9 @@ function WizardInner() {
   // step it starts lowered (total + Continue) so the sand is the screen; the form
   // steps start raised. The guest's own choice per step wins.
   const sheetKey = `${step.id}-${phase}`;
-  const sheetOpen = sheetPref[sheetKey] ?? step.id !== "beach";
+  // Phones choose the zone inside the panel (AENR-693), so it starts raised there; the sets
+  // phase lowers it onto the map.
+  const sheetOpen = sheetPref[sheetKey] ?? (step.id !== "beach" || (!richOverview && phase === "zones"));
   const setSheetOpen = (v: boolean) => setSheetPref((m) => ({ ...m, [sheetKey]: v }));
   const swipe = useRef<number | null>(null);
   const sheetHide = sheetOpen ? "" : "max-lg:hidden";
@@ -621,7 +623,7 @@ function WizardInner() {
               <span className="sr-only">{tr("Lower the panel to see the beach")}</span>
             ) : (
               <span className="text-[12px] font-semibold text-slate-600 inline-flex items-center gap-1">
-                {step.id === "beach" ? `${selDates.length === 1 ? chipLabel(selDates[0], localeFor(lang)).sub : `${selDates.length} ${tr("days")}`} · ${phase === "sets" ? zone.name : tr("all zones")} · ${tr("Change")}` : `${tr("Step")} ${stepIdx + 1} ${tr("of")} ${STEPS.length} · ${tr(step.label)}`}
+                {step.id === "beach" && !richOverview && phase === "sets" ? `${zone.name} · ${bedSel.length ? `${bedSel.length} ${bedSel.length === 1 ? tr("set") : tr("sets")} · ` : ""}${tr("tap a set on the map")}` : step.id === "beach" ? `${selDates.length === 1 ? chipLabel(selDates[0], localeFor(lang)).sub : `${selDates.length} ${tr("days")}`} · ${phase === "sets" ? zone.name : tr("all zones")} · ${tr("Change")}` : `${tr("Step")} ${stepIdx + 1} ${tr("of")} ${STEPS.length} · ${tr(step.label)}`}
                 <Icon.chevD size={13} className="rotate-180" />
               </span>
             )}
@@ -642,7 +644,8 @@ function WizardInner() {
               Review with many lines) overflows the panel. */}
           <div key={`${step.id}-${phase}`} className={`px-4 sm:px-5 pb-1 overflow-y-auto animate-fade-up ${sheetHide}`}>
             {(step.id === "when" || step.id === "beach") && (
-              <BeachMenu part={step.id === "when" ? "when" : "where"} onEditDates={() => { setNoSet(false); setStepIdx(0); }} blockReason={blockReason} dayInfo={dayInfo} fullDay={fullDay}
+              <BeachMenu part={step.id === "when" ? "when" : "where"} onEditDates={() => { setNoSet(false); setStepIdx(0); }}
+                zonePicker={!richOverview && step.id === "beach" ? <ZoneList days={selDates} selectedId={zoneId} onPick={pickZone} picked={pickedByZone} /> : undefined} blockReason={blockReason} dayInfo={dayInfo} fullDay={fullDay}
                 alternatives={fullDay ? {
                   days: [1, -1, 2, -2, 3, 4, 5, 6, 7].map((n) => addDays(fullDay, n)).filter((d) => d >= todayISO() && !blockReason(d) && (dayInfo(d).left ?? 0) > 0).slice(0, 3),
                   zones: step.id === "beach" && phase === "sets" ? ZONES.filter((z) => z.id !== zone.id).map((z) => ({ z, left: liveSlots(z, [fullDay]).filter((x) => x.state === "a").length })).filter((x) => x.left > 0).slice(0, 3) : [],
@@ -750,7 +753,7 @@ function WizardInner() {
                 <Icon.umbrella size={15} className="shrink-0 mt-0.5 text-amber-700" />
                 <div className="min-w-0">
                   <b>{tr("You haven't picked a set yet.")}</b>{" "}
-                  {phase === "zones" ? tr("Tap a zone on the sand, then tap a set (an umbrella with two sunbeds) to add it.") : tr("Tap a free set on the sand to add it.")}
+                  {phase === "zones" ? (richOverview ? tr("Tap a zone on the sand, then tap a set (an umbrella with two sunbeds) to add it.") : tr("Pick a zone in the list, then tap a set (an umbrella with two sunbeds) on the map.")) : tr("Tap a free set on the sand to add it.")}
                 </div>
               </div>
               <div className="mt-2 flex flex-wrap gap-2 pl-[23px]">
@@ -801,7 +804,7 @@ function WizardInner() {
         {/* The zone overview spreads the full beach width (panoramic); a single
             zone's sunbed grid stays at a comfortable reading width. */}
         <div className={`relative w-full ${showSets ? "max-w-5xl" : "max-w-[1700px]"}`}>
-          {showZones && <StoreOverview days={selDates} selectedId={zoneId} onPick={(id) => { if (step.id === "when") setStepIdx(BEACH_IDX); pickZone(id); }} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} picked={pickedByZone} />}
+          {showZones && richOverview && <StoreOverview days={selDates} selectedId={zoneId} onPick={(id) => { if (step.id === "when") setStepIdx(BEACH_IDX); pickZone(id); }} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} picked={pickedByZone} />}
           {showSets && (richOverview ? (
             <SandSunbeds slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} />
           ) : (
@@ -950,10 +953,12 @@ function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number
 /* ============ Beach step — menu side (dates + phase controls) ============
    The map and the sunbed grid have moved onto the page background; the menu keeps
    the dates and the supporting info (zone summary, legend, picks). */
-function BeachMenu({ part, onEditDates, selDates, setSelDates, multiDate, setMultiDate, phase, setPhase, zone, bedSel, setBedSel, avail, dayCount, blockReason, stayReasons, multiStore, setMultiStore, stale, dayInfo, fullDay, alternatives, onPickZone, autoNote }: {
+function BeachMenu({ part, onEditDates, zonePicker, selDates, setSelDates, multiDate, setMultiDate, phase, setPhase, zone, bedSel, setBedSel, avail, dayCount, blockReason, stayReasons, multiStore, setMultiStore, stale, dayInfo, fullDay, alternatives, onPickZone, autoNote }: {
   /** When = the day(s); Where = zone, sets and several zones (AENR-673). */
   part: "when" | "where";
   onEditDates: () => void;
+  /** Phones (AENR-693): the zones are part of the step — a list in the panel, with a Zone → Sets indicator. */
+  zonePicker?: ReactNode;
   /** The "Choose for me" pick in words, with the front-row upgrade (AENR-641). */
   autoNote?: { text: string; upgrade?: { label: string; onClick: () => void } } | null;
   dayInfo: (iso: string) => DayInfo;
@@ -1029,14 +1034,34 @@ function BeachMenu({ part, onEditDates, selDates, setSelDates, multiDate, setMul
       {part === "where" && stayReasons.length > 0 && <div role="alert" className="rounded-xl bg-amber-50 ring-1 ring-amber-600/20 px-3 py-2 text-[12px] text-amber-800 space-y-0.5">{stayReasons.map((r) => <div key={r}>{r}</div>)}</div>}
       {part === "where" && <>
 
+      {zonePicker && (
+        <ol aria-label={tr("Where — two parts")} className="grid grid-cols-2 gap-1.5 text-[12px] font-semibold">
+          {([["zones", tr("Zone")], ["sets", tr("Sets")]] as const).map(([k, l], i) => {
+            const now = phase === k;
+            const done = k === "zones" && phase === "sets";
+            return (
+              <li key={k}>
+                <button type="button" disabled={k === "sets" && phase === "zones"} onClick={() => k === "zones" && phase === "sets" && setPhase("zones")} aria-current={now ? "step" : undefined}
+                  className={`w-full flex items-center gap-2 rounded-xl px-2.5 min-h-[40px] ring-1 text-left transition disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${now ? "bg-navy-900 text-white ring-navy-900" : done ? "bg-teal-50 text-teal-800 ring-teal-300" : "bg-white/60 text-slate-500 ring-slate-200"}`}>
+                  <span className={`w-5 h-5 rounded-full grid place-items-center text-[11px] shrink-0 ${now ? "bg-white text-navy-900" : done ? "bg-teal-600 text-white" : "bg-slate-200 text-slate-600"}`}>{done ? <Icon.check size={11} /> : i + 1}</span>
+                  <span className="truncate">{k === "zones" ? (phase === "sets" ? zone.name : l) : bedSel.length ? `${l} · ${bedSel.length}` : l}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+      {zonePicker && phase === "zones" && zonePicker}
+
       {/* The map and the sunbed glyphs live on the sand; here the menu keeps only
           the chosen-zone summary and your picks. The legend + tap prompts sit in
           the bottom bar so they never crowd this panel. */}
       {phase === "sets" && (
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            {/* A real button, not grey text: it is how guests reach the other zones (AENR-666). */}
-            <button type="button" onClick={() => setPhase("zones")} className="inline-flex items-center gap-1.5 min-h-[36px] text-[13px] font-semibold text-navy-900 rounded-xl px-3 py-1.5 bg-white/80 ring-1 ring-slate-200 hover:ring-teal-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+            {/* A real button, not grey text: it is how guests reach the other zones (AENR-666).
+                Phones use the Zone step above instead (AENR-693). */}
+            <button type="button" onClick={() => setPhase("zones")} className={`${zonePicker ? "hidden" : ""} inline-flex items-center gap-1.5 min-h-[36px] text-[13px] font-semibold text-navy-900 rounded-xl px-3 py-1.5 bg-white/80 ring-1 ring-slate-200 hover:ring-teal-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500`}>
               <Icon.arrowL size={14} /> {tr("All zones")}
             </button>
             <div className="flex items-center gap-2 min-w-0">
@@ -1324,6 +1349,51 @@ function StoreCards({ days, selectedId, onPick, picked }: { days: string[]; sele
         })}
       </div>
     </div>
+  );
+}
+
+/* Phones (AENR-693): the zones as a list inside the Where step — big rows with what
+   matters for choosing (free sets, price from, your picks). */
+function ZoneList({ days, selectedId, onPick, picked }: { days: string[]; selectedId: string; onPick: (id: string) => void; picked: Record<string, number> }) {
+  const tr = useT();
+  const { zoneLogos } = useApp();
+  const liveSlots = useLiveSlots();
+  const closure = useClosure();
+  return (
+    <section aria-labelledby="zone-list-h">
+      <h2 id="zone-list-h" className="font-display font-bold text-navy-900 text-[17px] mb-0.5">{tr("Where would you like to sit?")}</h2>
+      <p className="text-[12.5px] text-slate-600 mb-2.5">{tr("Pick a zone — then choose your sets on the map.")}</p>
+      <ul className="space-y-2">
+        {ZONES.map((z) => {
+          const slots = liveSlots(z, days);
+          const freeSlots = slots.filter((s) => s.state === "a");
+          const closed = days.map((d) => closure(z.id, d)).find(Boolean);
+          const from = freeSlots.length ? Math.min(...freeSlots.map((s) => s.price)) : null;
+          const off = !!closed || freeSlots.length === 0;
+          const n = picked[z.id] ?? 0;
+          const logo = zoneLogos[z.id];
+          return (
+            <li key={z.id}>
+              <button type="button" onClick={() => onPick(z.id)} disabled={off}
+                aria-label={`${z.name} — ${closed ? closed : off ? tr("full") : `${freeSlots.length} ${tr("free")}, ${tr("from")} €${from}`}${n ? `, ${n} ${tr("picked")}` : ""}`}
+                className={`w-full flex items-center gap-3 rounded-2xl px-3 py-2.5 min-h-[64px] text-left ring-1 transition active:scale-[.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:opacity-60 disabled:active:scale-100 ${z.id === selectedId && n ? "bg-teal-50 ring-teal-400" : "bg-white/80 ring-slate-200 hover:ring-teal-400"}`}>
+                {logo ? (
+                  <img src={logo} alt="" className="h-10 w-10 object-contain shrink-0" />
+                ) : (
+                  <span className="w-10 h-10 rounded-xl grid place-items-center text-white shrink-0 shadow-sm" style={{ background: z.color }}><Icon.umbrella size={18} /></span>
+                )}
+                <span className="flex-1 min-w-0">
+                  <span className="block font-bold text-navy-900 text-[15px] leading-tight">{z.name}</span>
+                  <span className="block text-[12.5px] text-slate-600 tnum">{closed ? closed : off ? tr("Full on this day") : `${freeSlots.length} ${tr("free")} · ${tr("from")} €${from}`}</span>
+                </span>
+                {n > 0 && <span className="h-6 px-2 rounded-full bg-navy-900 text-white text-[11.5px] font-bold grid place-items-center shrink-0">{n} {tr("picked")}</span>}
+                {!off && <Icon.chevR size={16} className="text-slate-400 shrink-0" />}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

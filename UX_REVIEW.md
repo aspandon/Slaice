@@ -509,6 +509,7 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-670 — your zone stays on the sand.** Who and Pay show the zone you booked in with your sets; the zone row sits mid-sand.
 - **AENR-671 — the beach logo in the wizard.** Shown large over the sea on desktop, as on Home.
 - **AENR-672 — the logo glides with the sand.** From the Home header to its place over the sea and back.
+- **AENR-693 — phones: the zone is a step**: Where lists the zones inside the panel (Zone → Sets), then lowers onto the map.
 - **AENR-721 — till: one Quick tab** with a key per ticket category (ΑμεΑ, Child, Resident…) and more combos.
 - **AENR-691 — previews off hides every Future feature**, with a calm "not available" page for direct links.
 - **AENR-696 — tenant modules gate every role’s screens** (lockers, parking, loyalty, till, reports…).
