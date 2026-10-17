@@ -18,6 +18,8 @@ import * as CT from "./screens/controller";
 import { ControllerBeach } from "./screens/ControllerBeach";
 import { NewBooking } from "./screens/bookings/NewBooking";
 import { CallCenterRefunds } from "./screens/bookings/CallCenterRefunds";
+import { CallCenterIncidents } from "./screens/incidents/CallCenterIncidents";
+import { PlatformIncidents } from "./screens/incidents/PlatformIncidents";
 import { AdminBilling } from "./screens/AdminBilling";
 import { AdminDisplay } from "./screens/display/AdminDisplay";
 import { AccountantReports } from "./screens/reporting/FinanceTabs";
@@ -63,6 +65,7 @@ const MAP: Record<string, () => ReactElement> = {
   "callcenter.newbooking": () => <NewBooking />,
   "callcenter.bookings": () => <A.AdminBookings />,
   "callcenter.refunds": () => <CallCenterRefunds />,
+  "callcenter.incidents": () => <CallCenterIncidents />,
   // cashier
   "cashier.issue": () => <CA.CashierIssue />,
   "cashier.transactions": () => <CA.CashierTransactions />,
@@ -86,6 +89,7 @@ const MAP: Record<string, () => ReactElement> = {
   "accountant.reports": () => <AccountantReports />,
   // platform
   "platform.tenants": () => <PO.PlatformTenants />,
+  "platform.incidents": () => <PlatformIncidents />,
   "platform.tenant": () => <TenantPage />,
   "platform.onboarding": () => <PO.PlatformOnboarding />,
   "platform.superadmin": () => <PO.PlatformSuperAdmin />,

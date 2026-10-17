@@ -29,6 +29,8 @@ import type { RebookHint } from "../domain/rebook";
 import { emptyPlatform, type PlatformState } from "../domain/platform";
 import { DEFAULT_COMMS, type CommsState } from "../data/comms";
 import { DEFAULT_PRIVACY, type PrivacyState } from "../data/gdpr";
+import { DEFAULT_INCIDENTS } from "../data/incidents";
+import type { Incident } from "../domain/incidents";
 
 // Optional spotlight set by go(...,{spotlight,tip}) so a landing page can
 // highlight the section a journey points at.
@@ -207,6 +209,9 @@ export interface AppContextValue {
   setComms: (u: (s: CommsState) => CommsState) => void;
   privacy: PrivacyState;
   setPrivacy: (u: (s: PrivacyState) => PrivacyState) => void;
+  /** Incidents tenants report to Slaice, across tenants (AENR-720). */
+  incidents: Incident[];
+  setIncidents: (u: (s: Incident[]) => Incident[]) => void;
 }
 
 export const DEFAULT_CRM: CrmState = { segments: [], tagDefs: [{ name: "Wedding party", color: "#a855f7" }, { name: "Local", color: "#0D9488" }], edits: {}, regularAfter: 15, lifecycle: { atRiskDays: 14, lapsedDays: 35 }, columns: ["lifecycle", "spend"], imported: [], mergedAway: [], eraseRequests: [], profiles: {}, customFields: [{ id: "cf-birthday", label: "Birthday", type: "date" }, { id: "cf-company", label: "Company", type: "text" }] };
@@ -318,6 +323,8 @@ export const AppCtx = createContext<AppContextValue>({
   setComms: () => {},
   privacy: DEFAULT_PRIVACY,
   setPrivacy: () => {},
+  incidents: DEFAULT_INCIDENTS,
+  setIncidents: () => {},
 });
 
 export const useApp = (): AppContextValue => useContext(AppCtx);

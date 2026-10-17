@@ -4,6 +4,7 @@ import { daysLeft, hoursLeft, isOpen } from "../domain/gdpr";
 import { payLinkStatus } from "../domain/payLink";
 import { ageLabel, slaState } from "../domain/bookingOps";
 import { opsNow } from "./useBookingOps";
+import { SEVERITY_LABEL, STATUS_LABEL, lastSlaiceWord } from "../domain/incidents";
 import type { PersonaId } from "../domain/types";
 
 /* ============ Notification inbox (AENR-554) ============
@@ -25,7 +26,7 @@ export interface InboxItem {
 }
 
 export function useInbox(persona: PersonaId): InboxItem[] {
-  const { privacy, payLinks, bookingOps, till, comms, inventory } = useApp();
+  const { privacy, payLinks, bookingOps, till, comms, inventory, incidents, platform } = useApp();
   const out: InboxItem[] = [];
   const staff = persona === "admin" || persona === "callcenter" || persona === "support";
   const now = Date.now() + inventory.clockOffset * 60000;
@@ -142,6 +143,34 @@ export function useInbox(persona: PersonaId): InboxItem[] {
           ? `#/callcenter/bookings?booking=${encodeURIComponent(r.bookingId)}`
           : undefined,
       });
+  // Incidents (AENR-720): new reports wait for Slaice; Slaice's answers reach the call center.
+  if (persona === "platform")
+    for (const i of incidents.filter((x) => x.status === "new"))
+      out.push({
+        id: `incident-new-${i.id}`,
+        kind: "action",
+        icon: i.severity === "critical" ? "shieldAlert" : "alert",
+        tone: i.severity === "critical" || i.severity === "high" ? "red" : "amber",
+        title: `New incident · ${SEVERITY_LABEL[i.severity]}`,
+        body: `${platform.tenants.find((t) => t.id === i.tenantId)?.name ?? i.tenantId} · ${i.title}`,
+        time: i.reportedAt.slice(11, 16),
+        href: `#/platform/incidents?incident=${encodeURIComponent(i.id)}`,
+      });
+  if (persona === "callcenter")
+    for (const i of incidents.filter((x) => x.tenantId === platform.siteTenant)) {
+      const last = lastSlaiceWord(i);
+      if (!last) continue;
+      out.push({
+        id: `incident-${i.id}-${last.id}`,
+        kind: "fyi",
+        icon: last.status === "resolved" ? "checkCircle" : "alert",
+        tone: last.status === "resolved" ? "green" : "indigo",
+        title: last.kind === "reply" ? `Slaice replied · ${i.id}` : `${i.id} is ${STATUS_LABEL[last.status ?? i.status].toLowerCase()}`,
+        body: last.text || i.title,
+        time: last.at.slice(11, 16),
+        href: `#/callcenter/incidents?incident=${encodeURIComponent(i.id)}`,
+      });
+    }
   if (persona === "admin") {
     const lowOcc = comms.automations.filter(
       (a) => a.trigger === "low_occupancy" && a.status === "Active",

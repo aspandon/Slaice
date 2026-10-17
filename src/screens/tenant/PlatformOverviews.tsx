@@ -72,7 +72,9 @@ const VIEWS: [View, string][] = [
 ];
 
 export function PlatformTenants() {
-  const { go } = useApp();
+  const { go, incidents } = useApp();
+  const openIncidents = incidents.filter((i) => i.status !== "resolved");
+  const newIncidents = incidents.filter((i) => i.status === "new").length;
   const { platform, setPlatform, today, mrr, planName, plan } = usePlatform();
   const [viewRaw, setViewRaw] = useUrlState("view", "all");
   const view = viewRaw as View;
@@ -160,6 +162,14 @@ export function PlatformTenants() {
               }, f)
             }
           />
+          {/* Open incidents across tenants (AENR-720). */}
+          <Btn
+            variant="outline"
+            icon={Icon.alert}
+            onClick={() => go("platform", "incidents")}
+          >
+            Incidents · {openIncidents.length} open{newIncidents ? ` · ${newIncidents} new` : ""}
+          </Btn>
           <Btn variant="indigo" icon={Icon.bolt} onClick={() => go("platform", "onboarding")}>
             Onboard tenant
           </Btn>

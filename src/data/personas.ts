@@ -64,6 +64,8 @@ export const NAV: Record<PersonaId, NavItem[]> = {
     { k: "bookings", label: "Bookings", short: "Bookings", icon: "grid", badge: "MVP" },
     // The agent asks, a manager decides in Refunds (AENR-719).
     { k: "refunds", label: "Refund requests", short: "Refunds", icon: "refund", badge: "MVP" },
+    // Report what a guest or the staff ran into to Slaice, and follow it (AENR-720).
+    { k: "incidents", label: "Incidents", short: "Incidents", icon: "alert", badge: "MVP" },
   ],
   cashier: [
     // One place to sell (AENR-605): lockers are sold in Sell, tickets are redeemed at the gate.
@@ -95,6 +97,8 @@ export const NAV: Record<PersonaId, NavItem[]> = {
   ],
   platform: [
     { k: "tenants", label: "Tenants", short: "Tenants", icon: "building", badge: "MVP" },
+    // What tenants report, across tenants (AENR-720).
+    { k: "incidents", label: "Incidents", short: "Incidents", icon: "alert", badge: "MVP" },
     { k: "superadmin", label: "Super Admin", short: "Admin", icon: "cog", badge: "Future" },
     { k: "compliance", label: "Compliance & DPA", short: "Compliance", icon: "shield", badge: "MVP" },
     // Marketing, not operations (AENR-566). Onboarding is a tenant state: Tenants › In onboarding.
