@@ -107,8 +107,9 @@ export function ControllerBeach() {
   }
   const onHit = (h: ScanHit) => {
     if (h.kind === "booking") {
-      toast(`${h.code} is a booking QR — validate it at the gate.`, {
-        action: { label: "Open gate", onClick: () => go(persona, "scan") },
+      // The gate checks the group in (AENR-715) — open it on this booking.
+      toast(`${h.code} is a booking QR — check the group in at the gate.`, {
+        action: { label: "Check in", onClick: () => go(persona, "scan", { code: h.code }) },
       });
       return;
     }

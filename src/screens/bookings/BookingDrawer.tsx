@@ -4,6 +4,7 @@ import { Badge, Btn, Drawer, Field, Input, Modal, Select, StatusBadge, ActionsMe
 import { downloadReport } from "../../lib/download";
 import { opsKey } from "../../domain/sunbedOps";
 import { QR } from "../../components/charts";
+import { qrCode } from "../../domain/entry";
 import { SendModal } from "../../components/SendModal";
 import { useApp } from "../../app/store";
 import { useLiveSlots } from "../../lib/useLiveSlots";
@@ -19,6 +20,9 @@ import { REFUND_REASONS } from "../../data/refunds";
 import { DEMO_TODAY } from "../../domain/period";
 import { Masked } from "../tenant/ViewAs";
 import { LinkActions } from "./LinkActions";
+import { useEntry } from "../../lib/useEntry";
+import { CheckInSheet, type CheckInOutcome } from "../gate/CheckIn";
+import { arrivalPhrase, type Allowance, type EntryState } from "../../domain/entry";
 
 import { useUndoToast } from "../../lib/useUndo";
 /* ============ Booking drawer (AENR-579) ============
@@ -35,6 +39,7 @@ const EVENT_ICON: Record<BookingEventKind, IconRenderer> = {
   qr_sent: Icon.qr,
   qr_resent: Icon.send,
   scanned: Icon.scan,
+  entry_undone: Icon.refund,
   moved: Icon.arrowR,
   note: Icon.doc,
   refund_requested: Icon.clock,
@@ -120,10 +125,17 @@ function DrawerBody({ b, agent }: { b: OpsBooking; agent: boolean }) {
     (b.status === "Confirmed" || b.status === "Unpaid" || b.status === "Awaiting payment");
   const sets = b.items.filter((i) => i.startsWith("Sunbed · "));
   const setIds = sets.map((i) => i.split(" · ")[2]).filter(Boolean);
+  // Who came through the gate on the QR (AENR-715): the group's allowance, used and left.
+  const entry = useEntry();
+  const gate = entry.stateOf(b, b.visitIso);
+  const canCheckIn = b.visitIso === DEMO_TODAY && entry.verdictOf(b, DEMO_TODAY).kind === "admit";
+  const [checkingIn, setCheckingIn] = useState(false);
   // The primary action follows the booking's state (AENR-656).
   const arrived =
-    events.some((e) => e.kind === "scanned") ||
-    (setIds.length > 0 && setIds.every((id) => sunbedOps.status[opsKey(b.visitIso, id)]?.status === "occupied"));
+    gate.total > 0
+      ? gate.usedUp
+      : events.some((e) => e.kind === "scanned") ||
+        (setIds.length > 0 && setIds.every((id) => sunbedOps.status[opsKey(b.visitIso, id)]?.status === "occupied"));
   const [paying, setPaying] = useState(false);
   const staffPaid = (bookingOps.events[b.id] ?? []).find((e) => e.kind === "paid");
   const [qrOpen, setQrOpen] = useState(false);
@@ -164,8 +176,10 @@ function DrawerBody({ b, agent }: { b: OpsBooking; agent: boolean }) {
       ? null // the payment-link card above carries its own action
       : b.status === "Unpaid"
         ? { label: `Take payment · €${b.amount}`, icon: Icon.card, run: () => setPaying(true) }
-        : b.visitIso === DEMO_TODAY && b.status === "Confirmed" && !arrived && setIds.length > 0
-          ? { label: "Check in", icon: Icon.checkCircle, run: checkIn }
+        : b.visitIso === DEMO_TODAY && b.status === "Confirmed" && !arrived && (setIds.length > 0 || gate.total > 0)
+          ? gate.total > 0
+            ? { label: gate.entered ? `Check in · ${gate.left} expected` : "Check in", icon: Icon.checkCircle, run: () => setCheckingIn(true) }
+            : { label: "Check in", icon: Icon.checkCircle, run: checkIn }
           : b.visitIso > DEMO_TODAY && paid
             ? { label: "Resend QR", icon: Icon.send, run: () => setSend(true) }
             : paid
@@ -242,6 +256,12 @@ function DrawerBody({ b, agent }: { b: OpsBooking; agent: boolean }) {
           size="sm"
           label={`More actions for ${b.id}`}
           actions={[
+            canCheckIn && !primary?.label.startsWith("Check in") && {
+              id: "checkin",
+              label: "Check in arrivals…",
+              icon: Icon.checkCircle,
+              onSelect: () => setCheckingIn(true),
+            },
             live && sets.length > 0 && {
               id: "move",
               label: "Move set",
@@ -452,6 +472,26 @@ function DrawerBody({ b, agent }: { b: OpsBooking; agent: boolean }) {
         </ul>
       </section>
 
+      {gate.total > 0 && (b.visitIso === DEMO_TODAY || gate.arrivals.length > 0) && <GateSection st={gate} today={b.visitIso === DEMO_TODAY} allowance={entry.allowanceOf(b, b.visitIso)} />}
+      {checkingIn && (
+        <CheckInSheet
+          booking={b}
+          date={DEMO_TODAY}
+          gate="Back office"
+          onClose={() => setCheckingIn(false)}
+          onDone={(o: CheckInOutcome) => {
+            setCheckingIn(false);
+            if (o.kind === "admitted")
+              toast(`${b.id}: ${arrivalPhrase(o.arrival, o.allowance)} — ${o.after.entered} of ${o.after.total} in.`, {
+                tone: "success",
+                duration: 8000,
+                action: { label: "Undo", onClick: () => { if (entry.undo(b, DEMO_TODAY, o.arrival.id)) toast("Arrival undone.", { duration: 2500 }); } },
+              });
+            else if (o.kind === "reentry") toast(`${b.id}: let back in — logged.`, { tone: "warn" });
+          }}
+        />
+      )}
+
       {paid && (
         <button
           type="button"
@@ -462,7 +502,7 @@ function DrawerBody({ b, agent }: { b: OpsBooking; agent: boolean }) {
           <span className="flex-1 min-w-0">
             <span className="block font-semibold text-navy-900 text-[13.5px]">Gate QR</span>
             <span className="block text-[12px] text-slate-600 truncate">
-              {b.status === "Used" ? "Scanned at the gate — no longer valid." : `Valid for entry on ${b.date}`}
+              {b.status === "Used" ? "Scanned at the gate — no longer valid." : gate.usedUp ? `All ${gate.total} entered — no longer opens the gate.` : gate.entered ? `${gate.left} of ${gate.total} entries left · ${b.date}` : `Valid for entry on ${b.date}`}
             </span>
           </span>
           <span className="text-[12.5px] font-semibold text-teal-700">Show</span>
@@ -470,11 +510,13 @@ function DrawerBody({ b, agent }: { b: OpsBooking; agent: boolean }) {
       )}
       <Modal open={qrOpen} onClose={() => setQrOpen(false)} title={`Gate QR · ${b.id}`}>
         <div className="grid place-items-center gap-3 py-2">
-          <QR size={220} seed={`BOOKING-${b.id}`} />
+          <QR size={220} seed={qrCode(b.id)} />
           <p className="text-[13px] text-slate-600 text-center">
             {b.status === "Used"
               ? "Scanned at the gate — no longer valid for entry."
-              : `Valid for entry on ${b.date}. The guest can show it from the e-mail or their account.`}
+              : gate.usedUp
+                ? `All ${gate.total} entered — the QR no longer opens the gate.`
+                : `Valid for entry on ${b.date}${gate.total > 1 ? ` for ${gate.left} of ${gate.total}` : ""}. The whole group uses this one QR — from the e-mail, their account or a shared pass.`}
           </p>
         </div>
       </Modal>
@@ -551,6 +593,48 @@ function DrawerBody({ b, agent }: { b: OpsBooking; agent: boolean }) {
         }}
       />
     </div>
+  );
+}
+
+/* Who came through the gate on the booking's QR (AENR-715): entered of expected, each set by zone
+   with its seats, and the arrivals in order — the same story the gate and the guest's pass tell. */
+function GateSection({ st, today, allowance }: { st: EntryState; today: boolean; allowance: Allowance }) {
+  const pct = st.total ? Math.round((st.entered / st.total) * 100) : 0;
+  return (
+    <section aria-labelledby="bk-gate" className="rounded-2xl ring-1 ring-slate-200 bg-white/70 p-4 space-y-2.5">
+      <div className="flex items-baseline justify-between gap-3">
+        <h3 id="bk-gate" className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Gate · entries</h3>
+        <span className="text-[13px] font-semibold text-navy-900 tnum">
+          {st.entered} of {st.total} in{st.usedUp ? " · QR used up" : st.entered ? ` · ${st.left} expected` : today ? " · nobody yet" : ""}
+        </span>
+      </div>
+      <div className="h-2 rounded-full bg-slate-100 overflow-hidden" role="progressbar" aria-label="People in" aria-valuemin={0} aria-valuemax={st.total} aria-valuenow={st.entered}>
+        <div className="h-full rounded-full bg-teal-600" style={{ width: `${pct}%` }} />
+      </div>
+      <ul className="text-[13px] text-slate-700 space-y-1">
+        {st.sets.map((s) => (
+          <li key={s.setId} className="flex items-center justify-between gap-2">
+            <span><b className="text-navy-900">{s.zone}</b> · <span className="font-mono">{s.setId}</span></span>
+            <span className="tnum text-slate-600">{s.taken ? `${s.taken} of ${s.seats} here` : "nobody yet"}</span>
+          </li>
+        ))}
+        {st.tickets.map((t) => (
+          <li key={t.cat} className="flex items-center justify-between gap-2">
+            <span>{t.label} tickets</span>
+            <span className="tnum text-slate-600">{t.used} of {t.qty} used</span>
+          </li>
+        ))}
+      </ul>
+      {st.arrivals.length > 0 && (
+        <ol className="border-t border-slate-100 pt-2 space-y-1 text-[12.5px] text-slate-600">
+          {st.arrivals.map((a) => (
+            <li key={a.id}>
+              <span className="font-mono text-navy-900 tnum">{a.at.slice(11, 16)}</span> · {arrivalPhrase(a, allowance)} · {a.by} · {a.gate}
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
   );
 }
 

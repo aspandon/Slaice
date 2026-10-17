@@ -130,6 +130,10 @@ const initialRoute = parseHash();
 // or cookie banner; it reads the shared state and never writes it back.
 const DISPLAY = hashPath().startsWith("#/display");
 const LiveDisplay = lazyWithReload(() => import("./screens/display/LiveDisplay").then((m) => ({ default: m.LiveDisplay })));
+// `#/pass?b=…&k=…` is a booking shared with the group (AENR-715): a public guest view — no
+// sign-in, shell or cookie banner; like the display it reads the shared state and never writes it.
+const PASS = hashPath().startsWith("#/pass");
+const GuestPass = lazyWithReload(() => import("./screens/customer/GuestPass").then((m) => ({ default: m.GuestPass })));
 
 export default function App() {
   const [persona, setPersona] = useState<PersonaId>(initialRoute.persona || saved.persona || "customer");
@@ -290,7 +294,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (DISPLAY) return;
+    if (DISPLAY || PASS) return;
     // Guard the write: Safari Private Mode and a full quota throw on setItem.
     try {
       localStorage.setItem(LS_KEY, JSON.stringify({ persona, pageByPersona, signedIn, lang: langChoice ?? undefined, cart, consent, background, beachLayout, zoneLogos, passes, passPricing, loyalty, achievements, zoneMap, priceRules, channels, passCards, weather, dayTime, sceneFx, showPreviews, bookingNotes, staffUsers, staffMeId, staffAudit, viewAsId, crm, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, bookingOps, payLinks, display, layouts, extras, account, platform, comms, privacy, incidents }));
@@ -308,7 +312,7 @@ export default function App() {
   // can target it in CSS — e.g. the customer surface's translucent glass cards
   // (see index.css). An attribute on the root also reaches portaled surfaces.
   useEffect(() => {
-    document.documentElement.dataset.persona = persona;
+    document.documentElement.dataset.persona = PASS ? "customer" : persona;
   }, [persona]);
 
   const setConsent = useCallback((patch: Partial<Consent>) => {
@@ -337,7 +341,7 @@ export default function App() {
   // ---- URL routing: mirror persona+page into the location hash. ----
   const firstRoute = useRef(true);
   useEffect(() => {
-    if (DISPLAY) return;
+    if (DISPLAY || PASS) return;
     const target = buildHash(persona, page);
     // Compare the path only: a page's own query (e.g. ?period=month) and
     // deeper segments (e.g. /tenant/<id>/<section>) stay.
@@ -464,6 +468,15 @@ export default function App() {
         <Suspense fallback={<div className="min-h-dvh bg-navy-900" />}>
           <LiveDisplay />
         </Suspense>
+      </AppCtx.Provider>
+    );
+  if (PASS)
+    return (
+      <AppCtx.Provider value={ctx}>
+        <Suspense fallback={<div className="min-h-dvh grad-sea" />}>
+          <GuestPass />
+        </Suspense>
+        <Toasts items={toasts} onDismiss={dismissToast} />
       </AppCtx.Provider>
     );
 

@@ -4,6 +4,7 @@
 // demo state (events, moves, requests) lives in the app store.
 
 import type { AdminBooking } from "../data/mock";
+import type { ArrivalLedger } from "./entry";
 
 export type BookingEventKind =
   | "created"
@@ -12,6 +13,8 @@ export type BookingEventKind =
   | "qr_sent"
   | "qr_resent"
   | "scanned"
+  /** A gate arrival taken back (AENR-715). */
+  | "entry_undone"
   | "moved"
   | "note"
   | "refund_requested"
@@ -55,6 +58,8 @@ export interface BookingOpsState {
   seq: number;
   /** Routine decisions that run by themselves (AENR-623). */
   rules?: OpsRules;
+  /** Who came through the gate on a booking's QR, per booking and day (AENR-715). Absent in older saves. */
+  arrivals?: ArrivalLedger;
 }
 
 /* ---------- Automatic decisions (AENR-623) ----------

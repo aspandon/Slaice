@@ -7,8 +7,11 @@ import type { IconRenderer } from "../lib/icons";
 import { gsap, motionOK, takeFlip, Flip, EASE, burstConfetti } from "../lib/fx";
 import { Card, Btn, EmptyState, NotMvpBadge, SwipeRow, Toggle } from "../components/ui";
 import { QR } from "../components/charts";
+import { qrCode } from "../domain/entry";
 import { TenantLogo } from "../components/Brand";
-import { AppleLogo, WalletButtons } from "../components/WalletPass";
+import { AppleLogo, WalletOptions } from "../components/WalletPass";
+import { ShareSheet } from "./customer/ShareBooking";
+import { useEntry } from "../lib/useEntry";
 import { OPERATOR, TENANT, ZONES, todayISO } from "../data/beach";
 import { round2 } from "../data/passes";
 import { useApp, useT } from "../app/store";
@@ -17,7 +20,7 @@ import { SLAICE_FEE_RATE, STRIPE_FEE_RATE } from "../domain/pricing";
 import { PROFILE, cartKey, serviceFees, settleCheckout, type PlacedBooking } from "../domain/account";
 import { ARRIVAL_WINDOW, cancelLine, placedVisits, usual } from "../domain/visits";
 import { fmtDay, fmtWeekday } from "../domain/period";
-import { FullscreenQR, downloadVisitIcs, shareVisit } from "./customer/VisitTicket";
+import { FullscreenQR, downloadVisitIcs } from "./customer/VisitTicket";
 import { useVisits, guestNow } from "../lib/useVisits";
 import { useFinance } from "../lib/useFinance";
 import { useExtras } from "../lib/useExtras";
@@ -436,9 +439,14 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
   const t = useT();
   const [ref] = useState(() => booking?.ref ?? "BK-30000");
   const [full, setFull] = useState(false);
+  const [share, setShare] = useState(false);
   const scope = useRef<HTMLDivElement>(null);
   // The booking's first day as a visit — one ticket per beach day (AENR-571).
   const visit = booking ? placedVisits([booking], (id) => ZONES.find((z) => z.id === id)?.name ?? "")[0] : undefined;
+  // What the QR admits (AENR-715): the whole group shares it — sets by zone and the entry tickets.
+  const entry = useEntry();
+  const ob = booking ? entry.find(booking.ref) : undefined;
+  const group = ob && visit ? entry.stateOf(ob, visit.date) : null;
 
   // Celebration: the check springs in and throws confetti, the ticket flips up
   // in 3D, then the actions stagger in. Elements render in their final state —
@@ -468,7 +476,7 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
     zone: visit?.zone || "Akti tou Iliou",
     date: fmtDay(date),
     seat: visit?.sets.join(", ") || "—",
-    guests: Math.max(1, (visit?.sets.length ?? 1) * 2),
+    guests: group?.total || Math.max(1, (visit?.sets.length ?? 1) * 2),
     total: `€${booking?.total ?? 0}`,
     // Remembered as "In Wallet" on My bookings and Home too (AENR-620).
     visitKey: visit?.key,
@@ -486,13 +494,14 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
         <div className="grad-sea text-white px-6 py-5">
           <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-100">{TENANT.name}</div>
           <div className="mt-1 font-display font-bold text-[26px] leading-tight">{fmtWeekday(date)} {fmtDay(date)}</div>
-          <div className="text-[14px] text-white/90">{visit?.zone ? `${visit.zone} · ` : ""}{visit?.sets.length ? `${t("Sunbeds")} ${visit.sets.join(", ")}` : t("Entry")}</div>
+          {/* Each set with its own zone, so a booking across zones reads right (AENR-715). */}
+          <div className="text-[14px] text-white/90">{group?.sets.length ? group.sets.map((s) => `${s.zone} ${s.setId}`).join(" · ") : `${visit?.zone ? `${visit.zone} · ` : ""}${visit?.sets.length ? `${t("Sunbeds")} ${visit.sets.join(", ")}` : t("Entry")}`}</div>
         </div>
         <div className="relative px-6 py-5 text-center">
           <span aria-hidden className="absolute -top-3 -left-3 w-6 h-6 rounded-full bg-slate-100" />
           <span aria-hidden className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-slate-100" />
           <button type="button" onClick={() => setFull(true)} className="mx-auto grid place-items-center rounded-2xl p-2 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500" aria-label={t("Show the QR full screen")}>
-            <QR size={208} seed={ref} />
+            <QR size={208} seed={qrCode(ref)} />
           </button>
           <div className="mt-1 font-mono text-[15px] font-bold text-navy-900">{ref}</div>
           <div className="text-[12.5px] text-slate-500">{t("Tap the code to show it full screen at the gate.")}</div>
@@ -500,6 +509,13 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
             <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-slate-500 text-[11.5px]">{t("Arrive")}</dt><dd className="font-semibold text-navy-900">{ARRIVAL_WINDOW}</dd></div>
             <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-slate-500 text-[11.5px]">{t("Paid")}</dt><dd className="font-semibold text-navy-900">€{(booking?.deposit ?? booking?.total ?? 0).toFixed(2)}{booking?.card ? ` · ${booking.card}` : ""}</dd></div>
             {onSite > 0 && <div className="rounded-xl bg-amber-50 px-3 py-2 col-span-2"><dt className="text-amber-800 text-[11.5px]">{t("To pay on site")}</dt><dd className="font-semibold text-amber-900">€{onSite.toFixed(2)} · {t("cash or card at the gate")}</dd></div>}
+            {group && group.total > 0 && (
+              <div className="rounded-xl bg-teal-50 px-3 py-2 col-span-2 flex items-center gap-2.5">
+                <Icon.users size={16} className="text-teal-700 shrink-0" />
+                <div className="min-w-0"><dt className="text-teal-800 text-[11.5px]">{t("Your group")}</dt>
+                  <dd className="font-semibold text-navy-900">{group.total} {group.total === 1 ? t("entry") : t("entries")}{group.sets.length ? ` · ${group.sets.length} ${group.sets.length === 1 ? t("set") : t("sets")}` : ""} — {t("one QR for everyone")}</dd></div>
+              </div>
+            )}
             <div className="rounded-xl bg-slate-50 px-3 py-2 col-span-2"><dt className="text-slate-500 text-[11.5px]">{t("Entrance")}</dt><dd className="font-semibold text-navy-900 flex items-center justify-between gap-2"><span>{t("Main gate")} · {OPERATOR.address}</span>
               <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${TENANT.name} ${TENANT.place}`)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-teal-700 hover:underline shrink-0"><Icon.map size={14} /> {t("Map")}<span className="sr-only"> ({t("opens in a new tab")})</span></a></dd></div>
           </dl>
@@ -507,13 +523,17 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
         </div>
       </article>
 
-      <div data-confirm-item><WalletButtons pass={pass} className="mt-5" /></div>
-      <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2" data-confirm-item>
-        <Btn variant="outline" icon={Icon.calendar} onClick={() => { if (visit) downloadVisitIcs(visit); toast(t("Calendar invite downloaded (.ics)."), { tone: "success" }); }}>{t("Calendar")}</Btn>
-        <Btn variant="outline" icon={Icon.send} onClick={async () => { if (!visit) return; const r = await shareVisit(visit); if (r === "copied") toast(t("Visit details copied — paste them to your friends."), { tone: "success" }); }}>{t("Share")}</Btn>
-        <Btn variant="outline" icon={Icon.receipt} onClick={() => { clearCart(); go("customer", "mybookings"); }}>{t("Receipt")}</Btn>
-        <Btn variant="teal" icon={Icon.grid} onClick={() => { clearCart(); go("customer", "mybookings"); }}>{t("My bookings")}</Btn>
+      {/* Keep it (wallet, calendar) and send it to the group (AENR-715); the wallet badge fits the device. */}
+      <div data-confirm-item><WalletOptions pass={pass} className="mt-5" /></div>
+      <div className="mt-4 space-y-2" data-confirm-item>
+        {visit && <Btn variant="teal" size="lg" full icon={Icon.send} onClick={() => setShare(true)}>{t("Share with your group")}</Btn>}
+        <div className="grid grid-cols-3 gap-2">
+          <Btn variant="outline" icon={Icon.calendar} onClick={() => { if (visit) downloadVisitIcs(visit); toast(t("Calendar invite downloaded (.ics)."), { tone: "success" }); }}>{t("Calendar")}</Btn>
+          <Btn variant="outline" icon={Icon.receipt} onClick={() => { clearCart(); go("customer", "mybookings"); }}>{t("Receipt")}</Btn>
+          <Btn variant="outline" icon={Icon.grid} onClick={() => { clearCart(); go("customer", "mybookings"); }}>{t("Bookings")}</Btn>
+        </div>
       </div>
+      {share && visit && <ShareSheet v={visit} onClose={() => setShare(false)} />}
       {full && <FullscreenQR code={ref} caption={caption} onClose={() => setFull(false)} />}
     </div>
   );

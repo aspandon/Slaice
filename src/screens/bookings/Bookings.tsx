@@ -37,6 +37,7 @@ import { downloadReport } from "../../lib/download";
 import { Masked } from "../tenant/ViewAs";
 import { useBookingOps, zoneByName, type OpsBooking } from "../../lib/useBookingOps";
 import { useBeachState } from "../../lib/useBeachState";
+import { useEntry } from "../../lib/useEntry";
 import { useLiveSlots } from "../../lib/useLiveSlots";
 import { useListUrl } from "../../lib/useUrlState";
 import { BookingDrawer } from "./BookingDrawer";
@@ -137,6 +138,7 @@ export function AdminBookings() {
   const agent = persona === "callcenter";
   const ops = useBookingOps();
   const beach = useBeachState(DEMO_TODAY);
+  const entry = useEntry();
   const liveSlots = useLiveSlots("walkin");
   const [q, setQ] = useState("");
   // Tab, sort and page live in the URL (AENR-551).
@@ -286,6 +288,9 @@ export function AdminBookings() {
   };
   // Today: who is already on the sand (AENR-634), read like Live beach.
   const arrivalBadge = (b: OpsBooking) => {
+    // A group comes through the gate in turns on one QR (AENR-715): "2 of 4 in" until everyone is.
+    const g = entry.stateOf(b, DEMO_TODAY);
+    if (g.arrivals.length) return g.usedUp ? <Badge tone="green">Arrived · {g.total}</Badge> : <Badge tone="amber">{g.entered} of {g.total} in</Badge>;
     const ids = b.items.filter((i) => i.startsWith("Sunbed · ")).map((i) => i.split(" · "));
     if (!ids.length) return <span className="text-slate-400">—</span>;
     const states = ids.map(([, zName, id]) => {

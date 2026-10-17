@@ -20,6 +20,12 @@ export interface Validation {
   gate?: string;
   /** Invalid: why. */
   reason?: string;
+  /** The big word, when the state's own doesn't fit (e.g. "Admitted"). */
+  word?: string;
+  /** The sentence under it, instead of the state's default. */
+  detail?: string;
+  /** A real booking checked against its live allowance (AENR-715) — reopening it shows who is in. */
+  live?: boolean;
 }
 
 const LOOK: Record<ScanState, { bg: string; ink: string; word: string; icon: IconRenderer }> = {
@@ -30,11 +36,12 @@ const LOOK: Record<ScanState, { bg: string; ink: string; word: string; icon: Ico
 export const AUTO_RETURN_MS = 2000;
 
 export const detailOf = (v: Validation) =>
-  v.state === "valid"
+  v.detail ??
+  (v.state === "valid"
     ? "Admit the guest."
     : v.state === "used"
       ? `Entered ${v.at ?? "earlier"}${v.gate ? ` · ${v.gate}` : ""} — override only if you're sure.`
-      : `${v.reason ?? "Not recognised"} — do not admit.`;
+      : `${v.reason ?? "Not recognised"} — do not admit.`);
 
 /* ---- Sound + vibration ---- */
 let ctx: AudioContext | null = null;
@@ -79,19 +86,29 @@ const VIBRATE: Record<ScanState, number[]> = {
   used: [80, 60, 80],
   invalid: [250, 80, 250],
 };
+/** The beep and buzz for a result, as the gate's toggles allow. */
+export function scanFeedback(state: ScanState, fb: GateFeedback) {
+  if (fb.sound) beep(state);
+  if (fb.vibrate && "vibrate" in navigator) navigator.vibrate?.(VIBRATE[state]);
+}
 
+/** The entrances a gate device can stand at (AENR-715: every arrival records its gate). */
+export const GATES = ["Gate 1", "Gate 2"] as const;
 export interface GateFeedback {
   sound: boolean;
   vibrate: boolean;
+  /** Which entrance this device scans at. */
+  gate: string;
 }
 const FB_KEY = "slaice.gate.feedback";
+const FB_DEFAULT: GateFeedback = { sound: true, vibrate: true, gate: GATES[0] };
 /** Per-device preference (this gate's phone), remembered in the browser. */
 export function useGateFeedback(): [GateFeedback, (f: GateFeedback) => void] {
   const [fb, setFb] = useState<GateFeedback>(() => {
     try {
-      return { sound: true, vibrate: true, ...JSON.parse(localStorage.getItem(FB_KEY) ?? "{}") };
+      return { ...FB_DEFAULT, ...JSON.parse(localStorage.getItem(FB_KEY) ?? "{}") };
     } catch {
-      return { sound: true, vibrate: true };
+      return FB_DEFAULT;
     }
   });
   const set = (f: GateFeedback) => {
@@ -111,6 +128,7 @@ export function ScanResult({
   onAdmit,
   onDeny,
   onDone,
+  onUndo,
 }: {
   v: Validation;
   feedback: GateFeedback;
@@ -119,6 +137,8 @@ export function ScanResult({
   onDeny: (v: Validation) => void;
   /** Back to the scanner. */
   onDone: () => void;
+  /** Take back what was just recorded (an arrival, AENR-715) — right here, not in a toast. */
+  onUndo?: () => void;
 }) {
   const look = LOOK[v.state];
   const I = look.icon;
@@ -132,8 +152,7 @@ export function ScanResult({
 
   // Feedback once per result (the scan itself is logged by the caller).
   useEffect(() => {
-    if (feedback.sound) beep(v.state);
-    if (feedback.vibrate && "vibrate" in navigator) navigator.vibrate?.(VIBRATE[v.state]);
+    scanFeedback(v.state, feedback);
     actions.current?.querySelector("button")?.focus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [v]);
@@ -167,7 +186,7 @@ export function ScanResult({
           id={titleId}
           className="mt-6 font-display font-bold uppercase tracking-tight text-5xl sm:text-7xl leading-none"
         >
-          {look.word}
+          {v.word ?? look.word}
         </h2>
         <p id={descId} className="mt-4 text-xl sm:text-2xl font-semibold max-w-xl">
           {detailOf(v)}
@@ -192,9 +211,16 @@ export function ScanResult({
             </Btn>
           </>
         ) : (
-          <Btn size="lg" variant="light" icon={Icon.scan} onClick={onDone}>
-            Next scan
-          </Btn>
+          <>
+            <Btn size="lg" variant="light" icon={Icon.scan} onClick={onDone}>
+              Next scan
+            </Btn>
+            {onUndo && (
+              <Btn size="lg" variant="light" icon={Icon.refund} onClick={onUndo}>
+                Undo
+              </Btn>
+            )}
+          </>
         )}
       </div>
       {auto && (

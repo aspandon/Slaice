@@ -58,4 +58,5 @@ export const DEFAULT_BOOKING_OPS: BookingOpsState = {
   refunds: SEED_REFUNDS,
   seq: 1041,
   rules: DEFAULT_RULES,
+  arrivals: {},
 };

@@ -8,6 +8,7 @@ import { PassCard } from "./PassCard";
 import { TENANT } from "../data/beach";
 import { useApp, useT } from "../app/store";
 import { detectWalletPlatform, downloadPkpass, copyGoogleSaveLink } from "../lib/wallet";
+import { qrCode } from "../domain/entry";
 import type { WalletKind } from "../domain/account";
 
 export interface WalletPassData {
@@ -119,6 +120,46 @@ export function WalletSheetFor({ pass, kind, onClose }: { pass: WalletPassData; 
   return <WalletSheet open onClose={onClose} pass={pass} kind={kind} platform={detectWalletPlatform()} />;
 }
 
+/** The device's wallet badge plus the other wallets as quiet links (AENR-715) — where a screen
+ *  has no "…" menu (the confirmation, a shared pass), both wallets stay one tap away, even on a
+ *  computer that shows no badge (AENR-662). */
+export function WalletOptions({ pass, className = "" }: { pass: WalletPassData; className?: string }) {
+  const t = useT();
+  const { account } = useApp();
+  const [kind, setKind] = useState<WalletKind | null>(null);
+  const added = pass.visitKey ? account.wallet?.[pass.visitKey] : undefined;
+  const others = otherWallets().filter((k) => k !== added);
+  const badge = !!added || detectWalletPlatform() !== "other";
+  const other = (k: WalletKind) => (
+    <button
+      key={k}
+      type="button"
+      onClick={() => setKind(k)}
+      className="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 min-h-[44px] text-[13.5px] font-semibold text-navy-900 ring-1 ring-slate-200 bg-white/80 hover:ring-teal-400 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+    >
+      {k === "apple" ? <AppleLogo size={16} /> : <GoogleG size={15} />} {WALLET_NAME[k]}
+    </button>
+  );
+  return (
+    <div className={className}>
+      <WalletButtons pass={pass} />
+      {!pass.voided && others.length > 0 &&
+        (badge ? (
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-2 text-[13px]">
+            <span className="text-slate-600">{t("Also add to")}</span>
+            {others.map(other)}
+          </div>
+        ) : (
+          <>
+            <div className="text-center text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">{t("Add your pass to")}</div>
+            <div className="grid grid-cols-2 gap-2 max-w-sm mx-auto">{others.map(other)}</div>
+          </>
+        ))}
+      {kind && <WalletSheetFor pass={pass} kind={kind} onClose={() => setKind(null)} />}
+    </div>
+  );
+}
+
 /* ---------- The pass preview (looks like a real wallet pass) ---------- */
 function PassPreview({ pass }: { pass: WalletPassData }) {
   // VIP / Season passes render the tenant membership card art + a scan strip.
@@ -171,7 +212,7 @@ function PassPreview({ pass }: { pass: WalletPassData }) {
       </div>
 
       <div className="bg-white px-5 py-4 flex items-center gap-4">
-        <div className="rounded-lg ring-1 ring-slate-200 p-1.5 shrink-0"><QR size={92} seed={pass.ref} /></div>
+        <div className="rounded-lg ring-1 ring-slate-200 p-1.5 shrink-0"><QR size={92} seed={qrCode(pass.ref)} /></div>
         <div className="min-w-0">
           <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Booking</div>
           <div className="font-mono font-semibold text-navy-900 text-sm">#{pass.ref.replace(/^#/, "")}</div>

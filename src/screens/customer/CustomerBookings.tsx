@@ -7,6 +7,7 @@ import { Badge, Btn, Card, EmptyState, ErrorState, Field, Input, Modal, Stepper,
 import { DateInput } from "../../components/ui/DateInput";
 import { WalletButtons, WalletSheetFor, otherWallets } from "../../components/WalletPass";
 import { QR, Sparkline } from "../../components/charts";
+import { qrCode } from "../../domain/entry";
 import { useApp, useT } from "../../app/store";
 import { ZONES, todayISO } from "../../data/beach";
 import { addDays, fmtDay, fmtWeekday } from "../../domain/period";
@@ -18,7 +19,8 @@ import { useVisits, guestNow } from "../../lib/useVisits";
 import { useExtras } from "../../lib/useExtras";
 import { useLiveSlots } from "../../lib/useLiveSlots";
 import { ReceiptModal } from "./CustomerDocs";
-import { FullscreenQR, downloadVisitIcs, invoiceForVisit, receiptForVisit, shareVisit, visitPass } from "./VisitTicket";
+import { FullscreenQR, downloadVisitIcs, invoiceForVisit, receiptForVisit, visitPass } from "./VisitTicket";
+import { ShareSheet } from "./ShareBooking";
 
 /* ============ MY BOOKINGS (AENR-572) ============
    One card per visit — date, zone, sets, tickets, parking, locker, total —
@@ -40,7 +42,8 @@ type Dialog =
   | { kind: "invoice"; v: Visit }
   | { kind: "move"; v: Visit }
   | { kind: "extras"; v: Visit }
-  | { kind: "cancel"; v: Visit };
+  | { kind: "cancel"; v: Visit }
+  | { kind: "share"; v: Visit };
 
 export function CustomerBookings() {
   const { go, toast, account } = useApp();
@@ -120,11 +123,14 @@ export function CustomerBookings() {
         <Modal open onClose={close} title={`${t("Entry QR")} · ${dlg.v.refs[0]}`}>
           <div className="text-center">
             <button type="button" onClick={() => setDlg({ kind: "full", v: dlg.v })} className="mx-auto grid place-items-center rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500" aria-label={t("Show the QR full screen")}>
-              <QR size={200} seed={dlg.v.refs[0]} />
+              <QR size={200} seed={qrCode(dlg.v.refs[0])} />
             </button>
             <div className="mt-2 text-[12px] text-slate-600">{t("Tap the code to show it full screen at the gate.")}</div>
             <WalletButtons className="mt-4 pt-4 border-t border-slate-100" pass={visitPass(dlg.v)} />
-            <Btn variant="outline" full className="mt-4" icon={Icon.mail} onClick={() => toast(t("QR re-sent to your e-mail."), { tone: "success" })}>{t("Resend by e-mail")}</Btn>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <Btn variant="teal" icon={Icon.send} onClick={() => setDlg({ kind: "share", v: dlg.v })}>{t("Share")}</Btn>
+              <Btn variant="outline" icon={Icon.mail} onClick={() => toast(t("QR re-sent to your e-mail."), { tone: "success" })}>{t("Resend by e-mail")}</Btn>
+            </div>
           </div>
         </Modal>
       )}
@@ -141,6 +147,7 @@ export function CustomerBookings() {
       {dlg?.kind === "move" && <MoveDialog v={dlg.v} onClose={close} />}
       {dlg?.kind === "extras" && <ExtrasDialog v={dlg.v} onClose={close} />}
       {dlg?.kind === "cancel" && <CancelDialog v={dlg.v} onClose={close} />}
+      {dlg?.kind === "share" && <ShareSheet v={dlg.v} onClose={close} />}
     </div>
   );
 }
@@ -157,13 +164,15 @@ function VisitCard({ v, deadline, onOpen }: { v: Visit; deadline: string; onOpen
   const press = useLongPress(() => setMenu(true));
   const openDoc = () => onOpen({ kind: "receipt", v, doc: invoice ? invoiceForVisit(v, invoice) : receiptForVisit(v) });
   const [walletKind, setWalletKind] = useState<"apple" | "google" | null>(null);
+  // One QR for the group (AENR-715): share it first — the people coming along get their own pass.
+  const [sharing, setSharing] = useState(false);
   const actions: MenuAction[] = [
+    ...(live ? [{ id: "share", label: t("Share with your group"), icon: Icon.send, onSelect: () => setSharing(true) }] : []),
     ...(live ? [{ id: "doc", label: invoice ? t("Invoice") : t("Receipt"), icon: Icon.receipt, onSelect: openDoc }] : []),
     ...(live && inWindow ? [{ id: "move", label: t("Move date"), icon: Icon.calendar, onSelect: () => onOpen({ kind: "move", v }) }] : []),
     ...(live ? [{ id: "extras", label: t("Add extras"), icon: Icon.plus, onSelect: () => onOpen({ kind: "extras", v }) }] : []),
     ...(live ? [{ id: "ics", label: t("Add to calendar"), icon: Icon.calendar, onSelect: () => { downloadVisitIcs(v); toast(t("Calendar invite downloaded (.ics)."), { tone: "success" }); } }] : []),
     ...otherWallets().map((k) => ({ id: `wallet-${k}`, label: `${t("Add to")} ${k === "apple" ? "Apple Wallet" : "Google Wallet"}`, icon: Icon.wallet, onSelect: () => setWalletKind(k) })),
-    ...(live ? [{ id: "share", label: t("Share"), icon: Icon.send, onSelect: async () => { const r = await shareVisit(v); if (r === "copied") toast(t("Visit details copied — paste them to your friends."), { tone: "success" }); } }] : []),
     ...(live ? [{ id: "cancel", label: t("Cancel visit"), icon: Icon.x, destructive: true, hint: inWindow ? t("Free until") + " " + fmtDeadline(deadline) : t("No refund now"), onSelect: () => onOpen({ kind: "cancel", v }) }] : []),
   ];
   const what = [
@@ -214,6 +223,7 @@ function VisitCard({ v, deadline, onOpen }: { v: Visit; deadline: string; onOpen
         )}
         <WalletButtons compact pass={visitPass(v)} />
         {walletKind && <WalletSheetFor pass={visitPass(v)} kind={walletKind} onClose={() => setWalletKind(null)} />}
+        {sharing && <ShareSheet v={v} onClose={() => setSharing(false)} />}
         <ActionsMenu size="sm" className="ml-auto" open={menu} onOpenChange={setMenu} label={`${t("More actions for")} ${fmtWeekday(v.date)} ${fmtDay(v.date)}`} actions={actions} />
       </div>
     </Card>

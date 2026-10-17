@@ -92,6 +92,8 @@ const BASE_ADMIN_BOOKINGS: AdminBooking[] = [
   { id: "#BK-10434", who: "Thanos", items: ["Sunbed · Macaw · MC-09", "Parking · P07"], date: "22 Jul", channel: "Phone", status: "Unpaid", amount: 50 },
   { id: "#BK-10432", who: "Foteini", items: ["Sunbed · Akanthus · AK-11", "Entry · Adult ×2"], date: "21 Jul", channel: "Online", status: "Confirmed", amount: 50 },
   { id: "#BK-10430", who: "Petros", items: ["Sunbed · Bestbuy · BE-20"], date: "20 Jul", channel: "Online", status: "Confirmed", amount: 22 },
+  // A group arriving in turns (AENR-715): one QR, two sets in two zones and four entry tickets.
+  { id: "#BK-10437", who: "Katerina", items: ["Sunbed · Akanthus · AK-10", "Sunbed · Central · CE-21", "Entry · Normal ×4"], date: "19 Jul", channel: "Online", status: "Confirmed", amount: 95 },
   { id: "#BK-10428", who: "Elena", items: ["Sunbed · Central · CE-89", "Sunbed · Central · CE-90", "Parking · P12", "Day locker · A07"], date: "19 Jul", channel: "Online", status: "Confirmed", amount: 80 },
   { id: "#BK-10427", who: "Walk-in", items: ["Sunbed · Macaw · MC-04"], date: "19 Jul", channel: "Walk-in", status: "Confirmed", amount: 35 },
   { id: "#BK-10426", who: "Nikos", items: ["Sunbed · Bestbuy · BE-12", "Sunbed · Bestbuy · BE-13"], date: "19 Jul", channel: "Online", status: "Confirmed", amount: 44 },

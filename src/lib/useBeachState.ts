@@ -55,11 +55,18 @@ export function useBeachState(date: string) {
   const isReal = (s: SunbedSlot) =>
     bookingsOnDate.some((b) => b.items.some((i) => i.startsWith("Sunbed · ") && i.endsWith(` · ${s.id}`))) ||
     till.sales.some((x) => x.day === date && x.lines.some((l) => l.setId === s.id));
+  // A booking that comes in through the gate is on the sand once it is checked in — at the gate
+  // (AENR-715), on the live map or from the booking; only walk-ins and till sales are bought there.
+  const viaGate = (s: SunbedSlot) =>
+    bookingsOnDate.some(
+      (b) => b.channel !== "Walk-in" && b.channel !== "Cashier" && b.items.some((i) => i.startsWith("Sunbed · ") && i.endsWith(` · ${s.id}`)),
+    );
   const arrivedBy = (s: SunbedSlot) => {
     const n = setNo(s);
     if (sampleNoShow(n) && !isReal(s)) return false;
     if (date < DEMO_TODAY) return true;
     if (date > DEMO_TODAY) return false;
+    if (viaGate(s)) return false;
     return now >= arrivalOf(n);
   };
   const statusOf = (s: SunbedSlot): OpsStatus =>

@@ -8,6 +8,7 @@ import { gsap, motionOK, DUR, EASE, useMagnetic, useCardTilt } from "../../lib/f
 import { useCountUp } from "../../lib/motion";
 import { ZONES, zoneLayout, WEATHER_DEMO, TENANT, forecastFor, todayISO, chipLabel } from "../../data/beach";
 import { QR } from "../../components/charts";
+import { qrCode } from "../../domain/entry";
 import { useVisits } from "../../lib/useVisits";
 import { ARRIVAL_ENDS, ARRIVAL_WINDOW, homeMoment, type MomentKind, type Visit } from "../../domain/visits";
 import { useRebook, type Rebook } from "../../lib/useRebook";
@@ -15,6 +16,7 @@ import { partyLabel } from "../../domain/account";
 import { localeFor } from "../../app/i18n";
 import { fmtDay, fmtWeekday } from "../../domain/period";
 import { VisitQR, receiptForVisit, visitPass } from "./VisitTicket";
+import { ShareSheet } from "./ShareBooking";
 import { ExtrasDialog } from "./CustomerBookings";
 import { ReceiptModal } from "./CustomerDocs";
 import { useDemoNow } from "../../lib/useLiveSlots";
@@ -222,6 +224,7 @@ function NextVisitCard({ v, qrFirst = false }: { v: Visit; qrFirst?: boolean }) 
   const { go, weather } = useApp();
   const t = useT();
   const [qr, setQr] = useState(false);
+  const [share, setShare] = useState(false);
   const today = todayISO();
   const days = Math.round((Date.parse(v.date) - Date.parse(today)) / 86400000);
   const fc = forecastFor(v.date, today, weather);
@@ -247,6 +250,8 @@ function NextVisitCard({ v, qrFirst = false }: { v: Visit; qrFirst?: boolean }) 
           </div>
           <div className="mt-4 flex flex-wrap gap-2">
             <Btn variant="primary" icon={Icon.qr} onClick={() => setQr(true)}>{t("Show QR")}</Btn>
+            {/* One QR for the group (AENR-715): send the people coming along their own pass. */}
+            <Btn variant="outline" icon={Icon.send} onClick={() => setShare(true)}>{t("Share")}</Btn>
             <WalletButtons compact pass={visitPass(v)} />
             <a
               href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${TENANT.name} ${TENANT.place}`)}`}
@@ -262,11 +267,12 @@ function NextVisitCard({ v, qrFirst = false }: { v: Visit; qrFirst?: boolean }) 
         </div>
         {/* The morning of the visit the QR leads, also on phones. */}
         <button type="button" onClick={() => setQr(true)} aria-label={`${t("Show QR")} ${v.refs[0]}`} className={`${qrFirst ? "order-first sm:order-none" : ""} self-center shrink-0 rounded-2xl bg-white p-2.5 ring-1 ring-slate-200 shadow-soft hover:shadow-lift transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500`}>
-          <QR size={qrFirst ? 168 : 132} seed={v.refs[0]} />
+          <QR size={qrFirst ? 168 : 132} seed={qrCode(v.refs[0])} />
           <span className="block mt-1 font-mono text-[12px] font-semibold text-navy-900">{v.refs[0]}</span>
         </button>
       </div>
       {qr && <VisitQR v={v} onClose={() => setQr(false)} />}
+      {share && <ShareSheet v={v} onClose={() => setShare(false)} />}
     </section>
   );
 }

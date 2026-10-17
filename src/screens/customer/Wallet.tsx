@@ -4,6 +4,7 @@ import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
 import { Badge, Btn, EmptyState, ErrorState, NotMvpBadge, Skeleton } from "../../components/ui";
 import { QR } from "../../components/charts";
+import { qrCode } from "../../domain/entry";
 import { useApp, useT } from "../../app/store";
 import { TENANT, ZONES, todayISO, zoneLayout } from "../../data/beach";
 import { SEASON_ZONE, seasonSetIn } from "../../data/passes";
@@ -337,7 +338,7 @@ function EntryTicket({ v, onShow }: { v: Visit; onShow: () => void }) {
         className="group shrink-0 w-[124px] sm:w-[144px] border-l-2 border-dashed border-slate-300/80 bg-white/70 hover:bg-white transition-colors flex flex-col items-center justify-center gap-1.5 px-3 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500"
       >
         <span className="rounded-xl bg-white p-1.5 ring-1 ring-slate-200 shadow-soft transition group-hover:shadow-lift">
-          <QR size={84} seed={v.refs[0]} />
+          <QR size={84} seed={qrCode(v.refs[0])} />
         </span>
         <span className="font-mono text-[11.5px] font-semibold text-navy-900">{v.refs[0]}</span>
         <span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-teal-700">

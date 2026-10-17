@@ -5,8 +5,9 @@ import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
 import { Btn } from "./primitives";
 
-/* Dialog focus management (WCAG 2.4.3 + ARIA dialog pattern). */
-function useDialogFocus(open: boolean, panelRef: RefObject<HTMLElement | null>) {
+/* Dialog focus management (WCAG 2.4.3 + ARIA dialog pattern): focus moves in (to `initialRef`
+   when given, else the first control), Tab cycles inside, and focus returns on close. */
+export function useDialogFocus(open: boolean, panelRef: RefObject<HTMLElement | null>, initialRef?: RefObject<HTMLElement | null>) {
   useEffect(() => {
     if (!open) return;
     const panel = panelRef.current;
@@ -17,7 +18,8 @@ function useDialogFocus(open: boolean, panelRef: RefObject<HTMLElement | null>) 
         'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])',
       )).filter((el) => el.offsetParent !== null || el === document.activeElement);
     const first = focusables()[0];
-    (first || panel).focus?.();
+    const initial = initialRef?.current;
+    (initial && !initial.hasAttribute("disabled") ? initial : first || panel).focus?.();
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;
       const f = focusables();

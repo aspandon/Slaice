@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Icon } from "../../lib/icons";
 import { QR } from "../../components/charts";
+import { qrCode } from "../../domain/entry";
 import { Btn, Modal } from "../../components/ui";
 import { WalletButtons } from "../../components/WalletPass";
 import { useT } from "../../app/store";
@@ -52,7 +53,7 @@ export function FullscreenQR({
     >
       <div className="text-center">
         <div className="mx-auto grid place-items-center">
-          <QR size={Math.min(420, Math.round(window.innerWidth * 0.82))} seed={code} />
+          <QR size={Math.min(420, Math.round(window.innerWidth * 0.82))} seed={qrCode(code)} />
         </div>
         <div className="mt-4 font-mono text-2xl font-bold text-navy-900">{code}</div>
         <div className="mt-1 text-[15px] text-slate-600">{caption}</div>
@@ -84,7 +85,7 @@ export function VisitQR({ v, onClose }: { v: Visit; onClose: () => void }) {
     <Modal open onClose={onClose} title={`${t("Entry QR")} · ${v.refs[0]}`}>
       <div className="text-center">
         <div className="mx-auto grid place-items-center">
-          <QR size={240} seed={v.refs[0]} />
+          <QR size={240} seed={qrCode(v.refs[0])} />
         </div>
         <div className="mt-2 font-mono text-[15px] font-bold text-navy-900">{v.refs[0]}</div>
         <div className="text-[13px] text-slate-600">{caption}</div>
@@ -127,23 +128,8 @@ export function downloadVisitIcs(v: Visit) {
   });
 }
 
-/** Share the visit with the people coming along (Web Share, or copy a summary). */
-export async function shareVisit(v: Visit): Promise<"shared" | "copied" | "none"> {
-  const text = `Beach day at ${TENANT.name} · ${fmtDay(v.date)}${v.zone ? ` · ${v.zone}` : ""}${v.sets.length ? ` · sunbeds ${v.sets.join(", ")}` : ""} · arrive ${ARRIVAL_WINDOW}. Booking ${v.refs[0]}.`;
-  const nav = navigator as Navigator & {
-    share?: (d: { title: string; text: string }) => Promise<void>;
-  };
-  try {
-    if (nav.share) {
-      await nav.share({ title: "Beach day", text });
-      return "shared";
-    }
-    await navigator.clipboard?.writeText(text);
-    return "copied";
-  } catch {
-    return "none";
-  }
-}
+/* Sharing the visit with the people coming along — one link to their own pass with the same
+   QR, by e-mail, SMS, Viber or the share sheet — lives in ShareBooking (AENR-715). */
 
 const money = (n: number) => `€${n.toFixed(2)}`;
 const num = (ref: string) => ref.replace(/\D/g, "").padStart(6, "0").slice(-6);

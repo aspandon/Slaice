@@ -45,6 +45,8 @@ export interface SpotlightHint {
   promote?: string;
   /** Sunbed set to open / sell (Controller beach → walk-in sale). */
   setId?: string;
+  /** A booking QR scanned elsewhere, to check in at the gate (AENR-715). */
+  code?: string;
   /** Guest details to pre-fill a manual / phone booking (from the guest profile). */
   prefill?: { name: string; email: string; phone: string };
   /** Open the booking wizard on Pay with the guest's usual booking filled in (AENR-611). */

@@ -15,6 +15,7 @@ import { NO_SHOW_CUTOFF, OPS_LABEL, type OpsStatus } from "../../domain/sunbedOp
 import { usePeriod } from "../../lib/usePeriod";
 import { useLiveSlots } from "../../lib/useLiveSlots";
 import { useBeachState } from "../../lib/useBeachState";
+import { useEntry } from "../../lib/useEntry";
 import type { SunbedSlot } from "../../domain/types";
 
 import { useUndoToast } from "../../lib/useUndo";
@@ -69,6 +70,15 @@ export function AdminLiveBeach() {
   const liveSlots = useLiveSlots("walkin");
   const slots = useMemo(() => liveSlots(zone, [date]), [liveSlots, zone, date]);
   const { statusOf, bookingOf, exOf, ops } = useBeachState(date);
+  // Who of the group came through the gate and sits here (AENR-715).
+  const entry = useEntry();
+  const hereOf = (s: SunbedSlot): GateHere | undefined => {
+    const b = bookingOf(s)?.booking;
+    if (!b) return undefined;
+    const st = entry.stateOf(b, date);
+    const set = st.sets.find((x) => x.setId === s.id);
+    return set ? { taken: set.taken, seats: set.seats, entered: st.entered, total: st.total, tracked: st.arrivals.length > 0 } : undefined;
+  };
 
   /** One legend state per set (the most urgent one). */
   const keyOf = (s: SunbedSlot): LegendKey => {
@@ -402,6 +412,7 @@ export function AdminLiveBeach() {
                 s={selList[0]}
                 zoneName={zone.name}
                 b={bookingOf(selList[0])}
+                here={hereOf(selList[0])}
                 st={statusOf(selList[0])}
                 legend={keyOf(selList[0])}
                 isToday={date === DEMO_TODAY}
@@ -600,10 +611,13 @@ function AutoReleaseCard() {
 /* The set card (AENR-651): who is on the set and the one action that fits —
    Check in, Take payment, Release, or Sell — like tapping a device in Find My.
    Move, Hold and Out of service wait in "…". */
-function SetCard({ s, zoneName, b, st, legend, isToday, onCheckIn, onPay, onRelease, onStatus, onSell, onMove, onOpenBooking }: {
+/** The gate's count for a set (AENR-715): seats taken here and the group's entries; `tracked` once anyone came through. */
+type GateHere = { taken: number; seats: number; entered: number; total: number; tracked: boolean };
+function SetCard({ s, zoneName, b, here, st, legend, isToday, onCheckIn, onPay, onRelease, onStatus, onSell, onMove, onOpenBooking }: {
   s: SunbedSlot;
   zoneName: string;
   b: SetBooking | null;
+  here?: GateHere;
   st: OpsStatus;
   legend: LegendKey;
   isToday: boolean;
@@ -670,7 +684,7 @@ function SetCard({ s, zoneName, b, st, legend, isToday, onCheckIn, onPay, onRele
           <dl className="grid grid-cols-3 gap-2 text-[12px]">
             <div className="rounded-lg bg-slate-50 ring-1 ring-slate-200 px-2 py-1.5">
               <dt className="text-slate-500">Party</dt>
-              <dd className="font-semibold text-navy-900">{b.guests} guest{b.guests === 1 ? "" : "s"}</dd>
+              <dd className="font-semibold text-navy-900">{here?.total ?? b.guests} guest{(here?.total ?? b.guests) === 1 ? "" : "s"}</dd>
             </div>
             <div className={`rounded-lg px-2 py-1.5 ring-1 ${b.paid ? "bg-emerald-50 ring-emerald-200" : "bg-amber-50 ring-amber-300"}`}>
               <dt className="text-slate-500">Payment</dt>
@@ -678,7 +692,7 @@ function SetCard({ s, zoneName, b, st, legend, isToday, onCheckIn, onPay, onRele
             </div>
             <div className={`rounded-lg px-2 py-1.5 ring-1 ${arrived ? "bg-teal-50 ring-teal-200" : legend === "noshow" ? "bg-violet-50 ring-violet-200" : "bg-slate-50 ring-slate-200"}`}>
               <dt className="text-slate-500">Arrival</dt>
-              <dd className="font-semibold text-navy-900">{arrived ? "Arrived ✓" : legend === "noshow" ? `No-show (${NO_SHOW_CUTOFF})` : b.expectedAt && isToday ? `Expected ${b.expectedAt}` : "Expected"}</dd>
+              <dd className="font-semibold text-navy-900">{here?.tracked ? (here.taken ? `${here.taken} of ${here.seats} here` : `Expected · ${here.entered}/${here.total} in`) : arrived ? "Arrived ✓" : legend === "noshow" ? `No-show (${NO_SHOW_CUTOFF})` : b.expectedAt && isToday ? `Expected ${b.expectedAt}` : "Expected"}</dd>
             </div>
           </dl>
           <div className="text-[12px] text-slate-500">{b.ref} · {b.channel}</div>
