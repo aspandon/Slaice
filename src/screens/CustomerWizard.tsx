@@ -809,7 +809,7 @@ function WizardInner() {
       <div className="sr-only" aria-live="polite">{announce}</div>
       {inspect && (
         <div className="pointer-events-auto">
-          <SpotSheet slot={inspect.slot} info={tierOfZone(inspect.slot)} selected={selectedIds.has(inspect.slot.id)} priceText={`€${inspect.slot.price}`}
+          <SpotSheet zoneName={zone.name} slot={inspect.slot} info={tierOfZone(inspect.slot)} selected={selectedIds.has(inspect.slot.id)} priceText={`€${inspect.slot.price}`}
             onClose={() => setInspect(null)}
             onSelect={() => { toggleBed(inspect.slot, inspect.el); setInspect(null); }} />
         </div>
@@ -965,7 +965,6 @@ function BeachMenu({ part, onEditDates, selDates, setSelDates, multiDate, setMul
   const pickedSubtotal = bedSel.reduce((a, b) => a + b.price, 0);
   const groups = [...new Set(bedSel.map((b) => b.zoneId))].map((zid) => ({ zone: ZONES.find((z) => z.id === zid) ?? zone, picks: bedSel.filter((b) => b.zoneId === zid) }));
   const [keepAsk, setKeepAsk] = useState(false);
-  const [moreOpen, setMoreOpen] = useState(false);
   const turnMulti = (v: boolean) => {
     if (v) return setMultiStore(true);
     if (groups.length > 1) return setKeepAsk(true); // never drop picks silently
@@ -1050,13 +1049,7 @@ function BeachMenu({ part, onEditDates, selDates, setSelDates, multiDate, setMul
         </div>
       )}
 
-      {/* Several days live on When; several zones (AENR-524) behind "More options" (AENR-612). */}
-      {!multiStore && !moreOpen ? (
-        <button type="button" onClick={() => setMoreOpen(true)} aria-expanded={false} className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-teal-700 hover:text-teal-800 rounded px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
-          <Icon.plus size={13} /> {tr("More options")} <span className="font-normal text-slate-500">· {tr("sets in several zones")}</span>
-        </button>
-      ) : (
-        <div className="space-y-2">
+      {/* Several days live on When; "Book in more than one zone" (AENR-524) is always in view (AENR-709). */}
           <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
             <div className="text-[12.5px] min-w-0">
               <div className="font-semibold text-navy-900">{tr("Book in more than one zone")}</div>
@@ -1064,8 +1057,6 @@ function BeachMenu({ part, onEditDates, selDates, setSelDates, multiDate, setMul
             </div>
             <Toggle on={multiStore} onChange={turnMulti} ariaLabel={tr("Book in more than one zone")} />
           </div>
-        </div>
-      )}
       {multiStore && bedSel.length > 0 && (
         <section aria-label={tr("Your sets by zone")} className="rounded-xl ring-1 ring-teal-300 bg-teal-50/80 px-3 py-2.5 space-y-2">
           {groups.map((g) => (
@@ -1235,7 +1226,7 @@ function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: 
           >
             {/* Soft tint on the sand under the selected / hovered zone, so it
                 reads as one beach section without a hard card edge. */}
-            <span aria-hidden className={`absolute left-1/2 -translate-x-1/2 top-0 rounded-[45%] blur-2xl transition-opacity duration-300 ${active ? "opacity-45" : "opacity-0 group-hover:opacity-25"}`} style={{ width: "94%", height: plotH, background: z.color }} />
+            <span aria-hidden className={`absolute left-1/2 -translate-x-1/2 top-0 rounded-[45%] blur-2xl transition-opacity duration-300 ${active ? "opacity-45" : "opacity-0"}`} style={{ width: "94%", height: plotH, background: z.color }} />
 
             {/* The zone's real umbrella rows, straight on the sand (no card).
                 data-flip-id pairs each mini glyph with its big grid cell so the
@@ -1370,21 +1361,30 @@ function SpotView({ row, tier }: { row: number; tier: Tier }) {
   );
 }
 
-function SpotSheet({ slot, info, selected, priceText, onClose, onSelect }: { slot: SunbedSlot; info: ReturnType<ReturnType<typeof tierInfo>>; selected: boolean; priceText: string; onClose: () => void; onSelect: () => void }) {
+/* A slim set card (AENR-707): the zone as the title, the view, and just the two facts that
+   matter — the row and what the set includes. The price sits on the Select button. */
+function SpotSheet({ zoneName, slot, info, selected, priceText, onClose, onSelect }: { zoneName: string; slot: SunbedSlot; info: ReturnType<ReturnType<typeof tierInfo>>; selected: boolean; priceText: string; onClose: () => void; onSelect: () => void }) {
   const tr = useT();
-  const shade = info.tier.key === "front" ? tr("Full sun, sea breeze — the umbrella is yours") : info.tier.key === "middle" ? tr("Sun and umbrella shade") : tr("Calmer, more shade in the afternoon");
+  const beds = slot.cap ?? 2;
   return (
-    <Sheet open onClose={onClose} title={`${tr("Set")} ${slot.id} · ${tr(info.tier.name)}`}
+    <Sheet open onClose={onClose} title={zoneName}
       footer={<><Btn variant="ghost" onClick={onClose}>{tr("Close")}</Btn><Btn variant={selected ? "outline" : "teal"} icon={selected ? Icon.x : Icon.check} onClick={onSelect}>{selected ? tr("Remove") : `${tr("Select")} · ${priceText}`}</Btn></>}>
       <div className="space-y-3 text-[13.5px]">
         <SpotView row={info.row} tier={info.tier} />
         <dl className="grid grid-cols-2 gap-2">
-          <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-[11.5px] text-slate-500">{tr("Row")}</dt><dd className="font-semibold text-navy-900">{info.row} · {tr(info.tier.name)}</dd></div>
-          <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-[11.5px] text-slate-500">{tr("To the sea")}</dt><dd className="font-semibold text-navy-900">~{info.metres} m</dd></div>
-          <div className="rounded-xl bg-slate-50 px-3 py-2 col-span-2"><dt className="text-[11.5px] text-slate-500">{tr("Sun & shade")}</dt><dd className="font-semibold text-navy-900">{shade}</dd></div>
-          <div className="rounded-xl bg-slate-50 px-3 py-2 col-span-2"><dt className="text-[11.5px] text-slate-500">{tr("Included")}</dt><dd className="font-semibold text-navy-900">{slot.cap ?? 2} {tr("sunbeds, umbrella, side table, towel service")}{slot.access ? ` · ${tr("step-free access")}` : ""}</dd></div>
+          <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+            <dt className="text-[11.5px] text-slate-500">{tr("Row")}</dt>
+            <dd className="font-semibold text-navy-900 flex items-center gap-1.5">
+              <span className="rounded px-1 text-[10px] font-bold text-white" style={{ background: info.tier.color }} aria-hidden>{info.tier.letter}</span>
+              {info.row} · {tr(info.tier.name)}
+            </dd>
+          </div>
+          <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+            <dt className="text-[11.5px] text-slate-500">{tr("Includes")}</dt>
+            <dd className="font-semibold text-navy-900">{beds} {tr("sunbeds")} + 1 {tr("umbrella")}</dd>
+          </div>
         </dl>
-        <div className="flex items-baseline justify-between"><span className="text-slate-600">{tr("Price per day")}</span><span className="font-display font-bold text-xl text-navy-900 tnum">{priceText}</span></div>
+        <p className="text-[11.5px] text-slate-500">{tr("Set")} {slot.id}{slot.access ? ` · ${tr("step-free access")}` : ""}</p>
       </div>
     </Sheet>
   );
