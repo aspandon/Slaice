@@ -20,28 +20,39 @@ export function downloadBlob(blob: Blob, filename: string) {
 const escapeCSV = (v: unknown): string => {
   if (v === null || v === undefined) return "";
   const s = String(v);
-  return /["\r\n,]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  return /["\r\n,\t]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
-// Serialise CSV lines into a Blob with two compatibility shims so the file opens
-// as proper columns everywhere:
-//   • a UTF-8 BOM, so Excel reads accents / Greek correctly;
-//   • a `sep=,` directive on line 1, so Excel splits on commas regardless of the
-//     OS list-separator locale. Without it, EU/Greek Excel (which defaults to
-//     ';') dumps every row into a single cell — the "all data in one cell" bug.
-// CRLF endings are the CSV standard and the most spreadsheet-friendly.
+// Spreadsheet-safe CSV (AENR-701). Excel ignores a UTF-8 BOM when the file also
+// starts with a `sep=,` line, so Greek and accented text came out garbled — while
+// without `sep=` Greek-locale Excel (list separator ';') puts each row in one cell.
+// The one encoding every Excel locale opens correctly is UTF-16LE with a BOM and
+// TAB-separated columns; Google Sheets, Numbers and LibreOffice read it too.
+// CRLF line endings, fields quoted only when needed.
+const CSV_SEP = "\t";
+const csvLine = (r: readonly unknown[]) => r.map(escapeCSV).join(CSV_SEP);
+function excelCsvBytes(lines: string[]): Uint8Array<ArrayBuffer> {
+  const text = lines.join("\r\n");
+  const out = new Uint8Array(new ArrayBuffer(2 + text.length * 2));
+  out[0] = 0xff; // UTF-16LE byte-order mark
+  out[1] = 0xfe;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    out[2 + i * 2] = c & 0xff;
+    out[3 + i * 2] = c >> 8;
+  }
+  return out;
+}
 function csvBlob(lines: string[]): Blob {
-  return new Blob(["﻿sep=,\r\n" + lines.join("\r\n")], { type: "text/csv;charset=utf-8;" });
+  return new Blob([excelCsvBytes(lines)], { type: "text/csv;charset=utf-16le" });
 }
 
-/** CSV text (with the Excel shims) for files bundled in a ZIP. */
-export function csvText(header: (string | number)[], rows: (string | number)[][]): string {
-  return "\uFEFFsep=,\r\n" + [header, ...rows].map((r) => r.map(escapeCSV).join(",")).join("\r\n");
+/** CSV bytes (same Excel-safe encoding) for files bundled in a ZIP. */
+export function csvText(header: (string | number)[], rows: (string | number)[][]): Uint8Array {
+  return excelCsvBytes([header, ...rows].map(csvLine));
 }
 export function downloadCSV(filename: string, header: (string | number)[], rows: (string | number)[][]) {
-  const lines = [header.map(escapeCSV).join(",")];
-  rows.forEach((r) => lines.push(r.map(escapeCSV).join(",")));
-  trigger(csvBlob(lines), filename);
+  trigger(csvBlob([header, ...rows].map(csvLine)), filename);
 }
 
 /** One titled block (optional title + header + rows) within a multi-section CSV. */
@@ -59,8 +70,8 @@ export function downloadCSVReport(filename: string, sections: CsvSection[]) {
   sections.forEach((s, i) => {
     if (i) lines.push("");
     if (s.title) lines.push(escapeCSV(s.title));
-    if (s.header) lines.push(s.header.map(escapeCSV).join(","));
-    s.rows.forEach((r) => lines.push(r.map(escapeCSV).join(",")));
+    if (s.header) lines.push(csvLine(s.header));
+    s.rows.forEach((r) => lines.push(csvLine(r)));
   });
   trigger(csvBlob(lines), filename);
 }
