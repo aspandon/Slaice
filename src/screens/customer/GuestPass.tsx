@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ArrivalBadge } from "../../components/ArrivalBadge";
 import { Icon } from "../../lib/icons";
 import { Btn } from "../../components/ui";
 import { QR } from "../../components/charts";
@@ -269,8 +270,9 @@ function SharedPass({ b }: { b: SharedBooking }) {
           className="glass-card-solid rounded-3xl p-5 space-y-3"
         >
           <div className="flex items-baseline justify-between gap-3">
-            <h2 id="pass-entries" className="font-display font-bold text-navy-900 text-guest-head">
+            <h2 id="pass-entries" className="flex flex-wrap items-center gap-2 font-display font-bold text-navy-900 text-guest-head">
               {t("Entries")}
+              {live && live.arrivals.length > 0 && <ArrivalBadge st={live} t={t} />}
             </h2>
             <span className="text-guest-body font-bold text-navy-900 tnum">
               {left} {t("of")} {total} {t("left")}

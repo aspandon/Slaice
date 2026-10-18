@@ -17,6 +17,8 @@ import { PROFILE, type InvoiceRequest } from "../../domain/account";
 import { emptyInvoice, invoiceAddress, invoiceErrors, normalVatNo, type InvoiceDetails } from "../../domain/invoiceDetails";
 import { InvoiceFields } from "./InvoiceFields";
 import type { CustomerDocument } from "../../domain/types";
+import { useEntry } from "../../lib/useEntry";
+import { ArrivalBadge } from "../../components/ArrivalBadge";
 import { useVisits, guestNow } from "../../lib/useVisits";
 import { useExtras } from "../../lib/useExtras";
 import { useLiveSlots } from "../../lib/useLiveSlots";
@@ -161,6 +163,10 @@ function VisitCard({ v, deadline, onOpen }: { v: Visit; deadline: string; onOpen
   const inWindow = guestNow() < deadline;
   const chip = CHIP[v.status];
   const invoice = account.invoices.find((i) => i.visitKey === v.key);
+  // Where the group stands at the gate today (follow-up to AENR-715): In progress while part of it is in.
+  const entry = useEntry();
+  const eb = v.status === "today" ? entry.find(v.refs[0]) : undefined;
+  const gate = eb ? entry.stateOf(eb, v.date) : null;
   // One primary action on the card (Show QR, or the receipt once the day is over); the rest in "…" (AENR-617).
   const [menu, setMenu] = useState(false);
   const press = useLongPress(() => setMenu(true));
@@ -199,6 +205,7 @@ function VisitCard({ v, deadline, onOpen }: { v: Visit; deadline: string; onOpen
               {fmtWeekday(v.date)} {fmtDay(v.date)}{v.zone ? ` · ${v.zone}` : ""}
             </h2>
             <Badge tone={chip.tone}>{t(chip.label)}</Badge>
+            {gate && gate.arrivals.length > 0 && <ArrivalBadge st={gate} t={t} />}
             {v.movedFrom && <span className="text-guest-caption text-slate-500">{t("moved from")} {fmtDay(v.movedFrom)}</span>}
           </div>
           <p className="mt-0.5 text-guest-meta text-slate-700">{what.join(" · ") || t("Beach day")}</p>

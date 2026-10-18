@@ -176,6 +176,28 @@ export function entryState(al: Allowance, arrivals: readonly Arrival[]): EntrySt
   };
 }
 
+/* ---------- Arrival stage (follow-up to AENR-715) ----------
+   Expected until the QR is first scanned; In progress while only part of the
+   group (entries or sets) is in; Arrived once everything is used up. */
+export type ArrivalStage = "expected" | "inProgress" | "arrived";
+export const ARRIVAL_LABEL: Record<ArrivalStage, string> = {
+  expected: "Expected",
+  inProgress: "In progress",
+  arrived: "Arrived",
+};
+export const arrivalStage = (s: Pick<EntryState, "entered" | "usedUp">): ArrivalStage =>
+  s.usedUp ? "arrived" : s.entered > 0 ? "inProgress" : "expected";
+/** "2 of 4 entries · 1 of 2 sets" — what has come through the gate so far. */
+export function arrivalProgress(s: EntryState, t: (x: string) => string = (x) => x): string {
+  const parts: string[] = [];
+  if (s.byTickets) parts.push(`${s.entered} ${t("of")} ${s.total} ${t(s.total === 1 ? "entry" : "entries")}`);
+  if (s.sets.length) {
+    const opened = s.sets.filter((x) => x.taken > 0).length;
+    parts.push(`${opened} ${t("of")} ${s.sets.length} ${t(s.sets.length === 1 ? "set" : "sets")}`);
+  }
+  return parts.join(" · ");
+}
+
 /** What the controller says this arrival uses. */
 export interface ArrivalDraft {
   tickets: Record<string, number>;

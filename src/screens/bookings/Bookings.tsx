@@ -20,6 +20,7 @@ import {
   CompactRow,
 } from "../../components/ui";
 import type { TabEntry } from "../../components/ui";
+import { ArrivalBadge } from "../../components/ArrivalBadge";
 import { Pager, SortHeader, cmpVal, dateVal } from "../../components/TableTools";
 import { useApp } from "../../app/store";
 import { TENANT, ZONES } from "../../data/beach";
@@ -290,9 +291,9 @@ export function AdminBookings() {
   };
   // Today: who is already on the sand (AENR-634), read like Live beach.
   const arrivalBadge = (b: OpsBooking) => {
-    // A group comes through the gate in turns on one QR (AENR-715): "2 of 4 in" until everyone is.
+    // A group comes through the gate in turns on one QR (AENR-715): In progress · 2 of 4 entries until everyone is.
     const g = entry.stateOf(b, DEMO_TODAY);
-    if (g.arrivals.length) return g.usedUp ? <Badge tone="green">Arrived · {g.total}</Badge> : <Badge tone="amber">{g.entered} of {g.total} in</Badge>;
+    if (g.arrivals.length) return <ArrivalBadge st={g} />;
     const ids = b.items.filter((i) => i.startsWith("Sunbed · ")).map((i) => i.split(" · "));
     if (!ids.length) return <span className="text-slate-400">—</span>;
     const states = ids.map(([, zName, id]) => {

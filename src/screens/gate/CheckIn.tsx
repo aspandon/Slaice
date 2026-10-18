@@ -19,6 +19,9 @@ import {
   type ArrivalDraft,
   type DraftIssue,
   type EntryState,
+  ARRIVAL_LABEL,
+  arrivalProgress,
+  arrivalStage,
 } from "../../domain/entry";
 import { useEntry } from "../../lib/useEntry";
 import type { OpsBooking } from "../../lib/useBookingOps";
@@ -207,7 +210,7 @@ export function CheckInSheet({
           <div className="mt-3">
             <div className="flex items-baseline justify-between gap-3 text-[14px] font-semibold">
               <span className="tnum">
-                {st.entered} of {st.total} in
+                {ARRIVAL_LABEL[arrivalStage(st)]} · {arrivalProgress(st) || `${st.entered} of ${st.total} in`}
               </span>
               <span className="tnum">
                 {st.left ? `${st.left} still expected` : "Everyone is in"}

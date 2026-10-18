@@ -22,7 +22,8 @@ import { Masked } from "../tenant/ViewAs";
 import { LinkActions } from "./LinkActions";
 import { useEntry } from "../../lib/useEntry";
 import { CheckInSheet, type CheckInOutcome } from "../gate/CheckIn";
-import { arrivalPhrase, type Allowance, type EntryState } from "../../domain/entry";
+import { arrivalPhrase, arrivalProgress, type Allowance, type EntryState } from "../../domain/entry";
+import { ArrivalBadge } from "../../components/ArrivalBadge";
 
 import { useUndoToast } from "../../lib/useUndo";
 /* ============ Booking drawer (AENR-579) ============
@@ -502,7 +503,7 @@ function DrawerBody({ b, agent }: { b: OpsBooking; agent: boolean }) {
           <span className="flex-1 min-w-0">
             <span className="block font-semibold text-navy-900 text-[13.5px]">Gate QR</span>
             <span className="block text-[12px] text-slate-600 truncate">
-              {b.status === "Used" ? "Scanned at the gate — no longer valid." : gate.usedUp ? `All ${gate.total} entered — no longer opens the gate.` : gate.entered ? `${gate.left} of ${gate.total} entries left · ${b.date}` : `Valid for entry on ${b.date}`}
+              {b.status === "Used" ? "Scanned at the gate — no longer valid." : gate.usedUp ? `All ${gate.total} entered — no longer opens the gate.` : gate.entered ? `In progress · ${arrivalProgress(gate)} · ${b.date}` : `Valid for entry on ${b.date}`}
             </span>
           </span>
           <span className="text-[12.5px] font-semibold text-teal-700">Show</span>
@@ -604,8 +605,9 @@ function GateSection({ st, today, allowance }: { st: EntryState; today: boolean;
     <section aria-labelledby="bk-gate" className="rounded-2xl ring-1 ring-slate-200 bg-white/70 p-4 space-y-2.5">
       <div className="flex items-baseline justify-between gap-3">
         <h3 id="bk-gate" className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Gate · entries</h3>
-        <span className="text-[13px] font-semibold text-navy-900 tnum">
+        <span className="flex items-center gap-2 text-[13px] font-semibold text-navy-900 tnum">
           {st.entered} of {st.total} in{st.usedUp ? " · QR used up" : st.entered ? ` · ${st.left} expected` : today ? " · nobody yet" : ""}
+          <ArrivalBadge st={st} detail={false} />
         </span>
       </div>
       <div className="h-2 rounded-full bg-slate-100 overflow-hidden" role="progressbar" aria-label="People in" aria-valuemin={0} aria-valuemax={st.total} aria-valuenow={st.entered}>
