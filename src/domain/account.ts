@@ -5,6 +5,7 @@
 import { guestFees, type CommercialTerms } from "./economics";
 import type { CartItem } from "./types";
 import { DEFAULT_SELF_SERVICE, type CancelRecord, type SelfService } from "./visits";
+import type { InvoiceDetails } from "./invoiceDetails";
 
 export interface SavedCard {
   brand: string;
@@ -24,6 +25,8 @@ export interface PlacedBooking {
   deposit?: number;
   /** Days the guest cancelled (AENR-572) — their sets are back on sale. */
   cancelledDates?: Record<string, CancelRecord>;
+  /** Paid with "I need an invoice" on (AENR-714): who the invoice (ΤΠΥ) is made out to. */
+  invoiceTo?: { company: string; vatNo: string; email: string };
 }
 /** A day a season pass holder gave back (AENR-578). */
 export interface ReleasedDay {
@@ -44,6 +47,8 @@ export interface InvoiceRequest {
   address: string;
   amount: number;
   at: string;
+  /** The full details when given at Pay or in the request form (AENR-714). */
+  details?: InvoiceDetails;
 }
 export interface AccountState {
   /** Browsing without an account — checkout asks to sign in first. */
@@ -64,6 +69,8 @@ export interface AccountState {
   rewardsUsed: string[];
   /** The 18+ confirmation, asked once at the first booking (AENR-489 / 622). */
   adultConfirmed: boolean;
+  /** Invoice details kept for next time (AENR-714); null until the guest saves them. */
+  invoiceDetails?: InvoiceDetails | null;
 }
 export type WalletKind = "apple" | "google";
 export const DEFAULT_ACCOUNT: AccountState = {

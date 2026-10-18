@@ -1920,58 +1920,56 @@ function ReviewStep({ people, totalPeople, selDates, zone, bedSel = [], includeT
   const dateLabel = selDates.length === 1
     ? first.label + ", " + first.sub
     : `${selDates.length} ${tr("days")} (${selDates.map((d) => chipLabel(d, loc).sub).join(", ")})`;
-  // Grouped by zone when the booking spans several (AENR-524).
-  const byStore = [...new Set(bedSel.map((b) => b.zoneId))].map((zid) => ({ name: ZONES.find((z) => z.id === zid)?.name ?? zone.name, ids: bedSel.filter((b) => b.zoneId === zid).map((b) => b.id) }));
-  const beachBody = bedSel.length > 0
-    ? byStore.map((g) => `${g.name} · ${g.ids.length} ${g.ids.length !== 1 ? tr("sets") : tr("set")} · ${g.ids.join(", ")}`).join(" — ")
-    : tr("Not included");
+  // Per zone, how many sets — the set codes stay on the map (AENR-714); grouped by zone when the booking spans several (AENR-524).
+  const byStore = [...new Set(bedSel.map((b) => b.zoneId))].map((zid) => ({ name: ZONES.find((z) => z.id === zid)?.name ?? zone.name, n: bedSel.filter((b) => b.zoneId === zid).length }));
+  const ticketCount = ticketBreak.reduce((a, b) => a + b.n, 0);
   return (
-    <div className="space-y-2">
-      <ReviewRow icon={Icon.umbrella} title={tr("Beach")} body={beachBody} onEdit={() => onJump("beach")} />
-      <ReviewRow icon={Icon.calendar} title={tr("Dates")} body={dateLabel} onEdit={() => onJump("when")} />
-      <ReviewRow icon={Icon.group} title={tr("Guests")} body={totalPeople > 0 ? `${totalPeople} ${tr("total")} · ${humanPeople(people)}` : tr("None added")} onEdit={() => onJump("people")} />
-      <ReviewRow
-        icon={Icon.ticket}
-        title={tr("Entry tickets")}
-        body={includeTickets ? ticketBreak.filter((t) => t.n > 0).map((t) => `${t.n} × ${tr(t.t.label)}`).join(" · ") || "—" : tr("Not included")}
-        onEdit={() => onJump("people")}
-      />
-      {/* Locker and parking show here once added; "Add a locker or parking" below adds them (AENR-612). */}
+    <div className="space-y-2.5">
+      {/* Order (AENR-714): when, where, who — then any extras. */}
+      <ReviewRow icon={Icon.calendar} title={tr("Dates")} onEdit={() => onJump("when")}>{dateLabel}</ReviewRow>
+      <ReviewRow icon={Icon.umbrella} title={tr("Beach")} onEdit={() => onJump("beach")}>
+        {bedSel.length > 0
+          ? byStore.map((g) => <span key={g.name} className="block"><b className="font-semibold text-navy-900">{g.name}</b> · {g.n} {g.n !== 1 ? tr("umbrella sets") : tr("umbrella set")}</span>)
+          : tr("No sunbeds — entry only")}
+      </ReviewRow>
+      <ReviewRow icon={Icon.group} title={tr("Guests & entry tickets")} onEdit={() => onJump("people")}>
+        <span className="block">{totalPeople > 0 ? `${totalPeople} ${totalPeople !== 1 ? tr("guests") : tr("guest")} · ${humanPeople(people, tr)}` : tr("None added")}</span>
+        <span className="block">{includeTickets && ticketCount > 0 ? `${ticketCount} ${ticketCount !== 1 ? tr("entry tickets included") : tr("entry ticket included")}` : tr("Entry tickets not included")}</span>
+      </ReviewRow>
+      {/* Locker and parking show here once added; "Add a locker or parking" below adds them (AENR-612) — only when the beach sells them (AENR-696). */}
       {lockerOn && lockerDates.length > 0 && (
-        <ReviewRow icon={Icon.lock} title={tr("Day locker")} body={`${lockerQty} ${lockerQty !== 1 ? tr("lockers") : tr("locker")} · ${lockerDates.length} ${lockerDates.length !== 1 ? tr("days") : tr("day")}`} onEdit={() => onJump("locker")} />
+        <ReviewRow icon={Icon.lock} title={tr("Day locker")} onEdit={() => onJump("locker")}>{`${lockerQty} ${lockerQty !== 1 ? tr("lockers") : tr("locker")} · ${lockerDates.length} ${lockerDates.length !== 1 ? tr("days") : tr("day")}`}</ReviewRow>
       )}
       {parkingOn && parkingDates.length > 0 && (
-        <ReviewRow
-          icon={Icon.car}
-          title={tr("Parking Spot")}
-          body={`${parkingQty} ${parkingQty !== 1 ? tr("spots") : tr("spot")} · ${parkingDates.length} ${parkingDates.length !== 1 ? tr("days") : tr("day")} · ${plateSummary}`}
-          onEdit={() => onJump("parking")}
-        />
+        <ReviewRow icon={Icon.car} title={tr("Parking Spot")} onEdit={() => onJump("parking")}>
+          {`${parkingQty} ${parkingQty !== 1 ? tr("spots") : tr("spot")} · ${parkingDates.length} ${parkingDates.length !== 1 ? tr("days") : tr("day")} · ${plateSummary}`}
+        </ReviewRow>
       )}
     </div>
   );
 }
 
-function ReviewRow({ icon: IconC, title, body, onEdit }: { icon: IconRenderer; title: ReactNode; body: ReactNode; onEdit: () => void }) {
+/* One Pay-step tile (AENR-714): a clear icon, the title and what was chosen in full (no truncation), and a 44px Edit. */
+function ReviewRow({ icon: IconC, title, children, onEdit }: { icon: IconRenderer; title: string; children: ReactNode; onEdit: () => void }) {
   const tr = useT();
   return (
-    <div className="flex items-center gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
-      <span className="w-9 h-9 rounded-lg bg-slate-100 text-slate-600 grid place-items-center shrink-0"><IconC size={16} /></span>
+    <div className="flex items-center gap-3.5 rounded-2xl ring-1 ring-slate-200 bg-white/80 px-3.5 py-3">
+      <span className="w-11 h-11 rounded-xl bg-teal-50 text-teal-700 grid place-items-center shrink-0"><IconC size={20} /></span>
       <div className="min-w-0 flex-1">
-        <div className="text-[13px] font-semibold text-navy-900 leading-tight">{title}</div>
-        <div className="text-[12px] text-slate-600 leading-snug truncate">{body}</div>
+        <div className="text-guest-body font-semibold text-navy-900 leading-tight">{title}</div>
+        <div className="mt-0.5 text-guest-meta text-slate-600 leading-snug">{children}</div>
       </div>
-      <button onClick={onEdit} className="text-[12px] font-semibold text-teal-700 hover:text-teal-800 px-2 py-1 rounded-lg hover:bg-teal-50">{tr("Edit")}</button>
+      <button type="button" onClick={onEdit} aria-label={`${tr("Edit")} ${title}`} className="shrink-0 min-h-[44px] px-3 rounded-xl text-guest-meta font-semibold text-teal-700 hover:text-teal-800 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">{tr("Edit")}</button>
     </div>
   );
 }
 
-function humanPeople(p: People) {
+function humanPeople(p: People, tr: (s: string) => string = (s) => s) {
   const parts = [];
-  if (p.adult)    parts.push(`${p.adult} adult${p.adult !== 1 ? "s" : ""}`);
-  if (p.resident) parts.push(`${p.resident} resident${p.resident !== 1 ? "s" : ""}`);
-  if (p.child)    parts.push(`${p.child} child${p.child !== 1 ? "ren" : ""}`);
-  if (p.senior)   parts.push(`${p.senior} senior${p.senior !== 1 ? "s" : ""}`);
+  if (p.adult)    parts.push(`${p.adult} ${tr(p.adult !== 1 ? "adults" : "adult")}`);
+  if (p.resident) parts.push(`${p.resident} ${tr(p.resident !== 1 ? "residents" : "resident")}`);
+  if (p.child)    parts.push(`${p.child} ${tr(p.child !== 1 ? "children" : "child")}`);
+  if (p.senior)   parts.push(`${p.senior} ${tr(p.senior !== 1 ? "seniors" : "senior")}`);
   return parts.join(", ") || "—";
 }
 

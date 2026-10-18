@@ -16,7 +16,9 @@ import { OPERATOR, TENANT, ZONES, todayISO } from "../data/beach";
 import { round2 } from "../data/passes";
 import { useApp, useT } from "../app/store";
 import type { CartItem } from "../domain/types";
-import { PROFILE, cartKey, serviceFees, settleCheckout, type PlacedBooking } from "../domain/account";
+import { PROFILE, cartKey, serviceFees, settleCheckout, type InvoiceRequest, type PlacedBooking } from "../domain/account";
+import { emptyInvoice, invoiceAddress, invoiceErrors, normalVatNo, type InvoiceDetails } from "../domain/invoiceDetails";
+import { InvoiceFields } from "./customer/InvoiceFields";
 import { SERVICE_NOUN, vatRates } from "../domain/economics";
 import { ARRIVAL_WINDOW, cancelLine, placedVisits, usual } from "../domain/visits";
 import { fmtDay, fmtWeekday } from "../domain/period";
@@ -51,6 +53,20 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
   const goods = round2(cart.reduce((a, b) => a + b.price, 0));
   const sf = serviceFees(cart, terms);
   const total = round2(goods + sf.total);
+  // The amounts the guest reads (AENR-714): sunbeds, entry tickets, (lockers / parking when added), service fee, total.
+  const subOf = (kinds: readonly string[]) => round2(cart.filter((i) => kinds.includes(i.kind)).reduce((a, b) => a + b.price, 0));
+  const sunbedSub = subOf(["sunbed"]);
+  const ticketSub = subOf(["ticket"]);
+  const extrasSub = subOf(["locker", "parking"]);
+  const extrasLabel = cart.some((i) => i.kind === "locker") && cart.some((i) => i.kind === "parking") ? "Lockers & parking" : cart.some((i) => i.kind === "locker") ? "Day lockers" : "Parking";
+  // "I need an invoice" (AENR-714): the company's details instead of the receipt, kept for next time if asked.
+  const [wantInvoice, setWantInvoice] = useState(false);
+  const [inv, setInv] = useState<InvoiceDetails>(() => account.invoiceDetails ?? emptyInvoice(PROFILE.email));
+  const [saveInv, setSaveInv] = useState(true);
+  const [invTried, setInvTried] = useState(false);
+  const invErr = invoiceErrors(inv);
+  const invOk = Object.keys(invErr).length === 0;
+  const invRef = useRef<HTMLDivElement>(null);
   // "Prices include VAT (24%)" — or the rate per service when they differ.
   const vat = vatRates(cart, terms);
   const vatNote = vat.single !== null ? `${t("Prices include VAT")} (${vat.single}%)` : `${t("Prices include VAT")}: ${vat.byService.map(([s, r]) => `${t(SERVICE_NOUN[s])} ${r}%`).join(", ")}`;
@@ -93,12 +109,23 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
   // if asked), clear the basket and land on the confirmation.
   const finish = (card?: { save: boolean; last4: string } | null, method: "card" | "apple" | "google" = "card") => {
     if (vipDebit > 0) spendVipCredit(vipDebit);
+    const vatNo = wantInvoice ? normalVatNo(inv) : "";
     const booking: PlacedBooking = { ref: bookingRefFor(account.bookings.length), at: new Date().toISOString(), items: [...cart], fees: sf.lines, total: fullDue, guest: PROFILE, method, 
-      card: method === "apple" ? "Apple Pay" : method === "google" ? "Google Pay" : card ? `Visa ···· ${card.last4}` : undefined };
+      card: method === "apple" ? "Apple Pay" : method === "google" ? "Google Pay" : card ? `Visa ···· ${card.last4}` : undefined,
+      invoiceTo: wantInvoice ? { company: inv.company.trim(), vatNo, email: inv.email.trim() } : undefined };
+    // One invoice (ΤΠΥ) per visit day, as My bookings › Request an invoice makes them.
+    const invoiceReqs: InvoiceRequest[] = wantInvoice
+      ? placedVisits([booking], (id) => ZONES.find((z) => z.id === id)?.name ?? "").map((v, n) => ({
+          id: `INV-${Date.now().toString().slice(-6)}${n ? `-${n}` : ""}`, visitKey: v.key, company: inv.company.trim(), vatNo,
+          address: invoiceAddress(inv), amount: v.total, at: guestNow(), details: { ...inv, vatNo },
+        }))
+      : [];
     setAccount((a) => ({
       ...a,
       bookings: [booking, ...a.bookings],
       adultConfirmed: true,
+      invoices: invoiceReqs.length ? [...invoiceReqs, ...a.invoices] : a.invoices,
+      invoiceDetails: wantInvoice && saveInv ? { ...inv, vatNo: normalVatNo(inv) } : a.invoiceDetails ?? null,
       savedCard: card?.save ? { brand: "Visa", last4: card.last4, exp: "12/28" } : a.savedCard,
       rewardsUsed: rewardOff > 0 && best && !best.reward.reusable ? [...(a.rewardsUsed ?? []), best.reward.id] : a.rewardsUsed ?? [],
       credit: creditUsed > 0 ? { balance: round2(a.credit.balance - creditUsed), log: [{ at: guestNow(), text: `Used at checkout · ${booking.ref}`, amount: -creditUsed }, ...a.credit.log] } : a.credit,
@@ -114,6 +141,12 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
   const needAge = () => { if (account.adultConfirmed || adult) return false; setAgeTried(true); return true; };
   const pay = () => {
     if (account.guest) return setPhase("signin");
+    if (wantInvoice && !invOk) {
+      setInvTried(true);
+      // The errors render on the next frame; then focus the first field to fix.
+      requestAnimationFrame(() => invRef.current?.querySelector<HTMLElement>("[aria-invalid=true]")?.focus());
+      return;
+    }
     if (needAge()) return;
     if (cashDue > 0) setPhase("redirect");
     else finish(null);
@@ -258,8 +291,10 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
         <Card className={embedded ? "p-4" : "p-5"}>
           <div className="flex items-center gap-2 mb-3"><TenantLogo size={30} /><div className="text-sm font-semibold text-navy-900">{TENANT.name}</div></div>
           {/* Customer-facing summary: subtotal, any pass deductions, then what's due now. */}
-          <Row l={t("Subtotal")} v={`€${goods.toFixed(2)}`} />
-          {sf.lines.map((f) => <Row key={f.label} l={t(f.label)} v={`€${f.amount.toFixed(2)}`} />)}
+          {sunbedSub > 0 && <Row l={t("Sunbeds")} v={`€${sunbedSub.toFixed(2)}`} />}
+          {ticketSub > 0 && <Row l={t("Entry tickets")} v={`€${ticketSub.toFixed(2)}`} />}
+          {extrasSub > 0 && <Row l={t(extrasLabel)} v={`€${extrasSub.toFixed(2)}`} />}
+          {sf.total > 0 && <Row l={t("Service fee")} v={`€${sf.total.toFixed(2)}`} />}
           {best && (rewardOff > 0 ? (
             <div className="flex items-center justify-between gap-2 text-sm py-0.5 text-teal-700 font-medium">
               <span className="min-w-0"><Icon.gift size={13} className="inline align-[-2px] mr-1" />{t(best.reward.title)} · {best.reward.reward} <button type="button" aria-label={t("Remove reward")} onClick={() => setSkipReward(true)} className="ml-1 text-[12px] font-semibold text-slate-500 underline-offset-2 hover:underline hover:text-navy-900 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">{t("Remove")}</button></span>
@@ -307,6 +342,27 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
             </div>
           )}
 
+          {/* How to pay (AENR-714): an invoice for a business instead of the receipt, then the pay buttons. */}
+          <div className="mt-4 pt-3 border-t border-slate-100">
+            <h3 className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{t("How to pay")}</h3>
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div id="inv-toggle-label" className="text-guest-meta font-semibold text-navy-900 flex items-center gap-1.5"><Icon.building size={14} className="text-slate-500" /> {t("I need an invoice")}</div>
+                <div className="text-guest-caption text-slate-500">{t("For a business — company details instead of a receipt")}</div>
+              </div>
+              <Toggle on={wantInvoice} onChange={(v) => { setWantInvoice(v); if (!v) setInvTried(false); }} ariaLabel={t("I need an invoice")} />
+            </div>
+            {wantInvoice && (
+              <div ref={invRef} className="mt-3 rounded-xl ring-1 ring-slate-200 bg-white/70 p-3 space-y-3">
+                <InvoiceFields value={inv} onChange={setInv} errors={invErr} showErrors={invTried} />
+                <label className="flex items-center gap-2 text-guest-caption text-slate-700 min-h-[32px]">
+                  <input type="checkbox" checked={saveInv} onChange={(e) => setSaveInv(e.target.checked)} className="w-4 h-4 accent-teal-600" />
+                  {t("Save these details for next time")}
+                </label>
+                {invTried && !invOk && <p role="alert" className="text-guest-caption font-medium text-rose-700">{t("Fill in the invoice details to pay.")}</p>}
+              </div>
+            )}
+          </div>
           {!account.adultConfirmed && <div className="mt-4"><AgeCheck checked={adult} onChange={(v) => { setAdult(v); if (v) setAgeTried(false); }} invalid={ageTried && !adult} /></div>}
           {cashDue > 0 ? (
             <div className="mt-4 space-y-2">
@@ -507,7 +563,7 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
             <div className="rounded-xl bg-slate-50 px-3 py-2 col-span-2"><dt className="text-slate-500 text-[11.5px]">{t("Entrance")}</dt><dd className="font-semibold text-navy-900 flex items-center justify-between gap-2"><span>{t("Main gate")} · {OPERATOR.address}</span>
               <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${TENANT.name} ${TENANT.place}`)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-teal-700 hover:underline shrink-0"><Icon.map size={14} /> {t("Map")}<span className="sr-only"> ({t("opens in a new tab")})</span></a></dd></div>
           </dl>
-          <p className="mt-3 text-[12px] text-slate-600">{t(cancelLine(date, guestNow(), extras.policy))} · {t("receipt e-mailed")}</p>
+          <p className="mt-3 text-[12px] text-slate-600">{t(cancelLine(date, guestNow(), extras.policy))} · {booking?.invoiceTo ? `${t("invoice to")} ${booking.invoiceTo.company} (${booking.invoiceTo.vatNo}) ${t("e-mailed to")} ${booking.invoiceTo.email}` : t("receipt e-mailed")}</p>
         </div>
       </article>
 

@@ -3,7 +3,7 @@ import { useTenantFeatures } from "../../lib/useFeatures";
 import { ADD_EXTRAS_LABEL, extrasPhrase } from "../../domain/features";
 import { useGuestRecord } from "../../lib/useGuestRecord";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, EmptyState, ErrorState, Field, Input, Modal, Stepper, Tabs, CardGridSkeleton, ActionsMenu, useLongPress, type MenuAction } from "../../components/ui";
+import { Badge, Btn, Card, EmptyState, ErrorState, Field, Modal, Stepper, Tabs, CardGridSkeleton, ActionsMenu, useLongPress, type MenuAction } from "../../components/ui";
 import { DateInput } from "../../components/ui/DateInput";
 import { WalletButtons, WalletSheetFor, otherWallets } from "../../components/WalletPass";
 import { QR, Sparkline } from "../../components/charts";
@@ -13,7 +13,9 @@ import { ZONES, todayISO } from "../../data/beach";
 import { addDays, fmtDay, fmtWeekday } from "../../domain/period";
 import { PARKING_PRICE } from "../../domain/pricing";
 import { ARRIVAL_WINDOW, cancelDeadline, fmtDeadline, refundQuote, type Visit, type VisitLine, type VisitStatus } from "../../domain/visits";
-import type { InvoiceRequest } from "../../domain/account";
+import { PROFILE, type InvoiceRequest } from "../../domain/account";
+import { emptyInvoice, invoiceAddress, invoiceErrors, normalVatNo, type InvoiceDetails } from "../../domain/invoiceDetails";
+import { InvoiceFields } from "./InvoiceFields";
 import type { CustomerDocument } from "../../domain/types";
 import { useVisits, guestNow } from "../../lib/useVisits";
 import { useExtras } from "../../lib/useExtras";
@@ -336,29 +338,29 @@ function CancelDialog({ v, onClose }: { v: Visit; onClose: () => void }) {
   );
 }
 
-/* An invoice with the company's VAT details instead of the receipt (simulated ΤΠΥ). */
+/* An invoice with the company's details instead of the receipt (simulated ΤΠΥ) — the same fields as
+   "I need an invoice" at Pay (AENR-714), pre-filled from the details the guest saved. */
 function InvoiceDialog({ v, onClose, onIssued }: { v: Visit; onClose: () => void; onIssued: (d: CustomerDocument) => void }) {
   const t = useT();
-  const { setAccount, toast } = useApp();
-  const [company, setCompany] = useState("");
-  const [vatNo, setVatNo] = useState("");
-  const [address, setAddress] = useState("");
-  const vatOk = /^(EL|GR)?\d{9}$/i.test(vatNo.replace(/\s/g, ""));
-  const ok = company.trim().length > 1 && vatOk && address.trim().length > 4;
+  const { account, setAccount, toast } = useApp();
+  const [inv, setInv] = useState<InvoiceDetails>(() => account.invoiceDetails ?? emptyInvoice(PROFILE.email));
+  const [tried, setTried] = useState(false);
+  const errors = invoiceErrors(inv);
+  const ok = Object.keys(errors).length === 0;
   const issue = () => {
-    const req: InvoiceRequest = { id: `INV-${Date.now().toString().slice(-6)}`, visitKey: v.key, company: company.trim(), vatNo: vatNo.replace(/\s/g, "").toUpperCase(), address: address.trim(), amount: v.total, at: guestNow() };
-    setAccount((a) => ({ ...a, invoices: [req, ...a.invoices] }));
+    if (!ok) return setTried(true);
+    const vatNo = normalVatNo(inv);
+    const req: InvoiceRequest = { id: `INV-${Date.now().toString().slice(-6)}`, visitKey: v.key, company: inv.company.trim(), vatNo, address: invoiceAddress(inv), amount: v.total, at: guestNow(), details: { ...inv, vatNo } };
+    setAccount((a) => ({ ...a, invoices: [req, ...a.invoices], invoiceDetails: { ...inv, vatNo } }));
     toast(t("Invoice issued — download it as a PDF."), { tone: "success" });
     onIssued(invoiceForVisit(v, req));
   };
   return (
     <Modal open onClose={onClose} title={t("Request an invoice")}
-      footer={<><Btn variant="ghost" onClick={onClose}>{t("Cancel")}</Btn><Btn variant="primary" icon={Icon.receipt} disabled={!ok} onClick={issue}>{t("Issue invoice")}</Btn></>}>
+      footer={<><Btn variant="ghost" onClick={onClose}>{t("Cancel")}</Btn><Btn variant="primary" icon={Icon.receipt} onClick={issue}>{t("Issue invoice")}</Btn></>}>
       <div className="space-y-3">
         <p className="text-guest-meta text-slate-600">{t("For a business trip? We issue an invoice with your company details instead of the receipt.")}</p>
-        <Field label={t("Company name")}><Input value={company} onChange={(e) => setCompany(e.target.value)} autoComplete="organization" /></Field>
-        <Field label={t("VAT number")} hint={t("9 digits, e.g. EL123456789")}><Input value={vatNo} onChange={(e) => setVatNo(e.target.value)} aria-invalid={!!vatNo && !vatOk} /></Field>
-        <Field label={t("Billing address")}><Input value={address} onChange={(e) => setAddress(e.target.value)} autoComplete="street-address" /></Field>
+        <InvoiceFields value={inv} onChange={setInv} errors={errors} showErrors={tried} />
       </div>
     </Modal>
   );

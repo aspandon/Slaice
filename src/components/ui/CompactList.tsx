@@ -38,13 +38,17 @@ export function CompactRow({
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline gap-2">
           <span className="font-semibold text-navy-900 text-[15px] truncate">{title}</span>
-          {reference && <span className="font-mono text-[12px] text-slate-500 shrink-0">{reference}</span>}
+          {reference && (
+            <span className="font-mono text-[12px] text-slate-500 shrink-0">{reference}</span>
+          )}
         </span>
         {sub && <span className="block text-[13px] text-slate-600 truncate">{sub}</span>}
         {badges && <span className="mt-1.5 flex flex-wrap items-center gap-1.5">{badges}</span>}
       </span>
       <span className="shrink-0 flex items-center gap-1 pt-0.5">
-        {amount && <span className="font-display font-bold text-navy-900 tnum text-[16px]">{amount}</span>}
+        {amount && (
+          <span className="font-display font-bold text-navy-900 tnum text-[16px]">{amount}</span>
+        )}
         {onOpen && <Icon.chevR size={16} className="text-slate-400" />}
       </span>
     </>
