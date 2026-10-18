@@ -17,7 +17,7 @@ export function AgeCheck({
   return (
     <div>
       <label
-        className={`flex items-start gap-2.5 rounded-xl px-3 py-2.5 text-[12.5px] leading-snug cursor-pointer ring-1 ${invalid ? "ring-rose-400 bg-rose-50" : "ring-slate-200 bg-white/70"}`}
+        className={`flex items-start gap-2.5 rounded-xl px-3 py-2.5 text-guest-meta leading-snug cursor-pointer ring-1 ${invalid ? "ring-rose-400 bg-rose-50" : "ring-slate-200 bg-white/70"}`}
       >
         <input
           type="checkbox"
@@ -40,7 +40,7 @@ export function AgeCheck({
         <div
           id="age-err"
           role="alert"
-          className="mt-1 text-[12px] text-rose-600 flex items-center gap-1.5"
+          className="mt-1 text-guest-caption text-rose-600 flex items-center gap-1.5"
         >
           <Icon.alert size={13} /> {t("Please confirm you're 18 or older to continue.")}
         </div>

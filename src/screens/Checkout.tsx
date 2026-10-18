@@ -222,13 +222,13 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
       <div className="animate-fade-in grid place-items-center min-h-[60dvh]">
         <Card className="p-8 max-w-md w-full">
           <div className="w-12 h-12 rounded-xl bg-teal-600 text-white grid place-items-center"><Icon.lock size={22} /></div>
-          <h2 className="mt-3 font-display font-bold text-xl text-navy-900">{t("Sign in to finish your booking")}</h2>
-          <p className="mt-1 text-sm text-slate-600">{t("Your basket is saved —")} {cart.length} {cart.length === 1 ? t("item") : t("items")} · €{total.toFixed(2)}. {t("We need an account to send your QR and receipt.")}</p>
+          <h2 className="mt-3 font-display font-bold text-guest-head text-navy-900">{t("Sign in to finish your booking")}</h2>
+          <p className="mt-1 text-guest-body text-slate-600">{t("Your basket is saved —")} {cart.length} {cart.length === 1 ? t("item") : t("items")} · €{total.toFixed(2)}. {t("We need an account to send your QR and receipt.")}</p>
           <div className="mt-5 grid gap-2">
             <QuickSignIn onSignedIn={(how) => signIn(how === "passkey" ? t("passkey") : how)} />
             <Btn variant="ghost" full icon={Icon.mail} onClick={() => signIn(t("e-mail link"))}>{t("Use e-mail instead")}</Btn>
           </div>
-          <button type="button" onClick={() => setPhase("cart")} className="mt-4 text-[12px] text-slate-600 hover:text-navy-900">← {t("Back to the basket")}</button>
+          <button type="button" onClick={() => setPhase("cart")} className="mt-4 text-guest-caption text-slate-600 hover:text-navy-900">← {t("Back to the basket")}</button>
         </Card>
       </div>
     );
@@ -257,8 +257,8 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
                     <div className="flex items-start gap-3 min-w-0">
                       <span className="w-9 h-9 rounded-lg bg-teal-50 grid place-items-center text-teal-700 shrink-0"><Icon.calendar size={16} /></span>
                       <div className="min-w-0">
-                        <div className="font-semibold text-sm text-navy-900">{v.title}</div>
-                        <ul className="mt-1 space-y-0.5 text-[12.5px] text-slate-600">
+                        <div className="font-semibold text-guest-body text-navy-900">{v.title}</div>
+                        <ul className="mt-1 space-y-0.5 text-guest-meta text-slate-600">
                           {v.items.map((it) => (
                             <li key={it.kind + it.id} className="flex items-center gap-1.5 min-w-0">
                               <span className="text-slate-400 shrink-0">{kindIcon(it.kind)}</span>
@@ -271,7 +271,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
                     </div>
                     <div className="text-right shrink-0">
                       <div className="font-semibold tnum text-navy-900">€{v.total.toFixed(2)}</div>
-                      {v.fees > 0 && <div className="text-[11px] text-slate-500 tnum">+€{v.fees.toFixed(2)} {t("service fee")}</div>}
+                      {v.fees > 0 && <div className="text-guest-caption text-slate-500 tnum">+€{v.fees.toFixed(2)} {t("service fee")}</div>}
                     </div>
                   </div>
                   <div className="mt-2 flex justify-end gap-1">
@@ -284,24 +284,24 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
             ))}
           </div>
         </Card>
-        <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg glass-card-solid px-2.5 py-1 text-[12px] text-slate-700"><Icon.shield size={13} /> {t("Your ticket and receipt arrive by e-mail the moment you pay.")}</div>
+        <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg glass-card-solid px-2.5 py-1 text-guest-caption text-slate-700"><Icon.shield size={13} /> {t("Your ticket and receipt arrive by e-mail the moment you pay.")}</div>
       </div>}
 
       <div className={embedded ? "" : "lg:sticky lg:top-4 h-max"} data-flip-id={embedded ? undefined : "checkout-panel"}>
         <Card className={embedded ? "p-4" : "p-5"}>
-          <div className="flex items-center gap-2 mb-3"><TenantLogo size={30} /><div className="text-sm font-semibold text-navy-900">{TENANT.name}</div></div>
+          <div className="flex items-center gap-2 mb-3"><TenantLogo size={30} /><div className="text-guest-body font-semibold text-navy-900">{TENANT.name}</div></div>
           {/* Customer-facing summary: subtotal, any pass deductions, then what's due now. */}
           {sunbedSub > 0 && <Row l={t("Sunbeds")} v={`€${sunbedSub.toFixed(2)}`} />}
           {ticketSub > 0 && <Row l={t("Entry tickets")} v={`€${ticketSub.toFixed(2)}`} />}
           {extrasSub > 0 && <Row l={t(extrasLabel)} v={`€${extrasSub.toFixed(2)}`} />}
           {sf.total > 0 && <Row l={t("Service fee")} v={`€${sf.total.toFixed(2)}`} />}
           {best && (rewardOff > 0 ? (
-            <div className="flex items-center justify-between gap-2 text-sm py-0.5 text-teal-700 font-medium">
-              <span className="min-w-0"><Icon.gift size={13} className="inline align-[-2px] mr-1" />{t(best.reward.title)} · {best.reward.reward} <button type="button" aria-label={t("Remove reward")} onClick={() => setSkipReward(true)} className="ml-1 text-[12px] font-semibold text-slate-500 underline-offset-2 hover:underline hover:text-navy-900 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">{t("Remove")}</button></span>
+            <div className="flex items-center justify-between gap-2 text-guest-body py-0.5 text-teal-700 font-medium">
+              <span className="min-w-0"><Icon.gift size={13} className="inline align-[-2px] mr-1" />{t(best.reward.title)} · {best.reward.reward} <button type="button" aria-label={t("Remove reward")} onClick={() => setSkipReward(true)} className="ml-1 text-guest-caption font-semibold text-slate-500 underline-offset-2 hover:underline hover:text-navy-900 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">{t("Remove")}</button></span>
               <span className="tnum shrink-0">−€{rewardOff.toFixed(2)}</span>
             </div>
           ) : (
-            <button type="button" onClick={() => setSkipReward(false)} className="block text-left text-[12.5px] font-semibold text-teal-700 hover:underline py-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+            <button type="button" onClick={() => setSkipReward(false)} className="block text-left text-guest-meta font-semibold text-teal-700 hover:underline py-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
               <Icon.gift size={13} className="inline align-[-2px] mr-1" />{t("Use your reward")} · {best.reward.reward} (−€{Math.min(best.amount, total).toFixed(2)})
             </button>
           ))}
@@ -310,9 +310,9 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
           {creditUsed > 0 && <Row l={t("Beach credit")} v={`−€${creditUsed.toFixed(2)}`} discount />}
           <div className="h-px bg-slate-100 my-2" />
           <Row l={passApplied ? t("To pay") : t("Total")} v={`€${fullDue.toFixed(2)}`} bold />
-          <div className="text-[11px] text-slate-500 mt-1" data-vat-note>{vatNote}</div>
+          <div className="text-guest-caption text-slate-500 mt-1" data-vat-note>{vatNote}</div>
           {vipCover > 0 && (
-            <div className="mt-2 rounded-xl bg-sky-50 ring-1 ring-sky-600/15 px-3 py-2 text-[11.5px] text-sky-800 leading-snug">
+            <div className="mt-2 rounded-xl bg-sky-50 ring-1 ring-sky-600/15 px-3 py-2 text-guest-caption text-sky-800 leading-snug">
               <Icon.sparkles size={12} className="inline align-[-1px] mr-1" />{t("VIP credit used")} €{vipDebit.toFixed(2)} · {t("you saved")} €{vipSaved.toFixed(2)} ({Math.round(disc * 100)}%). {t("Balance")} €{vipBalance.toFixed(2)} → €{round2(vipBalance - vipDebit).toFixed(2)}.
             </div>
           )}
@@ -320,12 +320,12 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
           {/* Apply a held pass. */}
           {(hasVip || hasSeason) && (
             <div className="mt-3 rounded-xl ring-1 ring-slate-200 bg-white/70 p-3 space-y-2.5">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.wallet size={12} /> {t("Use a pass")}</div>
+              <div className="text-guest-over font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.wallet size={12} /> {t("Use a pass")}</div>
               {hasVip && (
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-[13px] font-semibold text-navy-900 flex items-center gap-1.5"><Icon.sparkles size={13} className="text-sky-700" /> {t("VIP credit")}</div>
-                    <div className="text-[11px] text-slate-500 tnum">{t("Balance")} €{vipBalance.toFixed(2)} · {Math.round(disc * 100)}% {t("off")}</div>
+                    <div className="text-guest-meta font-semibold text-navy-900 flex items-center gap-1.5"><Icon.sparkles size={13} className="text-sky-700" /> {t("VIP credit")}</div>
+                    <div className="text-guest-caption text-slate-500 tnum">{t("Balance")} €{vipBalance.toFixed(2)} · {Math.round(disc * 100)}% {t("off")}</div>
                   </div>
                   <Toggle on={applyVip} onChange={setApplyVip} ariaLabel={t("VIP credit")} />
                 </div>
@@ -333,8 +333,8 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
               {hasSeason && (
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-[13px] font-semibold text-navy-900 flex items-center gap-1.5"><Icon.ticket size={13} className="text-teal-600" /> {t("Season pass")}</div>
-                    <div className="text-[11px] text-slate-500">{entryTotal > 0 ? `${t("Covers 1 entry")} · ${passes.season?.validUntil ?? ""}` : t("No entry tickets in this order")}</div>
+                    <div className="text-guest-meta font-semibold text-navy-900 flex items-center gap-1.5"><Icon.ticket size={13} className="text-teal-600" /> {t("Season pass")}</div>
+                    <div className="text-guest-caption text-slate-500">{entryTotal > 0 ? `${t("Covers 1 entry")} · ${passes.season?.validUntil ?? ""}` : t("No entry tickets in this order")}</div>
                   </div>
                   <Toggle on={applySeason} onChange={setApplySeason} ariaLabel={t("Season pass")} />
                 </div>
@@ -344,7 +344,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
 
           {/* How to pay (AENR-714): an invoice for a business instead of the receipt, then the pay buttons. */}
           <div className="mt-4 pt-3 border-t border-slate-100">
-            <h3 className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{t("How to pay")}</h3>
+            <h3 className="text-guest-over font-semibold uppercase tracking-wide text-slate-500">{t("How to pay")}</h3>
             <div className="mt-2 flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <div id="inv-toggle-label" className="text-guest-meta font-semibold text-navy-900 flex items-center gap-1.5"><Icon.building size={14} className="text-slate-500" /> {t("I need an invoice")}</div>
@@ -370,17 +370,17 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
                   are roadmap — shown with the FUTURE badge. */}
               <Btn variant="indigo" full size="lg" icon={Icon.card} onClick={pay}>{`${t("Pay by card")} · €${cashDue.toFixed(2)}`}</Btn>
               {roadmap && <>
-              <div className="flex items-center gap-2 text-[11px] text-slate-500"><span className="h-px flex-1 bg-slate-200" />{t("or")}<span className="h-px flex-1 bg-slate-200" /></div>
-              <button type="button" onClick={() => walletPay("apple")} disabled={!!wallet} className="relative w-full min-h-[48px] rounded-[14px] bg-black text-white font-semibold text-[15px] inline-flex items-center justify-center gap-1.5 hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 disabled:opacity-70" aria-label={`${t("Pay with Apple Pay")} €${cashDue.toFixed(2)} · ${t("coming soon")}`}>
+              <div className="flex items-center gap-2 text-guest-caption text-slate-500"><span className="h-px flex-1 bg-slate-200" />{t("or")}<span className="h-px flex-1 bg-slate-200" /></div>
+              <button type="button" onClick={() => walletPay("apple")} disabled={!!wallet} className="relative w-full min-h-[48px] rounded-[14px] bg-black text-white font-semibold text-guest-body inline-flex items-center justify-center gap-1.5 hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 disabled:opacity-70" aria-label={`${t("Pay with Apple Pay")} €${cashDue.toFixed(2)} · ${t("coming soon")}`}>
                 {wallet === "apple" ? t("Confirming…") : <><AppleLogo size={17} /> Pay</>}
                 <NotMvpBadge className="absolute right-2.5 top-1/2 -translate-y-1/2" />
               </button>
-              <button type="button" onClick={() => walletPay("google")} disabled={!!wallet} className="relative w-full min-h-[48px] rounded-[14px] bg-white ring-1 ring-slate-300 text-navy-900 font-semibold text-[15px] inline-flex items-center justify-center gap-1.5 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:opacity-70" aria-label={`${t("Pay with Google Pay")} €${cashDue.toFixed(2)} · ${t("coming soon")}`}>
+              <button type="button" onClick={() => walletPay("google")} disabled={!!wallet} className="relative w-full min-h-[48px] rounded-[14px] bg-white ring-1 ring-slate-300 text-navy-900 font-semibold text-guest-body inline-flex items-center justify-center gap-1.5 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:opacity-70" aria-label={`${t("Pay with Google Pay")} €${cashDue.toFixed(2)} · ${t("coming soon")}`}>
                 {wallet === "google" ? t("Confirming…") : <><b className="text-[#4285F4]">G</b> Pay</>}
                 <NotMvpBadge className="absolute right-2.5 top-1/2 -translate-y-1/2" />
               </button>
-              <button type="button" onClick={() => toast(t("Klarna — pay in 3 interest-free instalments — is coming soon."), { tone: "info" })} className="relative w-full min-h-[48px] rounded-[14px] bg-[#FFA8CD] text-black font-bold text-[15px] inline-flex items-center justify-center gap-1.5 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2" aria-label={`${t("Pay with Klarna in 3 instalments")} · ${t("coming soon")}`}>
-                Klarna. <span className="font-semibold text-[13px]">{t("Pay in 3")}</span>
+              <button type="button" onClick={() => toast(t("Klarna — pay in 3 interest-free instalments — is coming soon."), { tone: "info" })} className="relative w-full min-h-[48px] rounded-[14px] bg-[#FFA8CD] text-black font-bold text-guest-body inline-flex items-center justify-center gap-1.5 hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2" aria-label={`${t("Pay with Klarna in 3 instalments")} · ${t("coming soon")}`}>
+                Klarna. <span className="font-semibold text-guest-meta">{t("Pay in 3")}</span>
                 <NotMvpBadge className="absolute right-2.5 top-1/2 -translate-y-1/2" />
               </button>
               </>}
@@ -389,23 +389,23 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
             <Btn variant="indigo" full size="lg" className="mt-4" icon={Icon.check} onClick={pay}>{t("Confirm · nothing to pay")}</Btn>
           )}
 
-          <div className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-slate-500"><Icon.lock size={12} /> {cashDue > 0 ? t("Secured by Stripe · we never store card details") : t("Settled from your pass · no card charged")}</div>
+          <div className="mt-3 flex items-center justify-center gap-1.5 text-guest-caption text-slate-500"><Icon.lock size={12} /> {cashDue > 0 ? t("Secured by Stripe · we never store card details") : t("Settled from your pass · no card charged")}</div>
           <div className="mt-2 flex items-center justify-center gap-1.5 opacity-90">
             {["VISA", "MC", "AMEX", "APPLE"].map((b) => (
-              <span key={b} className="text-[9px] font-bold tracking-wide text-slate-500 bg-slate-100 rounded px-1.5 py-1 ring-1 ring-slate-200">{b}</span>
+              <span key={b} className="text-guest-caption font-bold tracking-wide text-slate-500 bg-slate-100 rounded px-1.5 py-1 ring-1 ring-slate-200">{b}</span>
             ))}
           </div>
-          <div className="mt-3 pt-3 border-t border-slate-100 flex items-start gap-2 text-[11px] text-slate-500 leading-snug">
+          <div className="mt-3 pt-3 border-t border-slate-100 flex items-start gap-2 text-guest-caption text-slate-500 leading-snug">
             <Icon.shield size={13} className="shrink-0 mt-0.5 text-teal-600" />
             <span><b className="text-navy-900">{cancelBy}</b>{cancelBy.startsWith(t("Free")) ? ` — ${policy.refundPct}% ${t("back, from My bookings in two taps.")}` : "."} <button onClick={() => toast(t("Demo — terms of service."))} className="underline hover:text-navy-900">{t("Terms")}</button></span>
           </div>
-          <div className="mt-2 text-[11px] text-slate-500 leading-snug">
+          <div className="mt-2 text-guest-caption text-slate-500 leading-snug">
             {OPERATOR.legal} · {t("VAT")} {OPERATOR.vat} · {OPERATOR.address}<br />
             {t("Help")}: <a className="underline hover:text-navy-900" href={`tel:${OPERATOR.phone.replace(/\s/g, "")}`}>{OPERATOR.phone}</a> · <a className="underline hover:text-navy-900" href={`mailto:${OPERATOR.email}`}>{OPERATOR.email}</a>
           </div>
 
           <div className="mt-3 flex items-center justify-between">
-            <button onClick={() => go("customer", "plan")} className="text-[12px] text-slate-600 hover:text-navy-900">← {t("Back to planning")}</button>
+            <button onClick={() => go("customer", "plan")} className="text-guest-caption text-slate-600 hover:text-navy-900">← {t("Back to planning")}</button>
           </div>
         </Card>
       </div>
@@ -430,17 +430,17 @@ function StripeStep({ amount, saved, onBack, onPaid }: { amount: number; saved: 
     <div className="animate-fade-in grid place-items-center min-h-[60dvh]">
       <Card className="p-8 max-w-md w-full">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-[#635bff] font-bold text-lg"><Icon.stripe size={22} /> stripe</div>
-          <div className="text-sm font-semibold text-navy-900">{TENANT.name}</div>
+          <div className="flex items-center gap-2 text-[#635bff] font-bold text-guest-head"><Icon.stripe size={22} /> stripe</div>
+          <div className="text-guest-body font-semibold text-navy-900">{TENANT.name}</div>
         </div>
-        <div className="mt-4 text-[12px] text-slate-500">{t("Total")}</div>
+        <div className="mt-4 text-guest-caption text-slate-500">{t("Total")}</div>
         <div className="font-display text-3xl font-bold text-navy-900 tnum">€{amount.toFixed(2)}</div>
         <form className="mt-4 space-y-3" onSubmit={(e) => { e.preventDefault(); if (valid && !busy) submit(); }}>
           {saved && (
             <fieldset className="space-y-1.5">
               <legend className="sr-only">{t("Card")}</legend>
               <label className={`flex items-center gap-2 rounded-xl ring-1 px-3 min-h-[48px] cursor-pointer ${useSaved ? "ring-[#635bff] bg-indigo-50/50" : "ring-slate-200"}`}>
-                <input type="radio" name="card" className="accent-[#635bff]" checked={useSaved} onChange={() => setUseSaved(true)} /> <Icon.card size={16} /> {t("Pay with")} {saved.brand} ···· {saved.last4} <span className="ml-auto text-[12px] text-slate-500">{saved.exp}</span>
+                <input type="radio" name="card" className="accent-[#635bff]" checked={useSaved} onChange={() => setUseSaved(true)} /> <Icon.card size={16} /> {t("Pay with")} {saved.brand} ···· {saved.last4} <span className="ml-auto text-guest-caption text-slate-500">{saved.exp}</span>
               </label>
               <label className={`flex items-center gap-2 rounded-xl ring-1 px-3 min-h-[48px] cursor-pointer ${!useSaved ? "ring-[#635bff] bg-indigo-50/50" : "ring-slate-200"}`}>
                 <input type="radio" name="card" className="accent-[#635bff]" checked={!useSaved} onChange={() => setUseSaved(false)} /> {t("Use another card")}
@@ -449,25 +449,25 @@ function StripeStep({ amount, saved, onBack, onPaid }: { amount: number; saved: 
           )}
           {!useSaved && (
             <>
-              <label className="block text-[12px] font-semibold text-slate-700">{t("Card number")}<input inputMode="numeric" autoComplete="cc-number" value={num} onChange={(e) => setNum(e.target.value)} className="mt-1 block w-full rounded-xl ring-1 ring-slate-200 px-3 py-2.5 text-[15px] font-mono" /></label>
+              <label className="block text-guest-caption font-semibold text-slate-700">{t("Card number")}<input inputMode="numeric" autoComplete="cc-number" value={num} onChange={(e) => setNum(e.target.value)} className="mt-1 block w-full rounded-xl ring-1 ring-slate-200 px-3 py-2.5 text-guest-body font-mono" /></label>
               <div className="grid grid-cols-2 gap-2">
-                <label className="block text-[12px] font-semibold text-slate-700">{t("Expiry")}<input autoComplete="cc-exp" value={exp} onChange={(e) => setExp(e.target.value)} className="mt-1 block w-full rounded-xl ring-1 ring-slate-200 px-3 py-2.5 text-[15px] font-mono" /></label>
-                <label className="block text-[12px] font-semibold text-slate-700">CVC<input inputMode="numeric" autoComplete="cc-csc" value={cvc} onChange={(e) => setCvc(e.target.value)} className="mt-1 block w-full rounded-xl ring-1 ring-slate-200 px-3 py-2.5 text-[15px] font-mono" /></label>
+                <label className="block text-guest-caption font-semibold text-slate-700">{t("Expiry")}<input autoComplete="cc-exp" value={exp} onChange={(e) => setExp(e.target.value)} className="mt-1 block w-full rounded-xl ring-1 ring-slate-200 px-3 py-2.5 text-guest-body font-mono" /></label>
+                <label className="block text-guest-caption font-semibold text-slate-700">CVC<input inputMode="numeric" autoComplete="cc-csc" value={cvc} onChange={(e) => setCvc(e.target.value)} className="mt-1 block w-full rounded-xl ring-1 ring-slate-200 px-3 py-2.5 text-guest-body font-mono" /></label>
               </div>
-              <label className="flex items-center gap-2 text-[13px] text-slate-700 min-h-[40px]"><input type="checkbox" className="accent-[#635bff] w-4 h-4" checked={save} onChange={(e) => setSave(e.target.checked)} /> {t("Save card for faster checkout")}</label>
+              <label className="flex items-center gap-2 text-guest-meta text-slate-700 min-h-[40px]"><input type="checkbox" className="accent-[#635bff] w-4 h-4" checked={save} onChange={(e) => setSave(e.target.checked)} /> {t("Save card for faster checkout")}</label>
             </>
           )}
           <Btn type="submit" variant="indigo" full size="lg" disabled={!valid} loading={busy}>{busy ? t("Processing…") : `${t("Pay")} €${amount.toFixed(2)}`}</Btn>
         </form>
-        <div className="mt-3 text-[11px] text-slate-500 flex items-center gap-1.5"><Icon.lock size={12} /> {t("Demo — no real card is charged. Saved cards are stored by Stripe as a token; Slaice only keeps the last 4 digits.")}</div>
-        <button type="button" onClick={onBack} disabled={busy} className="mt-3 text-[12px] text-slate-600 hover:text-navy-900">← {t("Back to the basket")}</button>
+        <div className="mt-3 text-guest-caption text-slate-500 flex items-center gap-1.5"><Icon.lock size={12} /> {t("Demo — no real card is charged. Saved cards are stored by Stripe as a token; Slaice only keeps the last 4 digits.")}</div>
+        <button type="button" onClick={onBack} disabled={busy} className="mt-3 text-guest-caption text-slate-600 hover:text-navy-900">← {t("Back to the basket")}</button>
       </Card>
     </div>
   );
 }
 
 function Row({ l, v, bold, muted, discount }: { l?: ReactNode; v?: ReactNode; bold?: boolean; muted?: boolean; discount?: boolean }) {
-  return <div className={`flex items-center justify-between text-sm py-0.5 ${bold ? "font-bold text-navy-900 text-base" : discount ? "text-teal-700 font-medium" : muted ? "text-slate-600" : "text-slate-600"}`}><span>{l}</span><span className="tnum">{v}</span></div>;
+  return <div className={`flex items-center justify-between text-guest-body py-0.5 ${bold ? "font-bold text-navy-900 text-base" : discount ? "text-teal-700 font-medium" : muted ? "text-slate-600" : "text-slate-600"}`}><span>{l}</span><span className="tnum">{v}</span></div>;
 }
 
 function kindIcon(kind: string) {
@@ -530,16 +530,16 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
     <div ref={scope} className="animate-fade-up max-w-xl mx-auto" data-inline={inline ? "" : undefined}>
       <div className="text-center mb-4">
         <div className="w-14 h-14 mx-auto rounded-2xl bg-teal-600 text-white grid place-items-center" data-confirm-check><Icon.check size={30} /></div>
-        <h1 className="mt-3 font-display font-bold text-2xl text-navy-900 glass-card-solid inline-block rounded-xl px-3 py-1" data-confirm-head>{t("You're booked")}</h1>
+        <h1 className="mt-3 font-display font-bold text-guest-title text-navy-900 glass-card-solid inline-block rounded-xl px-3 py-1" data-confirm-head>{t("You're booked")}</h1>
       </div>
 
       {/* The ticket — what the guest shows at the gate */}
       <article aria-label={t("Your beach-day ticket")} className="rounded-[28px] bg-white shadow-lift ring-1 ring-slate-200 overflow-hidden" data-confirm-qr>
         <div className="grad-sea text-white px-6 py-5">
-          <div className="text-[11px] font-semibold uppercase tracking-[0.14em] text-teal-100">{TENANT.name}</div>
-          <div className="mt-1 font-display font-bold text-[26px] leading-tight">{fmtWeekday(date)} {fmtDay(date)}</div>
+          <div className="text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-100">{TENANT.name}</div>
+          <div className="mt-1 font-display font-bold text-guest-title leading-tight">{fmtWeekday(date)} {fmtDay(date)}</div>
           {/* Each set with its own zone, so a booking across zones reads right (AENR-715). */}
-          <div className="text-[14px] text-white/90">{group?.sets.length ? group.sets.map((s) => `${s.zone} ${s.setId}`).join(" · ") : `${visit?.zone ? `${visit.zone} · ` : ""}${visit?.sets.length ? `${t("Sunbeds")} ${visit.sets.join(", ")}` : t("Entry")}`}</div>
+          <div className="text-guest-body text-white/90">{group?.sets.length ? group.sets.map((s) => `${s.zone} ${s.setId}`).join(" · ") : `${visit?.zone ? `${visit.zone} · ` : ""}${visit?.sets.length ? `${t("Sunbeds")} ${visit.sets.join(", ")}` : t("Entry")}`}</div>
         </div>
         <div className="relative px-6 py-5 text-center">
           <span aria-hidden className="absolute -top-3 -left-3 w-6 h-6 rounded-full bg-slate-100" />
@@ -547,23 +547,23 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
           <button type="button" onClick={() => setFull(true)} className="mx-auto grid place-items-center rounded-2xl p-2 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500" aria-label={t("Show the QR full screen")}>
             <QR size={208} seed={qrCode(ref)} />
           </button>
-          <div className="mt-1 font-mono text-[15px] font-bold text-navy-900">{ref}</div>
-          <div className="text-[12.5px] text-slate-500">{t("Tap the code to show it full screen at the gate.")}</div>
-          <dl className="mt-4 grid grid-cols-2 gap-3 text-left text-[13px]">
-            <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-slate-500 text-[11.5px]">{t("Arrive")}</dt><dd className="font-semibold text-navy-900">{ARRIVAL_WINDOW}</dd></div>
-            <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-slate-500 text-[11.5px]">{t("Paid")}</dt><dd className="font-semibold text-navy-900">€{(booking?.deposit ?? booking?.total ?? 0).toFixed(2)}{booking?.card ? ` · ${booking.card}` : ""}</dd></div>
-            {onSite > 0 && <div className="rounded-xl bg-amber-50 px-3 py-2 col-span-2"><dt className="text-amber-800 text-[11.5px]">{t("To pay on site")}</dt><dd className="font-semibold text-amber-900">€{onSite.toFixed(2)} · {t("cash or card at the gate")}</dd></div>}
+          <div className="mt-1 font-mono text-guest-body font-bold text-navy-900">{ref}</div>
+          <div className="text-guest-meta text-slate-500">{t("Tap the code to show it full screen at the gate.")}</div>
+          <dl className="mt-4 grid grid-cols-2 gap-3 text-left text-guest-meta">
+            <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-slate-500 text-guest-caption">{t("Arrive")}</dt><dd className="font-semibold text-navy-900">{ARRIVAL_WINDOW}</dd></div>
+            <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-slate-500 text-guest-caption">{t("Paid")}</dt><dd className="font-semibold text-navy-900">€{(booking?.deposit ?? booking?.total ?? 0).toFixed(2)}{booking?.card ? ` · ${booking.card}` : ""}</dd></div>
+            {onSite > 0 && <div className="rounded-xl bg-amber-50 px-3 py-2 col-span-2"><dt className="text-amber-800 text-guest-caption">{t("To pay on site")}</dt><dd className="font-semibold text-amber-900">€{onSite.toFixed(2)} · {t("cash or card at the gate")}</dd></div>}
             {group && group.total > 0 && (
               <div className="rounded-xl bg-teal-50 px-3 py-2 col-span-2 flex items-center gap-2.5">
                 <Icon.users size={16} className="text-teal-700 shrink-0" />
-                <div className="min-w-0"><dt className="text-teal-800 text-[11.5px]">{t("Your group")}</dt>
+                <div className="min-w-0"><dt className="text-teal-800 text-guest-caption">{t("Your group")}</dt>
                   <dd className="font-semibold text-navy-900">{group.total} {group.total === 1 ? t("entry") : t("entries")}{group.sets.length ? ` · ${group.sets.length} ${group.sets.length === 1 ? t("set") : t("sets")}` : ""} — {t("one QR for everyone")}</dd></div>
               </div>
             )}
-            <div className="rounded-xl bg-slate-50 px-3 py-2 col-span-2"><dt className="text-slate-500 text-[11.5px]">{t("Entrance")}</dt><dd className="font-semibold text-navy-900 flex items-center justify-between gap-2"><span>{t("Main gate")} · {OPERATOR.address}</span>
+            <div className="rounded-xl bg-slate-50 px-3 py-2 col-span-2"><dt className="text-slate-500 text-guest-caption">{t("Entrance")}</dt><dd className="font-semibold text-navy-900 flex items-center justify-between gap-2"><span>{t("Main gate")} · {OPERATOR.address}</span>
               <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${TENANT.name} ${TENANT.place}`)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-teal-700 hover:underline shrink-0"><Icon.map size={14} /> {t("Map")}<span className="sr-only"> ({t("opens in a new tab")})</span></a></dd></div>
           </dl>
-          <p className="mt-3 text-[12px] text-slate-600">{t(cancelLine(date, guestNow(), extras.policy))} · {booking?.invoiceTo ? `${t("invoice to")} ${booking.invoiceTo.company} (${booking.invoiceTo.vatNo}) ${t("e-mailed to")} ${booking.invoiceTo.email}` : t("receipt e-mailed")}</p>
+          <p className="mt-3 text-guest-caption text-slate-600">{t(cancelLine(date, guestNow(), extras.policy))} · {booking?.invoiceTo ? `${t("invoice to")} ${booking.invoiceTo.company} (${booking.invoiceTo.vatNo}) ${t("e-mailed to")} ${booking.invoiceTo.email}` : t("receipt e-mailed")}</p>
         </div>
       </article>
 

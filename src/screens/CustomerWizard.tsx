@@ -168,9 +168,9 @@ export function CustomerWizard() {
       <div className="grid place-items-center min-h-[60dvh] px-3">
         <div role="alert" className="glass-card rounded-2xl p-8 max-w-md text-center">
           <span className="mx-auto w-12 h-12 rounded-xl bg-amber-100 text-amber-700 grid place-items-center"><Icon.clock size={22} /></span>
-          <h1 className="mt-3 font-display font-bold text-xl text-navy-900">{site.tenant?.name}</h1>
-          <p className="mt-1 text-sm text-slate-600">{site.message}</p>
-          <p className="mt-1 text-[12.5px] text-slate-500">Bookings you already have stay valid — show your QR at the entrance.</p>
+          <h1 className="mt-3 font-display font-bold text-guest-head text-navy-900">{site.tenant?.name}</h1>
+          <p className="mt-1 text-guest-body text-slate-600">{site.message}</p>
+          <p className="mt-1 text-guest-meta text-slate-500">Bookings you already have stay valid — show your QR at the entrance.</p>
           <Btn variant="teal" className="mt-4" icon={Icon.grid} onClick={() => go("customer", "mybookings")}>My bookings</Btn>
         </div>
       </div>
@@ -623,7 +623,7 @@ function WizardInner() {
             {sheetOpen ? (
               <span className="sr-only">{tr("Lower the panel to see the beach")}</span>
             ) : (
-              <span className="text-[12px] font-semibold text-slate-600 inline-flex items-center gap-1">
+              <span className="text-guest-caption font-semibold text-slate-600 inline-flex items-center gap-1">
                 {step.id === "beach" && !richOverview && phase === "sets" ? `${zone.name} · ${bedSel.length ? `${bedSel.length} ${bedSel.length === 1 ? tr("set") : tr("sets")} · ` : ""}${tr("tap a set on the map")}` : step.id === "beach" ? `${selDates.length === 1 ? chipLabel(selDates[0], localeFor(lang)).sub : `${selDates.length} ${tr("days")}`} · ${phase === "sets" ? zone.name : tr("all zones")} · ${tr("Change")}` : `${tr("Step")} ${stepIdx + 1} ${tr("of")} ${STEPS.length} · ${tr(step.label)}`}
                 <Icon.chevD size={13} className="rotate-180" />
               </span>
@@ -632,10 +632,10 @@ function WizardInner() {
           {/* Pinned header — leave, progress, (step title only on the form steps). */}
           <div className={`p-4 sm:p-5 pb-3 max-lg:pt-1 shrink-0 ${sheetHide}`}>
             <div className="flex items-center justify-between mb-3">
-              <button onClick={() => go("customer", "home")} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-600 hover:text-navy-900 rounded-lg px-2 py-1 hover:bg-white/60 transition">
+              <button onClick={() => go("customer", "home")} className="inline-flex items-center gap-1.5 text-guest-meta font-semibold text-slate-600 hover:text-navy-900 rounded-lg px-2 py-1 hover:bg-white/60 transition">
                 <Icon.arrowL size={14} /> {tr("Leave")}
               </button>
-              <div className="text-[12px] font-semibold text-slate-500 tnum">{tr("Step")} {stepIdx + 1} {tr("of")} {STEPS.length} · <span className="text-navy-900">{tr(step.label)}</span></div>
+              <div className="text-guest-caption font-semibold text-slate-500 tnum">{tr("Step")} {stepIdx + 1} {tr("of")} {STEPS.length} · <span className="text-navy-900">{tr(step.label)}</span></div>
             </div>
 
             <ProgressRail stepIdx={stepIdx} onJump={(i) => setStepIdx(i)} />
@@ -673,7 +673,7 @@ function WizardInner() {
               />
             )}
             {step.id === "review" && plan && (
-              <div role="status" className="mb-3 rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2 flex items-start gap-2 text-[12.5px] text-navy-900">
+              <div role="status" className="mb-3 rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2 flex items-start gap-2 text-guest-meta text-navy-900">
                 <Icon.sparkles size={14} className="text-teal-600 shrink-0 mt-0.5" />
                 <span><b>{tr("Your usual, ready for")} {((c) => `${c.label}, ${c.sub}`)(chipLabel(plan.date, localeFor(lang), tr))}.</b> {tr("Change anything with Edit, or pay now.")}</span>
               </div>
@@ -700,8 +700,8 @@ function WizardInner() {
                   >
                     <span className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 grid place-items-center shrink-0"><Icon.plus size={15} /></span>
                     <span className="flex-1 min-w-0">
-                      <span className="block text-[13.5px] font-semibold text-navy-900">{tr(ADD_EXTRAS_LABEL[extrasKind])}</span>
-                      <span className="block text-[12px] text-slate-600">
+                      <span className="block text-guest-meta font-semibold text-navy-900">{tr(ADD_EXTRAS_LABEL[extrasKind])}</span>
+                      <span className="block text-guest-caption text-slate-600">
                         {canLocker && lockerChoices.length > 0 && <>{tr("Optional — day lockers from")} €{Math.min(...lockerChoices.map((b) => b.price))}</>}
                         {canLocker && lockerChoices.length > 0 && canParking && " · "}
                         {canParking && <>{canLocker && lockerChoices.length > 0 ? tr("parking") : tr("Optional — parking")} €{PARKING_PRICE} {tr("a day")}</>}
@@ -712,9 +712,9 @@ function WizardInner() {
                 ) : (
                   <div className="space-y-3 rounded-2xl ring-1 ring-slate-200 bg-white/60 p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <div className="text-[13px] font-semibold text-navy-900">{tr(EXTRAS_TITLE[extrasKind])}</div>
+                      <div className="text-guest-meta font-semibold text-navy-900">{tr(EXTRAS_TITLE[extrasKind])}</div>
                       {!(lockerOn && canLocker) && !(parkingOn && canParking) && (
-                        <button type="button" onClick={() => setExtrasOpen(false)} className="text-[12px] font-semibold text-slate-500 hover:text-navy-900 rounded px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">{tr("Not now")}</button>
+                        <button type="button" onClick={() => setExtrasOpen(false)} className="text-guest-caption font-semibold text-slate-500 hover:text-navy-900 rounded px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">{tr("Not now")}</button>
                       )}
                     </div>
                     {canLocker && <LockerStep
@@ -742,14 +742,14 @@ function WizardInner() {
             {step.id === "review" && payItems && (
               <section ref={payRef} aria-label={tr("Payment")} className="mb-2 scroll-mt-2">
                 <Checkout embedded />
-                <p className="mt-1.5 px-1 text-[11.5px] text-slate-600">{tr("Not paying now? This visit waits in your basket.")}</p>
+                <p className="mt-1.5 px-1 text-guest-caption text-slate-600">{tr("Not paying now? This visit waits in your basket.")}</p>
               </section>
             )}
           </div>
 
           {/* Pinned footer — live total + nav. */}
           {noSet && step.id === "beach" && bedSel.length === 0 && (
-            <div role="alert" className="mx-4 sm:mx-5 mb-2 rounded-xl bg-amber-50 ring-1 ring-amber-600/25 px-3 py-2.5 text-[12.5px] text-amber-900 shrink-0">
+            <div role="alert" className="mx-4 sm:mx-5 mb-2 rounded-xl bg-amber-50 ring-1 ring-amber-600/25 px-3 py-2.5 text-guest-meta text-amber-900 shrink-0">
               <div className="flex items-start gap-2">
                 <Icon.umbrella size={15} className="shrink-0 mt-0.5 text-amber-700" />
                 <div className="min-w-0">
@@ -772,22 +772,22 @@ function WizardInner() {
           <div className="flex items-center justify-between gap-3 p-4 sm:p-5 pt-3 border-t border-slate-200/70 shrink-0">
             {step.id === "review" && payItems ? (
               // On Pay the payment panel holds the one total that counts (rewards, credit, passes applied).
-              <div className="leading-tight min-w-0 text-[12.5px] text-slate-600">{tr("Check the total and pay below.")}</div>
+              <div className="leading-tight min-w-0 text-guest-meta text-slate-600">{tr("Check the total and pay below.")}</div>
             ) : step.id === "when" || grandTotal === 0 || (step.id === "beach" && bedSel.length === 0) ? (
               // A calm first step (AENR-658): no price before a set is chosen; the
               // cancellation terms appear once, on Pay.
-              <div className="leading-tight min-w-0 text-[12.5px] text-slate-600">
+              <div className="leading-tight min-w-0 text-guest-meta text-slate-600">
                 {step.id === "when" ? tr("Pick your day, then choose where to sit.") : step.id === "beach" ? (phase === "zones" ? tr("Pick a zone, then your sets.") : tr("Tap a set to add it.")) : tr("Add a set or a ticket to see the price.")}
               </div>
             ) : (
             // Just the total (AENR-682): the truncated set/day line and the "all-in" toggle are gone.
             <div className="leading-tight min-w-0">
               <span className="font-display text-2xl font-bold text-navy-900 tnum leading-none" data-wizard-total>€<LiveEuro value={allIn} /></span>
-              {feeTotal > 0 && <span className="block mt-1 text-[11px] text-slate-500 tnum" data-wizard-fee>{tr("incl. service fee")} €{feeTotal.toFixed(2)}</span>}
+              {feeTotal > 0 && <span className="block mt-1 text-guest-caption text-slate-500 tnum" data-wizard-fee>{tr("incl. service fee")} €{feeTotal.toFixed(2)}</span>}
             </div>
             )}
             <div className="flex items-center gap-2">
-              <Btn variant="ghost" icon={Icon.arrowL} onClick={back} className="lg:whitespace-nowrap">
+              <Btn variant="ghost" icon={Icon.arrowL} onClick={back} className="whitespace-nowrap">
                 {step.id === "beach" && phase === "sets" ? tr("All zones") : stepIdx === 0 ? tr("Home") : tr("Back")}
               </Btn>
               {stepIdx < last ? (
@@ -844,30 +844,30 @@ function WizardInner() {
             {showZones && (
               <div className="rounded-2xl glass px-4 py-1.5 text-center">
                 {step.id === "when"
-                  ? <span className="text-[12.5px] text-navy-900"><b>{tr("Pick your day")}</b> {tr("— the free sets on the beach update with it. Or tap a zone to go straight to it.")}</span>
-                  : <span className="text-[12.5px] text-navy-900"><b>{tr("Tap a zone on the beach")}</b> {tr("to choose where you'll sit — the sea is at the top.")}</span>}
+                  ? <span className="text-guest-meta text-navy-900"><b>{tr("Pick your day")}</b> {tr("— the free sets on the beach update with it. Or tap a zone to go straight to it.")}</span>
+                  : <span className="text-guest-meta text-navy-900"><b>{tr("Tap a zone on the beach")}</b> {tr("to choose where you'll sit — the sea is at the top.")}</span>}
               </div>
             )}
             {showScene && (
               <div className="rounded-2xl glass px-4 py-1.5 text-center">
-                <span className="text-[12.5px] text-navy-900"><b>{pickZones.length > 1 ? pickZones.map((z) => `${ZONES.find((x) => x.id === z)?.name} ×${pickedByZone[z]}`).join(" · ") : sceneZone.name}</b> · {bedSel.length} {bedSel.length !== 1 ? tr("umbrella sets") : tr("umbrella set")} — {tr("your picks stay on the sand while you finish up.")}</span>
+                <span className="text-guest-meta text-navy-900"><b>{pickZones.length > 1 ? pickZones.map((z) => `${ZONES.find((x) => x.id === z)?.name} ×${pickedByZone[z]}`).join(" · ") : sceneZone.name}</b> · {bedSel.length} {bedSel.length !== 1 ? tr("umbrella sets") : tr("umbrella set")} — {tr("your picks stay on the sand while you finish up.")}</span>
               </div>
             )}
             {showSets && (
-              <div className="rounded-2xl glass px-4 py-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-slate-700">
+              <div className="rounded-2xl glass px-4 py-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-guest-caption text-slate-700">
                 <span className="flex items-center gap-1"><Sunbed state="a" size={14} readOnly />{tr("Available")}</span>
                 <span className="flex items-center gap-1"><Sunbed state="h" size={14} readOnly />{tr("On hold")}</span>
                 <span className="flex items-center gap-1"><Sunbed state="u" size={14} readOnly />{tr("Taken")}</span>
                 <span className="flex items-center gap-1"><Sunbed state="a" sel size={14} readOnly />{tr("Yours")}</span>
                 <span className="text-slate-500">·</span>
-                {TIERS.map((ti) => <span key={ti.key} className="flex items-center gap-1"><span className="rounded px-1 text-[9px] font-bold text-white" style={{ background: ti.color }}>{ti.letter}</span>{tr(ti.name)}</span>)}
+                {TIERS.map((ti) => <span key={ti.key} className="flex items-center gap-1"><span className="rounded px-1 text-guest-caption font-bold text-white" style={{ background: ti.color }}>{ti.letter}</span>{tr(ti.name)}</span>)}
                 <span className="text-slate-500">·</span>
                 <span className="text-slate-600">{tr("Tap a set to see its view and price.")}</span>
               </div>
             )}
           </div>
         )}
-        <div className="mt-1.5 flex items-center justify-center gap-1.5 text-[11.5px] text-slate-700">
+        <div className="mt-1.5 flex items-center justify-center gap-1.5 text-guest-caption text-slate-700">
           <span>{tr("powered by")}</span>
           <span className="font-bold text-navy-900">SLA<span className="text-gold-600">i</span>CE</span>
         </div>
@@ -941,7 +941,7 @@ function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number
               >
                 {done ? <Icon.check size={13} /> : I ? <I size={12} /> : i + 1}
               </span>
-              <span className={`text-[11px] font-semibold leading-none truncate max-w-full px-0.5 ${active ? "text-navy-900" : done ? "text-teal-700" : "text-slate-400"}`}>
+              <span className={`text-guest-caption font-semibold leading-none truncate max-w-full px-0.5 ${active ? "text-navy-900" : done ? "text-teal-700" : "text-slate-400"}`}>
                 {tr(s.label)}
               </span>
             </button>
@@ -999,20 +999,20 @@ function BeachMenu({ part, onEditDates, zonePicker, selDates, setSelDates, multi
     <div className="space-y-4">
       {/* Dates — apply to the whole booking (When). */}
       {part === "where" ? (
-        <button type="button" onClick={onEditDates} className="w-full flex items-center gap-2 rounded-xl bg-white/70 ring-1 ring-slate-200 px-3 min-h-[40px] text-left text-[12.5px] hover:ring-teal-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+        <button type="button" onClick={onEditDates} className="w-full flex items-center gap-2 rounded-xl bg-white/70 ring-1 ring-slate-200 px-3 min-h-[40px] text-left text-guest-meta hover:ring-teal-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
           <Icon.calendar size={13} className="text-slate-500 shrink-0" />
           <span className="flex-1 min-w-0 truncate text-navy-900 font-semibold">{selDates.length === 1 ? ((c) => `${c.label} ${c.sub}`)(chipLabel(selDates[0], localeFor(lang), tr)) : `${selDates.length} ${tr("days")}`}</span>
           <span className="text-teal-700 font-semibold">{tr("Change")}</span>
         </button>
       ) : (
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.calendar size={12} /> {tr("When are you coming?")}</div>
+        <div className="text-guest-over font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.calendar size={12} /> {tr("When are you coming?")}</div>
         <DatePickerRow value={selDates} onChange={setSelDates} multiple={multiDate} maxDays={7} blockReason={blockReason} dayInfo={dayInfo} />
         {fullDay && alternatives && <FullDayHelp day={fullDay} zoneName="" alt={alternatives} onDay={(d) => setSelDates([d])} onZone={onPickZone} />}
-        {stayReasons.length > 0 && <div role="alert" className="mt-2 rounded-xl bg-amber-50 ring-1 ring-amber-600/20 px-3 py-2 text-[12px] text-amber-800 space-y-0.5">{stayReasons.map((r) => <div key={r}>{r}</div>)}</div>}
+        {stayReasons.length > 0 && <div role="alert" className="mt-2 rounded-xl bg-amber-50 ring-1 ring-amber-600/20 px-3 py-2 text-guest-caption text-amber-800 space-y-0.5">{stayReasons.map((r) => <div key={r}>{r}</div>)}</div>}
         {multiDate && (
         <div className="mt-2 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
-          <div className="flex items-start gap-2 text-[12.5px]">
+          <div className="flex items-start gap-2 text-guest-meta">
             <Icon.calendar size={13} className="text-slate-500 shrink-0 mt-0.5" />
             <span className="text-slate-700">{multiDate
               ? <><b className="text-navy-900">{selDates.length} {selDates.length !== 1 ? tr("days") : tr("day")}</b> {tr("selected")} · {tr("up to 7")}</>
@@ -1023,7 +1023,7 @@ function BeachMenu({ part, onEditDates, zonePicker, selDates, setSelDates, multi
         )}
         {!multiDate && (
           <div className="mt-2 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
-            <div className="flex items-start gap-2 text-[12.5px]">
+            <div className="flex items-start gap-2 text-guest-meta">
               <Icon.calendar size={13} className="text-slate-500 shrink-0 mt-0.5" />
               <span className="text-slate-700">{tr("Book several days at once")}</span>
             </div>
@@ -1033,11 +1033,11 @@ function BeachMenu({ part, onEditDates, zonePicker, selDates, setSelDates, multi
       </div>
       )}
       {part === "where" && fullDay && alternatives && <FullDayHelp day={fullDay} zoneName={phase === "sets" ? zone.name : ""} alt={alternatives} onDay={(d) => setSelDates([d])} onZone={onPickZone} />}
-      {part === "where" && stayReasons.length > 0 && <div role="alert" className="rounded-xl bg-amber-50 ring-1 ring-amber-600/20 px-3 py-2 text-[12px] text-amber-800 space-y-0.5">{stayReasons.map((r) => <div key={r}>{r}</div>)}</div>}
+      {part === "where" && stayReasons.length > 0 && <div role="alert" className="rounded-xl bg-amber-50 ring-1 ring-amber-600/20 px-3 py-2 text-guest-caption text-amber-800 space-y-0.5">{stayReasons.map((r) => <div key={r}>{r}</div>)}</div>}
       {part === "where" && <>
 
       {zonePicker && (
-        <ol aria-label={tr("Where — two parts")} className="grid grid-cols-2 gap-1.5 text-[12px] font-semibold">
+        <ol aria-label={tr("Where — two parts")} className="grid grid-cols-2 gap-1.5 text-guest-caption font-semibold">
           {([["zones", tr("Zone")], ["sets", tr("Sets")]] as const).map(([k, l], i) => {
             const now = phase === k;
             const done = k === "zones" && phase === "sets";
@@ -1045,7 +1045,7 @@ function BeachMenu({ part, onEditDates, zonePicker, selDates, setSelDates, multi
               <li key={k}>
                 <button type="button" disabled={k === "sets" && phase === "zones"} onClick={() => k === "zones" && phase === "sets" && setPhase("zones")} aria-current={now ? "step" : undefined}
                   className={`w-full flex items-center gap-2 rounded-xl px-2.5 min-h-[40px] ring-1 text-left transition disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${now ? "bg-navy-900 text-white ring-navy-900" : done ? "bg-teal-50 text-teal-800 ring-teal-300" : "bg-white/60 text-slate-500 ring-slate-200"}`}>
-                  <span className={`w-5 h-5 rounded-full grid place-items-center text-[11px] shrink-0 ${now ? "bg-white text-navy-900" : done ? "bg-teal-600 text-white" : "bg-slate-200 text-slate-600"}`}>{done ? <Icon.check size={11} /> : i + 1}</span>
+                  <span className={`w-5 h-5 rounded-full grid place-items-center text-guest-caption shrink-0 ${now ? "bg-white text-navy-900" : done ? "bg-teal-600 text-white" : "bg-slate-200 text-slate-600"}`}>{done ? <Icon.check size={11} /> : i + 1}</span>
                   <span className="truncate">{k === "zones" ? (phase === "sets" ? zone.name : l) : bedSel.length ? `${l} · ${bedSel.length}` : l}</span>
                 </button>
               </li>
@@ -1063,31 +1063,31 @@ function BeachMenu({ part, onEditDates, zonePicker, selDates, setSelDates, multi
           <div className="flex items-center justify-between gap-2">
             {/* A real button, not grey text: it is how guests reach the other zones (AENR-666).
                 Phones use the Zone step above instead (AENR-693). */}
-            <button type="button" onClick={() => setPhase("zones")} className={`${zonePicker ? "hidden" : ""} inline-flex items-center gap-1.5 min-h-[36px] text-[13px] font-semibold text-navy-900 rounded-xl px-3 py-1.5 bg-white/80 ring-1 ring-slate-200 hover:ring-teal-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500`}>
+            <button type="button" onClick={() => setPhase("zones")} className={`${zonePicker ? "hidden" : ""} inline-flex items-center gap-1.5 min-h-[36px] text-guest-meta font-semibold text-navy-900 rounded-xl px-3 py-1.5 bg-white/80 ring-1 ring-slate-200 hover:ring-teal-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500`}>
               <Icon.arrowL size={14} /> {tr("All zones")}
             </button>
             <div className="flex items-center gap-2 min-w-0">
               <span className="w-6 h-6 rounded-lg grid place-items-center shrink-0" style={{ background: zone.color, color: "white" }}><Icon.umbrella size={13} /></span>
-              <div className="font-display font-bold text-navy-900 text-sm truncate">{zone.name}</div>
+              <div className="font-display font-bold text-navy-900 text-guest-body truncate">{zone.name}</div>
               <Badge tone="green">{avail} {tr("free")}</Badge>
             </div>
           </div>
 
           {bedSel.length > 0 && !multiStore && (
             <div className="rounded-xl px-3 py-2.5 ring-1 ring-teal-300 bg-teal-50/80 flex items-center justify-between gap-3">
-              <div className="min-w-0 text-[12.5px] flex items-start gap-2" role="status">
+              <div className="min-w-0 text-guest-meta flex items-start gap-2" role="status">
                 {autoNote && <Icon.sparkles size={14} className="text-teal-700 shrink-0 mt-0.5" />}
                 <div className="min-w-0">
                   {autoNote && <div className="font-semibold text-navy-900">{tr("Picked for you")}: {autoNote.text}</div>}
-                  <div className={autoNote ? "text-[11px] text-slate-600" : "font-semibold text-navy-900 truncate"}>{bedSel.length} {bedSel.length !== 1 ? tr("umbrella sets") : tr("umbrella set")} · {bedSel.map((b) => b.id).join(", ")}</div>
-                  <div className="text-[11px] text-slate-600">€{pickedSubtotal} × {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}{autoNote ? ` · ${tr("tap a set on the sand to swap it")}` : ""}</div>
+                  <div className={autoNote ? "text-guest-caption text-slate-600" : "font-semibold text-navy-900 truncate"}>{bedSel.length} {bedSel.length !== 1 ? tr("umbrella sets") : tr("umbrella set")} · {bedSel.map((b) => b.id).join(", ")}</div>
+                  <div className="text-guest-caption text-slate-600">€{pickedSubtotal} × {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}{autoNote ? ` · ${tr("tap a set on the sand to swap it")}` : ""}</div>
                 </div>
               </div>
-              <button onClick={() => setBedSel([])} className="text-[11px] font-semibold text-slate-500 hover:text-rose-600 shrink-0 min-h-[32px] px-1">{tr("Clear")}</button>
+              <button onClick={() => setBedSel([])} className="text-guest-caption font-semibold text-slate-500 hover:text-rose-600 shrink-0 min-h-[32px] px-1">{tr("Clear")}</button>
             </div>
           )}
           {autoNote?.upgrade && !multiStore && (
-            <button type="button" onClick={autoNote.upgrade.onClick} className="inline-flex items-center gap-1.5 min-h-[36px] rounded-full px-3 text-[12px] font-semibold text-teal-800 bg-white/90 ring-1 ring-teal-300 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+            <button type="button" onClick={autoNote.upgrade.onClick} className="inline-flex items-center gap-1.5 min-h-[36px] rounded-full px-3 text-guest-caption font-semibold text-teal-800 bg-white/90 ring-1 ring-teal-300 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
               <Icon.wave size={13} /> {autoNote.upgrade.label}
             </button>
           )}
@@ -1096,16 +1096,16 @@ function BeachMenu({ part, onEditDates, zonePicker, selDates, setSelDates, multi
 
       {/* Several days live on When; "Book in more than one zone" (AENR-524) is always in view (AENR-709). */}
           <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
-            <div className="text-[12.5px] min-w-0">
+            <div className="text-guest-meta min-w-0">
               <div className="font-semibold text-navy-900">{tr("Book in more than one zone")}</div>
-              <div className="text-[11px] text-slate-500">{tr("e.g. 2 sets in Macaw and 1 in Central — one payment.")}</div>
+              <div className="text-guest-caption text-slate-500">{tr("e.g. 2 sets in Macaw and 1 in Central — one payment.")}</div>
             </div>
             <Toggle on={multiStore} onChange={turnMulti} ariaLabel={tr("Book in more than one zone")} />
           </div>
       {multiStore && bedSel.length > 0 && (
         <section aria-label={tr("Your sets by zone")} className="rounded-xl ring-1 ring-teal-300 bg-teal-50/80 px-3 py-2.5 space-y-2">
           {groups.map((g) => (
-            <div key={g.zone.id} className="text-[12.5px]">
+            <div key={g.zone.id} className="text-guest-meta">
               <div className="flex items-center justify-between gap-2">
                 <span className="font-semibold text-navy-900 flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: g.zone.color }} aria-hidden />{g.zone.name} · {g.picks.length} {g.picks.length !== 1 ? tr("sets") : tr("set")}</span>
                 <span className="tnum text-slate-700">€{g.picks.reduce((a, b) => a + b.price, 0) * dayCount}</span>
@@ -1114,7 +1114,7 @@ function BeachMenu({ part, onEditDates, zonePicker, selDates, setSelDates, multi
                 {g.picks.map((b) => (
                   <li key={b.id}>
                     <button type="button" onClick={() => setBedSel((s) => s.filter((x) => x.id !== b.id))} aria-label={`${tr("Remove")} ${b.id}`}
-                      className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11.5px] font-semibold ring-1 ${stale.includes(b.id) ? "bg-rose-50 text-rose-700 ring-rose-300" : "bg-white text-navy-900 ring-slate-200 hover:ring-rose-300"}`}>
+                      className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-guest-caption font-semibold ring-1 ${stale.includes(b.id) ? "bg-rose-50 text-rose-700 ring-rose-300" : "bg-white text-navy-900 ring-slate-200 hover:ring-rose-300"}`}>
                       {b.id}{stale.includes(b.id) ? ` · ${tr("no longer free")}` : ""} <Icon.x size={11} />
                     </button>
                   </li>
@@ -1123,21 +1123,21 @@ function BeachMenu({ part, onEditDates, zonePicker, selDates, setSelDates, multi
             </div>
           ))}
           {phase === "sets" && (
-            <button type="button" onClick={() => setPhase("zones")} className="w-full inline-flex items-center justify-center gap-1.5 min-h-[40px] rounded-xl bg-white text-teal-800 text-[13px] font-semibold ring-1 ring-teal-300 hover:ring-teal-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+            <button type="button" onClick={() => setPhase("zones")} className="w-full inline-flex items-center justify-center gap-1.5 min-h-[40px] rounded-xl bg-white text-teal-800 text-guest-meta font-semibold ring-1 ring-teal-300 hover:ring-teal-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
               <Icon.plus size={14} /> {tr("Add sets in another zone")}
             </button>
           )}
-          <div className="border-t border-teal-200 pt-1.5 flex items-center justify-between text-[12.5px] font-semibold text-navy-900">
+          <div className="border-t border-teal-200 pt-1.5 flex items-center justify-between text-guest-meta font-semibold text-navy-900">
             <span>{bedSel.length} {tr("sets in")} {groups.length} {groups.length !== 1 ? tr("zones") : tr("zone")} · {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}</span>
             <span className="tnum">€{pickedSubtotal * dayCount}</span>
           </div>
         </section>
       )}
-      {!multiStore && stale.length > 0 && <div role="alert" className="rounded-xl bg-rose-50 ring-1 ring-rose-300 px-3 py-2 text-[12px] text-rose-800">{stale.join(", ")} {tr("is no longer available — remove it and pick another set.")}</div>}
+      {!multiStore && stale.length > 0 && <div role="alert" className="rounded-xl bg-rose-50 ring-1 ring-rose-300 px-3 py-2 text-guest-caption text-rose-800">{stale.join(", ")} {tr("is no longer available — remove it and pick another set.")}</div>}
       </>}
       <Modal open={keepAsk} onClose={() => setKeepAsk(false)} title={tr("Keep sets from one zone?")}
         footer={<Btn variant="ghost" onClick={() => setKeepAsk(false)}>{tr("Cancel")}</Btn>}>
-        <p className="text-sm text-slate-600 mb-3">{tr("You picked sets in several zones. Choose the zone whose sets you keep — the others are removed.")}</p>
+        <p className="text-guest-body text-slate-600 mb-3">{tr("You picked sets in several zones. Choose the zone whose sets you keep — the others are removed.")}</p>
         <div className="grid gap-2">
           {groups.map((g) => (
             <Btn key={g.zone.id} variant="outline" onClick={() => { setBedSel((s) => s.filter((b) => b.zoneId === g.zone.id)); setMultiStore(false); setKeepAsk(false); }}>
@@ -1159,7 +1159,7 @@ function FullDayHelp({ day, zoneName, alt, onDay, onZone }: { day: string; zoneN
   const loc = localeFor(lang);
   const dayLbl = chipLabel(day, loc, tr);
   return (
-    <div role="status" className="mt-2 rounded-xl bg-amber-50 ring-1 ring-amber-600/20 px-3 py-2.5 text-[12.5px] text-amber-900 space-y-2">
+    <div role="status" className="mt-2 rounded-xl bg-amber-50 ring-1 ring-amber-600/20 px-3 py-2.5 text-guest-meta text-amber-900 space-y-2">
       <div><b>{zoneName ? `${zoneName} ${tr("is full on")}` : tr("The beach is full on")} {dayLbl.label} {dayLbl.sub}.</b> {tr("Try one of these:")}</div>
       <div className="flex flex-wrap gap-1.5">
         {alt.days.map((d) => { const c = chipLabel(d, loc, tr); return <button key={d} type="button" onClick={() => onDay(d)} className="rounded-lg bg-white ring-1 ring-amber-300 px-2.5 min-h-[36px] font-semibold text-navy-900 hover:ring-teal-400">{c.label} {c.sub}</button>; })}
@@ -1287,7 +1287,7 @@ function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: 
             {/* Zone label set on the sand — logo + name + a line of detail. */}
             <span className="relative block text-center mt-0.5" data-cluster-label>
               {logo && <img src={logo} alt="" className="mx-auto mb-1 h-8 w-auto max-w-[82%] object-contain drop-shadow-[0_1px_2px_rgba(255,255,255,0.55)]" />}
-              <span className={`block font-display font-bold text-[15px] tracking-wide transition-colors drop-shadow-[0_1px_1px_rgba(255,255,255,0.75)] ${active ? "" : "text-navy-900 group-hover:text-teal-800"}`} style={active ? { color: z.color } : undefined}>{z.name}</span>
+              <span className={`block font-display font-bold text-guest-body tracking-wide transition-colors drop-shadow-[0_1px_1px_rgba(255,255,255,0.75)] ${active ? "" : "text-navy-900 group-hover:text-teal-800"}`} style={active ? { color: z.color } : undefined}>{z.name}</span>
               <span className="block text-[10.5px] font-semibold tnum text-navy-800/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.6)]">{tr("from")} €{fromLabel} · {free} {tr("free")}</span>
             </span>
 
@@ -1297,7 +1297,7 @@ function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: 
               </span>
             )}
             {(picked[z.id] ?? 0) > 0 && (
-              <span className="absolute -top-1 left-2 min-w-5 h-5 px-1.5 rounded-full bg-navy-900 text-white text-[11px] font-bold grid place-items-center shadow ring-2 ring-white">{picked[z.id]} {tr("picked")}</span>
+              <span className="absolute -top-1 left-2 min-w-5 h-5 px-1.5 rounded-full bg-navy-900 text-white text-guest-caption font-bold grid place-items-center shadow ring-2 ring-white">{picked[z.id]} {tr("picked")}</span>
             )}
           </button>
         );
@@ -1336,15 +1336,15 @@ function StoreCards({ days, selectedId, onPick, picked }: { days: string[]; sele
               ) : (
                 <span className="mx-auto mb-1.5 w-9 h-9 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: z.color }}><Icon.umbrella size={18} /></span>
               )}
-              <span className="block text-navy-900 font-bold text-[14px] leading-tight">{z.name}</span>
-              <span className="block text-slate-600 text-[11px] tnum mt-0.5">{tr("from")} €{fromLabel} · {free} {tr("free")}</span>
+              <span className="block text-navy-900 font-bold text-guest-body leading-tight">{z.name}</span>
+              <span className="block text-slate-600 text-guest-caption tnum mt-0.5">{tr("from")} €{fromLabel} · {free} {tr("free")}</span>
               {active && (
                 <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-teal-500 text-white grid place-items-center shadow ring-2 ring-white">
                   <Icon.check size={12} />
                 </span>
               )}
               {(picked[z.id] ?? 0) > 0 && (
-                <span className="absolute top-2 left-2 h-5 px-1.5 rounded-full bg-navy-900 text-white text-[10.5px] font-bold grid place-items-center shadow">{picked[z.id]} {tr("picked")}</span>
+                <span className="absolute top-2 left-2 h-5 px-1.5 rounded-full bg-navy-900 text-white text-guest-caption font-bold grid place-items-center shadow">{picked[z.id]} {tr("picked")}</span>
               )}
             </button>
           );
@@ -1363,8 +1363,8 @@ function ZoneList({ days, selectedId, onPick, picked }: { days: string[]; select
   const closure = useClosure();
   return (
     <section aria-labelledby="zone-list-h">
-      <h2 id="zone-list-h" className="font-display font-bold text-navy-900 text-[17px] mb-0.5">{tr("Where would you like to sit?")}</h2>
-      <p className="text-[12.5px] text-slate-600 mb-2.5">{tr("Pick a zone — then choose your sets on the map.")}</p>
+      <h2 id="zone-list-h" className="font-display font-bold text-navy-900 text-guest-head mb-0.5">{tr("Where would you like to sit?")}</h2>
+      <p className="text-guest-meta text-slate-600 mb-2.5">{tr("Pick a zone — then choose your sets on the map.")}</p>
       <ul className="space-y-2">
         {ZONES.map((z) => {
           const slots = liveSlots(z, days);
@@ -1385,10 +1385,10 @@ function ZoneList({ days, selectedId, onPick, picked }: { days: string[]; select
                   <span className="w-10 h-10 rounded-xl grid place-items-center text-white shrink-0 shadow-sm" style={{ background: z.color }}><Icon.umbrella size={18} /></span>
                 )}
                 <span className="flex-1 min-w-0">
-                  <span className="block font-bold text-navy-900 text-[15px] leading-tight">{z.name}</span>
-                  <span className="block text-[12.5px] text-slate-600 tnum">{closed ? closed : off ? tr("Full on this day") : `${freeSlots.length} ${tr("free")} · ${tr("from")} €${from}`}</span>
+                  <span className="block font-bold text-navy-900 text-guest-body leading-tight">{z.name}</span>
+                  <span className="block text-guest-meta text-slate-600 tnum">{closed ? closed : off ? tr("Full on this day") : `${freeSlots.length} ${tr("free")} · ${tr("from")} €${from}`}</span>
                 </span>
-                {n > 0 && <span className="h-6 px-2 rounded-full bg-navy-900 text-white text-[11.5px] font-bold grid place-items-center shrink-0">{n} {tr("picked")}</span>}
+                {n > 0 && <span className="h-6 px-2 rounded-full bg-navy-900 text-white text-guest-caption font-bold grid place-items-center shrink-0">{n} {tr("picked")}</span>}
                 {!off && <Icon.chevR size={16} className="text-slate-400 shrink-0" />}
               </button>
             </li>
@@ -1459,22 +1459,22 @@ function SpotSheet({ zoneName, slot, info, selected, priceText, onClose, onSelec
   return (
     <Sheet open onClose={onClose} title={zoneName}
       footer={<><Btn variant="ghost" onClick={onClose}>{tr("Close")}</Btn><Btn variant={selected ? "outline" : "teal"} icon={selected ? Icon.x : Icon.check} onClick={onSelect}>{selected ? tr("Remove") : `${tr("Select")} · ${priceText}`}</Btn></>}>
-      <div className="space-y-3 text-[13.5px]">
+      <div className="space-y-3 text-guest-meta">
         <SpotView row={info.row} tier={info.tier} />
         <dl className="grid grid-cols-2 gap-2">
           <div className="rounded-xl bg-slate-50 px-3 py-2.5">
-            <dt className="text-[11.5px] text-slate-500">{tr("Row")}</dt>
+            <dt className="text-guest-caption text-slate-500">{tr("Row")}</dt>
             <dd className="font-semibold text-navy-900 flex items-center gap-1.5">
-              <span className="rounded px-1 text-[10px] font-bold text-white" style={{ background: info.tier.color }} aria-hidden>{info.tier.letter}</span>
+              <span className="rounded px-1 text-guest-caption font-bold text-white" style={{ background: info.tier.color }} aria-hidden>{info.tier.letter}</span>
               {info.row} · {tr(info.tier.name)}
             </dd>
           </div>
           <div className="rounded-xl bg-slate-50 px-3 py-2.5">
-            <dt className="text-[11.5px] text-slate-500">{tr("Includes")}</dt>
+            <dt className="text-guest-caption text-slate-500">{tr("Includes")}</dt>
             <dd className="font-semibold text-navy-900">{beds} {tr("sunbeds")} + 1 {tr("umbrella")}</dd>
           </div>
         </dl>
-        <p className="text-[11.5px] text-slate-500">{tr("Set")} {slot.id}{slot.access ? ` · ${tr("step-free access")}` : ""}</p>
+        <p className="text-guest-caption text-slate-500">{tr("Set")} {slot.id}{slot.access ? ` · ${tr("step-free access")}` : ""}</p>
       </div>
     </Sheet>
   );
@@ -1527,12 +1527,12 @@ function SandSunbeds({ slots, selected, onToggle, readOnly = false }: {
         >
           <Sunbed state={s.state} sel={selected.has(s.id)} price={s.price} label={`${s.id}, ${tierOf(s).tier.name}${s.access ? " (step-free)" : ""}${s.inv ? ` — ${s.inv}` : ""}`} fill readOnly={readOnly} onClick={readOnly ? undefined : () => onToggle?.(s, cells.current.get(s.id) ?? null)} />
           {!readOnly && s.state === "a" && size >= 30 && (
-            <span aria-hidden className="absolute left-1/2 -translate-x-1/2 -bottom-2 rounded px-1 text-[9px] font-bold leading-[13px] text-white whitespace-nowrap pointer-events-none shadow-sm" style={{ background: tierOf(s).tier.color }}>
+            <span aria-hidden className="absolute left-1/2 -translate-x-1/2 -bottom-2 rounded px-1 text-guest-caption font-bold leading-[13px] text-white whitespace-nowrap pointer-events-none shadow-sm" style={{ background: tierOf(s).tier.color }}>
               {tierOf(s).tier.letter} €{s.price}
             </span>
           )}
-          {s.inv && <span aria-hidden title={s.inv} className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-navy-900 text-white text-[8px] grid place-items-center ring-2 ring-white pointer-events-none">🔒</span>}
-          {s.access && <span aria-hidden className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-sky-600 text-white text-[9px] grid place-items-center ring-2 ring-white pointer-events-none">♿</span>}
+          {s.inv && <span aria-hidden title={s.inv} className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-navy-900 text-white text-guest-caption grid place-items-center ring-2 ring-white pointer-events-none">🔒</span>}
+          {s.access && <span aria-hidden className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-sky-600 text-white text-guest-caption grid place-items-center ring-2 ring-white pointer-events-none">♿</span>}
         </div>
       ))}
     </div>
@@ -1568,23 +1568,23 @@ function PeopleStep({ tickets: TICKET, people, setPeople, includeTickets, setInc
   return (
     <div className="space-y-4">
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{tr("Quick picks")}</div>
+        <div className="text-guest-over font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{tr("Quick picks")}</div>
         <div className="flex flex-wrap gap-1.5">
           {presets.map((p) => {
             const match = p.id === "usual" ? isUsual : !(isUsual && usualParty && same(p.v, usualParty)) && same(p.v, people);
             return (
               <button key={p.id} onClick={() => onPreset(p.v)}
                 className={`text-left rounded-xl px-3 py-2 ring-1 transition ${match ? "bg-navy-900 text-white ring-navy-900" : "bg-white/70 ring-slate-200 hover:ring-teal-400"}`}>
-                <div className="text-[13px] font-semibold leading-tight">{p.label}</div>
-                <div className={`text-[11px] leading-tight ${match ? "text-white/70" : "text-slate-500"}`}>{p.sub}</div>
+                <div className="text-guest-meta font-semibold leading-tight">{p.label}</div>
+                <div className={`text-guest-caption leading-tight ${match ? "text-white/70" : "text-slate-500"}`}>{p.sub}</div>
               </button>
             );
           })}
           {/* Entry-tickets toggle sits inline, right after the quick picks. */}
           <button onClick={() => setIncludeTickets((v) => !v)} aria-pressed={includeTickets}
             className={`relative text-left rounded-xl pl-3 pr-9 py-2 ring-1 transition ${includeTickets ? "bg-teal-50 ring-teal-500" : "bg-white/70 ring-slate-200 hover:ring-teal-400"}`}>
-            <div className="text-[13px] font-semibold leading-tight text-navy-900 flex items-center gap-1.5"><Icon.ticket size={13} className={includeTickets ? "text-teal-600" : "text-slate-500"} /> {tr("Add Entry tickets")}</div>
-            <div className="text-[11px] leading-tight text-slate-500">{tr("One ticket per guest")}</div>
+            <div className="text-guest-meta font-semibold leading-tight text-navy-900 flex items-center gap-1.5"><Icon.ticket size={13} className={includeTickets ? "text-teal-600" : "text-slate-500"} /> {tr("Add Entry tickets")}</div>
+            <div className="text-guest-caption leading-tight text-slate-500">{tr("One ticket per guest")}</div>
             <span className={`absolute top-1/2 -translate-y-1/2 right-2 w-5 h-5 rounded-full grid place-items-center ${includeTickets ? "bg-teal-600 text-white" : "ring-1 ring-slate-300 text-slate-400"}`}>
               {includeTickets ? <Icon.check size={12} /> : <Icon.plus size={12} />}
             </span>
@@ -1593,41 +1593,41 @@ function PeopleStep({ tickets: TICKET, people, setPeople, includeTickets, setInc
       </div>
 
       {isUsual && (
-        <div className="rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2 flex items-start gap-2 text-[12.5px] text-navy-900 animate-fade-up">
+        <div className="rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2 flex items-start gap-2 text-guest-meta text-navy-900 animate-fade-up">
           <Icon.group size={14} className="text-teal-600 shrink-0 mt-0.5" />
           <span>{tr("Same people as last time.")} {tr("Change the headcount below if someone else is coming.")}</span>
         </div>
       )}
       {autoFilled && pickedSets > 0 && (
-        <div className="rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2 flex items-start gap-2 text-[12.5px] text-navy-900 animate-fade-up">
+        <div className="rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2 flex items-start gap-2 text-guest-meta text-navy-900 animate-fade-up">
           <Icon.ticket size={14} className="text-teal-600 shrink-0 mt-0.5" />
           <span>{tr("We pre-filled")} <b>{pickedSets * 2} {tr("entry tickets")}</b> — {tr("2 per set. Change the headcount below if you need to.")}</span>
         </div>
       )}
 
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{tr("Headcount by category")}</div>
+        <div className="text-guest-over font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{tr("Headcount by category")}</div>
         <div className="space-y-1.5">
           {Object.keys(TICKET).map((k) => {
             const t = TICKET[k];
             return (
               <div key={k} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
                 <div className="min-w-0">
-                  <div className="font-semibold text-sm text-navy-900">{tr(t.label)}</div>
-                  <div className="text-[11px] text-slate-500">€{t.price} {tr("entry")}{t.sub ? ` · ${tr(t.sub)}` : ""}</div>
+                  <div className="font-semibold text-guest-body text-navy-900">{tr(t.label)}</div>
+                  <div className="text-guest-caption text-slate-500">€{t.price} {tr("entry")}{t.sub ? ` · ${tr(t.sub)}` : ""}</div>
                 </div>
                 <Stepper label={tr(t.label)} value={people[k] ?? 0} onChange={(v) => setPeople((p) => ({ ...p, [k]: v }))} />
               </div>
             );
           })}
         </div>
-        <p className="mt-1.5 text-[11.5px] text-slate-500 flex items-start gap-1.5"><Icon.shield size={12} className="shrink-0 mt-0.5" /> {tr("Child tickets record only the type and count — no names or dates of birth.")}</p>
+        <p className="mt-1.5 text-guest-caption text-slate-500 flex items-start gap-1.5"><Icon.shield size={12} className="shrink-0 mt-0.5" /> {tr("Child tickets record only the type and count — no names or dates of birth.")}</p>
       </div>
 
       {pickedSets > 0 && (
         <div className={`rounded-xl ring-1 px-3 py-2.5 flex items-start gap-2.5 ${totalPeople > pickedSets * 2 ? "ring-amber-300 bg-amber-50/80" : "ring-teal-200 bg-teal-50/70"}`}>
           <span className={`w-8 h-8 rounded-lg text-white grid place-items-center shrink-0 ${totalPeople > pickedSets * 2 ? "bg-amber-500" : "bg-teal-600"}`}><Icon.umbrella size={15} /></span>
-          <div className="text-[13px] leading-snug text-navy-900">
+          <div className="text-guest-meta leading-snug text-navy-900">
             {tr("You picked")} <b>{pickedSets} {pickedSets !== 1 ? tr("umbrella sets") : tr("umbrella set")}</b> — {tr("seats up to")} <b>{pickedSets * 2}</b>.{" "}
             {totalPeople > pickedSets * 2
               ? tr("That's fewer seats than guests — add a set on the Beach step if you need more.")
@@ -1669,7 +1669,7 @@ function LockerStep({ on, setOn, scope, setScope, days, setDays, qty, setQty, se
   };
   if (paused)
     return (
-      <div role="status" className="rounded-xl ring-1 ring-amber-300 bg-amber-50/80 px-3 py-3 text-[13px] text-amber-900 flex items-start gap-2">
+      <div role="status" className="rounded-xl ring-1 ring-amber-300 bg-amber-50/80 px-3 py-3 text-guest-meta text-amber-900 flex items-start gap-2">
         <Icon.alert size={15} className="shrink-0 mt-0.5" /> {tr("Lockers can't be booked online right now — ask at the entrance.")}
       </div>
     );
@@ -1681,8 +1681,8 @@ function LockerStep({ on, setOn, scope, setScope, days, setDays, qty, setQty, se
           return (
             <button key={b.id} type="button" role="radio" aria-checked={bank === b.id} disabled={none} onClick={() => { setBank(b.id); setOn(true); }}
               className={`text-left rounded-xl px-3 py-2 ring-1 transition disabled:opacity-50 disabled:cursor-not-allowed ${bank === b.id ? "bg-teal-50 ring-teal-500" : "bg-white/70 ring-slate-200 hover:ring-teal-400"}`}>
-              <div className="text-[13px] font-semibold text-navy-900">{b.name}</div>
-              <div className="text-[11px] text-slate-500">€{b.price}/{tr("day")} · {none ? tr("Sold out") : `${b.avail} ${tr("left")}`}</div>
+              <div className="text-guest-meta font-semibold text-navy-900">{b.name}</div>
+              <div className="text-guest-caption text-slate-500">€{b.price}/{tr("day")} · {none ? tr("Sold out") : `${b.avail} ${tr("left")}`}</div>
             </button>
           );
         })}
@@ -1701,20 +1701,20 @@ function LockerStep({ on, setOn, scope, setScope, days, setDays, qty, setQty, se
       )}
       {on && multiDate && scope === "some" && (
         <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 animate-pop">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.calendar size={12} /> {tr("Which days?")}</div>
+          <div className="text-guest-over font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.calendar size={12} /> {tr("Which days?")}</div>
           <DayChips days={selDates} value={days} onChange={setDays} />
         </div>
       )}
       {on && (
         <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 flex items-center justify-between animate-pop">
           <div>
-            <div className="font-semibold text-sm text-navy-900">{tr("How many lockers?")}</div>
-            <div className="text-[11px] text-slate-500">{qty} × €{LOCKER_PRICE} × {n} {n !== 1 ? tr("days") : tr("day")}</div>
+            <div className="font-semibold text-guest-body text-navy-900">{tr("How many lockers?")}</div>
+            <div className="text-guest-caption text-slate-500">{qty} × €{LOCKER_PRICE} × {n} {n !== 1 ? tr("days") : tr("day")}</div>
           </div>
           <Stepper label={tr("lockers")} value={qty} onChange={(v) => setQty(Math.max(1, Math.min(cur?.avail ?? v, v)))} min={1} />
         </div>
       )}
-      <div className="text-[12px] text-slate-500 flex items-center gap-1.5">
+      <div className="text-guest-caption text-slate-500 flex items-center gap-1.5">
         <Icon.info size={13} /> {tr("Pick exact lockers later from the My Bookings")} QR.
       </div>
     </div>
@@ -1735,8 +1735,8 @@ function DayChips({ days, value, onChange }: { days: string[]; value: string[]; 
         return (
           <button key={iso} type="button" onClick={() => toggle(iso)} aria-pressed={on}
             className={`rounded-xl px-3 py-1.5 ring-1 text-center transition ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"}`}>
-            <span className="block text-[12px] font-semibold leading-tight">{c.label}</span>
-            <span className={`block text-[10px] leading-tight ${on ? "text-white/70" : "text-slate-500"}`}>{c.sub}</span>
+            <span className="block text-guest-caption font-semibold leading-tight">{c.label}</span>
+            <span className={`block text-guest-caption leading-tight ${on ? "text-white/70" : "text-slate-500"}`}>{c.sub}</span>
           </button>
         );
       })}
@@ -1802,15 +1802,15 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
       )}
       {on && multiDate && scope === "some" && (
         <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 animate-pop">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.calendar size={12} /> {tr("Which days?")}</div>
+          <div className="text-guest-over font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.calendar size={12} /> {tr("Which days?")}</div>
           <DayChips days={selDates} value={days} onChange={setDays} />
         </div>
       )}
       {on && (
         <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 flex items-center justify-between animate-pop">
           <div>
-            <div className="font-semibold text-sm text-navy-900">{tr("How many spots?")}</div>
-            <div className="text-[11px] text-slate-500">{qty} × €{PARKING_PRICE} × {n} {n !== 1 ? tr("days") : tr("day")}</div>
+            <div className="font-semibold text-guest-body text-navy-900">{tr("How many spots?")}</div>
+            <div className="text-guest-caption text-slate-500">{qty} × €{PARKING_PRICE} × {n} {n !== 1 ? tr("days") : tr("day")}</div>
           </div>
           <Stepper label={tr("parking spots")} value={qty} onChange={changeQty} min={1} />
         </div>
@@ -1819,14 +1819,14 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
           day. The per-day plate matrix below stays for the single-spot case. */}
       {on && qty > 1 && (
         <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-3 animate-pop space-y-2.5">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.car size={12} /> {tr("Vehicle plate per spot")}</div>
+          <div className="text-guest-over font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.car size={12} /> {tr("Vehicle plate per spot")}</div>
           {Array.from({ length: qty }).map((_, i) => (
             <div key={i} className="flex items-center gap-2">
-              <span className="text-[12px] font-semibold text-navy-900 w-24 shrink-0">{tr("Spot")} {i + 1}</span>
+              <span className="text-guest-caption font-semibold text-navy-900 w-24 shrink-0">{tr("Spot")} {i + 1}</span>
               <Input value={spotPlates[i] || ""} onChange={(e) => setSpotPlate(i, e.target.value)} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" />
             </div>
           ))}
-          <div className="flex items-center justify-between text-[12px] text-slate-600 pt-1.5 border-t border-slate-100">
+          <div className="flex items-center justify-between text-guest-caption text-slate-600 pt-1.5 border-t border-slate-100">
             <span>{qty} {tr("spots")} × {n} {n !== 1 ? tr("days") : tr("day")} × €{PARKING_PRICE}</span>
             <span className="font-semibold text-navy-900 tnum">€{qty * PARKING_PRICE * n}</span>
           </div>
@@ -1835,26 +1835,26 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
       {on && qty === 1 && (multiDate ? (
         <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-3 animate-pop space-y-2.5">
           <div className="flex items-center justify-between gap-3">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.car size={12} /> {samePlate ? tr("Vehicle plate") : tr("Vehicle plate per day")}</div>
-            <label className="flex items-center gap-2 text-[12px] font-semibold text-navy-900 cursor-pointer shrink-0">
+            <div className="text-guest-over font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.car size={12} /> {samePlate ? tr("Vehicle plate") : tr("Vehicle plate per day")}</div>
+            <label className="flex items-center gap-2 text-guest-caption font-semibold text-navy-900 cursor-pointer shrink-0">
               {tr("Same car plate")}
               <Toggle on={samePlate} onChange={(v) => { setSamePlate(v); if (v) writeShared(plates[activeDays[0]] ?? plates[selDates[0]] ?? ""); }} ariaLabel={tr("Same car plate")} />
             </label>
           </div>
           {activeDays.length === 0 ? (
-            <div className="text-[12px] text-slate-500">{tr("Pick at least one day above.")}</div>
+            <div className="text-guest-caption text-slate-500">{tr("Pick at least one day above.")}</div>
           ) : samePlate ? (
             <Input value={plates[selDates[0]] || ""} onChange={(e) => writeShared(e.target.value)} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" />
           ) : activeDays.map((iso) => {
             const c = chipLabel(iso, loc, tr);
             return (
               <div key={iso} className="flex items-center gap-2">
-                <span className="text-[12px] font-semibold text-navy-900 w-24 shrink-0 leading-tight">{c.label}<span className="block text-[10px] text-slate-500 font-normal">{c.sub}</span></span>
+                <span className="text-guest-caption font-semibold text-navy-900 w-24 shrink-0 leading-tight">{c.label}<span className="block text-guest-caption text-slate-500 font-normal">{c.sub}</span></span>
                 <Input value={plates[iso] || ""} onChange={(e) => setPlate(iso, e.target.value)} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" />
               </div>
             );
           })}
-          <div className="flex items-center justify-between text-[12px] text-slate-600 pt-1.5 border-t border-slate-100">
+          <div className="flex items-center justify-between text-guest-caption text-slate-600 pt-1.5 border-t border-slate-100">
             <span>{activeDays.length} {activeDays.length !== 1 ? tr("days") : tr("day")} × €{PARKING_PRICE}</span>
             <span className="font-semibold text-navy-900 tnum">€{PARKING_PRICE * activeDays.length}</span>
           </div>
@@ -1864,7 +1864,7 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
           <Field label={tr("Vehicle plate")} hint={tr("Used by the gate camera to let you in automatically.")}>
             <Input value={plates[selDates[0]] || ""} onChange={(e) => setPlate(selDates[0], e.target.value)} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" />
           </Field>
-          <div className="mt-2 flex items-center justify-between text-[12px] text-slate-600">
+          <div className="mt-2 flex items-center justify-between text-guest-caption text-slate-600">
             <span>{tr("1 spot")} × {selDates.length} {selDates.length !== 1 ? tr("days") : tr("day")}</span>
             <span className="font-semibold text-navy-900 tnum">€{PARKING_PRICE * selDates.length}</span>
           </div>
@@ -1882,8 +1882,8 @@ function YesNo({ on, title, sub, icon: IconC, onClick }: { on: boolean; title: R
         <IconC size={17} />
       </span>
       <span className="min-w-0">
-        <span className="block text-[13px] font-semibold text-navy-900 leading-tight">{title}</span>
-        <span className="block text-[11px] text-slate-600 leading-tight">{sub}</span>
+        <span className="block text-guest-meta font-semibold text-navy-900 leading-tight">{title}</span>
+        <span className="block text-guest-caption text-slate-600 leading-tight">{sub}</span>
       </span>
     </button>
   );

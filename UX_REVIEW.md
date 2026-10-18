@@ -516,6 +516,7 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-716 — roles per tenant** (Platform › tenant › Roles).
 - **AENR-718 — invite staff by e-mail + mobile** with a first sign-in: password and 2-step (SMS, e-mail, authenticator).
 - **AENR-720 — Call Center Incidents** and a Slaice Incidents inbox.
+- **AENR-706 — one text scale for guests**: the Account page's sizes on every customer page (26 / 19 / 15 / 13.5 / 12 px tokens); nothing a guest reads is below 12 px.
 - **AENR-701 — Accountant pages tidied**: Month-end by season with example months and Reopen month; one toolbar on Documents / Payments (Export incl. CSV per line); type tiles that filter; quiet row action; compact rows below 1280 px; CSVs open cleanly in Excel.
 - **AENR-714 — a clearer Pay step**: Dates → Beach (sets per zone) → Guests & entry tickets in larger tiles; Sunbeds / Entry tickets / Service fee / Total; “I need an invoice” with ΑΦΜ, ΔΟΥ, activity and address under How to pay.
 - **AENR-725 — commercial terms per tenant**: commission with minimums per service, guest service fees, VAT per service, corporate-tax re-bill; staff-only reporting (Platform fees, Slaice statement); guests see only Service fee + "Prices include VAT".
