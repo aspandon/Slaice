@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { prefersReducedMotion, useParallax } from "../lib/motion";
+import { liteScene, prefersReducedMotion, useParallax } from "../lib/motion";
 import { gsap, motionOK } from "../lib/fx";
 import { useApp } from "../app/store";
 import { presetById } from "../data/backgrounds";
@@ -131,7 +131,7 @@ export function BeachBackdrop({ children, className = "", pos = "relative", para
     ) : parallax ? (
       <BeachSceneLayered preset={presetById(bg.id)} shoreline={shoreline} noVeg={noVeg} seaEnv={seaEnv} />
     ) : (
-      <BeachScene preset={presetById(bg.id)} preview={preview} shoreline={shoreline} noVeg={noVeg} />
+      <BeachScene preset={presetById(bg.id)} preview={preview} shoreline={shoreline} noVeg={noVeg} noSky={!preview && shoreline !== undefined && !seaEnv?.clouds} />
     );
   return (
     <div className={`${pos} overflow-hidden rounded-2xl ${className}`}>
@@ -231,7 +231,7 @@ function SeaWavelets({ dy = 0 }: { dy?: number }) {
 
 /* Flat beach scene — drives every gradient and decor layer from `preset`. Used
    by the booking map, the auth panel, the map editor canvas and the picker. */
-function BeachScene({ preset, preview = false, shoreline, noVeg = false }: { preset: BeachPreset; preview?: boolean; shoreline?: number; noVeg?: boolean }) {
+function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky = false }: { preset: BeachPreset; preview?: boolean; shoreline?: number; noVeg?: boolean; /** Drop clouds and birds — the still phone backdrop (AENR-730), where the shoreline moves and they'd sit on the sand. */ noSky?: boolean }) {
   const rid = useId().replace(/:/g, "");
   const id = (k: string) => `${k}-${rid}`;
   const grain = preset.grain && !preview;
@@ -303,7 +303,7 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false }: { pre
       <SandDetail preset={preset} dy={dy} mottle={grain} idp={id} />
 
       {/* Optional decor (sun, palms, clouds…) above the sand, behind the greenery. */}
-      <SceneDecor preset={preset} id={id} />
+      <SceneDecor preset={preset} id={id} noSky={noSky} />
 
       {preset.veg && !noVeg && (
         <>
@@ -345,7 +345,8 @@ const LiveSeaCanvas = lazy(() => import("./LiveSeaCanvas"));
 const liveSeaOK = () =>
   typeof window !== "undefined" &&
   typeof WebGL2RenderingContext !== "undefined" &&
-  !prefersReducedMotion();
+  !prefersReducedMotion() &&
+  !liteScene(); // phones / small tablets keep the still sea (AENR-730)
 
 /* Depth-parallax beach — the same palette split into far (sea), mid (sand +
    decor) and near (vegetation) planes that drift at different rates on scroll, so
@@ -559,14 +560,14 @@ function CustomBeach({ src, parallax = false }: { src: string; parallax?: boolea
    backdrop the clouds start hidden — the ambient driver owns their visibility
    per demo weather, so a sunny sky can never show a stray cloud. Static
    scenes (previews, phones) keep them as part of the illustration. */
-function SceneDecor({ preset, id, liveClouds = false }: { preset: BeachPreset; id: (k: string) => string; liveClouds?: boolean }) {
+function SceneDecor({ preset, id, liveClouds = false, noSky = false }: { preset: BeachPreset; id: (k: string) => string; liveClouds?: boolean; noSky?: boolean }) {
   const d = preset.decor;
   if (d.length === 0) return null;
   return (
     <>
-      {d.includes("clouds") && <Clouds hidden={liveClouds} />}
+      {d.includes("clouds") && !noSky && <Clouds hidden={liveClouds} />}
       {d.includes("sun") && <SunDisc gradId={id("sun")} />}
-      {d.includes("birds") && <Birds />}
+      {d.includes("birds") && !noSky && <Birds />}
       {d.includes("rocks") && <Rocks />}
       {d.includes("palms") && <Palms />}
     </>

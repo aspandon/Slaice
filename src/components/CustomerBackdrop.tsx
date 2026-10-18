@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { BeachBackdrop } from "./Beach";
 import { LifeRing } from "./LifeRing";
-import { prefersReducedMotion, staticBackdrop } from "../lib/motion";
+import { prefersReducedMotion, staticBackdrop, useLiteScene } from "../lib/motion";
 import { dayLight, WEATHER_DEMO } from "../data/beach";
 import type { SeaEnv } from "./LiveSeaCanvas";
 import { WeatherFxCanvas } from "./WeatherFx";
@@ -39,16 +39,17 @@ export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
   }, []);
   const target = immersive ? (wide ? IMMERSIVE_WIDE : IMMERSIVE) : REST;
   const [shoreline, setShoreline] = useState(target);
-  // Only reduced-motion users keep a still backdrop — phones run the same live
-  // scene as desktop (the sea canvas caps DPR and degrades to SVG by itself).
-  const [stat] = useState(staticBackdrop);
+  // Still backdrop for reduced-motion users and on phones / small tablets (AENR-730):
+  // no WebGL sea, ambient decor, particles or parallax there. Follows resizes.
+  const lite = useLiteScene();
+  const stat = lite || staticBackdrop();
   // Mirror the latest value so the tween can read its start point without
   // re-subscribing the effect on every frame.
   const ref = useRef(shoreline);
   ref.current = shoreline;
 
   useEffect(() => {
-    if (stat || prefersReducedMotion()) {
+    if (prefersReducedMotion()) {
       setShoreline(target);
       return;
     }
@@ -65,7 +66,7 @@ export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [target, stat]);
+  }, [target]);
 
   // Resolve the environment. Disabled effects fall back to a neutral noon /
   // sunny scene, so the admin switches cleanly restore the original look.
@@ -130,7 +131,7 @@ export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
         className="absolute inset-0 transition-opacity duration-700"
         style={{ opacity: wd.dim, mixBlendMode: "multiply", background: "#42566e" }}
       />
-      {particles && <WeatherFxCanvas key={`${raining}-${wd.wind}`} rain={raining} wind={wd.wind} />}
+      {particles && !lite && <WeatherFxCanvas key={`${raining}-${wd.wind}`} rain={raining} wind={wd.wind} />}
     </div>
   );
 }

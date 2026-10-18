@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMediaQuery } from "../lib/useMediaQuery";
 import { useTenantFeatures } from "../lib/useFeatures";
 import { ADD_EXTRAS_LABEL, extrasPhrase, type ExtrasKind } from "../domain/features";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
@@ -1170,20 +1171,6 @@ function FullDayHelp({ day, zoneName, alt, onDay, onZone }: { day: string; zoneN
       </button>
     </div>
   );
-}
-
-/* Track a CSS media query — used to pick the rich (desktop) vs compact (phone)
-   zone overview. */
-function useMediaQuery(query: string) {
-  const [matches, setMatches] = useState(() => typeof window !== "undefined" && window.matchMedia(query).matches);
-  useEffect(() => {
-    const mq = window.matchMedia(query);
-    const on = () => setMatches(mq.matches);
-    on();
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, [query]);
-  return matches;
 }
 
 const clampN = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));

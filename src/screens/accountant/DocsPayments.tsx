@@ -12,6 +12,7 @@ import {
   Tabs, ExportMenu, CompactList, CompactRow } from "../../components/ui";
 import { Pager } from "../../components/TableTools";
 import { useSiteTerms } from "../../lib/useEconomics";
+import { useMediaQuery } from "../../lib/useMediaQuery";
 import { vatFromTerms } from "../../domain/till";
 import { useListUrl } from "../../lib/useUrlState";
 import { useApp } from "../../app/store";
@@ -78,6 +79,8 @@ export function DocsPayments({ only, lead }: { only?: "documents" | "payments"; 
   const { page, setPage } = useListUrl();
   const [view, setView] = useState<FiscalDoc | null>(null);
   const fin = useFinanceData(range, section);
+  // One layout in the DOM (AENR-730): compact rows below 1280 px, the table above.
+  const wideTable = useMediaQuery("(min-width: 1280px)");
   // The tenant's VAT per service (AENR-728).
   const siteTerms = useSiteTerms();
   const vatRates = useMemo(() => vatFromTerms(siteTerms), [siteTerms]);
@@ -467,7 +470,7 @@ export function DocsPayments({ only, lead }: { only?: "documents" | "payments"; 
           />
         ) : tab === "documents" ? (
           <>
-          <div className="xl:hidden">
+          {!wideTable && <div className="xl:hidden">
             <CompactList label="Documents">
               {docRows.slice(safe * PAGE, safe * PAGE + PAGE).map((d) => (
                 <CompactRow
@@ -488,8 +491,8 @@ export function DocsPayments({ only, lead }: { only?: "documents" | "payments"; 
                 />
               ))}
             </CompactList>
-          </div>
-          <div className="hidden xl:block">
+          </div>}
+          {wideTable && <div className="hidden xl:block">
           <Table
             rowLink
             dense
@@ -555,11 +558,11 @@ export function DocsPayments({ only, lead }: { only?: "documents" | "payments"; 
               </button>,
             ])}
           />
-          </div>
+          </div>}
           </>
         ) : (
           <>
-          <div className="xl:hidden">
+          {!wideTable && <div className="xl:hidden">
             <CompactList label="Card charges">
               {(txRows.slice(safe * PAGE, safe * PAGE + PAGE) as Txn[]).map((t) => (
                 <CompactRow
@@ -579,8 +582,8 @@ export function DocsPayments({ only, lead }: { only?: "documents" | "payments"; 
                 />
               ))}
             </CompactList>
-          </div>
-          <div className="hidden xl:block">
+          </div>}
+          {wideTable && <div className="hidden xl:block">
           <Table
             dense
             cols={[
@@ -623,7 +626,7 @@ export function DocsPayments({ only, lead }: { only?: "documents" | "payments"; 
               <Badge tone={TX_TONE[t.status]}>{t.status}</Badge>,
             ])}
           />
-          </div>
+          </div>}
           </>
         )}
         {pageCount > 1 && (

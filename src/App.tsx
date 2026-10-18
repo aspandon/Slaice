@@ -9,7 +9,7 @@ import { AuthGate } from "./screens/auth";
 import { ConsentBanner } from "./components/ConsentBanner";
 import { CustomerBackdrop } from "./components/CustomerBackdrop";
 import { GlideLogo } from "./components/GlideLogo";
-import { routeFor } from "./routes";
+import { prefetchPersona, routeFor } from "./routes";
 import { PageGate } from "./components/Shell/PageGate";
 import { parseHash, buildHash, hashPath, isValidPage, resolvePage } from "./app/router";
 import { HTML_LANG, deviceLang, normalizeLang } from "./app/i18n";
@@ -37,10 +37,10 @@ import type { BookingOpsState } from "./domain/bookingOps";
 import type { PayLink } from "./domain/payLink";
 import { DEFAULT_DISPLAY, displayLangs, type DisplayConfig } from "./domain/display";
 import { lazyWithReload } from "./lib/staleChunk";
-import { GuardCtx } from "./components/ui";
+import { CardGridSkeleton, GuardCtx } from "./components/ui";
 import { ViewAsBanner } from "./screens/tenant/ViewAs";
 import { PlatformJanitor } from "./screens/tenant/Janitor";
-import { TenantSwitcher } from "./screens/tenant/TenantPage";
+import { TenantSwitcher } from "./screens/tenant/TenantSwitcher";
 import { DEFAULT_LAYOUT_STATE, type LayoutState } from "./domain/layoutVersions";
 import { DEFAULT_EXTRAS, type ExtrasState } from "./domain/extras";
 import { DEFAULT_ACCOUNT, type AccountState } from "./domain/account";
@@ -278,6 +278,11 @@ export default function App() {
   const shared = { beachLayout, zoneLogos, zoneMap, priceRules, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, bookingOps, payLinks, weather, display, layouts, extras, account, platform, comms, privacy, incidents };
   const sharedRef = useRef(shared);
   useEffect(() => { sharedRef.current = shared; });
+  // Warm the current role's screens once the first page is up (AENR-730), so the next tap is instant.
+  useEffect(() => {
+    const id = window.setTimeout(() => prefetchPersona(persona), 1500);
+    return () => window.clearTimeout(id);
+  }, [persona]);
   useEffect(() => {
     const setters: Record<keyof typeof shared, (v: never) => void> = {
       beachLayout: setBeachLayoutState, zoneLogos: setZoneLogosState, zoneMap: setZoneMap, priceRules: setPriceRules,
@@ -541,14 +546,14 @@ export default function App() {
             // the bottom of the viewport (the beach backdrop's green band)
             // instead of floating up under short pages.
             <div className="flex-1">
-              <main className="min-w-0">{viewAs ? <AccessDenied user={viewAs} onHome={() => go(viewAsHome, DEFAULT_PAGE[viewAsHome])} /> : <PageGate persona={persona} page={page}>{routeFor(persona, page)}</PageGate>}</main>
+              <main className="min-w-0">{viewAs ? <AccessDenied user={viewAs} onHome={() => go(viewAsHome, DEFAULT_PAGE[viewAsHome])} /> : <PageGate persona={persona} page={page}><Suspense fallback={<RouteLoading />}>{routeFor(persona, page)}</Suspense></PageGate>}</main>
             </div>
           ) : (
             <div className="flex-1 flex gap-5 min-h-0">
               {persona !== "cashier" && <Sidebar persona={persona} page={page} setPage={setPage} />}
               {/* While Slaice staff view a tenant, the guard disables mutating / blocked controls (AENR-515). */}
               <GuardCtx.Provider value={guard}>
-                <main className="flex-1 min-w-0">{persona === "cashier" && <TillTabs persona={persona} page={page} setPage={setPage} />}{persona === "cashier" && !viewAs && <OfflineBanner />}{viewAs && !hasRole(viewAs, persona) ? <AccessDenied user={viewAs} onHome={() => go(viewAsHome, DEFAULT_PAGE[viewAsHome])} /> : <PageGate persona={persona} page={page}>{routeFor(persona, page)}</PageGate>}</main>
+                <main className="flex-1 min-w-0">{persona === "cashier" && <TillTabs persona={persona} page={page} setPage={setPage} />}{persona === "cashier" && !viewAs && <OfflineBanner />}{viewAs && !hasRole(viewAs, persona) ? <AccessDenied user={viewAs} onHome={() => go(viewAsHome, DEFAULT_PAGE[viewAsHome])} /> : <PageGate persona={persona} page={page}><Suspense fallback={<RouteLoading />}>{routeFor(persona, page)}</Suspense></PageGate>}</main>
               </GuardCtx.Provider>
             </div>
           )}
@@ -584,4 +589,9 @@ function AccessDenied({ user, onHome }: { user: StaffUser; onHome: () => void })
       <button type="button" onClick={onHome} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-navy-900 text-white px-4 py-2 text-sm font-semibold">Go to my start page</button>
     </div>
   );
+}
+
+/* While a screen's chunk downloads (AENR-730) — a quiet skeleton in the page's shape. */
+function RouteLoading() {
+  return <CardGridSkeleton count={3} className="grid gap-3 pt-2" />;
 }

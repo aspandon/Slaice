@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useMediaQuery } from "../../lib/useMediaQuery";
 import type { ReactNode, RefObject } from "react";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
@@ -233,10 +234,12 @@ export function Table({ cols, rows, right = [], dense = false, rowLink = false }
   const pad = compact ? "px-2.5" : "px-3.5";
   const padY = compact ? "py-2.5" : "py-3.5";
   const long = rows.length > 12;
+  // Only the layout on screen is built (AENR-730) — a phone no longer renders the hidden table too.
+  const wide = useMediaQuery("(min-width: 640px)");
   return (
     <>
       {/* Mobile: stacked cards */}
-      <div className="sm:hidden space-y-2.5">
+      {!wide && <div className="sm:hidden space-y-2.5">
         {rows.map((r, ri) => {
           const headIdx = cols.findIndex((c) => c);
           return (
@@ -255,10 +258,10 @@ export function Table({ cols, rows, right = [], dense = false, rowLink = false }
             </div>
           );
         })}
-      </div>
+      </div>}
 
       {/* sm+ : real table with a sticky frosted header */}
-      <div className={`hidden sm:block overflow-auto ${long ? "max-h-[72vh] overscroll-contain" : ""}`} tabIndex={long ? 0 : undefined} role={long ? "region" : undefined} aria-label={long ? "Scrollable table" : undefined}>
+      {wide && <div className={`hidden sm:block overflow-auto ${long ? "max-h-[72vh] overscroll-contain" : ""}`} tabIndex={long ? 0 : undefined} role={long ? "region" : undefined} aria-label={long ? "Scrollable table" : undefined}>
         <table className="w-full text-sm border-separate border-spacing-0">
           <thead>
             <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500">
@@ -277,7 +280,7 @@ export function Table({ cols, rows, right = [], dense = false, rowLink = false }
             ))}
           </tbody>
         </table>
-      </div>
+      </div>}
     </>
   );
 }

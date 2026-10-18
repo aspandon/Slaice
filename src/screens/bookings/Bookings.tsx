@@ -21,6 +21,7 @@ import {
 } from "../../components/ui";
 import type { TabEntry } from "../../components/ui";
 import { ArrivalBadge } from "../../components/ArrivalBadge";
+import { useMediaQuery } from "../../lib/useMediaQuery";
 import { Pager, SortHeader, cmpVal, dateVal } from "../../components/TableTools";
 import { useApp } from "../../app/store";
 import { TENANT, ZONES } from "../../data/beach";
@@ -290,6 +291,7 @@ export function AdminBookings() {
     toast(`Exported ${sorted.length} bookings (${format.toUpperCase()}).`, { tone: "success" });
   };
   // Today: who is already on the sand (AENR-634), read like Live beach.
+  const wideTable = useMediaQuery("(min-width: 1024px)");
   const arrivalBadge = (b: OpsBooking) => {
     // A group comes through the gate in turns on one QR (AENR-715): In progress · 2 of 4 entries until everyone is.
     const g = entry.stateOf(b, DEMO_TODAY);
@@ -409,7 +411,8 @@ export function AdminBookings() {
           <>
             {/* Phones and portrait tablets (AENR-700): one compact, fully tappable row per booking instead of a tall
                 key/value card — ref and guest, what was booked, status and amount. */}
-            <div className="lg:hidden">
+            {/* Only one layout in the DOM (AENR-730): the phone list or the desktop table. */}
+            {!wideTable && <div className="lg:hidden">
             <CompactList label="Bookings">
               {pageRows.map((b) => {
                 const pending = ops.pendingRefund(b.id);
@@ -436,8 +439,8 @@ export function AdminBookings() {
                 );
               })}
             </CompactList>
-            </div>
-            <div className="hidden lg:block">
+            </div>}
+            {wideTable && <div className="hidden lg:block">
             <Table
               rowLink
               dense
@@ -495,7 +498,7 @@ export function AdminBookings() {
                 ];
               })}
             />
-            </div>
+            </div>}
             {pageCount > 1 && (
               <Pager
                 page={safePage}

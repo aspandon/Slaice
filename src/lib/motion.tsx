@@ -7,14 +7,32 @@ export const prefersReducedMotion = (): boolean =>
   !!window.matchMedia &&
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/* The full-screen beach backdrop only goes still for users who asked for
-   reduced motion. Phones get the same live scene as desktop — WebGL sea,
-   weather, ambient sky, the shoreline tween — since modern mobile GPUs handle
-   one DPR-capped fullscreen shader comfortably and the canvas falls back to
-   the static SVG wherever WebGL2 is missing. The one genuinely jank-prone
-   piece on touch devices, scroll-driven parallax, stays desktop-only (see
-   useParallax). */
-export const staticBackdrop = (): boolean => prefersReducedMotion();
+/* The light scene for phones and small tablets (AENR-730). Measured on a
+   4×-throttled 390 px phone, the live WebGL sea alone took the customer pages
+   from 60 to 9 fps; blur, blend overlays and CSS animation together cost
+   nothing measurable. So below the desktop layout the backdrop is the still
+   SVG beach — no WebGL sea (and no three.js download), no ambient clouds and
+   birds, no rain particles, no parallax. Desktop keeps the live scene. */
+export const LITE_SCENE_QUERY = "(max-width: 1023px)";
+export const liteScene = (): boolean =>
+  typeof window !== "undefined" && !!window.matchMedia && window.matchMedia(LITE_SCENE_QUERY).matches;
+/** liteScene(), kept current when the window is resized or rotated. */
+export function useLiteScene(): boolean {
+  const [lite, setLite] = useState(liteScene);
+  useEffect(() => {
+    if (!window.matchMedia) return;
+    const m = window.matchMedia(LITE_SCENE_QUERY);
+    const on = () => setLite(m.matches);
+    on();
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
+  return lite;
+}
+
+/* The full-screen beach backdrop goes still for reduced-motion users and on
+   phones and small tablets (the light scene above). */
+export const staticBackdrop = (): boolean => prefersReducedMotion() || liteScene();
 
 /* useReveal — scroll-driven entrance.
    Attach the returned ref to an element that has the `.reveal` class; when it
