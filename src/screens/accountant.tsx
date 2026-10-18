@@ -53,7 +53,7 @@ function payoutMonths(commission: (month: string) => { commission: number; fees:
 const eurK = (n: number) => `€${(n / 1000).toFixed(1)}k`;
 const eurN = (n: number) => `€${n.toLocaleString("en-GB")}`;
 
-export function AccountantCommission() {
+export function AccountantCommission({ lead }: { lead?: ReactNode } = {}) {
   const { toast } = useApp();
   const tenant = useSiteTenant();
   const opts = useStatementOpts(DEMO_TODAY);
@@ -72,7 +72,7 @@ export function AccountantCommission() {
   const rule = `sunbeds ${rateLabel(terms.services.sunbeds)}, entry tickets ${rateLabel(terms.services.tickets)} per online booking`;
   return (
     <div>
-      <PageHead primary={<ExportMenu variant="primary" what="payout statement" onExport={(f) => {
+      <PageHead lead={lead} primary={<ExportMenu variant="primary" what="payout statement" onExport={(f) => {
         downloadReport("payouts", {
           title: "Commission & payouts",
           subtitle: `Season ${DEMO_TODAY.slice(0, 4)} · by month, to ${DEMO_TODAY}`,

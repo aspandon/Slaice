@@ -18,10 +18,11 @@ export interface MonthRef {
   open: boolean;
 }
 /** Season months up to today's month, newest first. */
-export function seasonMonths(today: string, firstMonth = "2026-05"): MonthRef[] {
+export function seasonMonths(today: string, firstMonth = "2026-05", lastMonth?: string): MonthRef[] {
   const out: MonthRef[] = [];
   let [y, m] = firstMonth.split("-").map(Number);
-  const last = today.slice(0, 7);
+  const current = today.slice(0, 7);
+  const last = lastMonth && lastMonth < current ? lastMonth : current;
   for (;;) {
     const month = `${y}-${String(m).padStart(2, "0")}`;
     if (month > last) break;
@@ -36,7 +37,7 @@ export function seasonMonths(today: string, firstMonth = "2026-05"): MonthRef[] 
         year: "numeric",
         timeZone: "UTC",
       }),
-      open: month === last,
+      open: month === current,
     });
     m++;
     if (m > 12) {
@@ -367,4 +368,25 @@ export function exportMonth(
   // A UTF-8 BOM so Excel and Greek packages read the Greek headers correctly.
   const text = "﻿" + rows.map((r) => r.map((v) => cell(String(v), sep)).join(sep)).join("\r\n");
   return { text, ext: "csv", mime: "text/csv;charset=utf-8" };
+}
+
+/* ---------- Example months (AENR-701) ----------
+   The demo opens with history: last season (May–Oct 2025) and May 2026 are
+   already closed — each with what Prepare fixed — so the accountant sees closed,
+   to-close and in-progress months side by side, and can reopen any of them. */
+export const SEEDED_CLOSES: Record<string, string> = {
+  "2025-05": "2025-06-09T10:12",
+  "2025-06": "2025-07-08T09:40",
+  "2025-07": "2025-08-11T11:05",
+  "2025-08": "2025-09-09T10:30",
+  "2025-09": "2025-10-08T09:55",
+  "2025-10": "2025-11-10T10:20",
+  "2026-05": "2026-06-09T10:15",
+};
+/** The seasons Month-end lists, newest first. */
+export function monthSeasons(today: string): { season: string; months: MonthRef[] }[] {
+  return [
+    { season: today.slice(0, 4), months: seasonMonths(today, `${today.slice(0, 4)}-05`) },
+    { season: String(Number(today.slice(0, 4)) - 1), months: seasonMonths(today, `${Number(today.slice(0, 4)) - 1}-05`, `${Number(today.slice(0, 4)) - 1}-10`) },
+  ];
 }

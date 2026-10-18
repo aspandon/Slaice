@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Icon } from "../../lib/icons";
 import {
   Badge,
@@ -57,7 +57,7 @@ const eur = (n: number) =>
   `${n < 0 ? "−" : ""}€${Math.abs(n).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const docNo = (d: FiscalDoc) => `${d.series}-${d.number}`;
 
-export function DocsPayments({ only }: { only?: "documents" | "payments" } = {}) {
+export function DocsPayments({ only, lead }: { only?: "documents" | "payments"; /** View tabs of the page this sits in (AENR-701), at the start of the toolbar. */ lead?: ReactNode } = {}) {
   const { toast, till, account, payLinks } = useApp();
   // Month-end exceptions deep-link here with ?tab=…&status=… (AENR-588).
   const [tab, setTab] = useState<"documents" | "payments">(() =>
@@ -279,7 +279,7 @@ export function DocsPayments({ only }: { only?: "documents" | "payments" } = {})
   return (
     <div className="animate-fade-up space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        {!only && <Tabs
+        {only ? lead : <Tabs
           tabs={[
             ["documents", "Documents", Icon.receipt],
             ["payments", "Payments", Icon.card],

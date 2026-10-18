@@ -21,19 +21,31 @@ export function AccountantPayments() {
     setView(v);
     writeHashQuery(v === "charges" ? {} : { view: v }, v === "charges" ? ["view", "month"] : v === "payouts" ? ["month"] : []);
   };
+  // The view tabs share a row with the view's own actions (AENR-701) — no row with one lonely button.
+  const tabs = (
+    <Tabs
+      scroll
+      tabs={[
+        ["charges", "Card charges", Icon.card],
+        ["payouts", "Payouts & commission", Icon.trend],
+        ["statement", "Slaice statement", Icon.receipt],
+      ]}
+      value={view}
+      onChange={(v) => pick(v as View)}
+    />
+  );
   return (
     <div className="space-y-3">
-      <Tabs
-        scroll
-        tabs={[
-          ["charges", "Card charges", Icon.card],
-          ["payouts", "Payouts & commission", Icon.trend],
-          ["statement", "Slaice statement", Icon.receipt],
-        ]}
-        value={view}
-        onChange={(v) => pick(v as View)}
-      />
-      {view === "charges" ? <DocsPayments only="payments" /> : view === "payouts" ? <AccountantCommission /> : <SlaiceStatement />}
+      {view === "charges" ? (
+        <DocsPayments only="payments" lead={tabs} />
+      ) : view === "payouts" ? (
+        <AccountantCommission lead={tabs} />
+      ) : (
+        <>
+          {tabs}
+          <SlaiceStatement />
+        </>
+      )}
     </div>
   );
 }

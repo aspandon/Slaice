@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Icon } from "../../lib/icons";
-import { Badge, Btn, Card, EmptyState, Modal, PageHead, Select, fmtDateGB, ExportMenu } from "../../components/ui";
+import { Badge, Btn, Card, ConfirmModal, EmptyState, Modal, PageHead, Select, fmtDateGB, ExportMenu } from "../../components/ui";
 import { useApp } from "../../app/store";
 import { readHashQuery, writeHashQuery } from "../../app/router";
 import { documents, transactions } from "../../data/ledger";
@@ -8,6 +8,7 @@ import { DEMO_TODAY } from "../../domain/period";
 import { downloadText, downloadReport } from "../../lib/download";
 import { useFinanceData } from "../reporting/FinanceTabs";
 import { useFinance } from "../../lib/useFinance";
+import type { MonthClose } from "../../domain/finance";
 import {
   EXPORT_PRESETS,
   applyPrepared,
@@ -15,7 +16,8 @@ import {
   fixable,
   rejectionReason,
   exportMonth,
-  seasonMonths,
+  monthSeasons,
+  SEEDED_CLOSES,
   summarize,
   type ExceptionTarget,
   type ExportPreset,
@@ -39,12 +41,13 @@ const eur = (n: number) =>
 
 export function MonthEnd() {
   const { till, account, payLinks, toast } = useApp();
-  const months = useMemo(() => seasonMonths(DEMO_TODAY), []);
+  const seasons = useMemo(() => monthSeasons(DEMO_TODAY), []);
+  const months = useMemo(() => seasons.flatMap((s) => s.months), [seasons]);
   // Default: the last complete month — the one an accountant is closing.
   const initial = readHashQuery().get("month");
   const [month, setMonthRaw] = useState(
     months.find((m) => m.month === initial)?.month ??
-      (months.find((m) => !m.open) ?? months[0]).month,
+      (seasons[0].months.find((m) => !m.open) ?? months[0]).month,
   );
   const setMonth = (m: string) => {
     setMonthRaw(m);
@@ -63,9 +66,21 @@ export function MonthEnd() {
   );
   // Prepare month (AENR-614) fixes what it can; Close unlocks once nothing blocks.
   const [cfg, setCfg] = useFinance();
-  const state = cfg.months?.[ref.month] ?? {};
-  const setState = (u: typeof state) => setCfg({ ...cfg, months: { ...(cfg.months ?? {}), [ref.month]: u } });
   const raw = useMemo(() => summarize(docs, txs, fin.pay), [docs, txs, fin.pay]);
+  // An example month that was closed before the demo (AENR-701) — prepared in full, until reopened.
+  const seeded = (m: string): MonthClose | undefined => {
+    const at = SEEDED_CLOSES[m];
+    return at ? { closedAt: at } : undefined;
+  };
+  const closedAtOf = (m: string) => (cfg.months?.[m] ?? seeded(m))?.closedAt;
+  const seed = seeded(ref.month);
+  const seedFix = fixable(raw);
+  const state: MonthClose =
+    cfg.months?.[ref.month] ??
+    (seed?.closedAt
+      ? { ...seed, prepared: { at: seed.closedAt, resent: seedFix.resend, creditNotes: seedFix.creditNotes }, corrected: raw.mydata.failed }
+      : {});
+  const setState = (u: MonthClose) => setCfg({ ...cfg, months: { ...(cfg.months ?? {}), [ref.month]: u } });
   const s = applyPrepared(raw, state.prepared, state.corrected);
   const ex = exceptions(s, ref.open);
   const blocking = ex.filter((e) => e.severity === "blocking").length;
@@ -91,6 +106,14 @@ export function MonthEnd() {
     toast(`${rejected.length} corrected document${rejected.length > 1 ? "s" : ""} re-sent — myDATA accepted them.`, { tone: "success" });
   };
   const canClose = !ref.open && blocking === 0 && !state.closedAt;
+  // Reopen a closed month (AENR-701, demo): exports unlock and Close is offered again.
+  const [reopening, setReopening] = useState(false);
+  const reopen = () => {
+    const before = state;
+    setState({ ...state, closedAt: undefined });
+    setReopening(false);
+    toast(`${ref.label} reopened — close it again when you're done.`, { tone: "info", action: { label: "Undo", onClick: () => setState(before) } });
+  };
   const closeMonth = () => {
     const before = state;
     setState({ ...state, closedAt: `${DEMO_TODAY}T${new Date().toTimeString().slice(0, 5)}` });
@@ -177,24 +200,39 @@ export function MonthEnd() {
           </div>
         }
       />
-      <div role="group" aria-label="Month" className="flex flex-wrap gap-1.5">
-        {months.map((m) => (
-          <button
-            key={m.month}
-            type="button"
-            aria-pressed={m.month === month}
-            onClick={() => setMonth(m.month)}
-            className={`rounded-xl px-3.5 py-2 text-[13px] font-semibold ring-1 transition ${m.month === month ? "bg-navy-900 text-white ring-navy-900" : "bg-white text-slate-700 ring-slate-200 hover:ring-slate-400"}`}
-          >
-            {m.label}
-            {m.open && (
-              <span
-                className={`ml-1.5 text-[11px] font-normal ${m.month === month ? "text-white/75" : "text-slate-500"}`}
-              >
-                in progress
-              </span>
-            )}
-          </button>
+      {/* Months by season (AENR-701), each with its state: closed, to close, in progress. */}
+      <div className="space-y-2">
+        {seasons.map((s) => (
+          <div key={s.season} role="group" aria-label={`${s.season} season`} className="flex flex-col sm:flex-row sm:items-center gap-1.5">
+            <span className="sm:w-24 shrink-0 text-[12px] font-semibold uppercase tracking-wide text-slate-500">{s.season} season</span>
+            {/* One scrolling strip per season on phones; wraps on wider screens. */}
+            <div className="flex gap-1.5 overflow-x-auto sm:flex-wrap sm:overflow-visible -mx-1 px-1 pb-1 sm:pb-0">
+            {[...s.months].reverse().map((m) => { /* oldest → newest */
+              const on = m.month === month;
+              const closed = closedAtOf(m.month);
+              const status = m.open ? "in progress" : closed ? "closed" : "to close";
+              return (
+                <button
+                  key={m.month}
+                  type="button"
+                  aria-pressed={on}
+                  aria-label={`${m.label} · ${status}`}
+                  onClick={() => setMonth(m.month)}
+                  className={`shrink-0 inline-flex items-center gap-1.5 rounded-xl px-3 min-h-[40px] text-[13px] font-semibold ring-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white text-slate-700 ring-slate-200 hover:ring-slate-400"}`}
+                >
+                  {m.label.split(" ")[0]}
+                  {closed ? (
+                    <Icon.lock size={12} className={on ? "text-white/80" : "text-emerald-600"} />
+                  ) : m.open ? (
+                    <span className={`text-[12px] font-normal ${on ? "text-white/75" : "text-slate-500"}`}>in progress</span>
+                  ) : (
+                    <span aria-hidden className={`w-2 h-2 rounded-full ${on ? "bg-amber-300" : "bg-amber-500"}`} />
+                  )}
+                </button>
+              );
+            })}
+            </div>
+          </div>
         ))}
       </div>
 
@@ -212,8 +250,8 @@ export function MonthEnd() {
               <Badge tone="green">
                 <Icon.lock size={12} /> Closed {fmtDateGB(state.closedAt.slice(0, 10))}
               </Badge>
-              <Btn size="sm" variant="ghost" onClick={() => setState({ ...state, closedAt: undefined })}>
-                Reopen
+              <Btn variant="outline" icon={Icon.refresh} onClick={() => setReopening(true)}>
+                Reopen month
               </Btn>
             </div>
           ) : canClose ? (
@@ -386,6 +424,16 @@ export function MonthEnd() {
           </Card>
         </div>
       </div>
+      <ConfirmModal
+        open={reopening}
+        onClose={() => setReopening(false)}
+        onConfirm={reopen}
+        danger={false}
+        icon={Icon.refresh}
+        title={`Reopen ${ref.label}?`}
+        body="The month opens again for corrections: Prepare, re-sending to myDATA and exports work as before, and Close is offered once nothing blocks. Demo — nothing reaches your accounting package."
+        confirmLabel="Reopen month"
+      />
       {review && (
         <Modal
           open

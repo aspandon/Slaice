@@ -295,7 +295,12 @@ export function AccountantReports() {
     <div className="animate-fade-up">
       <div className="flex items-center gap-3 mb-3 flex-wrap">
         <Tabs tabs={[["invoices", "Invoices", Icon.receipt], ["payments", "Payments", Icon.card]]} value={tab} onChange={(v) => setTab(v as "payments" | "invoices")} />
-        <Badge tone="slate">Read-only</Badge>
+        <span
+          className="inline-flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 min-h-[32px] text-[12.5px] font-semibold text-slate-600"
+          title="The accountant sees and exports; changes are made by the manager or the till."
+        >
+          <Icon.lock size={13} /> Read-only
+        </span>
         <div className="flex gap-2 ml-auto">
           <ExportMenu variant="primary" what={tab} onExport={(f) => { downloadReport(slug, financeExport(tab, d, label, TENANT.name), f); toast(`Exported ${tab} (${label}, ${f.toUpperCase()}).`, { tone: "success" }); }} />
         </div>

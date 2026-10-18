@@ -124,7 +124,7 @@ export interface PageAction {
   onClick: () => void;
   disabled?: boolean;
 }
-export function PageHead({ sub, back, actions, primary, secondary = [], daily = false }: {
+export function PageHead({ sub, back, lead, actions, primary, secondary = [], daily = false }: {
   /** A screen used every day (AENR-661): the sentence moves behind "?" by the title. */
   daily?: boolean;
   /** Kept for call sites; the title shows in the top bar. */
@@ -132,6 +132,8 @@ export function PageHead({ sub, back, actions, primary, secondary = [], daily = 
   sub?: ReactNode;
   badge?: ReactNode;
   back?: { label: string; onClick: () => void };
+  /** At the start of the row, e.g. the page's view tabs (AENR-701) — actions stay on the right. */
+  lead?: ReactNode;
   /** Controls that shape the view (not actions). */
   actions?: ReactNode;
   /** The page's one primary action (a Btn). */
@@ -146,7 +148,7 @@ export function PageHead({ sub, back, actions, primary, secondary = [], daily = 
     return () => setPageHelp(null);
   }, [helpText]);
   if (daily) sub = undefined;
-  if (!sub && !back && !actions && !primary && secondary.length === 0) return null;
+  if (!sub && !back && !lead && !actions && !primary && secondary.length === 0) return null;
   const more = secondary.slice(0, 3);
   return (
     <div className="mb-5 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -156,6 +158,7 @@ export function PageHead({ sub, back, actions, primary, secondary = [], daily = 
             <Icon.chevL size={14} /> {back.label}
           </button>
         )}
+        {lead}
         {sub && <p className="text-[13px] text-slate-600 leading-snug max-w-3xl">{sub}</p>}
       </div>
       {(actions || primary || more.length > 0) && (
