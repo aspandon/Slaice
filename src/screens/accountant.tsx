@@ -121,15 +121,21 @@ export function AccountantCommission({ lead }: { lead?: ReactNode } = {}) {
       <div className="grid lg:grid-cols-3 gap-4 mt-4">
         <Card className="p-5">
           <div className="font-semibold text-navy-900 mb-2">VAT collected by rate</div>
-          {/* From the season gross with the ledger's rate mix (sunbeds 24%, entry and F&B 13%). */}
+          {/* From the season gross with the ledger's mix (68% sunbeds, 32% entry), at the tenant's VAT per service (AENR-728). */}
           {(() => {
-            const net = sum.g / (1 + 0.68 * 0.24 + 0.32 * 0.13);
-            const r24 = Math.round(net * 0.68), r13 = Math.round(net * 0.32);
-            const v24 = Math.round(r24 * 0.24), v13 = Math.round(r13 * 0.13);
+            const sv = terms.services.sunbeds.vat / 100, tv = terms.services.tickets.vat / 100;
+            const gross = { sun: sum.g * 0.68, tk: sum.g * 0.32 };
+            const byRate = new Map<number, { net: number; vat: number }>();
+            for (const [g, r] of [[gross.sun, sv], [gross.tk, tv]] as const) {
+              const net = g / (1 + r);
+              const cur = byRate.get(r) ?? { net: 0, vat: 0 };
+              byRate.set(r, { net: cur.net + net, vat: cur.vat + (g - net) });
+            }
+            const rows = [...byRate.entries()].sort((a, b) => b[0] - a[0]);
+            const tn = rows.reduce((a, [, x]) => a + x.net, 0), tvat = rows.reduce((a, [, x]) => a + x.vat, 0);
             return <Table cols={["Rate", "Net", "VAT"]} right={[1, 2]} rows={[
-              ["24% (standard)", eurN(r24), eurN(v24)],
-              ["13% (reduced)", eurN(r13), eurN(v13)],
-              [<b>Total</b>, <b className="tnum">{eurN(r24 + r13)}</b>, <b className="tnum">{eurN(v24 + v13)}</b>],
+              ...rows.map(([r, x]) => [`${Math.round(r * 100)}%`, eurN(Math.round(x.net)), eurN(Math.round(x.vat))]),
+              [<b>Total</b>, <b className="tnum">{eurN(Math.round(tn))}</b>, <b className="tnum">{eurN(Math.round(tvat))}</b>],
             ]} />;
           })()}
         </Card>

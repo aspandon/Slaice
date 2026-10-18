@@ -34,14 +34,15 @@ export function useSiteTerms(): CommercialTerms {
 /** Statement options for a viewer: the tenant's staff run on the demo day, the Platform on its own clock.
  *  The guest's demo bookings belong to the site tenant only. */
 export function useStatementOpts(today: string = DEMO_TODAY): (t: TenantRecord) => StatementOpts {
-  const { platform, account } = useApp();
+  const { platform, account, payLinks } = useApp();
   return useCallback(
     (t: TenantRecord) => ({
       plans: platform.plans,
       today,
       placed: t.id === platform.siteTenant ? account.bookings : undefined,
+      phone: t.id === platform.siteTenant ? payLinks : undefined,
     }),
-    [platform.plans, platform.siteTenant, account.bookings, today],
+    [platform.plans, platform.siteTenant, account.bookings, payLinks, today],
   );
 }
 /** A tenant's month, as the given viewer sees it. */

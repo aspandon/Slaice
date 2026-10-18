@@ -3,7 +3,7 @@ import { Badge, Btn, Card, EmptyState, PageHead, Table, ExportMenu } from "../co
 import { usePlatform } from "../lib/usePlatform";
 import { fmtDay } from "../domain/period";
 import { todayISO } from "../data/beach";
-import { SERVICES, SERVICE_LABEL, eur, feeLabel, pct, rateLabel, subscriptionLabel, supportLabel, termsOf } from "../domain/economics";
+import { channelNoun, SERVICES, SERVICE_LABEL, eur, feeLabel, pct, rateLabel, subscriptionLabel, supportLabel, termsOf } from "../domain/economics";
 import { invoiceDownload } from "./reporting/Statement";
 
 /* ============ Billing & plan (AENR-558) ============
@@ -98,7 +98,7 @@ export function AdminBilling() {
             rows={SERVICES.map((s) => [SERVICE_LABEL[s], rateLabel(terms.services[s]), feeLabel(s, terms.services[s]), pct(terms.services[s].vat)])}
           />
           <p className="mt-2 text-[12px] text-slate-600">
-            Guest fees are {terms.feeTo === "slaice" ? "kept by Slaice" : "yours"}. Each month Slaice re-bills the {pct(terms.corporateTax)} corporate tax on its commission — on {eur(1000)} of commission that is {eur(terms.corporateTax * 10)}.
+            Commission and guest fees apply to {channelNoun(terms)}. Guest fees are {terms.feeTo === "slaice" ? "kept by Slaice" : "yours"}. Each month Slaice re-bills the {pct(terms.corporateTax)} corporate tax on its {terms.taxBase === "commissionAndFees" ? "commission and the guest fees it keeps" : "commission"} — on {eur(1000)} that is {eur(terms.corporateTax * 10)}.
           </p>
         </Card>
       </div>

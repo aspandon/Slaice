@@ -5,7 +5,8 @@ import { QR } from "../../components/charts";
 import { TENANT, ZONES } from "../../data/beach";
 import { MANAGER_PINS } from "../../data/till";
 import type { TenderKind } from "../../domain/till";
-import { basketTotals, changeDue, discountAmount, eur, lineGross, saleStatus, type ReceiptChoice, type TillSale, vatBreakdown } from "../../domain/till";
+import { basketTotals, changeDue, discountAmount, eur, lineGross, saleStatus, type ReceiptChoice, type TillSale, vatBreakdown, vatFromTerms } from "../../domain/till";
+import { useSiteTerms } from "../../lib/useEconomics";
 
 /* ============ Manager approval ============
    A cashier without the permission enters a manager PIN (RBAC: Manager /
@@ -43,7 +44,10 @@ const time = (iso: string) => new Date(iso).toLocaleString("en-GB", { day: "2-di
 export const TENDER_LABEL: Record<string, string> = { card: "Card", cash: "Cash", voucher: "Voucher" };
 
 export function ReceiptView({ sale, copy = false }: { sale: TillSale; copy?: boolean }) {
-  const t = basketTotals(sale.lines, sale.discounts);
+  // As charged (AENR-728): the rates kept on the sale; older sales take the tenant's current ones.
+  const siteVat = vatFromTerms(useSiteTerms());
+  const rates = sale.vat ?? siteVat;
+  const t = basketTotals(sale.lines, sale.discounts, rates);
   const sets = sale.lines.filter((l) => l.setId);
   const people = sale.lines.filter((l) => l.kind === "ticket").reduce((a, l) => a + l.qty, 0);
   const lockers = sale.lines.flatMap((l) => (l.kind === "locker" ? l.codes ?? [] : []));
@@ -75,7 +79,7 @@ export function ReceiptView({ sale, copy = false }: { sale: TillSale; copy?: boo
         ))}
         <div className="border-t border-dashed border-slate-300 my-2" />
         <div className="flex justify-between font-bold text-[13px]"><span>TOTAL</span><span className="tnum">{eur(t.total)}</span></div>
-        {vatBreakdown(sale.lines, t.discount).map((r) => (
+        {vatBreakdown(sale.lines, t.discount, rates).map((r) => (
           <div key={r.rate} className="flex justify-between"><span>Net {Math.round(r.rate * 100)}% · VAT</span><span className="tnum">{eur(r.net)} · {eur(r.vat)}</span></div>
         ))}
         {sale.tenders.map((td, i) => (

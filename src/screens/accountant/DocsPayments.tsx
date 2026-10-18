@@ -11,6 +11,8 @@ import {
   Table, DensityToggle,
   Tabs, ExportMenu, CompactList, CompactRow } from "../../components/ui";
 import { Pager } from "../../components/TableTools";
+import { useSiteTerms } from "../../lib/useEconomics";
+import { vatFromTerms } from "../../domain/till";
 import { useListUrl } from "../../lib/useUrlState";
 import { useApp } from "../../app/store";
 import { sectionName } from "../../data/finance";
@@ -76,10 +78,13 @@ export function DocsPayments({ only, lead }: { only?: "documents" | "payments"; 
   const { page, setPage } = useListUrl();
   const [view, setView] = useState<FiscalDoc | null>(null);
   const fin = useFinanceData(range, section);
+  // The tenant's VAT per service (AENR-728).
+  const siteTerms = useSiteTerms();
+  const vatRates = useMemo(() => vatFromTerms(siteTerms), [siteTerms]);
   const docs = useMemo(
     () =>
-      documents(range, section, { sales: till.sales, online: account.bookings, links: payLinks }),
-    [range, section, till.sales, account.bookings, payLinks],
+      documents(range, section, { sales: till.sales, online: account.bookings, links: payLinks, vat: vatRates }),
+    [range, section, till.sales, account.bookings, payLinks, vatRates],
   );
   const txs = useMemo(
     () => transactions(range, section, till.sales, fin.flow.stripePct),

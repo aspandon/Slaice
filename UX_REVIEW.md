@@ -516,6 +516,7 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-716 — roles per tenant** (Platform › tenant › Roles).
 - **AENR-718 — invite staff by e-mail + mobile** with a first sign-in: password and 2-step (SMS, e-mail, authenticator).
 - **AENR-720 — Call Center Incidents** and a Slaice Incidents inbox.
+- **AENR-728 — terms per tenant, owner's decisions**: phone bookings carry commission and the service fee (switchable per channel), 24% VAT everywhere from the tenant's terms, corporate tax re-billed on commission or commission + kept fees.
 - **AENR-729 — arrivals in progress**: Expected → In progress · 1 of 4 entries · 1 of 2 sets → Arrived, on Bookings, the drawer, check-in, My bookings and the shared pass.
 - **AENR-706 — one text scale for guests**: the Account page's sizes on every customer page (26 / 19 / 15 / 13.5 / 12 px tokens); nothing a guest reads is below 12 px.
 - **AENR-701 — Accountant pages tidied**: Month-end by season with example months and Reopen month; one toolbar on Documents / Payments (Export incl. CSV per line); type tiles that filter; quiet row action; compact rows below 1280 px; CSVs open cleanly in Excel.

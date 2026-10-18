@@ -24,6 +24,7 @@ import {
 } from "../../domain/payLink";
 import { useDemoNow, useLiveSlots } from "../../lib/useLiveSlots";
 import { CardPayModal } from "./CardPayModal";
+import { useSiteTerms } from "../../lib/useEconomics";
 
 /* ============ New booking (AENR-559) ============
    One flow for every booking staff take — by phone, at the call center or for
@@ -114,7 +115,7 @@ export function NewBooking() {
   const slots = useMemo(() => liveSlots(zone, [date]), [liveSlots, zone, date]);
   const picked = new Set(sets.map((s) => s.id));
 
-  const lines: PayLinkLine[] = [
+  const goods: PayLinkLine[] = [
     ...sets.map((s) => {
       const z = ZONES.find((x) => x.id === s.zoneId) ?? zone;
       const slot = liveSlots(z, [date]).find((x) => x.id === s.id) ?? { id: s.id, price: z.from };
@@ -134,6 +135,16 @@ export function NewBooking() {
         unit: ex.ticketPrice(c, date),
       })),
   ];
+  // Phone bookings follow the online rules when the tenant's terms say so (AENR-728): the guest service fee
+  // per set and per entry ticket — when paid now by card or link; a booking paid at the beach has none.
+  const terms = useSiteTerms();
+  const feeOn = terms.channels.phone && mode !== "unpaid";
+  const fee = feeOn
+    ? Math.round(
+        goods.reduce((a, l) => a + l.qty * (l.setId ? terms.services.sunbeds.fee : terms.services.tickets.fee), 0) * 100,
+      ) / 100
+    : 0;
+  const lines: PayLinkLine[] = fee > 0 ? [...goods, { label: "Service fee", qty: 1, unit: fee, fee: true }] : goods;
   const total = lines.reduce((a, l) => a + l.qty * l.unit, 0);
   const phoneOk = /^\+?[\d\s]{8,}$/.test(guest.phone.trim());
   const emailOk = /^\S+@\S+\.\S+$/.test(guest.email.trim());
@@ -533,7 +544,10 @@ export function NewBooking() {
           <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:bottom-3 z-20">
             <div className="glass-card rounded-2xl shadow-float p-3 flex flex-wrap items-center gap-3">
               <div className="min-w-0 flex-1">
-                <div className="font-display font-bold text-navy-900 text-xl tnum leading-tight">{eur(total)}</div>
+                <div className="font-display font-bold text-navy-900 text-xl tnum leading-tight">
+                  {eur(total)}
+                  {fee > 0 && <span className="ml-2 font-sans text-[12px] font-medium text-slate-500">incl. service fee {eur(fee)}</span>}
+                </div>
                 <div className="text-[12px] text-slate-600 truncate">
                   {problem || `${lines.map((l) => `${l.qty > 1 ? `${l.qty} × ` : ""}${l.label}`).join(" · ")} · ${fmtDay(date)}`}
                 </div>

@@ -3,6 +3,7 @@
 // the screens render, these decide. Everything is demo state in the app store.
 
 import type { TicketCategory } from "./types";
+import type { CommercialTerms } from "./economics";
 
 /* ---------- Basket ---------- */
 export interface TillLine {
@@ -81,6 +82,8 @@ export interface TillSale {
   customer?: { name: string; phone: string; guestId?: number };
   receipt: ReceiptChoice;
   mydata: MyDataStatus;
+  /** The VAT rates charged (AENR-728) — kept so a later change to the tenant's terms leaves the receipt as issued. */
+  vat?: VatRates;
   /** Sold while the till was offline; cleared when synced. */
   offline?: boolean;
   /** A sunbed in this offline sale was booked online meanwhile. */
@@ -142,8 +145,17 @@ export interface TillState {
 
 /* ---------- Money ---------- */
 export const VAT_RATE = 0.24;
-/** VAT per line kind (demo rates — the accountant confirms the tenant's real ones). */
-export const VAT_BY_KIND: Record<TillLine["kind"], number> = { sunbed: 0.24, ticket: 0.13, locker: 0.24, parking: 0.24 };
+/** VAT per line kind, as a fraction (0.24). */
+export type VatRates = Record<TillLine["kind"], number>;
+/** The default when no terms are at hand: 24% on everything (owner, AENR-728). */
+export const VAT_BY_KIND: VatRates = { sunbed: 0.24, ticket: 0.24, locker: 0.24, parking: 0.24 };
+/** The tenant's VAT per service from its commercial terms (AENR-728) — what the till, receipts and documents use. */
+export const vatFromTerms = (t: Pick<CommercialTerms, "services">): VatRates => ({
+  sunbed: t.services.sunbeds.vat / 100,
+  ticket: t.services.tickets.vat / 100,
+  locker: t.services.lockers.vat / 100,
+  parking: t.services.parking.vat / 100,
+});
 export const r2 = (n: number) => Math.round(n * 100) / 100;
 export const eur = (n: number) => `€${Number.isInteger(r2(n)) ? r2(n) : r2(n).toFixed(2)}`;
 
@@ -171,6 +183,7 @@ export interface BasketTotals {
 export function basketTotals(
   lines: readonly TillLine[],
   discounts: readonly TillDiscount[],
+  rates: VatRates = VAT_BY_KIND,
 ): BasketTotals {
   const gross = r2(lines.reduce((a, l) => a + lineGross(l), 0));
   const discount = r2(
@@ -180,18 +193,18 @@ export function basketTotals(
     ),
   );
   const total = r2(gross - discount);
-  const rates = vatBreakdown(lines, discount);
-  const vat = r2(rates.reduce((a, r) => a + r.vat, 0));
+  const byRate = vatBreakdown(lines, discount, rates);
+  const vat = r2(byRate.reduce((a, r) => a + r.vat, 0));
   return { gross, discount, total, net: r2(total - vat), vat };
 }
 
 /** Net and VAT per rate, with the discount spread over the lines by value. */
-export function vatBreakdown(lines: readonly TillLine[], discount = 0): { rate: number; net: number; vat: number }[] {
+export function vatBreakdown(lines: readonly TillLine[], discount = 0, rates: VatRates = VAT_BY_KIND): { rate: number; net: number; vat: number }[] {
   const gross = lines.reduce((a, l) => a + lineGross(l), 0);
   const by = new Map<number, number>();
   for (const l of lines) {
     const share = gross ? lineGross(l) * (1 - discount / gross) : 0;
-    const rate = VAT_BY_KIND[l.kind] ?? VAT_RATE;
+    const rate = rates[l.kind] ?? VAT_RATE;
     by.set(rate, (by.get(rate) ?? 0) + share);
   }
   return [...by.entries()].sort((a, b) => b[0] - a[0]).map(([rate, inc]) => {

@@ -8,7 +8,7 @@
 import { ZONES } from "./beach";
 import { dayStats } from "./analytics";
 import { DEMO_TODAY, addDays, inRange, type DateRange } from "../domain/period";
-import { SERVICE_LABEL, type CommercialTerms, type EconTotals, type ServiceId } from "../domain/economics";
+import { SERVICE_LABEL, taxBaseOf, type CommercialTerms, type EconTotals, type ServiceId } from "../domain/economics";
 import type { TillSale } from "../domain/till";
 
 /** Ticket-only sales at the till have no zone; they report under this row. */
@@ -219,7 +219,7 @@ export function moneyFlow(t: SectionDay, econ: EconTotals, terms: CommercialTerm
     serviceTotal: r2(serviceTotal),
     commission: econ.commission,
     slaiceFees: econ.slaiceFees,
-    corporateTax: r2((econ.commission * terms.corporateTax) / 100),
+    corporateTax: r2((taxBaseOf(terms, econ.commission, econ.slaiceFees) * terms.corporateTax) / 100),
     stripeFees: r2(stripeFees),
     stripePct: t.captured ? stripeFees / t.captured : 0,
     netToBank: r2(t.captured + serviceTotal - stripeFees - econ.commission - econ.slaiceFees),

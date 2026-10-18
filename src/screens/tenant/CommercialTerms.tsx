@@ -9,6 +9,8 @@ import {
   SERVICE_UNIT,
   cloneTerms,
   dayLabel,
+  FEE_CHANNELS,
+  FEE_CHANNEL_LABEL,
   eur,
   monthsLabel,
   pct,
@@ -96,7 +98,7 @@ export function CommercialTerms({ t }: SectionProps) {
       }),
     );
     undo(
-      `Commercial terms saved for ${t.name} — ${changes.length} change${changes.length === 1 ? "" : "s"}. Online bookings from now on use them.`,
+      `Commercial terms saved for ${t.name} — ${changes.length} change${changes.length === 1 ? "" : "s"}. New bookings use them from now on.`,
       () =>
         updateTenant(t.id, (x) => ({ ...x, terms: before }), {
           section: "Commercial terms",
@@ -111,7 +113,7 @@ export function CommercialTerms({ t }: SectionProps) {
   return (
     <SectionFrame
       title="Commercial terms"
-      sub="What Slaice earns from this tenant — commission per service with a minimum per booking, the guest's service fee, VAT per service, the corporate-tax rebill, support and subscription. Only online bookings carry commission and guest fees."
+      sub="What Slaice earns from this tenant — commission per service with a minimum per booking, the guest's service fee, VAT per service, the corporate-tax rebill, support and subscription. Online and phone bookings carry commission and guest fees, as set below."
       actions={
         editing ? undefined : (
           <Btn variant="outline" icon={Icon.edit} onClick={start} disabled={!canEdit}>
@@ -178,7 +180,7 @@ function ServicesCard({ view, editing, err, patch }: CardProps) {
     <Card className="p-4 min-w-0 xl:col-start-1">
       <Head
         title="Commission, guest fee and VAT per service"
-        sub="Commission is a share of each online booking's total for the service, VAT included — or the minimum per booking when the share is lower. The guest pays the service fee per unit on top of the beach price."
+        sub="Commission is a share of each booking's total for the service, VAT included — or the minimum per booking when the share is lower. The guest pays the service fee per unit on top of the beach price."
       />
       <div
         className="hidden sm:grid grid-cols-[minmax(7.5rem,1.2fr)_repeat(4,minmax(0,1fr))] gap-3 px-1 pb-1.5 border-b border-slate-100 text-[11.5px] font-semibold leading-tight text-slate-500"
@@ -295,6 +297,31 @@ function ServicesCard({ view, editing, err, patch }: CardProps) {
             </div>
           )}
         </div>
+        {/* Which bookings the rules apply to (AENR-728): phone bookings follow the online rules by default. */}
+        <div className="lg:col-span-2">
+          <div className="text-[12px] font-semibold text-slate-700 mb-1.5">
+            Bookings that carry commission and the guest fee
+          </div>
+          {editing ? (
+            <div className="flex flex-wrap gap-x-6 gap-y-2">
+              {FEE_CHANNELS.map((c) => (
+                <Toggle
+                  key={c}
+                  on={view.channels[c]}
+                  onChange={(v) => patch((d) => ({ ...d, channels: { ...d.channels, [c]: v } }))}
+                  label={FEE_CHANNEL_LABEL[c]}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-[13px] text-navy-900 font-medium">
+              {FEE_CHANNELS.filter((c) => view.channels[c]).map((c) => FEE_CHANNEL_LABEL[c]).join(" and ") || "None — no commission or guest fee"}
+            </div>
+          )}
+          <p className="mt-1 text-[12px] text-slate-500 leading-snug">
+            Phone bookings are the ones staff take (call centre, New booking) and the guest pays by card or a payment link; a booking paid at the beach has no fee. Till and walk-in sales never carry commission.
+          </p>
+        </div>
       </div>
     </Card>
   );
@@ -306,7 +333,7 @@ function CorporateTaxCard({ view, editing, err, patch }: CardProps) {
     <Card className="p-4 min-w-0 xl:col-start-1">
       <Head
         title="Corporate tax re-billed"
-        sub="Slaice's commission is net income. At the end of each month the corporate tax on the month's commission is added to Slaice's invoice to the tenant."
+        sub="Slaice's commission is net income. At the end of each month the corporate tax on it is added to Slaice's invoice to the tenant."
       />
       <div className="flex flex-wrap items-end gap-4">
         <div className="w-36">
@@ -330,9 +357,27 @@ function CorporateTaxCard({ view, editing, err, patch }: CardProps) {
           )}
         </div>
         <p className="text-[12.5px] text-slate-500 pb-1.5">
-          Greece: 22%. On €1,000 of commission the tenant is re-billed{" "}
+          Greece: 22%. On €1,000 of {view.taxBase === "commission" ? "commission" : "commission and kept fees"} the tenant is re-billed{" "}
           {eur((1000 * (Number.isFinite(view.corporateTax) ? view.corporateTax : 0)) / 100)}.
         </p>
+      </div>
+      <div className="mt-3 border-t border-slate-100 pt-3">
+        <div className="text-[12px] font-semibold text-slate-700 mb-1.5">Re-billed on</div>
+        {editing ? (
+          <Choice
+            label="Corporate tax re-billed on"
+            value={view.taxBase}
+            onChange={(v) => patch((d) => ({ ...d, taxBase: v }))}
+            options={[
+              { v: "commission", l: "Commission only", sub: "the default" },
+              { v: "commissionAndFees", l: "Commission + guest fees", sub: "the fees Slaice keeps" },
+            ]}
+          />
+        ) : (
+          <div className="text-[13px] text-navy-900 font-medium">
+            {view.taxBase === "commission" ? "Commission only" : "Commission + the guest fees Slaice keeps"}
+          </div>
+        )}
       </div>
     </Card>
   );

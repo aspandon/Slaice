@@ -13,6 +13,8 @@ import {
   eur,
   pct,
   rateLabel,
+  channelNoun,
+  ChannelNoun,
   type MonthStatement,
 } from "../domain/economics";
 
@@ -105,21 +107,21 @@ export function statementLines(st: MonthStatement): Line[] {
     const t = st.terms.services[s.service];
     out.push({
       title: `Commission · ${SERVICE_LABEL[s.service]}`,
-      detail: `${int(s.bookings)} online booking${Math.round(s.bookings) === 1 ? "" : "s"} · base ${eur(s.base)}${st.terms.feesInBase && s.fees > 0 ? " incl. guest fees" : ""}${s.atMin > 0.0001 ? ` · minimum on ${int(s.atMin)}` : ""}`,
+      detail: `${int(s.bookings)} ${channelNoun(st.terms, Math.round(s.bookings) === 1)} · base ${eur(s.base)}${st.terms.feesInBase && s.fees > 0 ? " incl. guest fees" : ""}${s.atMin > 0.0001 ? ` · minimum on ${int(s.atMin)}` : ""}`,
       basis: rateLabel(t),
       amount: s.commission,
     });
   }
   if (!used.length)
     out.push({
-      title: "Commission on online bookings",
-      detail: "No online bookings this month",
+      title: `Commission on ${channelNoun(st.terms)}`,
+      detail: `No ${channelNoun(st.terms)} this month`,
       basis: "—",
       amount: 0,
     });
   out.push({
     title: "Corporate tax re-billed",
-    detail: `${pct(st.corporateTax.rate)} of ${eur(st.corporateTax.base)} net commission`,
+    detail: `${pct(st.corporateTax.rate)} of ${eur(st.corporateTax.base)} ${st.terms.taxBase === "commissionAndFees" ? "net commission and kept guest fees" : "net commission"}`,
     basis: pct(st.corporateTax.rate),
     amount: st.corporateTax.amount,
   });
@@ -260,7 +262,7 @@ export function buildStatementPDF(d: StatementDoc): Uint8Array {
   label(colR, y, "Details");
   const details: [string, string][] = [
     ["Period", `${fmtDate(st.from)} – ${fmtDate(st.to)}`],
-    ["Online bookings", int(st.usage.bookings)],
+    [ChannelNoun(st.terms), int(st.usage.bookings)],
     ["Commission", "Settled at each payment (Stripe)"],
     ["Balance", draft || !d.due ? "—" : `Direct Debit · ${fmtDate(d.due)}`],
   ];
@@ -399,12 +401,12 @@ export function buildStatementPDF(d: StatementDoc): Uint8Array {
     draft
       ? `Not an invoice yet: ${st.open ? `${st.label} is still running — Slaice issues the invoice after ${fmtDate(lastDay)}` : "Slaice issues it in its month-end run"}; figures can still change.`
       : `Payment: the ${eur(st.totals.due)} balance is collected by SEPA Direct Debit${d.due ? ` on ${fmtDate(d.due)}` : ""} — please do not transfer it. The ${eur(st.totals.settled)} commission was already collected at each online payment (Stripe application fee). Questions: ${SLAICE_ISSUER.email}.`,
-    `Commission is a share of each online booking's total per service, VAT included${t.feesInBase ? ", guest service fees included" : ""}, or the minimum per booking when the share is lower: ${(["sunbeds", "tickets"] as const).map((s) => `${SERVICE_LABEL[s].toLowerCase()} ${rateLabel(t.services[s])}`).join("; ")}; passes ${rateLabel(t.services.passes)}; lockers ${rateLabel(t.services.lockers)}; parking ${rateLabel(t.services.parking)}.`,
-    `Commission is Slaice's net income. The ${pct(t.corporateTax)} corporate tax on it is re-billed once a month on this invoice.`,
+    `Commission is a share of each ${channelNoun(t, true)}'s total per service, VAT included${t.feesInBase ? ", guest service fees included" : ""}, or the minimum per booking when the share is lower: ${(["sunbeds", "tickets"] as const).map((s) => `${SERVICE_LABEL[s].toLowerCase()} ${rateLabel(t.services[s])}`).join("; ")}; passes ${rateLabel(t.services.passes)}; lockers ${rateLabel(t.services.lockers)}; parking ${rateLabel(t.services.parking)}.`,
+    `Commission is Slaice's net income. The ${pct(t.corporateTax)} corporate tax on ${t.taxBase === "commissionAndFees" ? "it and on the guest fees Slaice keeps" : "it"} is re-billed once a month on this invoice.`,
     st.recurringInvoiced
       ? `The ${st.label} subscription and add-ons were billed in advance on invoice ${st.recurringInvoiced} and are not charged again.`
       : "",
-    "All amounts in euro. Only online bookings carry commission and guest service fees; sales at the beach (till, phone) do not.",
+    `All amounts in euro. Only ${channelNoun(t)} carry commission and guest service fees; sales at the beach (till, walk-in) do not.`,
   ].filter(Boolean);
   grey(0.3);
   font(false, 8);
@@ -463,11 +465,11 @@ export function statementCsv(d: StatementDoc): CsvSection[] {
         ["Period", `${st.from} to ${st.to}`],
         ["Issued", d.issued ? d.issued.slice(0, 10) : "not issued"],
         ["Due", d.due ?? "—"],
-        ["Online bookings", Math.round(st.usage.bookings)],
+        [ChannelNoun(st.terms), Math.round(st.usage.bookings)],
       ],
     },
     {
-      title: "Commission on online bookings",
+      title: `Commission on ${channelNoun(st.terms)}`,
       header: [
         "Service",
         "Online bookings",

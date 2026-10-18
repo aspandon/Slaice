@@ -11,6 +11,7 @@ import {
   rateLabel,
   statementInvoiceNo,
   type MonthStatement,
+  channelNoun,
 } from "../../domain/economics";
 import type { Invoice, TenantRecord } from "../../domain/tenants";
 
@@ -143,7 +144,7 @@ export function StatementView({
           <Fact
             k="Commission"
             v={eur(s.totals.commission)}
-            sub={`${int(s.usage.bookings)} online booking${Math.round(s.usage.bookings) === 1 ? "" : "s"} · settled at payment`}
+            sub={`${int(s.usage.bookings)} ${channelNoun(s.terms, Math.round(s.usage.bookings) === 1)} · settled at payment`}
           />
           <Fact
             k="Monthly charges"
@@ -157,7 +158,7 @@ export function StatementView({
           <Fact
             k={`Corporate tax · ${pct(s.corporateTax.rate)}`}
             v={eur(s.totals.corporateTax)}
-            sub={`on ${eur(s.corporateTax.base)} commission`}
+            sub={`on ${eur(s.corporateTax.base)} ${s.terms.taxBase === "commissionAndFees" ? "commission + kept fees" : "commission"}`}
           />
           <Fact
             k={state === "issued" ? "Amount due" : "Balance"}
@@ -169,7 +170,7 @@ export function StatementView({
       </Card>
 
       <Card className="p-2">
-        <h3 className="px-3 pt-3 font-semibold text-navy-900">Commission on online bookings</h3>
+        <h3 className="px-3 pt-3 font-semibold text-navy-900">Commission on {channelNoun(s.terms)}</h3>
         <p className="px-3 pb-2 text-[12.5px] text-slate-500">
           Each booking pays the rate on its total per service, VAT included
           {s.terms.feesInBase ? ", guest fees included" : ""} — or the minimum when the rate gives
@@ -179,7 +180,7 @@ export function StatementView({
           <EmptyState
             compact
             icon={Icon.umbrella}
-            title="No online bookings this month"
+            title={`No ${channelNoun(s.terms)} this month`}
             body={
               st.live
                 ? "Nothing was booked online, so there is no commission — the monthly charges still apply."

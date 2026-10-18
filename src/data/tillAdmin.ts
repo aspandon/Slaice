@@ -85,7 +85,7 @@ export function staffBookings(links: readonly PayLink[], now: number): AdminBook
     return {
       id: `#${l.id}`,
       who: l.guest.name.split(" ")[0],
-      items: l.lines.map((x) => (x.setId ? `Sunbed · ${zoneName(x.zoneId)} · ${x.setId}` : `Entry · ${x.label} ×${x.qty}`)),
+      items: l.lines.filter((x) => !x.fee).map((x) => (x.setId ? `Sunbed · ${zoneName(x.zoneId)} · ${x.setId}` : `Entry · ${x.label} ×${x.qty}`)),
       date: fmtDay(l.date),
       channel: l.channel ?? "Pay-by-link",
       status: LINK_STATUS[st],

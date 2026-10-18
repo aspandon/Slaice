@@ -18,6 +18,8 @@ export interface PayLinkLine {
   unit: number;
   setId?: string;
   zoneId?: string;
+  /** The guest service fee on a phone booking (AENR-728) — not a service, and no commission on it. */
+  fee?: boolean;
 }
 export interface PayLinkEvent {
   at: string;

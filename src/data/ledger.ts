@@ -6,7 +6,7 @@
 import { ZONES } from "./beach";
 import { ENTRY_SECTION, sampleDay, sectionName } from "./finance";
 import { DEMO_TODAY, addDays, type DateRange } from "../domain/period";
-import { VAT_BY_KIND, lineGross, type TillSale } from "../domain/till";
+import { VAT_BY_KIND, lineGross, type TillSale, type VatRates } from "../domain/till";
 import type { PlacedBooking } from "../domain/account";
 import type { PayLink } from "../domain/payLink";
 
@@ -108,8 +108,10 @@ export function payoutFor(date: string, from: string): { date: string; status: T
 export function documents(
   range: DateRange,
   section: string | null,
-  live: { sales: readonly TillSale[]; online: readonly PlacedBooking[]; links: readonly PayLink[] },
+  live: { sales: readonly TillSale[]; online: readonly PlacedBooking[]; links: readonly PayLink[]; vat?: VatRates },
 ): FiscalDoc[] {
+  // The tenant's VAT per service (AENR-728); a till sale keeps the rates it was charged at.
+  const V = live.vat ?? VAT_BY_KIND;
   const out: FiscalDoc[] = [];
   let seq = 4000;
   for (let d = range.from; d <= range.to; d = addDays(d, 1)) {
@@ -124,13 +126,13 @@ export function documents(
         const tk = r2(total - sun);
         const l1 = {
           label: "Sunbed set",
-          ...split(sun, VAT_BY_KIND.sunbed),
-          rate: VAT_BY_KIND.sunbed,
+          ...split(sun, V.sunbed),
+          rate: V.sunbed,
         };
         const l2 = {
           label: "Entry tickets",
-          ...split(tk, VAT_BY_KIND.ticket),
-          rate: VAT_BY_KIND.ticket,
+          ...split(tk, V.ticket),
+          rate: V.ticket,
         };
         const co = COMPANIES[Math.floor(rnd(k + "co") * COMPANIES.length)];
         const ch: Channel =
@@ -207,7 +209,7 @@ export function documents(
       const sec = s.lines.find((l) => l.zoneId)?.zoneId ?? ENTRY_SECTION.id;
       if (section && sec !== section) continue;
       const lines = s.lines.map((l) => {
-        const rate = VAT_BY_KIND[l.kind] ?? 0.24;
+        const rate = (s.vat ?? V)[l.kind] ?? 0.24;
         return { label: l.label, rate, ...split(lineGross(l), rate) };
       });
       const net = r2(lines.reduce((a, l) => a + l.net, 0));
@@ -264,7 +266,7 @@ export function documents(
       who: string,
       label: string,
     ): FiscalDoc => {
-      const { net, vat } = split(total, VAT_BY_KIND.sunbed);
+      const { net, vat } = split(total, V.sunbed);
       return {
         id: `live-${id}`,
         type: "ΑΠΥ",
@@ -281,7 +283,7 @@ export function documents(
         total,
         mark: mark(id),
         status: "sent",
-        lines: [{ label, net, vat, rate: VAT_BY_KIND.sunbed }],
+        lines: [{ label, net, vat, rate: V.sunbed }],
         live: true,
         ref: id,
       };

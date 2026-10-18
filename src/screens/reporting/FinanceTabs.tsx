@@ -9,7 +9,7 @@ import { docsTotal, financeReport, moneyFlow, payouts, sectionName, transmitted,
 import { rangeInput } from "../../data/economics";
 import { TENANT, ZONES } from "../../data/beach";
 import type { FinanceConfig } from "../../domain/finance";
-import { aggregate, feeLabel, pct as pctOf, rateLabel, type CommercialTerms, type EconTotals } from "../../domain/economics";
+import { ChannelNoun, aggregate, feeLabel, pct as pctOf, rateLabel, type CommercialTerms, type EconTotals } from "../../domain/economics";
 import { fmtDay, rangeLabel, resolveRange, type DateRange } from "../../domain/period";
 import { usePeriod } from "../../lib/usePeriod";
 import { useFinance } from "../../lib/useFinance";
@@ -59,12 +59,12 @@ export interface FinanceData {
   section: string | null;
 }
 export function useFinanceData(range: DateRange, section: string | null): FinanceData {
-  const { till, account } = useApp();
+  const { till, account, payLinks } = useApp();
   const [cfg] = useFinance();
   const terms = useSiteTerms();
   const rep = useMemo(() => financeReport(range, section, till.sales), [range, section, till.sales]);
-  // Commission and guest fees of any window's online bookings — the sample mix plus the guest's demo bookings.
-  const econOf = useCallback((r: DateRange) => aggregate(rangeInput(r, section, { placed: account.bookings }), terms), [section, account.bookings, terms]);
+  // Commission and guest fees of any window's bookings on the charged channels (online, phone — AENR-728).
+  const econOf = useCallback((r: DateRange) => aggregate(rangeInput(r, section, { placed: account.bookings, phone: payLinks, channels: terms.channels }), terms), [section, account.bookings, payLinks, terms]);
   const econ = useMemo(() => econOf(range), [econOf, range]);
   const flow = useMemo(() => moneyFlow(rep.total, econ, terms), [rep, econ, terms]);
   const pay = useMemo(() => payouts(range, section, till.sales, (t, w) => moneyFlow(t, econOf(w), terms)), [range, section, till.sales, econOf, terms]);
@@ -147,8 +147,8 @@ export function PaymentsTab({ d }: { d: FinanceData }) {
             {flow.serviceFees.length === 0 && <li>No guest service fees in the period</li>}
             <li className="text-slate-500">{terms.feeTo === "slaice" ? "Kept by Slaice — taken with the commission" : "Kept by the beach"}</li>
           </ul>} />
-        <Kpi label="Slaice commission" eur={flow.commission} sub={`Online bookings · sunbeds ${rateLabel(terms.services.sunbeds)} · tickets ${rateLabel(terms.services.tickets)}`} />
-        <Kpi label="Corporate tax re-billed" eur={flow.corporateTax} badge={<Badge tone="amber">Monthly</Badge>} sub={`${pctOf(terms.corporateTax)} on ${eur2(flow.commission)} commission · on Slaice's invoice`} />
+        <Kpi label="Slaice commission" eur={flow.commission} sub={`${ChannelNoun(terms)} · sunbeds ${rateLabel(terms.services.sunbeds)} · tickets ${rateLabel(terms.services.tickets)}`} />
+        <Kpi label="Corporate tax re-billed" eur={flow.corporateTax} badge={<Badge tone="amber">Monthly</Badge>} sub={`${pctOf(terms.corporateTax)} on ${terms.taxBase === "commissionAndFees" ? `${eur2(flow.commission + flow.slaiceFees)} commission + kept fees` : `${eur2(flow.commission)} commission`} · on Slaice's invoice`} />
         <Kpi label="Stripe / bank fees" eur={flow.stripeFees} sub={`≈ ${(flow.stripePct * 100).toFixed(2)}% of captured value`} />
         <Kpi tone="indigo" label="Stripe payouts" eur={paid} sub={`Paid to the bank · ${eur2(inTransit)} in transit`} />
         <Kpi label="Saved cards usage" value={`${(savedPct * 100).toFixed(1)}%`} sub={`${int(t.saved)} of ${int(t.tx)} transactions`} />

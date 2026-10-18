@@ -12,6 +12,9 @@ import {
   rateLabel,
   type CommercialTerms,
   type EconTotals,
+  taxBaseOf,
+  channelNoun,
+  ChannelNoun,
 } from "../../domain/economics";
 import type { DateRange } from "../../domain/period";
 import type { CsvSection } from "../../lib/download";
@@ -50,12 +53,13 @@ export interface PlatformFeesData {
   }[];
 }
 export function usePlatformFees(range: DateRange): PlatformFeesData {
-  const { account } = useApp();
+  const { account, payLinks } = useApp();
   const terms = useSiteTerms();
   return useMemo(() => {
-    const ct = (e: EconTotals) => Math.round(e.commission * terms.corporateTax) / 100;
+    const ct = (e: EconTotals) => Math.round(taxBaseOf(terms, e.commission, e.slaiceFees) * terms.corporateTax) / 100;
+    const opts = { placed: account.bookings, phone: payLinks, channels: terms.channels };
     const months = monthsIn(range).map((r) => {
-      const econ = aggregate(rangeInput(r, null, { placed: account.bookings }), terms);
+      const econ = aggregate(rangeInput(r, null, opts), terms);
       return {
         month: r.from.slice(0, 7),
         label: monthLabel(r.from.slice(0, 7)),
@@ -64,9 +68,9 @@ export function usePlatformFees(range: DateRange): PlatformFeesData {
         corporateTax: ct(econ),
       };
     });
-    const total = aggregate(rangeInput(range, null, { placed: account.bookings }), terms);
+    const total = aggregate(rangeInput(range, null, opts), terms);
     return { terms, total, corporateTax: ct(total), months };
-  }, [range, terms, account.bookings]);
+  }, [range, terms, account.bookings, payLinks]);
 }
 
 export function platformFeesCsv(d: PlatformFeesData, label: string): CsvSection[] {
@@ -76,7 +80,7 @@ export function platformFeesCsv(d: PlatformFeesData, label: string): CsvSection[
       title: `Platform fees · ${label}`,
       header: ["Metric", "Value"],
       rows: [
-        ["Online bookings", Math.round(t.bookings)],
+        [ChannelNoun(d.terms), Math.round(t.bookings)],
         ["Online sales incl. VAT (€)", t.gross],
         ["Slaice commission (€)", t.commission],
         [
@@ -152,7 +156,7 @@ export function PlatformFeesTab({ d, label }: { d: PlatformFeesData; label: stri
       <Card className="p-6">
         <EmptyState
           icon={Icon.umbrella}
-          title="No online bookings in this period"
+          title={`No ${channelNoun(d.terms)} in this period`}
           body={`Nothing was booked online in ${label}, so Slaice took no commission or guest fees.`}
         />
       </Card>
@@ -166,7 +170,7 @@ export function PlatformFeesTab({ d, label }: { d: PlatformFeesData; label: stri
           tone="indigo"
           label="Slaice commission"
           value={eur(t.commission)}
-          sub={`${int(t.bookings)} online bookings · minimum on ${int(atMin)}`}
+          sub={`${int(t.bookings)} ${channelNoun(d.terms)} · minimum on ${int(atMin)}`}
         />
         <StatCard
           instant

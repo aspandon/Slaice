@@ -48,6 +48,13 @@ export const SERVICE_UNIT: Record<ServiceId, { one: string; many: string }> = {
 };
 
 /* ---------- Terms ---------- */
+export type TaxBase = "commission" | "commissionAndFees";
+export const FEE_CHANNELS = ["online", "phone"] as const;
+export type FeeChannel = (typeof FEE_CHANNELS)[number];
+export const FEE_CHANNEL_LABEL: Record<FeeChannel, string> = {
+  online: "Online bookings",
+  phone: "Phone bookings",
+};
 export interface ServiceTerms {
   /** Commission on the service's tax-inclusive total in one online booking, in % (3 = 3%). */
   rate: number;
@@ -87,8 +94,12 @@ export interface CommercialTerms {
   feesInBase: boolean;
   /** Who keeps the guest service fee. */
   feeTo: "slaice" | "tenant";
-  /** Corporate income tax on Slaice's net commission, re-billed to the tenant at month end (%). */
+  /** Corporate income tax on Slaice's net income, re-billed to the tenant at month end (%) — Greece 22%. */
   corporateTax: number;
+  /** What the corporate tax is worked out on (AENR-728): the commission, or the commission plus the guest fees Slaice keeps. */
+  taxBase: TaxBase;
+  /** Which bookings carry commission and guest fees (AENR-728): online, and phone bookings taken by staff and paid by card or link. */
+  channels: Record<FeeChannel, boolean>;
   support: SupportFee;
   subscription: Subscription;
 }
@@ -108,6 +119,8 @@ export const DEFAULT_TERMS: CommercialTerms = {
   feesInBase: true,
   feeTo: "slaice",
   corporateTax: 22,
+  taxBase: "commission",
+  channels: { online: true, phone: true },
   support: { items: [], until: null },
   subscription: { mode: "plan", active: 0, inactive: 0, activeMonths: SEASON_MONTHS },
 };
@@ -122,6 +135,7 @@ export function normalizeTerms(raw?: unknown): CommercialTerms {
     ...DEFAULT_TERMS,
     ...r,
     services,
+    channels: { ...DEFAULT_TERMS.channels, ...(r.channels ?? {}) },
     support: { ...DEFAULT_TERMS.support, ...(r.support ?? {}), items: r.support?.items ?? [] },
     subscription: {
       ...DEFAULT_TERMS.subscription,
@@ -204,6 +218,10 @@ export function termsErrors(t: CommercialTerms): Record<string, string> {
   }
   return out;
 }
+
+/** What the corporate tax is re-billed on, per the tenant's terms (AENR-728). */
+export const taxBaseOf = (terms: Pick<CommercialTerms, "taxBase">, commission: number, slaiceFees: number) =>
+  terms.taxBase === "commissionAndFees" ? commission + slaiceFees : commission;
 
 /* ---------- One booking ---------- */
 const r2 = (n: number) => Math.round(n * 100) / 100;
@@ -297,7 +315,7 @@ export function bookingEconomics(
     slaiceFees,
     slaiceRevenue,
     tenantReceives: r2(customerPays - slaiceRevenue),
-    corporateTax: r2((commission * terms.corporateTax) / 100),
+    corporateTax: r2((taxBaseOf(terms, commission, slaiceFees) * terms.corporateTax) / 100),
   };
 }
 
@@ -611,7 +629,8 @@ export function monthStatement(
   const supAmount = live ? sup.amount : 0;
   const recurringRevenue = r2(subAmount + addOns + supAmount);
   const recurring = covered ? supAmount : recurringRevenue;
-  const corporateTax = r2((usage.commission * terms.corporateTax) / 100);
+  const taxBase = r2(taxBaseOf(terms, usage.commission, usage.slaiceFees));
+  const corporateTax = r2((taxBase * terms.corporateTax) / 100);
   const invoiceTotal = r2(recurring + usage.commission + corporateTax);
   const subDetail =
     sub.mode === "none"
@@ -662,7 +681,7 @@ export function monthStatement(
       ended: sup.ended,
       until: terms.support.until,
     },
-    corporateTax: { rate: terms.corporateTax, base: usage.commission, amount: corporateTax },
+    corporateTax: { rate: terms.corporateTax, base: taxBase, amount: corporateTax },
     recurringInvoiced: ctx.recurringInvoiced,
     feeTo: terms.feeTo,
     terms,
@@ -735,10 +754,28 @@ export function termsChanges(a: CommercialTerms, b: CommercialTerms): TermsChang
     b.feeTo === "slaice" ? "Slaice" : "the beach",
   );
   put("Corporate tax re-billed", pct(a.corporateTax), pct(b.corporateTax));
+  put("Corporate tax re-billed on", TAX_BASE_LABEL[a.taxBase], TAX_BASE_LABEL[b.taxBase]);
+  for (const c of FEE_CHANNELS)
+    put(`Commission & fees on ${FEE_CHANNEL_LABEL[c].toLowerCase()}`, a.channels[c] ? "yes" : "no", b.channels[c] ? "yes" : "no");
   put("Support fee", supportLabel(a.support), supportLabel(b.support));
   put("Monthly subscription", subscriptionLabel(a.subscription), subscriptionLabel(b.subscription));
   return out;
 }
+
+/** "online and phone bookings" — the bookings that carry commission under these terms (AENR-728). */
+export function channelNoun(t: Pick<CommercialTerms, "channels">, one = false): string {
+  const on = FEE_CHANNELS.filter((c) => t.channels[c]);
+  const word = one ? "booking" : "bookings";
+  return on.length === 2 ? `online and phone ${word}` : on.length === 1 ? `${on[0]} ${word}` : word;
+}
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/** "Online and phone bookings" */
+export const ChannelNoun = (t: Pick<CommercialTerms, "channels">) => cap(channelNoun(t));
+
+export const TAX_BASE_LABEL: Record<TaxBase, string> = {
+  commission: "commission only",
+  commissionAndFees: "commission + guest fees Slaice keeps",
+};
 
 /* ---------- Formatting ---------- */
 /** €1,234.50 (−€3.00 for negatives). */

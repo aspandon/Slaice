@@ -166,7 +166,10 @@ export function ExampleBooking({
             <Line l="The beach receives" v={eur(e.tenantReceives)} />
             <div className="text-[11.5px] text-slate-500">
               before card processing. Month end: {pct(tt.corporateTax)} corporate tax on{" "}
-              {eur(e.commission)} commission = {eur(e.corporateTax)} re-billed.
+              {tt.taxBase === "commissionAndFees"
+                ? `${eur(e.commission + e.slaiceFees)} commission and kept fees`
+                : `${eur(e.commission)} commission`}{" "}
+              = {eur(e.corporateTax)} re-billed.
             </div>
           </section>
         </div>

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSiteTerms } from "../lib/useEconomics";
 import { Badge, Btn, Stepper } from "../components/ui";
 import { useApp } from "../app/store";
 import { ZONES } from "../data/beach";
@@ -6,6 +7,7 @@ import { useExtras } from "../lib/useExtras";
 import { resolvePrice } from "../domain/pricing";
 import {
   basketTotals,
+  vatFromTerms,
   eur,
   type Tender,
   type TenderKind,
@@ -78,7 +80,7 @@ export function WalkinSale({
       cat: c,
     })),
   ];
-  const totals = basketTotals(lines, []);
+  const totals = basketTotals(lines, [], vatFromTerms(useSiteTerms()));
   const onPaid = (tenders: Tender[]) => {
     const sale = t.completeSale({ lines, discounts: [], total: totals.total, tenders, channel, seller });
     const main = [...tenders].sort((a, b) => b.amount - a.amount)[0];

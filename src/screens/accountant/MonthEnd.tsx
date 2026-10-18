@@ -9,6 +9,8 @@ import { downloadText, downloadReport } from "../../lib/download";
 import { useFinanceData } from "../reporting/FinanceTabs";
 import { useFinance } from "../../lib/useFinance";
 import type { MonthClose } from "../../domain/finance";
+import { useSiteTerms } from "../../lib/useEconomics";
+import { vatFromTerms } from "../../domain/till";
 import {
   EXPORT_PRESETS,
   applyPrepared,
@@ -56,9 +58,12 @@ export function MonthEnd() {
   const ref = months.find((m) => m.month === month) ?? months[0];
   const range = useMemo(() => ({ from: ref.from, to: ref.to }), [ref.from, ref.to]);
   const fin = useFinanceData(range, null);
+  // The tenant's VAT per service (AENR-728) for every document of the month.
+  const siteTerms = useSiteTerms();
+  const vatRates = useMemo(() => vatFromTerms(siteTerms), [siteTerms]);
   const docs = useMemo(
-    () => documents(range, null, { sales: till.sales, online: account.bookings, links: payLinks }),
-    [range, till.sales, account.bookings, payLinks],
+    () => documents(range, null, { sales: till.sales, online: account.bookings, links: payLinks, vat: vatRates }),
+    [range, till.sales, account.bookings, payLinks, vatRates],
   );
   const txs = useMemo(
     () => transactions(range, null, till.sales, fin.flow.stripePct),

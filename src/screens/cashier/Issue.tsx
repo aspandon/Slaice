@@ -12,7 +12,8 @@ import { PARKING_PRICE } from "../../domain/pricing";
 import { resolvePrice } from "../../domain/pricing";
 import { useExtras } from "../../lib/useExtras";
 import { useSiteStatus } from "../../lib/usePlatform";
-import { basketTotals, discountAmount, eur, lineGross, validatePromo, type Tender, type TenderKind, type TillDiscount, type TillLine, type TillSale, vatBreakdown } from "../../domain/till";
+import { basketTotals, discountAmount, eur, lineGross, validatePromo, type Tender, type TenderKind, type TillDiscount, type TillLine, type TillSale, vatBreakdown, vatFromTerms } from "../../domain/till";
+import { useSiteTerms } from "../../lib/useEconomics";
 import type { SunbedSlot, TicketCategory } from "../../domain/types";
 import { useClosure, useLiveSlots, useNow } from "../../lib/useLiveSlots";
 import { useFinance } from "../../lib/useFinance";
@@ -96,7 +97,8 @@ function IssueInner() {
   const zoneSlots = (zId: string) => liveSlots(ZONES.find((z) => z.id === zId)!, [t.day]);
   const slots = zoneSlots(zone.id);
   const freeIn = (zId: string) => zoneSlots(zId).filter((s) => s.state === "a" && !inBasket.has(s.id));
-  const totals = basketTotals(lines, discounts);
+  const vatRates = vatFromTerms(useSiteTerms());
+  const totals = basketTotals(lines, discounts, vatRates);
   const hasSets = inBasket.size > 0;
 
   const shiftOpen = !!t.till.shift;
@@ -595,7 +597,7 @@ function IssueInner() {
                   <div className="mt-3 border-t border-slate-200 pt-3 space-y-0.5 text-[13px]">
                     {lines.length > 0 && <div className="flex justify-between text-slate-600"><span>Subtotal</span><span className="tnum">{eur(totals.gross)}</span></div>}
                     {totals.discount > 0 && <div className="flex justify-between text-emerald-700"><span>Discounts</span><span className="tnum">−{eur(totals.discount)}</span></div>}
-                    {lines.length > 0 && vatBreakdown(lines, totals.discount).map((r) => (
+                    {lines.length > 0 && vatBreakdown(lines, totals.discount, vatRates).map((r) => (
                       <div key={r.rate} className="flex justify-between text-[12px] text-slate-500"><span>Net {eur(r.net)} + VAT {Math.round(r.rate * 100)}%</span><span className="tnum">{eur(r.vat)}</span></div>
                     ))}
                     <div className="flex items-end justify-between pt-1">

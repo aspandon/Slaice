@@ -1,10 +1,12 @@
 import { useApp } from "../../app/store";
+import { useSiteTerms } from "../../lib/useEconomics";
 import { todayISO } from "../../data/beach";
 import { hasRole } from "../../data/staff";
 import { DEFAULT_CASHIER, HOLD_MS, OFFLINE_ONLINE_BOOKED } from "../../data/till";
 import {
   apyNo, creditNo, fakeMark, receiptNo, refundedQty, tillSetStatus,
   type DrawerMove, type ReceiptChoice, type Tender, type TenderKind, type TillDiscount, type TillLine, type TillRefund, type TillSale, type TillShift,
+  vatFromTerms,
 } from "../../domain/till";
 
 /** Till actions over the shared store. Screens call these; the pure rules live in domain/till. */
@@ -27,6 +29,7 @@ export function useTill() {
   const status = (now = Date.now()) => tillSetStatus(till, day, now);
 
   /** Record a paid sale. Returns it so the screen can show the receipt. */
+  const terms = useSiteTerms();
   const completeSale = (draft: { lines: TillLine[]; discounts: TillDiscount[]; total: number; tenders: Tender[]; customer?: TillSale["customer"]; channel?: TillSale["channel"]; seller?: string }): TillSale => {
     const seq = till.seq + 1;
     const mydata = till.offline ? "pending" : till.failNextMydata ? "failed" : "sent";
@@ -35,6 +38,8 @@ export function useTill() {
       at: nowIso(), day, shiftId: draft.channel && draft.channel !== "cashier" ? null : till.shift?.id ?? null, cashier: draft.seller ?? cashier, channel: draft.channel,
       lines: draft.lines, discounts: draft.discounts, total: draft.total, tenders: draft.tenders, customer: draft.customer,
       receipt: "print", mydata, offline: till.offline || undefined, refunds: [],
+      // The tenant's VAT rates at the moment of sale (AENR-728).
+      vat: vatFromTerms(terms),
     };
     setTill((t) => {
       const holds = { ...t.holds };
