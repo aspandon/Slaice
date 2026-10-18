@@ -122,8 +122,9 @@ export function PlatformCompliance() {
             Add sub-processor
           </Btn>
         </div>
+        {/* On phones the table scrolls sideways (AENR-731) instead of squeezing the safeguard badges into tall pills. */}
         <div className="overflow-x-auto">
-          <table className="w-full text-[13px]">
+          <table className="w-full min-w-[720px] text-[13px]">
             <thead>
               <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-100">
                 <th className="px-4 py-2 font-semibold">Provider</th>
@@ -141,7 +142,7 @@ export function PlatformCompliance() {
                   <td className="px-2 text-slate-600">{s.purpose}</td>
                   <td className="px-2">{s.location}</td>
                   <td className="px-2">
-                    <Badge tone={isEu(s) ? "slate" : "blue"}>{s.safeguard}</Badge>
+                    <Badge tone={isEu(s) ? "slate" : "blue"} className="whitespace-nowrap">{s.safeguard}</Badge>
                   </td>
                   <td className="px-2">
                     {s.tia ? (

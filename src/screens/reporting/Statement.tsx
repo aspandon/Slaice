@@ -63,13 +63,13 @@ export function StatementBadge({ st, inv }: { st: MonthStatement; inv?: Invoice 
     );
   if (s === "open")
     return (
-      <Badge tone="warning">
+      <Badge tone="warning" className="whitespace-nowrap">
         <Icon.clock size={11} /> In progress
       </Badge>
     );
   if (s === "ready")
     return (
-      <Badge tone="info">
+      <Badge tone="info" className="whitespace-nowrap">
         <Icon.receipt size={11} /> Ready to issue
       </Badge>
     );

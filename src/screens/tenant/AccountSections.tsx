@@ -292,15 +292,16 @@ export function Profile({ t }: SectionProps) {
               key={c.role}
               className="grid sm:grid-cols-12 gap-2 items-end rounded-xl ring-1 ring-slate-200 p-2"
             >
-              <div className="sm:col-span-3 text-[12.5px] font-semibold text-navy-900 pb-2">
+              {/* The role reads as the row's heading (AENR-731), so name, e-mail and phone get the width — phone numbers no longer cut off. */}
+              <div className="sm:col-span-12 text-[12.5px] font-semibold text-navy-900">
                 {ROLE_LABEL[c.role]}
               </div>
-              <div className="sm:col-span-3">
+              <div className="sm:col-span-4">
                 <Field label="Name">
                   <Input value={c.name} onChange={(e) => setContact(i, { name: e.target.value })} />
                 </Field>
               </div>
-              <div className="sm:col-span-3">
+              <div className="sm:col-span-4">
                 <Field label="E-mail">
                   <Input
                     type="email"
@@ -309,7 +310,7 @@ export function Profile({ t }: SectionProps) {
                   />
                 </Field>
               </div>
-              <div className="sm:col-span-2">
+              <div className="sm:col-span-3">
                 <Field label="Phone">
                   <Input
                     value={c.phone}

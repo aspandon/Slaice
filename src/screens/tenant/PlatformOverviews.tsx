@@ -150,7 +150,7 @@ export function PlatformTenants() {
           onChange={(v) => setPlatform((p) => ({ ...p, includeSandbox: v }))}
           label="Include sandbox / demo tenants"
         />
-        <div className="ml-auto flex gap-2">
+        <div className="ml-auto flex flex-wrap justify-end gap-2">
           <ExportMenu
             what="tenants"
             onExport={(f) =>
@@ -179,10 +179,14 @@ export function PlatformTenants() {
             variant="outline"
             icon={Icon.alert}
             onClick={() => go("platform", "incidents")}
+            className="whitespace-nowrap"
+            aria-label={`Incidents · ${openIncidents.length} open${newIncidents ? ` · ${newIncidents} new` : ""}`}
           >
-            Incidents · {openIncidents.length} open{newIncidents ? ` · ${newIncidents} new` : ""}
+            {/* Short on phones (AENR-731): "Incidents 4", the full count from sm up. */}
+            <span className="sm:hidden">Incidents {openIncidents.length}</span>
+            <span className="hidden sm:inline">Incidents · {openIncidents.length} open{newIncidents ? ` · ${newIncidents} new` : ""}</span>
           </Btn>
-          <Btn variant="indigo" icon={Icon.bolt} onClick={() => go("platform", "onboarding")}>
+          <Btn variant="indigo" icon={Icon.bolt} onClick={() => go("platform", "onboarding")} className="whitespace-nowrap">
             Onboard tenant
           </Btn>
         </div>
