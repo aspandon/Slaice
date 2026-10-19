@@ -377,7 +377,8 @@ function WizardInner() {
     }
     flipBackRef.current = false;
     setZoneId(id);
-    autoPick(id);
+    // The guest picks their own sets (owner, AENR-732) — opening a zone no longer pre-selects any;
+    // "Pick for me" stays as an explicit choice.
     setPhase("sets");
   };
   // Reverse camera: the big grid FLIPs back down into its cluster on the map.
@@ -652,7 +653,7 @@ function WizardInner() {
                   days: [1, -1, 2, -2, 3, 4, 5, 6, 7].map((n) => addDays(fullDay, n)).filter((d) => d >= todayISO() && !blockReason(d) && (dayInfo(d).left ?? 0) > 0).slice(0, 3),
                   zones: step.id === "beach" && phase === "sets" ? ZONES.filter((z) => z.id !== zone.id).map((z) => ({ z, left: liveSlots(z, [fullDay]).filter((x) => x.state === "a").length })).filter((x) => x.left > 0).slice(0, 3) : [],
                 } : null}
-                onPickZone={(id) => { setBedSel([]); setZoneId(id); autoPick(id, wantSets, undefined, true); }} stayReasons={[...(stopSell ? [`${zone.name}: not available online — ask at the beach (${stopSell.reason}).`] : []), ...Object.entries(stayCheck.blocked).map(([d, why]) => `${chipLabel(d, localeFor(lang)).sub}: ${why}`), ...stayCheck.reasons]}
+                onPickZone={(id) => { setBedSel([]); setZoneId(id); }} stayReasons={[...(stopSell ? [`${zone.name}: not available online — ask at the beach (${stopSell.reason}).`] : []), ...Object.entries(stayCheck.blocked).map(([d, why]) => `${chipLabel(d, localeFor(lang)).sub}: ${why}`), ...stayCheck.reasons]}
                 selDates={selDates} setSelDates={setSelDates}
                 multiDate={multiDate} setMultiDate={setMultiDate}
                 phase={phase} setPhase={(p) => (p === "zones" ? backToZones() : setPhase(p))}
@@ -1173,6 +1174,10 @@ function FullDayHelp({ day, zoneName, alt, onDay, onZone }: { day: string; zoneN
   );
 }
 
+/* One selection colour on the beach overview (owner, AENR-732): every zone's glow, name and tick use
+   the sky blue Central had, instead of each zone's own colour. */
+const ZONE_ACTIVE = "#0ea5e9";
+
 const clampN = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 /* ============ Zone overview ============
@@ -1258,7 +1263,7 @@ function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: 
           >
             {/* Soft tint on the sand under the selected / hovered zone, so it
                 reads as one beach section without a hard card edge. */}
-            <span aria-hidden className={`absolute left-1/2 -translate-x-1/2 top-0 rounded-[45%] blur-2xl transition-opacity duration-300 ${active ? "opacity-45" : "opacity-0"}`} style={{ width: "94%", height: plotH, background: z.color }} />
+            <span aria-hidden className={`absolute left-1/2 -translate-x-1/2 top-0 rounded-[45%] blur-2xl transition-opacity duration-300 ${active ? "opacity-45" : "opacity-0"}`} style={{ width: "94%", height: plotH, background: ZONE_ACTIVE }} />
 
             {/* The zone's real umbrella rows, straight on the sand (no card).
                 data-flip-id pairs each mini glyph with its big grid cell so the
@@ -1274,12 +1279,12 @@ function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: 
             {/* Zone label set on the sand — logo + name + a line of detail. */}
             <span className="relative block text-center mt-0.5" data-cluster-label>
               {logo && <img src={logo} alt="" className="mx-auto mb-1 h-8 w-auto max-w-[82%] object-contain drop-shadow-[0_1px_2px_rgba(255,255,255,0.55)]" />}
-              <span className={`block font-display font-bold text-guest-body tracking-wide transition-colors drop-shadow-[0_1px_1px_rgba(255,255,255,0.75)] ${active ? "" : "text-navy-900 group-hover:text-teal-800"}`} style={active ? { color: z.color } : undefined}>{z.name}</span>
+              <span className={`block font-display font-bold text-guest-body tracking-wide transition-colors drop-shadow-[0_1px_1px_rgba(255,255,255,0.75)] ${active ? "" : "text-navy-900 group-hover:text-teal-800"}`} style={active ? { color: ZONE_ACTIVE } : undefined}>{z.name}</span>
               <span className="block text-[10.5px] font-semibold tnum text-navy-800/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.6)]">{tr("from")} €{fromLabel} · {free} {tr("free")}</span>
             </span>
 
             {active && (
-              <span className="absolute -top-1 right-2 w-5 h-5 rounded-full text-white grid place-items-center shadow ring-2 ring-white" style={{ background: z.color }}>
+              <span className="absolute -top-1 right-2 w-5 h-5 rounded-full text-white grid place-items-center shadow ring-2 ring-white" style={{ background: ZONE_ACTIVE }}>
                 <Icon.check size={12} />
               </span>
             )}

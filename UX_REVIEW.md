@@ -516,6 +516,7 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-716 — roles per tenant** (Platform › tenant › Roles).
 - **AENR-718 — invite staff by e-mail + mobile** with a first sign-in: password and 2-step (SMS, e-mail, authenticator).
 - **AENR-720 — Call Center Incidents** and a Slaice Incidents inbox.
+- **AENR-732 — the guest picks their own sets**: no automatic pick when a zone opens (Pick for me stays as a button); the selected zone glows sky blue whichever zone it is.
 - **AENR-731 — visual QA of every screen** (phone and desktop): Tenants header, Compliance sub-processors, Revenue badges, Profile contacts fixed; 146 views clean.
 - **AENR-730 — fast on phones**: still beach instead of the live WebGL sea below 1024 px (5–9 → 60 fps on customer pages), screens load on demand (main script 617 → 275 KB gzip), tables build one layout only.
 - **AENR-728 — terms per tenant, owner's decisions**: phone bookings carry commission and the service fee (switchable per channel), 24% VAT everywhere from the tenant's terms, corporate tax re-billed on commission or commission + kept fees.
