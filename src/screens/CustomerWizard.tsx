@@ -802,7 +802,7 @@ function WizardInner() {
               {stepIdx < last ? (
                 <Btn variant="teal" onClick={next} disabled={(step.id === "beach" && (!stayCheck.ok || !!stopSell)) || (step.id === "when" && Object.keys(stayCheck.blocked).length > 0)}>{tr("Continue")} <Icon.arrowR size={15} /></Btn>
               ) : (
-                <Btn variant="dark" icon={Icon.card} disabled={grandTotal === 0} onClick={() => (stalePicks.length ? confirm() : payRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" }))}>{tr("Go to payment")}</Btn>
+                <Btn variant="dark" icon={Icon.card} className="whitespace-nowrap" disabled={grandTotal === 0} onClick={() => (stalePicks.length ? confirm() : payRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" }))}>{tr("Go to payment")}</Btn>
               )}
             </div>
           </div>

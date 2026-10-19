@@ -379,8 +379,9 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
         {persona !== "customer" && !previewing && (
           <PersonaSwitcher persona={persona} setPersona={setPersona} variant="role" />
         )}
-        {/* Phones: the customer's Demo menu (persona + scene) docks here instead of floating (AENR-575). */}
-        {persona === "customer" && !previewing && (
+        {/* Phones: the customer's Demo menu (persona + scene) docks here instead of floating (AENR-575),
+            on Home only, like the desktop pill (AENR-745). */}
+        {persona === "customer" && page === "home" && !previewing && (
           <span className="md:hidden"><PersonaSwitcher persona={persona} setPersona={setPersona} variant="demo" compact /></span>
         )}
       </div>

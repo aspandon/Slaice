@@ -564,9 +564,10 @@ export default function App() {
               immersive booking flow — so global navigation is always reachable. */}
           {persona !== "cashier" && <BottomTabBar persona={persona} page={page} setPage={setPage} />}
           {/* The "view as another persona" control lives in the bottom-right
-              corner on the customer surface — a quiet demo affordance, opening
-              upward, lifted clear of the mobile bottom tab bar. */}
-          {persona === "customer" && !viewAs && (
+              corner of the customer Home only (AENR-745) — a quiet demo
+              affordance, opening upward, that never covers a page's sticky
+              action bar (the wizard, checkout). */}
+          {persona === "customer" && page === "home" && !viewAs && (
             <div className="hidden md:block fixed right-5 z-40 bottom-4">
               <PersonaSwitcher persona={persona} setPersona={setPersona} variant="demo" side="top" />
             </div>
