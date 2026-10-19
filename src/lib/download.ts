@@ -688,7 +688,7 @@ export function csvSectionsToReport(base: Omit<ReportDef, "sections">, secs: Csv
 export function slaiceInvoice(i: { no: string; period: string; amount: number; status: string; due: string }, t: { name: string; legalName: string; vatNo: string }, planLabel: string): ReportDef {
   const net = Math.round((i.amount / 1.24) * 100) / 100;
   return {
-    brand: "Slaice Technologies IKE · VAT EL801234567 · Athens",
+    brand: "Slaice Technologies IKE · VAT EL801234560 · Athens",
     title: `Invoice ${i.no}`,
     subtitle: `${t.legalName} · VAT ${t.vatNo}`,
     meta: [`Period ${i.period} · due ${i.due} · status ${i.status}`, `Bill to: ${t.legalName} (${t.name})`],

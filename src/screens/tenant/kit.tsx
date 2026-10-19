@@ -104,6 +104,8 @@ export function useTenantDraft<K extends keyof TenantRecord>(
   keys: readonly K[],
   section: string,
   sensitive: readonly K[] = [],
+  /** Why the draft can't be saved yet (e.g. an invalid ΑΦΜ), or ""; disables Save. */
+  validate?: (draft: Pick<TenantRecord, K>) => string,
 ) {
   const { updateTenant, toast } = usePlatform();
   const pick = () => Object.fromEntries(keys.map((k) => [k, t[k]])) as Pick<TenantRecord, K>;
@@ -114,6 +116,7 @@ export function useTenantDraft<K extends keyof TenantRecord>(
   }, [t.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const changed = keys.filter((k) => JSON.stringify(draft[k]) !== JSON.stringify(t[k]));
   const dirty = changed.length > 0;
+  const problem = validate?.(draft) ?? "";
   useEffect(() => {
     navGuard.dirty = dirty;
     return () => {
@@ -146,7 +149,7 @@ export function useTenantDraft<K extends keyof TenantRecord>(
       <Icon.edit size={15} />
       <span className="text-sm">
         <b>Unsaved changes</b> · {changed.length} field{changed.length === 1 ? "" : "s"}
-        {changed.some((k) => sensitive.includes(k)) ? " · needs a reason" : ""}
+        {problem ? ` · ${problem}` : changed.some((k) => sensitive.includes(k)) ? " · needs a reason" : ""}
       </span>
       <div className="ml-auto flex gap-2">
         <button
@@ -156,7 +159,7 @@ export function useTenantDraft<K extends keyof TenantRecord>(
         >
           Discard
         </button>
-        <Btn size="sm" variant="teal" icon={Icon.check} onClick={save}>
+        <Btn size="sm" variant="teal" icon={Icon.check} onClick={save} disabled={!!problem}>
           Save
         </Btn>
       </div>

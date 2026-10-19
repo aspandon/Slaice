@@ -7,6 +7,7 @@
 import type { Contact, Lifecycle, TenantRecord, Env } from "../domain/tenants";
 import { summarize } from "./analytics";
 import { DEMO_TODAY } from "../domain/period";
+import { afmWithCheck } from "../domain/validate";
 import { DEFAULT_TERMS, cloneTerms, type CommercialTerms } from "../domain/economics";
 
 const AKTI_SEASON = summarize({ from: `${DEMO_TODAY.slice(0, 4)}-05-01`, to: DEMO_TODAY });
@@ -273,7 +274,7 @@ export const DEFAULT_TENANTS: TenantRecord[] = SEEDS.map((s) => {
     subdomain: `${s.sub}.slaice.app`,
     customDomain: s.domain,
     domainVerified: !!s.domain && s.id === "akti",
-    vatNo: `EL ${800000000 + Math.floor(r("v") * 99999999)}`,
+    vatNo: `EL ${afmWithCheck(String(80000000 + Math.floor(r("v") * 9999999)))}`,
     address: `${Math.floor(1 + r("a") * 120)} Poseidonos Ave, Attica`,
     country: "Greece",
     language: "Greek",
@@ -436,7 +437,7 @@ export const DEFAULT_TENANTS: TenantRecord[] = SEEDS.map((s) => {
 });
 
 /** A new tenant draft created by the onboarding wizard (AENR-500). */
-export function makeTenant(name: string, sub: string): TenantRecord {
+export function makeTenant(name: string, sub: string, vatNo = ""): TenantRecord {
   const base = DEFAULT_TENANTS.find((t) => t.id === "rhodes") ?? DEFAULT_TENANTS[0];
   const id = sub.toLowerCase().replace(/[^a-z0-9]/g, "") || `t${Date.now().toString(36)}`;
   return {
@@ -444,6 +445,8 @@ export function makeTenant(name: string, sub: string): TenantRecord {
     id,
     name,
     legalName: `${name} ΙΚΕ`,
+    // Its own ΑΦΜ, never the template tenant's (AENR-772).
+    vatNo,
     subdomain: `${id}.slaice.app`,
     customDomain: undefined,
     env: "live",

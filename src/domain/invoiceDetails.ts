@@ -3,6 +3,8 @@
 // the billing address — plus the e-mail it is sent to. Outside Greece the VAT
 // number carries its country prefix and there is no tax office.
 
+import { afmProblem, emailOk } from "./validate";
+
 export interface InvoiceDetails {
   company: string;
   /** ΑΦΜ in Greece (9 digits, optional EL prefix); the EU VAT number elsewhere. */
@@ -63,16 +65,18 @@ export function invoiceErrors(d: InvoiceDetails): Partial<Record<InvoiceField, s
   const gr = d.country === "GR";
   if (d.company.trim().length < 2) e.company = "Enter the company name";
   const v = clean(d.vatNo);
-  if (!v) e.vatNo = gr ? "Enter the ΑΦΜ" : "Enter the VAT number";
-  else if (gr ? !/^(EL|GR)?\d{9}$/.test(v) : !/^[A-Z0-9]{8,14}$/.test(v))
-    e.vatNo = gr ? "ΑΦΜ is 9 digits" : "Check the VAT number";
+  if (gr) {
+    const afm = afmProblem(v);
+    if (afm) e.vatNo = afm;
+  } else if (!v) e.vatNo = "Enter the VAT number";
+  else if (!/^[A-Z0-9]{8,14}$/.test(v)) e.vatNo = "Check the VAT number";
   if (gr && d.taxOffice.trim().length < 2) e.taxOffice = "Enter the tax office (ΔΟΥ)";
   if (gr && d.activity.trim().length < 2) e.activity = "Enter the business activity";
   if (d.street.trim().length < 3) e.street = "Enter the street and number";
   if (gr ? !/^\d{3}\s?\d{2}$/.test(d.postcode.trim()) : d.postcode.trim().length < 3)
     e.postcode = gr ? "5 digits" : "Enter the postcode";
   if (d.city.trim().length < 2) e.city = "Enter the city";
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim())) e.email = "Enter an e-mail address";
+  if (!emailOk(d.email)) e.email = "Enter an e-mail address";
   return e;
 }
 

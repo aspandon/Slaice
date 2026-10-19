@@ -22,6 +22,7 @@ import { downloadReport } from "../../lib/download";
 import { makeTenant } from "../../data/tenants";
 import { mrrSeries } from "../../domain/platform";
 import { seasonToDate } from "../../data/economics";
+import { afmDigits, tenantVatProblem } from "../../domain/validate";
 import { useStatementOpts } from "../../lib/useEconomics";
 import { addDays, fmtDay } from "../../domain/period";
 import {
@@ -380,11 +381,15 @@ export function PlatformOnboarding() {
   const t = platform.tenants.find((x) => x.id === id && x.lifecycle === "onboarding");
   const [name, setName] = useState("New Beach Club");
   const [sub, setSub] = useState("newbeach");
+  const [afm, setAfm] = useState("");
+  const [afmTouched, setAfmTouched] = useState(false);
+  const newAfmErr = tenantVatProblem(afm, "Greece");
+  const vatErr = t ? tenantVatProblem(t.vatNo, t.country) : "";
   const drafts = platform.tenants.filter((x) => x.lifecycle === "onboarding");
   const setStep = (s: number) => t && updateTenant(t.id, (x) => ({ ...x, onboardingStep: s }));
   const step = t?.onboardingStep ?? 0;
   const create = () => {
-    const nt = makeTenant(name.trim(), sub.trim());
+    const nt = makeTenant(name.trim(), sub.trim(), `EL ${afmDigits(afm)}`);
     if (platform.tenants.some((x) => x.id === nt.id))
       return toast("That subdomain is taken.", { tone: "warn" });
     setPlatform((p) => ({ ...p, tenants: [...p.tenants, { ...nt, onboardingStep: 1 }] }));
@@ -394,6 +399,10 @@ export function PlatformOnboarding() {
   };
   const goLive = () => {
     if (!t) return;
+    if (vatErr) {
+      setStep(0);
+      return toast(`Fix the ΑΦΜ before going live — ${vatErr.toLowerCase()}.`, { tone: "warn" });
+    }
     updateTenant(
       t.id,
       (x) => ({
@@ -431,11 +440,24 @@ export function PlatformOnboarding() {
             <Field label="Subdomain" hint="{tenant}.slaice.app">
               <Input value={sub} onChange={(e) => setSub(e.target.value)} />
             </Field>
+            <Field
+              label="ΑΦΜ"
+              hint="9 digits — checked against the ΑΦΜ check digit"
+              error={afmTouched && newAfmErr ? newAfmErr : undefined}
+            >
+              <Input
+                value={afm}
+                inputMode="numeric"
+                onChange={(e) => setAfm(e.target.value)}
+                onBlur={() => setAfmTouched(true)}
+                aria-invalid={afmTouched && !!newAfmErr}
+              />
+            </Field>
           </div>
           <Btn
             variant="primary"
             icon={Icon.arrowR}
-            disabled={name.trim().length < 3 || sub.trim().length < 3}
+            disabled={name.trim().length < 3 || sub.trim().length < 3 || !!newAfmErr}
             onClick={create}
           >
             Create & continue
@@ -506,10 +528,11 @@ export function PlatformOnboarding() {
                 onChange={(e) => updateTenant(t.id, (x) => ({ ...x, name: e.target.value }))}
               />
             </Field>
-            <Field label="ΑΦΜ / VAT no.">
+            <Field label="ΑΦΜ / VAT no." error={vatErr || undefined}>
               <Input
                 value={t.vatNo}
                 onChange={(e) => updateTenant(t.id, (x) => ({ ...x, vatNo: e.target.value }))}
+                aria-invalid={!!vatErr}
               />
             </Field>
             <Field label="Owner e-mail">
@@ -665,7 +688,12 @@ export function PlatformOnboarding() {
             Back
           </Btn>
           {step < STEPS.length - 1 && (
-            <Btn variant="primary" icon={Icon.arrowR} onClick={() => setStep(step + 1)}>
+            <Btn
+              variant="primary"
+              icon={Icon.arrowR}
+              onClick={() => setStep(step + 1)}
+              disabled={step === 0 && !!vatErr}
+            >
               Continue
             </Btn>
           )}

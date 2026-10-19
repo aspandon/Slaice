@@ -9,12 +9,15 @@ import { useApp, useT } from "../../app/store";
 import { localeFor } from "../../app/i18n";
 
 /* ---------- Field / inputs ---------- */
-export function Field({ label, children, hint }: { label?: ReactNode; children?: ReactNode; hint?: ReactNode }) {
+/** `error` replaces the hint with a red message (pair it with `aria-invalid` on the input). */
+export function Field({ label, children, hint, error }: { label?: ReactNode; children?: ReactNode; hint?: ReactNode; error?: ReactNode }) {
   return (
     <label className="block">
       {label && <div className="text-[12px] font-semibold text-slate-700 mb-1">{label}</div>}
       {children}
-      {hint && <div className="text-[11px] text-slate-500 mt-1">{hint}</div>}
+      {error ? (
+        <div className="text-[11px] font-medium text-rose-700 mt-1 flex items-start gap-1"><Icon.alert size={12} className="shrink-0 mt-px" aria-hidden />{error}</div>
+      ) : hint && <div className="text-[11px] text-slate-500 mt-1">{hint}</div>}
     </label>
   );
 }

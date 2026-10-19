@@ -33,6 +33,7 @@ import { KV, ReasonModal, SectionFrame, useTenantDraft, type SectionProps } from
 import { eur as eurFull, rateLabel, subscriptionLabel, termsOf } from "../../domain/economics";
 import { seasonToDate } from "../../data/economics";
 import { useStatementOpts } from "../../lib/useEconomics";
+import { tenantVatProblem } from "../../domain/validate";
 import { invoiceDownload } from "../reporting/Statement";
 
 const eur = (n: number) => `€${n.toLocaleString("en-GB")}`;
@@ -232,7 +233,9 @@ export function Profile({ t }: SectionProps) {
     ] as const,
     "Profile",
     ["vatNo", "legalName"],
+    (x) => tenantVatProblem(x.vatNo, x.country),
   );
+  const vatErr = tenantVatProblem(d.draft.vatNo, d.draft.country);
   const { updateTenant, toast } = usePlatform();
   const [transfer, setTransfer] = useState<Contact | null>(null);
   const setContact = (i: number, p: Partial<Contact>) =>
@@ -249,8 +252,8 @@ export function Profile({ t }: SectionProps) {
         <Field label="Legal name">
           <Input value={d.draft.legalName} onChange={(e) => d.set("legalName", e.target.value)} />
         </Field>
-        <Field label="ΑΦΜ / VAT no.">
-          <Input value={d.draft.vatNo} onChange={(e) => d.set("vatNo", e.target.value)} />
+        <Field label="ΑΦΜ / VAT no." error={vatErr}>
+          <Input value={d.draft.vatNo} onChange={(e) => d.set("vatNo", e.target.value)} aria-invalid={!!vatErr} />
         </Field>
         <Field label="Address">
           <Input value={d.draft.address} onChange={(e) => d.set("address", e.target.value)} />

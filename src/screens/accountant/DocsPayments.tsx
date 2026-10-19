@@ -657,7 +657,7 @@ export function DocsPayments({ only, lead }: { only?: "documents" | "payments"; 
                 what={docNo(view)}
                 onExport={(f) => {
                   downloadReport(docNo(view), {
-                    brand: "Akti tou Iliou AE · VAT EL123456789 · Leof. Poseidonos 1, 174 55 Alimos",
+                    brand: "Akti tou Iliou AE · VAT EL123456783 · Leof. Poseidonos 1, 174 55 Alimos",
                     title: `${view.type} ${docNo(view)}`,
                     subtitle: `${fmtDay(view.date)} ${view.time} · ${view.counterparty}${view.vatNo ? ` · VAT ${view.vatNo}` : ""}`,
                     meta: [`Payment: ${view.method} · Zone: ${sectionName(view.section)} · Channel: ${view.channel}`, `myDATA MARK: ${view.mark || "pending"} · invoiceType ${DOC_CODE[view.type]}${view.original ? ` · corrects ${view.original}` : ""}`],
