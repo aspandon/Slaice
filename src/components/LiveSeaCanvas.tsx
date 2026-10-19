@@ -320,7 +320,7 @@ export default function LiveSeaCanvas({ preset, dy, env = DEFAULT_SEA_ENV, onFai
       failRef.current();
       return;
     }
-    const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+    let dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
     renderer.setPixelRatio(dpr);
 
     const shore = buildShore();
@@ -385,10 +385,27 @@ export default function LiveSeaCanvas({ preset, dy, env = DEFAULT_SEA_ENV, onFai
     let shown = false;
     let last = -1;
     let tAcc = 0; // the water's own clock — wind speeds it up
+    // Taps first (AENR-762): for a moment after any pointer press the sea skips
+    // its frames, so the tap's own update paints without waiting behind the
+    // shader. The water moves slowly enough that the pause doesn't show.
+    let yieldUntil = 0;
+    const onPress = () => { yieldUntil = performance.now() + 350; };
+    window.addEventListener("pointerdown", onPress, { capture: true, passive: true });
+    // Weak GPU: when frames keep running long, step the resolution down (to 0.75×
+    // at most) instead of slowing the whole page.
+    let slowFrames = 0;
     const tick = (now: number) => {
       raf = requestAnimationFrame(tick);
+      if (now < yieldUntil) { last = -1; return; }
       const dt = last < 0 ? 0.016 : Math.min(0.1, (now - last) / 1000);
       last = now;
+      slowFrames = dt > 0.028 ? slowFrames + 1 : Math.max(0, slowFrames - 1);
+      if (slowFrames > 45 && dpr > 0.76) {
+        slowFrames = 0;
+        dpr = Math.max(0.75, dpr - 0.25);
+        renderer.setPixelRatio(dpr);
+        resize();
+      }
       // Ease every env uniform toward its target, then advance the water
       // clock at a wind-scaled rate. Accumulating (rather than scaling t)
       // keeps the phase continuous while the wind changes.
@@ -424,6 +441,7 @@ export default function LiveSeaCanvas({ preset, dy, env = DEFAULT_SEA_ENV, onFai
     return () => {
       cancelAnimationFrame(raf);
       document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pointerdown", onPress, { capture: true });
       canvas.removeEventListener("webglcontextlost", onLost);
       ro.disconnect();
       geo.dispose();
