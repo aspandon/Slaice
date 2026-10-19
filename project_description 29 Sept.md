@@ -481,6 +481,11 @@ Cookie Policy. The decision is stored with a timestamp and can be changed any ti
   rate-limits, and retries it on the next run instead of saving the English as the translation (AENR-775);
   a 429 backs off 2 → 16 s, and the script goes through the environment's HTTPS proxy when one is set
   (`NODE_USE_ENV_PROXY=1` — the cloud container's direct route to Google is throttled).
+- **Hand-written corrections** (AENR-777): `src/locales/overrides/<lang>.json` always wins over the machine
+  translation, also with `--force`. Greek: an available set is **Διαθέσιμο Σετ** ("Free" → Διαθέσιμο,
+  "N free" → "N διαθέσιμα", availability sentences use διαθέσιμ-; free cancellation stays δωρεάν),
+  Leave → Αποχώρηση, Edit → Επεξεργασία, Earned → Κέρδησες. Checkout's cancellation line is assembled from
+  translated pieces, since the deadline makes the full sentence dynamic.
 - MVP languages are **English and Greek**. German, French, Spanish and Italian stay selectable but carry
   a **FUTURE** badge in the language menu and the account-settings language select (`mvp` flag on
   `LANGUAGES` in `src/app/i18n.ts`).

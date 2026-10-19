@@ -21,7 +21,8 @@ import { PROFILE, allCards, cardBrand, cardKey, cartKey, serviceFees, settleChec
 import { emptyInvoice, invoiceAddress, invoiceErrors, normalVatNo, type InvoiceDetails } from "../domain/invoiceDetails";
 import { InvoiceFields } from "./customer/InvoiceFields";
 import { SERVICE_NOUN, vatRates } from "../domain/economics";
-import { ARRIVAL_WINDOW, cancelLine, placedVisits, usual } from "../domain/visits";
+import { ARRIVAL_WINDOW, cancelDeadline, fmtDeadline, placedVisits, usual } from "../domain/visits";
+import type { GuestPolicy } from "../domain/visits";
 import { fmtDay, fmtWeekday } from "../domain/period";
 import { FullscreenQR, downloadVisitIcs } from "./customer/VisitTicket";
 import { useVisits, guestNow } from "../lib/useVisits";
@@ -105,7 +106,8 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
   const passApplied = rewardOff > 0 || seasonCovered > 0 || vipCover > 0 || creditUsed > 0;
   // The exact free-cancellation line for the earliest day in the basket (AENR-569).
   const firstDay = cart.map((i) => i.date).filter(Boolean).sort()[0] ?? todayISO();
-  const cancelBy = t(cancelLine(firstDay, guestNow(), policy));
+  const cancel = cancelTerms(firstDay, guestNow(), policy, t);
+  const cancelBy = cancel.text;
 
   // Pay → the payment moment (AENR-734): the progress steps and the success message run first, and
   // the booking is settled when they finish, so the pass appears only once everything is confirmed.
@@ -421,7 +423,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
           </div>
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-start gap-2 text-guest-caption text-slate-500 leading-snug">
             <Icon.shield size={13} className="shrink-0 mt-0.5 text-teal-600" />
-            <span><b className="text-navy-900">{cancelBy}</b>{cancelBy.startsWith(t("Free")) ? ` — ${policy.refundPct}% ${t("back, from My bookings in two taps.")}` : "."} <button onClick={() => toast(t("Demo — terms of service."))} className="underline hover:text-navy-900">{t("Terms")}</button></span>
+            <span><b className="text-navy-900">{cancelBy}</b>{cancel.free ? ` — ${policy.refundPct}% ${t("back, from My bookings in two taps.")}` : "."} <button onClick={() => toast(t("Demo — terms of service."))} className="underline hover:text-navy-900">{t("Terms")}</button></span>
           </div>
           <div className="mt-2 text-guest-caption text-slate-500 leading-snug">
             {OPERATOR.legal} · {t("VAT")} {OPERATOR.vat} · {OPERATOR.address}<br />
@@ -593,7 +595,7 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
             <div className="rounded-xl bg-slate-50 px-3 py-2 col-span-2"><dt className="text-slate-500 text-guest-caption">{t("Entrance")}</dt><dd className="font-semibold text-navy-900 flex items-center justify-between gap-2"><span>{t("Main gate")} · {OPERATOR.address}</span>
               <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${TENANT.name} ${TENANT.place}`)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-teal-700 hover:underline shrink-0"><Icon.map size={14} /> {t("Map")}<span className="sr-only"> ({t("opens in a new tab")})</span></a></dd></div>
           </dl>
-          <p className="mt-3 text-guest-caption text-slate-600">{t(cancelLine(date, guestNow(), extras.policy))} · {booking?.invoiceTo ? `${t("invoice to")} ${booking.invoiceTo.company} (${booking.invoiceTo.vatNo}) ${t("e-mailed to")} ${booking.invoiceTo.email}` : t("receipt e-mailed")}</p>
+          <p className="mt-3 text-guest-caption text-slate-600">{cancelTerms(date, guestNow(), extras.policy, t).text} · {booking?.invoiceTo ? `${t("invoice to")} ${booking.invoiceTo.company} (${booking.invoiceTo.vatNo}) ${t("e-mailed to")} ${booking.invoiceTo.email}` : t("receipt e-mailed")}</p>
         </div>
       </article>
 
@@ -613,3 +615,10 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
   );
 }
 
+/** The cancellation terms for a visit day, built from translated pieces (the deadline varies, so the
+ *  whole sentence can't be one dictionary key) — and whether it is still free to cancel. */
+function cancelTerms(visitIso: string, now: string, p: GuestPolicy, t: (s: string) => string) {
+  const d = cancelDeadline(visitIso, p);
+  if (now < d) return { free: true, text: `${t("Free cancellation until")} ${fmtDeadline(d)}` };
+  return { free: false, text: p.lateRefundPct > 0 ? `${p.lateRefundPct}% ${t("refund if you cancel")}` : t("This booking can’t be refunded") };
+}

@@ -141,6 +141,11 @@ for (const lang of langs) {
     : {};
   const merged = {};
   for (const s of strings) if (s in existing || s in fresh) merged[s] = existing[s] ?? fresh[s];
+  // Hand-written corrections (src/locales/overrides/<lang>.json) always win over the machine
+  // translation, so a rerun or --force never undoes them.
+  const ovFile = path.join(LOCALES, "overrides", `${lang}.json`);
+  const overrides = fs.existsSync(ovFile) ? JSON.parse(fs.readFileSync(ovFile, "utf8")) : {};
+  for (const [k, v] of Object.entries(overrides)) if (strings.includes(k)) merged[k] = v;
   fs.writeFileSync(file, JSON.stringify(merged, null, 2) + "\n");
   console.log(`\r[${lang}] wrote ${path.relative(ROOT, file)} (${strings.length} entries)        `);
 }

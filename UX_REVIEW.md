@@ -245,7 +245,7 @@ Details for the items that need action, most urgent first. N-numbers are new in 
   `useDialogFocus`, and give the dialog its title as a name.
 - ✅ **Resolved (AENR-768, 19 Oct 2026: Privacy Center, Security, wallet pass, closed-beach notice, sunbed names and tooltips and the stepper now go through `t()`; guest prices follow the language — "31,50 €" in Greek)** — **4.6 · i18n:** route the remaining customer strings through `t()`, then have a native speaker review
   the Greek. *Still open: the native-speaker review — machine translation gets some words wrong in context
-  (e.g. "Free" set → "Δωρεάν", i.e. free of charge; "Leave" → "Άδεια", i.e. time off).*
+  (e.g. "Free" set → "Δωρεάν", i.e. free of charge; "Leave" → "Άδεια", i.e. time off).* *AENR-777: the owner's corrections (Διαθέσιμο Σετ, Αποχώρηση, Επεξεργασία, Κέρδησες) are applied through `src/locales/overrides/el.json`; a full native review is still open.*
 - ✅ **Resolved (AENR-553, verified 19 Oct 2026)** — **3.1 · ⌘K / staff search:** bring back a palette that navigates and searches bookings, users and
   documents — Admin now has 13 destinations.
 - ✅ **Resolved (verified 19 Oct 2026: phones have Home · Plan · Bookings · Wallet · Account tabs)** — **3.3 · Account in one tap:** add a customer **Bookings** tab on phones (the tab bar only has Home and
