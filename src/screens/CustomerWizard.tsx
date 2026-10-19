@@ -543,6 +543,10 @@ function WizardInner() {
   const terms = useSiteTerms();
   const feeTotal = grandTotal > 0 ? serviceFees(buildItems(), terms).total : 0;
   const allIn = Math.round((grandTotal + feeTotal) * 100) / 100;
+  // The footer grows step by step (owner, AENR-733): Where shows the sets only, Who adds the entry
+  // tickets, and Pay shows the all-in total with the service fee and any locker / parking.
+  const stepTotal = step.id === "beach" ? setSubtotal : step.id === "people" ? setSubtotal + ticketSubtotal : allIn;
+  const stepFee = step.id === "beach" || step.id === "people" ? 0 : feeTotal;
 
   // The Pay step pays (AENR-640): this visit's items are kept in the basket while the guest is on
   // Pay (replacing the ones from an earlier pass), and the checkout panel below takes the payment.
@@ -775,7 +779,7 @@ function WizardInner() {
             {step.id === "review" && payItems ? (
               // On Pay the payment panel holds the one total that counts (rewards, credit, passes applied).
               <div className="leading-tight min-w-0 text-guest-meta text-slate-600">{tr("Check the total and pay below.")}</div>
-            ) : step.id === "when" || grandTotal === 0 || (step.id === "beach" && bedSel.length === 0) ? (
+            ) : step.id === "when" || stepTotal === 0 || (step.id === "beach" && bedSel.length === 0) ? (
               // A calm first step (AENR-658): no price before a set is chosen; the
               // cancellation terms appear once, on Pay.
               <div className="leading-tight min-w-0 text-guest-meta text-slate-600">
@@ -784,8 +788,9 @@ function WizardInner() {
             ) : (
             // Just the total (AENR-682): the truncated set/day line and the "all-in" toggle are gone.
             <div className="leading-tight min-w-0">
-              <span className="font-display text-2xl font-bold text-navy-900 tnum leading-none" data-wizard-total>€<LiveEuro value={allIn} /></span>
-              {feeTotal > 0 && <span className="block mt-1 text-guest-caption text-slate-500 tnum" data-wizard-fee>{tr("incl. service fee")} €{feeTotal.toFixed(2)}</span>}
+              <span className="font-display text-2xl font-bold text-navy-900 tnum leading-none" data-wizard-total>€<LiveEuro value={stepTotal} /></span>
+              {step.id === "people" && ticketSubtotal > 0 && <span className="block mt-1 text-guest-caption text-slate-500 tnum">{tr("incl. entry tickets")} €{ticketSubtotal}</span>}
+              {stepFee > 0 && <span className="block mt-1 text-guest-caption text-slate-500 tnum" data-wizard-fee>{tr("incl. service fee")} €{stepFee.toFixed(2)}</span>}
             </div>
             )}
             <div className="flex items-center gap-2">
