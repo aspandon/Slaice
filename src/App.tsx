@@ -38,9 +38,6 @@ import type { PayLink } from "./domain/payLink";
 import { DEFAULT_DISPLAY, displayLangs, type DisplayConfig } from "./domain/display";
 import { lazyWithReload } from "./lib/staleChunk";
 import { GuardCtx, Skeleton, TableSkeleton } from "./components/ui";
-import { ViewAsBanner } from "./screens/tenant/ViewAs";
-import { PlatformJanitor } from "./screens/tenant/Janitor";
-import { TenantSwitcher } from "./screens/tenant/TenantSwitcher";
 import { DEFAULT_LAYOUT_STATE, type LayoutState } from "./domain/layoutVersions";
 import { DEFAULT_EXTRAS, type ExtrasState } from "./domain/extras";
 import { DEFAULT_ACCOUNT, type AccountState } from "./domain/account";
@@ -50,14 +47,11 @@ import { DEFAULT_COMMS, type CommsState } from "./data/comms";
 import { DEFAULT_PRIVACY, type PrivacyState } from "./data/gdpr";
 import { DEFAULT_INCIDENTS } from "./data/incidents";
 import type { Incident } from "./domain/incidents";
-import { CommsJanitor } from "./screens/communicate/Janitor";
 import { DEFAULT_TENANTS, SEED_TERMS } from "./data/tenants";
 import { DEFAULT_CLOSED_STORES } from "./data/beach";
 import { DEFAULT_TILL } from "./data/till";
 import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "./data/beach";
 import type { SceneFx, WeatherKind } from "./data/beach";
-import { OfflineBanner, ShiftSwitch } from "./screens/cashier/TillStatus";
-import { CommandPalette } from "./components/CommandPalette";
 import { migrateLegacySegments, stripLegacyTags, visitSegmentName } from "./domain/segments";
 
 import { Automations } from "./lib/useAutomations";
@@ -134,6 +128,16 @@ const LiveDisplay = lazyWithReload(() => import("./screens/display/LiveDisplay")
 // `#/pass?b=…&k=…` is a booking shared with the group (AENR-715): a public guest view — no
 // sign-in, shell or cookie banner; like the display it reads the shared state and never writes it.
 const PASS = hashPath().startsWith("#/pass");
+/* Shell parts guests never see, and background jobs, load as their own chunks
+   (AENR-764): the staff-only ones only for staff personas, the rest right after
+   the first render — none of them sits in the first download any more. */
+const ViewAsBanner = lazyWithReload(() => import("./screens/tenant/ViewAs").then((m) => ({ default: m.ViewAsBanner })));
+const PlatformJanitor = lazyWithReload(() => import("./screens/tenant/Janitor").then((m) => ({ default: m.PlatformJanitor })));
+const TenantSwitcher = lazyWithReload(() => import("./screens/tenant/TenantSwitcher").then((m) => ({ default: m.TenantSwitcher })));
+const CommsJanitor = lazyWithReload(() => import("./screens/communicate/Janitor").then((m) => ({ default: m.CommsJanitor })));
+const OfflineBanner = lazyWithReload(() => import("./screens/cashier/TillStatus").then((m) => ({ default: m.OfflineBanner })));
+const ShiftSwitch = lazyWithReload(() => import("./screens/cashier/TillStatus").then((m) => ({ default: m.ShiftSwitch })));
+const CommandPalette = lazyWithReload(() => import("./components/CommandPalette").then((m) => ({ default: m.CommandPalette })));
 const GuestPass = lazyWithReload(() => import("./screens/customer/GuestPass").then((m) => ({ default: m.GuestPass })));
 
 /** The customer's tabs in navigation order — sets the direction of page transitions (AENR-750). */
@@ -564,11 +568,13 @@ export default function App() {
               <button type="button" onClick={exitViewAs} className="rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1.5 font-semibold transition">Exit preview</button>
             </div>
           )}
-          <ViewAsBanner />
-          <PlatformJanitor />
-          <CommsJanitor />
-          {persona === "platform" && <TenantSwitcher />}
-          <CommandPalette />
+          <Suspense fallback={null}>
+            {(persona !== "customer" || platform.viewAs) && <ViewAsBanner />}
+            <PlatformJanitor />
+            <CommsJanitor />
+            {persona === "platform" && <TenantSwitcher />}
+            <CommandPalette />
+          </Suspense>
           {/* Routine decisions that run by themselves — refund policy, no-show release (AENR-623). */}
           <Automations />
           {persona !== "platform" && platform.siteTenant !== "akti" && (
@@ -577,7 +583,7 @@ export default function App() {
               <button type="button" onClick={() => setPlatformState((p) => ({ ...p, siteTenant: "akti" }))} className="ml-auto rounded-lg bg-white/15 hover:bg-white/25 px-3 py-1 font-semibold">Back to Akti tou Iliou</button>
             </div>
           )}
-          <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} previewing={!!viewAs} lead={persona === "cashier" && tenantRoleOn(siteTenant, "cashier") ? <ShiftSwitch /> : undefined} />
+          <TopBar persona={persona} setPersona={setPersona} page={page} setPage={setPage} previewing={!!viewAs} lead={persona === "cashier" && tenantRoleOn(siteTenant, "cashier") ? <Suspense fallback={null}><ShiftSwitch /></Suspense> : undefined} />
           {persona === "customer" ? (
             // flex-1 lets the content region grow so the SiteFooter is pushed to
             // the bottom of the viewport (the beach backdrop's green band)
@@ -594,7 +600,7 @@ export default function App() {
               {persona !== "cashier" && <Sidebar persona={persona} page={page} setPage={setPage} />}
               {/* While Slaice staff view a tenant, the guard disables mutating / blocked controls (AENR-515). */}
               <GuardCtx.Provider value={guard}>
-                <main className="flex-1 min-w-0">{persona === "cashier" && <TillTabs persona={persona} page={page} setPage={setPage} />}{persona === "cashier" && !viewAs && <OfflineBanner />}{viewAs && !hasRole(viewAs, persona) ? <AccessDenied user={viewAs} onHome={() => go(viewAsHome, DEFAULT_PAGE[viewAsHome])} /> : <PageGate persona={persona} page={page}><Suspense fallback={<RouteLoading />}>{routeFor(persona, page)}</Suspense></PageGate>}</main>
+                <main className="flex-1 min-w-0">{persona === "cashier" && <TillTabs persona={persona} page={page} setPage={setPage} />}{persona === "cashier" && !viewAs && <Suspense fallback={null}><OfflineBanner /></Suspense>}{viewAs && !hasRole(viewAs, persona) ? <AccessDenied user={viewAs} onHome={() => go(viewAsHome, DEFAULT_PAGE[viewAsHome])} /> : <PageGate persona={persona} page={page}><Suspense fallback={<RouteLoading />}>{routeFor(persona, page)}</Suspense></PageGate>}</main>
               </GuardCtx.Provider>
             </div>
           )}
