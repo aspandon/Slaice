@@ -1802,6 +1802,8 @@ Roles: the tenant (beach operator) is the **controller**; Slaice is the **proces
 
 ### K-01 · Sell — the till [MVP]
 
+> AENR-761: **a till you can scan in a second** — entry-ticket keys stay navy with a ticket icon and combos turn teal with a group icon, each section heading carries the same icon chip; the basket counts on keys and product tabs pop when they change; the page keeps room at its end for the pinned Charge bar on phones, so it never sits on tiles.
+
 > AENR-654: **the till uses the whole screen** — no sidebar for the Cashier: **Sell · Sales · Register** are tabs across the top on every width (they replace the phone tab bar); no page description; the shift strip and a “…” menu (Today’s transactions, Open live display) share one row. Tablets keep the basket as the right column; phones keep a pinned bar with the total and **Charge €X** (tap the total to jump to the basket) — it hides only when most of the basket is on screen. The pinned bar is drawn on the page body, so the page’s entrance animation can no longer push it below the screen.
 
 ```text
