@@ -2,10 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* A local face sized to Inter's metrics (AENR-751): while the Inter web font
+   loads, text renders in Arial scaled to match, so the swap doesn't reflow the
+   page (it was Home's 0.11 layout shift). Apple devices use the system font and
+   never swap. Overrides as computed by next/font for Inter over Arial. */
+@font-face {
+  font-family: "Inter Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("Arimo");
+  ascent-override: 90.44%;
+  descent-override: 22.52%;
+  line-gap-override: 0%;
+  size-adjust: 107.12%;
+}
+
 :root {
   /* Apple-leaning system stack: real SF on Apple devices, Inter everywhere else. */
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
-  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Inter Fallback", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Inter Fallback", system-ui, sans-serif;
 }
 
 html,

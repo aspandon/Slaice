@@ -12,7 +12,7 @@ import { GlideLogo } from "./components/GlideLogo";
 import { prefetchPersona, routeFor } from "./routes";
 import { PageGate } from "./components/Shell/PageGate";
 import { parseHash, buildHash, hashPath, isValidPage, resolvePage } from "./app/router";
-import { HTML_LANG, deviceLang, normalizeLang } from "./app/i18n";
+import { HTML_LANG, deviceLang, isLangLoaded, loadLang, normalizeLang } from "./app/i18n";
 import { DEFAULT_BACKGROUND } from "./data/backgrounds";
 import { DEFAULT_PASSES, DEFAULT_PASS_PRICING, SEASON_END_LABEL, seasonValidUntil, round2 } from "./data/passes";
 import { DEFAULT_LOYALTY } from "./data/loyalty";
@@ -157,7 +157,16 @@ export default function App() {
   const [signedIn, setSignedIn] = useState(!!saved.signedIn);
   // The language follows the device until the guest picks one (AENR-626); only a choice is saved.
   const [langChoice, setLangChoice] = useState<LangCode | null>(saved.lang ? normalizeLang(saved.lang) : null);
-  const lang = langChoice ?? deviceLang();
+  const wantLang = langChoice ?? deviceLang();
+  // Dictionaries load on demand (AENR-751): the UI keeps the language it has
+  // until the chosen one's dictionary arrives, then switches in one go.
+  const [loadedLang, setLoadedLang] = useState<LangCode>(wantLang);
+  const lang = isLangLoaded(wantLang) ? wantLang : loadedLang;
+  useEffect(() => {
+    let live = true;
+    loadLang(wantLang).then(() => live && setLoadedLang(wantLang));
+    return () => { live = false; };
+  }, [wantLang]);
   const setLang = useCallback((l: LangCode) => setLangChoice(l), []);
   const setLangAuto = useCallback(() => setLangChoice(null), []);
   const langAuto = langChoice === null;

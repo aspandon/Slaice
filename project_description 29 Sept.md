@@ -463,6 +463,9 @@ Cookie Policy. The decision is stored with a timestamp and can be changed any ti
   when it is one we offer (`deviceLang()` reads `navigator.languages`), else English. Only an explicit choice
   is saved; **Automatic** (top of the globe menu and of Account › Language, showing the device's language)
   goes back to following the device.
+- **One dictionary per visitor** (AENR-751): each language is its own chunk, loaded on demand — `main.tsx`
+  loads the saved or device language before the first render (no flash of English), and a switch keeps the
+  current language until the new dictionary arrives, then changes in one go. English needs none.
 - `<html lang>` follows the selected language; dates use `Intl` (`en-GB` for English).
 - Coverage: the **customer surface** is translated; **staff screens are largely English-only**.
 - MVP languages are **English and Greek**. German, French, Spanish and Italian stay selectable but carry
@@ -3124,7 +3127,8 @@ Many screens still import `src/data/*` constants directly.
 | Tests      | None yet                                                                                                                                                |
 | Agent tooling | Project MCP servers in `.mcp.json` (Chrome DevTools, Playwright, Context7, a11y, Lighthouse) and the official GSAP skills in `.claude/skills` — development only, not in the bundle (AENR-741) |
 | CI/CD      | GitHub Actions on push to `main`: `npm ci` → typecheck → lint → build → commit `docs/` → GitHub Pages                                                   |
-| Chunks     | `react`, `radix`, `icons`, `vendor`, lazy `BeachCanvas` (konva), lazy `LiveSeaCanvas` (three)                                                           |
+| Chunks     | `react`, `radix`, `icons`, `vendor`, lazy `BeachCanvas` (konva), lazy `LiveSeaCanvas` (three), one lazy chunk per language (AENR-751)              |
+| First screen (AENR-751) | Measured with Chrome DevTools traces on the production build, customer Home, 390 px, 4× CPU, Fast 4G: JavaScript before first paint 412 → 307 KB gzip (entry chunk 270 → 165 KB: the five dictionaries no longer ship up front); layout shift 0.11 → 0.00 (visit-shaped skeletons hold the next-visit card's and the Plan-another-visit tile's place while bookings load, instead of the generic hero flashing first; Inter has a size-matched local fallback); LCP ≈ 1.95 s → ≈ 1.73 s (average of runs; the container's slow Google Fonts fetch dominates what is left). |
 
 ### Folder structure
 

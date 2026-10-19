@@ -35,14 +35,27 @@ export const LANGUAGES: Language[] = [
   { code: "it", label: "Italian", native: "Italiano", html: "it", mvp: false },
 ];
 
-// Bundle every generated dictionary at build time. Missing files (e.g. a language
-// added to LANGUAGES before the script has run) simply leave that language
-// falling back to English.
-const files = import.meta.glob<{ default: Record<string, string> }>("../locales/*.json", { eager: true });
+// Each generated dictionary is its own chunk, loaded on demand (AENR-751): a
+// visitor downloads only the language they read — main.tsx loads it before the
+// first render, and a later switch loads the new one before the UI changes
+// language. Missing files (a language added to LANGUAGES before the script has
+// run) simply leave that language falling back to English.
+const loaders = import.meta.glob<{ default: Record<string, string> }>("../locales/*.json");
 const DICTS: Record<string, Record<string, string>> = {};
-for (const path in files) {
-  const m = /([a-z-]+)\.json$/.exec(path);
-  if (m) DICTS[m[1]] = files[path].default;
+
+/** True once `lang`'s dictionary is in memory (English needs none). */
+export function isLangLoaded(lang: LangCode): boolean {
+  return lang === "en" || !!DICTS[lang] || !loaders[`../locales/${lang}.json`];
+}
+
+/** Load `lang`'s dictionary; resolves at once when it is already loaded. */
+export async function loadLang(lang: LangCode): Promise<void> {
+  if (isLangLoaded(lang)) return;
+  try {
+    DICTS[lang] = (await loaders[`../locales/${lang}.json`]()).default;
+  } catch {
+    DICTS[lang] = {}; // offline / stale chunk: show English rather than nothing
+  }
 }
 
 export const HTML_LANG: Record<string, string> = Object.fromEntries(LANGUAGES.map((l) => [l.code, l.html]));

@@ -10,6 +10,7 @@ import { ZONES, zoneLayout, WEATHER_DEMO, TENANT, forecastFor, todayISO, chipLab
 import { QR } from "../../components/charts";
 import { qrCode } from "../../domain/entry";
 import { useVisits } from "../../lib/useVisits";
+import { useDemoFlag } from "../../lib/useDemoFlag";
 import { ARRIVAL_ENDS, ARRIVAL_WINDOW, homeMoment, type MomentKind, type Visit } from "../../domain/visits";
 import { useRebook, type Rebook } from "../../lib/useRebook";
 import { partyLabel } from "../../domain/account";
@@ -50,7 +51,12 @@ let homeIntroPlayed = false;
 export function CustomerHome() {
   const { dive, loyalty, beachLayout } = useApp();
   const { weather, dayTime, sceneFx } = useGuestScene();
-  const { visits } = useVisits();
+  const { visits, status: visitsStatus } = useVisits();
+  // While the guest's bookings load, hold the visit card's place with its own
+  // shape (AENR-751) — the generic hero used to flash first and the taller visit
+  // card then pushed the page down (Home's 0.11 layout shift). First-time guests
+  // (demo flag) have no history to wait for.
+  const [firstTimer] = useDemoFlag("newGuest");
   const t = useT();
   // The hero chip mirrors the demo scene: weather icon/label/temp plus a
   // greeting that follows the scene clock (both fall back to a sunny noon
@@ -166,6 +172,7 @@ export function CustomerHome() {
         : moment.kind === "during" ? <AtBeachCard v={moment.v} />
         : moment.kind === "after" ? <AfterVisitCard v={moment.v} rebook={rebook} />
         : moment.kind === "offseason" ? <OffSeasonCard opens={moment.opens} />
+        : visitsStatus === "loading" && !firstTimer ? <VisitCardSkeleton />
         : hero}
 
       {/* One column when only one tile is left (roadmap promo hidden / dismissed, AENR-691) — no half-empty row. */}
@@ -174,7 +181,7 @@ export function CustomerHome() {
         {/* Rebook your usual — from the guest's own visits (the after-visit card already offers it) */}
         {moment.kind !== "after" && <>
         {/* "Book again" opens Pay with exactly this proposal filled in (AENR-611 / 705); first-timers get the guided booking. */}
-        {rebook.status === "none" ? (
+        {visitsStatus === "loading" && !firstTimer ? <RebookSkeleton /> : rebook.status === "none" ? (
           <button onClick={() => dive()} className={`${CARD} p-5 flex flex-col gap-2.5 text-left hover:bg-white/80 transition-colors group`} data-home-card>
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
@@ -277,6 +284,51 @@ function NextVisitCard({ v, qrFirst = false }: { v: Visit; qrFirst?: boolean }) 
       {qr && <VisitQR v={v} onClose={() => setQr(false)} />}
       {share && <ShareSheet v={v} onClose={() => setShare(false)} />}
     </section>
+  );
+}
+
+/* The visit card's shape while bookings load (AENR-751): same card, paddings,
+   rows and QR block as NextVisitCard on the morning of a visit, so the real
+   card lands without moving anything below it. */
+function VisitCardSkeleton() {
+  const t = useT();
+  const bar = "skeleton rounded-lg";
+  return (
+    <section aria-busy="true" aria-label={t("Loading your next visit")} className={`${CARD} p-5 sm:p-7`}>
+      <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
+        <div className="min-w-0 flex-1">
+          <div className={`${bar} h-[15px] w-40`} />
+          <div className={`${bar} mt-1.5 h-[30px] w-64 max-w-full`} />
+          <div className={`${bar} mt-1 h-[22px] w-full max-w-md`} />
+          <div className={`${bar} mt-1 h-[22px] w-40 sm:hidden`} />
+          <div className={`${bar} mt-3 h-[19px] w-56`} />
+          <div className="mt-4 flex flex-wrap gap-2">
+            {[112, 96, 124, 150].map((w) => <div key={w} className="skeleton rounded-[14px] h-11" style={{ width: w }} />)}
+          </div>
+        </div>
+        <div className="order-first sm:order-none self-center shrink-0 rounded-2xl bg-white/70 p-2.5 ring-1 ring-slate-200">
+          <div className="skeleton rounded-lg w-[168px] h-[168px]" />
+          <div className="skeleton rounded mt-1 h-4 w-20 mx-auto" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* The "Plan another visit" tile's shape while bookings load (AENR-751). */
+function RebookSkeleton() {
+  return (
+    <div aria-hidden className={`${CARD} p-5 flex flex-col gap-2.5`}>
+      <div className="flex items-center gap-3">
+        <div className="skeleton w-10 h-10 rounded-xl shrink-0" />
+        <div className="flex-1 min-w-0 grid gap-1.5">
+          <div className="skeleton rounded h-4 w-40" />
+          <div className="skeleton rounded h-3.5 w-56 max-w-full" />
+        </div>
+      </div>
+      <div className="skeleton rounded-2xl h-[88px]" />
+      <div className="skeleton rounded-[14px] h-11 w-32" />
+    </div>
   );
 }
 
