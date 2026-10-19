@@ -193,7 +193,10 @@ Details for the items that need action, most urgent first. N-numbers are new in 
   here) with the glyph centred — and/or let phones pinch-zoom or scroll the sand. Freeing height from
   the menu (2.4) helps as well.
 
-#### N3 · The action cluster hides the wizard's step counter on phones
+#### N3 · The action cluster hides the wizard's step counter on phones — ✅ Resolved (verified 19 Oct 2026)
+
+- **Verified:** the wizard is now a bottom sheet (AENR-660) with "Step N of 4 · …" in the sheet header, far from the
+  top-right cluster; the rail has four short labels (When · Where · Who · Pay).
 
 - **Evidence:** the customer's floating basket / notifications / language / account cluster is
   `fixed top-3 right-3 z-40` (`src/components/Shell/TopBar.tsx:107`). At 390×844 it lands on the
@@ -203,7 +206,10 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 - **Fix:** on phones, reserve the cluster's width in the wizard header or move the cluster into the
   menu, and use a short "Parking" label in the rail.
 
-#### 2.4 · The wizard menu takes 44% of a phone screen (partly done)
+#### 2.4 · The wizard menu takes 44% of a phone screen — ✅ Resolved (verified 19 Oct 2026)
+
+- **Verified:** in the set phase the sheet starts lowered to one line plus the footer (AENR-660), and the tab bar
+  steps aside in the wizard (AENR-752), so the sand gets most of the screen.
 
 - **Evidence:** in the set-picking phase the glass menu is 373 px tall on an 844 px viewport; with the
   legend bar and the tab bar below, the sand gets well under half the screen for 48 sets.
@@ -219,7 +225,7 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 - **Progress:** `slate-500` is darkened to `#5b6b82` (passes on tinted panels), the staff sidebar group
   labels, till and month-end captions moved off `slate-400`, notification counts are navy on gold and trend
   pills use the -700 shades; axe now reports no contrast failures on the main customer and staff pages.
-  Remaining `slate-400` text in less-visited screens is still to sweep.
+  The sweep of less-visited screens followed in AENR-765.
 
 - **Evidence:** `text-slate-400` (#94a3b8) is 2.56:1 on white and 2.41:1 on the `#f6f8fb` page, and
   lower on glass. It carries real text in the wizard's upcoming-step labels (10 px,
@@ -239,9 +245,9 @@ Details for the items that need action, most urgent first. N-numbers are new in 
   `useDialogFocus`, and give the dialog its title as a name.
 - **4.6 · i18n:** route the remaining customer strings through `t()`, then have a native speaker review
   the Greek.
-- **3.1 · ⌘K / staff search:** bring back a palette that navigates and searches bookings, users and
+- ✅ **Resolved (AENR-553, verified 19 Oct 2026)** — **3.1 · ⌘K / staff search:** bring back a palette that navigates and searches bookings, users and
   documents — Admin now has 13 destinations.
-- **3.3 · Account in one tap:** add a customer **Bookings** tab on phones (the tab bar only has Home and
+- ✅ **Resolved (verified 19 Oct 2026: phones have Home · Plan · Bookings · Wallet · Account tabs)** — **3.3 · Account in one tap:** add a customer **Bookings** tab on phones (the tab bar only has Home and
   Plan, then More) and a visible link on desktop.
 
 ### P2
@@ -255,7 +261,10 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 - **Fix:** require a plate before Confirm when parking is on, or flag the gap in Review ("Add a plate
   for automatic entry") with a link back to the step.
 
-#### N4 · Orders paid entirely by a pass confirm as "Payment successful · Stripe paid"
+#### N4 · Orders paid entirely by a pass confirm as "Payment successful · Stripe paid" — ✅ Resolved (verified 19 Oct 2026)
+
+- **Verified:** the payment moment (AENR-734) says "Payment complete" only when a card was charged, otherwise
+  "Booking confirmed"; the "Stripe paid" pill is gone.
 
 - **Evidence:** when VIP credit or a Season pass covers the whole order, Checkout says "Settled from
   your pass · no card charged", but `finish()` (`src/screens/Checkout.tsx:56`) lands on the same
@@ -263,7 +272,9 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 - **Fix:** pass the settlement method to `Confirmation` and adapt its title and pills (for example
   "Booked with your pass · no card charged").
 
-#### N5 · Checkout's "what happens next" is internal jargon
+#### N5 · Checkout's "what happens next" is internal jargon — ✅ Resolved (verified 19 Oct 2026)
+
+- **Verified:** no "webhook" or "ΑΠΥ → MyDATA" wording remains on Checkout or the guest screens.
 
 - **Evidence:** under the basket: _"On success: booking confirmed via webhook, QR e-mailed, and an ΑΠΥ
   auto-issued to MyDATA."_ (`src/screens/Checkout.tsx:138`). The Confirmation pill "ΑΠΥ → MyDATA ✓"
@@ -271,7 +282,10 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 - **Fix:** plain language for guests, such as "After payment we'll e-mail your QR and a tax receipt,
   also kept in My Documents". Keep the myDATA detail on staff screens.
 
-#### N6 · The Locker step promises a feature that doesn't exist
+#### N6 · The Locker step promises a feature that doesn't exist — ✅ Resolved (verified 19 Oct 2026)
+
+- **Verified:** the Locker step was folded into Pay's "Add a locker or parking" (AENR-696); the sentence is gone
+  from the code (only stale dictionary entries remain).
 
 - **Evidence:** _"Pick exact lockers later from the My Bookings QR."_
   (`src/screens/CustomerWizard.tsx:1051`), but My Bookings has no locker picking. The sentence is also
