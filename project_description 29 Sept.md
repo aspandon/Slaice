@@ -378,8 +378,10 @@ Four pages with distinct names (AENR-642); old `invoicing` and `commission` link
     alerts, offers & promotions, receipts & documents).
   - **Language** menu: English, Ελληνικά, Deutsch, Français, Español, Italiano.
   - **Account** menu (avatar "EM"): My bookings, My documents, Account settings, Sign out.
-- **Bottom tab bar** on phones (always visible, including inside the wizard), with a **More** sheet
-  when a persona has more than 5 destinations.
+- **Bottom tab bar** on phones, with a **More** sheet when a persona has more than 5 destinations. In
+  the booking wizard it slides away and the step's own action bar (total + Back/Continue) is the only
+  footer; **Leave** is the way out and asks first when sets are picked ("Leave this booking?" — Keep
+  booking / Leave). The bar slides back on the next page (AENR-752).
 - **Persona switcher "DEMO" pill**, bottom-right **[DEMO]**.
 - **Scene demo panel**, bottom-left on Home: time-of-day slider + weather picker **[DEMO]**. The live
   sea, weather and time-of-day scene is **FUTURE** (badge in the panel and on the admin Atmosphere
@@ -621,7 +623,7 @@ Entrance motion: full choreography once per session, then a quick card stagger o
 on desktop (≥ 1024 px) the beach fills the left two-thirds from the shoreline down (the wizard lifts the
 shoreline to 20 % of the screen) and the steps, choices and running total sit in a column on the right
 (`min(460px, 36vw)`, under the account bar), with the guidance bar and "powered by SLAiCE" under the
-beach. Below 1024 px the panel is a **bottom sheet** above the tab bar with a handle (tap or swipe):
+beach. Below 1024 px the panel is a **bottom sheet** on the screen's bottom edge (the tab bar steps aside, AENR-752) with a handle (tap or swipe):
 lowered it shows only the total + Back/Continue and a line such as "19 Jul · Akanthus · Change ⌃";
 raised it shows the whole step (up to 78 % of the screen). It starts lowered on Where (zones
 and sets) and raised on When, Who and Pay; the guest's own choice per step wins. **Phones choose the zone inside the step** (AENR-693, < 768 px or short screens): Where opens raised with a **Zone → Sets** indicator and a list of large zone rows (logo or colour, name, “N free · from €X”, “closed”/“full on this day”, “N picked”); picking a zone lowers the panel onto that zone's map, whose handle reads “Macaw · 1 set · tap a set on the map ⌃”; the Zone step (showing the chosen zone ✓) or Back returns to the list. No zone cards sit behind the panel on phones. On phones (< 768 px) a

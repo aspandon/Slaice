@@ -560,9 +560,10 @@ export default function App() {
           {/* The tenant badge bows out once the guest dives into the booking
               wizard, so the beach + zones take over the screen. */}
           {!immersive && <SiteFooter />}
-          {/* Bottom tab bar (mobile only) stays visible everywhere — including the
-              immersive booking flow — so global navigation is always reachable. */}
-          {persona !== "cashier" && <BottomTabBar persona={persona} page={page} setPage={setPage} />}
+          {/* Bottom tab bar (mobile only). In the customer booking flow it slides
+              away so the step's own action bar is the only footer (AENR-752);
+              "Leave" is the way out, and the bar returns with the next page. */}
+          {persona !== "cashier" && <BottomTabBar persona={persona} page={page} setPage={setPage} away={immersive} />}
           {/* The "view as another persona" control lives in the bottom-right
               corner of the customer Home only (AENR-745) — a quiet demo
               affordance, opening upward, that never covers a page's sticky

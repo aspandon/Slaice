@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
@@ -151,9 +151,15 @@ export function CustomerNav({ page, setPage }: Pick<NavProps, "page" | "setPage"
    tabs and folds the rest behind "More" (the NavSheet). Fixed to the bottom
    with safe-area padding so it clears the iOS home indicator. md:hidden —
    desktop uses the sidebar / inline nav. */
-export function BottomTabBar({ persona, page, setPage }: NavProps) {
+/** `away`: the bar slides off screen and leaves the tab order — the customer
+ *  booking flow is a focused flow on phones (AENR-752). */
+export function BottomTabBar({ persona, page, setPage, away = false }: NavProps & { away?: boolean }) {
   const t = useT();
   const [moreOpen, setMoreOpen] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (navRef.current) navRef.current.inert = away;
+  }, [away]);
   const items = useNav(persona);
   // Account destinations always live behind "More" (the nav sheet), never as a
   // fixed tab. Primary tabs are drawn from the main destinations.
@@ -176,7 +182,7 @@ export function BottomTabBar({ persona, page, setPage }: NavProps) {
   };
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 glass border-t border-white/40 pb-safe shadow-[0_-8px_24px_-16px_rgba(15,23,42,0.35)]">
+      <nav ref={navRef} aria-hidden={away || undefined} className={`md:hidden fixed bottom-0 inset-x-0 z-40 glass border-t border-white/40 pb-safe shadow-[0_-8px_24px_-16px_rgba(15,23,42,0.35)] transition-transform duration-base ${away ? "translate-y-full ease-exit" : "translate-y-0 ease-ios"}`}>
         <div className="flex items-stretch px-1">
           {primary.map((it) => (
             <Tab key={it.k} icon={it.icon} label={t(it.short || it.label.split(" ")[0])} badge={it.badge} active={page === it.k} onClick={() => setPage(it.k)} />

@@ -484,6 +484,9 @@ function WizardInner() {
   // Where with no set picked never moves on silently (AENR-673): Continue says what is
   // missing and offers entry tickets only instead.
   const [noSet, setNoSet] = useState(false);
+  const [leaveAsk, setLeaveAsk] = useState(false);
+  /** Leave the flow — asking first when sets are picked (AENR-752). */
+  const leave = () => (bedSel.length > 0 ? setLeaveAsk(true) : go("customer", "home"));
   const next = () => {
     if (step.id === "beach" && bedSel.length === 0) { setNoSet(true); return; }
     setNoSet(false);
@@ -494,7 +497,7 @@ function WizardInner() {
   const back = () => {
     setNoSet(false);
     if (step.id === "beach" && phase === "sets") { backToZones(); return; }
-    if (stepIdx === 0) { go("customer", "home"); return; }
+    if (stepIdx === 0) { leave(); return; }
     setStepIdx((i) => Math.max(0, i - 1));
   };
 
@@ -608,7 +611,7 @@ function WizardInner() {
   const sheetHide = sheetOpen ? "" : "max-lg:hidden";
 
   return (
-    <div className="fixed inset-0 z-20 flex flex-col pointer-events-none select-none pt-[72px] md:pt-0 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+    <div className="fixed inset-0 z-20 flex flex-col pointer-events-none select-none pt-[72px] md:pt-0">
       {/* ============ Menu over the sea (top) ============
            When picking sunbeds, the min-height holds the menu band down to ~the
            shoreline so the sets always start on the sand (never the sea). The
@@ -616,8 +619,8 @@ function WizardInner() {
            clusters get more room to spread. */}
       {/* Desktop (≥1024px): a sticky column on the right, the beach fills the rest.
           Smaller screens: a bottom sheet the guest raises or lowers (AENR-660). */}
-      <div className="absolute z-10 inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] md:bottom-0 lg:inset-x-auto lg:right-0 lg:top-[68px] lg:bottom-0 lg:w-[min(460px,36vw)] lg:px-4 lg:pb-4 flex items-end lg:items-start justify-center">
-        <div className="pointer-events-auto w-full max-w-2xl glass-card rounded-t-3xl lg:rounded-3xl shadow-float flex flex-col max-h-[78vh] lg:max-h-full overflow-hidden animate-fade-down" data-flip-id="checkout-panel">
+      <div className="absolute z-10 inset-x-0 bottom-0 lg:inset-x-auto lg:right-0 lg:top-[68px] lg:bottom-0 lg:w-[min(460px,36vw)] lg:px-4 lg:pb-4 flex items-end lg:items-start justify-center">
+        <div className="pointer-events-auto w-full max-w-2xl glass-card rounded-t-3xl lg:rounded-3xl shadow-float flex flex-col max-h-[78vh] lg:max-h-full overflow-hidden animate-fade-down pb-safe lg:pb-0" data-flip-id="checkout-panel">
           {/* Sheet handle (phones/tablets): tap or swipe to raise / lower. */}
           <button
             type="button"
@@ -640,7 +643,7 @@ function WizardInner() {
           {/* Pinned header — leave, progress, (step title only on the form steps). */}
           <div className={`p-4 sm:p-5 pb-3 max-lg:pt-1 shrink-0 ${sheetHide}`}>
             <div className="flex items-center justify-between mb-3">
-              <button onClick={() => go("customer", "home")} className="inline-flex items-center gap-1.5 text-guest-meta font-semibold text-slate-600 hover:text-navy-900 rounded-lg px-2 py-1 hover:bg-white/60 transition">
+              <button onClick={leave} className="inline-flex items-center gap-1.5 text-guest-meta font-semibold text-slate-600 hover:text-navy-900 rounded-lg px-2 py-1 hover:bg-white/60 transition">
                 <Icon.arrowL size={14} /> {tr("Leave")}
               </button>
               <div className="text-guest-caption font-semibold text-slate-500 tnum">{tr("Step")} {stepIdx + 1} {tr("of")} {STEPS.length} · <span className="text-navy-900">{tr(step.label)}</span></div>
@@ -881,6 +884,14 @@ function WizardInner() {
           <span className="font-bold text-navy-900">SLA<span className="text-gold-600">i</span>CE</span>
         </div>
       </div>
+      {/* Leaving with sets picked asks first (AENR-752) — the flow is the whole
+          screen on phones, so leaving is a deliberate act. */}
+      <Modal open={leaveAsk} onClose={() => setLeaveAsk(false)} title={tr("Leave this booking?")}
+        footer={<div className="flex justify-end gap-2"><Btn variant="ghost" onClick={() => setLeaveAsk(false)}>{tr("Keep booking")}</Btn><Btn variant="primary" onClick={() => go("customer", "home")}>{tr("Leave")}</Btn></div>}>
+        <p className="text-guest-body text-slate-600">
+          {bedSel.length === 1 ? tr("Your picked set goes back on the beach.") : `${bedSel.length} ${tr("picked sets go back on the beach.")}`} {tr("Nothing has been charged.")}
+        </p>
+      </Modal>
     </div>
   );
 }
