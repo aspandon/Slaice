@@ -1,11 +1,12 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMediaQuery } from "../lib/useMediaQuery";
 import { useTenantFeatures } from "../lib/useFeatures";
 import { ADD_EXTRAS_LABEL, extrasPhrase, type ExtrasKind } from "../domain/features";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { Icon } from "../lib/icons";
 import type { IconRenderer } from "../lib/icons";
-import { Btn, Badge, Stepper, Input, Field, DatePickerRow, Toggle, Modal, Sheet, type DayInfo } from "../components/ui";
+import { Btn, Badge, Stepper, Input, DatePickerRow, Toggle, Modal, Sheet, type DayInfo } from "../components/ui";
+import { plateGaps, plateOk } from "../domain/validate";
 import { prefersReducedMotion } from "../lib/motion";
 import { gsap, Flip, motionOK, stashFlip, EASE, DUR } from "../lib/fx";
 import { DURATION, EASING } from "../lib/motionTokens";
@@ -317,6 +318,13 @@ function WizardInner() {
   // The days each service actually covers: all chosen days, or a subset (multi-day).
   const lockerDates = lockerOn && canLocker ? (multiDate && lockerScope === "some" ? lockerDays : selDates) : [];
   const parkingDates = parkingOn && canParking ? (multiDate && parkingScope === "some" ? parkingDays : selDates) : [];
+  // The gate camera opens the barrier by plate, so every parked car needs one before Pay (AENR-769):
+  // one per spot when several cars come, else one per parked day.
+  const platesNeeded = parkingDates.length === 0 ? [] : parkingQty > 1 ? Array.from({ length: parkingQty }, (_, i) => spotPlates[i] ?? "") : parkingDates.map((d) => plates[d] ?? "");
+  const plateGap = plateGaps(platesNeeded);
+  const platesReady = plateGap.missing + plateGap.invalid === 0;
+  // Set once the guest tries to pay with a plate missing — empty plate fields then show their error too.
+  const [plateCheck, setPlateCheck] = useState(false);
 
   // The admin-authored layout for this zone, if any — otherwise the default grid.
   // …with the live status for the chosen dates applied: sets sold at the till
@@ -573,7 +581,7 @@ function WizardInner() {
   // The Pay step pays (AENR-640): this visit's items are kept in the basket while the guest is on
   // Pay (replacing the ones from an earlier pass), and the checkout panel below takes the payment.
   const wizKeys = useRef<{ kind: CartItem["kind"]; id: string }[]>([]);
-  const payItems = step.id === "review" && !stalePicks.length && grandTotal > 0 ? buildItems() : null;
+  const payItems = step.id === "review" && !stalePicks.length && grandTotal > 0 && platesReady ? buildItems() : null;
   const payKey = payItems ? JSON.stringify(payItems.map((i) => [i.kind, i.id, i.price])) : "";
   useEffect(() => {
     if (!payItems) return;
@@ -583,6 +591,16 @@ function WizardInner() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- payKey captures the items
   }, [payKey]);
   const payRef = useRef<HTMLElement>(null);
+  // Open the parking form and put the cursor in the first plate that still needs work.
+  const fixPlates = () => {
+    setPlateCheck(true);
+    setExtrasOpen(true);
+    requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLInputElement>('[data-plate][aria-invalid="true"], [data-plate][data-empty="true"]');
+      el?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "center" });
+      el?.focus({ preventScroll: true });
+    });
+  };
   const confirm = () => {
     // A set taken or put on hold since it was picked must be replaced first (AENR-524 / 520).
     if (stalePicks.length) {
@@ -762,9 +780,31 @@ function WizardInner() {
                       spotPlates={spotPlates} setSpotPlates={setSpotPlates}
                       samePlate={parkingSamePlate} setSamePlate={setParkingSamePlate}
                       selDates={selDates} multiDate={multiDate}
+                      showErrors={plateCheck}
                     />}
                   </div>
                 )}
+              </section>
+            )}
+            {step.id === "review" && !stalePicks.length && grandTotal > 0 && !platesReady && (
+              <section ref={payRef} aria-label={tr("Payment")} className="mb-2 scroll-mt-2">
+                <div role="status" className="rounded-2xl bg-amber-50 ring-1 ring-amber-600/25 px-3.5 py-3 text-guest-meta text-amber-900">
+                  <div className="flex items-start gap-2">
+                    <Icon.car size={16} className="shrink-0 mt-0.5 text-amber-700" />
+                    <div className="min-w-0">
+                      <b>{plateGap.missing ? tr("Add your car’s number plate to pay.") : tr("Check the number plate to pay.")}</b>{" "}
+                      {tr("The gate camera reads it to let you in — without it the barrier won’t open.")}
+                    </div>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2 pl-6">
+                    <button type="button" onClick={fixPlates} className="inline-flex items-center gap-1.5 min-h-[40px] rounded-lg bg-white px-3 font-semibold text-teal-800 ring-1 ring-teal-300 hover:ring-teal-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                      <Icon.edit size={13} /> {plateGap.missing ? tr("Add plate") : tr("Fix plate")}
+                    </button>
+                    <button type="button" onClick={() => setParkingOn(false)} className="inline-flex items-center min-h-[40px] rounded-lg bg-white/70 px-3 font-semibold text-navy-900 ring-1 ring-amber-300 hover:ring-teal-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                      {tr("Remove parking")}
+                    </button>
+                  </div>
+                </div>
               </section>
             )}
             {step.id === "review" && payItems && (
@@ -1936,9 +1976,6 @@ function LockerStep({ on, setOn, scope, setScope, days, setDays, qty, setQty, se
           <Stepper label={tr("lockers")} value={qty} onChange={(v) => setQty(Math.max(1, Math.min(cur?.avail ?? v, v)))} min={1} />
         </div>
       )}
-      <div className="text-guest-caption text-slate-500 flex items-center gap-1.5">
-        <Icon.info size={13} /> {tr("Pick exact lockers later from the My Bookings")} QR.
-      </div>
     </div>
   );
 }
@@ -1967,7 +2004,7 @@ function DayChips({ days, value, onChange }: { days: string[]; value: string[]; 
 }
 
 /* ============ Parking ============ */
-function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, plates, setPlates, spotPlates, setSpotPlates, samePlate, setSamePlate, selDates, multiDate }: {
+function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, plates, setPlates, spotPlates, setSpotPlates, samePlate, setSamePlate, selDates, multiDate, showErrors = false }: {
   on: boolean;
   setOn: Dispatch<SetStateAction<boolean>>;
   qty: number;
@@ -1984,6 +2021,8 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
   setSamePlate: Dispatch<SetStateAction<boolean>>;
   selDates: string[];
   multiDate: boolean;
+  /** Show "enter the plate" on empty fields too (after a Pay attempt). */
+  showErrors?: boolean;
 }) {
   const money = useMoney();
   const tr = useT();
@@ -2038,6 +2077,12 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
           <Stepper label={tr("parking spots")} value={qty} onChange={changeQty} min={1} />
         </div>
       )}
+      {on && (
+        <p className="flex items-start gap-1.5 px-1 text-guest-caption text-slate-600">
+          <Icon.info size={13} className="shrink-0 mt-0.5 text-slate-500" />
+          {tr("The gate camera reads your number plate to let you in, so each car needs one before you pay.")}
+        </p>
+      )}
       {/* Several spots = several cars: one plate per spot, valid every parked
           day. The per-day plate matrix below stays for the single-spot case. */}
       {on && qty > 1 && (
@@ -2046,7 +2091,7 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
           {Array.from({ length: qty }).map((_, i) => (
             <div key={i} className="flex items-center gap-2">
               <span className="text-guest-caption font-semibold text-navy-900 w-24 shrink-0">{tr("Spot")} {i + 1}</span>
-              <Input value={spotPlates[i] || ""} onChange={(e) => setSpotPlate(i, e.target.value)} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" />
+              <PlateInput value={spotPlates[i] || ""} onChange={(v) => setSpotPlate(i, v)} label={`${tr("Vehicle plate")} · ${tr("Spot")} ${i + 1}`} showErrors={showErrors} />
             </div>
           ))}
           <div className="flex items-center justify-between text-guest-caption text-slate-600 pt-1.5 border-t border-slate-100">
@@ -2067,13 +2112,13 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
           {activeDays.length === 0 ? (
             <div className="text-guest-caption text-slate-500">{tr("Pick at least one day above.")}</div>
           ) : samePlate ? (
-            <Input value={plates[selDates[0]] || ""} onChange={(e) => writeShared(e.target.value)} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" />
+            <PlateInput value={plates[selDates[0]] || ""} onChange={writeShared} label={tr("Vehicle plate")} showErrors={showErrors} />
           ) : activeDays.map((iso) => {
             const c = chipLabel(iso, loc, tr);
             return (
               <div key={iso} className="flex items-center gap-2">
                 <span className="text-guest-caption font-semibold text-navy-900 w-24 shrink-0 leading-tight">{c.label}<span className="block text-guest-caption text-slate-500 font-normal">{c.sub}</span></span>
-                <Input value={plates[iso] || ""} onChange={(e) => setPlate(iso, e.target.value)} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" />
+                <PlateInput value={plates[iso] || ""} onChange={(v) => setPlate(iso, v)} label={`${tr("Vehicle plate")} · ${c.label} ${c.sub}`} showErrors={showErrors} />
               </div>
             );
           })}
@@ -2084,15 +2129,42 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
         </div>
       ) : (
         <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-3 animate-pop">
-          <Field label={tr("Vehicle plate")} hint={tr("Used by the gate camera to let you in automatically.")}>
-            <Input value={plates[selDates[0]] || ""} onChange={(e) => setPlate(selDates[0], e.target.value)} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" />
-          </Field>
+          <div className="text-guest-caption font-semibold text-slate-700 mb-1">{tr("Vehicle plate")}</div>
+          <PlateInput value={plates[selDates[0]] || ""} onChange={(v) => setPlate(selDates[0], v)} label={tr("Vehicle plate")} showErrors={showErrors} />
           <div className="mt-2 flex items-center justify-between text-guest-caption text-slate-600">
             <span>{tr("1 spot")} × {selDates.length} {selDates.length !== 1 ? tr("days") : tr("day")}</span>
             <span className="font-semibold text-navy-900 tnum">{money(PARKING_PRICE * selDates.length)}</span>
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* A number-plate field (AENR-769 / 772): upper-cased as typed, its format checked once
+   the guest leaves it — or straight away after a Pay attempt, when empty ones say so too. */
+function PlateInput({ value, onChange, label, showErrors }: { value: string; onChange: (v: string) => void; label: string; showErrors: boolean }) {
+  const tr = useT();
+  const id = useId();
+  const [left, setLeft] = useState(false);
+  const empty = !value.trim();
+  const err = empty ? (showErrors ? tr("Enter the plate") : "") : (left || showErrors) && !plateOk(value) ? tr("Check the plate — letters and numbers, e.g. ΙΖΡ-1234") : "";
+  return (
+    <div className="flex-1 min-w-0">
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={() => setLeft(true)}
+        placeholder="e.g. ΙΖΡ-1234"
+        className="uppercase placeholder:normal-case tnum"
+        aria-label={label}
+        aria-invalid={!!err}
+        aria-describedby={err ? id : undefined}
+        autoComplete="off"
+        data-plate=""
+        data-empty={empty ? "true" : undefined}
+      />
+      {err && <div id={id} className="mt-1 flex items-center gap-1 text-guest-caption font-medium text-rose-700"><Icon.alert size={12} aria-hidden />{err}</div>}
     </div>
   );
 }
@@ -2138,7 +2210,8 @@ function ReviewStep({ people, totalPeople, selDates, zone, bedSel = [], includeT
   const platesUsed = parkingQty > 1
     ? [...new Set(spotPlates.slice(0, parkingQty).filter(Boolean))]
     : [...new Set(parkingDates.map((d) => plates[d]).filter(Boolean))];
-  const plateSummary = platesUsed.length === 0 ? tr("plate pending") : platesUsed.join(", ");
+  const plateMissing = parkingQty > 1 ? spotPlates.slice(0, parkingQty).filter(Boolean).length < parkingQty : parkingDates.some((d) => !plates[d]);
+  const plateSummary = platesUsed.length === 0 ? tr("plate needed") : platesUsed.join(", ") + (plateMissing ? ` · ${tr("plate needed")}` : "");
   const first = chipLabel(selDates[0], loc, tr);
   const dateLabel = selDates.length === 1
     ? first.label + ", " + first.sub

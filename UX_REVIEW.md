@@ -105,8 +105,8 @@ Numbers 1.1–7.4 are the original ones; 8.1–9.3 were numbered in this revisio
 
 | #   | Finding                                                | Status                   | Where it stands (29 Sep 2026)                                                                                                                                                                                                                                                                                                                                                 |
 | --- | ------------------------------------------------------ | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 6.1 | No inline validation                                   | 🟡 Partly done           | Zod-validated e-mail on the product sign-in and the site gate, and an inline e-mail check in Admin › Users › Edit (`src/screens/admin.tsx:1191`). Still unvalidated: the ΑΦΜ in tenant onboarding (`src/screens/platform.tsx:240`, which was validated once — this part regressed), e-mail and phone in Manual booking (`admin.tsx:1041`) and the plate format in the wizard. |
-| 6.2 | Vehicle plate optional though the gate camera needs it | ⏪ Regressed             | Optional again: a missing plate reads "plate pending" in Review and "—" in the basket, with no warning. See [Open work](#62--the-parking-plate-is-optional-again-regressed).                                                                                                                                                                                                  |
+| 6.1 | No inline validation                                   | ✅ Resolved (AENR-772)   | Zod-validated e-mail on the product sign-in and the site gate, and an inline e-mail check in Admin › Users › Edit (`src/screens/admin.tsx:1191`). Still unvalidated: the ΑΦΜ in tenant onboarding (`src/screens/platform.tsx:240`, which was validated once — this part regressed), e-mail and phone in Manual booking (`admin.tsx:1041`) and the plate format in the wizard. |
+| 6.2 | Vehicle plate optional though the gate camera needs it | ✅ Resolved (AENR-769)   | Optional again: a missing plate reads "plate pending" in Review and "—" in the basket, with no warning. See [Open work](#62--the-parking-plate-is-optional-again-regressed).                                                                                                                                                                                                  |
 | 6.3 | No calendar beyond the 7-day strip                     | ✅ Resolved              | `DatePickerRow` has a chip strip plus a calendar modal, single or multi-day, capped at 7 days in the wizard (`src/components/ui/forms.tsx:64`, `:165`).                                                                                                                                                                                                                       |
 | 6.4 | Use the `Btn` loading state on submits                 | 🟡 Partly done [demo-ok] | Used for change password, 2FA verification, data export and the site gate (`src/components/Security.tsx:89`, `:234`; `PrivacyCenter.tsx:77`; `src/screens/SiteGate.tsx:194`), but not on money actions (Pay, Reserve & send QR, Charge). Checkout's Pay switches straight to the redirect screen, so it can't double-submit.                                                  |
 
@@ -253,7 +253,11 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 
 ### P2
 
-#### 6.2 · The parking plate is optional again (regressed)
+#### 6.2 · The parking plate is optional again (regressed) — ✅ Resolved (AENR-769, 19 Oct 2026)
+
+- **Fixed:** while parking is on, each car's plate is required before Pay — the payment panel is replaced by
+  "Add your car's number plate to pay" with **Add plate** (opens the form, flags empty fields, focuses the
+  first) and **Remove parking**; every parking form explains the gate camera; Review reads "plate needed".
 
 - **Evidence:** a spot can be reserved without a plate. Review then reads "plate pending" and the
   basket line "—" (`src/screens/CustomerWizard.tsx:1251`, `:339`). Only the single-day, single-spot
@@ -283,7 +287,7 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 - **Fix:** plain language for guests, such as "After payment we'll e-mail your QR and a tax receipt,
   also kept in My Documents". Keep the myDATA detail on staff screens.
 
-#### N6 · The Locker step promises a feature that doesn't exist — ✅ Resolved (verified 19 Oct 2026)
+#### N6 · The Locker step promises a feature that doesn't exist — ✅ Resolved (verified 19 Oct 2026; the sentence was still in the Pay step's locker form and was removed in AENR-769)
 
 - **Verified:** the Locker step was folded into Pay's "Add a locker or parking" (AENR-696); the sentence is gone
   from the code (only stale dictionary entries remain).
@@ -315,7 +319,7 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 
 #### Also open at P2
 
-- **6.1 · Validation:** add an ΑΦΜ checksum in onboarding, e-mail and phone checks in Manual booking,
+- ✅ **Resolved (AENR-772, 19 Oct 2026: ΑΦΜ check digit in New tenant, onboarding step 1, tenant Profile and guest invoice details; inline e-mail and mobile errors in New booking; plate format in the wizard)** — **6.1 · Validation:** add an ΑΦΜ checksum in onboarding, e-mail and phone checks in Manual booking,
   and a plate format in the wizard.
 - **5.5 · Silent cart persistence:** add a quiet "Saved on this device" note in the basket, and an
   expiry once holds exist.
