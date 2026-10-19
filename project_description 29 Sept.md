@@ -3198,9 +3198,22 @@ src/
 - **Radii:** cards `rounded-2xl/3xl`, extra `4xl` (2 rem); inputs and buttons `rounded-xl` (~14 px).
 - **Shadows:** `soft`, `lift`, `float` (ambient, layered, low alpha), `ring`, `glow`, `btn-primary`,
   `btn-teal`.
-- **Easings:** `spring` (.34,1.56,.64,1), `smooth` (.4,0,.2,1), `ios` (.22,1,.36,1).
+- **Motion tokens (AENR-743):** one source, `src/lib/motionTokens.ts`, read by both Tailwind
+  (`animate-*`, `duration-fast|page|base|slow`, `ease-spring|smooth|ios|exit`) and GSAP (`DUR`, `EASE`
+  in `src/lib/fx.ts`).
+  - Durations: `fast` 180 ms (press, toggle, a picked set) · `page` 240 ms (page and wizard-step
+    changes) · `base` 300 ms (sheets, popovers, toasts) · `slow` 550 ms (reveals, the zone zoom) ·
+    `slower` 850 ms (celebration, the dive).
+  - Easings: `standard` (.4,0,.2,1) between resting states · `out` (.22,1,.36,1) entering · `in`
+    (.4,0,1,1) leaving · `spring` / `pop` overshoot only for small confirmations.
+  - Distances: `nudge` 8 px (lift, fade-up), `page` 28 px (step and tab travel).
+- **Motion policy:** motion explains a change (where something came from or went), never decorates or
+  delays an action; nothing interactive waits longer than `slow`. Travel follows the user's direction —
+  forward/deeper moves left or up, back moves right or down. Under reduced motion there is no travel,
+  scale or parallax: content changes in place (a cross-fade of `fast` at most).
 - **Animations:** fade-up/down/in, pop, scale-in, slide-in-right, slide-up (sheets), shimmer
-  (skeletons), floaty, ripple, sea-tilt, dive. UI motion 150–350 ms; all disabled under reduced motion.
+  (skeletons), floaty, ripple, sea-tilt, dive — all built from the tokens and disabled under reduced
+  motion.
 - **Materials:** `.glass` (translucent + blur, for chrome), `.glass-flat` (frosted look without
   backdrop-filter, for customer cards), `.glass-card`, `.glass-input`, `.glass-dark`, with opaque
   fallbacks where `backdrop-filter` is unsupported.

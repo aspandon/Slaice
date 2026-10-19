@@ -1,3 +1,9 @@
+import { DURATION as D, EASING as E, DISTANCE } from "./src/lib/motionTokens.ts";
+
+// Motion utilities are generated from the shared tokens (AENR-743) so CSS and
+// GSAP move alike: `${D.x}ms ${E.y.css}` everywhere below.
+const ms = (k) => `${D[k]}ms`;
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{js,jsx,ts,tsx}"],
@@ -54,18 +60,25 @@ export default {
         "btn-teal": "0 1px 2px rgba(13,148,136,.24), 0 10px 22px -12px rgba(13,148,136,.45)",
       },
       transitionTimingFunction: {
-        spring: "cubic-bezier(.34,1.56,.64,1)",
-        smooth: "cubic-bezier(.4,0,.2,1)",
+        spring: E.spring.css,
+        smooth: E.standard.css,
         // Apple's signature decelerate curve.
-        ios: "cubic-bezier(.22,1,.36,1)",
+        ios: E.out.css,
+        exit: E.in.css,
+      },
+      transitionDuration: {
+        fast: ms("fast"),
+        page: ms("page"),
+        base: ms("base"),
+        slow: ms("slow"),
       },
       keyframes: {
-        fadeUp: { from: { opacity: 0, transform: "translateY(10px)" }, to: { opacity: 1, transform: "translateY(0)" } },
-        fadeDown: { from: { opacity: 0, transform: "translateY(-8px)" }, to: { opacity: 1, transform: "translateY(0)" } },
+        fadeUp: { from: { opacity: 0, transform: `translateY(${DISTANCE.nudge}px)` }, to: { opacity: 1, transform: "translateY(0)" } },
+        fadeDown: { from: { opacity: 0, transform: `translateY(-${DISTANCE.nudge}px)` }, to: { opacity: 1, transform: "translateY(0)" } },
         fadeIn: { from: { opacity: 0 }, to: { opacity: 1 } },
         pop: { "0%": { transform: "scale(.92)", opacity: 0 }, "100%": { transform: "scale(1)", opacity: 1 } },
         scaleIn: { from: { opacity: 0, transform: "scale(.97)" }, to: { opacity: 1, transform: "scale(1)" } },
-        slideInRight: { from: { opacity: 0, transform: "translateX(16px)" }, to: { opacity: 1, transform: "translateX(0)" } },
+        slideInRight: { from: { opacity: 0, transform: `translateX(${DISTANCE.page}px)` }, to: { opacity: 1, transform: "translateX(0)" } },
         slideUp: { from: { transform: "translateY(100%)" }, to: { transform: "translateY(0)" } },
         shimmer: { "100%": { transform: "translateX(100%)" } },
         floaty: { "0%,100%": { transform: "translateY(0)" }, "50%": { transform: "translateY(-5px)" } },
@@ -80,18 +93,18 @@ export default {
         },
       },
       animation: {
-        "fade-up": "fadeUp .5s cubic-bezier(.22,1,.36,1) both",
-        "fade-down": "fadeDown .3s cubic-bezier(.22,1,.36,1) both",
-        "fade-in": "fadeIn .3s ease both",
-        pop: "pop .3s cubic-bezier(.34,1.56,.64,1) both",
-        "scale-in": "scaleIn .22s cubic-bezier(.22,1,.36,1) both",
-        "slide-in-right": "slideInRight .35s cubic-bezier(.22,1,.36,1) both",
-        "slide-up": "slideUp .34s cubic-bezier(.34,1.56,.64,1) both",
+        "fade-up": `fadeUp ${ms("slow")} ${E.out.css} both`,
+        "fade-down": `fadeDown ${ms("base")} ${E.out.css} both`,
+        "fade-in": `fadeIn ${ms("base")} ${E.standard.css} both`,
+        pop: `pop ${ms("base")} ${E.spring.css} both`,
+        "scale-in": `scaleIn ${ms("page")} ${E.out.css} both`,
+        "slide-in-right": `slideInRight ${ms("page")} ${E.out.css} both`,
+        "slide-up": `slideUp ${ms("base")} ${E.spring.css} both`,
         floaty: "floaty 5s ease-in-out infinite",
         ripple: "ripple 4s ease-out infinite",
         "sea-tilt": "seaTilt 4.5s ease-in-out infinite",
         shimmer: "shimmer 1.6s infinite",
-        dive: "dive 1s cubic-bezier(.4,0,.2,1) both",
+        dive: `dive ${D.slower + 150}ms ${E.standard.css} both`,
       },
     },
   },

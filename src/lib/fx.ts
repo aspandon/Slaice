@@ -4,6 +4,7 @@ import { Flip } from "gsap/Flip";
 import { MotionPathPlugin } from "gsap/MotionPathPlugin";
 import { Physics2DPlugin } from "gsap/Physics2DPlugin";
 import { prefersReducedMotion } from "./motion";
+import { DURATION, EASING, DISTANCE } from "./motionTokens";
 
 /* ============================================================================
    fx — the GSAP layer for choreographed motion (hero entrance, the wizard's
@@ -22,14 +23,19 @@ export { gsap, Flip };
 
 export const motionOK = () => !prefersReducedMotion();
 
-/* Motion tokens — durations (s) and eases shared by every GSAP sequence. */
-export const DUR = { xs: 0.18, sm: 0.3, md: 0.55, lg: 0.85 } as const;
+/* Motion tokens for GSAP — seconds and ease names from the shared token module
+   (src/lib/motionTokens.ts, AENR-743), so GSAP and the Tailwind animations move
+   alike. */
+const s = (k: keyof typeof DURATION) => DURATION[k] / 1000;
+export const DUR = { xs: s("fast"), page: s("page"), sm: s("base"), md: s("slow"), lg: s("slower") } as const;
 export const EASE = {
-  out: "power3.out",
-  inOut: "power3.inOut",
-  spring: "back.out(1.7)",
-  pop: "back.out(2.2)",
+  out: EASING.out.gsap,
+  in: EASING.in.gsap,
+  inOut: EASING.standard.gsap,
+  spring: EASING.spring.gsap,
+  pop: EASING.pop.gsap,
 } as const;
+export { DISTANCE };
 
 const FINE_POINTER = "(hover: hover) and (pointer: fine)";
 
