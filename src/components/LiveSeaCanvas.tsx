@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { seaPixelScale } from "../lib/camera";
 import {
   BufferAttribute,
   BufferGeometry,
@@ -320,7 +321,8 @@ export default function LiveSeaCanvas({ preset, dy, env = DEFAULT_SEA_ENV, onFai
       failRef.current();
       return;
     }
-    let dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+    // Inside the one-beach camera's larger layer, fewer pixels per CSS px (AENR-784).
+    let dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR) * seaPixelScale();
     renderer.setPixelRatio(dpr);
 
     const shore = buildShore();
@@ -400,9 +402,9 @@ export default function LiveSeaCanvas({ preset, dy, env = DEFAULT_SEA_ENV, onFai
       const dt = last < 0 ? 0.016 : Math.min(0.1, (now - last) / 1000);
       last = now;
       slowFrames = dt > 0.028 ? slowFrames + 1 : Math.max(0, slowFrames - 1);
-      if (slowFrames > 45 && dpr > 0.76) {
+      if (slowFrames > 45 && dpr > 0.76 * seaPixelScale()) {
         slowFrames = 0;
-        dpr = Math.max(0.75, dpr - 0.25);
+        dpr = Math.max(0.75 * seaPixelScale(), dpr - 0.25);
         renderer.setPixelRatio(dpr);
         resize();
       }

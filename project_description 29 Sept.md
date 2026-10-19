@@ -386,6 +386,29 @@ Four pages with distinct names (AENR-642); old `invoicing` and `commission` link
   new page for keyboard and screen-reader users. The booking wizard keeps its own entrance. Reduced
   motion: an instant change. CSS animations rather than the View Transitions API, which Safari 14 (in
   the support matrix) lacks.
+- **One beach, one camera** (AENR-784, owner request — reversible): every guest screen is a shot of one
+  beach and changing screen moves the camera (GSAP, `camera` 1100 ms, power3.inOut; backdrop only, never
+  blocks a tap). The scene sits in a layer 14 % wider and 6 % taller than the screen on each side; a shot
+  is a pan and a zoom about a point on the shoreline, so the waterline stays where the wizard expects it.
+  - **Shots:** Home — the view from the sea; My bookings, Wallet, Account — the camera walks along the
+    shore with the tab order (5 / 9 / 12 % of the width, the same side the page slides in from); Plan ›
+    When — it dives to the shore (×1.08); Where, zones — ×1.12; a zone's sets — ×1.3 toward that zone's
+    flag, which is brought to the middle of the free beach (a third of the width on desktop, beside the
+    panel); Who — ×1.18; Pay and Checkout — it pulls back to the wide shot and **your spot glows** beside
+    your zone's flag; other pages — a step closer (×1.05).
+  - **The beach's landmarks** (`BeachWorld.tsx`): a jetty, the lifeguard tower, the beach bar, two palms,
+    a sailboat in a deeper plane that pans at a third of the camera's speed (parallax), and a coloured
+    **flag for every zone** at the water's edge (names on desktop, and on phones on Pay / Checkout).
+    They stand on the scene's own shoreline curve, so they sit right at any screen shape; the flags hide
+    while the wizard draws its zones on the sand, and in the desktop booking flow the bar and palms step
+    aside and everything stands at the waterline, clear of the sets. Stock scenes only (an uploaded photo
+    has no shoreline).
+  - **Cost:** transforms only; the live WebGL sea renders at a correspondingly lower pixel ratio in the
+    larger layer, so tap latency matches the camera-off backdrop (UX-18 budget).
+  - **Switch:** Demo › **One-beach camera** (on by default) — off, or reduced motion, gives the previous
+    still backdrop exactly. Code: `src/lib/camera.ts` (shots), `src/components/BeachWorld.tsx`
+    (landmarks), the camera layer in `CustomerBackdrop.tsx`; the wizard reports its step and zone with
+    `setWizardShot`. Removing it = reverting the AENR-784 commit.
 - **Bottom tab bar** on phones (guest and staff) on a near-solid material (`.tabbar-material`, AENR-753) with
   a 20 px fade above it, so content dissolves before reaching the bar instead of reading through it; with a **More** sheet when a persona has more than 5 destinations. In
   the booking wizard it slides away and the step's own action bar (total + Back/Continue) is the only

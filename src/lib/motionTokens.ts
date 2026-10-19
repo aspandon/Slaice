@@ -33,6 +33,8 @@ export const DURATION = {
   slow: 550,
   /** Long, rare moments: celebration, the dive. */
   slower: 850,
+  /** The one-beach camera moving between screens (AENR-784) — backdrop only, never blocks a tap. */
+  camera: 1100,
 } as const;
 
 /** Easing curves: the CSS cubic-bezier and the closest GSAP built-in. */

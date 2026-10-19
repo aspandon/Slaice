@@ -27,7 +27,7 @@ export const motionOK = () => !prefersReducedMotion();
    (src/lib/motionTokens.ts, AENR-743), so GSAP and the Tailwind animations move
    alike. */
 const s = (k: keyof typeof DURATION) => DURATION[k] / 1000;
-export const DUR = { xs: s("fast"), page: s("page"), sm: s("base"), md: s("slow"), lg: s("slower") } as const;
+export const DUR = { xs: s("fast"), page: s("page"), sm: s("base"), md: s("slow"), lg: s("slower"), camera: s("camera") } as const;
 export const EASE = {
   out: EASING.out.gsap,
   in: EASING.in.gsap,

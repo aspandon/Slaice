@@ -561,7 +561,7 @@ export default function App() {
         <AuthGate />
       ) : (
         <div className="w-full px-3 sm:px-5 pt-4 relative min-h-dvh flex flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-1">
-          {persona === "customer" && <CustomerBackdrop immersive={immersive} />}
+          {persona === "customer" && <CustomerBackdrop immersive={immersive} page={page} />}
           {persona === "customer" && !immersive && (
             <button
               onClick={() => go("customer", "home")}

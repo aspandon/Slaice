@@ -1,11 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import gsap from "gsap";
 import { BeachBackdrop } from "./Beach";
 import { LifeRing } from "./LifeRing";
 import { prefersReducedMotion, staticBackdrop, useLiteScene } from "../lib/motion";
 import { dayLight, WEATHER_DEMO } from "../data/beach";
 import type { SeaEnv } from "./LiveSeaCanvas";
 import { WeatherFxCanvas } from "./WeatherFx";
+import { BeachWorld } from "./BeachWorld";
 import { useGuestScene } from "../lib/useGuestScene";
+import { useApp } from "../app/store";
+import { DUR } from "../lib/fx";
+import { MARGIN_X, MARGIN_Y, cameraTransform, layerShoreline, setCameraLayer, shotFor, useCameraOn, useWizardShot, zoneWorldX } from "../lib/camera";
 
 /* Sand-top fraction (0–1). Higher = thinner sand strip / ocean vista; lower lifts
    the shoreline so the sand fills the view. */
@@ -28,7 +33,13 @@ const wideNow = () => typeof window !== "undefined" && window.matchMedia("(min-w
    overlays + a rain layer here, and a SeaEnv handed down to the live water.
    One resolution for every customer page — home, wizard and checkout always
    share identical conditions. */
-export function CustomerBackdrop({ immersive, ring = true }: { immersive: boolean; /** The decorative life-ring (off on sign-in, AENR-757). */ ring?: boolean }) {
+export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
+  immersive: boolean;
+  /** The decorative life-ring (off on sign-in, AENR-757). */
+  ring?: boolean;
+  /** The guest page — chooses the camera's shot (AENR-784). */
+  page?: string;
+}) {
   // The tenant's live-scene switch (AENR-737) can pin this to a sunny 11:00.
   const { weather, dayTime, sceneFx } = useGuestScene();
   const [wide, setWide] = useState(wideNow);
@@ -69,6 +80,48 @@ export function CustomerBackdrop({ immersive, ring = true }: { immersive: boolea
     return () => cancelAnimationFrame(raf);
   }, [target]);
 
+  // ---- One beach, one camera (AENR-784) ----
+  // The scene sits in a layer larger than the screen; each page is a shot of it and a page
+  // change tweens the layer (transform only). Off (Demo switch, reduced motion) = no layer
+  // margins and no transform: the backdrop exactly as before.
+  const [cameraOn] = useCameraOn();
+  const wiz = useWizardShot();
+  const { zoneMap, cart, background } = useApp();
+  const zoneId = (page === "plan" ? wiz?.zoneId : cart.find((i) => i.kind === "sunbed" && i.zoneId)?.zoneId) ?? null;
+  const zx = zoneId ? zoneMap.find((z) => z.id === zoneId)?.x : undefined;
+  const zoneX = zx == null ? null : zoneWorldX(zx);
+  const shot = cameraOn ? shotFor(page, page === "plan" ? wiz : null, target, zoneX, wide) : null;
+  const camRef = useRef<HTMLDivElement>(null);
+  // Before the sea mounts (layout effects run ahead of its effect): size its pixels to the layer.
+  useLayoutEffect(() => setCameraLayer(cameraOn), [cameraOn]);
+  const shotKey = shot ? `${shot.pan}|${shot.zoom}|${shot.focusX}|${shot.focusY}` : "off";
+  const first = useRef(true);
+  useLayoutEffect(() => {
+    const el = camRef.current;
+    if (!el) return;
+    if (!shot) {
+      gsap.killTweensOf(el);
+      gsap.set(el, { clearProps: "transform" });
+      return;
+    }
+    const to = cameraTransform(shot, window.innerWidth, window.innerHeight);
+    // The first shot is set, not flown to — the camera only moves when the guest moves.
+    // force3D "auto": composited while moving, re-rasterised crisp once the camera settles.
+    if (first.current) gsap.set(el, to);
+    else gsap.to(el, { ...to, duration: DUR.camera, ease: "power3.inOut", overwrite: "auto", force3D: "auto" });
+    first.current = false;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- shotKey captures the shot
+  }, [shotKey]);
+  // Pixel offsets depend on the viewport: re-place the camera (no tween) after a resize.
+  useEffect(() => {
+    if (!shot) return;
+    const onResize = () => camRef.current && gsap.set(camRef.current, cameraTransform(shot, window.innerWidth, window.innerHeight));
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- shotKey captures the shot
+  }, [shotKey]);
+  const drawShore = cameraOn ? layerShoreline(shoreline) : shoreline;
+
   // Resolve the environment. Disabled effects fall back to a neutral noon /
   // sunny scene, so the admin switches cleanly restore the original look.
   const wd = sceneFx.weather ? WEATHER_DEMO[weather] : WEATHER_DEMO.sunny;
@@ -97,7 +150,27 @@ export function CustomerBackdrop({ immersive, ring = true }: { immersive: boolea
 
   return (
     <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
-      <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax={!stat} shoreline={shoreline} noVeg={immersive} seaEnv={seaEnv} />
+      <div
+        ref={camRef}
+        data-camera=""
+        className="absolute"
+        style={cameraOn ? { left: `${-MARGIN_X * 100}%`, right: `${-MARGIN_X * 100}%`, top: `${-MARGIN_Y * 100}%`, bottom: `${-MARGIN_Y * 100}%` } : { inset: 0 }}
+      >
+        <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax={!stat} shoreline={drawShore} noVeg={immersive} seaEnv={seaEnv} />
+        {/* The one beach's landmarks and zone flags (AENR-784); the stock scenes only — an
+            uploaded photo has no shoreline to stand them on. */}
+        {cameraOn && background.kind !== "custom" && (
+          <BeachWorld
+            shoreline={drawShore}
+            zones={zoneMap.map((z) => ({ id: z.id, name: z.name, color: z.color, x: zoneWorldX(z.x) }))}
+            flags={page !== "plan" || wiz?.step === "review"}
+            labels={wide || page === "checkout" || (page === "plan" && wiz?.step === "review")}
+            pin={shot?.pin ? zoneId : null}
+            pan={shot?.pan ?? 0}
+            onSand={!(immersive && wide)}
+          />
+        )}
+      </div>
       {/* The life-buoy bobs in the water, always in a slot content never uses
           (AENR-744): while browsing, in the left margin beside the 72rem content
           column — only on screens wide enough to have one; in the desktop

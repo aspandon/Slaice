@@ -33,6 +33,7 @@ export function PersonaSwitcher({
 }) {
   const t = useT();
   const [newGuest, setNewGuest] = useDemoFlag("newGuest");
+  const [camera, setCamera] = useDemoFlag("camera", true);
   const { inventory, setInventory, sceneFx, showPreviews, setShowPreviews, till, go, toast } = useApp();
   const { role: roleOn, tenant } = useTenantFeatures();
   const { live: sceneLive } = useGuestScene(); // AENR-737
@@ -145,6 +146,23 @@ export function PersonaSwitcher({
               </span>
               <span aria-hidden className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${newGuest ? "bg-teal-600" : "bg-slate-300"}`}>
                 <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${newGuest ? "left-[18px]" : "left-0.5"}`} />
+              </span>
+            </DropdownMenu.CheckboxItem>
+          )}
+          {/* One beach, one camera (AENR-784) — on by default; off restores the still backdrop. */}
+          {persona === "customer" && (
+            <DropdownMenu.CheckboxItem
+              checked={camera}
+              onCheckedChange={(v) => setCamera(v === true)}
+              onSelect={(e) => e.preventDefault()}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"
+            >
+              <span className="flex-1 min-w-0">
+                <span className="block font-semibold">{t("One-beach camera")}</span>
+                <span className="block text-[11px] text-slate-500 leading-tight">{t("Pages are camera moves across one beach.")}</span>
+              </span>
+              <span aria-hidden className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${camera ? "bg-teal-600" : "bg-slate-300"}`}>
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${camera ? "left-[18px]" : "left-0.5"}`} />
               </span>
             </DropdownMenu.CheckboxItem>
           )}

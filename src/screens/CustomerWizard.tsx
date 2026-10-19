@@ -7,6 +7,7 @@ import { Icon } from "../lib/icons";
 import type { IconRenderer } from "../lib/icons";
 import { Btn, Badge, Stepper, Input, DatePickerRow, Toggle, Modal, Sheet, type DayInfo } from "../components/ui";
 import { plateGaps, plateOk } from "../domain/validate";
+import { setWizardShot } from "../lib/camera";
 import { prefersReducedMotion } from "../lib/motion";
 import { gsap, Flip, motionOK, stashFlip, EASE, DUR } from "../lib/fx";
 import { DURATION, EASING } from "../lib/motionTokens";
@@ -377,6 +378,11 @@ function WizardInner() {
   const grandTotal = setSubtotal + ticketSubtotal + lockerSubtotal + parkingSubtotal;
 
   const step = STEPS[stepIdx];
+  // Tell the one-beach camera where the guest is (AENR-784); it frames the shore, then the zone.
+  useEffect(() => {
+    setWizardShot({ step: step.id, phase, zoneId: zone.id });
+  }, [step.id, phase, zone.id]);
+  useEffect(() => () => setWizardShot(null), []);
   const last = STEPS.length - 1;
 
   // Tap a zone → the camera dives in: its umbrellas FLIP from the cluster into
