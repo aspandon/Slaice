@@ -5,7 +5,7 @@ import { prefersReducedMotion, staticBackdrop, useLiteScene } from "../lib/motio
 import { dayLight, WEATHER_DEMO } from "../data/beach";
 import type { SeaEnv } from "./LiveSeaCanvas";
 import { WeatherFxCanvas } from "./WeatherFx";
-import { useApp } from "../app/store";
+import { useGuestScene } from "../lib/useGuestScene";
 
 /* Sand-top fraction (0–1). Higher = thinner sand strip / ocean vista; lower lifts
    the shoreline so the sand fills the view. */
@@ -29,7 +29,8 @@ const wideNow = () => typeof window !== "undefined" && window.matchMedia("(min-w
    One resolution for every customer page — home, wizard and checkout always
    share identical conditions. */
 export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
-  const { weather, dayTime, sceneFx } = useApp();
+  // The tenant's live-scene switch (AENR-737) can pin this to a sunny 11:00.
+  const { weather, dayTime, sceneFx } = useGuestScene();
   const [wide, setWide] = useState(wideNow);
   useEffect(() => {
     const m = window.matchMedia("(min-width: 1024px)");

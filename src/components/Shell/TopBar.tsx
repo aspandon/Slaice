@@ -155,14 +155,14 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
   // Pages outside the nav (e.g. a tenant page, AENR-500) get a plain title.
   const currentItem = navItems.find((it) => it.k === page) ?? (page === "tenant" ? { k: "tenant", label: "Tenant", short: "Tenant", icon: "building" } : page === "onboarding" ? { k: "onboarding", label: "Onboard tenant", short: "Onboard", icon: "bolt" } : undefined);
   const CurrentIcon = currentItem && Icon[currentItem.icon];
-  return (
+  const bar = (
     <header
       className={
         persona === "customer"
           ? // Customer: a compact action cluster. Phones: part of the layout (sticky,
             // content starts below it — AENR-575); md+: pinned to the top-right corner.
             "glass text-navy-900 rounded-2xl flex items-center z-40 shadow-soft order-first md:order-none sticky top-2 self-end w-max mb-2 md:mb-0 md:fixed md:top-3 md:right-5 px-1.5 py-1 gap-0.5"
-          : "glass text-navy-900 rounded-2xl mb-4 flex items-center relative z-30 shadow-soft sticky top-2 px-1.5 sm:px-2 py-1.5 gap-1 sm:gap-2"
+          : "glass bg-white/95 pointer-events-auto text-navy-900 rounded-2xl flex items-center relative shadow-soft px-1.5 sm:px-2 py-1.5 gap-1 sm:gap-2"
       }
     >
       {/* Staff personas: current page title — tapping opens the full nav sheet
@@ -387,6 +387,11 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
       <NavSheet open={navOpen} onClose={() => setNavOpen(false)} persona={persona} page={page} setPage={setPage} />
     </header>
   );
+  if (persona === "customer") return bar;
+  // Staff: the bar sticks on a canvas-coloured scrim that runs to the top edge and fades out
+  // below it, so a page scrolling underneath (the call-center map, long tables) never shows
+  // around or through the bar (AENR-738).
+  return <div className="scrim-top sticky top-0 z-30 -mt-2 pt-2 pb-4 pointer-events-none">{bar}</div>;
 }
 
 /* ---------- Language picker (own globe menu) ---------- */

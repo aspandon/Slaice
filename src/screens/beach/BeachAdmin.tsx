@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useGuestScene } from "../../lib/useGuestScene";
 import { GuestPolicies } from "./GuestPolicies";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import { Icon } from "../../lib/icons";
@@ -392,6 +393,15 @@ function ZoneArrangeEditor() {
    cosmetic; booking always works with everything off. */
 function AtmosphereCard() {
   const { sceneFx, setSceneFx, weather, setWeather, dayTime, setDayTime, toast } = useApp();
+  // Slaice can switch the live scene off for the whole beach (AENR-737) — then there is nothing to tune here.
+  const { live } = useGuestScene();
+  if (!live)
+    return (
+      <Card className="p-5 mt-4">
+        <div className="font-semibold text-navy-900 mb-1 flex items-center gap-2"><Icon.sun size={15} className="text-gold-600" /> Atmosphere <NotMvpBadge /></div>
+        <div className="text-[12px] text-slate-600">Live weather and time of day are off for this beach (set by Slaice). Guests always see a clear sunny day at 11:00.</div>
+      </Card>
+    );
   return (
     <Card className="p-5 mt-4">
       <div className="font-semibold text-navy-900 mb-1 flex items-center gap-2"><Icon.sun size={15} className="text-gold-600" /> Atmosphere <NotMvpBadge /></div>

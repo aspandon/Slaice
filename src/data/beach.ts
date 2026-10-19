@@ -194,6 +194,8 @@ export const DEFAULT_SCENE_FX: SceneFx = { weather: true, daytime: true };
 export const DAY_MIN = 5.5;
 export const DAY_MAX = 21.5;
 export const DAY_DEFAULT = 10;
+/** The guest site's fixed hour when the tenant turns live weather and time of day off (AENR-737). */
+export const STILL_HOUR = 11;
 
 const rampH = (h: number, a: number, b: number) => Math.min(1, Math.max(0, (h - a) / (b - a)));
 /** warm = golden-hour factor (0–1), night = dawn/dusk darkening (0–1). */
@@ -240,7 +242,9 @@ export const DEFAULT_CLOSED_STORES: Record<string, string> = { bolivar: "Closed 
 
 /** A deterministic demo forecast per date (AENR-567 / 570): today follows the
  *  demo scene's weather; other days are mostly sunny summer days. */
-export function forecastFor(iso: string, today: string, todayKind: WeatherKind): { kind: WeatherKind; tempC: number } {
+export function forecastFor(iso: string, today: string, todayKind: WeatherKind, live = true): { kind: WeatherKind; tempC: number } {
+  // The tenant turned live weather off (AENR-737): every day is clear and sunny.
+  if (!live) return { kind: "sunny", tempC: WEATHER_DEMO.sunny.tempC };
   if (iso === today) return { kind: todayKind, tempC: WEATHER_DEMO[todayKind].tempC };
   let h = 0;
   for (const c of iso) h = (h * 31 + c.charCodeAt(0)) >>> 0;

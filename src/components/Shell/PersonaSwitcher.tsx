@@ -7,6 +7,7 @@ import { SceneControls } from "../SceneDemoPanel";
 import { readHashQuery } from "../../app/router";
 import { useDemoFlag } from "../../lib/useDemoFlag";
 import { useTenantFeatures } from "../../lib/useFeatures";
+import { useGuestScene } from "../../lib/useGuestScene";
 
 /* ---------- Persona switcher ----------
    The "view as another persona" control, shared by two surfaces:
@@ -33,6 +34,7 @@ export function PersonaSwitcher({
   const [newGuest, setNewGuest] = useDemoFlag("newGuest");
   const { inventory, setInventory, sceneFx, showPreviews, setShowPreviews, till } = useApp();
   const { role: roleOn, tenant } = useTenantFeatures();
+  const { live: sceneLive } = useGuestScene(); // AENR-737
   const cur = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[0];
   const momentPreview = readHashQuery().get("moment") ?? "";
   const origin = side === "top" ? "origin-bottom-right" : "origin-top-right";
@@ -164,7 +166,7 @@ export function PersonaSwitcher({
             </DropdownMenu.CheckboxItem>
           )}
           {/* Phones: the scene demo controls live here instead of floating over content (AENR-575). */}
-          {compact && persona === "customer" && showPreviews && (sceneFx.weather || sceneFx.daytime) && (
+          {compact && persona === "customer" && sceneLive && showPreviews && (sceneFx.weather || sceneFx.daytime) && (
             <div className="border-t border-slate-200 mt-1 px-2.5 pt-2 pb-1.5">
               <SceneControls />
             </div>

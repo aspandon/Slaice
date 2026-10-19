@@ -26,6 +26,7 @@ import { Checkout } from "./Checkout";
 import { bestSets } from "../domain/bestSets";
 import { ZoomBox } from "../components/ZoomBox";
 import { useDemoFlag } from "../lib/useDemoFlag";
+import { useGuestScene } from "../lib/useGuestScene";
 
 type People = Record<string, number>;
 interface BedPick { id: string; price: number; zoneId: string }
@@ -181,7 +182,8 @@ export function CustomerWizard() {
 
 function WizardInner() {
   const tr = useT();
-  const { go, toast, addToCart, removeFromCart, hint, lang, beachPricing, priceRules, calendar, inventory, weather, account, setAccount } = useApp();
+  const { go, toast, addToCart, removeFromCart, hint, lang, beachPricing, priceRules, calendar, inventory, account, setAccount } = useApp();
+  const { weather, live: sceneLive } = useGuestScene(); // AENR-737: off → a sunny forecast every day
   const [newGuest] = useDemoFlag("newGuest"); // Demo › first-time guest (AENR-702)
   useSpotlight("customer", "plan");
   const liveSlots = useLiveSlots();
@@ -331,7 +333,7 @@ function WizardInner() {
     const free = scopeZones.flatMap((z) => liveSlots(z, [iso]).filter((x) => x.state === "a").map((x) => ({ x, z })));
     const prices = free.map(({ x, z }) => resolvePrice(x, z.id, iso, beachPricing, priceRules).price);
     const price = prices.length ? Math.min(...prices) : undefined;
-    const fc = forecastFor(iso, todayISO(), weather);
+    const fc = forecastFor(iso, todayISO(), weather, sceneLive);
     const ref = phase === "sets" ? zone.from : minBase;
     return { icon: WEATHER_DEMO[fc.kind].icon, temp: fc.tempC, price, level: price == null ? undefined : price <= ref ? "low" : price >= ref * 1.25 ? "high" : "mid", left: free.length };
   };

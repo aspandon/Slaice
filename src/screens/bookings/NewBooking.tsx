@@ -541,8 +541,9 @@ export function NewBooking() {
           </Card>
 
           {/* Pinned: what it costs and the one button (AENR-635). */}
-          <div className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:bottom-3 z-20">
-            <div className="glass-card rounded-2xl shadow-float p-3 flex flex-wrap items-center gap-3">
+          {/* On a scrim down to the screen edge (AENR-738): the map no longer shows below or through it. */}
+          <div className="scrim-bottom sticky bottom-[calc(3.75rem+env(safe-area-inset-bottom))] md:bottom-0 z-20 pt-4 pb-3 pointer-events-none">
+            <div className="glass-card-solid bg-white pointer-events-auto rounded-2xl shadow-float p-3 flex flex-wrap items-center gap-3">
               <div className="min-w-0 flex-1">
                 <div className="font-display font-bold text-navy-900 text-xl tnum leading-tight">
                   {eur(total)}

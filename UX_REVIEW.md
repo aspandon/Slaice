@@ -516,6 +516,8 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-716 — roles per tenant** (Platform › tenant › Roles).
 - **AENR-718 — invite staff by e-mail + mobile** with a first sign-in: password and 2-step (SMS, e-mail, authenticator).
 - **AENR-720 — Call Center Incidents** and a Slaice Incidents inbox.
+- **AENR-738 — staff bars on a scrim**: page content no longer shows above or through the top bar and the New booking price bar.
+- **AENR-737 — per-tenant live weather and time of day** (Platform › tenant › Features): off = a clear sunny day at 11:00 for guests.
 - **AENR-736 — cards that work**: Add card with validation and a simulated bank check, several cards, Make default, Remove with Undo; checkout lists every card.
 - **AENR-735 — the new pass shows in the Wallet**: bookings kept in browser storage; the first-time-guest switch hides only sample history.
 - **AENR-734 — the payment moment**: progress steps → Payment complete with amount and reference → the pass; the big tick and You're booked removed from the confirmation.

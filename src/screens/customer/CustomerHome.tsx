@@ -30,6 +30,7 @@ import type { RewardState, LoyaltyState } from "../../data/loyalty";
 import { BADGE_COLORS, statValue, metricFmt, HOME_GAME_STATS } from "../../data/gamification";
 import { useApp, useT } from "../../app/store";
 import { useTenantFeatures } from "../../lib/useFeatures";
+import { useGuestScene } from "../../lib/useGuestScene";
 import { ADD_EXTRAS_LABEL, extrasPhrase } from "../../domain/features";
 
 // Bare date from a validity label (e.g. "End of season · 30 Sep 2026").
@@ -47,7 +48,8 @@ const CARD = "glass-flat rounded-3xl overflow-hidden relative";
 let homeIntroPlayed = false;
 
 export function CustomerHome() {
-  const { dive, loyalty, beachLayout, weather, dayTime, sceneFx } = useApp();
+  const { dive, loyalty, beachLayout } = useApp();
+  const { weather, dayTime, sceneFx } = useGuestScene();
   const { visits } = useVisits();
   const t = useT();
   // The hero chip mirrors the demo scene: weather icon/label/temp plus a
@@ -221,13 +223,14 @@ export function CustomerHome() {
 /* The next visit, first thing on Home (AENR-567): countdown, zone and sets,
    the day's weather, the QR in one tap and directions to the entrance. */
 function NextVisitCard({ v, qrFirst = false }: { v: Visit; qrFirst?: boolean }) {
-  const { go, weather } = useApp();
+  const { go } = useApp();
+  const { weather, live } = useGuestScene();
   const t = useT();
   const [qr, setQr] = useState(false);
   const [share, setShare] = useState(false);
   const today = todayISO();
   const days = Math.round((Date.parse(v.date) - Date.parse(today)) / 86400000);
-  const fc = forecastFor(v.date, today, weather);
+  const fc = forecastFor(v.date, today, weather, live);
   const W = Icon[WEATHER_DEMO[fc.kind].icon] ?? Icon.sun;
   const extras = [...v.tickets.map((x) => `${t("Entry")} ${x}`), ...v.parking.map((x) => `${t("Parking")} ${x}`), ...v.lockers.map((x) => `${t("Locker")} ${x}`)];
   return (
@@ -279,7 +282,8 @@ function NextVisitCard({ v, qrFirst = false }: { v: Visit; qrFirst?: boolean }) 
 
 /* At the beach (AENR-610): the day is on — extras first, the QR one tap away for re-entry. */
 function AtBeachCard({ v }: { v: Visit }) {
-  const { go, dive, weather } = useApp();
+  const { go, dive } = useApp();
+  const { weather } = useGuestScene();
   const t = useT();
   const [qr, setQr] = useState(false);
   const [extras, setExtras] = useState(false);

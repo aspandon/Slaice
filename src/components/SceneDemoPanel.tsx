@@ -3,6 +3,7 @@ import { Icon } from "../lib/icons";
 import { DAY_MAX, DAY_MIN, fmtHour, WEATHER_DEMO, WEATHER_KINDS } from "../data/beach";
 import { useApp, useT } from "../app/store";
 import { NotMvpBadge } from "./ui";
+import { useGuestScene } from "../lib/useGuestScene";
 
 /* ============================================================================
    Scene demo controls — the bottom-left counterpart to the persona switcher's
@@ -13,10 +14,12 @@ import { NotMvpBadge } from "./ui";
    ============================================================================ */
 export function SceneDemoPanel() {
   const { weather, dayTime, sceneFx, showPreviews } = useApp();
+  const { live } = useGuestScene();
   const t = useT();
   const [open, setOpen] = useState(false);
-  // The atmosphere is a roadmap feature (FUTURE): its demo pill goes with previews off (AENR-691).
-  if (!showPreviews || (!sceneFx.weather && !sceneFx.daytime)) return null;
+  // The atmosphere is a roadmap feature (FUTURE): its demo pill goes with previews off (AENR-691),
+  // and with the tenant's live weather and time of day off (AENR-737) — the scene is a fixed sunny 11:00.
+  if (!live || !showPreviews || (!sceneFx.weather && !sceneFx.daytime)) return null;
   const wd = WEATHER_DEMO[weather];
   const WIcon = (sceneFx.weather ? Icon[wd.icon] : Icon.sun) || Icon.sun;
 

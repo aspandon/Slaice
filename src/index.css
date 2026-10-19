@@ -471,6 +471,15 @@ html[data-persona="customer"]::-webkit-scrollbar {
   }
 }
 
+/* Scrims behind sticky staff bars (AENR-738): the canvas colour, fading out on the
+   side that faces the page, so content scrolling under a bar never shows around it. */
+.scrim-top {
+  background: linear-gradient(to bottom, #f6f8fb calc(100% - 1rem), rgba(246, 248, 251, 0));
+}
+.scrim-bottom {
+  background: linear-gradient(to top, #f6f8fb calc(100% - 1rem), rgba(246, 248, 251, 0));
+}
+
 /* Respect users who prefer reduced motion (WCAG 2.3.3). */
 /* Payment moment (AENR-734): the success check draws itself; the bar under "View your pass"
    shows the pass opening by itself. */

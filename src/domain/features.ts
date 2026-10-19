@@ -71,8 +71,9 @@ export type TenantFeatureId =
   | "till.tickets"
   | "till.sunbeds"
   | "till.lockers"
-  | "till.parking";
-export type TenantFeatureGroup = "Refunds" | "Cashier till";
+  | "till.parking"
+  | "guest.liveScene";
+export type TenantFeatureGroup = "Guest site" | "Refunds" | "Cashier till";
 export interface TenantFeatureDef {
   key: TenantFeatureId;
   label: string;
@@ -84,6 +85,14 @@ export interface TenantFeatureDef {
   module?: ModuleId;
 }
 export const TENANT_FEATURES: readonly TenantFeatureDef[] = [
+  {
+    key: "guest.liveScene",
+    label: "Live weather and time of day",
+    description:
+      "The guest site follows the beach's weather (clouds, rain, wind, the forecast on Home and in Plan a visit) and the light of the day (golden hour, dusk). Off: guests always see a clear sunny day at 11:00 (AENR-737).",
+    group: "Guest site",
+    default: true,
+  },
   {
     key: "refunds.autoApprove",
     label: "Auto-approve routine refunds",
@@ -133,7 +142,7 @@ export const TENANT_FEATURES: readonly TenantFeatureDef[] = [
     module: "Parking",
   },
 ];
-export const TENANT_FEATURE_GROUPS: readonly TenantFeatureGroup[] = ["Refunds", "Cashier till"];
+export const TENANT_FEATURE_GROUPS: readonly TenantFeatureGroup[] = ["Guest site", "Refunds", "Cashier till"];
 /** The group a switch belongs to must keep at least one switch on (e.g. the till needs one tab). */
 export const KEEP_ONE_ON: readonly TenantFeatureGroup[] = ["Cashier till"];
 
