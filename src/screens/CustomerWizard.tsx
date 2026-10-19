@@ -10,6 +10,7 @@ import { prefersReducedMotion } from "../lib/motion";
 import { gsap, Flip, motionOK, stashFlip, EASE, DUR } from "../lib/fx";
 import { DURATION, EASING } from "../lib/motionTokens";
 import { Sunbed, SunbedMark } from "../components/Beach";
+import { SetTile, SetTileLegend, tileGeometry, tilePosition } from "../components/SetTile";
 import { ZONES, ZONE_BLOCKS, todayISO, chipLabel, forecastFor, WEATHER_DEMO } from "../data/beach";
 import { addDays } from "../domain/period";
 import { useClosure, useLiveSlots } from "../lib/useLiveSlots";
@@ -845,10 +846,12 @@ function WizardInner() {
           {showSets && (richOverview ? (
             <SandSunbeds slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} />
           ) : (
-            // Phones: the sets at a tappable size, pan + pinch, opened on your picks (AENR-660).
-            <ZoomBox className="h-full pointer-events-auto" maxHeight="100%" hint={null} minWidth={540} aspect={0.95}
+            // Phones: set tiles fitted to the width (AENR-749) — a legend and one
+            // zoom toggle sit above the map, never on the sets; pinch still zooms.
+            <ZoomBox className="h-full pointer-events-auto" hint={null} minWidth={0} aspect={(w) => tileGeometry(slots, w).height} controls="none"
+              toolbar={(z) => <TileMapBar {...z} />}
               focus={(() => { const f = slots.find((x) => selectedIds.has(x.id)) ?? slots.find((x) => x.state === "a"); return f ? { x: f.x, y: f.y } : undefined; })()}>
-              <SandSunbeds slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} />
+              <SandSunbeds tiles slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} />
             </ZoomBox>
           ))}
           {/* Who and Pay keep your zone on the sand (AENR-670): the last zone you picked
@@ -856,9 +859,9 @@ function WizardInner() {
           {showScene && (richOverview ? (
             <SandSunbeds readOnly slots={sceneSlots} selected={sceneIds} />
           ) : (
-            <ZoomBox className="h-full pointer-events-auto" maxHeight="100%" hint={null} minWidth={540} aspect={0.95}
+            <ZoomBox className="h-full pointer-events-auto" hint={null} minWidth={0} aspect={(w) => tileGeometry(sceneSlots, w).height} controls="none"
               focus={(() => { const f = sceneSlots.find((x) => sceneIds.has(x.id)); return f ? { x: f.x, y: f.y } : undefined; })()}>
-              <SandSunbeds readOnly slots={sceneSlots} selected={sceneIds} />
+              <SandSunbeds tiles readOnly slots={sceneSlots} selected={sceneIds} />
             </ZoomBox>
           ))}
         </div>
@@ -1521,11 +1524,13 @@ function SpotSheet({ zoneName, slot, info, selected, priceText, onClose, onSelec
   );
 }
 
-function SandSunbeds({ slots, selected, onToggle, readOnly = false }: {
+function SandSunbeds({ slots, selected, onToggle, readOnly = false, tiles = false }: {
   slots: SunbedSlot[];
   selected: Set<string>;
   onToggle?: (s: SunbedSlot, el: HTMLElement | null) => void;
   readOnly?: boolean;
+  /** Phones: modern set tiles fitted to the width (AENR-749) instead of umbrella glyphs. */
+  tiles?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const cells = useRef(new Map<string, HTMLElement>());
@@ -1555,6 +1560,32 @@ function SandSunbeds({ slots, selected, onToggle, readOnly = false }: {
     return Math.max(26, Math.min(base, min * 0.84));
   }, [slots, box]);
   const tierOf = useMemo(() => tierInfo(slots), [slots]);
+  const geo = useMemo(() => (tiles && box.w ? tileGeometry(slots, box.w) : null), [tiles, slots, box.w]);
+  if (tiles) {
+    return (
+      <div ref={ref} className="absolute inset-0">
+        {geo && slots.map((s) => {
+          const at = tilePosition(s, geo, box.w, box.h);
+          return (
+            <div
+              key={s.id}
+              ref={(el) => { if (el) cells.current.set(s.id, el); else cells.current.delete(s.id); }}
+              data-bed-cell
+              data-flip-id={s.id}
+              className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
+              style={{ left: at.left, top: at.top, width: geo.w, height: geo.h }}
+            >
+              <SetTile state={s.state} sel={selected.has(s.id)} price={s.price} readOnly={readOnly}
+                label={`${s.id}, ${tierOf(s).tier.name}${s.access ? " (step-free)" : ""}${s.inv ? ` — ${s.inv}` : ""}`}
+                onClick={readOnly ? undefined : () => onToggle?.(s, cells.current.get(s.id) ?? null)} />
+              {s.inv && <span aria-hidden title={s.inv} className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-navy-900 text-white text-[9px] grid place-items-center ring-2 ring-white pointer-events-none">🔒</span>}
+              {s.access && <span aria-hidden className="absolute -top-1.5 -left-1.5 w-4 h-4 rounded-full bg-sky-600 text-white text-[9px] grid place-items-center ring-2 ring-white pointer-events-none">♿</span>}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
   return (
     <div ref={ref} className="absolute inset-0">
       {slots.map((s) => (
@@ -1576,6 +1607,23 @@ function SandSunbeds({ slots, selected, onToggle, readOnly = false }: {
           {s.access && <span aria-hidden className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-sky-600 text-white text-guest-caption grid place-items-center ring-2 ring-white pointer-events-none">♿</span>}
         </div>
       ))}
+    </div>
+  );
+}
+
+/* The phone map's top row (AENR-749): what the tiles mean, and one zoom toggle —
+   fitted (every set on screen) or zoomed in (bigger tiles, pan to move). */
+function TileMapBar({ zoom, fit, setZoom }: { zoom: number; fit: number; setZoom: (z: number) => void }) {
+  const tr = useT();
+  const zoomed = zoom > fit + 0.01;
+  return (
+    <div className="flex items-center justify-between gap-2 pb-2 shrink-0">
+      <div className="rounded-full glass px-3 py-1.5"><SetTileLegend /></div>
+      <button type="button" onClick={() => setZoom(zoomed ? fit : 1.5)} aria-pressed={zoomed}
+        className="shrink-0 w-11 h-11 grid place-items-center rounded-full glass text-navy-900 shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+        aria-label={zoomed ? tr("Fit the map to the screen") : tr("Zoom in")}>
+        {zoomed ? <Icon.minus size={17} /> : <Icon.plus size={17} />}
+      </button>
     </div>
   );
 }

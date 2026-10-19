@@ -26,7 +26,8 @@ export default {
         // teal-600 is 4.7 : 1 on white so small white text on it passes AA (AENR-746; was #0D9488, 3.74 : 1).
         teal: { 600: "#0A8276", 500: "#14b8a6", 400: "#2dd4bf", 300: "#5EEAD4", 100: "#ccfbf1" },
         // Selected sunbed / accent (from the video)
-        coral: { 600: "#e2552f", 500: "#f1683c", 400: "#fb8a63" },
+        // coral-700 carries white text (4.9 : 1) — the picked set on the phone map (AENR-749).
+        coral: { 700: "#c9431f", 600: "#e2552f", 500: "#f1683c", 400: "#fb8a63" },
         // SLAiCE platform brand — indigo + gold
         slaice: { 700: "#2f3bb3", 600: "#3a47cc", 500: "#4a57e0", 100: "#e7e9fb" },
         gold: { 600: "#e0a800", 500: "#f2b705", 400: "#ffc933", 300: "#ffdc73" },

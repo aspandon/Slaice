@@ -177,7 +177,11 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 - **Fix:** make a name mandatory on `Toggle` (`label` or `aria-labelledby` pointing at the row title),
   and render the always-on switch as `disabled`, with the reason in its name.
 
-#### 2.2 · Sunbed targets are 31 px on phones (regressed)
+#### 2.2 · Sunbed targets are 31 px on phones (regressed) — ✅ Resolved (19 Oct 2026, AENR-749)
+
+- **Resolution:** phones draw sets as tiles that fill the grid pitch (about 40 × 48 px at 390 px, fitted
+  to the width so no column is cut off); state shows by shape as well as colour, and the zoom control
+  moved above the map.
 
 - **Evidence:** measured at 390×844 on Central's default 8×6 layout: 48 buttons, each 31×31 px (49 px
   at 1440×900). Cell size is min(64 px, 8.5% of the sand width, 0.84 × the nearest-neighbour

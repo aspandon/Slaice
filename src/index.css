@@ -222,6 +222,12 @@ html[data-persona="customer"]::-webkit-scrollbar {
     }
   }
 
+  /* A taken set on the phone map (AENR-749): struck through, so "taken" never
+     depends on its grey alone. */
+  .set-tile-taken {
+    background-image: linear-gradient(135deg, transparent 46%, rgba(100, 116, 139, 0.55) 47%, rgba(100, 116, 139, 0.55) 53%, transparent 54%);
+  }
+
   /* Safe-area helpers for notched / home-indicator devices (iOS, some Android).
      Pair `pb-safe` with a fixed bottom bar; `h-safe-bottom` reserves the inset
      as spacer height. Falls back to 0 where env() is unsupported. */

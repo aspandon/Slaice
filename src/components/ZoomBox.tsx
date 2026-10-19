@@ -22,16 +22,22 @@ export function ZoomBox({
   maxHeight = "min(62vh, 440px)",
   hint = "Drag to move · pinch or −/+ to zoom.",
   className = "",
+  controls = "buttons",
+  toolbar,
   children,
 }: {
   minWidth: number;
-  /** Height ÷ width of the content. */
-  aspect: number;
+  /** Height ÷ width of the content — or the content height for a given width. */
+  aspect: number | ((width: number) => number);
   focus?: { x: number; y: number };
   vars?: (zoom: number) => Record<string, string>;
   maxHeight?: string;
   hint?: string | null;
   className?: string;
+  /** "buttons": −/+ over the map's corner; "none": draw them yourself in `toolbar`. */
+  controls?: "buttons" | "none";
+  /** A row above the map; gets the zoom so it can offer its own control (AENR-749). */
+  toolbar?: (z: { zoom: number; fit: number; setZoom: (z: number) => void }) => ReactNode;
   children: ReactNode;
 }) {
   const box = useRef<HTMLDivElement>(null);
@@ -48,7 +54,7 @@ export function ZoomBox({
   const fit = Math.min(1, cw / base);
   const [zoom, setZoom] = useState(1);
   const w = base * zoom;
-  const h = w * aspect;
+  const h = typeof aspect === "function" ? aspect(w) : w * aspect;
   const centre = useRef<{ fx: number; fy: number } | null>(null);
   const setZ = (z: number) => {
     const el = box.current;
@@ -98,21 +104,22 @@ export function ZoomBox({
   const btn =
     "w-11 h-11 grid place-items-center rounded-xl bg-white/95 ring-1 ring-slate-300 text-navy-900 shadow-sm disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500";
   return (
-    <div className={`relative ${className}`}>
+    <div className={`relative ${toolbar ? "flex flex-col" : ""} ${className}`}>
+      {toolbar?.({ zoom, fit, setZoom: setZ })}
       <div
         ref={box}
         onPointerDown={down}
         onPointerMove={move}
         onPointerUp={up}
         onPointerCancel={up}
-        className="overflow-auto overscroll-contain rounded-xl ring-1 ring-slate-200"
-        style={{ touchAction: "pan-x pan-y", maxHeight }}
+        className={`overflow-auto overscroll-contain rounded-xl ring-1 ring-slate-200 ${toolbar ? "flex-1 min-h-0" : ""}`}
+        style={{ touchAction: "pan-x pan-y", maxHeight: toolbar ? undefined : maxHeight }}
       >
         <div className="relative" style={{ width: w, height: h, ...vars?.(zoom) } as CSSProperties}>
           {children}
         </div>
       </div>
-      <div className="absolute right-2 bottom-2 flex flex-col gap-1.5 pointer-events-auto">
+      {controls === "buttons" && <div className="absolute right-2 bottom-2 flex flex-col gap-1.5 pointer-events-auto">
         <button
           type="button"
           className={btn}
@@ -131,7 +138,7 @@ export function ZoomBox({
         >
           <Icon.minus size={16} />
         </button>
-      </div>
+      </div>}
       {hint && <p className="mt-1 text-[11px] text-slate-500">{hint}</p>}
     </div>
   );
