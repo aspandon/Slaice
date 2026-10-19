@@ -27,7 +27,7 @@ import { WalletButtons } from "../../components/WalletPass";
 import { SceneDemoPanel } from "../../components/SceneDemoPanel";
 import { SEASON_END_LABEL } from "../../data/passes";
 import { BUILTIN_SCHEMES, makeCustomScheme, schemeProgress, HOME_LOYALTY_STATS } from "../../data/loyalty";
-import type { RewardState, LoyaltyState } from "../../data/loyalty";
+import type { RewardState, LoyaltyState, LoyaltyStats } from "../../data/loyalty";
 import { BADGE_COLORS, statValue, metricFmt, HOME_GAME_STATS } from "../../data/gamification";
 import { useApp, useMoney, useT } from "../../app/store";
 import { useTenantFeatures } from "../../lib/useFeatures";
@@ -73,7 +73,7 @@ export function CustomerHome() {
   const showPromo = roadmap && !promoDismissed;
   const showRewards = allows({ future: true, module: "Loyalty" });
   const extrasLine = extrasPhrase(module("Day Locker"), module("Parking"));
-  const rewards = activeRewards(loyalty);
+  const rewards = activeRewards(loyalty, firstTimer ? FIRST_TIME_LOYALTY : undefined);
   const ready = rewards.filter((a) => a.state.kind === "claim").length;
   const scope = useRef<HTMLDivElement>(null);
   const cta = useMagnetic<HTMLSpanElement>(0.22, 6);
@@ -644,11 +644,12 @@ export function SeasonTile() {
    gradients), locked ones dim with progress. Sits exactly under Rebook, same size. */
 export function BadgesTile() {
   const { achievements } = useApp();
+  const [firstTimer] = useDemoFlag("newGuest");
   const t = useT();
   // Gamification is a roadmap feature of the Loyalty module (AENR-691 / 696).
   const { allows } = useTenantFeatures();
   if (achievements.length === 0 || !allows({ future: true, module: "Loyalty" })) return null;
-  const stats = HOME_GAME_STATS;
+  const stats = firstTimer ? { visits: 0, bookings: 0, spend: 0 } : HOME_GAME_STATS;
   const earnedCount = achievements.filter((a) => statValue(stats, a.metric) >= a.threshold).length;
   return (
     <div className={`${CARD} p-5 flex flex-col gap-3`} data-home-card>
@@ -703,13 +704,15 @@ function KineticWords({ text }: { text: string }) {
 /* Active loyalty schemes for the guest, sorted (claimable first). Schemes + config
    come from the app store (written by the admin Loyalty screen). */
 const REWARD_ORDER = { claim: 0, progress: 1, perk: 2 } as const;
-export function activeRewards(loyalty: LoyaltyState) {
+/** A first-time guest's loyalty stats (Demo, AENR-778): nothing earned yet. */
+export const FIRST_TIME_LOYALTY: LoyaltyStats = { visits: 0, referrals: 0, birthdayWeek: false };
+export function activeRewards(loyalty: LoyaltyState, stats: LoyaltyStats = HOME_LOYALTY_STATS) {
   return [...BUILTIN_SCHEMES, ...loyalty.customIds.map(makeCustomScheme)]
     .filter((s) => loyalty.config[s.id]?.enabled)
     .map((s) => {
       const values = loyalty.config[s.id]?.values ?? {};
       const title = s.custom ? String(values.title || s.title) : s.title;
-      return { id: s.id, icon: s.icon, title, state: schemeProgress(s, values, HOME_LOYALTY_STATS) };
+      return { id: s.id, icon: s.icon, title, state: schemeProgress(s, values, stats) };
     })
     .sort((a, b) => REWARD_ORDER[a.state.kind] - REWARD_ORDER[b.state.kind]);
 }

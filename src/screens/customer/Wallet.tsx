@@ -13,7 +13,8 @@ import { resolvePrice } from "../../domain/pricing";
 import { addDays, fmtDay, fmtWeekday } from "../../domain/period";
 import { ARRIVAL_WINDOW, fmtDeadline, releaseDeadline, type Visit } from "../../domain/visits";
 import { guestNow, useVisits } from "../../lib/useVisits";
-import { BadgesTile, RewardRow, SeasonTile, VipTile, activeRewards } from "./CustomerHome";
+import { useDemoFlag } from "../../lib/useDemoFlag";
+import { BadgesTile, FIRST_TIME_LOYALTY, RewardRow, SeasonTile, VipTile, activeRewards } from "./CustomerHome";
 import { VisitQR } from "./VisitTicket";
 import { useTenantFeatures } from "../../lib/useFeatures";
 
@@ -60,7 +61,8 @@ export function CustomerWallet() {
   const money = useMoney();
   const { loyalty, go, account, passes, passPricing } = useApp();
   const t = useT();
-  const rewards = activeRewards(loyalty);
+  const [firstTimer] = useDemoFlag("newGuest");
+  const rewards = activeRewards(loyalty, firstTimer ? FIRST_TIME_LOYALTY : undefined);
   const ready = rewards.filter((a) => a.state.kind === "claim").length;
   // VIP / Season passes and rewards are roadmap features (AENR-691); rewards need Loyalty too (AENR-696).
   // With previews off the Wallet holds only what works today: credit and entries.

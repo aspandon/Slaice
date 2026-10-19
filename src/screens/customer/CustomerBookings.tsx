@@ -72,8 +72,8 @@ export function CustomerBookings() {
     <div className="space-y-4 max-w-4xl mx-auto">
       <h1 className="sr-only">{t("My bookings")}</h1>
       {/* Season in review — from the guest's own visits. Light glass like the rest of the
-          guest app, not a dark band (AENR-688). */}
-      <Card className="overflow-hidden">
+          guest app, not a dark band (AENR-688). Only once there is a visit to review (AENR-778). */}
+      {used.length > 0 && <Card className="overflow-hidden">
         <div className="p-5 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
           <div className="flex items-start gap-3 min-w-0">
             <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.sparkles size={18} /></span>
@@ -90,7 +90,7 @@ export function CustomerBookings() {
             <div className="w-28"><Sparkline data={[1, 2, 1, 3, 2, 4, 3, 5]} color="#0D9488" width={112} height={36} /><div className="text-guest-caption text-slate-500 text-center mt-1">{t("visits / month")}</div></div>
           </div>
         </div>
-      </Card>
+      </Card>}
 
       <div className="flex items-center justify-between gap-2 flex-wrap rounded-2xl glass-card-solid p-1.5">
         <Tabs tabs={[["upcoming", `${t("Upcoming")} ${count("upcoming")}`], ["past", `${t("Past")} ${count("past")}`], ["cancelled", `${t("Cancelled")} ${count("cancelled")}`]]} value={filter} onChange={setFilter} />

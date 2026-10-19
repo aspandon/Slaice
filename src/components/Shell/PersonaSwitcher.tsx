@@ -6,6 +6,7 @@ import type { PersonaId } from "../../domain/types";
 import { SceneControls } from "../SceneDemoPanel";
 import { readHashQuery } from "../../app/router";
 import { useDemoFlag } from "../../lib/useDemoFlag";
+import { FIRST_TIME_RESET } from "../../lib/firstTimeGuest";
 import { useTenantFeatures } from "../../lib/useFeatures";
 import { useGuestScene } from "../../lib/useGuestScene";
 
@@ -32,7 +33,7 @@ export function PersonaSwitcher({
 }) {
   const t = useT();
   const [newGuest, setNewGuest] = useDemoFlag("newGuest");
-  const { inventory, setInventory, sceneFx, showPreviews, setShowPreviews, till } = useApp();
+  const { inventory, setInventory, sceneFx, showPreviews, setShowPreviews, till, go, toast } = useApp();
   const { role: roleOn, tenant } = useTenantFeatures();
   const { live: sceneLive } = useGuestScene(); // AENR-737
   const cur = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[0];
@@ -140,12 +141,25 @@ export function PersonaSwitcher({
             >
               <span className="flex-1 min-w-0">
                 <span className="block font-semibold">{t("Simulate a first-time guest")}</span>
-                <span className="block text-[11px] text-slate-500 leading-tight">{t("No previous bookings — see the app as a new guest does.")}</span>
+                <span className="block text-[11px] text-slate-500 leading-tight">{t("Starts with no bookings or passes — what you do is kept until Reset.")}</span>
               </span>
               <span aria-hidden className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${newGuest ? "bg-teal-600" : "bg-slate-300"}`}>
                 <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${newGuest ? "left-[18px]" : "left-0.5"}`} />
               </span>
             </DropdownMenu.CheckboxItem>
+          )}
+          {/* Reset (AENR-778): the simulated guest forgets their bookings, passes and basket. */}
+          {persona === "customer" && newGuest && (
+            <DropdownMenu.Item
+              onSelect={() => {
+                window.dispatchEvent(new Event(FIRST_TIME_RESET));
+                go("customer", "home");
+                toast(t("Reset — you're a first-time guest again."), { tone: "success" });
+              }}
+              className="w-full flex items-center gap-2.5 pl-2.5 pr-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none text-teal-800 font-semibold hover:bg-slate-100 data-[highlighted]:bg-slate-100"
+            >
+              <Icon.refresh size={14} aria-hidden /> {t("Reset first-time guest")}
+            </DropdownMenu.Item>
           )}
           {/* Demo: the till losing its connection (AENR-607). It raises the browser's own offline /
               online events, so the till reacts exactly as to a real drop: queue, then sync on return. */}

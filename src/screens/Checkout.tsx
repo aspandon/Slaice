@@ -29,7 +29,8 @@ import { useVisits, guestNow } from "../lib/useVisits";
 import { useSiteTerms } from "../lib/useEconomics";
 import { useExtras } from "../lib/useExtras";
 import { bestReward, usableRewards } from "../domain/rewards";
-import { activeRewards } from "./customer/CustomerHome";
+import { FIRST_TIME_LOYALTY, activeRewards } from "./customer/CustomerHome";
+import { useDemoFlag } from "../lib/useDemoFlag";
 import { useTenantFeatures } from "../lib/useFeatures";
 import { ActionsMenu } from "../components/ui/ActionsMenu";
 
@@ -76,7 +77,8 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
   // The best reward the guest has earned comes off by itself (AENR-619) — removable, nothing to claim.
   // Rewards, passes and wallet payments are roadmap features (AENR-691); rewards need Loyalty (AENR-696).
   const { roadmap, allows } = useTenantFeatures();
-  const best = allows({ future: true, module: "Loyalty" }) ? bestReward(usableRewards(activeRewards(loyalty), account.rewardsUsed ?? []), cart) : null;
+  const [firstTimer] = useDemoFlag("newGuest");
+  const best = allows({ future: true, module: "Loyalty" }) ? bestReward(usableRewards(activeRewards(loyalty, firstTimer ? FIRST_TIME_LOYALTY : undefined), account.rewardsUsed ?? []), cart) : null;
   const [skipReward, setSkipReward] = useState(false);
   const rewardOff = best && !skipReward ? Math.min(best.amount, total) : 0;
 

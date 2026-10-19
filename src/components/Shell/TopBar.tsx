@@ -8,6 +8,7 @@ import { Badge, Btn, EmptyState, NotMvpBadge } from "../ui";
 import { PROFILE } from "../../domain/account";
 import { PERSONAS, NAV } from "../../data/personas";
 import { LANGUAGES, useApp, useMoney, useT } from "../../app/store";
+import { useDemoFlag } from "../../lib/useDemoFlag";
 import { deviceLang } from "../../app/i18n";
 import { useInbox } from "../../lib/useInbox";
 import { useTenantFeatures } from "../../lib/useFeatures";
@@ -19,7 +20,7 @@ import type { StaffUser } from "../../domain/types";
 import { DEFAULT_CASHIER } from "../../data/till";
 import { hasRole, roleLabel } from "../../data/staff";
 
-interface FeedItem { ic: string; tone: string; t: string; b: string; time: string }
+interface FeedItem { ic: string; tone: string; t: string; b: string; time: string; id?: string }
 
 function cartGlyph(kind: string) {
   const m: Record<string, IconRenderer> = { sunbed: Icon.umbrella, ticket: Icon.ticket, locker: Icon.lock, parking: Icon.car };
@@ -94,7 +95,7 @@ function staffMe(persona: PersonaId, staff: readonly StaffUser[], name?: string,
 
 /* ---------- Top bar ---------- */
 export function TopBar({ persona, setPersona, page, setPage, previewing = false, lead }: NavProps & { setPersona: (p: PersonaId) => void; previewing?: boolean; /** A persona-specific control left of search (e.g. Switch cashier, AENR-697). */ lead?: ReactNode }) {
-  const { setSignedIn, go, toast, cart, removeFromCart, addToCart, clearCart, staffUsers, till, viewAs, staffMeId, switchRole } = useApp();
+  const { setSignedIn, go, toast, cart, removeFromCart, addToCart, clearCart, staffUsers, till, viewAs, staffMeId, switchRole, account, lang } = useApp();
   const t = useT();
   const money = useMoney();
   // Who is signed in (AENR-646): the guest on the customer side; elsewhere the demo
@@ -117,7 +118,16 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
   const [notifOpen, setNotifOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false); // mobile page-nav sheet
   const cur = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[0];
-  const baseFeed = FEEDS[persona] || FEEDS.customer;
+  // A first-time guest (Demo, AENR-778) has no sample history: only their own bookings notify.
+  const [newGuest] = useDemoFlag("newGuest");
+  const baseFeed: FeedItem[] = useMemo(
+    () =>
+      persona === "customer" && newGuest
+        ? [...account.bookings].reverse().map((b) => ({ ic: "checkCircle", tone: "green", t: "Booking confirmed", b: `${b.ref} · ${t("QR ready in My bookings.")}`, time: new Date(b.at).toTimeString().slice(0, 5), id: `customer-${b.ref}-${b.at}` }))
+        : FEEDS[persona] || FEEDS.customer,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- t follows lang
+    [persona, newGuest, account.bookings, lang],
+  );
   // Inbox (AENR-554): live "Needs action" items first, then the FYI feed; read
   // state is remembered on this device.
   const live = useInbox(persona);
@@ -131,7 +141,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
   });
   const feed = useMemo(() => [
     ...live.map((n) => ({ ic: n.icon, tone: n.tone, t: n.title, b: n.body, time: n.time, id: n.id, kind: n.kind, href: n.href, read: readIds.has(n.id) })),
-    ...baseFeed.map((n, i) => ({ ...n, id: `${persona}-${i}`, kind: "fyi" as const, href: undefined as string | undefined, read: readIds.has(`${persona}-${i}`) })),
+    ...baseFeed.map((n, i) => { const id = n.id ?? `${persona}-${i}`; return { ...n, id, kind: "fyi" as const, href: undefined as string | undefined, read: readIds.has(id) }; }),
   ], [live, baseFeed, persona, readIds]);
   const unread = feed.filter((n) => !n.read).length;
   const markAll = () => setReadIds(() => new Set([...readIds, ...feed.map((n) => n.id)]));
@@ -288,6 +298,12 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
                 <button onClick={markAll} className="text-[11px] font-semibold text-teal-700 hover:text-teal-800 disabled:text-slate-300" disabled={unread === 0}>{t("Mark all read")}</button>
               </div>
               <div className="max-h-[420px] overflow-y-auto pr-0.5">
+                {feed.length === 0 && (
+                  <div className="px-2 py-5 text-center text-[12.5px] text-slate-600">
+                    <Icon.bell size={18} className="mx-auto mb-1.5 text-slate-400" aria-hidden />
+                    {t("No notifications yet — booking updates will show here.")}
+                  </div>
+                )}
                 {(["action", "fyi"] as const).map((k) => {
                   const list = feed.filter((n) => n.kind === k);
                   if (!list.length) return k === "action" && persona !== "customer" ? (

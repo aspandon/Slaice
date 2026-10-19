@@ -41,6 +41,8 @@ import { GuardCtx, Skeleton, TableSkeleton } from "./components/ui";
 import { DEFAULT_LAYOUT_STATE, type LayoutState } from "./domain/layoutVersions";
 import { DEFAULT_EXTRAS, type ExtrasState } from "./domain/extras";
 import { DEFAULT_ACCOUNT, type AccountState } from "./domain/account";
+import { useDemoFlag } from "./lib/useDemoFlag";
+import { FIRST_TIME_RESET, enterFirstTime, leaveFirstTime, resetFirstTime, type GuestSnapshot } from "./lib/firstTimeGuest";
 import { MODULES_SEED, emptyPlatform, type PlatformState } from "./domain/platform";
 import { tenantRoleOn, usableRoles } from "./domain/features";
 import { DEFAULT_COMMS, type CommsState } from "./data/comms";
@@ -250,6 +252,25 @@ export default function App() {
   const setExtras = useCallback((u: (s: ExtrasState) => ExtrasState) => setExtrasState(u), []);
   const [account, setAccountState] = useState<AccountState>({ ...DEFAULT_ACCOUNT, ...(saved.account || {}), selfService: { ...DEFAULT_ACCOUNT.selfService, ...(saved.account?.selfService || {}) } });
   const setAccount = useCallback((u: (s: AccountState) => AccountState) => setAccountState(u), []);
+  // Demo › first-time guest (AENR-778): swap the guest's own account and passes for an empty one
+  // while the switch is on, and back when it is off — also on load, for a switch turned on earlier.
+  const [newGuest] = useDemoFlag("newGuest");
+  const applyGuest = (g: GuestSnapshot) => {
+    setAccountState(g.account);
+    setPasses(g.passes);
+    setCart(g.cart);
+  };
+  useEffect(() => {
+    const swap = (newGuest ? enterFirstTime : leaveFirstTime)({ account, passes, cart });
+    if (swap) applyGuest(swap);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs on the switch, with the state at that moment
+  }, [newGuest]);
+  // Demo › Reset (under the switch): the simulated guest starts over.
+  useEffect(() => {
+    const onReset = () => applyGuest(resetFirstTime());
+    window.addEventListener(FIRST_TIME_RESET, onReset);
+    return () => window.removeEventListener(FIRST_TIME_RESET, onReset);
+  }, []);
   const [platform, setPlatformState] = useState<PlatformState>(() => {
     const base = emptyPlatform(DEFAULT_TENANTS);
     const sp = saved.platform;
