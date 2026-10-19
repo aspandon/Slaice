@@ -403,7 +403,7 @@ function IssueInner() {
                       <button key={q.id} type="button" onClick={() => quick(q)}
                         className="min-h-[68px] rounded-2xl bg-teal-700 text-white px-4 py-2 font-semibold text-[16px] text-left shadow-sm hover:bg-teal-800 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2">
                         <span className="flex items-center gap-1.5"><Icon.group size={14} className="shrink-0 text-teal-100" aria-hidden />{q.label}</span>
-                        <span className="block text-[14px] font-medium text-white/75 tnum">{q.sets ? "from " : ""}{eur(quickPrice(q))}</span>
+                        <span className="block text-[14px] font-medium text-white/90 tnum">{q.sets ? "from " : ""}{eur(quickPrice(q))}</span>
                       </button>
                     ))}
                   </div>
