@@ -10,7 +10,7 @@ import { prefersReducedMotion } from "../lib/motion";
 import { gsap, Flip, motionOK, stashFlip, EASE, DUR } from "../lib/fx";
 import { DURATION, EASING } from "../lib/motionTokens";
 import { Sunbed, SunbedMark } from "../components/Beach";
-import { SetTile, SetTileLegend, tileGeometry, tilePosition } from "../components/SetTile";
+import { SetTile, SetTileLegend, euro, tileGeometry, tilePosition } from "../components/SetTile";
 import { ZONES, ZONE_BLOCKS, todayISO, chipLabel, forecastFor, WEATHER_DEMO } from "../data/beach";
 import { addDays } from "../domain/period";
 import { useClosure, useLiveSlots } from "../lib/useLiveSlots";
@@ -843,6 +843,7 @@ function WizardInner() {
             zone's sunbed grid stays at a comfortable reading width. */}
         <div className={`relative w-full ${showSets ? "max-w-5xl" : "max-w-[1700px]"}`}>
           {showZones && richOverview && <StoreOverview days={selDates} selectedId={zoneId} onPick={(id) => { if (step.id === "when") setStepIdx(BEACH_IDX); pickZone(id); }} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} picked={pickedByZone} />}
+          {step.id === "when" && !richOverview && <ZoneStrip days={selDates} onPick={(id) => { setStepIdx(BEACH_IDX); pickZone(id); }} />}
           {showSets && (richOverview ? (
             <SandSunbeds slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} />
           ) : (
@@ -1241,6 +1242,55 @@ const clampN = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, 
    are flying back in, so the entrance stagger skips that cluster. */
 function StoreOverview({ days, selectedId, onPick, rich, flipEnter, picked }: { days: string[]; selectedId: string; onPick: (id: string) => void; rich: boolean; flipEnter: string | null; picked: Record<string, number> }) {
   return rich ? <StoreClusters days={days} selectedId={selectedId} onPick={onPick} flipEnter={flipEnter} picked={picked} /> : <StoreCards days={days} selectedId={selectedId} onPick={onPick} picked={picked} />;
+}
+
+/* ============ Phones, When step: the beach filling up (AENR-758) ============
+   A swipeable strip of the zones in beach order, each a mini map of its sets
+   coloured by state for the chosen day (free teal, on hold amber, taken grey)
+   with the free count and the from-price. Changing the day re-colours the sets
+   and rolls the counts; tapping a zone opens it on Where. */
+const STRIP_DOT: Record<string, string> = { a: "bg-teal-500", h: "bg-amber-400", u: "bg-slate-300" };
+function ZoneStrip({ days, onPick }: { days: string[]; onPick: (id: string) => void }) {
+  const tr = useT();
+  const liveSlots = useLiveSlots();
+  const order = useMemo(
+    () => [...ZONES].sort((a, b) => parseFloat(ZONE_BLOCKS.find((x) => x.id === a.id)?.left ?? "50") - parseFloat(ZONE_BLOCKS.find((x) => x.id === b.id)?.left ?? "50")),
+    [],
+  );
+  return (
+    <div className="absolute inset-x-0 top-0 pointer-events-auto animate-fade-up">
+      <div className="px-1 pb-1.5 text-guest-caption font-semibold text-navy-900/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.7)]">{tr("Free sets on the beach that day")} · {tr("tap a zone")}</div>
+      <div className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory overscroll-x-contain pb-2 -mx-3 px-3 [scrollbar-width:none]">
+        {order.map((z) => <ZoneStripTile key={z.id} zone={z} slots={liveSlots(z, days)} onPick={onPick} />)}
+      </div>
+    </div>
+  );
+}
+function ZoneStripTile({ zone, slots, onPick }: { zone: WizardZone; slots: SunbedSlot[]; onPick: (id: string) => void }) {
+  const tr = useT();
+  const freeSlots = slots.filter((s) => s.state === "a");
+  const free = useAnimatedNumber(freeSlots.length, DURATION.slow);
+  const from = freeSlots.length ? Math.min(...freeSlots.map((s) => s.price)) : null;
+  const full = freeSlots.length === 0;
+  return (
+    <button type="button" onClick={() => onPick(zone.id)}
+      aria-label={`${zone.name} — ${freeSlots.length} ${tr("free")}${from !== null ? `, ${tr("from")} ${euro(from)}` : ""}`}
+      className={`snap-start shrink-0 w-[118px] rounded-2xl glass-card px-2.5 pt-2 pb-2 text-left transition duration-fast ease-ios active:scale-[.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${full ? "opacity-70" : ""}`}>
+      <span className="flex items-center gap-1.5 min-w-0">
+        <span aria-hidden className="w-2 h-2 rounded-full shrink-0" style={{ background: zone.color }} />
+        <span className="font-semibold text-guest-meta text-navy-900 truncate">{zone.name}</span>
+      </span>
+      <span aria-hidden className="relative block mt-1.5 h-[52px] rounded-lg bg-[#f3e3c4]/70">
+        {slots.map((s) => (
+          <span key={s.id} className={`absolute w-[6px] h-[6px] rounded-[2px] -translate-x-1/2 -translate-y-1/2 transition-colors duration-base ${STRIP_DOT[s.state] ?? STRIP_DOT.u}`} style={{ left: `${s.x}%`, top: `${s.y}%` }} />
+        ))}
+      </span>
+      <span className="mt-1.5 block text-guest-caption leading-tight">
+        <b className="tnum text-navy-900">{full ? tr("Full") : `${Math.round(free)} ${tr("free")}`}</b>
+        {from !== null && <span className="block text-slate-600 tnum">{tr("from")} {euro(from)}</span>}
+      </span>
+    </button>
+  );
 }
 
 function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: string[]; selectedId: string; onPick: (id: string) => void; flipEnter: string | null; picked: Record<string, number> }) {

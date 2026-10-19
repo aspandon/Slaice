@@ -61,6 +61,9 @@ export function tilePosition(
 }
 
 type TileState = "free" | "hold" | "taken" | "yours";
+/** Whole euros as "€30", cents as "€31.50". */
+export const euro = (n: number) => `€${Number.isInteger(n) ? n : n.toFixed(2)}`;
+
 const tileState = (state: SunbedState, sel: boolean): TileState =>
   sel ? "yours" : state === "h" ? "hold" : state === "u" ? "taken" : "free";
 
@@ -90,7 +93,7 @@ export function SetTile({
 }) {
   const t = tileState(state, sel);
   const blocked = t === "hold" || t === "taken";
-  const status = t === "hold" ? "on hold" : t === "taken" ? "unavailable" : `€${price}`;
+  const status = t === "hold" ? "on hold" : t === "taken" ? "unavailable" : euro(price);
   return (
     <button
       type="button"
@@ -120,7 +123,7 @@ export function SetTile({
         )
       )}
       {(t === "free" || t === "yours") && (
-        <span className="text-[12px] font-bold leading-none tnum">€{price}</span>
+        <span className="text-[12px] font-bold leading-none tnum">{euro(price)}</span>
       )}
       {t === "yours" && (
         <span
