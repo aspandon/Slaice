@@ -108,6 +108,10 @@ export default {
         "slide-up": `slideUp ${ms("base")} ${E.spring.css} both`,
         "step-fwd": `stepFwd ${ms("page")} ${E.out.css} both`,
         "step-back": `stepBack ${ms("page")} ${E.out.css} both`,
+        // Page-level variants fill "backwards" only: no transform stays behind,
+        // so fixed-position children (sticky bars, sheets) keep the viewport.
+        "page-fwd": `stepFwd ${ms("page")} ${E.out.css} backwards`,
+        "page-back": `stepBack ${ms("page")} ${E.out.css} backwards`,
         floaty: "floaty 5s ease-in-out infinite",
         ripple: "ripple 4s ease-out infinite",
         "sea-tilt": "seaTilt 4.5s ease-in-out infinite",

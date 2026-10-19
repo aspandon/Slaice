@@ -378,6 +378,14 @@ Four pages with distinct names (AENR-642); old `invoicing` and `commission` link
     alerts, offers & promotions, receipts & documents).
   - **Language** menu: English, Ελληνικά, Deutsch, Français, Español, Italiano.
   - **Account** menu (avatar "EM"): My bookings, My documents, Account settings, Sign out.
+- **Page transitions** (AENR-750): changing page slides the new page in from the side of the tab you
+  chose — Home · Plan · My bookings · Wallet · Account, left to right — so Home → Account arrives from the
+  right and Account → Home from the left; pages outside the tabs (Checkout, a pass purchase) arrive from
+  the right and going back to a tab comes from the left (`page` 240 ms, 28 px, motion tokens; the
+  animation leaves no transform behind, so fixed bars and sheets keep the viewport). Focus moves to the
+  new page for keyboard and screen-reader users. The booking wizard keeps its own entrance. Reduced
+  motion: an instant change. CSS animations rather than the View Transitions API, which Safari 14 (in
+  the support matrix) lacks.
 - **Bottom tab bar** on phones, with a **More** sheet when a persona has more than 5 destinations. In
   the booking wizard it slides away and the step's own action bar (total + Back/Continue) is the only
   footer; **Leave** is the way out and asks first when sets are picked ("Leave this booking?" — Keep

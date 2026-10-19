@@ -136,6 +136,9 @@ const LiveDisplay = lazyWithReload(() => import("./screens/display/LiveDisplay")
 const PASS = hashPath().startsWith("#/pass");
 const GuestPass = lazyWithReload(() => import("./screens/customer/GuestPass").then((m) => ({ default: m.GuestPass })));
 
+/** The customer's tabs in navigation order — sets the direction of page transitions (AENR-750). */
+const CUSTOMER_TABS = ["home", "plan", "mybookings", "wallet", "account"];
+
 export default function App() {
   const [persona, setPersona] = useState<PersonaId>(initialRoute.persona || saved.persona || "customer");
   const [pageByPersona, setPageByPersona] = useState<Record<string, string>>(() => {
@@ -473,6 +476,29 @@ export default function App() {
   // tappable surface, so the standing chrome (tenant logo, bottom tab bar) steps
   // aside and the backdrop lifts its shoreline.
   const immersive = persona === "customer" && page === "plan";
+
+  // Page transitions on the customer surface (AENR-750): a tab change slides the
+  // new page in from the side of the tab you chose (Home → Account from the
+  // right, back from the left); a page outside the tabs (Checkout, a pass) is
+  // "deeper" and arrives from the right, returning to a tab comes from the left.
+  // Derived while rendering — the previous page lives in state. Reduced motion
+  // removes the travel (global CSS), leaving an instant change.
+  const [shownPage, setShownPage] = useState(page);
+  const [pageDir, setPageDir] = useState<1 | -1>(1);
+  if (page !== shownPage) {
+    const from = CUSTOMER_TABS.indexOf(shownPage);
+    const to = CUSTOMER_TABS.indexOf(page);
+    setPageDir(to < 0 ? 1 : from < 0 ? -1 : to > from ? 1 : -1);
+    setShownPage(page);
+  }
+  // Move focus to the new page so keyboard and screen-reader users start there
+  // (not on first load, and not into the immersive wizard, which manages its own).
+  const mainRef = useRef<HTMLElement>(null);
+  const firstPage = useRef(true);
+  useEffect(() => {
+    if (firstPage.current) { firstPage.current = false; return; }
+    if (persona === "customer" && page !== "plan") mainRef.current?.focus({ preventScroll: true });
+  }, [persona, page]);
   const guard = useMemo(() => ({ viewAs: !!platform.viewAs && persona !== "platform", readOnly: platform.viewAs?.scope === "read" }), [platform.viewAs, persona]);
 
   if (DISPLAY)
@@ -546,7 +572,11 @@ export default function App() {
             // the bottom of the viewport (the beach backdrop's green band)
             // instead of floating up under short pages.
             <div className="flex-1">
-              <main className="min-w-0">{viewAs ? <AccessDenied user={viewAs} onHome={() => go(viewAsHome, DEFAULT_PAGE[viewAsHome])} /> : <PageGate persona={persona} page={page}><Suspense fallback={<RouteLoading />}>{routeFor(persona, page)}</Suspense></PageGate>}</main>
+              <main ref={mainRef} tabIndex={-1} className="min-w-0 outline-none">
+                <div key={page} className={immersive ? undefined : pageDir > 0 ? "animate-page-fwd" : "animate-page-back"}>
+                  {viewAs ? <AccessDenied user={viewAs} onHome={() => go(viewAsHome, DEFAULT_PAGE[viewAsHome])} /> : <PageGate persona={persona} page={page}><Suspense fallback={<RouteLoading />}>{routeFor(persona, page)}</Suspense></PageGate>}
+                </div>
+              </main>
             </div>
           ) : (
             <div className="flex-1 flex gap-5 min-h-0">
