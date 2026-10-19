@@ -3113,6 +3113,7 @@ Many screens still import `src/data/*` constants directly.
 | i18n       | `t()` + generated JSON dictionaries (`scripts/i18n.mjs`, Google Translate endpoint)                                                                     |
 | Quality    | `tsc --noEmit`, ESLint 9 (typescript-eslint, react-hooks, jsx-a11y as errors), Prettier (not enforced in CI)                                            |
 | Tests      | None yet                                                                                                                                                |
+| Agent tooling | Project MCP servers in `.mcp.json` (Chrome DevTools, Playwright, Context7, a11y, Lighthouse) and the official GSAP skills in `.claude/skills` — development only, not in the bundle (AENR-741) |
 | CI/CD      | GitHub Actions on push to `main`: `npm ci` → typecheck → lint → build → commit `docs/` → GitHub Pages                                                   |
 | Chunks     | `react`, `radix`, `icons`, `vendor`, lazy `BeachCanvas` (konva), lazy `LiveSeaCanvas` (three)                                                           |
 

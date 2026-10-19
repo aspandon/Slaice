@@ -1,0 +1,45 @@
+{
+  "mcpServers": {
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@1.11.0",
+        "--headless",
+        "--isolated",
+        "--executablePath=tools/mcp/chrome.sh"
+      ]
+    },
+    "playwright": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@0.0.83",
+        "--headless",
+        "--isolated",
+        "--browser=chromium",
+        "--executable-path=tools/mcp/chrome.sh",
+        "--output-dir=.playwright-mcp"
+      ]
+    },
+    "context7": {
+      "command": "npx",
+      "args": ["-y", "@upstash/context7-mcp@4.4.3"]
+    },
+    "a11y": {
+      "command": "npx",
+      "args": ["-y", "a11y-mcp@1.1.0"],
+      "env": {
+        "PUPPETEER_SKIP_DOWNLOAD": "1",
+        "PUPPETEER_EXECUTABLE_PATH": "tools/mcp/chrome.sh"
+      }
+    },
+    "lighthouse": {
+      "command": "npx",
+      "args": ["-y", "lighthouse-mcp@0.1.17"],
+      "env": {
+        "CHROME_PATH": "tools/mcp/chrome.sh"
+      }
+    }
+  }
+}

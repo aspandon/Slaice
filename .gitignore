@@ -8,3 +8,6 @@ dist-ssr
 # Orbit backlog tooling — local credentials and session state (never committed)
 tools/orbit/.orbit.env
 tools/orbit/state.json
+
+# Playwright MCP output (screenshots, traces)
+.playwright-mcp/
