@@ -23,7 +23,8 @@ export default {
       colors: {
         // Tenant-branded beach experience (Akti tou Iliou) — navy + teal
         navy: { 950: "#071a30", 900: "#0B2545", 800: "#13315c", 700: "#1d4172", 600: "#2a5589" },
-        teal: { 600: "#0D9488", 500: "#14b8a6", 400: "#2dd4bf", 300: "#5EEAD4", 100: "#ccfbf1" },
+        // teal-600 is 4.7 : 1 on white so small white text on it passes AA (AENR-746; was #0D9488, 3.74 : 1).
+        teal: { 600: "#0A8276", 500: "#14b8a6", 400: "#2dd4bf", 300: "#5EEAD4", 100: "#ccfbf1" },
         // Selected sunbed / accent (from the video)
         coral: { 600: "#e2552f", 500: "#f1683c", 400: "#fb8a63" },
         // SLAiCE platform brand — indigo + gold
@@ -55,9 +56,9 @@ export default {
         ring: "0 0 0 1px rgba(15,23,42,.05)",
         raised: "0 1px 2px rgba(15,23,42,.05), 0 10px 24px -18px rgba(15,23,42,.20)",
         overlay: "0 2px 8px -4px rgba(11,37,69,.14), 0 32px 70px -28px rgba(11,37,69,.40)",
-        glow: "0 0 0 4px rgba(13,148,136,.14)",
+        glow: "0 0 0 4px rgba(10,130,118,.14)",
         "btn-primary": "0 1px 2px rgba(11,37,69,.24), 0 10px 22px -12px rgba(11,37,69,.45)",
-        "btn-teal": "0 1px 2px rgba(13,148,136,.24), 0 10px 22px -12px rgba(13,148,136,.45)",
+        "btn-teal": "0 1px 2px rgba(10,130,118,.24), 0 10px 22px -12px rgba(10,130,118,.45)",
       },
       transitionTimingFunction: {
         spring: E.spring.css,

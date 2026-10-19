@@ -3179,13 +3179,13 @@ src/
 | Token                      | Values                                                                                                                 |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `navy`                     | 950 `#071a30`, 900 `#0B2545`, 800 `#13315c`, 700 `#1d4172`, 600 `#2a5589`                                              |
-| `teal`                     | 600 `#0D9488`, 500 `#14b8a6`, 400 `#2dd4bf`, 300 `#5EEAD4`, 100 `#ccfbf1`                                              |
+| `teal`                     | 600 `#0A8276` (4.7 : 1 on white, AENR-746; was `#0D9488`), 500 `#14b8a6`, 400 `#2dd4bf`, 300 `#5EEAD4`, 100 `#ccfbf1`                                              |
 | `coral` (selection accent) | 600 `#e2552f`, 500 `#f1683c`, 400 `#fb8a63`                                                                            |
 | `slaice` (platform)        | 700 `#2f3bb3`, 600 `#3a47cc`, 500 `#4a57e0`, 100 `#e7e9fb`                                                             |
 | `gold`                     | 600 `#e0a800`, 500 `#f2b705`, 400 `#ffc933`                                                                            |
 | `sand` / `ink`             | `#E9E3D5` / `#1E293B`                                                                                                  |
 | Page background            | `#f6f8fb` with a fixed teal/indigo radial wash                                                                         |
-| Focus ring                 | 2 px `#0d9488`, 2 px offset (`:focus-visible` only)                                                                    |
+| Focus ring                 | 2 px `#0a8276`, 2 px offset (`:focus-visible` only)                                                                    |
 | Persona colours            | customer `#0D9488`, admin `#0B2545`, cashier `#0ea5e9`, controller `#f59e0b`, accountant `#a855f7`, platform `#3a47cc` |
 | Zone colours               | Akanthus `#6366f1`, Central `#0ea5e9`, Macaw `#ef4444`, Bestbuy `#22c55e`, Main `#f59e0b`, Bolivar `#a855f7`           |
 | Gradients                  | `grad-sea` (navy → teal), `grad-beach`, `grad-slaice` (indigo + gold glow)                                             |
@@ -3249,7 +3249,7 @@ src/
 ### 20.6 The customer scene
 
 - Layered illustrated beach (sky, clouds, sea, shoreline, sand, vegetation) with **8 presets** or a
-  custom photo; a decorative **floating life-ring**; parallax.
+  custom photo; a decorative **floating life-ring** that only ever sits where content doesn't (left margin beside the 72rem column on screens ≥ 1360 px, the surf line in the desktop booking flow, hidden otherwise — AENR-744); parallax.
 - **Live sea:** a WebGL2 three.js shader (lazy, DPR-capped, phones included) that reacts to wind,
   sun glint, dusk warmth, night and clouds; falls back to SVG if WebGL2 is missing or motion is reduced.
 - **Weather** (demo): sunny / windy / overcast / rainy — sea agitation, backdrop dim, sun glint,
@@ -3275,7 +3275,7 @@ small-text contrast — are tracked in `UX_REVIEW.md`.
 | ------------------------------------------------------------ | ----------------------- | --------------------------------------------------------- |
 | Site gate (fixed credentials, client-side hash)              | `SiteGate.tsx`          | Hosting-level auth for stage, none for production         |
 | "Any input signs you in" magic link / SSO                    | `auth.tsx`              | Real auth provider                                        |
-| Persona switcher ("DEMO" pill, top-bar persona menu)         | Shell                   | Role-based access per signed-in user                      |
+| Persona switcher ("DEMO" pill on customer Home only — AENR-745; top-bar persona menu for staff) | Shell | Role-based access per signed-in user                      |
 | Scene demo panel (weather + time slider)                     | Customer Home           | Real weather feed / real local time (admin switches stay) |
 | "Simulate successful payment"                                | Checkout, pass purchase | Stripe Checkout redirect + webhook                        |
 | "Show platform economics"                                    | Checkout                | Remove from customer UI                                   |

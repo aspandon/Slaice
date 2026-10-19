@@ -58,7 +58,7 @@ body::before {
 
 /* Accessible keyboard focus (WCAG 2.4.7) — visible only for keyboard users. */
 :focus-visible {
-  outline: 2px solid #0d9488;
+  outline: 2px solid #0a8276;
   outline-offset: 2px;
   border-radius: 8px;
 }
@@ -331,7 +331,7 @@ html[data-persona="customer"]::-webkit-scrollbar {
     background-size: 220% 100%;
     -webkit-background-clip: text;
     background-clip: text;
-    color: #0d9488; /* fallback + reduced-motion colour */
+    color: #0a8276; /* fallback + reduced-motion colour */
     -webkit-text-fill-color: transparent;
     animation: shimmerText 5.5s ease-in-out infinite;
   }

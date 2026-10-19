@@ -114,7 +114,7 @@ export function Btn({ children, variant = "primary", size = "md", onClick, icon:
   const off = "!bg-slate-100 !text-slate-400 !ring-0 !shadow-none";
   const variants: Record<string, string> = {
     primary: "bg-navy-900 text-white hover:bg-navy-800 shadow-btn-primary hover:shadow-lift",
-    teal: "bg-teal-600 text-white hover:bg-teal-500 shadow-btn-teal hover:shadow-lift",
+    teal: "bg-teal-600 text-white hover:bg-teal-700 shadow-btn-teal hover:shadow-lift",
     coral: "bg-coral-600 text-white hover:bg-coral-500 shadow-lift",
     dark: "bg-navy-950 text-white hover:bg-navy-900 shadow-btn-primary hover:shadow-lift",
     // One palette across personas (AENR-557): the old indigo primary is brand navy now.
