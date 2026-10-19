@@ -44,12 +44,15 @@ export function ConsentBanner() {
     <>
       {show && !prefs && (
         <div className="fixed inset-x-0 bottom-0 z-[80] p-3 sm:p-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] animate-slide-up" role="region" aria-label="Cookie consent">
-          <div className="mx-auto max-w-3xl glass rounded-3xl p-4 sm:p-5 shadow-float flex flex-col sm:flex-row sm:items-center gap-4">
-            <span className="w-11 h-11 rounded-2xl bg-teal-50 text-teal-700 grid place-items-center shrink-0"><Icon.shieldCheck size={22} /></span>
+          <div className="mx-auto max-w-3xl glass rounded-3xl p-4 sm:p-5 shadow-float flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <span className="max-sm:hidden w-11 h-11 rounded-2xl bg-teal-50 text-teal-700 grid place-items-center shrink-0"><Icon.shieldCheck size={22} /></span>
             <div className="flex-1 min-w-0">
               <div className="font-display font-bold text-navy-900">{outdated ? t("We've updated our privacy policy") : t("We value your privacy")}</div>
               <p className="text-[13px] text-slate-600 leading-snug mt-0.5">
-                {outdated ? <>{t("Please review what changed and confirm your choices.")} </> : null}{t("We use strictly-necessary cookies to run the site, and — with your consent — analytics and marketing cookies. You can change this anytime in")} <b>{t("Account › Privacy & cookies")}</b>. <button type="button" className="underline font-semibold hover:text-navy-900" onClick={() => open("privacy")}>{t("Privacy Policy")}</button> · <button type="button" className="underline font-semibold hover:text-navy-900" onClick={() => open("cookie")}>{t("Cookie Policy")}</button>
+                {outdated ? <>{t("Please review what changed and confirm your choices.")} </> : null}
+                {/* Phones get the short version (AENR-757) so the banner doesn't cover the sign-in. */}
+                <span className="sm:hidden">{t("Analytics and marketing cookies only with your consent.")} </span>
+                <span className="max-sm:hidden">{t("We use strictly-necessary cookies to run the site, and — with your consent — analytics and marketing cookies. You can change this anytime in")} <b>{t("Account › Privacy & cookies")}</b>. </span><button type="button" className="underline font-semibold hover:text-navy-900" onClick={() => open("privacy")}>{t("Privacy Policy")}</button> · <button type="button" className="underline font-semibold hover:text-navy-900" onClick={() => open("cookie")}>{t("Cookie Policy")}</button>
               </p>
             </div>
             <div className="flex items-center gap-2 flex-wrap shrink-0">

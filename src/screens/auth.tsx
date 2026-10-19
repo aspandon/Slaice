@@ -5,8 +5,9 @@ import { z } from "zod";
 import { Icon } from "../lib/icons";
 import { Btn, Input } from "../components/ui";
 import { QuickSignIn } from "../components/QuickSignIn";
-import { SlaiceLogo, TenantLogo } from "../components/Brand";
-import { BeachBackdrop } from "../components/Beach";
+import { SlaiceLogo } from "../components/Brand";
+import { CustomerBackdrop } from "../components/CustomerBackdrop";
+import { GlideLogo } from "../components/GlideLogo";
 import { TENANT } from "../data/beach";
 import { useApp, useT } from "../app/store";
 
@@ -47,43 +48,33 @@ export function AuthGate() {
   };
 
   return (
-    <div className="min-h-full grid lg:grid-cols-2">
-      {/* left: tenant-branded hero */}
-      <div className="relative hidden lg:block">
-        <BeachBackdrop pos="absolute" className="inset-0 rounded-none">
-          <div className="absolute inset-0 bg-gradient-to-tr from-navy-950/75 via-navy-950/35 to-transparent" />
-          <div className="absolute inset-0 p-12 flex flex-col justify-between text-white">
-            <div className="flex items-center gap-3 animate-fade-down">
-              <span className="animate-floaty"><TenantLogo size={44} /></span>
-              <div>
-                <div className="font-display font-bold text-lg">{TENANT.name}</div>
-                <div className="text-[12px] text-white/70">{TENANT.subdomain}</div>
-              </div>
-            </div>
-            <div className="animate-fade-up">
-              <h1 className="font-display font-bold text-5xl leading-[1.04] drop-shadow-lg">{t("Relax.")}<br />{t("Reserve.")}<br />{t("Repeat.")}</h1>
-              <p className="mt-4 text-white/80 max-w-sm">{t("Book your sunbed ahead, skip the queues, and enjoy a seamless beach day at")} {TENANT.place}.</p>
-              <ul className="mt-6 space-y-2.5 text-[13px] text-white/85">
-                {["Pick your exact spot on a live beach map", "Instant QR — straight to the gate", "Digital receipts, automatically"].map((f) => (
-                  <li key={f} className="flex items-center gap-2.5"><span className="w-5 h-5 rounded-full bg-teal-500/30 ring-1 ring-teal-300/50 grid place-items-center text-teal-200"><Icon.check size={12} /></span>{t(f)}</li>
-                ))}
-              </ul>
-            </div>
-            <div className="flex items-center gap-2 text-[12px] text-white/70">
-              {t("powered by")} <SlaiceLogo size={22} withText light />
-            </div>
-          </div>
-        </BeachBackdrop>
+    // Sign-in on the live beach (AENR-757): the same scene, weather and tenant logo
+    // as Home, with the form on a glass card — the first screen already looks like
+    // the product. After sign-in the logo glides to its place on Home.
+    <div className={`relative min-h-full flex flex-col lg:flex-row ${consent.decided ? "" : "pb-48 sm:pb-40"}`}>
+      <CustomerBackdrop immersive={false} ring={false} />
+      {/* desktop: the promise over the sea, on a soft scrim for legibility */}
+      <div className="relative hidden lg:flex flex-1 flex-col justify-between p-12 text-white">
+        <div aria-hidden className="absolute inset-0 -z-[1] bg-gradient-to-r from-navy-950/60 via-navy-950/25 to-transparent" />
+        <GlideLogo spot="auth" className="h-24 w-auto self-start drop-shadow-lg" />
+        <div className="animate-fade-up">
+          <h1 className="font-display font-bold text-5xl leading-[1.04] drop-shadow-lg">{t("Relax.")}<br />{t("Reserve.")}<br />{t("Repeat.")}</h1>
+          <p className="mt-4 text-white/90 max-w-sm drop-shadow">{t("Book your sunbed ahead, skip the queues, and enjoy a seamless beach day at")} {TENANT.place}.</p>
+          <ul className="mt-6 space-y-2.5 text-[13px] text-white/90">
+            {["Pick your exact spot on a live beach map", "Instant QR — straight to the gate", "Digital receipts, automatically"].map((f) => (
+              <li key={f} className="flex items-center gap-2.5"><span className="w-5 h-5 rounded-full bg-teal-500/40 ring-1 ring-teal-200/60 grid place-items-center text-white"><Icon.check size={12} /></span>{t(f)}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="flex items-center gap-2 text-[12px] text-white/80">
+          {t("powered by")} <SlaiceLogo size={22} withText light />
+        </div>
       </div>
 
-      {/* right: sign-in */}
-      {/* While the cookie banner is up, room below so nothing stays hidden under it (AENR-622). */}
-      <div className={`grid place-items-center p-6 sm:p-10 bg-slate-50 ${consent.decided ? "" : "pb-80 lg:pb-52"}`}>
-        <div className="w-full max-w-sm">
-          <div className="lg:hidden flex items-center gap-3 mb-8">
-            <TenantLogo size={40} />
-            <div className="font-display font-bold text-navy-900 text-lg">{TENANT.name}</div>
-          </div>
+      {/* the sign-in card */}
+      <div className="relative flex-1 lg:flex-none lg:w-[500px] flex flex-col items-center justify-center gap-5 p-5 sm:p-10">
+        <GlideLogo spot="auth" className="lg:hidden h-16 sm:h-20 w-auto drop-shadow-lg" />
+        <div className="w-full max-w-sm glass-card-solid rounded-3xl p-6 sm:p-7 animate-fade-up">
           <h2 className="font-display font-bold text-2xl text-navy-900">{t("Sign in")}</h2>
           <p className="text-sm text-slate-500 mt-1">{t("One tap with Apple, Google or a passkey. This is a demo — nothing is checked.")}</p>
 
@@ -129,9 +120,12 @@ export function AuthGate() {
             {t("Browse as a guest")} <span className="font-normal text-slate-500">· {t("sign in at checkout")}</span>
           </button>
 
-          <div className="mt-8 flex items-center justify-center gap-2 text-[11px] text-slate-600">
+          <div className="mt-6 flex items-center justify-center gap-2 text-[11px] text-slate-600">
             <Icon.shield size={13} /> {t("Secured demo · no real credentials processed")}
           </div>
+        </div>
+        <div className="lg:hidden flex items-center gap-2 text-[12px] text-white/90 drop-shadow">
+          {t("powered by")} <SlaiceLogo size={20} withText light />
         </div>
       </div>
     </div>

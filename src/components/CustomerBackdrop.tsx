@@ -28,7 +28,7 @@ const wideNow = () => typeof window !== "undefined" && window.matchMedia("(min-w
    overlays + a rain layer here, and a SeaEnv handed down to the live water.
    One resolution for every customer page — home, wizard and checkout always
    share identical conditions. */
-export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
+export function CustomerBackdrop({ immersive, ring = true }: { immersive: boolean; /** The decorative life-ring (off on sign-in, AENR-757). */ ring?: boolean }) {
   // The tenant's live-scene switch (AENR-737) can pin this to a sunny 11:00.
   const { weather, dayTime, sceneFx } = useGuestScene();
   const [wide, setWide] = useState(wideNow);
@@ -103,7 +103,7 @@ export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
           column — only on screens wide enough to have one; in the desktop
           booking flow, in the surf just off the raised shoreline; on tablets in
           the flow, top-left, clear of the menu and the tappable sand. */}
-      <LifeRing
+      {ring && <LifeRing
         className={`absolute w-[60px] h-[60px] transition-[top,left] duration-slow ease-ios ${
           immersive
             ? wide
@@ -111,7 +111,7 @@ export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
               : "hidden sm:block top-[7%] left-[8%]"
             : "hidden min-[1360px]:block top-[72%] left-[calc((100vw-72rem)/2-84px)]"
         }`}
-      />
+      />}
 
       {/* Cloud cover for overcast/rainy — drifting banks of soft grey blobs. */}
       <div className="absolute inset-0 overflow-hidden transition-opacity duration-1000" style={{ opacity: clouds }}>

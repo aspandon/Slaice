@@ -507,6 +507,12 @@ Each journey: **ID · name**, trigger, steps, outcome, rules and states.
 - **Steps:** (site gate [DEMO]) → enter e-mail → "Send magic link" → "Check your inbox" → "Continue";
   or — the default — one tap: Apple, Google or a passkey (AENR-622).
 - **Validation:** e-mail required and must be valid (inline error, `role="alert"`).
+- **Look** (AENR-757): the live beach scene (same backdrop, weather and time of day as Home, no
+  life-ring) fills the screen; the form sits on a solid glass card under the tenant's own logo (the
+  hand-drawn Home logo, not a generic badge). Desktop adds "Relax. Reserve. Repeat." and three benefits
+  over the sea on a soft navy scrim, with "powered by SLAiCE"; phones show the logo, the card and the
+  credit below it. On phones the cookie banner uses a one-line text so it never covers the sign-in
+  options. After sign-in the logo glides to its place on Home (`GlideLogo` spot `auth`).
 - **Outcome:** signed in, lands on the last customer page (default Home). Consent banner appears if
   undecided.
 
