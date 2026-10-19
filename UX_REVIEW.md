@@ -76,8 +76,8 @@ Numbers 1.1–7.4 are the original ones; 8.1–9.3 were numbered in this revisio
 | #   | Finding                                                 | Status            | Where it stands (29 Sep 2026)                                                                                                                                                                                           |
 | --- | ------------------------------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 3.1 | No global search / ⌘K command palette for staff         | ⏪ Regressed      | A palette and a top-bar search field shipped once; neither is in the code now. Staff navigate by sidebar (desktop) or tab bar + nav sheet (phones), and Admin has grown to 13 destinations.                             |
-| 3.2 | The persona switcher is a production boundary risk      | 🔴 Open [demo-ok] | Unchanged by design: a floating **Demo** pill on customer pages (`src/App.tsx:275`) and a persona chip in the staff top bar. In production the role must come from auth. On phones the pill also overlaps content (N9). |
-| 3.3 | My Bookings / My Documents buried in the avatar menu    | 🟡 Partly done    | On phones they're listed under **Account** in the More sheet — two taps (`src/components/Shell/Nav.tsx:38`). On desktop they're still only in the avatar menu.                                                          |
+| 3.2 | The persona switcher is a production boundary risk      | 🔴 Open [demo-ok] | Unchanged by design: a floating **Demo** pill on customer pages (`src/App.tsx:275`) and a persona chip in the staff top bar. In production the role must come from auth. On phones it now docks in the top bar (N9, AENR-575). |
+| 3.3 | My Bookings / My Documents buried in the avatar menu    | ✅ Resolved (AENR-563) | Home · Plan a visit · My bookings · Wallet · Account are a top nav on desktop and the five phone tabs; receipts open from each booking and are all listed in Account (`src/components/Shell/Nav.tsx` `CustomerNav`). |
 | 3.4 | The marketing landing page renders inside the app shell | 🔴 Open [demo-ok] | `#/platform/landing` still renders inside the staff sidebar and top bar (checked at 1440×900).                                                                                                                          |
 
 ### P1 — accessibility
@@ -144,7 +144,12 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 
 ### P1
 
-#### N1 · "On hold" sets can be booked
+#### N1 · "On hold" sets can be booked — ✅ Resolved (12 Oct 2026, AENR-520)
+
+- **Resolution:** `Sunbed` disables on-hold sets (unless they are the guest's own pick) and keeps "On
+  hold" in the tooltip and accessible name. The wizard now overlays the live per-date status from the
+  shared store (`useLiveSlots`): sets sold at the Cashier till are unavailable, sets in a till basket
+  show On hold, and closed stores have no bookable sets.
 
 - **Evidence:** in the wizard only taken sets are disabled — `dim: state === "u" && !sel`
   (`src/components/sunbedGlyph.ts:101`) drives `disabled` (`src/components/Beach.tsx:72`) — so an
@@ -155,7 +160,10 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 - **Fix:** disable on-hold sets like taken ones and keep the tooltip as the explanation; once holds are
   real, also show the guest's own hold (5.2).
 
-#### N2 · Switches have no accessible name
+#### N2 · Switches have no accessible name — ✅ Resolved (12 Oct 2026, AENR-504)
+
+- **Resolution:** `Toggle` now requires a name at compile time (`label` or `ariaLabel`), every use
+  passes one, and the "Always on" cookie switch is `disabled` with "Always on" in its name.
 
 - **Evidence:** `Toggle` renders `role="switch"` + `aria-checked` but is only named when given `label`
   (`src/components/ui/forms.tsx:37`). 15 of its 18 uses have no name: the visible text sits in a
@@ -286,7 +294,7 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 
 ### Low priority and deferred
 
-- **N9 · The Demo pill covers content on phones [demo-ok].** The fixed pill (`src/App.tsx:275`) sits on
+- **N9 · The Demo pill covers content on phones [demo-ok].** ✅ Resolved (AENR-575): on phones the Demo menu (persona, scene clock, weather) docks in the top bar and nothing floats. The fixed pill (`src/App.tsx:275`) sits on
   the wizard's legend / guidance bar and, at the initial scroll position, on the right end of
   Checkout's **Pay** button (390×844). Hide it inside the wizard and checkout on phones, or move
   persona switching into the account menu.
@@ -346,3 +354,218 @@ Re-checked on 29 Sep 2026 — all of this still holds:
   wizard redesign, every item was re-checked against `main` @ `ba18313` and re-graded, and N1–N9
   were added. The earlier version of this file, including each finding's full original write-up and
   evidence, is in git history.
+- **12 Oct 2026 screen-by-screen review** — proposals were logged as Orbit epics AENR-538…544.
+  Resolved so far: data credibility D1–D4 (AENR-545 Executive / Dashboard tiles reconcile with the
+  finance block, AENR-546 Refunds KPIs from the listed rows, AENR-547 one demo calendar for every
+  tenant-side persona, AENR-548 lifecycle stage as the one meaning of "Regular"), F1 / P1 / P2
+  (AENR-588, 589, 590), and till & gate K1, K2, G1, G2 (AENR-584 tablet till, 585 offline banner,
+  586 full-screen scan result, 587 beach status by exception; defects AENR-591, 592 fixed on the way),
+  and back-office operations A1–A5 (AENR-579 booking tabs + drawer + timeline, 580 live beach map,
+  581 guest row → profile + saved views, 582 reports in the brand system, 583 refund decision queue),
+  and the design system & app shell X1–X10 (AENR-549…557: solid data surfaces, one page header,
+  index-table standard, one vocabulary, ⌘K palette, notification inbox, KPI context, date picker,
+  one palette), and navigation & IA I1–I9 (AENR-558 admin sidebar by job, 559 one New booking flow,
+  560 Today, 561 beach split, 562 reports in groups, 563 customer navigation in plain sight, 564
+  full-screen gate scanner, 565 support access in Privacy, 566 platform marketing apart; defects
+  AENR-595 Unpaid badge tone and AENR-596 staff top-bar title at 390 px fixed on the way), and the
+  customer journey C1–C12 (AENR-567…578: Home leads with the next visit, a map with tiers and a spot
+  sheet, all-in price and cancellation deadline, date step with weather / price / alternatives, ticket
+  confirmation, My bookings by visit with self-service, plain-language receipts and invoices, trusted
+  checkout with wallets and deposit, no overlapping header on phones, passes in the beach's brand with
+  personal savings, one Wallet, Release my day; defect AENR-597 booking refs fixed on the way), and
+  the live display's Day / Night / Auto look (AENR-594), and every export in PDF and CSV from one
+  report definition, each downloaded and reviewed (AENR-593).
+- **13 Oct 2026 — Apple-style UX review.** Every screen walked again at 1440 and 390 px for a simpler,
+  friendlier, more Apple-like feel; 33 proposals sent to the owner to pick from (no tickets yet).
+  Defect AENR-599 fixed on the way: Month-end exceptions no longer squeeze into a one-word column on
+  phones, and long line charts (MRR) show every other month label on phones so labels never overlap.
+- **AENR-605 — one place to sell.** The till is Sell, Sales and Cash register. Sell Locker (which only
+  pointed to Issue Ticket) and Redeem Ticket (the gate's job) left the Cashier and Support navigation;
+  old links redirect (cashier → Sell, support redeem → Gate). Issue Ticket is now called Sell.
+- **AENR-601 — change a price by tapping the day.** Pricing & calendar has two tabs: Calendar (each day
+  shows one "from" price and how full it is; tap, type, Enter, with Undo in the toast) and Advanced
+  (restrictions, templates, rule order, demand pricing, pricing rules). On phones the month is a week
+  list with the editor under the tapped day. Also fixed: the pricing rules panel overflowed at 390 px.
+- **AENR-600 — Today is a to-do list you can finish.** Each Needs attention item has its own action:
+  Release all no-shows (Undo), Approve €X refunds with an in-place confirmation, Re-send to myDATA,
+  Sync an offline till, Open for the rest; done items collect under Done today. No-show set codes
+  open on demand, and a closed zone no longer counts as no-shows (Today showed 24 instead of 17).
+- **AENR-608 — switch cashier without signing out.** The till strip names who is selling and has a
+  Switch cashier button: the next person types their own PIN (set in Team & roles), optionally counts
+  the drawer, and sales carry their name. Five wrong PINs need a manager PIN. X / Z reports split
+  totals by cashier and list hand-overs. (Spec K-04 Sell a locker marked retired after AENR-605.)
+- **AENR-612 — booking wizard in three steps.** When & where, Who, Pay. Locker and parking are one
+  optional "Add a locker or parking" row on Pay (opened inline, nothing added by default); several
+  days and several zones sit behind "More options"; the footer shows guidance instead of €0 before
+  the first pick; the header reads "Step 1 of 3 · When & where".
+- **AENR-618 — hide what isn't ready.** Roadmap (Future) pages leave the sidebar, phone tabs, page
+  menu and ⌘K by default; "Show roadmap previews" in the persona menu brings them back under "Coming
+  next". Direct links still open a preview with its banner.
+- **AENR-620 — the visit in Apple / Google Wallet.** The existing wallet badges now also sit on the
+  Home next-visit card and every upcoming visit, show only the device's wallet (both on desktop), and
+  are remembered: "In Apple Wallet ✓", with the pass following a move and voided on cancel. (The
+  review said the visit lived only inside the site — the confirmation and QR dialog already had the
+  badges; the gaps were memory, placement and move / cancel.) Defect AENR-627: ##BK ref fixed.
+- **AENR-617 — one obvious next step.** A shared "…" menu (destructive last, in red; long-press on
+  touch). Visit cards went from eight buttons to Show QR + Wallet + "…"; the booking drawer shows Resend
+  QR + "…"; Team & roles and segment menus moved onto the same component.
+- **AENR-606 — charge in one move.** The till shows one "Charge €X" button that opens on the last-used
+  tender (no more three disabled buttons on an empty basket), quick keys show their price, and
+  "Repeat last sale" rebuilds the previous basket with fresh sets — a repeat sale is Repeat → Charge.
+- **AENR-607 — offline just works.** The till no longer shows "Online" all day; the offline banner and
+  chip appear only while offline, and queued sales sync on reconnect by themselves. "Simulate till
+  offline" moved from the cashier's screen into the persona (demo) menu.
+- **AENR-609 — the gate scans by itself.** No Scan QR button: the camera stays live, results return to
+  scanning on their own, repeats within 5 s are ignored; "Demo arrivals" simulates the queue.
+- **AENR-615 — undo instead of "Are you sure?".** Segment delete and campaign cancel no longer ask
+  first; they happen with Undo (and ⌘Z / Ctrl+Z). Live beach moves and releases and drawer moves gained
+  Undo. Confirmations remain for refunds, payouts, erasure and deleting people or tenants.
+- **AENR-616 — read first, edit when you mean to.** Ticket categories, locker banks and guest policies
+  open as read-only rows; Edit opens the fields, Done validates and applies, Cancel drops the draft;
+  on/off switches apply at once. A stray keystroke can no longer change a live price.
+- **AENR-623 — routine decisions run by themselves.** A refund policy approves routine requests
+  (weather, closures; up to a cap) as they arrive, and no-shows go back on sale at 11:00 with a
+  one-hour Undo on Today. Both are on by default and can be switched off.
+- **AENR-624 — lists open where the work is.** Bookings opens on Today (then the last tab used; a
+  search looks through everything); dates and filters sit in one Filters sheet with chips for what's
+  active. Guests lost the explanation banner (now "About stages") and its separate filter row.
+- **AENR-602 — pair a TV with a code.** An unpaired display shows a 4-digit code; typing it under
+  Live display › Pair a screen turns that screen into the display. Paired screens can be renamed or
+  removed; Auto (sunrise / sunset) is the default look for new setups.
+- **AENR-603 — staff bookings remember the last choices.** New booking keeps the agent's last zone,
+  payment choice, channel and link deadline, and starts from the caller's mobile: a known number fills
+  in the guest, a new one needs only a name.
+- **AENR-604 — one focused answer in Reports.** Overview opens on one sentence (revenue, change vs the
+  comparison period) and four tiles that open their own report; the full detail is one tap below. The
+  overview's card figure is now “Card payments captured”, so only one figure is called revenue.
+  AENR-628 fixed Reports › Occupancy scrolling sideways at 390px.
+- **AENR-611 — “Book again” in one tap.** Home's Book again opens Pay with the usual zone, sets, party
+  and extras on the next day they're free; Edit on any row changes it.
+- **AENR-613 — it remembers who's coming.** The last party is saved on the account and pre-selected
+  next time as “Your usual”.
+- **AENR-610 — Home shows what matters right now.** QR first on the morning of a visit, extras while at
+  the beach, receipt and Book again afterwards, the opening date off-season. Previewable from the
+  persona menu.
+- **AENR-619 — rewards apply themselves.** Checkout takes the best earned reward off as a removable
+  line; Claim buttons and the reward voucher are gone from Home and Wallet.
+- **AENR-621 — everything about the account in one list.** Account is a settings list (Companions,
+  Payment methods, Receipts, Notifications, Language, Privacy, Sign-in & security, Sign out); each row
+  opens one page. The settings dialogs are gone and the demo profile is the same everywhere.
+- **AENR-622 — sign in without forms.** Continue with Apple / Google or a passkey in one tap; e-mail
+  is behind “Use e-mail instead”; the 18+ confirmation moved to the first booking; the cookie banner no
+  longer covers the sign-in buttons.
+- **AENR-614 — month-end fixes what it can.** Prepare month re-sends pending documents and drafts the
+  missing credit notes; rejected documents get one review sheet; Close unlocks when nothing blocks.
+- **AENR-625 — exports remember your choice.** After the first export a report's control is a split
+  button (Export · PDF in one click, ▾ for the other format); Month-end keeps its layout.
+  AENR-629 fixed staff avatar menus showing the guest's name and customer links.
+- **AENR-626 — language set automatically.** The first visit uses the browser's language when offered;
+  picking one saves it, and Automatic returns to following the device.
+- **Further Improvements sprint — defects.** AENR-636 Cash register is part of the till again (no preview
+  flag), so cashiers can close their shift. AENR-664 Refunds (and any page header with a period picker)
+  fits 390px. AENR-639 Home rewards strip wraps cleanly on phones. AENR-655 closed zones on Today show a
+  grey striped bar. AENR-633 Pricing calendar, Products › Effective prices and Beach layout open on the demo
+  day. AENR-657 the demo tenant's Day Locker and Parking modules are on. AENR-666 multi-zone booking has an
+  “Add sets in another zone” button and an “All zones” back. AENR-645 Today, Live beach and the gate follow
+  one arrival model (guests arrive 09:00–11:00 on the demo clock; no-shows only after 11:00). AENR-643
+  Commission & Payouts and Platform GMV come from the same figures as Reports, up to today.
+- **AENR-630 — Today starts with the to-do.** Needs attention is the main column (first on phones);
+  the four numbers, occupancy by zone and weather sit beside it.
+- **AENR-654 — the till uses the whole screen.** No sidebar; Sell · Sales · Register as top tabs; the
+  phone keeps the total and Charge pinned at the bottom (it used to render below the screen).
+- **AENR-640 — Pay where it says Pay.** The wizard's Pay step shows the checkout panel and takes the
+  payment; the separate basket page is only for guests who leave and come back.
+- **AENR-641 — Choose for me.** Opening a zone lands on the best free sets for the party (side by side,
+  cheapest, nearest the sea) with "Front row instead (+€X)"; tap a set to swap it, Clear to start over.
+- **AENR-651 — the set card.** Tapping a set on Live beach shows the guest, phone, party, paid / due,
+  arrived / expected and notes, with one action that fits: Check in, Take payment, Release or Sell.
+- **AENR-650 — the whole beach, then a zone.** Live beach opens on every zone with its counts; tap to zoom
+  in. Staff pages pick a zone from chips with live counts instead of a dropdown.
+- **AENR-647 — maps on a phone.** Staff maps open zoomed on what matters with 44px sets, pan and pinch
+  (or −/+), and a Map | List toggle with the same selection.
+- **AENR-660 — the beach is the screen.** Desktop: beach on the left two-thirds, steps and total in a
+  right column. Phones: full-width beach with pinch-zoom and a bottom sheet (total + Continue lowered).
+- **AENR-659 — one visit, one card.** The basket groups a day's sunbed, tickets and parking into one card with one Remove; Empty basket sits in the “…” menu; platform economics moved to the Demo menu.
+- **AENR-649 — slimmer customer header.** Phones: a small logo beside the icon bar; the basket is a bag with a count, only when used.
+- **AENR-648 — Wallet shows what you hold.** Credit and rewards first; only owned passes look like cards; the rest are offer rows.
+- **AENR-642 — accountant pages with distinct names.** Month-end · Documents · Payments & payouts · Reports; old links redirect.
+- **AENR-638 — the modules matrix opens read-only.** Edit → switch → one reason → Done (with Undo); a stray click changes nothing.
+- **AENR-652 — calmer refund decisions.** Queue first, brand-colour Approve €X, Partial… on demand, policy behind Rules.
+- **AENR-663 — staff maps show who is there.** Booked solid, free outlined, a clock on guests not arrived yet.
+- **AENR-656 — the drawer's main button follows the booking.** Take payment, Check in, Resend QR or Receipt; the QR is a compact row.
+- **AENR-634 — Bookings: when, then status.** Today · Upcoming · Past · All plus non-zero status chips; one line per booking; Arrival column today.
+- **AENR-635 — New booking follows the call.** Caller · When · Zone and sets (pre-picked) · Tickets · Payment, total and button pinned.
+- **AENR-637 — Controller: Gate and Beach.** Walk-in merged into Beach: a free set's card sells in place; one scanner per tab.
+- **AENR-631 — Beach layout: canvas plus one inspector.** Stop-sell, date overrides and drafts & versions are tabs; the inspector follows the selection.
+- **AENR-644 — one guest record.** Favourite zone, party, channel and the card name agree across My bookings, Home, Wallet and the admin profile.
+- **AENR-632 — Live display preview stays in view.** Pinned beside the settings; pairing folds to one row once paired.
+- **AENR-661 — daily screens start with content.** Their description moved behind a “?” next to the title.
+- **AENR-646 — the avatar is who is signed in.** Per persona from Team & roles; on the till the active cashier.
+- **AENR-662 — one wallet that fits.** At most one wallet button per visit card; the other in “…”.
+- **AENR-653 — Guests: one Guest column and the next visit.** One primary action in the profile; Important folded into VIP.
+- **AENR-667 (defect) — zones hug the sea.** On tall or wide windows the zone overview no longer drifts away from the shoreline.
+- **AENR-665 — one Charge button.** The controller's walk-in uses the till's Charge €X with the remembered tender.
+- **AENR-669 — a beach front.** Desktop: the sea comes down to mid-screen and every zone stands in one front row along the water, across the whole width.
+- **AENR-670 — your zone stays on the sand.** Who and Pay show the zone you booked in with your sets; the zone row sits mid-sand.
+- **AENR-671 — the beach logo in the wizard.** Shown large over the sea on desktop, as on Home.
+- **AENR-672 — the logo glides with the sand.** From the Home header to its place over the sea and back.
+- **AENR-699 / 700 — Controller and Support Agent on phones and tablets**: compact Bookings rows below 1024 px, 44 px touch targets (tabs, filters, map switch, zoom, gate select), viewfinder only while scanning.
+- **AENR-715 — one QR for the group**: share by e-mail / SMS / Viber with a public guest view and wallets; the gate admits people per arrival until the QR is used up.
+- **AENR-727 — one QR per booking everywhere** (screens used to draw different codes).
+- **AENR-711 — Slaice sets each beach’s entry-ticket categories** (name, label, description, price, order; add/remove).
+- **AENR-716 — roles per tenant** (Platform › tenant › Roles).
+- **AENR-718 — invite staff by e-mail + mobile** with a first sign-in: password and 2-step (SMS, e-mail, authenticator).
+- **AENR-720 — Call Center Incidents** and a Slaice Incidents inbox.
+- **AENR-738 — staff bars on a scrim**: page content no longer shows above or through the top bar and the New booking price bar.
+- **AENR-737 — per-tenant live weather and time of day** (Platform › tenant › Features): off = a clear sunny day at 11:00 for guests.
+- **AENR-736 — cards that work**: Add card with validation and a simulated bank check, several cards, Make default, Remove with Undo; checkout lists every card.
+- **AENR-735 — the new pass shows in the Wallet**: bookings kept in browser storage; the first-time-guest switch hides only sample history.
+- **AENR-734 — the payment moment**: progress steps → Payment complete with amount and reference → the pass; the big tick and You're booked removed from the confirmation.
+- **AENR-733 — the total grows step by step**: Where = sets, Who = + entry tickets, Pay = + service fee and extras.
+- **AENR-732 — the guest picks their own sets**: no automatic pick when a zone opens (Pick for me stays as a button); the selected zone glows sky blue whichever zone it is.
+- **AENR-731 — visual QA of every screen** (phone and desktop): Tenants header, Compliance sub-processors, Revenue badges, Profile contacts fixed; 146 views clean.
+- **AENR-730 — fast on phones**: still beach instead of the live WebGL sea below 1024 px (5–9 → 60 fps on customer pages), screens load on demand (main script 617 → 275 KB gzip), tables build one layout only.
+- **AENR-728 — terms per tenant, owner's decisions**: phone bookings carry commission and the service fee (switchable per channel), 24% VAT everywhere from the tenant's terms, corporate tax re-billed on commission or commission + kept fees.
+- **AENR-729 — arrivals in progress**: Expected → In progress · 1 of 4 entries · 1 of 2 sets → Arrived, on Bookings, the drawer, check-in, My bookings and the shared pass.
+- **AENR-706 — one text scale for guests**: the Account page's sizes on every customer page (26 / 19 / 15 / 13.5 / 12 px tokens); nothing a guest reads is below 12 px.
+- **AENR-701 — Accountant pages tidied**: Month-end by season with example months and Reopen month; one toolbar on Documents / Payments (Export incl. CSV per line); type tiles that filter; quiet row action; compact rows below 1280 px; CSVs open cleanly in Excel.
+- **AENR-714 — a clearer Pay step**: Dates → Beach (sets per zone) → Guests & entry tickets in larger tiles; Sunbeds / Entry tickets / Service fee / Total; “I need an invoice” with ΑΦΜ, ΔΟΥ, activity and address under How to pay.
+- **AENR-725 — commercial terms per tenant**: commission with minimums per service, guest service fees, VAT per service, corporate-tax re-bill; staff-only reporting (Platform fees, Slaice statement); guests see only Service fee + "Prices include VAT".
+- **AENR-689 — payment plans**: support fee line items with an end date, plan / custom season pricing / commission only; month-end invoices (PDF + CSV) from Platform › Revenue & invoicing and the Accountant.
+- **AENR-726 — Passes no longer scrolls sideways on phones** (found in the AENR-694 review).
+- **AENR-698 — touch-ready till**: bigger keys and text, split ticket keys with a count/− strip, 44 px+ targets, 48 px fields.
+- **AENR-693 — phones: the zone is a step**: Where lists the zones inside the panel (Zone → Sets), then lowers onto the map.
+- **AENR-721 — till: one Quick tab** with a key per ticket category (ΑμεΑ, Child, Resident…) and more combos.
+- **AENR-691 — previews off hides every Future feature**, with a calm "not available" page for direct links.
+- **AENR-696 — tenant modules gate every role’s screens** (lockers, parking, loyalty, till, reports…).
+- **AENR-677 / 721 — a permanent Features area per tenant**: auto-approve routine refunds, cashier till tabs.
+- **AENR-702 — Enjoy your day: Plan another visit + a weather panel**; Demo › Simulate a first-time guest.
+- **AENR-705 — Rebook your usual is concrete**: the most common booking, checked free, with the total, editable before paying.
+- **AENR-697 — Switch cashier in the top bar**, left of search, with who is on the shift.
+- **AENR-690 — Release channel removed** from the Platform tenant pages.
+- **AENR-717 — staff can hold several roles** and switch between them from the account menu.
+- **AENR-683 / 684 — Pay: card first; Apple Pay, Google Pay and Klarna marked FUTURE.**
+- **AENR-678 — Live display rotates any combination of languages**, in an order the manager sets.
+- **AENR-707 — a slim set card**: zone as title, the view, row and "2 sunbeds + 1 umbrella".
+- **AENR-709 — “Book in more than one zone” always visible** on Where.
+- **AENR-710 — no hover tint on zones.**
+- **AENR-695 — search fields no longer look cut off**: the palette shows focus as a teal underline, and text fields draw their focus ring inside the box so no panel can clip it.
+- **AENR-692 — Today: the four number tiles above Needs attention.**
+- **AENR-685 / 687 — guest receipts and invoices as professional PDFs**, an invoice generator after the company details, and no CSV option.
+- **AENR-719 — Call Center “Refund requests” page**; requests reach the manager’s queue and the decision flows back.
+- **AENR-686 — Wallet: passes first, then upcoming entry QRs**, one centred column, rewards marked FUTURE.
+- **AENR-712 — Who starts with 2 tickets per set** (5 sets → 10), the usual party one tap away.
+- **AENR-713 — Quick picks: Solo, Adult ×2, ×3, ×4.**
+- **AENR-708 — no landmark badges on the sand** (lifeguard, entrance, showers…) in the wizard or the staff maps; they stay in the layout editor.
+- **AENR-724 — Onboard tenant works again**: it opens the four-step wizard (new tenant or resume a draft) through to Go live.
+- **AENR-682 — wizard footer shows only the total**; the unreadable grey line and the dead “all-in” toggle are gone.
+- **AENR-674 — Live beach: pick any season date** beside Today / Tomorrow.
+- **AENR-676 — Refunds: the four tiles above the decision queue.**
+- **AENR-675 — Live beach: Live state / Heatmap beside Today / Tomorrow**, above the zone chips.
+- **AENR-679 — rewards strip on Home marked FUTURE.**
+- **AENR-688 — My bookings "season in review" in the app's light card style.**
+- **AENR-681 — no deposit option.** Checkout always takes the full amount; one fewer decision before paying.
+- **AENR-703 — Show QR on desktop opens a modal**, not a white full screen; phones keep the full screen for the gate.
+- **AENR-704 — Add a locker or parking shows only those two**; entry tickets stay in My bookings › Add extras.
+- **AENR-673 — four steps: When, Where, Who, Pay.** The day gets its own step; Where never lets a guest continue without a set unexplained — an inline notice says what to tap, with Pick for me and Entry tickets only.
+- **AENR-658 — a calm first step.** No total or refund warning before a set is picked; the terms show once, on Pay.

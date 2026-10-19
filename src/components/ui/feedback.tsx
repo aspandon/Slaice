@@ -3,7 +3,8 @@ import type { ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
-import { Btn } from "./primitives";
+import { Badge, Btn } from "./primitives";
+import { useApp, useT } from "../../app/store";
 
 /* ---------- Skeleton ---------- */
 export function Skeleton({ className = "" }: { className?: string }) {
@@ -54,11 +55,13 @@ export function CardGridSkeleton({ count = 4, className = "" }: { count?: number
 
 /* ---------- StickyActionBar ----------
    Mobile-only bar pinned above the bottom tab bar (and the iOS home indicator). */
-export function StickyActionBar({ children, show = "lg:hidden" }: { children?: ReactNode; show?: string }) {
-  return (
-    <div className={`${show} fixed left-3 right-3 z-30 bottom-[calc(4.25rem+env(safe-area-inset-bottom))]`}>
+export function StickyActionBar({ children, show = "lg:hidden", noTabBar = false }: { children?: ReactNode; show?: string; /** No phone tab bar below (the till): sit at the bottom edge. */ noTabBar?: boolean }) {
+  // Portalled to <body>: an animated (transformed) page wrapper would otherwise pin it to the page, not the screen.
+  return createPortal(
+    <div className={`${show} fixed left-3 right-3 z-30 ${noTabBar ? "bottom-[calc(0.75rem+env(safe-area-inset-bottom))]" : "bottom-[calc(4.25rem+env(safe-area-inset-bottom))]"}`}>
       <div className="glass-card-solid rounded-2xl shadow-float px-3 py-2.5">{children}</div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -109,14 +112,29 @@ export function ErrorState({ title = "Couldn't load this", body = "Something wen
   );
 }
 
-/* ---------- Future banner (Roadmap preview heads-up) ---------- */
-export function FutureBanner({ children = "Preview · Roadmap 2027–2029 — fully clickable mockup, not part of the MVP." }: { children?: ReactNode }) {
+/* ---------- Roadmap scope markers ----------
+   FutureBanner heads a whole roadmap page; NotMvpBadge marks a single tile or
+   option inside an MVP page. Both share the orange "future" tone and are
+   translated, so customer pages read them in the guest's language.
+   With roadmap previews off (AENR-691) both render nothing — a safety net;
+   the block they mark is hidden at its site with <Roadmap> / useTenantFeatures. */
+export function FutureBanner({ children }: { children?: ReactNode }) {
+  const t = useT();
+  const { showPreviews } = useApp();
+  if (!showPreviews) return null;
   return (
     <div className="mb-4 flex items-center gap-2 rounded-xl bg-slaice-100 ring-1 ring-slaice-600/20 px-3 py-2 text-[12px] text-slaice-700">
       <Icon.info size={14} className="shrink-0 text-slaice-600" />
-      <span className="leading-snug">{children}</span>
+      <span className="leading-snug">{children ?? t("Preview · Roadmap 2027–2029 — fully clickable mockup, not part of the MVP.")}</span>
     </div>
   );
+}
+
+export function NotMvpBadge({ className = "" }: { className?: string }) {
+  const t = useT();
+  const { showPreviews } = useApp();
+  if (!showPreviews) return null;
+  return <Badge tone="roadmap" className={`shrink-0 whitespace-nowrap ${className}`}>{t("FUTURE")}</Badge>;
 }
 
 /* ---------- Back to top ---------- */

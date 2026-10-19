@@ -22,9 +22,21 @@ export default {
         coral: { 600: "#e2552f", 500: "#f1683c", 400: "#fb8a63" },
         // SLAiCE platform brand — indigo + gold
         slaice: { 700: "#2f3bb3", 600: "#3a47cc", 500: "#4a57e0", 100: "#e7e9fb" },
-        gold: { 600: "#e0a800", 500: "#f2b705", 400: "#ffc933" },
+        gold: { 600: "#e0a800", 500: "#f2b705", 400: "#ffc933", 300: "#ffdc73" },
         sand: "#E9E3D5",
         ink: "#1E293B",
+        // Elevation by role (AENR-549): data sits on solid surfaces; glass is for chrome.
+        surface: { DEFAULT: "#F4F6F9", raised: "#FFFFFF", overlay: "#FFFFFF" },
+      },
+      // Customer type scale (AENR-706): every guest-facing page reads at the
+      // Account page's sizes. Back-office roles keep the default scale.
+      fontSize: {
+        "guest-title": ["26px", { lineHeight: "1.15" }],
+        "guest-head": ["19px", { lineHeight: "1.25" }],
+        "guest-body": ["15px", { lineHeight: "1.45" }],
+        "guest-meta": ["13.5px", { lineHeight: "1.4" }],
+        "guest-caption": ["12px", { lineHeight: "1.35" }],
+        "guest-over": ["11px", { lineHeight: "1.3" }],
       },
       borderRadius: {
         "4xl": "2rem",
@@ -35,6 +47,8 @@ export default {
         lift: "0 1px 2px rgba(15,23,42,.04), 0 20px 44px -24px rgba(15,23,42,.26)",
         float: "0 2px 8px -4px rgba(11,37,69,.14), 0 32px 70px -28px rgba(11,37,69,.40)",
         ring: "0 0 0 1px rgba(15,23,42,.05)",
+        raised: "0 1px 2px rgba(15,23,42,.05), 0 10px 24px -18px rgba(15,23,42,.20)",
+        overlay: "0 2px 8px -4px rgba(11,37,69,.14), 0 32px 70px -28px rgba(11,37,69,.40)",
         glow: "0 0 0 4px rgba(13,148,136,.14)",
         "btn-primary": "0 1px 2px rgba(11,37,69,.24), 0 10px 22px -12px rgba(11,37,69,.45)",
         "btn-teal": "0 1px 2px rgba(13,148,136,.24), 0 10px 22px -12px rgba(13,148,136,.45)",

@@ -65,7 +65,7 @@ export function Tabs({ tabs, value, onChange, className = "", scroll = false }: 
         const active = value === k;
         return (
           <button key={k} ref={(el) => { btnRefs.current[k] = el; }} onClick={() => onChange(k)}
-            className={`relative z-10 px-3.5 h-9 rounded-xl text-[13px] font-semibold whitespace-nowrap transition-colors duration-200 inline-flex items-center gap-1.5 ${active ? "text-navy-900" : "text-slate-500 hover:text-navy-900"}`}>
+            className={`relative z-10 px-3.5 h-9 [@media(pointer:coarse)]:h-11 rounded-xl text-[13px] font-semibold whitespace-nowrap transition-colors duration-200 inline-flex items-center gap-1.5 ${active ? "text-navy-900" : "text-slate-500 hover:text-navy-900"}`}>
             {IconC && <IconC size={14} className={active ? "text-teal-600" : "text-slate-400"} />}
             {t}
           </button>

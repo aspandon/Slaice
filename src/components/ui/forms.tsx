@@ -1,3 +1,4 @@
+import { useGuard } from "./guard";
 import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
@@ -19,25 +20,33 @@ export function Field({ label, children, hint }: { label?: ReactNode; children?:
 // text-base on mobile (16px) prevents iOS Safari's focus-zoom.
 export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
   function Input({ className = "", ...props }, ref) {
-    return <input ref={ref} {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-base sm:text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none placeholder:text-slate-400 ${className}`} />;
+    // Times show 24-hour (en-GB) everywhere (AENR-556).
+    return <input ref={ref} lang={props.type === "time" ? "en-GB" : undefined} {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-base sm:text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none placeholder:text-slate-400 ${className}`} />;
   },
 );
 type SelectOption = string | { v: string; l: string };
 export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement> & { options?: SelectOption[] }>(
-  function Select({ options = [], className = "", ...props }, ref) {
+  // `options` for a flat list; or pass <option>/<optgroup> children for grouped lists.
+  function Select({ options = [], className = "", children, ...props }, ref) {
     return (
       <select ref={ref} {...props} className={`glass-input w-full rounded-xl px-3.5 py-2.5 text-base sm:text-sm transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow outline-none cursor-pointer ${className}`}>
         {options.map((o) => (typeof o === "string" ? <option key={o} value={o}>{o}</option> : <option key={o.v} value={o.v}>{o.l}</option>))}
+        {children}
       </select>
     );
   },
 );
 
 /* ---------- Toggle ---------- */
-export function Toggle({ on, onChange, label }: { on?: boolean; onChange: (v: boolean) => void; label?: ReactNode }) {
+// A switch must have an accessible name: either a visible `label`, or an
+// `ariaLabel` when the visible text sits elsewhere in the row (WCAG 4.1.2).
+type ToggleName = { label: ReactNode; ariaLabel?: string } | { label?: undefined; ariaLabel: string };
+export function Toggle({ on, onChange, label, ariaLabel, disabled }: { on?: boolean; onChange: (v: boolean) => void; disabled?: boolean } & ToggleName) {
+  const g = useGuard();
+  const ro = g.viewAs && g.readOnly;
   return (
-    <button role="switch" aria-checked={on} onClick={() => onChange(!on)} className="inline-flex items-center gap-2 group">
-      <span className={`w-11 h-7 rounded-full transition-colors duration-200 relative ${on ? "bg-teal-600" : "bg-slate-300 group-hover:bg-slate-400"}`}>
+    <button type="button" role="switch" aria-checked={!!on} aria-label={label ? undefined : ariaLabel} disabled={disabled || ro} title={ro ? "Read-only View-as session — changes are disabled." : undefined} onClick={() => onChange(!on)} className="relative inline-flex items-center gap-2 group rounded-full disabled:cursor-not-allowed disabled:opacity-60 before:absolute before:-inset-y-2 before:-inset-x-1 before:content-['']">
+      <span className={`w-11 h-7 rounded-full transition-colors duration-200 relative ${on ? "bg-teal-600" : "bg-slate-300 group-hover:group-enabled:bg-slate-400"}`}>
         <span className={`absolute top-0.5 w-6 h-6 bg-white rounded-full shadow-sm transition-all duration-200 ease-spring ${on ? "left-[18px]" : "left-0.5"}`} />
       </span>
       {label && <span className="text-sm text-slate-600">{label}</span>}
@@ -46,13 +55,15 @@ export function Toggle({ on, onChange, label }: { on?: boolean; onChange: (v: bo
 }
 
 /* ---------- Stepper (quantity) ---------- */
-export function Stepper({ value, onChange, min = 0, label }: { value: number; onChange: (v: number) => void; min?: number; label?: string }) {
+export function Stepper({ value, onChange, min = 0, max, label, size = "md" }: { value: number; onChange: (v: number) => void; min?: number; /** Upper bound — the + turns off there. */ max?: number; label?: string; /** "lg" = 56px targets for the tablet till and the gate. */ size?: "md" | "lg" }) {
   const what = label ? ` ${label}` : "";
+  const box = size === "lg" ? "w-14 h-14" : "w-11 h-11 sm:w-10 sm:h-10";
+  const atMax = max != null && value >= max;
   return (
     <div className="flex items-center gap-3">
-      <button aria-label={`Decrease${what}`} onClick={() => onChange(Math.max(min, value - 1))} className="w-11 h-11 sm:w-10 sm:h-10 rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90 disabled:opacity-40" disabled={value <= min}><Icon.minus size={16} /></button>
+      <button aria-label={`Decrease${what}`} onClick={() => onChange(Math.max(min, value - 1))} className={`${box} rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90 disabled:opacity-40`} disabled={value <= min}><Icon.minus size={16} /></button>
       <span className="w-6 text-center font-semibold tnum tabular-nums" aria-live="polite" aria-label={label ? `${value} ${label}` : undefined}>{value}</span>
-      <button aria-label={`Increase${what}`} onClick={() => onChange(value + 1)} className="w-11 h-11 sm:w-10 sm:h-10 rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90"><Icon.plus size={16} /></button>
+      <button aria-label={`Increase${what}`} onClick={() => onChange(max != null ? Math.min(max, value + 1) : value + 1)} className={`${box} rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90 disabled:opacity-40`} disabled={atMax}><Icon.plus size={16} /></button>
     </div>
   );
 }
@@ -61,8 +72,19 @@ export function Stepper({ value, onChange, min = 0, label }: { value: number; on
    Date picker. `value` is an array of ISO YYYY-MM-DD strings. With `multiple`
    off (the default for single-day bookings) selecting a date replaces the
    selection; with it on, dates toggle and accumulate. */
-export function DatePickerRow({ value = [], onChange, quickDays = 7, multiple = true, maxDays, className = "" }: {
+/** What a day looks like before choosing it (AENR-570): weather, price level, spots left. */
+export interface DayInfo {
+  icon?: string;
+  temp?: number;
+  price?: number;
+  level?: "low" | "mid" | "high";
+  left?: number;
+}
+export function DatePickerRow({ value = [], onChange, quickDays = 7, multiple = true, maxDays, className = "", blockReason, dayInfo }: {
   value?: string[];
+  dayInfo?: (iso: string) => DayInfo | null;
+  /** Why a date can't be booked (closed, outside the booking window…) — the day is disabled with the reason. */
+  blockReason?: (iso: string) => string | null;
   onChange: (v: string[]) => void;
   quickDays?: number;
   multiple?: boolean;
@@ -123,7 +145,8 @@ export function DatePickerRow({ value = [], onChange, quickDays = 7, multiple = 
         <div ref={scrollRef} className="flex-1 flex gap-2 overflow-x-auto pb-1 no-scrollbar scroll-smooth">
           {strip.map((d) => {
             const on = value.includes(d.iso);
-            return <DatePill key={d.iso} on={on} disabled={!on && atCap} label={d.label} sub={d.sub} onClick={() => toggle(d.iso)} />;
+            const why = blockReason?.(d.iso) ?? null;
+            return <DatePill key={d.iso} on={on} disabled={(!on && atCap) || (!!why && !on)} reason={why} label={d.label} sub={d.sub} info={dayInfo?.(d.iso)} onClick={() => toggle(d.iso)} />;
           })}
           {extras.map((iso) => {
             const lbl = chipLabel(iso, loc, t);
@@ -140,19 +163,35 @@ export function DatePickerRow({ value = [], onChange, quickDays = 7, multiple = 
           <Icon.arrowR size={14} />
         </button>
       </div>
-      {picker && <DateCalendarModal value={value} onChange={onChange} onClose={() => setPicker(false)} locale={loc} t={t} multiple={multiple} maxDays={maxDays} />}
+      {picker && <DateCalendarModal value={value} onChange={onChange} onClose={() => setPicker(false)} locale={loc} t={t} multiple={multiple} maxDays={maxDays} blockReason={blockReason} />}
     </div>
   );
 }
 
-function DatePill({ on, label, sub, onClick, disabled = false }: { on?: boolean; label: ReactNode; sub: ReactNode; onClick?: () => void; disabled?: boolean }) {
+const LEVEL = { low: "€", mid: "€€", high: "€€€" } as const;
+function DatePill({ on, label, sub, onClick, disabled = false, reason, info }: { on?: boolean; label: ReactNode; sub: ReactNode; onClick?: () => void; disabled?: boolean; reason?: string | null; info?: DayInfo | null }) {
+  const t = useT();
+  const W = info?.icon ? Icon[info.icon] : undefined;
+  const full = info?.left === 0;
+  const desc = info ? [info.temp != null ? `${info.temp}°C` : "", info.price != null ? `${t("from")} €${info.price}` : "", full ? t("full") : info.left != null ? `${info.left} ${t("left")}` : ""].filter(Boolean).join(", ") : "";
   return (
-    <button type="button" onClick={onClick} aria-pressed={on} disabled={disabled}
+    <button type="button" onClick={onClick} aria-pressed={on} disabled={disabled} title={reason ?? undefined}
       className={`relative px-3.5 py-2.5 min-h-[64px] rounded-xl min-w-[78px] ring-1 transition shrink-0 inline-flex flex-col items-center justify-center gap-1 ${
         on ? "bg-navy-900 text-white ring-navy-900" : disabled ? "bg-slate-50 ring-slate-200 opacity-40 cursor-not-allowed" : "bg-white ring-slate-200 hover:ring-teal-400"
       }`}>
       <span className="text-[13px] font-semibold leading-none">{label}</span>
       <span className={`text-[11px] leading-none ${on ? "text-white/80" : "text-slate-600"}`}>{sub}</span>
+      {reason && <span className="text-[9.5px] leading-none font-semibold text-amber-700 max-w-[72px] truncate">{reason}</span>}
+      {desc && <span className="sr-only">, {desc}</span>}
+      {info && !reason && (
+        <>
+          <span className={`flex items-center gap-1 text-[11px] leading-none ${on ? "text-white/90" : "text-slate-600"}`}>
+            {W && <W size={12} />}{info.temp != null && <span className="tnum">{info.temp}°</span>}
+            {info.level && <span className={`font-semibold ${on ? "" : info.level === "low" ? "text-emerald-700" : info.level === "high" ? "text-amber-700" : ""}`}>{LEVEL[info.level]}</span>}
+          </span>
+          {info.left != null && <span className={`text-[10.5px] leading-none font-semibold ${on ? "text-white" : full ? "text-rose-700" : info.left <= 5 ? "text-amber-700" : "text-emerald-700"}`}>{full ? t("Full") : `${info.left} ${t("left")}`}</span>}
+        </>
+      )}
       {on && (
         <span className="absolute top-1 right-1 w-4 h-4 rounded-full bg-teal-500 text-white grid place-items-center ring-2 ring-navy-900">
           <Icon.check size={10} />
@@ -162,9 +201,9 @@ function DatePill({ on, label, sub, onClick, disabled = false }: { on?: boolean;
   );
 }
 
-function DateCalendarModal({ value, onChange, onClose, locale = "en-GB", t = (s) => s, multiple = true, maxDays }: { value: string[]; onChange: (v: string[]) => void; onClose: () => void; locale?: string; t?: (s: string) => string; multiple?: boolean; maxDays?: number }) {
+function DateCalendarModal({ value, onChange, onClose, locale = "en-GB", t = (s) => s, multiple = true, maxDays, blockReason }: { value: string[]; onChange: (v: string[]) => void; onClose: () => void; locale?: string; t?: (s: string) => string; multiple?: boolean; maxDays?: number; blockReason?: (iso: string) => string | null }) {
   const [month, setMonth] = useState(() => {
-    const d = new Date();
+    const d = fromISO(todayISO());
     return new Date(d.getFullYear(), d.getMonth(), 1);
   });
   const todayIso = todayISO();
@@ -229,9 +268,10 @@ function DateCalendarModal({ value, onChange, onClose, locale = "en-GB", t = (s)
               if (!c) return <div key={`b-${i}`} />;
               const sel = value.includes(c.iso);
               const isToday = c.iso === todayIso;
-              const capped = !sel && atCap;
+              const why = !sel && !c.past ? blockReason?.(c.iso) ?? null : null;
+              const capped = (!sel && atCap) || !!why;
               return (
-                <button key={c.iso} type="button" disabled={c.past || capped} onClick={() => toggle(c.iso)}
+                <button key={c.iso} type="button" disabled={c.past || capped} onClick={() => toggle(c.iso)} title={why ?? undefined} aria-label={why ? `${c.day} — ${why}` : undefined}
                   className={`relative aspect-square rounded-lg text-sm font-medium transition ${
                     c.past || capped
                       ? "text-slate-300 cursor-not-allowed"

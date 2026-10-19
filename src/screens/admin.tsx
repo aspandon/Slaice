@@ -1,1351 +1,64 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
-import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
-import { lazyWithReload } from "../lib/staleChunk";
-import { SortHeader, Pager, dateVal, cmpVal, type SortState } from "../components/TableTools";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
+import { Pager, moneyVal } from "../components/TableTools";
 import { Icon, type IconRenderer } from "../lib/icons";
-import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, StatusBadge, TableSkeleton, EmptyState, ErrorState, useMockLoad, FutureBanner, ContextPanel, Spinner } from "../components/ui";
+import { Card, Btn, Badge, PageHead, Table, StatCard, Modal, Field, Input, Select, Tabs, Toggle, EmptyState, FutureBanner, Spinner, PeriodPicker, ExportMenu } from "../components/ui";
 import type { TabEntry } from "../components/ui";
-import { BarChart, HBarChart, LineChartMini, Donut, QR, Sparkline } from "../components/charts";
-import { BeachBackdrop, SunbedMark } from "../components/Beach";
+import { BarChart, HBarChart, LineChartMini, Donut, Sparkline } from "../components/charts";
 
-// Lazy so konva only loads when the Sunbed-layout tab is opened. lazyWithReload
-// recovers if a redeploy has renamed this chunk under an already-open tab.
-const BeachCanvas = lazyWithReload(() => import("../components/BeachCanvas").then((m) => ({ default: m.BeachCanvas })));
-import { BackgroundPicker } from "../components/BackgroundPicker";
 import { fileToBackgroundSrc } from "../lib/image";
-import { ZONES, zoneLayout, WEATHER_KINDS, WEATHER_DEMO, DAY_MIN, DAY_MAX, fmtHour } from "../data/beach";
+import { ZONES, TENANT } from "../data/beach";
 import { LOYALTY_REWARDS, BUILTIN_SCHEMES, makeCustomScheme, schemeDefaults } from "../data/loyalty";
 import type { LoyaltyScheme, SchemeValues, SchemeField } from "../data/loyalty";
 import { BADGE_COLORS, BADGE_COLOR_KEYS, BADGE_ICONS, GAME_METRICS } from "../data/gamification";
 import type { Achievement, GameMetric } from "../data/gamification";
-import type { SunbedSlot, SunbedState, SunbedKind, Customer, ZoneMapItem, PriceRule, PriceRuleDays, PriceRuleMode, ChannelKey, ChannelConnection, ChannelSetupState, PassDesign, CardText } from "../domain/types";
-import { effectivePrice, ruleEffectLabel, dayMatches } from "../domain/pricing";
-import { CHANNELS, channelMeta } from "../data/channels";
+import type { PassDesign, CardText } from "../domain/types";
 import { CardFace, ScaledCard, WalletRendition, TEXT_KEYS, TEXT_LABELS, type DragKey } from "../components/PassDesigner";
-import { ADMIN_BOOKINGS, ADMIN_REFUNDS, TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, DAILY_OPS, personByFirst, CUSTOMERS, type AdminBooking } from "../data/mock";
-import { DSAR_QUEUE, ROPA, RETENTION, CONSENT_PURPOSES } from "../data/gdpr";
+import { TOP_CUSTOMERS, REVENUE_TX, REPORTING_TICKETS, personByFirst, CUSTOMERS } from "../data/mock";
+import { SendModal } from "../components/SendModal";
 import { useApp } from "../app/store";
-import { downloadCSV, downloadCSVReport, type CsvSection } from "../lib/download";
-import { listCustomers } from "../api";
-import { useAsync } from "../lib/useAsync";
+import { downloadReport, csvSectionsToReport, type CsvSection } from "../lib/download";
+import { usePeriod } from "../lib/usePeriod";
+import { OccupancyTab, occupancyCsv, useOccupancy } from "./reporting/OccupancyTab";
+import { ChannelsTab, channelsCsv, useChannels } from "./reporting/ChannelsTab";
 
-/* ============ DASHBOARD ============ */
-export function AdminDashboard() {
-  const { go, toast } = useApp();
-  const [period, setPeriod] = useState("week");
-  const rev = ({
-    day: [{ l: "8h", v: 400 }, { l: "10h", v: 900 }, { l: "12h", v: 1500, hi: 1 }, { l: "14h", v: 1300 }, { l: "16h", v: 1100 }, { l: "18h", v: 700 }],
-    week: [{ l: "Mon", v: 3200 }, { l: "Tue", v: 2950 }, { l: "Wed", v: 3600 }, { l: "Thu", v: 4100 }, { l: "Fri", v: 5200, hi: 1 }, { l: "Sat", v: 7400, hi: 1 }, { l: "Sun", v: 6900, hi: 1 }],
-    month: [{ l: "W1", v: 21000 }, { l: "W2", v: 24500 }, { l: "W3", v: 28800, hi: 1 }, { l: "W4", v: 26400 }],
-    year: [{ l: "May", v: 48 }, { l: "Jun", v: 121 }, { l: "Jul", v: 198, hi: 1 }, { l: "Aug", v: 241, hi: 1 }, { l: "Sep", v: 96 }],
-  } as Record<string, { l: string; v: number; hi?: number }[]>)[period];
-  // Occupancy series shared by the chart below and the CSV export (one source).
-  const occByZone = [{ l: "Akanthus", v: 67 }, { l: "Central", v: 83 }, { l: "Macaw", v: 91, hi: 1 }, { l: "Bestbuy", v: 78 }, { l: "Main", v: 68 }, { l: "Bolivar", v: 66 }];
-  // Export the whole dashboard — KPIs *and* the data behind every visual (the
-  // revenue chart, the capability donut, the occupancy bars, latest bookings) —
-  // as one faithful, columnar CSV. A CSV can't embed the charts, so their series
-  // ship as data you can re-plot.
-  const revAxis = ({ day: "Hour", week: "Day", month: "Week", year: "Month" } as Record<string, string>)[period];
-  const exportDashboard = () => {
-    downloadCSVReport(`dashboard-${period}.csv`, [
-      { title: "Key metrics", header: ["Metric", "Value", "Detail", "Change"], rows: [
-        ["Revenue (7d)", "€33.4k", "vs prev week", "+12%"], ["Bookings (7d)", "1,284", "online + walk-in", "+8%"],
-        ["Occupancy", "71%", "avg across zones", "+3pp"], ["Avg basket", "€41", "sunbed + entries", "+€2"],
-      ] },
-      { title: `Revenue · this ${period}`, header: [revAxis, `Revenue (${period === "year" ? "€k" : "€"})`], rows: rev.map((d) => [d.l, d.v]) },
-      { title: "Revenue by capability", header: ["Capability", "Share %"], rows: [["Sunbeds", 62], ["Tickets", 28], ["Other", 10]] },
-      { title: "Occupancy by zone (today)", header: ["Zone", "Occupancy %"], rows: occByZone.map((z) => [z.l, z.v]) },
-      { title: "Latest bookings", header: ["Booking", "Zone", "Channel", "Amount"], rows: [
-        ["#BK-10428", "Central", "Online", "€30"], ["#BK-10427", "Macaw", "Walk-in", "€35"],
-        ["#BK-10426", "Bestbuy", "Online", "€44"], ["#BK-10425", "Akanthus", "Online", "€30"],
-      ] },
-    ]);
-    toast(`Exported the dashboard (${period}) to CSV.`, { tone: "success" });
-  };
-  return (
-    <div className="animate-fade-up">
-      <PageHead title="Dashboard" sub="Akti tou Iliou · bookings & revenue overview" badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<><Tabs tabs={[["day", "Day"], ["week", "Week"], ["month", "Month"], ["year", "Year"]]} value={period} onChange={setPeriod} /><Btn variant="outline" icon={Icon.download} onClick={exportDashboard}>Export</Btn></>} />
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Revenue (7d)" value="€33.4k" sub="vs prev week" tone="teal" trend="+12%" />
-        <StatCard label="Bookings (7d)" value="1,284" sub="online + walk-in" trend="+8%" />
-        <StatCard label="Occupancy" value="71%" sub="avg across zones" trend="+3pp" />
-        <StatCard label="Avg basket" value="€41" sub="sunbed + entries" trend="+€2" />
-      </div>
-      <div className="grid lg:grid-cols-3 gap-4 mt-4">
-        <Card className="p-5 lg:col-span-2">
-          <div className="flex items-center justify-between"><div className="font-semibold text-navy-900">Revenue · this {period}</div><Badge tone="green"><Icon.trend size={11} /> +12%</Badge></div>
-          <BarChart data={rev} />
-        </Card>
-        <Card className="p-5">
-          <div className="font-semibold text-navy-900 mb-2">Revenue by capability</div>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-5">
-            <Donut segments={[{ v: 62, c: "#0D9488" }, { v: 28, c: "#0ea5e9" }, { v: 10, c: "#f59e0b" }]} size={180} />
-            <div className="text-sm space-y-2">
-              <Leg c="bg-teal-600" t="Sunbeds 62%" /><Leg c="bg-sky-500" t="Tickets 28%" /><Leg c="bg-amber-500" t="Other 10%" />
-            </div>
-          </div>
-        </Card>
-      </div>
-      <div className="grid lg:grid-cols-2 gap-4 mt-4">
-        <Card className="p-5">
-          <div className="font-semibold text-navy-900 mb-1">Occupancy by zone (today)</div>
-          <HBarChart color="#0ea5e9" unit="%" max={100} data={occByZone} />
-        </Card>
-        <Card className="p-5">
-          <div className="flex items-center justify-between mb-2"><div className="font-semibold text-navy-900">Latest bookings</div><Btn size="sm" variant="ghost" onClick={() => go("admin", "bookings")}>View all</Btn></div>
-          <Table cols={["Booking", "Zone", "Channel", "Amount"]} right={[3]} rows={[
-            ["#BK-10428", "Central", <Badge tone="blue">Online</Badge>, "€30"],
-            ["#BK-10427", "Macaw", <Badge tone="amber">Walk-in</Badge>, "€35"],
-            ["#BK-10426", "Bestbuy", <Badge tone="blue">Online</Badge>, "€44"],
-            ["#BK-10425", "Akanthus", <Badge tone="blue">Online</Badge>, "€30"],
-          ]} />
-        </Card>
-      </div>
-    </div>
-  );
-}
+
+import { resolveRange, comparisonRange, lastYearRange, granularityFor, rangeLabel, periodNoun, comparisonLabel, isoFromDayMonth, inRange, fmtWeekday as fmtWeekdayP, DEMO_TODAY } from "../domain/period";
+import { summarize, series, buckets, fmtEUR, fmtInt, fmtPct, trendPct, trendPp } from "../data/analytics";
+import { Masked } from "./tenant/ViewAs";
+import { tillRefunds } from "../data/tillAdmin";
+import { useListUrl, useUrlState } from "../lib/useUrlState";
+import { GateThroughputCard } from "./controller";
+import { refundHistory, refundStats } from "../data/refunds";
+import { decidedRefundRows, opsNow, useBookingOps } from "../lib/useBookingOps";
+import { slaState } from "../domain/bookingOps";
+import { PendingRefund } from "./bookings/BookingDrawer";
+import { InvoicesTab, OverviewPanel, PaymentsTab, SectionChips, financeCsv, useFinanceData, useSection } from "./reporting/FinanceTabs";
+import { PlatformFeesTab, platformFeesCsv, usePlatformFees } from "./reporting/PlatformFeesTab";
+import { financeReport } from "../data/finance";
+import { reconcile } from "../domain/reconcile";
+import { VARIANCE_TOLERANCE, eur as eurTill, shiftTotals } from "../domain/till";
+
+import { DEFAULT_RULES, POLICY_BY, POLICY_REASONS } from "../domain/bookingOps";
+import { useTenantFeatures } from "../lib/useFeatures";
+/** Full euro amount for exports and tables; tiles use the abbreviated fmtEUR. */
+const eurFull = (n: number) => `€${n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 const Leg = ({ c, t }: { c: string; t: ReactNode }) => <div className="flex items-center gap-2"><i className={`w-3 h-3 rounded-sm ${c} inline-block`} />{t}</div>;
 
-/* ============ AVAILABILITY & PRICING ============ */
-/* ---- Seasonal / day-of-week pricing helpers ---- */
-const DAY_OPTS: { v: PriceRuleDays; label: string; short: string }[] = [
-  { v: "all", label: "Every day", short: "Every day" },
-  { v: "weekday", label: "Weekdays (Mon–Fri)", short: "Weekdays" },
-  { v: "weekend", label: "Weekends (Sat & Sun)", short: "Weekends" },
-];
-const MODE_OPTS: { v: PriceRuleMode; label: string; unit: string }[] = [
-  { v: "set", label: "Set price to", unit: "€" },
-  { v: "addAbs", label: "Increase by", unit: "€" },
-  { v: "addPct", label: "Change by", unit: "%" },
-];
-const MON_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-const MON_FULL = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const WK_ABBR = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const isoToLocal = (iso: string) => new Date(`${iso}T12:00:00`);
-const fmtFullDate = (iso: string) => { const d = isoToLocal(iso); return `${WK_ABBR[d.getDay()]} ${d.getDate()} ${MON_ABBR[d.getMonth()]} ${d.getFullYear()}`; };
-const isWeekendISO = (iso: string) => { const d = isoToLocal(iso).getDay(); return d === 0 || d === 6; };
-const dayShortFor = (v: PriceRuleDays) => DAY_OPTS.find((d) => d.v === v)?.short ?? "";
-// "August" for a whole month, else "1 Jul – 15 Aug".
-function periodLabel(from: string, to: string): string {
-  const f = isoToLocal(from), t = isoToLocal(to);
-  const lastOfMonth = new Date(t.getFullYear(), t.getMonth() + 1, 0).getDate();
-  const wholeMonth = f.getDate() === 1 && f.getMonth() === t.getMonth() && f.getFullYear() === t.getFullYear() && t.getDate() === lastOfMonth;
-  if (wholeMonth) return MON_FULL[f.getMonth()];
-  return `${f.getDate()} ${MON_ABBR[f.getMonth()]} – ${t.getDate()} ${MON_ABBR[t.getMonth()]}`;
-}
-const MONTH_PRESETS: { label: string; from: string; to: string }[] = [
-  { label: "June", from: "2026-06-01", to: "2026-06-30" },
-  { label: "July", from: "2026-07-01", to: "2026-07-31" },
-  { label: "August", from: "2026-08-01", to: "2026-08-31" },
-  { label: "September", from: "2026-09-01", to: "2026-09-30" },
-  { label: "Whole season", from: "2026-05-01", to: "2026-09-30" },
-];
-// First date on/after `from` whose weekday matches `days` — for the live preview.
-function firstMatchingDate(from: string, days: PriceRuleDays): string {
-  const d = isoToLocal(from);
-  for (let i = 0; i < 14 && !dayMatches(days, d); i++) d.setDate(d.getDate() + 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-/* ---- Create / edit one pricing rule ---- */
-function RuleEditorModal({ open, rule, onClose, onSave }: {
-  open: boolean; rule: PriceRule | null; onClose: () => void; onSave: (r: PriceRule) => void;
-}) {
-  const [label, setLabel] = useState("");
-  const [zone, setZone] = useState("all");
-  const [from, setFrom] = useState("2026-08-01");
-  const [to, setTo] = useState("2026-08-31");
-  const [days, setDays] = useState<PriceRuleDays>("weekend");
-  const [mode, setMode] = useState<PriceRuleMode>("addAbs");
-  const [amount, setAmount] = useState(10);
-  // (Re)seed the form whenever the modal opens — for a new rule or an edit.
-  useEffect(() => {
-    if (!open) return;
-    setLabel(rule?.label ?? "");
-    setZone(rule?.zone ?? "all");
-    setFrom(rule?.from ?? "2026-08-01");
-    setTo(rule?.to ?? "2026-08-31");
-    setDays(rule?.days ?? "weekend");
-    setMode(rule?.mode ?? "addAbs");
-    setAmount(rule?.amount ?? 10);
-  }, [open, rule]);
-
-  const unit = MODE_OPTS.find((m) => m.v === mode)?.unit ?? "€";
-  const rangeBad = from > to;
-  const amountBad = mode === "set" ? amount <= 0 : amount === 0;
-  const valid = !rangeBad && !amountBad;
-  const zoneName = zone === "all" ? "All zones" : ZONES.find((z) => z.id === zone)?.name ?? "All zones";
-  const autoLabel = `${periodLabel(from, to)}${days === "all" ? "" : " " + dayShortFor(days).toLowerCase()}`;
-
-  // Live "before → after" on a representative zone + a matching date.
-  const sampleZone = zone === "all" ? ZONES[0] : ZONES.find((z) => z.id === zone) ?? ZONES[0];
-  const sampleDate = firstMatchingDate(from, days);
-  const draft: PriceRule = { id: "draft", label: "", zone, from, to, days, mode, amount, enabled: true };
-  const after = effectivePrice(sampleZone.from, sampleZone.id, sampleDate, [draft]);
-
-  const submit = () => {
-    if (!valid) return;
-    onSave({ id: rule?.id ?? `r-${Date.now().toString(36)}`, label: label.trim() || autoLabel, zone, from, to, days, mode, amount, enabled: rule?.enabled ?? true });
-    onClose();
-  };
-
-  return (
-    <Modal open={open} onClose={onClose} title={rule ? "Edit pricing rule" : "New pricing rule"} wide
-      footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn><Btn variant="primary" icon={Icon.check} disabled={!valid} onClick={submit}>{rule ? "Save rule" : "Add rule"}</Btn></>}>
-      <div className="space-y-3">
-        <Field label="Rule name"><Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={autoLabel || "e.g. August weekends"} /></Field>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Apply to">
-            <Select value={zoneName} options={["All zones", ...ZONES.map((z) => z.name)]}
-              onChange={(e) => { const v = e.target.value; setZone(v === "All zones" ? "all" : ZONES.find((z) => z.name === v)?.id ?? "all"); }} />
-          </Field>
-          <Field label="Days">
-            <Select value={DAY_OPTS.find((d) => d.v === days)?.label ?? DAY_OPTS[0].label} options={DAY_OPTS.map((d) => d.label)}
-              onChange={(e) => setDays(DAY_OPTS.find((d) => d.label === e.target.value)?.v ?? "all")} />
-          </Field>
-        </div>
-        <Field label="Period">
-          <div className="flex flex-wrap items-center gap-2">
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-auto" />
-            <span className="text-slate-400">→</span>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-auto" />
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {MONTH_PRESETS.map((p) => (
-              <button key={p.label} type="button" onClick={() => { setFrom(p.from); setTo(p.to); }}
-                className={`rounded-lg px-2.5 py-1 text-[12px] font-semibold ring-1 transition ${from === p.from && to === p.to ? "bg-navy-900 text-white ring-navy-900" : "ring-slate-200 text-slate-600 hover:ring-teal-400"}`}>{p.label}</button>
-            ))}
-          </div>
-          {rangeBad && <div className="text-[11px] text-rose-600 mt-1">The end date can’t be before the start date.</div>}
-        </Field>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Price change">
-            <Select value={MODE_OPTS.find((m) => m.v === mode)?.label ?? MODE_OPTS[0].label} options={MODE_OPTS.map((m) => m.label)}
-              onChange={(e) => setMode(MODE_OPTS.find((m) => m.label === e.target.value)?.v ?? "addAbs")} />
-          </Field>
-          <Field label={`Amount (${unit})`}>
-            <Input type="number" value={amount} onChange={(e) => setAmount(Math.round(+e.target.value) || 0)} className={amountBad ? "ring-2 ring-rose-400 focus:ring-rose-400" : ""} />
-          </Field>
-        </div>
-        {/* Live effect on a representative zone + a matching date. */}
-        <div className="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-3 py-2.5 flex items-center justify-between gap-3">
-          <div className="text-[12px] text-slate-600 min-w-0 flex items-center gap-1.5"><Icon.tag size={12} className="text-teal-600 shrink-0" /> {sampleZone.name} · {fmtFullDate(sampleDate)}</div>
-          <div className="text-[13px] tnum shrink-0"><span className="text-slate-400 line-through mr-1.5">€{sampleZone.from}</span><span className="font-semibold text-teal-700">€{after}</span></div>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-/* ---- One rule in the list ---- */
-function RuleRow({ rule, onEdit, onRemove, onToggle }: { rule: PriceRule; onEdit: () => void; onRemove: () => void; onToggle: (v: boolean) => void }) {
-  const zoneName = rule.zone === "all" ? "All zones" : ZONES.find((z) => z.id === rule.zone)?.name ?? rule.zone;
-  return (
-    <div className={`rounded-xl ring-1 px-3 py-2.5 flex items-center gap-2.5 transition ${rule.enabled ? "ring-slate-200 bg-white" : "ring-slate-100 bg-slate-50/60"}`}>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className={`font-semibold text-[13.5px] truncate ${rule.enabled ? "text-navy-900" : "text-slate-400"}`}>{rule.label}</span>
-          <Badge tone={rule.mode === "set" ? "indigo" : rule.amount < 0 ? "green" : "amber"}>{ruleEffectLabel(rule)}</Badge>
-        </div>
-        <div className="text-[12px] text-slate-500 mt-0.5 truncate">{zoneName} · {dayShortFor(rule.days)} · {periodLabel(rule.from, rule.to)}</div>
-      </div>
-      <Toggle on={rule.enabled} onChange={onToggle} />
-      <button onClick={onEdit} aria-label={`Edit ${rule.label}`} className="w-8 h-8 grid place-items-center rounded-lg text-slate-500 hover:text-navy-900 hover:bg-slate-100 transition"><Icon.edit size={15} /></button>
-      <button onClick={onRemove} aria-label={`Remove ${rule.label}`} className="w-8 h-8 grid place-items-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"><Icon.trash size={15} /></button>
-    </div>
-  );
-}
-
-/* ---- Pricing-rules tab: the rule list + a date-driven effective-price preview ---- */
-function PricingRulesPanel({ rules, previewDate, setPreviewDate, onAdd, onEdit, onRemove, onToggle }: {
-  rules: PriceRule[]; previewDate: string; setPreviewDate: (d: string) => void;
-  onAdd: () => void; onEdit: (r: PriceRule) => void; onRemove: (id: string) => void; onToggle: (id: string, v: boolean) => void;
-}) {
-  const weekend = isWeekendISO(previewDate);
-  return (
-    <div className="grid lg:grid-cols-[1fr_340px] gap-4 items-start">
-      <Card className="p-4">
-        <div className="flex items-center justify-between gap-3 mb-3">
-          <div className="min-w-0">
-            <div className="font-semibold text-navy-900">Pricing rules</div>
-            <div className="text-[12.5px] text-slate-500">Override base prices by period and weekday — peak weekends, quiet weekdays, whole months.</div>
-          </div>
-          <Btn variant="primary" size="sm" icon={Icon.plus} onClick={onAdd}>Add rule</Btn>
-        </div>
-        {rules.length === 0 ? (
-          <EmptyState icon={Icon.cash} title="No pricing rules yet" body="Base prices apply on every day. Add a rule to charge more on weekends or in peak months." />
-        ) : (
-          <div className="space-y-2">{rules.map((r) => <RuleRow key={r.id} rule={r} onEdit={() => onEdit(r)} onRemove={() => onRemove(r.id)} onToggle={(v) => onToggle(r.id, v)} />)}</div>
-        )}
-      </Card>
-      <Card className="p-4 h-max">
-        <div className="font-semibold text-navy-900 mb-0.5">Price preview</div>
-        <div className="text-[12.5px] text-slate-500 mb-3">Effective price per zone on a chosen day.</div>
-        <Field label="Date"><Input type="date" value={previewDate} onChange={(e) => setPreviewDate(e.target.value)} /></Field>
-        <div className="mt-1.5 mb-3 flex items-center gap-2 text-[12px] text-slate-600">
-          <span className="flex items-center gap-1.5"><Icon.calendar size={12} className="text-slate-400" /> {fmtFullDate(previewDate)}</span>
-          <Badge tone={weekend ? "amber" : "slate"}>{weekend ? "Weekend" : "Weekday"}</Badge>
-        </div>
-        <div className="space-y-1.5">
-          {ZONES.map((z) => {
-            const eff = effectivePrice(z.from, z.id, previewDate, rules);
-            const changed = eff !== z.from;
-            return (
-              <div key={z.id} className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 ring-1 ring-slate-100">
-                <span className="flex items-center gap-2 text-[13px] text-navy-900"><i className="w-2.5 h-2.5 rounded-full" style={{ background: z.color }} />{z.name}</span>
-                <span className="text-[13px] tnum">{changed ? <><span className="text-slate-400 line-through mr-1.5">€{z.from}</span><span className="font-semibold text-teal-700">€{eff}</span></> : <span className="text-slate-600">€{z.from}</span>}</span>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-export function AdminAvailability() {
-  const { toast, priceRules, setPriceRules } = useApp();
-  const [tab, setTab] = useState("inventory");
-  const [rows, setRows] = useState(ZONES.map((z) => ({ ...z, open: z.avail / z.total > 0.3 })));
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [editing, setEditing] = useState<PriceRule | null>(null);
-  // A Saturday in peak August, so the seeded weekend rule is visible by default.
-  const [previewDate, setPreviewDate] = useState("2026-08-15");
-
-  const openNew = () => { setEditing(null); setEditorOpen(true); };
-  const openEdit = (r: PriceRule) => { setEditing(r); setEditorOpen(true); };
-  const saveRule = (r: PriceRule) => {
-    setPriceRules(priceRules.some((x) => x.id === r.id) ? priceRules.map((x) => (x.id === r.id ? r : x)) : [...priceRules, r]);
-    toast(`Pricing rule “${r.label}” saved to this browser.`, { tone: "success" });
-  };
-  const removeRule = (id: string) => { setPriceRules(priceRules.filter((r) => r.id !== id)); toast("Pricing rule removed."); };
-  const setRuleEnabled = (id: string, v: boolean) => setPriceRules(priceRules.map((r) => (r.id === id ? { ...r, enabled: v } : r)));
-
-  return (
-    <div className="animate-fade-up">
-      <PageHead title="Availability & Pricing" sub="Open or close zones, set base prices, and add seasonal / day-of-week pricing rules." badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<Btn variant="primary" icon={Icon.check} onClick={() => toast("Demo — availability published to the live map.")}>Publish</Btn>} />
-      <div className="mb-4"><Tabs tabs={[["inventory", "Availability"], ["pricing", "Seasonal & day pricing"]]} value={tab} onChange={setTab} /></div>
-      {tab === "inventory" ? (
-        <Card className="p-2">
-          <Table cols={["Zone", "Sunbeds", "Available", "Base price", "Open", "Status"]} right={[1, 2]}
-            rows={rows.map((z, i) => [
-              <span className="flex items-center gap-2"><i className="w-3 h-3 rounded-full" style={{ background: z.color }} />{z.name}</span>,
-              z.total, z.avail, `€${z.from}`,
-              <Toggle on={z.open} onChange={(v) => setRows((r) => r.map((x, xi) => (xi === i ? { ...x, open: v } : x)))} />,
-              <Badge tone={z.open ? "green" : "amber"}>{z.open ? "Open" : "Closed"}</Badge>,
-            ])} />
-        </Card>
-      ) : (
-        <PricingRulesPanel rules={priceRules} previewDate={previewDate} setPreviewDate={setPreviewDate}
-          onAdd={openNew} onEdit={openEdit} onRemove={removeRule} onToggle={setRuleEnabled} />
-      )}
-      <RuleEditorModal open={editorOpen} rule={editing} onClose={() => setEditorOpen(false)} onSave={saveRule} />
-    </div>
-  );
-}
-
-/* ============ MAP LAYOUT EDITOR ============ */
-function ZoneArrangeEditor() {
-  const { toast, zoneMap, setZoneMap } = useApp();
-  const [pickerOpen, setPickerOpen] = useState(false);
-  // Working copy, seeded from the persisted store (positions, grid, identity).
-  const [zones, setZones] = useState<ZoneMapItem[]>(zoneMap);
-  const [selectedId, setSelectedId] = useState(zones[0].id);
-  const selected = zones.find((z) => z.id === selectedId) ?? zones[0];
-  // Persist every change back to the store (→ localStorage) so the arrangement
-  // survives a reload — with no backend, the browser IS the store. Debounced so
-  // a drag doesn't write on every frame; skips the initial mount (no change yet).
-  const mounted = useRef(false);
-  useEffect(() => {
-    if (!mounted.current) { mounted.current = true; return; }
-    const t = setTimeout(() => setZoneMap(zones), 300);
-    return () => clearTimeout(t);
-  }, [zones, setZoneMap]);
-  const update = (id: string, patch: Partial<ZoneMapItem>) => setZones((zs) => zs.map((z) => (z.id === id ? { ...z, ...patch } : z)));
-  const remove = (id: string) => setZones((zs) => (zs.length > 1 ? zs.filter((z) => z.id !== id) : zs));
-  const add = () => {
-    const palette = ["#0ea5e9", "#22c55e", "#f59e0b", "#a855f7", "#ef4444", "#6366f1", "#14b8a6"];
-    const used = new Set(zones.map((z) => z.color));
-    const color = palette.find((c) => !used.has(c)) || palette[0];
-    const id = `z${Date.now().toString(36)}`;
-    const z = { id, name: `Zone ${zones.length + 1}`, prefix: `Z${zones.length + 1}`, color, total: 60, rows: 6, cols: 10, x: 30, y: 40 };
-    setZones((zs) => [...zs, z]); setSelectedId(id);
-  };
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const dragRef = useRef<{ id: string; dx: number; dy: number } | null>(null);
-  const onPointerDown = (e: ReactPointerEvent<HTMLDivElement>, id: string) => {
-    setSelectedId(id);
-    const canvas = canvasRef.current;
-    const z = zones.find((x) => x.id === id);
-    if (!canvas || !z) return;
-    const r = canvas.getBoundingClientRect();
-    dragRef.current = { id, dx: e.clientX - (r.left + (z.x / 100) * r.width), dy: e.clientY - (r.top + (z.y / 100) * r.height) };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-  const onPointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    const d = dragRef.current;
-    if (!d || !canvasRef.current) return;
-    const r = canvasRef.current.getBoundingClientRect();
-    const x = ((e.clientX - d.dx - r.left) / r.width) * 100;
-    const y = ((e.clientY - d.dy - r.top) / r.height) * 100;
-    update(d.id, { x: Math.max(0, Math.min(85, x)), y: Math.max(0, Math.min(85, y)) });
-  };
-  const onPointerUp = () => { dragRef.current = null; };
-
-  const save = () => {
-    setZoneMap(zones);
-    toast(`Layout saved to this browser — ${zones.length} zones · ${zones.reduce((a, z) => a + z.rows * z.cols, 0)} beds. It’ll be restored when you return.`, { tone: "success" });
-  };
-
-  return (
-    <div>
-      <div className="flex items-center justify-end gap-2 mb-3">
-        <Btn variant="outline" icon={Icon.image} onClick={() => setPickerOpen(true)}>Background</Btn>
-        <Btn variant="primary" icon={Icon.check} onClick={save}>Save layout</Btn>
-      </div>
-      <div className="lg:hidden mb-3 flex items-start gap-2 rounded-xl bg-slaice-100 ring-1 ring-slaice-600/20 px-3 py-2 text-[12px] text-slaice-700">
-        <Icon.info size={14} className="shrink-0 mt-0.5 text-slaice-600" /> The map editor is best on a larger screen — drag-to-position zones is easier with a mouse.
-      </div>
-      <div className="grid lg:grid-cols-[1fr_320px] gap-4">
-        <Card className="p-5">
-          <div
-            ref={canvasRef}
-            className="relative rounded-2xl ring-1 ring-slate-100 overflow-hidden select-none"
-            style={{ height: 560 }}
-          >
-            {/* Live preview of the tenant's chosen beach background (what
-                customers see on the booking map). Edit it via "Background".
-                Lift the shoreline so the sand fills ~80% of the canvas (zones
-                are beach plots) and drop the vegetation belt for clean sand. */}
-            <BeachBackdrop pos="absolute" className="inset-0 rounded-none" shoreline={0.2} noVeg />
-            {zones.map((z) => {
-              const active = z.id === selectedId;
-              return (
-                <div
-                  key={z.id}
-                  onPointerDown={(e) => onPointerDown(e, z.id)}
-                  onPointerMove={onPointerMove}
-                  onPointerUp={onPointerUp}
-                  onPointerCancel={onPointerUp}
-                  className={`absolute rounded-xl px-3 py-2 backdrop-blur cursor-grab active:cursor-grabbing shadow-md text-[12px] font-semibold transition ${active ? "ring-2 ring-offset-2 ring-offset-transparent" : "ring-1"}`}
-                  style={{
-                    left: `${z.x}%`, top: `${z.y}%`, minWidth: 110,
-                    background: "rgba(255,255,255,0.92)", color: z.color,
-                    boxShadow: active ? `0 0 0 2px ${z.color}` : "0 6px 18px -8px rgba(0,0,0,.35)",
-                    borderColor: z.color,
-                  }}
-                >
-                  <div className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: z.color }} />{z.name}</div>
-                  <div className="text-[10px] text-slate-500 font-medium tnum">{z.prefix} · {z.rows}×{z.cols} · {z.rows * z.cols} beds</div>
-                </div>
-              );
-            })}
-            <div className="absolute bottom-3 left-3 text-[11px] text-white bg-navy-900/65 backdrop-blur rounded-lg px-2.5 py-1">Drag zones to reposition · click to edit on the right</div>
-          </div>
-          <div className="mt-3 flex items-center justify-between text-[12px] text-slate-500">
-            <span>{zones.length} zone{zones.length !== 1 ? "s" : ""} · {zones.reduce((a, z) => a + z.rows * z.cols, 0)} beds total</span>
-            <button onClick={add}
-              className="group inline-flex items-center gap-1.5 rounded-lg border-2 border-dashed border-teal-400 text-teal-700 hover:bg-teal-50 hover:border-teal-600 active:bg-teal-100 px-3 py-1.5 text-[12px] font-semibold transition shadow-sm">
-              <span className="w-5 h-5 rounded-md bg-teal-500 text-white grid place-items-center group-hover:bg-teal-600 transition"><Icon.plus size={13} /></span>
-              Add zone
-            </button>
-          </div>
-        </Card>
-
-        <Card className="p-5 h-max">
-          <div className="font-semibold text-navy-900 mb-3 flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full" style={{ background: selected.color }} /> Zone properties
-          </div>
-          <div className="space-y-3">
-            <Field label="Zone name"><Input value={selected.name} onChange={(e) => update(selected.id, { name: e.target.value })} /></Field>
-            <Field label="Code prefix"><Input value={selected.prefix} onChange={(e) => update(selected.id, { prefix: e.target.value.toUpperCase().slice(0, 4) })} className="uppercase tnum" /></Field>
-            <Field label="Rows × Columns">
-              <div className="flex gap-2">
-                <Input type="number" min={1} max={30} value={selected.rows} onChange={(e) => update(selected.id, { rows: Math.max(1, +e.target.value || 1) })} />
-                <Input type="number" min={1} max={30} value={selected.cols} onChange={(e) => update(selected.id, { cols: Math.max(1, +e.target.value || 1) })} />
-              </div>
-            </Field>
-            <Field label="Colour">
-              <div className="flex gap-1.5 flex-wrap">
-                {["#6366f1", "#0ea5e9", "#ef4444", "#22c55e", "#f59e0b", "#a855f7", "#14b8a6", "#ec4899"].map((c) => (
-                  <button key={c} aria-label={c} onClick={() => update(selected.id, { color: c })}
-                    className={`w-7 h-7 rounded-lg ring-2 shadow transition ${selected.color === c ? "ring-navy-900 scale-110" : "ring-white hover:scale-110"}`} style={{ background: c }} />
-                ))}
-              </div>
-            </Field>
-            <div className="text-[11px] text-slate-600">Position: <span className="tnum">{selected.x.toFixed(0)}%, {selected.y.toFixed(0)}%</span></div>
-            <div className="flex gap-2">
-              <Btn variant="ghost" full icon={Icon.plus} onClick={add}>Add</Btn>
-              <Btn variant="ghost" full icon={Icon.trash} onClick={() => remove(selected.id)} className="text-rose-600 hover:bg-rose-50" disabled={zones.length <= 1}>Remove</Btn>
-            </div>
-          </div>
-          <div className="mt-4 pt-3 border-t border-slate-100">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-600 mb-1.5">Zones</div>
-            <div className="space-y-1">
-              {zones.map((z) => (
-                <button key={z.id} onClick={() => setSelectedId(z.id)} className={`w-full flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg text-[12px] ${selectedId === z.id ? "bg-slate-100" : "hover:bg-slate-50"}`}>
-                  <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full" style={{ background: z.color }} /><span className="font-semibold text-navy-900">{z.name}</span></span>
-                  <span className="text-slate-600 tnum">{z.rows * z.cols}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </Card>
-      </div>
-      <BackgroundPicker open={pickerOpen} onClose={() => setPickerOpen(false)} />
-    </div>
-  );
-}
-
-/* ---- Sunbed-level layout editor ----
-   Drag/place individual umbrellas for a zone on the shared Konva canvas, set
-   each one's availability/price, then publish. The saved SunbedSlot[] lands in
-   the app store and the booking wizard renders that exact arrangement. */
-function SunbedLayoutEditor() {
-  const { toast, beachLayout, setZoneLayout, zoneLogos, setZoneLogo } = useApp();
-  const [zoneId, setZoneId] = useState(ZONES[0].id);
-  const zone = ZONES.find((z) => z.id === zoneId) ?? ZONES[0];
-  // Working copy: the published layout if any, otherwise the default grid.
-  const [slots, setSlots] = useState<SunbedSlot[]>(() => beachLayout[zoneId] ?? zoneLayout(zone));
-  const [sel, setSel] = useState<Set<string>>(new Set());
-  const [snapOn, setSnapOn] = useState(true);
-  // Grid generator — total sets + columns per row (rows derive from the two).
-  const [gridCount, setGridCount] = useState(() => (beachLayout[ZONES[0].id] ?? zoneLayout(ZONES[0])).length);
-  const [gridCols, setGridCols] = useState(8);
-  const [logoBusy, setLogoBusy] = useState(false);
-  const logo = zoneLogos[zoneId];
-  const onLogo = async (file?: File) => {
-    if (!file) return;
-    setLogoBusy(true);
-    try {
-      // Small max dims — a logo only needs to read at ~thumbnail size and is
-      // persisted to localStorage alongside the rest of the saved state.
-      const src = await fileToBackgroundSrc(file, { maxW: 256, maxH: 256, quality: 0.9 });
-      setZoneLogo(zoneId, src);
-      toast(`Logo set for ${zone.name}.`, { tone: "success" });
-    } catch (e) {
-      toast(e instanceof Error ? e.message : "That image could not be used.", { tone: "error" });
-    } finally {
-      setLogoBusy(false);
-    }
-  };
-
-  const selList = slots.filter((s) => sel.has(s.id));
-  const one = selList.length === 1 ? selList[0] : null;
-  const first = selList[0];
-  const curState = first && selList.every((s) => s.state === first.state) ? first.state : undefined;
-  const curKind = first && selList.every((s) => (s.kind ?? "standard") === (first.kind ?? "standard")) ? (first.kind ?? "standard") : undefined;
-
-  const switchZone = (id: string) => {
-    const z = ZONES.find((x) => x.id === id) ?? ZONES[0];
-    const next = beachLayout[id] ?? zoneLayout(z);
-    setZoneId(id);
-    setSlots(next);
-    setGridCount(next.length);
-    setSel(new Set());
-  };
-  // Lay out `count` sets in a grid `cols` wide (last row fills left-to-right).
-  const generateGrid = () => {
-    const cols = Math.max(1, Math.min(16, gridCols));
-    const count = Math.max(1, Math.min(120, gridCount));
-    const next = zoneLayout(zone, cols, Math.ceil(count / cols)).slice(0, count);
-    setSlots(next);
-    setSel(new Set());
-    toast(`Generated ${count} sets · ${cols} per row for ${zone.name}.`, { tone: "success" });
-  };
-  const select = (id: string, additive: boolean) =>
-    setSel((s) => {
-      if (!additive) return new Set([id]);
-      const n = new Set(s);
-      if (n.has(id)) n.delete(id); else n.add(id);
-      return n;
-    });
-  const move = (id: string, x: number, y: number) => setSlots((ss) => ss.map((s) => (s.id === id ? { ...s, x, y } : s)));
-  const patchSel = (p: Partial<SunbedSlot>) => setSlots((ss) => ss.map((s) => (sel.has(s.id) ? { ...s, ...p } : s)));
-  const nextNum = (list: SunbedSlot[]) => {
-    const nums = list.map((s) => parseInt(s.id.split("-")[1] || "0", 10)).filter((n) => !Number.isNaN(n));
-    return (nums.length ? Math.max(...nums) : 0) + 1;
-  };
-  const addBed = () => {
-    const id = `${zone.prefix}-${String(nextNum(slots)).padStart(2, "0")}`;
-    setSlots((ss) => [...ss, { id, x: 50, y: 50, state: "a", price: zone.from }]);
-    setSel(new Set([id]));
-  };
-  const duplicate = () => {
-    if (!selList.length) return;
-    let n = nextNum(slots);
-    const clones: SunbedSlot[] = selList.map((s) => ({ ...s, id: `${zone.prefix}-${String(n++).padStart(2, "0")}`, x: Math.min(96, s.x + 6), y: Math.min(96, s.y + 6) }));
-    setSlots((ss) => [...ss, ...clones]);
-    setSel(new Set(clones.map((c) => c.id)));
-  };
-  const removeSel = () => { if (!sel.size) return; setSlots((ss) => ss.filter((s) => !sel.has(s.id))); setSel(new Set()); };
-  const reset = () => { setSlots(zoneLayout(zone)); setSel(new Set()); toast(`Reset ${zone.name} to the default grid.`); };
-  const save = () => { setZoneLayout(zoneId, slots); toast(`Published ${zone.name} — ${slots.length} sets now live in the booking wizard.`, { tone: "success" }); };
-
-  const states: { v: SunbedState; label: string }[] = [{ v: "a", label: "Available" }, { v: "h", label: "On hold" }, { v: "u", label: "Blocked" }];
-  const kinds: { v: SunbedKind; label: string }[] = [{ v: "standard", label: "Standard" }, { v: "front", label: "Front row" }, { v: "cabana", label: "Cabana" }];
-
-  return (
-    <div className="grid lg:grid-cols-[1fr_320px] gap-4">
-      <Card className="p-5">
-        <div className="lg:hidden mb-3 flex items-start gap-2 rounded-xl bg-slaice-100 ring-1 ring-slaice-600/20 px-3 py-2 text-[12px] text-slaice-700">
-          <Icon.info size={14} className="shrink-0 mt-0.5 text-slaice-600" /> Best on a larger screen — arranging sunbeds wants a mouse; ⇧/⌘-click selects several.
-        </div>
-        <div className="flex flex-wrap items-center gap-1.5 mb-3">
-          {ZONES.map((z) => (
-            <button key={z.id} onClick={() => switchZone(z.id)}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold ring-1 transition ${zoneId === z.id ? "bg-navy-900 text-white ring-navy-900" : "ring-slate-200 text-slate-700 hover:ring-teal-400"}`}>
-              <span className="w-2.5 h-2.5 rounded-full" style={{ background: z.color }} /> {z.name}
-              {beachLayout[z.id] && <Icon.check size={12} className={zoneId === z.id ? "text-teal-300" : "text-teal-600"} />}
-            </button>
-          ))}
-          <div className="ml-auto inline-flex items-center">
-            <Toggle on={snapOn} onChange={setSnapOn} label="Snap to grid" />
-          </div>
-        </div>
-        <Suspense fallback={<div className="w-full rounded-2xl bg-gradient-to-b from-sky-100 to-amber-100/60 ring-1 ring-white/50 animate-pulse" style={{ height: 360 }} />}>
-          <BeachCanvas slots={slots} editable selectedIds={sel} onSelect={select} onMove={move} snap={snapOn ? 5 : 0} maxHeight={520} />
-        </Suspense>
-        <div className="mt-3 flex items-center justify-between text-[12px] text-slate-500">
-          <span className="tnum">{slots.length} sets · {slots.filter((s) => s.state === "a").length} available{sel.size > 0 ? ` · ${sel.size} selected` : ""}</span>
-          <span className="hidden sm:inline">Drag to arrange · click to select · ⇧/⌘-click for many</span>
-        </div>
-      </Card>
-
-      <Card className="p-5 h-max">
-        <div className="font-semibold text-navy-900 mb-3 flex items-center gap-2"><span className="w-3 h-3 rounded-full" style={{ background: zone.color }} /> {zone.name} · sunbeds</div>
-
-        {/* Optional store logo — shown under the store name on the customer beach. */}
-        <div className="mb-3 rounded-xl ring-1 ring-slate-200 bg-slate-50 p-2.5 flex items-center gap-2.5">
-          <span className="w-12 h-12 rounded-lg bg-white ring-1 ring-slate-200 grid place-items-center overflow-hidden shrink-0">
-            {logo ? <img src={logo} alt={`${zone.name} logo`} className="w-full h-full object-contain" /> : <Icon.image size={18} className="text-slate-300" />}
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="text-[12.5px] font-semibold text-navy-900">Store logo</div>
-            <div className="text-[11px] text-slate-500 leading-tight">Optional · shown under the store name on the beach.</div>
-          </div>
-          <div className="flex flex-col items-end gap-1 shrink-0">
-            <label className={`cursor-pointer inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-semibold ring-1 bg-white transition ${logoBusy ? "ring-teal-300 text-teal-700" : "ring-slate-200 text-slate-700 hover:ring-teal-400"}`}>
-              <input type="file" accept="image/*" aria-label={`Upload a logo for ${zone.name}`} className="sr-only" disabled={logoBusy}
-                onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; void onLogo(f); }} />
-              {logoBusy ? <Spinner size={12} /> : <Icon.upload size={12} />} {logo ? "Replace" : "Upload"}
-            </label>
-            {logo && <button onClick={() => setZoneLogo(zoneId, null)} className="text-[11px] text-slate-500 hover:text-rose-600">Remove</button>}
-          </div>
-        </div>
-
-        {/* Grid generator — set the number of sets + columns per row, then lay
-            out a fresh grid (rows are derived). Fine-tune individual sets below. */}
-        <div className="mb-3 rounded-xl ring-1 ring-slate-200 bg-slate-50 p-2.5">
-          <div className="text-[12.5px] font-semibold text-navy-900 mb-2 flex items-center gap-1.5"><Icon.grid size={13} /> Grid generator</div>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Umbrella sets">
-              <Input type="number" min={1} max={120} value={gridCount} onChange={(e) => setGridCount(Math.max(1, Math.min(120, Math.round(+e.target.value) || 1)))} />
-            </Field>
-            <Field label="Columns / row">
-              <Input type="number" min={1} max={16} value={gridCols} onChange={(e) => setGridCols(Math.max(1, Math.min(16, Math.round(+e.target.value) || 1)))} />
-            </Field>
-          </div>
-          <div className="mt-2 flex items-center justify-between gap-2">
-            <span className="text-[11px] text-slate-500 tnum">{gridCols} × {Math.ceil(gridCount / gridCols)} rows</span>
-            <Btn variant="tint" size="sm" icon={Icon.grid} onClick={generateGrid}>Generate</Btn>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 mb-3">
-          <Btn variant="tint" size="sm" icon={Icon.plus} onClick={addBed}>Add</Btn>
-          <Btn variant="ghost" size="sm" icon={Icon.grid} onClick={duplicate} disabled={!sel.size}>Copy</Btn>
-          <Btn variant="ghost" size="sm" icon={Icon.refund} onClick={reset}>Reset</Btn>
-        </div>
-        {selList.length > 0 ? (
-          <div className="space-y-3">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-              {one ? <>Selected · <span className="tnum text-navy-900">{one.id}</span></> : <><span className="text-navy-900">{selList.length}</span> selected</>}
-            </div>
-            <div>
-              <div className="text-[11px] text-slate-500 mb-1">Availability</div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {states.map((b) => (
-                  <button key={b.v} onClick={() => patchSel({ state: b.v })}
-                    className={`rounded-lg px-2 py-1.5 text-[12px] font-semibold ring-1 transition ${curState === b.v ? "bg-navy-900 text-white ring-navy-900" : "ring-slate-200 text-slate-600 hover:ring-teal-400"}`}>{b.label}</button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <div className="text-[11px] text-slate-500 mb-1">Type</div>
-              <div className="grid grid-cols-3 gap-1.5">
-                {kinds.map((k) => (
-                  <button key={k.v} onClick={() => patchSel({ kind: k.v })}
-                    className={`rounded-lg px-2 py-1.5 text-[12px] font-semibold ring-1 transition ${curKind === k.v ? "bg-navy-900 text-white ring-navy-900" : "ring-slate-200 text-slate-600 hover:ring-teal-400"}`}>{k.label}</button>
-                ))}
-              </div>
-            </div>
-            {one && (
-              <>
-                <Field label="Price (€ / day)">
-                  <Input type="number" min={0} value={one.price} onChange={(e) => patchSel({ price: Math.max(0, +e.target.value || 0) })} />
-                </Field>
-                <div className="text-[11px] text-slate-500 tnum">Position: {one.x.toFixed(0)}%, {one.y.toFixed(0)}%</div>
-              </>
-            )}
-            <Btn variant="ghost" full size="sm" icon={Icon.trash} onClick={removeSel} className="text-rose-600 hover:bg-rose-50">Remove {selList.length > 1 ? `${selList.length} sets` : "sunbed"}</Btn>
-          </div>
-        ) : (
-          <div className="rounded-xl ring-1 ring-dashed ring-slate-300 bg-slate-50 px-3 py-6 text-center text-[12.5px] text-slate-500">
-            Click an umbrella to edit its availability, type, price or position. ⇧/⌘-click to select several at once.
-          </div>
-        )}
-        <div className="mt-4 pt-3 border-t border-slate-100">
-          <Btn variant="primary" full icon={Icon.check} onClick={save}>Publish to wizard</Btn>
-          <div className="mt-2 text-[11px] text-slate-500 leading-snug">Customers see this exact arrangement when they open <b>{zone.name}</b> in “Plan my visit”.</div>
-        </div>
-      </Card>
-    </div>
-  );
-}
-
-/* Customer-surface atmosphere — the tenant's control over the scene effects:
-   master switches for the weather graphics and time-of-day lighting, plus the
-   live values themselves (current weather + scene clock), applied identically
-   on every customer page. The guests' Home demo pill mirrors the same state;
-   at launch that pill goes away and this card is the only control. Purely
-   cosmetic; booking always works with everything off. */
-function AtmosphereCard() {
-  const { sceneFx, setSceneFx, weather, setWeather, dayTime, setDayTime, toast } = useApp();
-  return (
-    <Card className="p-5 mt-4">
-      <div className="font-semibold text-navy-900 mb-1 flex items-center gap-2"><Icon.sun size={15} className="text-gold-600" /> Atmosphere</div>
-      <div className="text-[12px] text-slate-600 mb-4">Weather graphics and daylight on the customer beach. Cosmetic only — booking is unaffected.</div>
-      <div className="grid md:grid-cols-3 gap-x-6 gap-y-4">
-        <div className="space-y-2.5">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-[13px] font-semibold text-navy-900">Weather effects</div>
-              <div className="text-[11px] text-slate-500">Sea state, rain, cloud cover &amp; scene tint</div>
-            </div>
-            <Toggle on={sceneFx.weather} onChange={(v) => { setSceneFx({ weather: v }); toast(`Weather effects ${v ? "enabled" : "disabled"}.`, { tone: "success" }); }} />
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-[13px] font-semibold text-navy-900">Time-of-day lighting</div>
-              <div className="text-[11px] text-slate-500">Dawn-to-dusk scene clock lighting</div>
-            </div>
-            <Toggle on={sceneFx.daytime} onChange={(v) => { setSceneFx({ daytime: v }); toast(`Time-of-day lighting ${v ? "enabled" : "disabled"}.`, { tone: "success" }); }} />
-          </div>
-        </div>
-        <div className={sceneFx.weather ? "" : "opacity-40 pointer-events-none"}>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Current weather</div>
-          <div className="grid grid-cols-2 gap-1.5">
-            {WEATHER_KINDS.map((k) => {
-              const P = WEATHER_DEMO[k];
-              const PI = Icon[P.icon] || Icon.sun;
-              const active = k === weather;
-              return (
-                <button key={k} onClick={() => setWeather(k)} aria-pressed={active}
-                  className={`flex items-center gap-2 rounded-xl px-2.5 py-2 text-left text-[12.5px] font-semibold ring-1 transition ${active ? "bg-navy-900 text-white ring-navy-900" : "bg-white text-navy-900 ring-slate-200 hover:ring-teal-400"}`}>
-                  <PI size={14} className={active ? "" : "text-teal-600"} />
-                  <span className="flex-1 leading-tight">{P.label}</span>
-                  <span className={`tnum text-[10.5px] ${active ? "text-white/70" : "text-slate-500"}`}>{P.tempC}°</span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div className={sceneFx.daytime ? "" : "opacity-40 pointer-events-none"}>
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Scene clock</span>
-            <span className="text-[12px] font-bold text-navy-900 tnum">{fmtHour(dayTime)}</span>
-          </div>
-          <input type="range" min={DAY_MIN} max={DAY_MAX} step={0.25} value={dayTime} onChange={(e) => setDayTime(parseFloat(e.target.value))} aria-label="Scene clock" className="demo-range w-full" />
-          <div className="text-[11px] text-slate-500 mt-1.5">Tip: ~19:30 gives the golden-hour look (sun permitting).</div>
-        </div>
-      </div>
-    </Card>
-  );
-}
-
-export function AdminMapEditor() {
-  const [tab, setTab] = useState("sunbeds");
-  return (
-    <div>
-      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-        <Tabs tabs={[["zones", "Zone map"], ["sunbeds", "Sunbed layout"]]} value={tab} onChange={setTab} />
-        <div className="text-[12px] text-slate-500 hidden sm:block">Arrange zones, then place each zone&apos;s sunbeds in detail.</div>
-      </div>
-      {tab === "zones" ? <ZoneArrangeEditor /> : <SunbedLayoutEditor />}
-      {/* Page-level (visible on both tabs): the scene-atmosphere controls. */}
-      <AtmosphereCard />
-    </div>
-  );
-}
+export { AdminBookings } from "./bookings/Bookings";
 
 /* ============ BOOKINGS LIST ============ */
-/* ---- Shared send-channel picker — QR / offers via Email · Viber · SMS ---- */
-type SendChannel = "Email" | "Viber" | "SMS";
-const SEND_CHANNELS: { key: SendChannel; icon: IconRenderer; color: string }[] = [
-  { key: "Email", icon: Icon.mail, color: "#0d9488" },
-  { key: "Viber", icon: Icon.chat, color: "#7360f2" },
-  { key: "SMS", icon: Icon.phone, color: "#16a34a" },
-];
-
-function SendModal({ open, onClose, title, intro, email, phone, sendLabel = "Send", onSend }: {
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  intro?: string;
-  email?: string;
-  phone?: string;
-  sendLabel?: string;
-  onSend: (channel: SendChannel, dest: string) => void;
-}) {
-  const [channel, setChannel] = useState<SendChannel>("Email");
-  useEffect(() => { if (open) setChannel("Email"); }, [open]);
-  const destOf = (c: SendChannel) => (c === "Email" ? email : phone) || "—";
-  return (
-    <Modal open={open} onClose={onClose} title={title}
-      footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-        <Btn variant="primary" icon={Icon.check} onClick={() => { onSend(channel, destOf(channel)); onClose(); }}>{sendLabel} via {channel}</Btn></>}>
-      <div className="space-y-3">
-        {intro && <p className="text-[13px] text-slate-600 -mt-1">{intro}</p>}
-        <div className="grid grid-cols-3 gap-2">
-          {SEND_CHANNELS.map((c) => {
-            const CIcon = c.icon;
-            const on = channel === c.key;
-            return (
-              <button key={c.key} type="button" onClick={() => setChannel(c.key)} aria-pressed={on}
-                className={`rounded-xl p-3 text-center ring-1 transition ${on ? "ring-2 ring-teal-500 bg-teal-50/50" : "ring-slate-200 bg-white hover:ring-teal-400"}`}>
-                <span className="mx-auto mb-1.5 w-10 h-10 rounded-xl grid place-items-center text-white shadow-sm" style={{ background: c.color }}><CIcon size={18} /></span>
-                <div className="text-[13px] font-semibold text-navy-900">{c.key}</div>
-                <div className="text-[10.5px] text-slate-500 truncate">{destOf(c.key)}</div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-/* Items of one booking, stacked — a customer who reserved several sunbeds plus
-   parking / a locker / tickets sees them all together under their booking id. */
-function BookingItems({ items }: { items: string[] }) {
-  if (items.length <= 1) return <span className="whitespace-nowrap">{items[0] ?? "—"}</span>;
-  return (
-    <div className="space-y-0.5 min-w-[170px]">
-      {items.map((it, i) => (
-        <div key={i} className="flex items-center gap-1.5 whitespace-nowrap">
-          <span className="w-1.5 h-1.5 rounded-full bg-teal-400 shrink-0" />
-          <span>{it}</span>
-        </div>
-      ))}
-      <div className="text-[11px] text-slate-400 pt-0.5">{items.length} items · one booking</div>
-    </div>
-  );
-}
-
-type EnrichedBooking = AdminBooking & { surname: string; phone: string; email: string };
-
-export function AdminBookings() {
-  const { toast } = useApp();
-  const [q, setQ] = useState("");
-  const [page, setPage] = useState(0);
-  const [sort, setSort] = useState<SortState>(null);
-  const [sendFor, setSendFor] = useState<EnrichedBooking | null>(null);
-  const loading = useMockLoad();
-  const PAGE = 30;
-  const chan = (c: string) => ({ Online: "blue", "Walk-in": "amber", Phone: "indigo", Cashier: "green" }[c] || "slate");
-  const enriched: EnrichedBooking[] = ADMIN_BOOKINGS.map((b) => {
-    const p = personByFirst(b.who);
-    return { ...b, surname: p?.last ?? "", phone: p?.phone ?? "", email: p?.email ?? "" };
-  });
-  const filtered = enriched.filter((b) => (b.id + b.who + b.surname + b.phone + b.items.join(" ")).toLowerCase().includes(q.toLowerCase()));
-  const sortVal = (b: EnrichedBooking): string | number => {
-    switch (sort?.key) {
-      case "id": return b.id;
-      case "name": return b.who;
-      case "surname": return b.surname;
-      case "amount": return b.amount;
-      case "date": return dateVal(b.date);
-      default: return 0;
-    }
-  };
-  const sorted = sort ? [...filtered].sort((a, b) => cmpVal(sortVal(a), sortVal(b)) * sort.dir) : filtered;
-  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE));
-  const safePage = Math.min(page, pageCount - 1);
-  const pageRows = sorted.slice(safePage * PAGE, safePage * PAGE + PAGE);
-  const onSort = (k: string) => { setSort((s) => (s?.key === k ? { key: k, dir: s.dir === 1 ? -1 : 1 } : { key: k, dir: 1 })); setPage(0); };
-  const exportCSV = () => {
-    // One row per booking *item*, so each sunbed / parking / locker / ticket
-    // lands in its own cell instead of being crammed into one column. Booking
-    // identifiers repeat on each row (so any column is sortable/filterable); the
-    // booking total sits once on its first item row, so summing Amount is correct.
-    const header = ["Booking", "Name", "Surname", "Phone", "Item", "Date", "Channel", "Status", "Amount (€)"];
-    const rows: (string | number)[][] = [];
-    sorted.forEach((b) => {
-      const items = b.items.length ? b.items : ["—"];
-      items.forEach((it, i) => rows.push([b.id, b.who, b.surname || "—", b.phone || "—", it, b.date, b.channel, b.status, i === 0 ? b.amount : ""]));
-    });
-    downloadCSV("bookings.csv", header, rows);
-    toast(`Exported ${sorted.length} bookings · ${rows.length} item rows to CSV.`, { tone: "success" });
-  };
-  return (
-    <div>
-      <Card className="p-4">
-        {/* Search + Export sit on the same row inside the card so the header
-            doesn't add a separate strip above. Export hugs the right edge. */}
-        <div className="flex items-center gap-3 mb-3 flex-wrap">
-          <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-sm flex-1 min-w-[200px] text-slate-600">
-            <Icon.search size={16} /><input value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} placeholder="Search bookings…" className="text-sm outline-none w-full bg-transparent text-ink" />
-          </div>
-          <Btn variant="outline" icon={Icon.download} onClick={exportCSV} className="ml-auto">Export</Btn>
-        </div>
-        {loading ? (
-          <TableSkeleton rows={5} cols={9} />
-        ) : sorted.length === 0 ? (
-          <EmptyState icon={Icon.search} title="No matching bookings" body={`Nothing matches “${q}”. Try a different name, sunbed code or booking ID.`} />
-        ) : (
-          <>
-            <Table cols={[
-              <SortHeader label="Booking" k="id" sort={sort} onSort={onSort} />,
-              <SortHeader label="Name" k="name" sort={sort} onSort={onSort} />,
-              <SortHeader label="Surname" k="surname" sort={sort} onSort={onSort} />,
-              "Phone", "Items",
-              <SortHeader label="Date" k="date" sort={sort} onSort={onSort} />,
-              "Channel", "Status",
-              <SortHeader label="Amount" k="amount" sort={sort} onSort={onSort} align="right" />,
-              "",
-            ]} right={[8]}
-              rows={pageRows.map((b) => [
-                b.id,
-                b.who,
-                b.surname || <span className="text-slate-400">—</span>,
-                b.phone ? <span className="tnum whitespace-nowrap">{b.phone}</span> : <span className="text-slate-400">—</span>,
-                <BookingItems items={b.items} />,
-                b.date,
-                <Badge tone={chan(b.channel)}>{b.channel}</Badge>,
-                <StatusBadge status={b.status} />,
-                `€${b.amount}`,
-                <Btn size="sm" variant="ghost" icon={Icon.mail} onClick={() => setSendFor(b)}>Resend QR</Btn>,
-              ])} />
-            {pageCount > 1 && <Pager page={safePage} pageCount={pageCount} total={sorted.length} pageSize={PAGE} onPage={setPage} />}
-          </>
-        )}
-      </Card>
-      <SendModal
-        open={sendFor !== null}
-        onClose={() => setSendFor(null)}
-        title="Resend QR"
-        intro={sendFor ? `Send the gate QR for ${sendFor.id} (${sendFor.who}${sendFor.surname ? " " + sendFor.surname : ""}) again.` : undefined}
-        email={sendFor?.email}
-        phone={sendFor?.phone}
-        sendLabel="Resend"
-        onSend={(ch, dest) => toast(`QR for ${sendFor?.id} re-sent via ${ch} to ${dest}.`, { tone: "success" })}
-      />
-    </div>
-  );
-}
-
-/* Compact live beach coverage for the manual booking — the same umbrella sets the
-   customer sees, scaled into the form. Available sets are tappable (fill the
-   code); taken sets are dimmed. */
-function ManualCoverage({ zone, slots, selectedCode, onPick }: {
-  zone: { name: string };
-  slots: SunbedSlot[];
-  selectedCode: string;
-  onPick: (id: string) => void;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [box, setBox] = useState({ w: 0, h: 0 });
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const measure = () => { const r = el.getBoundingClientRect(); setBox({ w: r.width, h: r.height }); };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  const size = useMemo(() => {
-    const base = Math.min(40, box.w * 0.07);
-    if (slots.length < 2 || box.w === 0) return Math.max(16, base);
-    let min = Infinity;
-    for (let i = 0; i < slots.length; i++) {
-      for (let j = i + 1; j < slots.length; j++) {
-        const dx = ((slots[i].x - slots[j].x) / 100) * box.w;
-        const dy = ((slots[i].y - slots[j].y) / 100) * box.h;
-        min = Math.min(min, Math.hypot(dx, dy));
-      }
-    }
-    return Math.max(14, Math.min(base, min * 0.82));
-  }, [slots, box]);
-  const free = slots.filter((s) => s.state === "a").length;
-  const want = selectedCode.trim().toUpperCase();
-  return (
-    <div className="mt-4">
-      <div className="flex items-center justify-between mb-1.5">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.umbrella size={12} /> Live beach coverage · {zone.name}</div>
-        <div className="text-[11px] text-slate-500 tnum">{free} free · {slots.length} sets</div>
-      </div>
-      <div ref={ref} className="relative w-full rounded-xl ring-1 ring-slate-200 overflow-hidden" style={{ aspectRatio: "16 / 6", background: "linear-gradient(to bottom, #bfe6f5 0%, #cdebf6 16%, #f1ddb4 30%, #ecd3a1 100%)" }}>
-        {slots.map((s) => {
-          const sel = !!want && s.id.toUpperCase() === want;
-          const taken = s.state !== "a";
-          return (
-            <button
-              key={s.id}
-              type="button"
-              disabled={taken}
-              onClick={() => onPick(s.id)}
-              title={`${s.id} · ${taken ? "taken" : "available"}`}
-              className={`absolute -translate-x-1/2 -translate-y-1/2 transition-transform ${taken ? "opacity-35 cursor-not-allowed" : "hover:scale-110 hover:z-10 cursor-pointer"}`}
-              style={{ left: `${s.x}%`, top: `${s.y}%`, width: size, height: size }}
-            >
-              <SunbedMark state={s.state} sel={sel} fill />
-            </button>
-          );
-        })}
-      </div>
-      <div className="mt-1 text-[11px] text-slate-400">Tap an available set to fill the code · taken sets are dimmed.</div>
-    </div>
-  );
-}
-
-/* ============ MANUAL / PHONE BOOKING ============ */
-export function AdminManual() {
-  const { toast, beachLayout } = useApp();
-  const [done, setDone] = useState(false);
-  const [zoneName, setZoneName] = useState(ZONES[0].name);
-  const [code, setCode] = useState("");
-  const [email, setEmail] = useState("maria@example.com");
-  const [mphone, setMphone] = useState("+30 694 100 0001");
-  const [sendOpen, setSendOpen] = useState(false);
-  const [sentVia, setSentVia] = useState<SendChannel>("Email");
-  const [sentTo, setSentTo] = useState("");
-  const today = new Date().toISOString().slice(0, 10);
-  const zone = ZONES.find((z) => z.name === zoneName) ?? ZONES[0];
-  const slots = beachLayout[zone.id] ?? zoneLayout(zone);
-  const reserve = () => {
-    if (!code.trim()) { toast("Pick a set on the map (or type a code) first.", { tone: "error" }); return; }
-    setSendOpen(true);
-  };
-  return (
-    <>
-      <div className="animate-fade-up grid lg:grid-cols-[1fr_320px] gap-5">
-        <div>
-          <PageHead title="Manual / Phone Booking" sub="Reserve and block a sunbed without taking payment (VIP / phone), then send the QR to the customer." badge={<Badge tone="mvp">MVP</Badge>} />
-          <Card className="p-5">
-            <div className="grid sm:grid-cols-2 gap-3">
-              <Field label="Customer name"><Input placeholder="e.g. Maria K." defaultValue="Maria K." /></Field>
-              <Field label="Customer e-mail"><Input placeholder="maria@example.com" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
-              <Field label="Customer phone"><Input placeholder="+30 694 …" value={mphone} onChange={(e) => setMphone(e.target.value)} /></Field>
-              <Field label="Zone"><Select value={zoneName} onChange={(e) => { setZoneName(e.target.value); setCode(""); }} options={ZONES.map((z) => z.name)} /></Field>
-              <Field label="Sunbed code"><Input placeholder="CE-92" value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} /></Field>
-              <Field label="Date"><Input type="date" defaultValue={today} /></Field>
-              <Field label="Mark as"><Select options={["Unpaid (manual)", "Comp / VIP", "Pay later"]} /></Field>
-            </div>
-            <ManualCoverage zone={zone} slots={slots} selectedCode={code} onPick={(id) => setCode(id)} />
-            <div className="mt-4">
-              <Btn variant="primary" full className="sm:w-auto" icon={Icon.lock} onClick={reserve}>Reserve &amp; send QR</Btn>
-            </div>
-          </Card>
-          {done && (
-            <Card className="p-5 mt-4 flex items-center gap-4 animate-fade-up">
-              <QR size={96} seed={`MANUAL-${code}`} />
-              <div>
-                <div className="font-semibold text-navy-900 flex items-center gap-2">Reserved <Badge tone="amber">Unpaid</Badge></div>
-                <div className="text-sm text-slate-600">{zone.name} · {code} — QR sent via <b>{sentVia}</b> to {sentTo}. The customer can pay later or present the QR at the gate.</div>
-              </div>
-            </Card>
-          )}
-        </div>
-        <ContextPanel title="Manual / phone bookings" items={[
-          { icon: Icon.phone, title: "Block without payment", body: "Used for phone bookings, VIP comps, and pay-later guests." },
-          { icon: Icon.mail, title: "QR by e-mail / Viber / SMS", body: "The guest gets the same gate QR as an online booking, on the channel you pick." },
-          { icon: Icon.cash, title: "Settle later", body: "Mark unpaid bookings paid in Bookings when they arrive." },
-        ]} footer="Manual bookings appear in Reporting with channel = Phone." />
-      </div>
-      <SendModal
-        open={sendOpen}
-        onClose={() => setSendOpen(false)}
-        title="Reserve & send QR"
-        intro={`Block ${zone.name} · ${code} and send the gate QR to the customer.`}
-        email={email}
-        phone={mphone}
-        sendLabel="Reserve & send"
-        onSend={(ch, dest) => { setSentVia(ch); setSentTo(dest); setDone(true); toast(`Demo — ${zone.name} · ${code} blocked & QR sent via ${ch} to ${dest}.`, { tone: "success" }); }}
-      />
-    </>
-  );
-}
-
-/* ============ USERS & SEGMENTS ============
-   Segments are partly automatic: every guest is "New" by default and is promoted
-   to "Regular" once they pass the visit threshold. VIP and Season pass stay
-   manually assigned, so we keep only those on the record and derive New/Regular
-   from the visit count — one rule, no drift. */
-const REGULAR_AFTER = 15; // strictly more than this many visits → Regular
-const MANUAL_TAGS = ["VIP", "Season pass"];
-// "Elena V." stands in for the signed-in customer, so a pass she buys shows here.
-const DEMO_CUSTOMER_ID = 3;
-const autoSegment = (visits: number): "New" | "Regular" => (visits > REGULAR_AFTER ? "Regular" : "New");
-const manualOf = (tags: string[]) => tags.filter((t) => MANUAL_TAGS.includes(t));
-// Display tags = the auto segment first, then any manual badges.
-const displayTags = (u: Customer) => [autoSegment(u.bookings), ...manualOf(u.tags)];
-const tagTone = (t: string) => ({ VIP: "amber", "Season pass": "blue", Regular: "slate", New: "green" }[t] || "slate");
-
-export function AdminUsers() {
-  const { toast, passes } = useApp();
-  const [q, setQ] = useState("");
-  const [tagFilter, setTagFilter] = useState("All");
-  const customersQ = useAsync(listCustomers);
-  // Editable copy of the roster (mockup: edits live in component state). Seed once
-  // loaded, keeping only manual tags — New/Regular come from autoSegment.
-  const [users, setUsers] = useState<Customer[] | null>(null);
-  const [editId, setEditId] = useState<number | null>(null);
-  const [activityId, setActivityId] = useState<number | null>(null);
-  useEffect(() => {
-    if (customersQ.status === "success" && users === null) {
-      setUsers(customersQ.data.map((c) => ({ ...c, tags: manualOf(c.tags) })));
-    }
-  }, [customersQ.status, customersQ.data, users]);
-
-  const allTags = ["All", "VIP", "Season pass", "Regular", "New"];
-  const list = users ?? [];
-  // The signed-in customer reflects any pass she holds as an automatic tag
-  // (marked with a wallet glyph so it reads as pass-derived, not hand-assigned).
-  const passTags = [passes.vip ? "VIP" : null, passes.season ? "Season pass" : null].filter(Boolean) as string[];
-  const tagsFor = (u: Customer): { t: string; pass: boolean }[] => {
-    const base = displayTags(u).map((t) => ({ t, pass: false }));
-    if (u.id !== DEMO_CUSTOMER_ID || passTags.length === 0) return base;
-    passTags.forEach((pt) => {
-      const hit = base.find((b) => b.t === pt);
-      if (hit) hit.pass = true;
-      else base.push({ t: pt, pass: true });
-    });
-    return base;
-  };
-  const rows = list.filter((u) => (tagFilter === "All" || tagsFor(u).some((x) => x.t === tagFilter)) && (u.first + u.last + u.email + u.phone).toLowerCase().includes(q.toLowerCase()));
-  const editUser = editId !== null ? list.find((u) => u.id === editId) ?? null : null;
-  const activityUser = activityId !== null ? list.find((u) => u.id === activityId) ?? null : null;
-  const loading = customersQ.status === "loading" || (customersQ.status !== "error" && users === null);
-
-  const saveUser = (patch: Customer) => {
-    setUsers((us) => (us ? us.map((u) => (u.id === patch.id ? patch : u)) : us));
-    setEditId(null);
-    toast(`Saved ${patch.first} ${patch.last}.`, { tone: "success" });
-  };
-
-  return (
-    <div className="animate-fade-up">
-      <Card className="p-4">
-        {/* Search · tag filters · New tag — all in one row inside the card. */}
-        <div className="flex items-center gap-3 mb-3 flex-wrap">
-          <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 px-3 py-2 max-w-xs flex-1 min-w-[180px] text-slate-600">
-            <Icon.search size={16} /><input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search users…" className="text-sm outline-none w-full bg-transparent text-ink" />
-          </div>
-          <div className="flex gap-1.5 flex-wrap">
-            {allTags.map((t) => <button key={t} onClick={() => setTagFilter(t)} className={`px-3 py-1.5 rounded-lg text-[12px] font-semibold ring-1 ${tagFilter === t ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 text-slate-600 hover:ring-teal-400"}`}>{t}</button>)}
-          </div>
-          <Btn variant="outline" icon={Icon.tag} onClick={() => toast("Demo — create a tag / segment.")} className="ml-auto">New tag</Btn>
-        </div>
-        {/* The auto-segmentation rule, stated for the demo. */}
-        <div className="mb-3 flex items-start gap-2 rounded-xl bg-slaice-100 ring-1 ring-slaice-600/20 px-3 py-2 text-[12px] text-slaice-700">
-          <Icon.info size={14} className="shrink-0 mt-0.5 text-slaice-600" />
-          <span>Segments update automatically: every guest starts <b>New</b> and becomes <b>Regular</b> after {REGULAR_AFTER} visits. <b>VIP</b> and <b>Season pass</b> are assigned by hand on a user.</span>
-        </div>
-        {loading ? (
-          <TableSkeleton rows={6} cols={6} />
-        ) : customersQ.status === "error" ? (
-          <ErrorState compact body="We couldn't load the customer list." onRetry={customersQ.refetch} />
-        ) : rows.length === 0 ? (
-          <EmptyState compact icon={Icon.users} title="No users match" body="Try a different search or tag filter." />
-        ) : (
-          <Table cols={["Name", "Surname", "Phone", "Email", "Visits", "Tags", ""]} right={[4]}
-            rows={rows.map((u) => [u.first, u.last, <span className="tnum whitespace-nowrap">{u.phone}</span>, u.email, u.bookings,
-              <span className="flex gap-1 flex-wrap">{tagsFor(u).map(({ t, pass }) => <Badge key={t} tone={tagTone(t)}>{pass && <Icon.wallet size={9} />}{t}</Badge>)}</span>,
-              <div className="flex items-center justify-end gap-1">
-                <Btn size="sm" variant="ghost" icon={Icon.edit} onClick={() => setEditId(u.id)}>Edit</Btn>
-                <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => setActivityId(u.id)}>Activity</Btn>
-              </div>])} />
-        )}
-      </Card>
-      {editUser && <UserEditModal user={editUser} onClose={() => setEditId(null)} onSave={saveUser} />}
-      {activityUser && <UserActivityModal user={activityUser} onClose={() => setActivityId(null)} onEdit={(id) => { setActivityId(null); setEditId(id); }} />}
-    </div>
-  );
-}
-
-/* ---- Edit a user: contact details, visit count and the manual segment badges.
-   Editing visits re-derives New/Regular live, demonstrating the auto-rule. ---- */
-function UserEditModal({ user, onClose, onSave }: { user: Customer; onClose: () => void; onSave: (u: Customer) => void }) {
-  const [first, setFirst] = useState(user.first);
-  const [last, setLast] = useState(user.last);
-  const [phone, setPhone] = useState(user.phone);
-  const [email, setEmail] = useState(user.email);
-  const [visits, setVisits] = useState(user.bookings);
-  const [vip, setVip] = useState(user.tags.includes("VIP"));
-  const [seasonPass, setSeasonPass] = useState(user.tags.includes("Season pass"));
-
-  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
-  const nameOk = first.trim().length > 0 && last.trim().length > 0;
-  const valid = emailOk && nameOk;
-  const seg = autoSegment(visits);
-
-  const save = () => {
-    const f = first.trim(), l = last.trim();
-    const tags = [...(vip ? ["VIP"] : []), ...(seasonPass ? ["Season pass"] : [])];
-    onSave({ ...user, first: f, last: l, phone: phone.trim(), email: email.trim(), bookings: visits, tags, name: `${f} ${l.charAt(0)}.` });
-  };
-
-  return (
-    <Modal open onClose={onClose} wide title="Edit user"
-      footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn><Btn variant="primary" icon={Icon.check} disabled={!valid} onClick={save}>Save changes</Btn></>}>
-      <div className="space-y-3">
-        <div className="grid sm:grid-cols-2 gap-3">
-          <Field label="Name"><Input value={first} onChange={(e) => setFirst(e.target.value)} placeholder="First name" /></Field>
-          <Field label="Surname"><Input value={last} onChange={(e) => setLast(e.target.value)} placeholder="Surname" /></Field>
-          <Field label="Phone"><Input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+30 694 …" className="tnum" /></Field>
-          <Field label="Email">
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" className={email && !emailOk ? "ring-2 ring-rose-400 focus:ring-rose-400" : ""} />
-            {email && !emailOk && <div className="text-[11px] text-rose-600 mt-1">Enter a valid email address.</div>}
-          </Field>
-        </div>
-
-        <div className="grid sm:grid-cols-2 gap-3 items-start">
-          <Field label="Visits this season">
-            <div className="flex items-center gap-2">
-              <Input type="number" min={0} value={visits} onChange={(e) => setVisits(Math.max(0, Math.round(+e.target.value) || 0))} />
-              <span className="text-[12px] text-slate-500 shrink-0">visits</span>
-            </div>
-          </Field>
-          <div>
-            <div className="text-[12px] font-semibold text-slate-700 mb-1">Segment (automatic)</div>
-            <div className="rounded-xl ring-1 ring-slate-200 bg-slate-50 px-3 py-2.5 flex items-center gap-2">
-              <Badge tone={tagTone(seg)}>{seg}</Badge>
-              <span className="text-[11px] text-slate-500">{seg === "New" ? `${REGULAR_AFTER + 1 - visits} more visit${REGULAR_AFTER + 1 - visits !== 1 ? "s" : ""} → Regular` : `Over ${REGULAR_AFTER} visits`}</span>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <div className="text-[12px] font-semibold text-slate-700 mb-1.5">Manual segments</div>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
-              <span className="flex items-center gap-2"><Badge tone="amber">VIP</Badge><span className="text-[12px] text-slate-500">High-value guest perks</span></span>
-              <Toggle on={vip} onChange={setVip} />
-            </div>
-            <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
-              <span className="flex items-center gap-2"><Badge tone="blue">Season pass</Badge><span className="text-[12px] text-slate-500">Unlimited entry this season</span></span>
-              <Toggle on={seasonPass} onChange={setSeasonPass} />
-            </div>
-          </div>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-/* ---- Activity: a CRM-style customer-360 — segment progress, key stats and a
-   synthesized recent-activity timeline. A demo of what "Activity" opens. ---- */
-const ACT_BG: Record<string, string> = { teal: "bg-teal-600", slate: "bg-slate-400", indigo: "bg-slaice-600", amber: "bg-amber-500" };
-function userActivity(u: Customer): { icon: IconRenderer; tone: string; title: string; detail: string; when: string }[] {
-  const each = Math.max(10, Math.round(u.spend / Math.max(1, u.bookings)));
-  const ev = [
-    { icon: Icon.scan, tone: "teal", title: "Checked in at the gate", detail: "QR validated · Central", when: u.lastVisit },
-    { icon: Icon.umbrella, tone: "teal", title: "Sunbed booking", detail: `Central · 2 sets · €${each}`, when: u.lastVisit },
-    { icon: Icon.card, tone: "slate", title: "Payment received", detail: `€${each} · Visa ···· 4242`, when: u.lastVisit },
-    { icon: Icon.ticket, tone: "slate", title: "Entry tickets", detail: "Adult ×2", when: u.lastVisit },
-    { icon: Icon.mail, tone: "indigo", title: "Opened a campaign", detail: "“Weekend offer” · E-mail", when: "2 weeks ago" },
-  ];
-  if (u.bookings >= 10) ev.push({ icon: Icon.gift, tone: "amber", title: "Loyalty stamp earned", detail: `${Math.min(10, u.bookings)}/10 toward a free sunbed`, when: "3 weeks ago" });
-  ev.push({ icon: Icon.users, tone: "slate", title: "Account created", detail: "Tagged New by default", when: `Joined ${["Apr", "May", "Jun"][u.id % 3]} 2026` });
-  return ev;
-}
-
-function UserActivityModal({ user, onClose, onEdit }: { user: Customer; onClose: () => void; onEdit: (id: number) => void }) {
-  const { toast } = useApp();
-  const seg = autoSegment(user.bookings);
-  const avg = Math.round(user.spend / Math.max(1, user.bookings));
-  const toRegular = Math.max(0, REGULAR_AFTER + 1 - user.bookings);
-  const pct = Math.min(100, Math.round((user.bookings / (REGULAR_AFTER + 1)) * 100));
-  const events = userActivity(user);
-  const stats = [
-    { label: "Visits", value: String(user.bookings) },
-    { label: "Total spend", value: `€${user.spend.toLocaleString()}` },
-    { label: "Avg / visit", value: `€${avg}` },
-    { label: "Last visit", value: user.lastVisit },
-  ];
-  return (
-    <Modal open onClose={onClose} wide title="Customer activity"
-      footer={<><Btn variant="ghost" onClick={onClose}>Close</Btn>
-        <Btn variant="outline" icon={Icon.mail} onClick={() => toast(`Demo — message ${user.first} ${user.last} (opens Communicate).`)}>Message</Btn>
-        <Btn variant="primary" icon={Icon.edit} onClick={() => onEdit(user.id)}>Edit profile</Btn></>}>
-      <div className="space-y-4">
-        {/* Identity */}
-        <div className="flex items-center gap-3">
-          <span className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slaice-600 to-teal-600 text-white grid place-items-center font-display font-bold text-lg shrink-0">{user.first.charAt(0)}{user.last.charAt(0)}</span>
-          <div className="min-w-0 flex-1">
-            <div className="font-display font-bold text-navy-900 text-[15px] truncate">{user.first} {user.last}</div>
-            <div className="text-[12px] text-slate-500 truncate">{user.email} · <span className="tnum">{user.phone}</span></div>
-          </div>
-          <div className="flex gap-1 flex-wrap justify-end shrink-0">{displayTags(user).map((t) => <Badge key={t} tone={tagTone(t)}>{t}</Badge>)}</div>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {stats.map((s) => (
-            <div key={s.label} className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
-              <div className="text-[11px] text-slate-500">{s.label}</div>
-              <div className="font-display text-lg font-bold text-navy-900 tnum leading-tight">{s.value}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Segment progress — ties back to the auto-rule */}
-        <div className="rounded-xl ring-1 ring-slate-200 bg-slate-50/70 px-3 py-2.5">
-          {seg === "Regular" ? (
-            <div className="flex items-center gap-2 text-[13px] text-navy-900"><Icon.checkCircle size={15} className="text-teal-600" /> <b>Regular</b> — past {REGULAR_AFTER} visits this season.</div>
-          ) : (
-            <>
-              <div className="flex items-center justify-between text-[12px] mb-1.5">
-                <span className="text-slate-600"><b className="text-navy-900">{toRegular}</b> more visit{toRegular !== 1 ? "s" : ""} to <b className="text-navy-900">Regular</b></span>
-                <span className="text-slate-500 tnum">{user.bookings}/{REGULAR_AFTER + 1}</span>
-              </div>
-              <div className="h-2 rounded-full bg-slate-200 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-slaice-500 to-teal-500" style={{ width: `${pct}%` }} /></div>
-            </>
-          )}
-        </div>
-
-        {/* Timeline */}
-        <div>
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Recent activity</div>
-          <ol className="space-y-1">
-            {events.map((e, i) => {
-              const EIcon = e.icon;
-              return (
-                <li key={i} className="flex items-start gap-3 rounded-xl px-2.5 py-2 hover:bg-slate-50 transition">
-                  <span className={`w-8 h-8 rounded-lg grid place-items-center text-white shrink-0 ${ACT_BG[e.tone] || ACT_BG.slate}`}><EIcon size={15} /></span>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-semibold text-navy-900 leading-tight">{e.title}</div>
-                    <div className="text-[11.5px] text-slate-500 leading-snug">{e.detail}</div>
-                  </div>
-                  <span className="text-[11px] text-slate-400 shrink-0 whitespace-nowrap pt-0.5">{e.when}</span>
-                </li>
-              );
-            })}
-          </ol>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
 /* ============ REPORTING & ANALYTICS ============ */
+const FIN_TABS = ["exec", "payments", "invoices"];
 export function AdminReporting() {
-  const { toast } = useApp();
-  const [tab, setTab] = useState("exec");
+  const { toast, go, till } = useApp();
+  // Locker / parking figures only for the modules the tenant has (AENR-696); the till shifts need Cash Register.
+  const { module } = useTenantFeatures();
+  const hasLocker = module("Day Locker");
+  const hasParking = module("Parking");
+  // Reports grouped by question (AENR-562): the view lives in the URL (?report=).
+  const [tab, setTab] = useUrlState("report", "exec");
   const tabs: TabEntry[] = [
     ["exec", "Executive", Icon.chart],
     ["revenue", "Revenue", Icon.cash],
@@ -1354,756 +67,575 @@ export function AdminReporting() {
     ["channel", "Channels", Icon.globe],
     ["customers", "Customers", Icon.users],
     ["tickets", "Tickets", Icon.ticket],
-    ["daily", "Daily ops", Icon.clock],
+    ["ops", "Operations", Icon.clock],
+    ["payments", "Payments", Icon.card],
+    ["invoices", "Invoices", Icon.receipt],
+    ["refunds", "Refunds", Icon.refund],
+    // What Slaice takes — commission, guest fees, corporate tax (AENR-725).
+    ["fees", "Platform fees", Icon.layers],
   ];
-  const season = [{ l: "May", v: 48 }, { l: "Jun", v: 121 }, { l: "Jul", v: 198 }, { l: "Aug", v: 241 }, { l: "Sep", v: 96 }];
+  const GROUPS: { k: string; l: string; icon: IconRenderer; views: string[] }[] = [
+    { k: "overview", l: "Overview", icon: Icon.chart, views: ["exec"] },
+    { k: "sales", l: "Sales", icon: Icon.cash, views: ["revenue", "payments", "invoices", "refunds", "fees"] },
+    { k: "ops", l: "Operations", icon: Icon.umbrella, views: ["occupancy", "ops", "tickets"] },
+    { k: "customers", l: "Customers & channels", icon: Icon.users, views: ["customers", "channel", "bookings"] },
+  ];
+  const group = GROUPS.find((g) => g.views.includes(tab)) ?? GROUPS[0];
+  // One period for the whole page (kept when switching tabs, AENR-466).
+  const [period, setPeriod] = usePeriod({ kind: "preset", preset: "season", offset: 0 });
+  // Memoised on the period so the tab modules can cache their (heavier) figures.
+  const range = useMemo(() => resolveRange(period) ?? resolveRange({ kind: "preset", preset: "season", offset: 0 })!, [period]);
+  const cmpRange = useMemo(() => comparisonRange(period, range), [period, range]);
+  const label = rangeLabel(range);
+  const noun = periodNoun(period);
+  const now = summarize(range);
+  const prev = summarize(comparisonRange(period, range));
+  const ly = summarize(lastYearRange(range));
+  const hasPrev = prev.openDays > 0;
+  const vs = comparisonLabel(period);
+  const g = granularityFor(range);
+  const axis = { hour: "Hour", day: "Day", week: "Week of", month: "Month" }[g];
+  const closed = now.openDays === 0;
+  // Whole-beach finance figures, whatever section the block above is filtered to.
+  const finWhole = useMemo(() => financeReport(range, null, till.sales), [range, till.sales]);
+
+  /* ---- Figures, computed once and shared by the screen and the CSV ---- */
+  const ratio = (a: number, b: number) => (b ? a / b : 0);
+  const otherRev = (hasLocker ? now.byCapability.Lockers : 0) + (hasParking ? now.byCapability.Parking : 0);
+  const otherLabel = hasLocker && hasParking ? "Lockers & parking" : hasLocker ? "Lockers" : "Parking";
+  const mix = [
+    { l: "Sunbeds", v: Math.round(ratio(now.byCapability.Sunbeds, now.revenue) * 100), amt: now.byCapability.Sunbeds, c: "#0D9488", cls: "bg-teal-600" },
+    { l: "Tickets", v: Math.round(ratio(now.byCapability.Tickets, now.revenue) * 100), amt: now.byCapability.Tickets, c: "#0ea5e9", cls: "bg-sky-500" },
+    ...(hasLocker || hasParking ? [{ l: otherLabel, v: Math.round(ratio(otherRev, now.revenue) * 100), amt: otherRev, c: "#f59e0b", cls: "bg-amber-500" }] : []),
+  ];
+  const k = (s: typeof now) => ({
+    online: ratio(s.byChannel.Online.bookings, s.bookings),
+    refund: ratio(s.refunds.amount, s.revenue),
+    revpatb: ratio(s.revenue, s.setNights),
+    adr: ratio(s.byCapability.Sunbeds, s.setsSold),
+    attach: ratio(s.units.Lockers + s.units.Parking, s.bookings),
+    noShow: ratio(s.noShows, s.bookings),
+    cancel: ratio(s.cancellations, s.bookings),
+    setsPerBooking: ratio(s.setsSold, s.sunbedBookings),
+  });
+  const kn = k(now), kp = k(prev);
+  const pp = (a: number, b: number, digits = 0) => (hasPrev ? `${a - b >= 0 ? "+" : "−"}${Math.abs((a - b) * 100).toFixed(digits)}pp` : undefined);
+  // The Revenue / Bookings tiles count every product and payment method; the
+  // block above counts card captures and confirmed sets. Split the tiles into
+  // those parts so the two reconcile (AENR-545).
+  const rc = reconcile(now, finWhole);
+  const execKpis: { label: string; value: string; sub: string; full?: string; detail?: string; trend?: string; tone?: string }[] = [
+    { label: "Revenue · all methods", value: fmtEUR(rc.revenue), full: eurFull(rc.revenue), detail: `card ${fmtEUR(rc.card)} · cash & other ${fmtEUR(rc.other)}`, sub: vs, trend: hasPrev ? trendPct(now.revenue, prev.revenue) : undefined, tone: "teal" },
+    { label: "Bookings · all products", value: fmtInt(rc.bookings), detail: `${fmtInt(rc.sunbedBookings)} sunbed (${fmtInt(rc.sets)} sets) · ${fmtInt(rc.ticketOnly)} ticket-only`, sub: vs, trend: hasPrev ? trendPct(now.bookings, prev.bookings) : undefined },
+    { label: "Avg occupancy", value: fmtPct(now.occupancy), sub: "across zones", trend: trendPp(now.occupancy, prev.occupancy, hasPrev) },
+    { label: "Online share", value: fmtPct(kn.online), sub: "of bookings", trend: pp(kn.online, kp.online) },
+    { label: "Refund rate", value: fmtPct(kn.refund, 1), sub: "of revenue", trend: pp(kn.refund, kp.refund, 1), tone: "teal" },
+    { label: "RevPATB", value: `€${kn.revpatb.toFixed(1)}`, sub: "rev / available sunbed", trend: hasPrev ? trendPct(kn.revpatb, kp.revpatb) : undefined, tone: "indigo" },
+    { label: "ADR", value: `€${kn.adr.toFixed(1)}`, sub: "avg daily rate / set", trend: hasPrev ? trendPct(kn.adr, kp.adr) : undefined },
+    { label: "Ancillary attach", value: kn.attach.toFixed(2), sub: "extras per booking", trend: hasPrev ? `${kn.attach - kp.attach >= 0 ? "+" : "−"}${Math.abs(kn.attach - kp.attach).toFixed(2)}` : undefined },
+    { label: "No-show rate", value: fmtPct(kn.noShow, 1), sub: "of reservations", trend: pp(kn.noShow, kp.noShow, 1), tone: "teal" },
+  ];
+  const revSeries = series(range, (x) => x.revenue, g);
+  const bookSeries = series(range, (x) => x.bookings, g);
+  const paceVsLy = ly.bookings ? trendPct(now.bookings, ly.bookings) : undefined;
+  const zoneOcc = ZONES.map((z) => ({ id: z.id, l: z.name, v: Math.round((now.occupancyByZone[z.id] ?? 0) * 100) }));
+  const topZone = [...zoneOcc].sort((a, b) => b.v - a.v)[0];
+  const weekendLift = now.weekdayOccupancy ? Math.round((now.weekendOccupancy / now.weekdayOccupancy - 1) * 100) : 0;
+  const capRows = [
+    { l: "Sunbed", v: now.byCapability.Sunbeds }, { l: "Ticket", v: now.byCapability.Tickets },
+    ...(hasLocker ? [{ l: "Locker", v: now.byCapability.Lockers }] : []), ...(hasParking ? [{ l: "Parking", v: now.byCapability.Parking }] : []),
+  ];
+  const capMax = Math.max(...capRows.map((c) => c.v));
+  const zoneRev = ZONES.map((z) => ({ l: z.name, v: Math.round(now.revenueByZone[z.id] ?? 0) }));
+  // Occupancy tab (AENR-478): its own filters and analysis, same period.
+  const heatBuckets = useMemo(() => buckets(range, g === "hour" ? "day" : g).map((b) => ({ ...b, label: g === "month" ? b.label : `${Number(b.range.from.slice(8))}/${Number(b.range.from.slice(5, 7))}` })), [range, g]);
+  const occ = useOccupancy(range, cmpRange, g === "hour" ? "day" : g);
+  const chs = useChannels(range, cmpRange, g === "hour" ? "day" : g);
+  // Overview / Payments / Invoices (AENR-521): arrival-date range + section.
+  const [section, setSection] = useSection();
+  const fin = useFinanceData(range, section);
+  const fees = usePlatformFees(range);
+  const finDocs = fin.rep.total.docs;
+  const { bookingOps } = useApp();
+  const refStats = refundStats(refundHistory(range));
+  const pendingRefunds = bookingOps.refunds.filter((r) => r.status === "pending").length;
+  // Customers: the seed top-customer list scaled to the period's share of a full season.
+  const seasonRev = summarize(resolveRange({ kind: "preset", preset: "season", offset: -1 })!).revenue;
+  const custScale = Math.min(1.2, ratio(now.revenue, seasonRev));
+  const topCustomers = closed ? [] : TOP_CUSTOMERS.map((c) => ({ ...c, visits: Math.max(1, Math.round(c.visits * custScale)), spendN: Math.round(moneyVal(c.spend) * custScale) }));
+  const vipRev = now.revenue * 0.17;
+  const tickets = REPORTING_TICKETS.filter((r) => inRange(isoFromDayMonth(r[3]), range));
+  // Operations: per-capability totals for the period; refunds split by revenue share.
+  const refundShare = (v: number) => Math.round(ratio(v, now.revenue) * now.refunds.amount);
+  const ops = [
+    { l: "Sunbed bookings", n: now.sunbedBookings, g: now.byCapability.Sunbeds },
+    { l: "Entry tickets", n: now.units.Tickets, g: now.byCapability.Tickets },
+    ...(hasLocker ? [{ l: "Day lockers", n: now.units.Lockers, g: now.byCapability.Lockers }] : []),
+    ...(hasParking ? [{ l: "Parking", n: now.units.Parking, g: now.byCapability.Parking }] : []),
+  ].map((o) => ({ ...o, rf: refundShare(o.g), net: o.g - refundShare(o.g) }));
+  const opsTotal = ops.reduce((a, o) => ({ n: a.n + o.n, g: a.g + o.g, rf: a.rf + o.rf, net: a.net + o.net }), { n: 0, g: 0, rf: 0, net: 0 });
+  // Breakdown by day (by week / month for long ranges) so daily operations stay visible (AENR-480).
+  const [opsByDay, setOpsByDay] = useState(false);
+  const opsG = g === "hour" ? "day" : g;
+  const opsRows = buckets(range, opsG).map((b) => { const x = summarize(b.range); return { l: opsG === "day" ? `${fmtWeekdayP(b.range.from)} ${b.label.includes(" ") ? b.label : rangeLabel(b.range)}` : b.label, x }; }).filter((r) => r.x.openDays > 0);
+  const eur = (n: number) => `€${Math.round(n).toLocaleString("en-GB")}`;
 
   // Build a faithful CSV of exactly what each tab shows — its KPI cards and its
-  // tables / chart series — so the export matches the screen, tab by tab.
+  // tables / chart series — for the selected period.
   const buildReport = (t: string): CsvSection[] => {
+    const head = `· ${label}`;
     switch (t) {
       case "exec":
         return [
-          { title: "Executive · key metrics", header: ["Metric", "Value", "Detail", "Change"], rows: [
-            ["Season revenue", "€704k", "vs last yr", "+9%"], ["Total bookings", "26,040", "sets sold", "+7%"],
-            ["Avg occupancy", "68%", "across zones", "+3pp"], ["Online share", "40%", "of sets", "+5pp"],
-            ["Refund rate", "1.4%", "of revenue", "-0.3pp"], ["RevPATB", "€18.4", "rev / available sunbed", "+6%"],
-            ["ADR", "€27.1", "avg daily rate / set", "+4%"], ["Ancillary attach", "0.7", "extras per booking", "+0.1"],
-            ["No-show rate", "2.8%", "of reservations", "-0.4pp"],
-          ] },
-          { title: "Revenue by month (€k)", header: ["Month", "Revenue"], rows: season.map((s) => [s.l, s.v]) },
-          { title: "Revenue mix", header: ["Category", "Share %"], rows: [["Sunbeds", 62], ["Tickets", 28], ["Other", 10]] },
-          { title: "Booking pace · on the books (vs same time last year)", header: ["Month", "Bookings"], rows: [["Jun", 121], ["Jul", 210], ["Aug", 198], ["Sep", 86], ["Oct", 22]] },
+          { title: `Executive · key metrics ${head}`, header: ["Metric", "Value", "Detail", "Change"], rows: execKpis.map((x) => [x.label, x.full ?? x.value, x.detail ? `${x.detail} · ${x.sub}` : x.sub, x.trend ?? "—"]) },
+          { title: `Revenue by ${axis.toLowerCase()} (€)`, header: [axis, "Revenue"], rows: revSeries.map((d) => [d.l, d.v]) },
+          { title: "Revenue mix", header: ["Category", "Share %"], rows: mix.map((m) => [m.l, m.v]) },
+          { title: `Booking pace (vs same period last year ${paceVsLy ?? "—"})`, header: [axis, "Bookings"], rows: bookSeries.map((d) => [d.l, d.v]) },
+          ...financeCsv("overview", fin, label),
         ];
+      case "refunds":
+        return [{ title: `Refunds · ${label}`, header: ["Metric", "Value"], rows: [["Refunded (€)", refStats.amount], ["Refunds", refStats.count], ["Refund rate %", +(now.revenue ? (refStats.amount / now.revenue) * 100 : 0).toFixed(2)], ["Top reason", refStats.top?.reason ?? "—"], ["Needs decision", pendingRefunds]] }];
+      case "payments":
+        return financeCsv("payments", fin, label);
+      case "invoices":
+        return financeCsv("invoices", fin, label);
+      case "fees":
+        return platformFeesCsv(fees, label);
       case "revenue":
         return [
-          { title: "Revenue by capability (€k)", header: ["Capability", "Revenue"], rows: [["Sunbed", 436], ["Ticket", 197], ["Locker", 31], ["Support", 40]] },
-          { title: "Revenue by zone (€k)", header: ["Zone", "Revenue"], rows: ZONES.map((z) => [z.name, Math.round(z.total * 1.1)]) },
-          { title: "All transactions", header: ["Tx", "Capability", "Channel", "Status", "Amount"], rows: REVENUE_TX.map((r) => [r[0], r[1], r[2].label, r[3].label, r[4]]) },
+          { title: `Revenue by product (€) ${head}`, header: ["Product", "Revenue"], rows: capRows.map((c) => [c.l, c.v]) },
+          { title: `Sunbed revenue by zone (€) ${head}`, header: ["Zone", "Revenue"], rows: zoneRev.map((z) => [z.l, z.v]) },
+          { title: "Latest transactions", header: ["Tx", "Capability", "Channel", "Status", "Amount"], rows: REVENUE_TX.map((r) => [r[0], r[1], r[2].label, r[3].label, r[4]]) },
         ];
       case "occupancy":
-        return [
-          { title: "Occupancy by zone (%)", header: ["Zone", "Occupancy %"], rows: [["Akanthus", 67], ["Central", 83], ["Macaw", 91], ["Bestbuy", 78], ["Main", 68], ["Bolivar", 66]] },
-          { title: "Utilisation heatmap (% · week × zone)", header: ["Zone", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-            rows: ZONES.map((z) => [z.name, ...Array.from({ length: 7 }, (_, d) => Math.round((0.3 + ((z.total * 7 + d * 13) % 70) / 100) * 100))]) },
-        ];
+        return occupancyCsv(occ.report, occ.f, label);
       case "bookings":
         return [
-          { title: "Bookings · key metrics", header: ["Metric", "Value", "Detail"], rows: [
-            ["Avg lead time", "2.3d", "ahead of date"], ["Online vs walk-in", "40 / 60", "% split"], ["Cancellation", "3.1%", ""], ["Sets / booking", "1.8", ""],
+          { title: `Bookings · key metrics ${head}`, header: ["Metric", "Value"], rows: [
+            ["Avg lead time", `${now.avgLeadDays.toFixed(1)}d`], ["Online vs other", `${Math.round(kn.online * 100)} / ${100 - Math.round(kn.online * 100)}`], ["Cancellation", fmtPct(kn.cancel, 1)], ["Sets / booking", kn.setsPerBooking.toFixed(1)],
           ] },
-          { title: "Booking volume by day", header: ["Day", "Bookings"], rows: [["Mon", 120], ["Tue", 98], ["Wed", 142], ["Thu", 165], ["Fri", 210], ["Sat", 320], ["Sun", 298]] },
+          { title: `Booking volume by ${axis.toLowerCase()}`, header: [axis, "Bookings"], rows: bookSeries.map((d) => [d.l, d.v]) },
         ];
       case "channel":
-        return [
-          { title: "Sales by channel & role", header: ["Channel", "Share %", "Revenue"], rows: [["Online (customer)", 40, "€281k"], ["Walk-in (controller)", 45, "€317k"], ["Cashier (on-site)", 15, "€106k"]] },
-          { title: "Channel by week (€k)", header: ["Week", "Revenue"], rows: [["W1", 48], ["W2", 56], ["W3", 71], ["W4", 64], ["W5", 78], ["W6", 82]] },
-        ];
+        return channelsCsv(chs, label);
       case "customers":
         return [
-          { title: "Customers · key metrics", header: ["Metric", "Value", "Detail"], rows: [
-            ["New vs returning", "38 / 62", "% this season"], ["VIP segment rev", "€118k", "17% of total"], ["Season-pass holders", "412", ""],
+          { title: `Customers · key metrics ${head}`, header: ["Metric", "Value", "Detail"], rows: [
+            ["New vs returning", `${Math.round(ratio(now.newGuests, now.bookings) * 100)} / ${Math.round(ratio(now.returningGuests, now.bookings) * 100)}`, "% of bookings"], ["VIP segment rev", fmtEUR(vipRev), "17% of total"], ["Season-pass holders", "412", "active"],
           ] },
-          { title: "Top customers", header: ["Customer", "Segment", "Visits", "Spend"], rows: TOP_CUSTOMERS.map((c) => [c.name, c.segment.label, c.visits, c.spend]) },
+          { title: "Top customers", header: ["Customer", "Segment", "Visits", "Spend (€)"], rows: topCustomers.map((c) => [c.name, c.segment.label, c.visits, c.spendN]) },
         ];
       case "tickets":
+        return [{ title: `Ticket history ${head}`, header: ["Ticket", "Category", "Issuer", "Date", "Customer type", "Revenue", "Status"], rows: tickets.map((r) => [r[0], r[1], r[2], r[3], r[4], r[5], r[6].label]) }];
+      case "ops":
         return [
-          { title: "Ticket history", header: ["Ticket", "Category", "Issuer", "Date", "Customer type", "Revenue", "Status"], rows: REPORTING_TICKETS.map((r) => [r[0], r[1], r[2], r[3], r[4], r[5], r[6].label]) },
-        ];
-      case "daily": {
-        const totals = DAILY_OPS.reduce((a, r) => ({ c: a.c + r[1], g: a.g + parseFloat(r[2].replace(/[^0-9.]/g, "")), rf: a.rf + parseFloat(r[3].replace(/[^0-9.−-]/g, "").replace("−", "-")), n: a.n + parseFloat(r[4].replace(/[^0-9.]/g, "")) }), { c: 0, g: 0, rf: 0, n: 0 });
-        return [
-          { title: "Daily operations · 19 Jul 2026", header: ["Capability", "Count", "Gross", "Refunds", "Net"], rows: [
-            ...DAILY_OPS.map((r) => [r[0], r[1], r[2], r[3], r[4]] as (string | number)[]),
-            ["Total", totals.c, `€${totals.g.toLocaleString()}`, `€${totals.rf.toLocaleString()}`, `€${totals.n.toLocaleString()}`],
+          { title: `Operations ${head}`, header: ["Capability", "Count", "Gross (€)", "Refunds (€)", "Net (€)"], rows: [
+            ...ops.map((o) => [o.l, o.n, o.g, -o.rf, o.net] as (string | number)[]),
+            ["Total", opsTotal.n, opsTotal.g, -opsTotal.rf, opsTotal.net],
           ] },
-          { title: "Documents issued", header: ["Type", "Count", "Status"], rows: [["ΑΠΥ", 726, "MyDATA ✓"], ["ΤΠΥ", 12, "MyDATA ✓"]] },
+          { title: "Documents issued", header: ["Type", "Count"], rows: [["ΑΠΥ", finDocs.apy], ["ΤΠΥ", finDocs.tpy], ["ΠΑΠΥ", finDocs.papy], ["ΠΤΠΥ", finDocs.ptpy], ["Pending transmission", fin.rep.total.pending]] },
+          ...(opsByDay && opsRows.length > 1 ? [{ title: `Operations by ${opsG}`, header: [opsG === "day" ? "Day" : opsG === "week" ? "Week of" : "Month", "Sunbed bookings", "Entry tickets", "Lockers", "Parking", "Gross (€)", "Refunds (€)", "Net (€)"],
+            rows: opsRows.map((r) => [r.l, r.x.sunbedBookings, r.x.units.Tickets, r.x.units.Lockers, r.x.units.Parking, r.x.revenue, -r.x.refunds.amount, r.x.revenue - r.x.refunds.amount]) }] : []),
         ];
-      }
       default:
-        return [{ title: t, header: ["Period", "Bookings"], rows: season.map((s) => [s.l, s.v]) }];
+        return [];
     }
   };
   const tabLabel = (t: string) => tabs.find((x) => x[0] === t)?.[1] ?? t;
-  const exportReport = (t: string) => { downloadCSVReport(`reporting-${t}.csv`, buildReport(t)); toast(`Exported the ${tabLabel(t)} report (CSV).`, { tone: "success" }); };
+  // The answer in one sentence (AENR-604) — the same revenue and comparison as the tiles.
+  const when = /^(today|this )/.test(noun) ? noun : `in ${noun}`;
+  const revPct = hasPrev && prev.revenue ? Math.round((now.revenue / prev.revenue - 1) * 100) : null;
+  const versus = `the ${vs.replace(/^vs\s*/, "")}`;
+  const answer = `${fmtEUR(rc.revenue)} revenue ${when}${revPct === null ? "." : revPct === 0 ? `, level with ${versus}.` : `, ${Math.abs(revPct)}% ${revPct > 0 ? "more" : "less"} than ${versus}.`}`;
+  const answerSub = `${fmtInt(rc.bookings)} bookings, the beach ${fmtPct(now.occupancy)} full on average; ${topZone.l} was the busiest zone (${topZone.v}%).`;
+  const answerTiles: { to: string; label: string; value: string; trend?: string; lowerIsBetter?: boolean }[] = [
+    { to: "revenue", label: "Revenue", value: fmtEUR(rc.revenue), trend: execKpis[0].trend },
+    { to: "bookings", label: "Bookings", value: fmtInt(rc.bookings), trend: execKpis[1].trend },
+    { to: "occupancy", label: "Occupancy", value: fmtPct(now.occupancy), trend: execKpis[2].trend },
+    { to: "refunds", label: "Refund rate", value: fmtPct(kn.refund, 1), trend: execKpis[4].trend, lowerIsBetter: true },
+  ].map((x) => (x.trend && /^[+−-]0(\.0+)?(%|pp)$/.test(x.trend) ? { ...x, trend: undefined } : x));
+  // Detail stays one tap below; the choice is remembered on this device.
+  const [showDetail, setShowDetail] = useState(() => { try { return localStorage.getItem("slaice.reports.detail") === "1"; } catch { return false; } });
+  const toggleDetail = (on: boolean) => { setShowDetail(on); try { localStorage.setItem("slaice.reports.detail", on ? "1" : "0"); } catch { /* storage unavailable */ } };
+  const secSlug = section ? `-${section}` : "";
+  // Every report in PDF and CSV from one definition (AENR-593).
+  const exportReport = (t: string, format: "pdf" | "csv" = "csv") => {
+    const fin2 = FIN_TABS.includes(t) && section ? ` · ${ZONES.find((z) => z.id === section)?.name ?? section}` : "";
+    downloadReport(
+      `reporting-${t}-${range.from}_${range.to}${FIN_TABS.includes(t) ? secSlug : ""}`,
+      csvSectionsToReport({ title: `${tabLabel(t)} report`, subtitle: `${label}${fin2}`, meta: [`${TENANT.name} · compared with ${vs.replace(/^vs\s*/, "")}`] }, buildReport(t)),
+      format,
+    );
+    toast(`Exported the ${tabLabel(t)} report (${label}, ${format.toUpperCase()}).`, { tone: "success" });
+  };
 
   return (
     <div className="animate-fade-up">
-      {/* Tabs and the period / export actions share one row. Tabs take the
-          natural width on the left, actions hug the right edge. */}
-      <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <Tabs tabs={tabs} value={tab} onChange={setTab} scroll />
-        <div className="flex gap-2 ml-auto">
-          <Btn variant="outline" icon={Icon.calendar} onClick={() => toast("Demo — period picker.")}>This season</Btn>
-          <Btn variant="primary" icon={Icon.download} onClick={() => exportReport(tab)}>Export</Btn>
+      {/* One header (AENR-550): the export is the page's primary action, PDF in More. */}
+      <PageHead sub="How the beach is doing — revenue, occupancy, bookings, channels, guests and payments for any period."
+        primary={<ExportMenu variant="primary" onExport={(f) => exportReport(tab, f)} what={`the ${tabLabel(tab)} report`} />} />
+      <div className="mb-2"><Tabs tabs={GROUPS.map((g): TabEntry => [g.k, g.l, g.icon])} value={group.k} onChange={(k) => setTab(GROUPS.find((g) => g.k === k)!.views[0])} scroll /></div>
+      {group.views.length > 1 && (
+        <div role="radiogroup" aria-label={`${group.l} reports`} className="mb-3 flex flex-wrap gap-1.5">
+          {group.views.map((v) => {
+            const on = v === tab;
+            return (
+              <button key={v} type="button" role="radio" aria-checked={on} onClick={() => setTab(v)}
+                className={`min-h-[36px] rounded-lg px-3 text-[13px] font-semibold ring-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white text-navy-900 ring-slate-200 hover:ring-slate-400"}`}>
+                {tabs.find((t) => t[0] === v)?.[1]}
+              </button>
+            );
+          })}
         </div>
-      </div>
+      )}
+      <PeriodPicker value={period} onChange={setPeriod} presets={["day", "week", "month", "year", "season"]} resetTo={{ kind: "preset", preset: "season", offset: 0 }} className="mb-4" />
 
-      {tab === "exec" && <>
+      {closed && <EmptyState icon={Icon.umbrella} title="The beach was closed" body={`No activity in ${label}. The season runs 1 May – 30 Sep — pick a date inside it.`} />}
+
+      {FIN_TABS.includes(tab) && !closed && (tab !== "exec" || showDetail) && <div className="mb-4"><SectionChips value={section} onChange={setSection} /></div>}
+      {!closed && tab === "payments" && <PaymentsTab d={fin} />}
+      {!closed && tab === "invoices" && <InvoicesTab d={fin} />}
+      {!closed && tab === "fees" && <PlatformFeesTab d={fees} label={label} />}
+      {!closed && tab === "exec" && <>
+        {/* The answer first (AENR-604): one sentence, four tiles that open their breakdown, the rest one tap below. */}
+        <section aria-labelledby="reports-answer" className="mb-4">
+          <Card className="p-5 sm:p-6 relative overflow-hidden">
+            <span aria-hidden className="absolute left-0 top-5 bottom-5 w-1 rounded-r-full bg-teal-500" />
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-teal-700">{label}</div>
+            <h2 id="reports-answer" className="mt-1.5 font-display font-bold text-[22px] sm:text-[26px] leading-tight text-navy-900 text-balance">{answer}</h2>
+            <p className="mt-2 text-[14px] text-slate-600 leading-snug">{answerSub}</p>
+          </Card>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
+            {answerTiles.map((x) => (
+              <button key={x.to} type="button" onClick={() => setTab(x.to)} aria-label={`${x.label}: ${x.value}${x.trend ? `, ${x.trend} ${vs}` : ""}. Open the ${tabLabel(x.to)} report`}
+                className="group text-left rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-soft transition hover:ring-slate-300 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 min-h-[44px]">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">{x.label}</span>
+                  {x.trend && <span className={`text-[11px] font-bold tnum rounded-full px-1.5 py-0.5 ${/^[-−]/.test(x.trend) === !x.lowerIsBetter ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"}`}>{x.trend}</span>}
+                </div>
+                <div className="mt-1.5 text-[24px] leading-none font-bold text-navy-900 tnum font-display tracking-tight">{x.value}</div>
+                <div className="mt-2 flex items-center gap-1 text-[12.5px] font-semibold text-teal-700">{tabLabel(x.to)}<Icon.chevR size={14} className="transition group-hover:translate-x-0.5" /></div>
+              </button>
+            ))}
+          </div>
+          <button type="button" aria-expanded={showDetail} aria-controls="reports-detail" onClick={() => toggleDetail(!showDetail)}
+            className="mt-3 inline-flex min-h-[44px] items-center gap-1.5 rounded-lg px-2 text-[14px] font-semibold text-navy-900 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+            <Icon.chevD size={16} className={`transition ${showDetail ? "rotate-180" : ""}`} />{showDetail ? "Hide the detail" : "Show the detail"}
+          </button>
+        </section>
+        {showDetail && <div id="reports-detail">
+        <OverviewPanel d={fin} onDocs={() => setTab("invoices")} />
+        <p className="text-[12.5px] text-slate-500 mb-2">
+          Whole beach · all products and payment methods. Card revenue = “Captured” above{section ? " for the whole beach — the zone filter applies to the block above only" : ""}; sunbed sets = “Sunbed bookings” above.
+        </p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-          <StatCard instant label="Season revenue" value="€704k" sub="vs last yr" tone="teal" trend="+9%" sparkline={<Sparkline data={[48,121,198,241,96]} />} />
-          <StatCard instant label="Total bookings" value="26,040" sub="sets sold" trend="+7%" sparkline={<Sparkline data={[120,98,142,165,210,320,298]} color="#0ea5e9" />} />
-          <StatCard instant label="Avg occupancy" value="68%" sub="across zones" trend="+3pp" />
-          <StatCard instant label="Online share" value="40%" sub="of sets" trend="+5pp" />
-          <StatCard instant label="Refund rate" value="1.4%" sub="of revenue" trend="-0.3pp" tone="teal" />
+          {execKpis.slice(0, 5).map((x, i) => <StatCard instant key={x.label} label={x.label} value={x.value} valueTitle={x.full} sub={x.detail ? <span><span className="block">{x.detail}</span><span className="block text-slate-500">{x.sub}</span></span> : x.sub} tone={x.tone} trend={x.trend}
+            sparkline={i === 0 ? <Sparkline data={revSeries.map((d) => d.v)} /> : i === 1 ? <Sparkline data={bookSeries.map((d) => d.v)} color="#0ea5e9" /> : undefined} />)}
         </div>
         {/* Leisure-industry KPIs (RevPATB ≈ RevPAR for sunbeds). */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
-          <StatCard instant label="RevPATB" value="€18.4" sub="rev / available sunbed" tone="indigo" trend="+6%" />
-          <StatCard instant label="ADR" value="€27.1" sub="avg daily rate / set" trend="+4%" />
-          <StatCard instant label="Ancillary attach" value="0.7" sub="extras per booking" trend="+0.1" />
-          <StatCard instant label="No-show rate" value="2.8%" sub="of reservations" trend="-0.4pp" tone="teal" />
+          {execKpis.slice(5).map((x) => <StatCard instant key={x.label} label={x.label} value={x.value} sub={x.sub} tone={x.tone} trend={x.trend} compare={vs} />)}
         </div>
         <div className="grid lg:grid-cols-3 gap-4 mt-4">
-          <Card className="p-5 lg:col-span-2"><div className="font-semibold text-navy-900 mb-1">Revenue by month (€k)</div><LineChartMini data={season} /></Card>
+          <Card className="p-5 lg:col-span-2"><div className="font-semibold text-navy-900 mb-1">Revenue by {axis.toLowerCase()} (€) · {noun}</div><LineChartMini data={revSeries} label={`Revenue by ${axis.toLowerCase()}, ${label}`} /></Card>
           <Card className="p-5"><div className="font-semibold text-navy-900 mb-2">Revenue mix</div>
-            <div className="flex items-center gap-4"><Donut segments={[{ v: 62, c: "#0D9488" }, { v: 28, c: "#0ea5e9" }, { v: 10, c: "#f59e0b" }]} />
-              <div className="text-sm space-y-1.5"><Leg c="bg-teal-600" t="Sunbeds 62%" /><Leg c="bg-sky-500" t="Tickets 28%" /><Leg c="bg-amber-500" t="Other 10%" /></div></div>
+            <div className="flex items-center gap-4"><Donut segments={mix.map((m) => ({ v: m.v, c: m.c }))} total={fmtEUR(now.revenue)} totalLabel="revenue" label={`Revenue mix, ${fmtEUR(now.revenue)}: ${mix.map((m) => `${m.l} ${fmtEUR(m.amt)} (${m.v}%)`).join(", ")}`} />
+              <div className="text-sm space-y-1.5">{mix.map((m) => <Leg key={m.l} c={m.cls} t={`${m.l} · ${fmtEUR(m.amt)} · ${m.v}%`} />)}</div></div>
           </Card>
         </div>
-        {/* Pace / pickup + an actionable insight callout. */}
+        {/* Pace + an actionable insight callout derived from the period. */}
         <div className="grid lg:grid-cols-3 gap-4 mt-4">
           <Card className="p-5 lg:col-span-2">
-            <div className="font-semibold text-navy-900 mb-1">Booking pace · on the books vs same time last year</div>
-            <BarChart color="#3a47cc" data={[{ l: "Jun", v: 121 }, { l: "Jul", v: 210, hi: 1 }, { l: "Aug", v: 198, hi: 1 }, { l: "Sep", v: 86 }, { l: "Oct", v: 22 }]} />
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <div className="font-semibold text-navy-900">Booking pace · {noun}</div>
+              {paceVsLy && <Badge tone={paceVsLy.startsWith("+") ? "green" : "red"}>{paceVsLy} vs same period last year</Badge>}
+            </div>
+            <BarChart color="#13315c" data={bookSeries} label={`Bookings by ${axis.toLowerCase()}, ${label}`} />
           </Card>
-          <div className="rounded-3xl bg-gradient-to-br from-slaice-600 to-slaice-500 text-white p-5 shadow-lift flex flex-col">
-            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-white/80"><Icon.sparkles size={14} /> Insight</div>
-            <div className="mt-2 font-display font-bold text-lg leading-snug">Saturdays run 23% hotter than weekdays.</div>
-            <p className="text-[13px] text-white/85 mt-1 leading-snug">Macaw hits 91% by noon. Consider dynamic weekend pricing on front-row sets to lift RevPATB.</p>
-            <Btn variant="light" size="sm" className="mt-auto self-start" icon={Icon.trend} onClick={() => toast("Demo — open dynamic pricing rules.")}>Set a rule</Btn>
-          </div>
+          {/* Insight in the brand system (AENR-582): a card like the others, teal accent, with the period it covers. */}
+          <Card className="p-5 flex flex-col relative overflow-hidden">
+            <span aria-hidden className="absolute left-0 top-4 bottom-4 w-1 rounded-r-full bg-teal-500" />
+            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-teal-700"><Icon.sparkles size={14} /> Insight · {label}</div>
+            <div className="mt-2 font-display font-bold text-lg leading-snug text-navy-900">{weekendLift > 0 ? `Weekends run ${weekendLift}% fuller than weekdays.` : "Demand is even across the week."}</div>
+            <p className="text-[13px] text-slate-600 mt-1 leading-snug">{topZone.l} averages {topZone.v}% occupancy {noun}. Consider dynamic weekend pricing on front-row sets to lift RevPATB.</p>
+            <Btn variant="teal" size="sm" className="mt-auto self-start" icon={Icon.trend} onClick={() => go("admin", "pricing")}>Set a rule</Btn>
+          </Card>
         </div>
+        </div>}
       </>}
 
-      {tab === "revenue" && <>
+      {!closed && tab === "revenue" && <>
         <div className="grid lg:grid-cols-2 gap-4">
-          <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Revenue by capability (€k)</div><BarChart data={[{ l: "Sunbed", v: 436, hi: 1 }, { l: "Ticket", v: 197 }, { l: "Locker", v: 31 }, { l: "Support", v: 40 }]} /></Card>
-          <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Revenue by zone (€k)</div><HBarChart color="#0ea5e9" data={ZONES.map((z) => ({ l: z.name, v: Math.round(z.total * 1.1) }))} /></Card>
+          <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Revenue by product (€) · {noun}</div><BarChart data={capRows.map((c) => (c.v === capMax ? { ...c, hi: 1 } : c))} label={`Revenue by product, ${label}`} /></Card>
+          <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Sunbed revenue by zone (€) · {noun}</div><HBarChart color="#0ea5e9" data={zoneRev} label={`Sunbed revenue by zone, ${label}`} /></Card>
         </div>
-        <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-2">All transactions (filterable)</div>
+        <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-2">Latest transactions</div>
           <Table cols={["Tx", "Capability", "Channel", "Status", "Amount"]} right={[4]}
             rows={REVENUE_TX.map((r) => [r[0], r[1], <Badge tone={r[2].tone}>{r[2].label}</Badge>, <Badge tone={r[3].tone}>{r[3].label}</Badge>, r[4].startsWith("−") ? <span className="text-rose-600 font-medium tnum">{r[4]}</span> : r[4]])} /></Card>
       </>}
 
-      {tab === "occupancy" && <>
-        <Card className="p-5"><div className="font-semibold text-navy-900 mb-1">Occupancy by zone (%)</div>
-          <HBarChart color="#0ea5e9" unit="%" max={100} data={[{ l: "Akanthus", v: 67 }, { l: "Central", v: 83 }, { l: "Macaw", v: 91, hi: 1 }, { l: "Bestbuy", v: 78 }, { l: "Main", v: 68 }, { l: "Bolivar", v: 66 }]} /></Card>
-        <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-3">Utilisation heatmap (week × zone)</div>
-          {/* Sequential 5-step palette common in hospitality / yield reports:
-              cool light = capacity to sell, warm = approaching peak. Matches
-              what STR / RMS dashboards typically show for occupancy. */}
-          {(() => {
-            const buckets = [
-              { max: 0.20, color: "#dbeafe", label: "0–20%",   tone: "Empty" },
-              { max: 0.40, color: "#99f6e4", label: "20–40%",  tone: "Low" },
-              { max: 0.60, color: "#5eead4", label: "40–60%",  tone: "Moderate" },
-              { max: 0.80, color: "#fbbf24", label: "60–80%",  tone: "Busy" },
-              { max: 1.01, color: "#ef4444", label: "80–100%", tone: "Peak" },
-            ];
-            const colorFor = (v: number) => (buckets.find((b) => v <= b.max) || buckets[buckets.length - 1]).color;
-            return (
-              <>
-                <div className="space-y-1.5">
-                  {ZONES.map((z) => (<div key={z.id} className="flex items-center gap-2">
-                    <div className="w-16 text-[12px] text-slate-500">{z.name}</div>
-                    <div className="flex gap-1">{Array.from({ length: 7 }).map((_, d) => { const v = 0.3 + ((z.total * 7 + d * 13) % 70) / 100; return <div key={d} className="w-7 h-6 rounded ring-1 ring-white/60" style={{ background: colorFor(v) }} title={`${Math.round(v * 100)}%`} />; })}</div>
-                  </div>))}
-                  <div className="flex gap-1 ml-[72px] pt-1 text-[10px] text-slate-600">{["M", "T", "W", "T", "F", "S", "S"].map((d, i) => <div key={i} className="w-7 text-center">{d}</div>)}</div>
-                </div>
-                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-3 flex-wrap text-[11.5px] text-slate-600">
-                  <span className="font-semibold text-slate-500 uppercase tracking-wider text-[10.5px]">Occupancy</span>
-                  {buckets.map((b) => (
-                    <span key={b.label} className="inline-flex items-center gap-1.5">
-                      <i className="w-4 h-4 rounded ring-1 ring-white/60 inline-block" style={{ background: b.color }} />
-                      <span className="tnum">{b.label}</span>
-                      <span className="text-slate-400">· {b.tone}</span>
-                    </span>
-                  ))}
-                </div>
-              </>
-            );
-          })()}
-        </Card>
-      </>}
+      {!closed && tab === "occupancy" && <OccupancyTab occ={occ} range={range} label={label} noun={noun} vs={vs} hasPrev={hasPrev} buckets={heatBuckets} />}
 
-      {tab === "bookings" && <>
+      {!closed && tab === "bookings" && <>
         <div className="grid sm:grid-cols-4 gap-4">
-          <StatCard label="Avg lead time" value="2.3d" sub="ahead of date" /><StatCard label="Online vs walk-in" value="40 / 60" sub="% split" /><StatCard label="Cancellation" value="3.1%" /><StatCard label="Sets / booking" value="1.8" />
+          <StatCard label="Avg lead time" value={`${now.avgLeadDays.toFixed(1)}d`} sub="ahead of date" />
+          <StatCard label="Online vs other" value={`${Math.round(kn.online * 100)} / ${100 - Math.round(kn.online * 100)}`} sub="% of bookings" />
+          <StatCard label="Cancellation" value={fmtPct(kn.cancel, 1)} sub={vs} trend={pp(kn.cancel, kp.cancel, 1)} />
+          <StatCard label="Sets / booking" value={kn.setsPerBooking.toFixed(1)} sub="sunbed bookings" />
         </div>
-        <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-1">Booking volume by day</div><LineChartMini data={[{ l: "Mon", v: 120 }, { l: "Tue", v: 98 }, { l: "Wed", v: 142 }, { l: "Thu", v: 165 }, { l: "Fri", v: 210 }, { l: "Sat", v: 320 }, { l: "Sun", v: 298 }]} /></Card>
+        <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-1">Booking volume by {axis.toLowerCase()} · {noun}</div><LineChartMini data={bookSeries} label={`Bookings by ${axis.toLowerCase()}, ${label}`} /></Card>
       </>}
 
-      {tab === "channel" && <div className="grid lg:grid-cols-[1fr_1fr] gap-4">
-        <Card className="p-5"><div className="font-semibold text-navy-900 mb-3">Sales by channel & role</div>
-          <div className="flex items-center justify-center gap-7 flex-wrap py-3">
-            <Donut segments={[{ v: 40, c: "#0ea5e9" }, { v: 45, c: "#f59e0b" }, { v: 15, c: "#0D9488" }]} size={200} />
-            <div className="text-[14px] space-y-3">
-              <Leg c="bg-sky-500" t="Online (customer) — 40% · €281k" /><Leg c="bg-amber-500" t="Walk-in (controller) — 45% · €317k" /><Leg c="bg-teal-600" t="Cashier (on-site) — 15% · €106k" />
-            </div>
-          </div>
-        </Card>
-        <Card className="p-5"><div className="font-semibold text-navy-900 mb-2">Channel by week (€k)</div>
-          <BarChart color="#0ea5e9" data={[{ l: "W1", v: 48 }, { l: "W2", v: 56 }, { l: "W3", v: 71, hi: 1 }, { l: "W4", v: 64 }, { l: "W5", v: 78 }, { l: "W6", v: 82, hi: 1 }]} />
-        </Card>
-      </div>}
+      {!closed && tab === "channel" && <ChannelsTab ch={chs} period={period} label={label} noun={noun} vs={vs} hasPrev={hasPrev} />}
 
-      {tab === "customers" && <>
+      {!closed && tab === "customers" && <>
         <div className="grid sm:grid-cols-3 gap-4">
-          <StatCard label="New vs returning" value="38 / 62" sub="% this season" /><StatCard label="VIP segment rev" value="€118k" sub="17% of total" /><StatCard label="Season-pass holders" value="412" />
+          <StatCard label="New vs returning" value={`${Math.round(ratio(now.newGuests, now.bookings) * 100)} / ${Math.round(ratio(now.returningGuests, now.bookings) * 100)}`} sub="% of bookings" />
+          <StatCard label="VIP segment rev" value={fmtEUR(vipRev)} sub="17% of total" />
+          <StatCard label="Season-pass holders" value="412" sub="active" />
         </div>
-        <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-2">Top customers</div>
+        <Card className="p-5 mt-4"><div className="font-semibold text-navy-900 mb-2">Top customers · {noun}</div>
           <Table cols={["Customer", "Segment", "Visits", "Spend"]} right={[2, 3]}
-            rows={TOP_CUSTOMERS.map((c) => [c.name, <Badge tone={c.segment.tone}>{c.segment.label}</Badge>, c.visits, c.spend])} /></Card>
+            rows={topCustomers.map((c) => [c.name, <Badge tone={c.segment.tone}>{c.segment.label}</Badge>, c.visits, eur(c.spendN)])} /></Card>
       </>}
 
-      {tab === "tickets" && <Card className="p-5"><div className="flex items-center justify-between mb-2"><div className="font-semibold text-navy-900">Ticket history</div><Btn size="sm" variant="outline" icon={Icon.download} onClick={() => exportReport("tickets")}>CSV</Btn></div>
-        <Table cols={["Ticket", "Category", "Issuer", "Date", "Customer type", "Revenue", "Status"]} right={[5]}
-          rows={REPORTING_TICKETS.map((r) => [r[0], r[1], r[2], r[3], r[4], r[5], <Badge tone={r[6].tone}>{r[6].label}</Badge>])} /></Card>}
+      {!closed && tab === "tickets" && <Card className="p-5"><div className="flex items-center justify-between mb-2"><div className="font-semibold text-navy-900">Ticket history · {noun}</div><Btn size="sm" variant="outline" icon={Icon.download} onClick={() => exportReport("tickets")}>CSV</Btn></div>
+        {tickets.length
+          ? <Table cols={["Ticket", "Category", "Issuer", "Date", "Customer type", "Revenue", "Status"]} right={[5]}
+              rows={tickets.map((r) => [r[0], r[1], r[2], r[3], r[4], r[5], <Badge tone={r[6].tone}>{r[6].label}</Badge>])} />
+          : <EmptyState compact icon={Icon.ticket} title="No tickets in this period" body="Try a wider range, e.g. This season." />}
+      </Card>}
 
-      {tab === "daily" && <Card className="p-5"><div className="flex items-center justify-between mb-2"><div className="font-semibold text-navy-900">Daily operations · 19 Jul 2026</div><Btn size="sm" variant="outline" icon={Icon.download} onClick={() => exportReport("daily")}>Export</Btn></div>
-        <Table cols={["Capability", "Count", "Gross", "Refunds", "Net"]} right={[1, 2, 3, 4]} rows={(() => {
-          const totals = DAILY_OPS.reduce((a, r) => ({ c: a.c + r[1], g: a.g + parseFloat(r[2].replace(/[^0-9.]/g, "")), rf: a.rf + parseFloat(r[3].replace(/[^0-9.−-]/g, "").replace("−", "-")), n: a.n + parseFloat(r[4].replace(/[^0-9.]/g, "")) }), { c: 0, g: 0, rf: 0, n: 0 });
-          return [
-            ...DAILY_OPS.map((r) => [r[0], r[1], r[2], r[3] === "€0" ? "€0" : <span className="text-rose-600 font-medium tnum">{r[3]}</span>, r[4]]),
-            [<b>Total</b>, <b>{totals.c}</b>, <b>€{totals.g.toLocaleString()}</b>, <b className="text-rose-600">€{totals.rf.toLocaleString()}</b>, <b>€{totals.n.toLocaleString()}</b>],
-          ];
-        })()} />
-        <div className="mt-3 text-[12px] text-slate-600">Documents issued: 726 ΑΠΥ · 12 ΤΠΥ · all transmitted to MyDATA ✓</div></Card>}
-    </div>
-  );
-}
-
-/* ============ REFUNDS ============ */
-// Stripe refund demo steps — shown one-by-one after "Refund via Stripe".
-const STRIPE_STEPS: { label: string; icon: IconRenderer }[] = [
-  { label: "Authorizing with Stripe", icon: Icon.lock },
-  { label: "Reversing the charge & application fee", icon: Icon.refund },
-  { label: "Issuing MyDATA credit note (5.1)", icon: Icon.shield },
-  { label: "E-mailing the customer", icon: Icon.mail },
-];
-
-function StripeProgress({ step }: { step: number }) {
-  return (
-    <div className="py-1 space-y-2.5">
-      <div className="flex items-center gap-2 text-[13px] font-semibold text-navy-900"><Spinner size={14} /> Processing refund via Stripe…</div>
-      <div className="space-y-1.5">
-        {STRIPE_STEPS.map((s, i) => {
-          const state = i < step ? "done" : i === step ? "active" : "todo";
-          const StepIcon = s.icon;
-          return (
-            <div key={i} className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 ring-1 transition ${state === "done" ? "ring-teal-200 bg-teal-50/60" : state === "active" ? "ring-slate-200 bg-white shadow-soft" : "ring-slate-100 bg-slate-50/50 opacity-55"}`}>
-              <span className={`w-6 h-6 rounded-full grid place-items-center shrink-0 ${state === "done" ? "bg-teal-600 text-white" : state === "active" ? "bg-navy-900 text-white" : "bg-slate-200 text-slate-400"}`}>
-                {state === "done" ? <Icon.check size={13} /> : state === "active" ? <Spinner size={12} /> : <StepIcon size={12} />}
-              </span>
-              <span className={`text-[13px] ${state === "todo" ? "text-slate-400" : "text-navy-900"}`}>{s.label}</span>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function RefundDone({ amount, type, reason, tx }: { amount: number; type: string; reason: string; tx: string }) {
-  return (
-    <div className="py-2 text-center space-y-2 animate-pop">
-      <span className="mx-auto w-12 h-12 rounded-full bg-teal-600 text-white grid place-items-center shadow"><Icon.check size={22} /></span>
-      <div className="font-semibold text-navy-900">Refunded €{amount}</div>
-      <div className="text-[13px] text-slate-600 max-w-xs mx-auto">{type} · {reason}. Stripe charge reversed, credit note (5.1) filed with MyDATA, and a confirmation e-mailed to the customer.</div>
-      <div className="text-[11px] text-slate-400 tnum">{tx} · re_3PqA2k…f4d</div>
-    </div>
-  );
-}
-
-export function AdminRefunds() {
-  const { toast } = useApp();
-  const [modal, setModal] = useState<number | null>(null);
-  const [period, setPeriod] = useState("month");
-  const [rows, setRows] = useState(ADMIN_REFUNDS);
-  const [stage, setStage] = useState<"form" | "processing" | "done">("form");
-  const [step, setStep] = useState(0);
-  const [reason, setReason] = useState("Weather");
-  const [rtype, setRtype] = useState("Full refund");
-  // Partial-refund amount the operator types; `committed` freezes it at submit
-  // so the processing/done stages and the row update agree on one figure.
-  const [amount, setAmount] = useState(0);
-  const [committed, setCommitted] = useState(0);
-  const refunded = rows.filter((r) => r.status === "Refunded").reduce((a, b) => a + (b.refundAmount ?? b.amount), 0);
-  const refundedCount = rows.filter((r) => r.status === "Refunded").length;
-  const pending = rows.filter((r) => !r.status).length;
-  const active = modal !== null ? rows[modal] : null;
-  const activeLast = active ? personByFirst(active.who)?.last ?? "" : "";
-  const total = active?.amount ?? 0;
-  const partial = rtype === "Partial refund";
-  // A partial refund must be a positive amount no larger than the charge.
-  const validAmount = !partial || (amount > 0 && amount <= total);
-
-  const openRefund = (i: number) => { setStage("form"); setStep(0); setReason("Weather"); setRtype("Full refund"); setAmount(rows[i].amount); setModal(i); };
-
-  // Functional CSV export — each field in its own column, mirroring the table
-  // (matches the itemised Bookings export). Refunded amount only set once issued.
-  const exportCSV = () => {
-    const data = rows.map((r) => {
-      const p = personByFirst(r.who);
-      const refunded = r.status === "Refunded" ? (r.refundAmount ?? r.amount) : "";
-      return [r.tx, r.date || "—", r.who, p?.last || "—", p?.phone || "—", r.amount, refunded, r.reason || "—", r.status || "Pending"];
-    });
-    downloadCSV("refunds.csv", ["Transaction", "Date", "Name", "Surname", "Phone", "Charge (€)", "Refunded (€)", "Reason", "Status"], data);
-    toast(`Exported ${rows.length} refunds to CSV.`, { tone: "success" });
-  };
-
-  // Walk through the Stripe steps once processing starts, then mark refunded.
-  useEffect(() => {
-    if (stage !== "processing") return;
-    if (step < STRIPE_STEPS.length) {
-      const t = setTimeout(() => setStep((s) => s + 1), 850);
-      return () => clearTimeout(t);
-    }
-    const t = setTimeout(() => {
-      setRows((r) => r.map((x, i) => (i === modal ? { ...x, status: "Refunded", reason: x.reason || reason, refundAmount: committed } : x)));
-      setStage("done");
-      toast(`Stripe refund of €${committed} issued · credit note (5.1) sent to MyDATA · customer e-mailed.`, { tone: "success" });
-    }, 600);
-    return () => clearTimeout(t);
-  }, [stage, step, modal, reason, committed, toast]);
-
-  return (
-    <div className="animate-fade-up">
-      <PageHead title="Refunds" sub="Partial or full refunds via Stripe, with reason logging and auto credit-note (MyDATA)." badge={<Badge tone="mvp">MVP</Badge>}
-        actions={<>
-          <Tabs tabs={[["week", "Week"], ["month", "Month"], ["season", "Season"]]} value={period} onChange={setPeriod} />
-          <Btn variant="outline" icon={Icon.download} onClick={exportCSV}>Export</Btn>
-        </>} />
-      <div className="grid sm:grid-cols-4 gap-4 mb-4">
-        <StatCard label="Refunded · this month" value={`€${refunded}`} sub={`${refundedCount} transaction${refundedCount !== 1 ? "s" : ""}`} tone="teal" />
-        <StatCard label="Pending review" value={pending} sub="awaiting decision" />
-        <StatCard label="Refund rate" value="1.4%" sub="of total sales" />
-        <StatCard label="Top reason" value="Double booking" sub="33% of refunds" tone="indigo" />
-      </div>
-      <Card className="p-2">
-        <Table cols={["Transaction", "Date", "Name", "Surname", "Phone", "Amount", "Reason", "Status", ""]} right={[5]}
-          rows={rows.map((r, i) => {
-            const p = personByFirst(r.who);
-            return [r.tx, r.date || "—", r.who, p?.last || "—", p?.phone ? <span className="tnum whitespace-nowrap">{p.phone}</span> : "—",
-              r.refundAmount != null && r.refundAmount < r.amount
-                ? <div className="leading-tight"><span className="tnum">€{r.amount}</span><div className="text-[11px] text-rose-600 tnum">−€{r.refundAmount} refunded</div></div>
-                : `€${r.amount}`,
-              r.reason || "—",
-              r.status ? <Badge tone="green">{r.status}</Badge> : <Badge tone="amber">Pending</Badge>,
-              r.status ? <span className="text-slate-500 text-sm">done</span> : <Btn size="sm" variant="outline" icon={Icon.refund} onClick={() => openRefund(i)}>Refund</Btn>];
-          })} />
-      </Card>
-      <Modal open={modal !== null} onClose={() => setModal(null)} title={stage === "done" ? "Refund complete" : "Issue refund"}
-        footer={
-          stage === "form" ? (<><Btn variant="ghost" onClick={() => setModal(null)}>Cancel</Btn>
-            <Btn variant="danger" icon={Icon.refund} disabled={!validAmount} onClick={() => { setCommitted(partial ? amount : total); setStep(0); setStage("processing"); }}>Refund €{partial ? (validAmount ? amount : 0) : total} via Stripe</Btn></>)
-          : stage === "done" ? (<Btn variant="primary" icon={Icon.check} onClick={() => setModal(null)}>Done</Btn>)
-          : undefined
-        }>
-        {active && (
-          <div className="space-y-3">
-            <div className="rounded-xl bg-slate-50 px-3 py-2 text-sm flex justify-between"><span className="text-slate-500">{active.tx} · {active.who} {activeLast}</span><b className="tnum">€{active.amount}</b></div>
-            {stage === "form" && (
-              <>
-                <Field label="Refund type"><Select value={rtype} onChange={(e) => setRtype(e.target.value)} options={["Full refund", "Partial refund"]} /></Field>
-                {partial && (
-                  <Field label="Refund amount (€)">
-                    <Input type="number" min={1} max={total} step={1} value={amount}
-                      onChange={(e) => setAmount(Math.max(0, Math.min(total, Math.round(+e.target.value) || 0)))}
-                      className={!validAmount ? "ring-2 ring-rose-400 focus:ring-rose-400" : ""} />
-                    {!validAmount ? (
-                      <div className="text-[11px] text-rose-600 mt-1">Enter an amount between €1 and €{total}.</div>
-                    ) : amount < total ? (
-                      <div className="text-[11px] text-slate-500 mt-1 tnum">Up to €{total} · €{amount} returned, €{total - amount} stays charged.</div>
-                    ) : (
-                      <div className="text-[11px] text-slate-500 mt-1 tnum">Refunding the full €{total} — switch to “Full refund” if intended.</div>
-                    )}
-                  </Field>
-                )}
-                <Field label="Reason"><Select value={reason} onChange={(e) => setReason(e.target.value)} options={["Weather", "Double booking", "Customer request", "Service issue"]} /></Field>
-                <div className="text-[12px] text-slate-600 flex items-center gap-1.5"><Icon.shield size={13} /> Reverses the application fee and auto-issues a credit note to MyDATA.</div>
-              </>
-            )}
-            {stage === "processing" && <StripeProgress step={step} />}
-            {stage === "done" && <RefundDone amount={committed} type={rtype} reason={reason} tx={active.tx} />}
+      {/* Refund KPIs live in Sales (AENR-562); deciding refunds stays in Refunds / the booking. */}
+      {!closed && tab === "refunds" && (
+        <div className="space-y-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <StatCard instant label="Refunded" value={fmtEUR(refStats.amount)} valueTitle={eurFull(refStats.amount)} sub={`${fmtInt(refStats.count)} refunds · ${label}`} tone="teal" />
+            <StatCard instant label="Refund rate" value={fmtPct(now.revenue ? refStats.amount / now.revenue : 0, 1)} sub={`of ${fmtEUR(now.revenue)} revenue`} />
+            <StatCard instant label="Top reason" value={refStats.top?.reason ?? "—"} sub={refStats.top ? `${Math.round(refStats.top.share * 100)}% of refunds` : "no refunds"} tone="indigo" />
+            <StatCard instant label="Needs decision" value={String(pendingRefunds)} sub="refund requests waiting" tone={pendingRefunds ? "amber" : "navy"} />
           </div>
-        )}
-      </Modal>
-    </div>
-  );
-}
-
-/* ============ COMMUNICATE (Future) ============ */
-/* Campaign channels — same Email/Viber/SMS family as the QR send-picker, plus
-   Push (the in-app notification the preview mocks up). */
-const CAMPAIGN_CHANNELS: { key: string; label: string; icon: IconRenderer; color: string }[] = [
-  { key: "Push notification", label: "Push", icon: Icon.bell, color: "#3a47cc" },
-  { key: "E-mail", label: "E-mail", icon: Icon.mail, color: "#0d9488" },
-  { key: "Viber", label: "Viber", icon: Icon.chat, color: "#7360f2" },
-  { key: "SMS", label: "SMS", icon: Icon.phone, color: "#16a34a" },
-];
-
-/* A channel-true preview of the message, so the operator sees what lands. When a
-   loyalty offer is promoted, the CTA is live — clicking it opens the guest view. */
-function CampaignPreview({ channel, msg, cta }: { channel: string; msg: string; cta?: { label: string; onClick: () => void } }) {
-  if (channel === "E-mail")
-    return (
-      <div className="rounded-2xl ring-1 ring-slate-200 bg-white p-4 shadow-lift">
-        <div className="flex items-center gap-2 text-[11px] text-slate-500 mb-2"><Icon.mail size={12} /> Akti tou Iliou &lt;hello@aktitouiliou.gr&gt;</div>
-        <div className="font-semibold text-navy-900 text-sm">Weekend at the beach</div>
-        <div className="text-[12px] text-slate-600 leading-snug mt-1 line-clamp-4">{msg}</div>
-        <button type="button" onClick={cta?.onClick} className="inline-flex items-center gap-1 mt-3 bg-navy-900 text-white text-[11px] font-semibold rounded-lg px-2.5 py-1 hover:bg-navy-800 transition">{cta?.label ?? "Book now"} →</button>
-      </div>
-    );
-  if (channel === "Viber")
-    return (
-      <div className="rounded-2xl bg-[#f4f2fb] ring-1 ring-[#7360f2]/25 p-3">
-        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-[#7360f2] mb-1.5"><Icon.chat size={12} /> Viber · Akti tou Iliou</div>
-        <div className="bg-white rounded-2xl rounded-tl-sm shadow-sm px-3 py-2 text-[12.5px] text-navy-900 leading-snug">{msg}</div>
-        {cta && <button type="button" onClick={cta.onClick} className="mt-2 inline-flex items-center gap-1 bg-[#7360f2] text-white text-[11px] font-semibold rounded-lg px-2.5 py-1 hover:opacity-90 transition">{cta.label} →</button>}
-      </div>
-    );
-  if (channel === "SMS")
-    return (
-      <div className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 p-3">
-        <div className="flex items-center gap-1.5 text-[11px] font-semibold text-emerald-600 mb-1.5"><Icon.phone size={12} /> SMS · Akti tou Iliou</div>
-        <div className="bg-emerald-500 text-white rounded-2xl rounded-tr-sm shadow-sm px-3 py-2 text-[12.5px] leading-snug ml-auto max-w-[92%]">
-          {msg}
-          {cta && <button type="button" onClick={cta.onClick} className="block underline mt-1 text-white/95 text-[12px] font-semibold text-left">akti.gr/reward →</button>}
-        </div>
-      </div>
-    );
-  return (
-    <div className="rounded-2xl bg-navy-950 text-white p-4 shadow-lift">
-      <div className="flex items-center gap-2 text-[11px] text-white/70 mb-2"><Icon.bell size={12} /> Akti tou Iliou · now</div>
-      <div className="font-semibold text-sm">Weekend at the beach</div>
-      <div className="text-[12px] text-white/80 leading-snug mt-0.5 line-clamp-3">{msg}</div>
-      {cta && <button type="button" onClick={cta.onClick} className="mt-2.5 inline-flex items-center gap-1 bg-white/15 hover:bg-white/25 text-white text-[11px] font-semibold rounded-lg px-2.5 py-1 ring-1 ring-white/20 transition">{cta.label} →</button>}
-    </div>
-  );
-}
-
-/* Review → send → sent confirmation, so "Send campaign" is a deliberate journey
-   (who · which channel · what), not a one-click fire. */
-function CampaignReviewModal({ open, onClose, channel, seg, reach, msg, offer, onSend }: {
-  open: boolean; onClose: () => void; channel: string; seg: string; reach: string; msg: string; offer?: string; onSend: () => void;
-}) {
-  const [stage, setStage] = useState<"review" | "sent">("review");
-  useEffect(() => { if (open) setStage("review"); }, [open]);
-  const ch = CAMPAIGN_CHANNELS.find((c) => c.key === channel) ?? CAMPAIGN_CHANNELS[0];
-  const CIcon = ch.icon;
-  return (
-    <Modal open={open} onClose={onClose} title={stage === "sent" ? "Campaign sent" : "Review campaign"}
-      footer={stage === "review"
-        ? <><Btn variant="ghost" onClick={onClose}>Back</Btn><Btn variant="primary" icon={CIcon} onClick={() => { onSend(); setStage("sent"); }}>Send to {reach} users</Btn></>
-        : <Btn variant="primary" icon={Icon.check} onClick={onClose}>Done</Btn>}>
-      {stage === "review" ? (
-        <div className="space-y-3">
-          <div className="flex items-center gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
-            <span className="w-9 h-9 rounded-xl grid place-items-center text-white shadow-sm shrink-0" style={{ background: ch.color }}><CIcon size={16} /></span>
-            <div className="min-w-0"><div className="text-[11px] text-slate-500">Channel</div><div className="text-[13px] font-semibold text-navy-900">{ch.key}</div></div>
-          </div>
-          <div className="flex items-center justify-between gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
-            <div className="flex items-center gap-3 min-w-0">
-              <span className="w-9 h-9 rounded-xl grid place-items-center bg-slaice-100 text-slaice-700 shrink-0"><Icon.users size={16} /></span>
-              <div className="min-w-0"><div className="text-[11px] text-slate-500">Audience</div><div className="text-[13px] font-semibold text-navy-900 truncate">{seg}</div></div>
-            </div>
-            <div className="text-right shrink-0"><div className="text-[11px] text-slate-500">Est. reach</div><div className="text-[13px] font-semibold text-navy-900 tnum">{reach}</div></div>
-          </div>
-          {offer && (
-            <div className="flex items-center gap-3 rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2.5">
-              <span className="w-9 h-9 rounded-xl grid place-items-center bg-teal-600 text-white shrink-0"><Icon.gift size={16} /></span>
-              <div className="min-w-0"><div className="text-[11px] text-slate-500">Loyalty offer</div><div className="text-[13px] font-semibold text-navy-900 truncate">{offer}</div></div>
-            </div>
-          )}
-          <div>
-            <div className="text-[12px] font-semibold text-slate-700 mb-1">Message</div>
-            <div className="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-3 py-2.5 text-[13px] text-navy-900 leading-snug whitespace-pre-wrap">{msg || <span className="text-slate-400">No message.</span>}</div>
-          </div>
-        </div>
-      ) : (
-        <div className="py-2 text-center space-y-2 animate-pop">
-          <span className="mx-auto w-12 h-12 rounded-full bg-teal-600 text-white grid place-items-center shadow"><Icon.check size={22} /></span>
-          <div className="font-semibold text-navy-900">Sent to {reach} {seg} guests</div>
-          <div className="text-[13px] text-slate-600 max-w-xs mx-auto">Delivered via <b>{ch.key}</b>{offer ? <> · linked to <b>{offer}</b></> : null}. Opens and clicks will appear in Reporting → Channels.</div>
+          <Card className="p-5 flex flex-wrap items-center gap-3">
+            <p className="flex-1 min-w-[220px] text-[13.5px] text-slate-600">Decide requests and see every refund in the period on the Refunds page; each refund is also on its booking’s timeline.</p>
+            <Btn variant="outline" icon={Icon.refund} onClick={() => go("admin", "refunds")}>Open Refunds</Btn>
+          </Card>
         </div>
       )}
-    </Modal>
+      {!closed && tab === "ops" && <Card className="p-5"><div className="flex items-center justify-between gap-2 mb-2 flex-wrap"><div className="font-semibold text-navy-900">Operations · {label}</div>
+          <div className="flex items-center gap-2">
+            {opsRows.length > 1 && <Toggle on={opsByDay} onChange={setOpsByDay} label={`By ${opsG}`} />}
+            <ExportMenu size="sm" onExport={(f) => exportReport("ops", f)} what="operations" />
+          </div></div>
+        <Table cols={["Capability", "Count", "Gross", "Refunds", "Net"]} right={[1, 2, 3, 4]} rows={[
+          ...ops.map((o) => [o.l, fmtInt(o.n), eur(o.g), o.rf ? <span className="text-rose-600 font-medium tnum">−{eur(o.rf)}</span> : "€0", eur(o.net)]),
+          [<b>Total</b>, <b>{fmtInt(opsTotal.n)}</b>, <b>{eur(opsTotal.g)}</b>, <b className="text-rose-600">−{eur(opsTotal.rf)}</b>, <b>{eur(opsTotal.net)}</b>],
+        ]} />
+        <div className="mt-3 text-[12px] text-slate-600">Documents issued: {fmtInt(finDocs.apy)} ΑΠΥ · {fmtInt(finDocs.tpy)} ΤΠΥ · {fmtInt(finDocs.papy + finDocs.ptpy)} credit notes (ΠΑΠΥ / ΠΤΠΥ) · {fin.rep.total.pending ? `${fmtInt(fin.rep.total.pending)} pending transmission` : "all transmitted to MyDATA ✓"} · <button type="button" className="font-semibold text-teal-700 hover:underline" onClick={() => setTab("invoices")}>Invoices</button></div>
+        {opsByDay && opsRows.length > 1 && <div className="mt-5">
+          <div className="font-semibold text-navy-900 mb-1">By {opsG}</div>
+          <Table dense cols={[opsG === "day" ? "Day" : opsG === "week" ? "Week of" : "Month", "Sunbed bookings", "Entry tickets", "Lockers", "Parking", "Gross", "Refunds", "Net"]} right={[1, 2, 3, 4, 5, 6, 7]}
+            rows={opsRows.map((r) => [<span className="whitespace-nowrap">{r.l}</span>, fmtInt(r.x.sunbedBookings), fmtInt(r.x.units.Tickets), fmtInt(r.x.units.Lockers), fmtInt(r.x.units.Parking), eur(r.x.revenue), <span className="text-rose-600 tnum">−{eur(r.x.refunds.amount)}</span>, eur(r.x.revenue - r.x.refunds.amount)])} />
+        </div>}
+      </Card>}
+      {tab === "ops" && module("Cash Register") && <TillShiftsCard />}
+      {tab === "ops" && <div className="mt-4"><h2 className="font-display font-bold text-navy-900 mb-2">Gate</h2><GateThroughputCard /></div>}
+    </div>
   );
 }
 
-const DEFAULT_CAMPAIGN_MSG = "☀️ Weekend offer: 20% off front-row sunbeds at Akti tou Iliou. Book now!";
-
-/* Maps the compose channel labels to a connection key. */
-const CAMPAIGN_TO_CHANNEL: Record<string, ChannelKey> = { "Push notification": "push", "E-mail": "email", Viber: "viber", SMS: "sms" };
-
-/* ---- Channel connection wizard: provider → credentials → verify → connected ---- */
-function ChannelSetupModal({ channelKey, current, onClose, onConnect, onDisconnect }: {
-  channelKey: ChannelKey | null;
-  current?: ChannelConnection;
-  onClose: () => void;
-  onConnect: (key: ChannelKey, conn: { provider: string; sender: string }) => void;
-  onDisconnect: (key: ChannelKey) => void;
-}) {
-  const meta = channelKey ? channelMeta(channelKey) : null;
-  const [provider, setProvider] = useState("");
-  const [cred, setCred] = useState("");
-  const [sender, setSender] = useState("");
-  const [stage, setStage] = useState<"form" | "connecting" | "done">("form");
-  const [step, setStep] = useState(0);
-  // Re-seed whenever a channel opens.
-  useEffect(() => {
-    if (!channelKey || !meta) return;
-    setProvider(current?.provider ?? meta.providers[0]);
-    setSender(current?.sender ?? "");
-    setCred("");
-    setStage("form");
-    setStep(0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channelKey]);
-  // Walk the verify steps, then land on done.
-  useEffect(() => {
-    if (stage !== "connecting" || !meta) return;
-    if (step < meta.steps.length) {
-      const t = setTimeout(() => setStep((s) => s + 1), 720);
-      return () => clearTimeout(t);
-    }
-    const t = setTimeout(() => setStage("done"), 450);
-    return () => clearTimeout(t);
-  }, [stage, step, meta]);
-
-  const canConnect = !!provider && cred.trim().length > 0 && sender.trim().length > 0;
-  const finish = () => { if (channelKey) onConnect(channelKey, { provider, sender: sender.trim() }); onClose(); };
-
+/* Closed Cashier till shifts with their Z totals (AENR-507) — the manager's view. */
+function TillShiftsCard() {
+  const { till, go } = useApp();
+  if (!till.shifts.length) return null;
+  const hm = (iso?: string) => (iso ? new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "");
   return (
-    <Modal open={channelKey !== null} onClose={onClose} title={meta ? (current?.connected ? `Manage ${meta.label}` : `Set up ${meta.label}`) : "Set up channel"}
-      footer={!meta ? undefined : stage === "form"
-        ? <div className="flex items-center justify-between w-full gap-2">
-            {current?.connected ? <Btn variant="ghost" className="text-rose-600 hover:bg-rose-50" icon={Icon.trash} onClick={() => { onDisconnect(channelKey as ChannelKey); onClose(); }}>Disconnect</Btn> : <span />}
-            <div className="flex gap-2"><Btn variant="ghost" onClick={onClose}>Cancel</Btn><Btn variant="primary" icon={Icon.bolt} disabled={!canConnect} onClick={() => { setStep(0); setStage("connecting"); }}>Connect &amp; verify</Btn></div>
-          </div>
-        : stage === "done" ? <Btn variant="primary" icon={Icon.check} onClick={finish}>Done</Btn> : undefined}>
-      {meta && (
-        <div className="space-y-3">
-          {stage === "form" && (
-            <>
-              <div className="text-[12.5px] text-slate-600 -mt-1">{meta.blurb}</div>
-              <Field label="Provider"><Select value={provider} onChange={(e) => setProvider(e.target.value)} options={meta.providers} /></Field>
-              <Field label={meta.credLabel}><Input type="password" value={cred} onChange={(e) => setCred(e.target.value)} placeholder={`Paste your ${provider} ${meta.credLabel.toLowerCase()}`} /></Field>
-              <Field label={meta.senderLabel}><Input value={sender} onChange={(e) => setSender(e.target.value)} placeholder={meta.senderPlaceholder} /></Field>
-              <div className="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-3 py-2 text-[11.5px] text-slate-500 flex items-start gap-1.5"><Icon.lock size={13} className="shrink-0 mt-0.5 text-slate-400" /> Demo — keys aren’t stored or sent anywhere. In production they’re held server-side and never reach the browser.</div>
-            </>
-          )}
-          {stage === "connecting" && (
-            <div className="py-1 space-y-2.5">
-              <div className="flex items-center gap-2 text-[13px] font-semibold text-navy-900"><Spinner size={14} /> Connecting {meta.label} via {provider}…</div>
-              <div className="space-y-1.5">
-                {meta.steps.map((s, i) => {
-                  const st = i < step ? "done" : i === step ? "active" : "todo";
-                  return (
-                    <div key={i} className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 ring-1 transition ${st === "done" ? "ring-teal-200 bg-teal-50/60" : st === "active" ? "ring-slate-200 bg-white shadow-soft" : "ring-slate-100 bg-slate-50/50 opacity-55"}`}>
-                      <span className={`w-6 h-6 rounded-full grid place-items-center shrink-0 ${st === "done" ? "bg-teal-600 text-white" : st === "active" ? "bg-navy-900 text-white" : "bg-slate-200 text-slate-400"}`}>{st === "done" ? <Icon.check size={13} /> : st === "active" ? <Spinner size={12} /> : <Icon.clock size={12} />}</span>
-                      <span className={`text-[13px] ${st === "todo" ? "text-slate-400" : "text-navy-900"}`}>{s}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          {stage === "done" && (
-            <div className="py-2 text-center space-y-2 animate-pop">
-              <span className="mx-auto w-12 h-12 rounded-full bg-teal-600 text-white grid place-items-center shadow"><Icon.check size={22} /></span>
-              <div className="font-semibold text-navy-900">{meta.label} connected</div>
-              <div className="text-[13px] text-slate-600 max-w-xs mx-auto">Sending as <b>{sender || meta.senderPlaceholder}</b> via <b>{provider}</b>. Campaigns can now go out on {meta.label}.</div>
-            </div>
-          )}
-        </div>
-      )}
-    </Modal>
-  );
-}
-
-/* ---- Channel connections panel (the setup journey, demoed) ---- */
-function ChannelConnections({ channels, onSetup }: { channels: ChannelSetupState; onSetup: (k: ChannelKey) => void }) {
-  return (
-    <Card className="p-4 mb-5">
-      <div className="min-w-0 mb-3">
-        <div className="font-semibold text-navy-900">Channel connections</div>
-        <div className="text-[12.5px] text-slate-500">Connect your Email, Viber and SMS providers so campaigns can actually send on those channels.</div>
+    <Card className="p-5 mt-4">
+      <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+        <div className="font-semibold text-navy-900">Cashier shifts · Z reports</div>
+        <Btn size="sm" variant="ghost" icon={Icon.arrowR} onClick={() => go("cashier", "register")}>Open Cash Register</Btn>
       </div>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        {CHANNELS.map((c) => {
-          const conn = channels[c.key];
-          const CIcon = Icon[c.icon] || Icon.bell;
-          return (
-            <div key={c.key} className={`rounded-2xl ring-1 p-3.5 flex flex-col ${conn.connected ? "ring-teal-200 bg-teal-50/40" : "ring-slate-200 bg-white"}`}>
-              <div className="flex items-center gap-2.5 mb-2">
-                <span className="w-9 h-9 rounded-xl grid place-items-center text-white shadow-sm shrink-0" style={{ background: c.color }}><CIcon size={16} /></span>
-                <div className="min-w-0">
-                  <div className="font-semibold text-navy-900 text-[13.5px]">{c.label}</div>
-                  {conn.connected ? <div className="text-[11px] text-teal-700 font-semibold inline-flex items-center gap-1"><Icon.checkCircle size={11} /> Connected</div> : <div className="text-[11px] text-slate-400">Not connected</div>}
-                </div>
-              </div>
-              <div className="text-[11.5px] text-slate-500 leading-snug flex-1">{conn.connected ? <>via <b className="text-navy-900">{conn.provider}</b>{conn.sender ? ` · ${conn.sender}` : ""}</> : c.blurb}</div>
-              {c.setup ? (
-                <Btn size="sm" variant={conn.connected ? "ghost" : "primary"} className="mt-2.5" icon={conn.connected ? Icon.cog : Icon.plus} onClick={() => onSetup(c.key)}>{conn.connected ? "Manage" : "Set up"}</Btn>
-              ) : (
-                <div className="mt-2.5 text-[11px] text-slate-400 inline-flex items-center gap-1"><Icon.check size={11} className="text-teal-600" /> No setup needed</div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      <Table dense cols={["Shift", "Cashier", "Till", "Time", "Sales", "Cash", "Card", "Expected cash", "Counted", "Variance", "Note"]} right={[4, 5, 6, 7, 8, 9]}
+        rows={till.shifts.map((sh) => {
+          const tt = shiftTotals(sh, till.sales);
+          const v = sh.counted !== undefined ? Math.round((sh.counted - tt.expectedCash) * 100) / 100 : 0;
+          return [<span className="font-mono text-[12px]">{sh.id}</span>, sh.cashier, sh.till, <span className="whitespace-nowrap">{hm(sh.openedAt)}–{hm(sh.closedAt)}</span>, eurTill(tt.sales), eurTill(tt.cash), eurTill(tt.card), eurTill(tt.expectedCash), sh.counted !== undefined ? eurTill(sh.counted) : "—",
+            <span className={Math.abs(v) > VARIANCE_TOLERANCE ? "text-rose-600 font-semibold tnum" : "tnum"}>{v > 0 ? "+" : v < 0 ? "−" : ""}{eurTill(Math.abs(v))}</span>, sh.note || "—"];
+        })} />
     </Card>
   );
 }
 
-export function AdminCommunicate() {
-  const { toast, loyalty, go, hint, clearHint, channels, setChannels } = useApp();
-  const [seg, setSeg] = useState("VIP");
-  const [msg, setMsg] = useState(DEFAULT_CAMPAIGN_MSG);
-  const [channel, setChannel] = useState("Push notification");
-  const [review, setReview] = useState(false);
-  const [promotedId, setPromotedId] = useState("");
-  const [setupKey, setSetupKey] = useState<ChannelKey | null>(null);
-  const reach = seg === "All users" ? "8,420" : seg === "VIP" ? "318" : "1,204";
+/* ============ REFUNDS (AENR-583 decision queue) ============ */
+/* Automatic decisions (AENR-623): routine refunds are approved by the policy as they
+   arrive, so the queue below holds only the exceptions. */
+function RefundPolicyCard() {
+  const { bookingOps, setBookingOps } = useApp();
+  // Slaice enables automatic approval per tenant (AENR-677: Platform › tenant › Features).
+  const { feature } = useTenantFeatures();
+  const rules = bookingOps.rules ?? DEFAULT_RULES;
+  const pol = rules.refunds;
+  const setPol = (p: Partial<typeof pol>) => setBookingOps((o) => ({ ...o, rules: { ...(o.rules ?? DEFAULT_RULES), refunds: { ...(o.rules ?? DEFAULT_RULES).refunds, ...p } } }));
+  const byPolicy = bookingOps.refunds.filter((r) => r.decidedBy === POLICY_BY);
+  if (!feature("refunds.autoApprove"))
+    return (
+      <Card className="p-4 mb-4">
+        <div className="flex items-start gap-3">
+          <span className="w-9 h-9 rounded-xl bg-slate-100 text-slate-500 grid place-items-center shrink-0"><Icon.lock size={16} /></span>
+          <div className="min-w-0">
+            <h2 className="font-display font-bold text-navy-900">Approve routine refunds automatically</h2>
+            <p className="text-[12.5px] text-slate-600">Not enabled for this beach — every request waits here for a person to decide. Ask Slaice to switch it on.</p>
+          </div>
+        </div>
+      </Card>
+    );
+  return (
+    <Card className="p-4 mb-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <h2 className="font-display font-bold text-navy-900">Approve routine refunds automatically</h2>
+          <p className="text-[12.5px] text-slate-600">
+            Requests for these reasons, up to the amount, are approved as they arrive and logged as <b>{POLICY_BY}</b> — only the rest wait here.
+            {byPolicy.length > 0 && <> {byPolicy.length} approved by the policy so far (€{byPolicy.reduce((a, r) => a + (r.refundAmount ?? r.amount), 0)}).</>}
+          </p>
+        </div>
+        <Toggle label={pol.on ? "On" : "Off"} on={pol.on} onChange={(v) => setPol({ on: v })} />
+      </div>
+      {pol.on && (
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {POLICY_REASONS.map((r) => {
+            const on = pol.reasons.includes(r);
+            return (
+              <button key={r} type="button" aria-pressed={on} onClick={() => setPol({ reasons: on ? pol.reasons.filter((x) => x !== r) : [...pol.reasons, r] })}
+                className={`rounded-full px-3 py-1.5 text-[12.5px] font-semibold ring-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${on ? "bg-teal-600 text-white ring-teal-600" : "bg-white text-slate-700 ring-slate-200 hover:ring-teal-400"}`}>
+                {on && "✓ "}{r}
+              </button>
+            );
+          })}
+          <label className="ml-auto inline-flex items-center gap-2 text-[12.5px] text-slate-700">
+            up to €
+            <input type="number" min={0} value={pol.cap} onChange={(e) => setPol({ cap: Math.max(0, Number(e.target.value) || 0) })}
+              className="w-20 rounded-lg ring-1 ring-slate-200 px-2 py-1.5 tnum focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500" aria-label="Maximum amount approved automatically" />
+          </label>
+        </div>
+      )}
+    </Card>
+  );
+}
 
-  // Connect / disconnect a channel provider (persisted via the store).
-  const connectChannel = (key: ChannelKey, conn: { provider: string; sender: string }) => {
-    setChannels({ ...channels, [key]: { connected: true, provider: conn.provider, sender: conn.sender, connectedAt: new Date().toISOString() } });
-    toast(`${channelMeta(key).label} connected via ${conn.provider}.`, { tone: "success" });
+export function AdminRefunds() {
+  const { toast, till, persona } = useApp();
+  const agent = persona === "callcenter";
+  const ops = useBookingOps();
+  // The queue comes first; the refund policy waits behind "Rules" (AENR-652).
+  const [rulesOpen, setRulesOpen] = useState(false);
+  // The shared period filters the KPIs, the history and the export (AENR-466).
+  const [period, setPeriod] = usePeriod({ kind: "preset", preset: "month", offset: 0 });
+  const range = resolveRange(period);
+  const label = range ? rangeLabel(range) : "All dates";
+  const noun = periodNoun(period);
+  // Needs decision (AENR-583): every pending request, oldest first, whatever the period.
+  const queue = ops.refunds.filter((r) => r.status === "pending").sort((a, b) => a.requestedAt.localeCompare(b.requestedAt));
+  const overdue = queue.filter((r) => slaState(r.requestedAt, opsNow()) === "overdue").length;
+  // History (AENR-546): refunds made at the till, decided requests, then the
+  // refund history generated from the Reporting day figures — one list for the
+  // table, the KPIs and the export.
+  const visible = [...tillRefunds(till.sales), ...decidedRefundRows(ops.refunds)]
+    .filter((r) => inRange(isoFromDayMonth(r.date), range))
+    .concat(refundHistory(range));
+  const stats = refundStats(visible);
+  const prevRange = range ? comparisonRange(period, range) : null;
+  const prevStats = prevRange ? refundStats(refundHistory(prevRange)) : null;
+  const salesRange = range ?? { from: "2026-05-01", to: DEMO_TODAY };
+  const sales = summarize(salesRange).revenue;
+  const prevSales = prevRange ? summarize(prevRange).revenue : 0;
+  const hasPrev = !!prevStats && prevSales > 0;
+  const refundRate = sales ? stats.amount / sales : 0;
+  const prevRate = prevStats && prevSales ? prevStats.amount / prevSales : 0;
+  const REFUND_PAGE = 25;
+  const { page, setPage } = useListUrl();
+  const pageCount = Math.max(1, Math.ceil(visible.length / REFUND_PAGE));
+  const safePage = Math.min(page, pageCount - 1);
+  const shown = visible.slice(safePage * REFUND_PAGE, (safePage + 1) * REFUND_PAGE);
+
+  // Refund history and the open queue, in PDF or CSV (AENR-593).
+  const exportRefunds = (format: "pdf" | "csv") => {
+    const data = visible.map((r) => {
+      const p = personByFirst(r.who);
+      const refunded = r.status === "Refunded" ? (r.refundAmount ?? r.amount) : "";
+      return [r.tx, r.date || "—", `${r.who} ${p?.last ?? ""}`.trim(), p?.phone || "—", r.amount, refunded, r.reason || "—", r.status || "Pending", r.approver || "—"];
+    });
+    const refundedSum = visible.reduce((a, r) => a + (r.status === "Refunded" ? (r.refundAmount ?? r.amount) : 0), 0);
+    const pend = ops.refunds.filter((x) => x.status === "pending");
+    downloadReport(range ? `refunds-${range.from}_${range.to}` : "refunds", {
+      title: "Refunds",
+      subtitle: label,
+      meta: [`${TENANT.name} · Stripe refunds with credit notes to myDATA`],
+      sections: [
+        { kpis: [
+          { label: "Refunded", value: `€${refundedSum.toLocaleString("en-GB")}`, sub: `${visible.filter((r) => r.status === "Refunded").length} refunds` },
+          { label: "Declined", value: String(visible.filter((r) => r.status === "Declined").length) },
+          { label: "Needs decision", value: String(pend.length), sub: pend.length ? `€${pend.reduce((a, x) => a + x.amount, 0)} requested` : "queue clear" },
+          { label: "Rows", value: String(visible.length) },
+        ] },
+        ...(pend.length ? [{ title: "Needs decision", table: { cols: ["Request", "Booking", "Guest", "Amount (€)", "Reason", "Requested", "By"], rows: pend.map((x) => [x.id, x.bookingId ?? "—", x.who, x.amount, x.reason, x.requestedAt.replace("T", " "), x.requestedBy]) } }] : []),
+        { title: "History", table: { cols: ["Transaction", "Date", "Guest", "Phone", "Charge (€)", "Refunded (€)", "Reason", "Status", "Approved by"], rows: data, total: ["Total", "", "", "", visible.reduce((a, r) => a + r.amount, 0), refundedSum, "", "", ""] } },
+      ],
+    }, format);
+    toast(`Exported ${visible.length} refunds (${label}, ${format.toUpperCase()}).`, { tone: "success" });
   };
-  const disconnectChannel = (key: ChannelKey) => {
-    setChannels({ ...channels, [key]: { connected: false } });
-    toast(`${channelMeta(key).label} disconnected.`);
-  };
-  // The connection backing the currently-selected compose channel.
-  const selectedChannelKey = CAMPAIGN_TO_CHANNEL[channel];
-  const selectedConn = selectedChannelKey ? channels[selectedChannelKey] : undefined;
-
-  // Promotable loyalty offers come from the active schemes (admin Loyalty / store).
-  const offers = useMemo(() => [...BUILTIN_SCHEMES, ...loyalty.customIds.map(makeCustomScheme)]
-    .filter((s) => loyalty.config[s.id]?.enabled)
-    .map((s) => {
-      const values = loyalty.config[s.id]?.values ?? {};
-      return { id: s.id, title: s.custom ? String(values.title || s.title) : s.title, summary: s.summarize(values) };
-    }), [loyalty]);
-  const promoted = offers.find((o) => o.id === promotedId) || null;
-  const promoMsg = (o: { title: string; summary: string }) => `🎁 ${o.title} — ${o.summary}. Tap to claim your reward at Akti tou Iliou!`;
-  const pickOffer = (id: string) => { setPromotedId(id); const o = offers.find((x) => x.id === id); if (o) setMsg(promoMsg(o)); };
-
-  // Deep-link from the Loyalty screen's "Promote" pre-loads an offer + message.
-  useEffect(() => {
-    if (hint?.persona === "admin" && hint?.page === "communicate" && hint?.promote) {
-      const o = offers.find((x) => x.id === hint.promote);
-      if (o) { setPromotedId(o.id); setMsg(promoMsg(o)); }
-      clearHint();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hint]);
-
-  // The campaign CTA is functional — it opens the guest's home where the reward lives.
-  const cta = promoted ? { label: "Claim reward", onClick: () => { go("customer", "home"); toast("Opening the customer view — the reward is waiting on their home.", { tone: "success" }); } } : undefined;
 
   return (
     <div className="animate-fade-up">
-      <PageHead title="Communicate" sub="Message users or segments with notifications and offers — builds on tags/segmentation." badge={<Badge tone="future">Future</Badge>} />
-      <FutureBanner />
-      <ChannelConnections channels={channels} onSetup={setSetupKey} />
-      <div className="grid lg:grid-cols-[1fr_320px] gap-5">
-        <Card className="p-5 space-y-3">
-          <Field label="Audience segment"><Select value={seg} onChange={(e) => setSeg(e.target.value)} options={["VIP", "Season pass", "Regulars", "New", "All users"]} /></Field>
-          <Field label="Promote a loyalty offer">
-            <Select value={promotedId} onChange={(e) => pickOffer(e.target.value)}
-              options={[{ v: "", l: offers.length ? "None — write a custom message" : "No active schemes yet" }, ...offers.map((o) => ({ v: o.id, l: o.title }))]} />
-          </Field>
-          {promoted ? (
-            <div className="flex items-center justify-between gap-2 rounded-xl bg-teal-50/70 ring-1 ring-teal-200 px-3 py-2 text-[12px]">
-              <span className="text-navy-900 inline-flex items-center gap-1.5 min-w-0"><Icon.gift size={13} className="text-teal-600 shrink-0" /> <b className="truncate">{promoted.title}</b><span className="text-slate-500 truncate"> · {promoted.summary}</span></span>
-              <button onClick={() => setPromotedId("")} className="text-slate-500 hover:text-rose-600 shrink-0 font-semibold">Clear</button>
-            </div>
-          ) : offers.length === 0 ? (
-            <button onClick={() => go("admin", "loyalty")} className="text-[12px] font-semibold text-slaice-600 hover:text-slaice-700 inline-flex items-center gap-1"><Icon.gift size={12} /> Set up loyalty schemes →</button>
-          ) : null}
-          <Field label="Channel">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {CAMPAIGN_CHANNELS.map((c) => {
-                const on = channel === c.key;
-                const CIcon = c.icon;
-                const ck = CAMPAIGN_TO_CHANNEL[c.key];
-                const connected = ck ? channels[ck].connected : true;
-                return (
-                  <button key={c.key} type="button" onClick={() => setChannel(c.key)} aria-pressed={on}
-                    className={`relative rounded-xl p-2.5 text-center ring-1 transition ${on ? "ring-2 ring-teal-500 bg-teal-50/50" : "ring-slate-200 bg-white hover:ring-teal-400"}`}>
-                    <span title={connected ? "Connected" : "Not connected"} className={`absolute top-2 right-2 w-2 h-2 rounded-full ${connected ? "bg-teal-500" : "bg-slate-300"}`} />
-                    <span className="mx-auto mb-1.5 w-9 h-9 rounded-xl grid place-items-center text-white shadow-sm" style={{ background: c.color }}><CIcon size={16} /></span>
-                    <div className="text-[12.5px] font-semibold text-navy-900">{c.label}</div>
-                  </button>
-                );
-              })}
-            </div>
-          </Field>
-          {selectedConn && !selectedConn.connected && (
-            <div className="flex items-center justify-between gap-2 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-2 text-[12px] text-amber-800">
-              <span className="inline-flex items-center gap-1.5 min-w-0"><Icon.alert size={13} className="shrink-0" /> {channel} isn’t connected yet — set it up to send on this channel.</span>
-              <button onClick={() => setSetupKey(selectedChannelKey)} className="font-semibold text-amber-900 hover:underline shrink-0">Set up →</button>
-            </div>
-          )}
-          <Field label="Message"><textarea rows={4} value={msg} onChange={(e) => setMsg(e.target.value)} className="glass-input w-full rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-teal-500/70 outline-none" /></Field>
-          <div className="flex items-center justify-between">
-            <div className="text-[12px] text-slate-600">Est. reach: <b className="text-navy-900">{reach}</b> users · via {channel}{promoted ? " · 🎁 offer linked" : ""}</div>
-            <Btn variant="primary" icon={Icon.bell} disabled={!msg.trim()} onClick={() => setReview(true)}>Send campaign</Btn>
-          </div>
-        </Card>
-        <aside className="space-y-3 lg:sticky lg:top-24 h-max">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600 px-1">Preview</div>
-          <CampaignPreview channel={channel} msg={msg} cta={cta} />
-          {promoted && <div className="text-[11px] text-slate-500 px-1 flex items-start gap-1.5"><Icon.info size={12} className="shrink-0 mt-0.5" /> The button deep-links guests to their reward — click it to preview the journey.</div>}
-          <div className="rounded-2xl ring-1 ring-slate-200 bg-white/70 backdrop-blur p-4 space-y-3 text-[12px] text-slate-600">
-            <div className="flex items-center justify-between">
-              <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.users size={14} /> Audience</div>
-              <Badge tone="indigo">{seg}</Badge>
-            </div>
-            <div>
-              <div className="flex items-center justify-between text-[11px] mb-1">
-                <span>Est. reach</span>
-                <b className="text-navy-900 tnum">{reach}</b>
-              </div>
-              <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-slaice-500 to-teal-500" style={{ width: `${Math.min(100, (parseInt(reach.replace(/,/g, ""), 10) / 8420) * 100)}%` }} />
-              </div>
-              <div className="flex items-center justify-between text-[10px] text-slate-500 mt-1">
-                <span>0</span>
-                <span>8,420 total</span>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-100">
-              {["VIP", "Season pass", "Regulars", "New"].map((t) => (
-                <button key={t} onClick={() => setSeg(t === "Regulars" ? "Regulars" : t)} className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ring-1 transition ${seg === t ? "bg-slaice-600 text-white ring-slaice-600" : "bg-white text-slate-600 ring-slate-200 hover:ring-slaice-400"}`}>{t}</button>
-              ))}
-            </div>
-            <div className="text-[11px] text-slate-500">Built on Users & Segments — change tags to grow the reach.</div>
-          </div>
-        </aside>
+      <PageHead title="Refunds" sub="Decide refund requests first, then the history — full or partial via Stripe, with reason logging and an automatic credit note (myDATA)." badge={<Badge tone="mvp">MVP</Badge>}
+        actions={<PeriodPicker value={period} onChange={setPeriod} presets={["day", "week", "month", "season"]} allowAll resetTo={{ kind: "preset", preset: "month", offset: 0 }} />} primary={<ExportMenu onExport={exportRefunds} what="refunds" />} />
+      {!agent && rulesOpen && <RefundPolicyCard />}
+      {/* The four tiles lead, above the queue (AENR-676). */}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+        <StatCard label="Needs decision" value={queue.length} sub={overdue ? `${overdue} past the 48 h SLA` : "all within the 48 h SLA"} tone={overdue ? "rose" : "amber"} />
+        <StatCard label={`Refunded · ${noun}`} value={fmtEUR(stats.amount)} sub={`${fmtInt(stats.count)} refund${stats.count === 1 ? "" : "s"} in the history below`} tone="teal" trend={hasPrev ? trendPct(stats.amount, prevStats.amount) : undefined} compare={prevRange ? `vs ${rangeLabel(prevRange)}` : undefined} />
+        <StatCard label="Refund rate" value={fmtPct(refundRate, 1)} sub={`of ${fmtEUR(sales)} sales`} compare={prevRange ? `vs ${rangeLabel(prevRange)}` : undefined} trend={hasPrev ? `${refundRate - prevRate >= 0 ? "+" : "−"}${Math.abs((refundRate - prevRate) * 100).toFixed(1)}pp` : undefined} />
+        <StatCard label="Top reason" value={stats.top ? stats.top.reason : "—"} sub={stats.top ? `${Math.round(stats.top.share * 100)}% of refunds` : "no refunds yet"} tone="indigo" />
       </div>
-      <CampaignReviewModal
-        open={review}
-        onClose={() => setReview(false)}
-        channel={channel}
-        seg={seg}
-        reach={reach}
-        msg={msg}
-        offer={promoted?.title}
-        onSend={() => toast(`Demo — campaign sent to ${reach} ${seg} guests via ${channel}${promoted ? ` · ${promoted.title}` : ""}.`, { tone: "success" })}
-      />
-      <ChannelSetupModal
-        channelKey={setupKey}
-        current={setupKey ? channels[setupKey] : undefined}
-        onClose={() => setSetupKey(null)}
-        onConnect={connectChannel}
-        onDisconnect={disconnectChannel}
-      />
+
+      <Card className="p-4 mb-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+          <h2 className="font-display font-bold text-navy-900 text-lg">Needs decision <span className="text-slate-400 tnum">{queue.length}</span></h2>
+          <span className="text-[12px] text-slate-500 flex items-center gap-2">Oldest first · decide within 48 h
+            {!agent && <Btn size="sm" variant="ghost" icon={Icon.sliders} onClick={() => setRulesOpen((v) => !v)} aria-expanded={rulesOpen}>Rules</Btn>}</span>
+        </div>
+        {queue.length === 0 ? (
+          <EmptyState compact icon={Icon.checkCircle} title="Nothing to decide" body="Every refund request has an answer. New requests from guests and the call centre land here." />
+        ) : (
+          <ul className="space-y-3">
+            {queue.map((r) => (
+              <li key={r.id}>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mb-1.5 text-[13px] text-slate-600">
+                  <b className="text-navy-900">{r.who} {personByFirst(r.who)?.last ?? ""}</b> · {r.tx}
+                  {r.bookingId && <> · <a className="font-semibold text-teal-700 hover:underline" href={`#/admin/bookings?booking=${encodeURIComponent(r.bookingId)}`}>{r.bookingId}</a></>}
+                </div>
+                <PendingRefund r={r} agent={agent} onDecide={ops.decideRefund} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
+      <Card className="p-2">
+        <h2 className="font-display font-bold text-navy-900 px-2 pt-2 pb-1">History · {label}</h2>
+        {visible.length === 0 ? <EmptyState compact icon={Icon.refund} title="No refunds in this period" body={`Nothing was refunded in ${label}.`} action={<Btn size="sm" variant="outline" onClick={() => setPeriod({ kind: "all" })}>Show all dates</Btn>} /> :
+        <Table cols={["Transaction", "Date", "Guest", "Amount", "Reason", "Status"]} right={[3]}
+          rows={shown.map((r) => {
+            const p = personByFirst(r.who);
+            return [r.channel ? <span className="inline-flex items-center gap-1.5 whitespace-nowrap">{r.tx}<Badge tone="green">{r.channel}</Badge></span> : r.tx, r.date || "—",
+              <div className="leading-tight"><div className="whitespace-nowrap">{r.who} {p?.last ?? ""}</div>{p?.phone && <div className="text-[11.5px] text-slate-500 tnum whitespace-nowrap"><Masked value={p.phone} /></div>}</div>,
+              r.refundAmount != null && r.refundAmount < r.amount
+                ? <div className="leading-tight"><span className="tnum">€{r.amount}</span><div className="text-[11px] text-rose-600 tnum">−€{r.refundAmount} refunded</div></div>
+                : `€${r.amount}`,
+              r.approver ? <div className="leading-tight">{r.reason}<div className="text-[11px] text-slate-500">decided by {r.approver}</div></div> : r.reason || "—",
+              <Badge tone={r.status === "Refunded" ? "green" : "slate"}>{r.status}</Badge>];
+          })} />}
+        {pageCount > 1 && <Pager page={safePage} pageCount={pageCount} total={visible.length} pageSize={REFUND_PAGE} onPage={setPage} />}
+      </Card>
     </div>
   );
 }
@@ -2144,7 +676,7 @@ function SchemeConfigModal({ scheme, initial, configured, onSave, onClose }: {
   const heading = scheme.custom ? String(values.title || "Custom scheme") : scheme.title;
   return (
     <Modal open onClose={onClose} wide
-      title={<span className="inline-flex items-center gap-2"><SIcon size={18} className="text-slaice-600" /> Configure · {heading}</span>}
+      title={<span className="inline-flex items-center gap-2"><SIcon size={18} className="text-sky-700" /> Configure · {heading}</span>}
       footer={<><Btn variant="ghost" onClick={onClose}>Cancel</Btn>
         <Btn variant="primary" icon={Icon.check} onClick={() => onSave(values)}>{configured ? "Save changes" : "Save & activate"}</Btn></>}>
       <div className="space-y-3">
@@ -2167,7 +699,7 @@ function SchemeConfigModal({ scheme, initial, configured, onSave, onClose }: {
 export function AdminLoyalty() {
   const { toast, loyalty, setLoyalty, go } = useApp();
   const [reward, setReward] = useState("20% off sunbeds");
-  const [store, setStore] = useState("All stores");
+  const [store, setStore] = useState("All zones");
   const [schedule, setSchedule] = useState("Weekday mornings");
   const [offers, setOffers] = useState<{ id: number; reward: string; store: string; schedule: string }[]>([]);
   const [send, setSend] = useState<{ off: string; count: number } | null>(null);
@@ -2240,9 +772,9 @@ export function AdminLoyalty() {
             return (
               <Card key={s.id} className={`p-4 flex flex-col gap-2 transition ${on ? "ring-2 ring-teal-500" : ""}`}>
                 <div className="flex items-center gap-2.5">
-                  <span className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${on ? "bg-teal-600 text-white" : "bg-slaice-100 text-slaice-700"}`}><SIcon size={18} /></span>
+                  <span className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 ${on ? "bg-teal-600 text-white" : "bg-sky-50 text-sky-800"}`}><SIcon size={18} /></span>
                   <div className="font-semibold text-navy-900 flex-1 min-w-0 truncate">{title}</div>
-                  {configured && <Toggle on={on} onChange={() => toggleEnabled(s.id)} />}
+                  {configured && <Toggle on={on} onChange={() => toggleEnabled(s.id)} ariaLabel={`Enable ${title}`} />}
                 </div>
                 <div className="text-[13px] text-slate-600 leading-snug">{s.blurb}</div>
                 {configured ? (
@@ -2287,7 +819,7 @@ export function AdminLoyalty() {
           <div className="text-[12.5px] text-slate-600 -mt-1">Run a deal for everyone, on the dates and hours you choose.</div>
           <div className="grid sm:grid-cols-2 gap-3">
             <Field label="Reward"><Select value={reward} onChange={(e) => setReward(e.target.value)} options={LOYALTY_REWARDS} /></Field>
-            <Field label="Applies to"><Select value={store} onChange={(e) => setStore(e.target.value)} options={["All stores", ...ZONES.map((z) => z.name)]} /></Field>
+            <Field label="Applies to"><Select value={store} onChange={(e) => setStore(e.target.value)} options={["All zones", ...ZONES.map((z) => z.name)]} /></Field>
             <Field label="When"><Select value={schedule} onChange={(e) => setSchedule(e.target.value)} options={["Weekday mornings", "Weekends", "Specific date range", "All month", "Happy hour 17:00–19:00"]} /></Field>
             <Field label="Time window"><div className="flex items-center gap-2"><Input type="time" defaultValue="09:00" /><span className="text-slate-400">–</span><Input type="time" defaultValue="11:00" /></div></Field>
           </div>
@@ -2316,7 +848,7 @@ export function AdminLoyalty() {
           <div className="space-y-2">
             {tiers.map((t) => (
               <div key={t.min} className="flex items-center gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
-                <span className="w-10 h-10 rounded-lg bg-slaice-100 text-slaice-700 grid place-items-center font-bold tnum text-[13px] shrink-0">{t.min}+</span>
+                <span className="w-10 h-10 rounded-lg bg-sky-50 text-sky-800 grid place-items-center font-bold tnum text-[13px] shrink-0">{t.min}+</span>
                 <div className="min-w-0 flex-1">
                   <div className="text-[13px] font-semibold text-navy-900 flex items-center gap-1.5 flex-wrap">Visited {t.min}+ times → <Badge tone={t.tone}>{t.off}</Badge></div>
                   <div className="text-[11px] text-slate-500"><b className="tnum">{tier(t.min)}</b> guests qualify this season</div>
@@ -2325,7 +857,7 @@ export function AdminLoyalty() {
               </div>
             ))}
           </div>
-          <div className="text-[11px] text-slate-500 flex items-center gap-1.5"><Icon.info size={13} /> Thresholds and rewards here are examples — tell me which you like and I’ll wire them up.</div>
+          <div className="text-[11px] text-slate-500 flex items-center gap-1.5"><Icon.info size={13} /> Thresholds and rewards here are examples — change them in the schemes above.</div>
         </Card>
       </div>
 
@@ -2401,7 +933,7 @@ function PassPricingPanel() {
       <div className="flex justify-end mb-3"><Btn variant="primary" icon={Icon.check} onClick={save}>Save pricing</Btn></div>
       <div className="grid lg:grid-cols-2 gap-5">
         <Card className="p-5 space-y-3">
-          <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.sparkles size={16} className="text-slaice-600" /> VIP credit</div>
+          <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.sparkles size={16} className="text-sky-700" /> VIP credit</div>
           <div className="text-[12.5px] text-slate-600 -mt-1">Prepaid credit guests spend at checkout — the discount applies to whatever the credit pays for.</div>
           <Field label="Spend discount">
             <div className="flex items-center gap-2 max-w-[10rem]">
@@ -2424,7 +956,7 @@ function PassPricingPanel() {
             </div>
             <Btn variant="ghost" size="sm" icon={Icon.plus} className="mt-2" onClick={addTier}>Add pack</Btn>
           </div>
-          <div className="rounded-xl bg-slaice-50 ring-1 ring-slaice-600/15 px-3 py-2 text-[12px] text-slaice-700">Valid to the end of the season · spent on any service · the {disc}% applies to the card-paid share.</div>
+          <div className="rounded-xl bg-sky-50 ring-1 ring-sky-600/15 px-3 py-2 text-[12px] text-sky-800">Valid to the end of the season · spent on any service · the {disc}% applies to the card-paid share.</div>
         </Card>
         <Card className="p-5 space-y-3">
           <div className="font-semibold text-navy-900 flex items-center gap-2"><Icon.ticket size={16} className="text-teal-600" /> Season pass</div>
@@ -2518,7 +1050,7 @@ function PassDesignerPanel() {
 
   return (
     <div className="grid lg:grid-cols-[1fr_320px] gap-4 items-start">
-      <Card className="p-4">
+      <Card className="p-4 min-w-0">
         {/* Card list */}
         <div className="flex items-center gap-2 overflow-x-auto pb-2 -mx-1 px-1">
           {cards.map((c) => (
@@ -2643,7 +1175,7 @@ export function AdminGamification() {
   return (
     <div className="animate-fade-up">
       <PageHead title="Gamification" sub="Achievements that earn guests a summer badge when they hit a milestone." badge={<Badge tone="future">Future</Badge>}
-        actions={<Btn variant="primary" icon={Icon.check} onClick={save}>Save badges</Btn>} />
+        primary={<Btn variant="primary" icon={Icon.check} onClick={save}>Save badges</Btn>} />
       <FutureBanner />
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {list.map((a) => {
@@ -2692,246 +1224,3 @@ export function AdminGamification() {
   );
 }
 
-/* ---- DSAR handling journey ---- */
-type DsarRow = (typeof DSAR_QUEUE)[number];
-
-const DSAR_TYPE_DONE: Record<string, string> = {
-  Access: "Data package compiled and a secure download link e-mailed to the verified address.",
-  Portability: "A portable copy (JSON + receipts) was compiled and a secure link e-mailed.",
-  Erasure: "Personal data erased. Invoices are kept under Greek tax law (5 years) and were excluded.",
-  Rectification: "The record was corrected and any affected receipt re-issued; the subject was notified.",
-  Objection: "Marketing and profiling were restricted for this subject; a confirmation was e-mailed.",
-};
-
-interface DsarStep { label: string; detail: string; icon: IconRenderer; action: string }
-function dsarSteps(type: string): DsarStep[] {
-  const verify: DsarStep = { label: "Verify identity", detail: "Confirm the requester owns the account (e-mail / ID match).", icon: Icon.shieldCheck, action: "Identity verified" };
-  const locate: DsarStep = { label: "Locate personal data", detail: "Gather across bookings, invoices, consents and support history.", icon: Icon.search, action: "Data located" };
-  switch (type) {
-    case "Access":
-    case "Portability":
-      return [verify, locate,
-        { label: "Compile export", detail: "Build a machine-readable package (JSON + PDF receipts).", icon: Icon.database, action: "Package built" },
-        { label: "Send secure download", detail: "E-mail a time-limited link to the verified address.", icon: Icon.mail, action: "Link sent" }];
-    case "Erasure":
-      return [verify, locate,
-        { label: "Apply legal holds", detail: "Invoices (ΑΠΥ/ΤΠΥ) are kept 5 years by Greek tax law — excluded from erasure.", icon: Icon.shield, action: "Holds applied" },
-        { label: "Erase the rest", detail: "Delete profile, marketing history and non-retained records.", icon: Icon.trash, action: "Data erased" },
-        { label: "Confirm to subject", detail: "E-mail confirmation of what was erased and what was retained.", icon: Icon.mail, action: "Confirmation sent" }];
-    case "Rectification":
-      return [verify,
-        { label: "Locate the record", detail: "Find the field(s) the subject asked to correct.", icon: Icon.search, action: "Record found" },
-        { label: "Apply correction", detail: "Update name / e-mail / phone and re-issue any affected receipt.", icon: Icon.edit, action: "Correction applied" },
-        { label: "Confirm to subject", detail: "E-mail confirmation of the change.", icon: Icon.mail, action: "Confirmation sent" }];
-    default: // Objection / Restriction
-      return [verify,
-        { label: "Identify processing", detail: "Find the marketing / profiling the subject objects to.", icon: Icon.sliders, action: "Processing identified" },
-        { label: "Restrict processing", detail: "Pause marketing consents and flag the account.", icon: Icon.lock, action: "Processing restricted" },
-        { label: "Confirm to subject", detail: "E-mail confirmation that processing is restricted.", icon: Icon.mail, action: "Confirmation sent" }];
-  }
-}
-
-const dsarTone = (type: string) => (type === "Erasure" ? "red" : type === "Access" ? "blue" : "slate");
-
-function DsarHandleModal({ request, onClose, onComplete }: { request: DsarRow | null; onClose: () => void; onComplete: () => void }) {
-  const [stage, setStage] = useState<"work" | "done">("work");
-  const [step, setStep] = useState(0);
-  // Reset only when a *different* request opens (keyed by id, so completing —
-  // which swaps the row object but keeps the id — doesn't bounce back to step 0).
-  useEffect(() => { setStage("work"); setStep(0); }, [request?.id]);
-  const steps = request ? dsarSteps(request.type) : [];
-  const allDone = step >= steps.length;
-  return (
-    <Modal open={request !== null} onClose={onClose} title={stage === "done" ? "Request completed" : request ? `Handle ${request.id}` : "Handle request"}
-      footer={!request ? undefined : stage === "done"
-        ? <Btn variant="primary" icon={Icon.check} onClick={onClose}>Close</Btn>
-        : <><Btn variant="ghost" onClick={onClose}>Cancel</Btn>
-            <Btn variant="primary" icon={Icon.shieldCheck} disabled={!allDone} onClick={() => { onComplete(); setStage("done"); }}>Complete request</Btn></>}>
-      {request && (
-        <div className="space-y-3">
-          <div className="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-3 py-2.5 flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <div className="font-semibold text-navy-900 text-sm flex items-center gap-2">{request.first} {request.last} <Badge tone={dsarTone(request.type)}>{request.type}</Badge></div>
-              <div className="text-[12px] text-slate-500 truncate">{request.email} · {request.phone}</div>
-            </div>
-            <div className="text-right shrink-0 text-[11px] text-slate-500"><div className="font-mono">{request.id}</div><div>received {request.received}</div></div>
-          </div>
-          {stage === "done" ? (
-            <div className="py-2 text-center space-y-2 animate-pop">
-              <span className="mx-auto w-12 h-12 rounded-full bg-teal-600 text-white grid place-items-center shadow"><Icon.check size={22} /></span>
-              <div className="font-semibold text-navy-900">{request.type} request fulfilled</div>
-              <div className="text-[13px] text-slate-600 max-w-sm mx-auto">{DSAR_TYPE_DONE[request.type] ?? DSAR_TYPE_DONE.Objection} Logged to the audit trail, within the 30-day SLA.</div>
-            </div>
-          ) : (
-            <>
-              <div className="text-[12px] text-slate-500">Work through each step — the request closes once every step is done (GDPR Art. 12 · 30-day clock).</div>
-              <ol className="space-y-1.5">
-                {steps.map((s, i) => {
-                  const stt = i < step ? "done" : i === step ? "active" : "todo";
-                  const SIcon = s.icon;
-                  return (
-                    <li key={i} className={`flex items-center gap-3 rounded-xl px-3 py-2.5 ring-1 transition ${stt === "done" ? "ring-teal-200 bg-teal-50/60" : stt === "active" ? "ring-slaice-300 bg-white shadow-soft" : "ring-slate-100 bg-slate-50/50 opacity-60"}`}>
-                      <span className={`w-7 h-7 rounded-lg grid place-items-center shrink-0 ${stt === "done" ? "bg-teal-600 text-white" : stt === "active" ? "bg-navy-900 text-white" : "bg-slate-200 text-slate-400"}`}>
-                        {stt === "done" ? <Icon.check size={14} /> : <SIcon size={14} />}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-semibold text-navy-900">{s.label}</div>
-                        <div className="text-[11px] text-slate-500 leading-snug">{s.detail}</div>
-                      </div>
-                      {stt === "active" && <Btn size="sm" variant="tint" onClick={() => setStep((x) => x + 1)}>{s.action}</Btn>}
-                      {stt === "done" && <span className="text-[11px] font-semibold text-teal-700 shrink-0 inline-flex items-center gap-1"><Icon.check size={11} /> {s.action}</span>}
-                    </li>
-                  );
-                })}
-              </ol>
-            </>
-          )}
-        </div>
-      )}
-    </Modal>
-  );
-}
-
-/* ============ PRIVACY & GDPR (Admin / controller side) ============ */
-export function AdminPrivacy() {
-  const { toast } = useApp();
-  const [tab, setTab] = useState("requests");
-  const [dsar, setDsar] = useState(DSAR_QUEUE);
-  const [handle, setHandle] = useState<number | null>(null);
-  // Editable retention schedule — numeric terms split into value + unit; legal
-  // (tax-mandated) and open-ended terms stay fixed.
-  const [retention, setRetention] = useState(() => RETENTION.map((r) => {
-    const m = r.period.match(/^(\d+)\s+(hours|days|months|years)$/i);
-    return { data: r.data, basis: r.basis, legal: !!r.legal, num: m ? parseInt(m[1], 10) : null, unit: m ? m[2].toLowerCase() : "", text: m ? "" : r.period };
-  }));
-  const tabs: TabEntry[] = [
-    ["requests", "Data requests", Icon.inbox],
-    ["consent", "Consent audit", Icon.sliders],
-    ["retention", "Retention", Icon.clock],
-    ["ropa", "Processing register", Icon.database],
-  ];
-  const slaTone = (d: number) => d < 0 ? "slate" : d <= 10 ? "red" : d <= 20 ? "amber" : "green";
-  const open = dsar.filter((r) => r.status !== "Completed");
-  // Single source for the consent opt-in rates (charted below + exported).
-  const consentRates: [string, number][] = [["Analytics", 71], ["Marketing — e-mail", 64], ["Marketing — SMS", 38], ["Marketing — push", 52]];
-  // Faithful, columnar export of every Privacy tab — requests, consent,
-  // retention and the processing register — each as its own titled section.
-  const exportPrivacy = () => {
-    downloadCSVReport("privacy-gdpr.csv", [
-      { title: "Data requests (DSAR · GDPR Art. 15–20)", header: ["Request", "Type", "Name", "Surname", "Email", "Phone", "Received", "Due (days)", "Status"], rows: dsar.map((r) => [r.id, r.type, r.first, r.last, r.email, r.phone, r.received, r.dueDays, r.status]) },
-      { title: "Consent opt-in rates", header: ["Purpose", "Opt-in %"], rows: consentRates },
-      { title: "Consent purposes", header: ["Purpose", "Required", "Description"], rows: CONSENT_PURPOSES.map((p) => [p.label, p.required ? "Always on" : "Opt-in", p.desc]) },
-      { title: "Retention schedule", header: ["Data category", "Legal basis", "Retention", "Tax-mandated"], rows: retention.map((r) => [r.data, r.basis, r.num !== null ? `${r.num} ${r.unit}` : r.text, r.legal ? "Yes" : "No"]) },
-      { title: "Processing register (ROPA · GDPR Art. 30)", header: ["Activity", "Purpose", "Data categories", "Basis", "Retention"], rows: ROPA.map((r) => [r.activity, r.purpose, r.categories, r.basis, r.retention]) },
-    ]);
-    toast("Exported the privacy & GDPR log (CSV).", { tone: "success" });
-  };
-  return (
-    <div className="animate-fade-up">
-      <PageHead actions={<><Btn variant="outline" icon={Icon.download} onClick={exportPrivacy}>Export</Btn><Btn variant="primary" icon={Icon.shieldCheck} onClick={() => toast("Demo — privacy settings saved.")}>Save policy</Btn></>} />
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <StatCard label="Open requests" value={String(open.length)} sub="awaiting action" tone="indigo" />
-        <StatCard label="Due ≤ 10 days" value={String(dsar.filter((r) => r.dueDays >= 0 && r.dueDays <= 10 && r.status !== "Completed").length)} sub="30-day statutory SLA" tone="rose" />
-        <StatCard label="Consent rate" value="64%" sub="marketing opt-in" trend="+3pp" />
-        <StatCard label="Avg resolution" value="6.2d" sub="well within SLA" tone="teal" />
-      </div>
-      <Tabs tabs={tabs} value={tab} onChange={setTab} className="mb-4" scroll />
-
-      {tab === "requests" && (
-        <Card className="p-2">
-          <div className="px-3 pt-2 pb-1 text-[12px] text-slate-500">Data Subject Access Requests — GDPR Art. 15–20, 30-day clock.</div>
-          <Table cols={["Request", "Type", "Name", "Surname", "Email", "Phone", "Received", "Due", "Status", ""]} right={[9]}
-            rows={dsar.map((r, i) => [
-              <span className="font-mono text-[12px] text-navy-900">{r.id}</span>,
-              <Badge tone={dsarTone(r.type)}>{r.type}</Badge>,
-              <span className="font-semibold text-[13px] text-navy-900">{r.first}</span>,
-              <span className="font-semibold text-[13px] text-navy-900">{r.last}</span>,
-              <span className="text-[12px] text-slate-600">{r.email}</span>,
-              <span className="text-[12px] text-slate-600 tnum whitespace-nowrap">{r.phone}</span>,
-              r.received,
-              r.status === "Completed" ? <Badge tone="green"><Icon.check size={11} /> Done</Badge> : <Badge tone={slaTone(r.dueDays)}>{r.dueDays}d left</Badge>,
-              <Badge tone={r.status === "Completed" ? "green" : r.status === "Awaiting ID" ? "amber" : "slate"}>{r.status}</Badge>,
-              r.status === "Completed"
-                ? <span className="text-slate-400 text-sm">done</span>
-                : <Btn size="sm" variant="ghost" icon={Icon.eye} onClick={() => setHandle(i)}>Handle</Btn>,
-            ])} />
-        </Card>
-      )}
-
-      {tab === "consent" && (
-        <div className="grid lg:grid-cols-2 gap-4">
-          <Card className="p-5">
-            <div className="font-semibold text-navy-900 mb-3">Consent opt-in rates</div>
-            <div className="space-y-3">
-              {consentRates.map(([l, v]) => (
-                <div key={l}>
-                  <div className="flex items-center justify-between text-[12px] mb-1"><span className="text-slate-600">{l}</span><b className="text-navy-900 tnum">{v}%</b></div>
-                  <div className="h-2 rounded-full bg-slate-100 overflow-hidden"><div className="h-full rounded-full bg-gradient-to-r from-teal-500 to-teal-600" style={{ width: `${v}%` }} /></div>
-                </div>
-              ))}
-            </div>
-          </Card>
-          <Card className="p-5">
-            <div className="font-semibold text-navy-900 mb-3">Consent purposes</div>
-            <div className="space-y-2">
-              {CONSENT_PURPOSES.map((p) => (
-                <div key={p.key} className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
-                  <div className="flex items-center gap-2 font-semibold text-[13px] text-navy-900">{p.label}{p.required && <Badge tone="slate">Always on</Badge>}</div>
-                  <div className="text-[12px] text-slate-600 leading-snug mt-0.5">{p.desc}</div>
-                </div>
-              ))}
-            </div>
-            <div className="mt-3 text-[11px] text-slate-500">Withdrawals are honoured immediately and logged with a timestamp.</div>
-          </Card>
-        </div>
-      )}
-
-      {tab === "retention" && (
-        <Card className="p-2">
-          <div className="px-3 pt-2 pb-1.5 text-[12px] text-slate-500">Data retention schedule — set how long each category is kept before it’s auto-anonymised or deleted. Tax-mandated and open-ended terms are fixed.</div>
-          <div className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1 px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
-            <div>Data category · legal basis</div><div className="text-right">Retention</div>
-          </div>
-          <div className="divide-y divide-slate-100">
-            {retention.map((r, i) => (
-              <div key={r.data} className="grid grid-cols-[1fr_auto] items-center gap-3 px-3 py-2.5">
-                <div className="min-w-0">
-                  <div className="text-[13px] font-semibold text-navy-900">{r.data}</div>
-                  <div className="text-[11px] text-slate-500 flex items-center gap-1.5">{r.legal && <Icon.lock size={11} className="text-amber-600" />}<span className={r.legal ? "text-amber-700" : ""}>{r.basis}</span></div>
-                </div>
-                {r.num !== null ? (
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <div className="w-[4.5rem]"><Input type="number" min={1} value={r.num} disabled={r.legal} className="disabled:opacity-60 disabled:cursor-not-allowed"
-                      onChange={(e) => setRetention((rs) => rs.map((x, j) => j === i ? { ...x, num: Math.max(1, Math.round(+e.target.value) || 1) } : x))} /></div>
-                    <div className="w-28"><Select value={r.unit} disabled={r.legal} className="disabled:opacity-60 disabled:cursor-not-allowed"
-                      onChange={(e) => setRetention((rs) => rs.map((x, j) => j === i ? { ...x, unit: e.target.value } : x))} options={["hours", "days", "months", "years"]} /></div>
-                  </div>
-                ) : (
-                  <div className="text-[12px] text-slate-500 italic shrink-0 text-right">{r.text}</div>
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="px-3 py-3 flex justify-between items-center gap-2 flex-wrap">
-            <Btn size="sm" variant="outline" icon={Icon.database} onClick={() => toast("Demo — anonymised 1,204 customers older than the set term.")}>Run anonymisation</Btn>
-            <Btn size="sm" variant="primary" icon={Icon.check} onClick={() => toast("Demo — retention policy saved. New terms apply to the nightly anonymisation job.", { tone: "success" })}>Save retention policy</Btn>
-          </div>
-        </Card>
-      )}
-
-      {tab === "ropa" && (
-        <Card className="p-2">
-          <div className="px-3 pt-2 pb-1 text-[12px] text-slate-500">Records of Processing Activities — GDPR Art. 30.</div>
-          <Table cols={["Activity", "Purpose", "Data categories", "Basis", "Retention"]}
-            rows={ROPA.map((r) => [<b className="text-navy-900">{r.activity}</b>, r.purpose, r.categories, <Badge tone="slate">{r.basis}</Badge>, r.retention])} />
-        </Card>
-      )}
-
-      <DsarHandleModal
-        request={handle !== null ? dsar[handle] : null}
-        onClose={() => setHandle(null)}
-        onComplete={() => setDsar((rows) => rows.map((x, i) => (i === handle ? { ...x, status: "Completed" } : x)))}
-      />
-    </div>
-  );
-}

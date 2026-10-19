@@ -1,16 +1,20 @@
 import { useEffect, useRef, useState } from "react";
 import { BeachBackdrop } from "./Beach";
 import { LifeRing } from "./LifeRing";
-import { prefersReducedMotion, staticBackdrop } from "../lib/motion";
+import { prefersReducedMotion, staticBackdrop, useLiteScene } from "../lib/motion";
 import { dayLight, WEATHER_DEMO } from "../data/beach";
 import type { SeaEnv } from "./LiveSeaCanvas";
 import { WeatherFxCanvas } from "./WeatherFx";
-import { useApp } from "../app/store";
+import { useGuestScene } from "../lib/useGuestScene";
 
 /* Sand-top fraction (0–1). Higher = thinner sand strip / ocean vista; lower lifts
    the shoreline so the sand fills the view. */
 const REST = 0.8; // home + browsing
-const IMMERSIVE = 0.4; // inside the booking wizard — a sand-heavy beach you tap on
+const IMMERSIVE = 0.2; // inside the booking wizard on phones — a sand-heavy beach you tap on (AENR-660)
+// Desktop wizard: the sea comes down to the middle, the panel floats over it and the
+// zones stand in one front row along the water (AENR-668).
+const IMMERSIVE_WIDE = 0.5;
+const wideNow = () => typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
 
 /* ---------- Customer page backdrop ----------
    The beach scene behind the whole customer surface. Entering the guided-booking
@@ -25,19 +29,28 @@ const IMMERSIVE = 0.4; // inside the booking wizard — a sand-heavy beach you t
    One resolution for every customer page — home, wizard and checkout always
    share identical conditions. */
 export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
-  const { weather, dayTime, sceneFx } = useApp();
-  const [shoreline, setShoreline] = useState(immersive ? IMMERSIVE : REST);
-  // Only reduced-motion users keep a still backdrop — phones run the same live
-  // scene as desktop (the sea canvas caps DPR and degrades to SVG by itself).
-  const [stat] = useState(staticBackdrop);
+  // The tenant's live-scene switch (AENR-737) can pin this to a sunny 11:00.
+  const { weather, dayTime, sceneFx } = useGuestScene();
+  const [wide, setWide] = useState(wideNow);
+  useEffect(() => {
+    const m = window.matchMedia("(min-width: 1024px)");
+    const on = () => setWide(m.matches);
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
+  const target = immersive ? (wide ? IMMERSIVE_WIDE : IMMERSIVE) : REST;
+  const [shoreline, setShoreline] = useState(target);
+  // Still backdrop for reduced-motion users and on phones / small tablets (AENR-730):
+  // no WebGL sea, ambient decor, particles or parallax there. Follows resizes.
+  const lite = useLiteScene();
+  const stat = lite || staticBackdrop();
   // Mirror the latest value so the tween can read its start point without
   // re-subscribing the effect on every frame.
   const ref = useRef(shoreline);
   ref.current = shoreline;
 
   useEffect(() => {
-    const target = immersive ? IMMERSIVE : REST;
-    if (stat || prefersReducedMotion()) {
+    if (prefersReducedMotion()) {
       setShoreline(target);
       return;
     }
@@ -54,7 +67,7 @@ export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [immersive, stat]);
+  }, [target]);
 
   // Resolve the environment. Disabled effects fall back to a neutral noon /
   // sunny scene, so the admin switches cleanly restore the original look.
@@ -88,7 +101,7 @@ export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
       {/* The life-buoy bobs in the open water. As the booking flow lifts the
           shoreline, it rides up with the sea to a spot in the top-left, clear of
           the menu and the tappable sand. */}
-      <LifeRing className={`hidden sm:block absolute left-[8%] w-[60px] h-[60px] transition-[top] duration-700 ease-out ${immersive ? "top-[20%]" : "top-[72%]"}`} />
+      <LifeRing className={`hidden sm:block absolute left-[8%] w-[60px] h-[60px] transition-[top] duration-700 ease-out ${immersive ? (wide ? "top-[31%]" : "top-[7%]") : "top-[72%]"}`} />
 
       {/* Cloud cover for overcast/rainy — drifting banks of soft grey blobs. */}
       <div className="absolute inset-0 overflow-hidden transition-opacity duration-1000" style={{ opacity: clouds }}>
@@ -119,7 +132,7 @@ export function CustomerBackdrop({ immersive }: { immersive: boolean }) {
         className="absolute inset-0 transition-opacity duration-700"
         style={{ opacity: wd.dim, mixBlendMode: "multiply", background: "#42566e" }}
       />
-      {particles && <WeatherFxCanvas key={`${raining}-${wd.wind}`} rain={raining} wind={wd.wind} />}
+      {particles && !lite && <WeatherFxCanvas key={`${raining}-${wd.wind}`} rain={raining} wind={wd.wind} />}
     </div>
   );
 }

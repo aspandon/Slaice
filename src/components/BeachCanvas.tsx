@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { KonvaEventObject } from "konva/lib/Node";
 import { Stage, Layer, Group, Rect, Path, Text, Line, Circle } from "react-konva";
-import type { SunbedSlot, SunbedState } from "../domain/types";
+import type { Landmark, SunbedSlot, SunbedState } from "../domain/types";
+import { LANDMARK_LABEL } from "../data/pricing";
 import { BEDS, CANOPY, CANOPY_PATH, FIN, GLYPH_CONTENT, LITE_PATH, sunbedPalette } from "./sunbedGlyph";
 
 /* ---------- Shared Konva beach renderer ----------
@@ -47,12 +48,35 @@ export interface BeachCanvasProps {
   onMove?: (id: string, x: number, y: number) => void;
   /** Grid step in % (0 / undefined = free placement). Draws faint guides. */
   snap?: number;
+  /* — workspace extras (AENR-469) — */
+  /** Price category per set: tints the pad and prints its code (never colour alone). */
+  catOf?: (slot: SunbedSlot) => { color: string; code: string } | undefined;
+  /** Effective €/day per set for the chosen date, printed under the glyph. */
+  priceOf?: (slot: SunbedSlot) => number;
+  /** Non-bookable map objects (bar, showers, WC, …). */
+  landmarks?: Landmark[];
+  selectedLandmark?: string | null;
+  onLandmarkSelect?: (id: string) => void;
+  onLandmarkMove?: (id: string, x: number, y: number) => void;
+  /** Drag on empty sand to rubber-band select (edit mode). */
+  onBoxSelect?: (ids: string[], additive: boolean) => void;
+  /** Paint mode: press and sweep over sets to apply the active category. */
+  paint?: boolean;
+  onPaint?: (id: string) => void;
+  /** Click on empty sand (e.g. to drop a landmark), normalized 0–100. */
+  onCanvasClick?: (x: number, y: number) => void;
+  /** Inventory tag per set (e.g. "HELD", "WALK-IN") drawn as a dark label. */
+  tagOf?: (slot: SunbedSlot) => string | undefined;
 }
+
 
 export function BeachCanvas({
   slots, seaLabel = "Sea · front row", backLabel = "Promenade", maxHeight = 480,
   selected, onToggle, editable = false, selectedIds, onSelect, onMove, snap = 0,
+  catOf, priceOf, tagOf, landmarks, selectedLandmark, onLandmarkSelect, onLandmarkMove, onBoxSelect, paint = false, onPaint, onCanvasClick,
 }: BeachCanvasProps) {
+  const [band, setBand] = useState<{ x0: number; y0: number; x1: number; y1: number; add: boolean } | null>(null);
+  const painting = useRef(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(0);
   useEffect(() => {
@@ -95,7 +119,34 @@ export function BeachCanvas({
   return (
     <div ref={wrapRef} className="w-full rounded-2xl overflow-hidden ring-1 ring-white/50 shadow-soft" style={{ minHeight: 200 }}>
       {w > 0 && (
-        <Stage width={w} height={h}>
+        <Stage width={w} height={h}
+          onMouseDown={(e) => {
+            if (!editable) return;
+            if (paint) { painting.current = true; return; }
+            if (e.target !== e.target.getStage() && e.target.name() !== "sand") return;
+            const pos = e.target.getStage()?.getPointerPosition();
+            if (pos) setBand({ x0: pos.x, y0: pos.y, x1: pos.x, y1: pos.y, add: isAdditive(e) });
+          }}
+          onMouseMove={(e) => {
+            if (!band) return;
+            const pos = e.target.getStage()?.getPointerPosition();
+            if (pos) setBand((b) => (b ? { ...b, x1: pos.x, y1: pos.y } : b));
+          }}
+          onMouseUp={(e) => {
+            painting.current = false;
+            if (!band) return;
+            const [xa, xb] = [Math.min(band.x0, band.x1), Math.max(band.x0, band.x1)];
+            const [ya, yb] = [Math.min(band.y0, band.y1), Math.max(band.y0, band.y1)];
+            setBand(null);
+            if (xb - xa < 4 && yb - ya < 4) {
+              const pos = e.target.getStage()?.getPointerPosition();
+              if (pos && onCanvasClick && pos.y > seaH) onCanvasClick(clamp((pos.x / w) * 100, 0, 100), clamp(((pos.y - seaH) / (h - seaH)) * 100, 0, 100));
+              return;
+            }
+            const ids = slots.filter((b) => { const cx = (b.x / 100) * w; const cy = seaH + (b.y / 100) * (h - seaH); return cx >= xa && cx <= xb && cy >= ya && cy <= yb; }).map((b) => b.id);
+            onBoxSelect?.(ids, band.add);
+          }}
+          onMouseLeave={() => { painting.current = false; setBand(null); }}>
           {/* Backdrop: sand + sea band + orientation labels (non-interactive). */}
           <Layer listening={false}>
             <Rect
@@ -137,7 +188,11 @@ export function BeachCanvas({
               const gs = (size * 0.9) / GLYPH_CONTENT.h;
               const plot = size * 0.94;
               const front = b.kind === "front";
+              const cat = catOf?.(b);
+              const price = priceOf?.(b);
+              const tag = tagOf?.(b);
               const handle = (e: KonvaEventObject<MouseEvent | TouchEvent>) => {
+                if (editable && paint) { onPaint?.(b.id); return; }
                 if (editable) onSelect?.(b.id, isAdditive(e));
                 else if (!c.dim) onToggle?.(b);
               };
@@ -146,7 +201,7 @@ export function BeachCanvas({
                   key={b.id}
                   x={cx}
                   y={cy}
-                  draggable={editable}
+                  draggable={editable && !paint}
                   dragBoundFunc={(pos) => {
                     let x = clamp(pos.x, size / 2, w - size / 2);
                     let y = clamp(pos.y, seaH + size / 2, h - size / 2);
@@ -167,7 +222,7 @@ export function BeachCanvas({
                   }}
                   onClick={handle}
                   onTap={handle}
-                  onMouseEnter={(e) => setCursor(e, editable ? "grab" : c.dim ? "not-allowed" : "pointer")}
+                  onMouseEnter={(e) => { if (paint && painting.current) onPaint?.(b.id); setCursor(e, paint ? "crosshair" : editable ? "grab" : c.dim ? "not-allowed" : "pointer"); }}
                   onMouseLeave={(e) => setCursor(e, "default")}
                 >
                   {/* Cabana = a shaded hut backing the umbrella. */}
@@ -178,8 +233,8 @@ export function BeachCanvas({
                   <Rect
                     x={-plot / 2} y={-plot / 2} width={plot} height={plot}
                     cornerRadius={plot * 0.24}
-                    fill={c.plot}
-                    stroke={front && !sel ? "#e0a800" : c.ring}
+                    fill={cat && !sel ? `${cat.color}33` : c.plot}
+                    stroke={sel ? c.ring : cat ? cat.color : front ? "#e0a800" : c.ring}
                     strokeWidth={sel ? 2 : front ? 1.6 : 1}
                     dash={editable && sel ? [5, 3] : undefined}
                   />
@@ -200,12 +255,46 @@ export function BeachCanvas({
                     <Circle x={CANOPY.cx} y={CANOPY.cy} radius={CANOPY.r} stroke={c.edge} strokeWidth={1.2} />
                     <Circle x={FIN.cx} y={FIN.cy} radius={FIN.r} fill={c.fin} />
                   </Group>
-                  {/* Front-row marker. */}
-                  {front && <Circle x={plot * 0.34} y={-plot * 0.34} radius={Math.max(2.5, size * 0.08)} fill="#f2b705" stroke="#fff" strokeWidth={1} />}
+                  {/* Front-row marker (only when no category code says it). */}
+                  {front && !cat && <Circle x={plot * 0.34} y={-plot * 0.34} radius={Math.max(2.5, size * 0.08)} fill="#f2b705" stroke="#fff" strokeWidth={1} />}
+                  {cat && (
+                    <Group x={-plot / 2} y={-plot / 2 - 1} listening={false}>
+                      <Rect width={Math.max(16, cat.code.length * 6 + 6)} height={11} cornerRadius={3} fill={cat.color} />
+                      <Text x={3} y={1.5} text={cat.code} fontSize={8.5} fontStyle="bold" fill="#fff" />
+                    </Group>
+                  )}
+                  {tag && (
+                    <Group x={-plot / 2} y={plot / 2 - 11} listening={false}>
+                      <Rect width={Math.max(26, tag.length * 5.6 + 8)} height={11} cornerRadius={3} fill="#0B2545" opacity={0.9} />
+                      <Text x={3} y={1.5} text={tag} fontSize={8} fontStyle="bold" fill="#fff" />
+                    </Group>
+                  )}
+                  {b.access && <Text x={plot / 2 - 11} y={-plot / 2 - 1} text="♿" fontSize={10} listening={false} />}
+                  {price !== undefined && <Text x={-plot / 2} y={plot / 2 + 1} width={plot} align="center" text={`€${Math.round(price)}`} fontSize={9.5} fontStyle="bold" fill="#0B2545" listening={false} />}
                 </Group>
               );
             })}
           </Layer>
+          {(landmarks?.length || band) && (
+            <Layer>
+              {landmarks?.map((l) => {
+                const g = LANDMARK_LABEL[l.kind];
+                const lx = (l.x / 100) * w;
+                const ly = seaH + (l.y / 100) * (h - seaH);
+                const on = selectedLandmark === l.id;
+                return (
+                  <Group key={l.id} x={lx} y={ly} draggable={editable && !paint}
+                    onClick={() => onLandmarkSelect?.(l.id)} onTap={() => onLandmarkSelect?.(l.id)}
+                    onDragEnd={(e) => onLandmarkMove?.(l.id, clamp((e.target.x() / w) * 100, 0, 100), clamp(((e.target.y() - seaH) / (h - seaH)) * 100, 0, 100))}>
+                    <Rect x={-13} y={-11} width={26} height={22} cornerRadius={6} fill="rgba(255,255,255,0.92)" stroke={on ? "#0B2545" : "rgba(11,37,69,0.35)"} strokeWidth={on ? 2 : 1} />
+                    <Text x={-8} y={-7} text={g?.icon ?? "•"} fontSize={13} />
+                    <Text x={-30} y={12} width={60} align="center" text={l.label || g?.label || l.kind} fontSize={8.5} fontStyle="bold" fill="#0B2545" />
+                  </Group>
+                );
+              })}
+              {band && <Rect x={Math.min(band.x0, band.x1)} y={Math.min(band.y0, band.y1)} width={Math.abs(band.x1 - band.x0)} height={Math.abs(band.y1 - band.y0)} fill="rgba(13,148,136,0.12)" stroke="#0D9488" strokeWidth={1} dash={[4, 3]} listening={false} />}
+            </Layer>
+          )}
         </Stage>
       )}
     </div>

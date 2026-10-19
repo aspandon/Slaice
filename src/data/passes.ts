@@ -1,6 +1,8 @@
 // Pass defaults + helpers. VIP credit and the Season pass are bought by the
 // customer, priced by the admin (PassPricing), and spent at Checkout.
-import type { CustomerPasses, PassPricing, SeasonPlan } from "../domain/types";
+import type { CustomerPasses, PassPricing, SeasonPlan, SunbedSlot } from "../domain/types";
+import { DEMO_TODAY, addDays } from "../domain/period";
+import { fromISO } from "./beach";
 
 /** End-of-season label — VIP credit and the summer Season pass run to here. */
 export const SEASON_END_LABEL = "30 Sep 2026";
@@ -17,11 +19,21 @@ export const DEFAULT_PASS_PRICING: PassPricing = {
 /** A short label for how long a season plan stays valid. */
 export function seasonValidUntil(plan: SeasonPlan): string {
   if (plan === "summer") return `End of season · ${SEASON_END_LABEL}`;
-  const d = new Date();
-  d.setMonth(d.getMonth() + 1);
+  const d = fromISO(addDays(DEMO_TODAY, 30));
   return `Valid to ${d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}`;
 }
 
 export const seasonPlanLabel = (plan: SeasonPlan): string => (plan === "monthly" ? "Monthly" : "Whole summer");
 
 export const round2 = (n: number): number => Math.round(n * 100) / 100;
+
+/* ---------- The season pass holder's set (AENR-578) ----------
+   A season pass reserves one set for the whole season in Central: the first
+   free set of the front row on the published layout. The holder can give a
+   day back ("Release my day"); the set is then on sale on every channel for
+   that day. */
+export const SEASON_ZONE = "central";
+export function seasonSetIn(layout: readonly SunbedSlot[]): string | null {
+  const free = [...layout].filter((s) => s.state === "a").sort((a, b) => a.y - b.y || a.x - b.x);
+  return free[0]?.id ?? null;
+}

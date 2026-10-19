@@ -4,3 +4,7 @@ dist-ssr
 *.local
 .DS_Store
 .vite
+
+# Orbit backlog tooling — local credentials and session state (never committed)
+tools/orbit/.orbit.env
+tools/orbit/state.json

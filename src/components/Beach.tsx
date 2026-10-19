@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
-import { prefersReducedMotion, useParallax } from "../lib/motion";
+import { liteScene, prefersReducedMotion, useParallax } from "../lib/motion";
 import { gsap, motionOK } from "../lib/fx";
 import { useApp } from "../app/store";
 import { presetById } from "../data/backgrounds";
@@ -12,7 +12,7 @@ import type { SeaEnv } from "./LiveSeaCanvas";
 
 /* ---------- Sunbed-set mark (presentational) ----------
    Just the SVG glyph — a parasol over twin loungers — with no button wrapper, so
-   it can render inside other clickable surfaces (the store-cluster previews on the
+   it can render inside other clickable surfaces (the zone-cluster previews on the
    booking beach) without nesting buttons. Geometry + colour come from
    sunbedGlyph.ts, the shared source the Konva grid renders from too. */
 export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, className = "" }: {
@@ -66,17 +66,20 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
 }) {
   const p = sunbedPalette(state, sel);
   const dim = p.dim;
-  const interactive = !dim && !readOnly;
+  // On-hold sets are shown (amber) but can't be picked — someone else is
+  // mid-purchase (AENR-520 / UX N1).
+  const held = state === "h" && !sel;
+  const interactive = !dim && !held && !readOnly;
   return (
     <button
-      disabled={dim || readOnly}
+      disabled={dim || held || readOnly}
       onClick={onClick}
       aria-label={`Sunbed ${label || ""}${dim ? " unavailable" : state === "h" ? " on hold" : ` €${price}`}${sel ? ", selected" : ""}`}
       aria-pressed={sel}
       // `fill` lets the glyph scale to its cell (used by the wizard's pick grid so
       // each umbrella grows on desktop yet stays tappable on phones); `block`
       // alone keeps a fixed `size` but a full-cell hit area.
-      className={`group relative ${block || fill ? "w-full h-full grid place-items-center" : ""} ${interactive ? "cursor-pointer hover:-translate-y-1.5 hover:scale-[1.18] hover:z-20" : dim ? "cursor-not-allowed" : "cursor-default"} transition-transform duration-200 ease-spring`}
+      className={`group relative ${block || fill ? "w-full h-full grid place-items-center" : ""} ${interactive ? "cursor-pointer hover:-translate-y-1.5 hover:scale-[1.18] hover:z-20" : (dim || held) && !readOnly ? "cursor-not-allowed" : "cursor-default"} transition-transform duration-200 ease-spring`}
       style={{ lineHeight: 0, willChange: "transform" }}
     >
       <SunbedMark state={state} sel={sel} size={size} fill={fill} className="drop-shadow-sm transition-[filter] duration-200 group-hover:drop-shadow-[0_8px_10px_rgba(11,37,69,0.5)]" />
@@ -100,7 +103,7 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
 /* ---------- Beach backdrop ----------
    Resolves the active tenant background (a preset or an uploaded photo) and
    renders it behind `children`. Pass an explicit `background` to preview a
-   specific scene (the picker does this); otherwise it reads the store, so the
+   specific scene (the picker does this); otherwise it reads the zone, so the
    choice flows to the booking map and the customer surface automatically. */
 export function BeachBackdrop({ children, className = "", pos = "relative", parallax = false, background, preview = false, shoreline, noVeg = false, seaEnv }: {
   children?: ReactNode;
@@ -128,7 +131,7 @@ export function BeachBackdrop({ children, className = "", pos = "relative", para
     ) : parallax ? (
       <BeachSceneLayered preset={presetById(bg.id)} shoreline={shoreline} noVeg={noVeg} seaEnv={seaEnv} />
     ) : (
-      <BeachScene preset={presetById(bg.id)} preview={preview} shoreline={shoreline} noVeg={noVeg} />
+      <BeachScene preset={presetById(bg.id)} preview={preview} shoreline={shoreline} noVeg={noVeg} noSky={!preview && shoreline !== undefined && !seaEnv?.clouds} />
     );
   return (
     <div className={`${pos} overflow-hidden rounded-2xl ${className}`}>
@@ -228,7 +231,7 @@ function SeaWavelets({ dy = 0 }: { dy?: number }) {
 
 /* Flat beach scene — drives every gradient and decor layer from `preset`. Used
    by the booking map, the auth panel, the map editor canvas and the picker. */
-function BeachScene({ preset, preview = false, shoreline, noVeg = false }: { preset: BeachPreset; preview?: boolean; shoreline?: number; noVeg?: boolean }) {
+function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky = false }: { preset: BeachPreset; preview?: boolean; shoreline?: number; noVeg?: boolean; /** Drop clouds and birds — the still phone backdrop (AENR-730), where the shoreline moves and they'd sit on the sand. */ noSky?: boolean }) {
   const rid = useId().replace(/:/g, "");
   const id = (k: string) => `${k}-${rid}`;
   const grain = preset.grain && !preview;
@@ -300,7 +303,7 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false }: { pre
       <SandDetail preset={preset} dy={dy} mottle={grain} idp={id} />
 
       {/* Optional decor (sun, palms, clouds…) above the sand, behind the greenery. */}
-      <SceneDecor preset={preset} id={id} />
+      <SceneDecor preset={preset} id={id} noSky={noSky} />
 
       {preset.veg && !noVeg && (
         <>
@@ -342,7 +345,8 @@ const LiveSeaCanvas = lazy(() => import("./LiveSeaCanvas"));
 const liveSeaOK = () =>
   typeof window !== "undefined" &&
   typeof WebGL2RenderingContext !== "undefined" &&
-  !prefersReducedMotion();
+  !prefersReducedMotion() &&
+  !liteScene(); // phones / small tablets keep the still sea (AENR-730)
 
 /* Depth-parallax beach — the same palette split into far (sea), mid (sand +
    decor) and near (vegetation) planes that drift at different rates on scroll, so
@@ -556,14 +560,14 @@ function CustomBeach({ src, parallax = false }: { src: string; parallax?: boolea
    backdrop the clouds start hidden — the ambient driver owns their visibility
    per demo weather, so a sunny sky can never show a stray cloud. Static
    scenes (previews, phones) keep them as part of the illustration. */
-function SceneDecor({ preset, id, liveClouds = false }: { preset: BeachPreset; id: (k: string) => string; liveClouds?: boolean }) {
+function SceneDecor({ preset, id, liveClouds = false, noSky = false }: { preset: BeachPreset; id: (k: string) => string; liveClouds?: boolean; noSky?: boolean }) {
   const d = preset.decor;
   if (d.length === 0) return null;
   return (
     <>
-      {d.includes("clouds") && <Clouds hidden={liveClouds} />}
+      {d.includes("clouds") && !noSky && <Clouds hidden={liveClouds} />}
       {d.includes("sun") && <SunDisc gradId={id("sun")} />}
-      {d.includes("birds") && <Birds />}
+      {d.includes("birds") && !noSky && <Birds />}
       {d.includes("rocks") && <Rocks />}
       {d.includes("palms") && <Palms />}
     </>

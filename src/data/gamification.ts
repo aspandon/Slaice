@@ -1,6 +1,6 @@
 // Gamification — achievements that earn a badge when a metric (visits / bookings
 // / spend) crosses a threshold. Admin-editable; surfaced as badges on the home.
-// Fully serialisable (icon + colour are string keys), so it lives in the store.
+// Fully serialisable (icon + colour are string keys), so it lives in the zone.
 
 export type GameMetric = "visits" | "bookings" | "spend";
 

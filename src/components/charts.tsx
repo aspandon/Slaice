@@ -31,8 +31,10 @@ function seriesSummary(kind: string, data: SeriesPoint[], label?: string): strin
 const PAD_LEFT = 44;   // px reserved for Y-axis labels
 const PAD_BOTTOM = 28; // px reserved for X-axis labels
 
-export function BarChart({ data, color = "#0D9488", height = 220, label }: { data: SeriesPoint[]; color?: string; height?: number; label?: string }) {
-  const max = Math.max(...data.map((d) => d.v)) * 1.15 || 1;
+/** `colors` (optional) colours each bar; `avg` draws a dashed reference line;
+ *  `labelEvery` thins the x-axis labels for long daily series. */
+export function BarChart({ data, color = "#0D9488", height = 220, label, colors, avg, labelEvery = 1 }: { data: SeriesPoint[]; color?: string; height?: number; label?: string; colors?: string[]; avg?: { v: number; label: string }; labelEvery?: number }) {
+  const max = Math.max(...data.map((d) => d.v), avg?.v ?? 0) * 1.15 || 1;
   const ticks = [1, 0.66, 0.33, 0];
   return (
     <div className="relative" style={{ height }} role="img" aria-label={seriesSummary("Bar chart", data, label)}>
@@ -50,14 +52,16 @@ export function BarChart({ data, color = "#0D9488", height = 220, label }: { dat
             const h = (d.v / max) * 60;
             const bw = 100 / data.length;
             return (
-              <rect key={i} x={i * bw + bw * 0.18} y={60 - h} width={bw * 0.64} height={h} rx="0.6" fill={color} opacity={d.hi ? 1 : 0.78} />
+              <rect key={i} x={i * bw + bw * 0.18} y={60 - h} width={bw * 0.64} height={h} rx="0.6" fill={colors?.[i] ?? color} opacity={d.hi ? 1 : 0.78} />
             );
           })}
+          {avg && <line x1="0" x2="100" y1={60 - (avg.v / max) * 60} y2={60 - (avg.v / max) * 60} stroke="#0B2545" strokeWidth="0.35" strokeDasharray="1.2 0.8" />}
         </svg>
+        {avg && <span className="absolute right-0 text-[11px] font-semibold text-navy-900 bg-white/85 rounded px-1 -translate-y-full" style={{ top: `${(1 - avg.v / max) * 100}%` }}>{avg.label}</span>}
       </div>
       {/* X-axis labels */}
       <div className="absolute right-0 bottom-0 grid text-[12.5px] font-medium text-slate-600 pointer-events-none" style={{ left: PAD_LEFT, height: PAD_BOTTOM, gridTemplateColumns: `repeat(${data.length}, 1fr)` }}>
-        {data.map((d, i) => <span key={i} className="text-center pt-1.5 truncate">{d.l}</span>)}
+        {data.map((d, i) => <span key={i} className={`text-center pt-1.5 ${labelEvery > 1 ? "whitespace-nowrap overflow-visible" : "truncate"}`}>{i % labelEvery === 0 ? d.l : ""}</span>)}
       </div>
     </div>
   );
@@ -83,12 +87,22 @@ export function HBarChart({ data, color = "#0D9488", unit = "", max, label }: { 
   );
 }
 
-export function LineChartMini({ data, color = "#0D9488", height = 220, label }: { data: SeriesPoint[]; color?: string; height?: number; label?: string }) {
-  const max = Math.max(...data.map((d) => d.v)) * 1.1 || 1;
-  const min = Math.min(...data.map((d) => d.v)) * 0.9;
+// `compare` draws a dashed reference series (e.g. last year) on the same scale.
+// `partialLast`: the last point is a period still in progress (e.g. this month) —
+// its segment is dashed and its dot hollow, so a lower value doesn't read as a drop.
+export function LineChartMini({ data, color = "#0D9488", height = 220, label, compare, compareColor = "#94a3b8", partialLast = false }: { data: SeriesPoint[]; color?: string; height?: number; label?: string; compare?: SeriesPoint[]; compareColor?: string; partialLast?: boolean }) {
+  const all = [...data, ...(compare ?? [])];
+  const max = Math.max(...all.map((d) => d.v)) * 1.1 || 1;
+  const min = Math.min(...all.map((d) => d.v)) * 0.9;
+  const xOf = (i: number) => (data.length > 1 ? (i / (data.length - 1)) * 100 : 50);
   const span = max - min || 1;
   const ticks = [1, 0.66, 0.33, 0];
-  const pts = data.map((d, i) => `${(i / (data.length - 1)) * 100},${60 - ((d.v - min) / span) * 60}`).join(" ");
+  const yOf = (v: number) => 60 - ((v - min) / span) * 60;
+  const pts = data.map((d, i) => `${xOf(i)},${yOf(d.v)}`).join(" ");
+  const solid = partialLast && data.length > 1 ? data.slice(0, -1) : data;
+  const solidPts = solid.map((d, i) => `${xOf(i)},${yOf(d.v)}`).join(" ");
+  const tail = partialLast && data.length > 1 ? `${xOf(data.length - 2)},${yOf(data[data.length - 2].v)} ${xOf(data.length - 1)},${yOf(data[data.length - 1].v)}` : "";
+  const cmpPts = compare?.map((d, i) => `${xOf(i)},${60 - ((d.v - min) / span) * 60}`).join(" ");
   const area = `0,60 ${pts} 100,60`;
   const gid = `g${color.replace("#", "")}`;
   return (
@@ -108,22 +122,32 @@ export function LineChartMini({ data, color = "#0D9488", height = 220, label }: 
             <line key={i} x1="0" x2="100" y1={60 * (1 - t)} y2={60 * (1 - t)} stroke="#e2e8f0" strokeWidth="0.25" strokeDasharray="0.8 0.8" />
           ))}
           <polygon points={area} fill={`url(#${gid})`} />
-          <polyline points={pts} fill="none" stroke={color} strokeWidth="0.8" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          {cmpPts && <polyline points={cmpPts} fill="none" stroke={compareColor} strokeWidth="0.8" strokeDasharray="2 1.5" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />}
+          <polyline points={solidPts} fill="none" stroke={color} strokeWidth="0.8" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+          {tail && <polyline points={tail} fill="none" stroke={color} strokeWidth="0.8" strokeDasharray="2 1.5" vectorEffect="non-scaling-stroke" />}
           {data.map((d, i) => {
-            const x = (i / (data.length - 1)) * 100;
-            const y = 60 - ((d.v - min) / span) * 60;
-            return <circle key={i} cx={x} cy={y} r="0.8" fill={color} />;
+            const open = partialLast && i === data.length - 1;
+            return <circle key={i} cx={xOf(i)} cy={yOf(d.v)} r="0.8" fill={open ? "white" : color} stroke={open ? color : undefined} strokeWidth={open ? 0.4 : undefined} />;
           })}
         </svg>
       </div>
-      <div className="absolute right-0 bottom-0 grid text-[12.5px] font-medium text-slate-600 pointer-events-none" style={{ left: PAD_LEFT, height: PAD_BOTTOM, gridTemplateColumns: `repeat(${data.length}, 1fr)` }}>
-        {data.map((d, i) => <span key={i} className="text-center pt-1.5 truncate">{d.l}</span>)}
+      {/* Labels sit under their points (first and last aligned to the edges). On phones a long
+          series shows every other label, counted back from the latest, so they never overlap. */}
+      <div className="absolute right-0 bottom-0 text-[12.5px] font-medium text-slate-600 pointer-events-none" style={{ left: PAD_LEFT, height: PAD_BOTTOM }}>
+        {data.map((d, i) => {
+          const x = xOf(i);
+          const shift = data.length === 1 ? "-50%" : i === 0 ? "0" : i === data.length - 1 ? "-100%" : "-50%";
+          const thin = data.length > 7 && (data.length - 1 - i) % 2 === 1;
+          return <span key={i} className={`absolute pt-1.5 whitespace-nowrap${thin ? " max-sm:hidden" : ""}`} style={{ left: `${x}%`, transform: `translateX(${shift})` }}>{d.l}</span>;
+        })}
       </div>
     </div>
   );
 }
 
-export function Donut({ segments, size = 120, label, className }: { segments: DonutSegment[]; size?: number; label?: string; className?: string }) {
+/* The centre shows the real total (AENR-555) — e.g. "€889k" over "revenue" —
+   never the sum of the percentages. */
+export function Donut({ segments, size = 120, label, className, total: centre, totalLabel }: { segments: DonutSegment[]; size?: number; label?: string; className?: string; total?: string; totalLabel?: string }) {
   const total = segments.reduce((a, s) => a + s.v, 0);
   let acc = 0;
   const r = 42, c = 2 * Math.PI * r;
@@ -137,8 +161,8 @@ export function Donut({ segments, size = 120, label, className }: { segments: Do
         return <circle key={i} cx="50" cy="50" r={r} fill="none" stroke={s.c} strokeWidth="12"
           strokeDasharray={`${dash} ${c - dash}`} strokeDashoffset={-off} transform="rotate(-90 50 50)" strokeLinecap="butt" />;
       })}
-      <text x="50" y="48" textAnchor="middle" fontSize="11" fontWeight="700" fill="#0B2545">{total}</text>
-      <text x="50" y="60" textAnchor="middle" fontSize="6" fill="#64748b">total</text>
+      {centre && <text x="50" y={totalLabel ? 50 : 54} textAnchor="middle" fontSize={centre.length > 6 ? 10 : 12} fontWeight="700" fill="#0B2545">{centre}</text>}
+      {centre && totalLabel && <text x="50" y="61" textAnchor="middle" fontSize="6" fill="#475569">{totalLabel}</text>}
     </svg>
   );
 }
@@ -172,7 +196,7 @@ export function StackedBar({ segments, height = 10, className = "" }: { segments
 }
 
 // Conversion funnel — each step a shrinking bar with a count + drop-off.
-export function Funnel({ steps, color = "#3a47cc" }: { steps: FunnelStep[]; color?: string }) {
+export function Funnel({ steps, color = "#13315c" }: { steps: FunnelStep[]; color?: string }) {
   const top = steps[0]?.v || 1;
   return (
     <div className="space-y-1.5">
@@ -224,5 +248,40 @@ export function QR({ size = 120, seed = "SLAICE" }: { size?: number; seed?: stri
       <rect width={QR_N} height={QR_N} fill="#fff" />
       {cells.map(([x, y], i) => <rect key={i} x={x} y={y} width="1" height="1" fill="#0B2545" />)}
     </svg>
+  );
+}
+
+/* ---------- Multi-line chart ----------
+   Several series on one scale (e.g. revenue per channel over time), each with
+   its own colour and a legend; announced as one labelled image. */
+export function MultiLineChart({ labels, series, height = 220, label }: { labels: string[]; series: { name: string; color: string; values: number[] }[]; height?: number; label?: string }) {
+  const all = series.flatMap((s) => s.values);
+  const max = Math.max(...all, 0) * 1.1 || 1;
+  const ticks = [1, 0.66, 0.33, 0];
+  const xOf = (i: number) => (labels.length > 1 ? (i / (labels.length - 1)) * 100 : 50);
+  const aria = label || `Line chart: ${series.map((s) => s.name).join(", ")}`;
+  const every = Math.max(1, Math.ceil(labels.length / 12));
+  return (
+    <div>
+      <div className="relative" style={{ height }} role="img" aria-label={aria}>
+        <div className="absolute left-0 top-0 flex flex-col justify-between text-[12px] font-medium text-slate-500 tnum pr-2 pointer-events-none" style={{ width: PAD_LEFT, bottom: PAD_BOTTOM }}>
+          {ticks.map((t, i) => <span key={i} className="text-right leading-none">{formatTick(max * t)}</span>)}
+        </div>
+        <div className="absolute top-0 right-0" style={{ left: PAD_LEFT, bottom: PAD_BOTTOM }}>
+          <svg viewBox="0 0 100 60" preserveAspectRatio="none" className="w-full h-full">
+            {ticks.map((t, i) => <line key={i} x1="0" x2="100" y1={60 * (1 - t)} y2={60 * (1 - t)} stroke="#e2e8f0" strokeWidth="0.25" strokeDasharray="0.8 0.8" />)}
+            {series.map((s) => (
+              <polyline key={s.name} points={s.values.map((v, i) => `${xOf(i)},${60 - (v / max) * 60}`).join(" ")} fill="none" stroke={s.color} strokeWidth="1" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+            ))}
+          </svg>
+        </div>
+        <div className="absolute right-0 bottom-0 grid text-[12px] font-medium text-slate-600 pointer-events-none" style={{ left: PAD_LEFT, height: PAD_BOTTOM, gridTemplateColumns: `repeat(${labels.length}, 1fr)` }}>
+          {labels.map((l, i) => <span key={i} className="text-center pt-1.5 truncate">{i % every === 0 ? l : ""}</span>)}
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-[12px] text-slate-600">
+        {series.map((s) => <span key={s.name} className="inline-flex items-center gap-1.5"><i className="w-4 h-0.5 inline-block" style={{ background: s.color }} />{s.name}</span>)}
+      </div>
+    </div>
   );
 }

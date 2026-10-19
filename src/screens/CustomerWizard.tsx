@@ -1,42 +1,60 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useMediaQuery } from "../lib/useMediaQuery";
+import { useTenantFeatures } from "../lib/useFeatures";
+import { ADD_EXTRAS_LABEL, extrasPhrase, type ExtrasKind } from "../domain/features";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
 import { Icon } from "../lib/icons";
 import type { IconRenderer } from "../lib/icons";
-import { Btn, Badge, Stepper, Input, Field, DatePickerRow, Toggle } from "../components/ui";
+import { Btn, Badge, Stepper, Input, Field, DatePickerRow, Toggle, Modal, Sheet, type DayInfo } from "../components/ui";
 import { prefersReducedMotion } from "../lib/motion";
 import { gsap, Flip, motionOK, stashFlip, EASE } from "../lib/fx";
 import { Sunbed, SunbedMark } from "../components/Beach";
-import { SandScene } from "../components/SandScene";
-import { ZONES, ZONE_BLOCKS, todayISO, chipLabel, zoneLayout } from "../data/beach";
-import type { SunbedSlot } from "../domain/types";
+import { ZONES, ZONE_BLOCKS, todayISO, chipLabel, forecastFor, WEATHER_DEMO } from "../data/beach";
+import { addDays } from "../domain/period";
+import { useClosure, useLiveSlots } from "../lib/useLiveSlots";
+import { checkRestrictions, dateBlock, resolvePrice } from "../domain/pricing";
+import { stopSellFor } from "../domain/inventory";
+import type { CartItem, SunbedSlot } from "../domain/types";
 import { useApp, useSpotlight, useT } from "../app/store";
 import { localeFor } from "../app/i18n";
-import { TICKET_PRICES, TICKET_META, LOCKER_PRICE, PARKING_PRICE } from "../domain/pricing";
+import { PARKING_PRICE } from "../domain/pricing";
+import { useExtras } from "../lib/useExtras";
+import { useSiteTerms } from "../lib/useEconomics";
+import { partyLabel, serviceFees } from "../domain/account";
+import { useSiteStatus } from "../lib/usePlatform";
+import { Checkout } from "./Checkout";
+import { bestSets } from "../domain/bestSets";
+import { ZoomBox } from "../components/ZoomBox";
+import { useDemoFlag } from "../lib/useDemoFlag";
+import { useGuestScene } from "../lib/useGuestScene";
 
 type People = Record<string, number>;
-interface BedPick { id: string; price: number }
+interface BedPick { id: string; price: number; zoneId: string }
 type WizardZone = (typeof ZONES)[number];
 type BeachPhase = "zones" | "sets";
 /** Locker / parking can apply to every chosen day or a hand-picked subset. */
 type DayScope = "all" | "some";
 interface TicketBreakItem { k: string; n: number; t: { price: number; label: string; sub: string }; total: number }
 
-/* Pricing comes from the shared domain module (single source of truth), so the
-   wizard and Checkout can never disagree. One "set" = 1 umbrella + 2 sunbeds. */
-const TICKET: Record<string, { price: number; label: string; sub: string }> = {
-  adult:    { price: TICKET_PRICES.adult,    ...TICKET_META.adult },
-  resident: { price: TICKET_PRICES.resident, ...TICKET_META.resident },
-  child:    { price: TICKET_PRICES.child,     ...TICKET_META.child },
-  senior:   { price: TICKET_PRICES.senior,    ...TICKET_META.senior },
-};
+/* Ticket categories, prices and lockers come from Admin › Beach, Availability &
+   Pricing (Entry tickets / Lockers, AENR-529/530) — the same source as the
+   till. One "set" = 1 umbrella + 2 sunbeds. */
+type TicketInfo = Record<string, { price: number; label: string; sub: string }>;
+export interface LockerChoice { id: string; name: string; price: number; avail: number | null }
 
+// Four steps (AENR-673; AENR-612 had three): the day, then where you sit — so a missing set is
+// always named — then who and pay. Locker and parking are one optional row on Pay, not steps.
 const STEPS = [
-  { id: "beach",   label: "Beach",    icon: "umbrella", sub: "Pick your zone, sunbeds & days" },
-  { id: "people",  label: "Guests",   icon: "group",    sub: "Tell us who's coming" },
-  { id: "locker",  label: "Locker",   icon: "lock",     sub: "Add a day locker (optional)", optional: true },
-  { id: "parking", label: "Parking Spot", icon: "car", sub: "Reserve a spot (optional)",    optional: true },
-  { id: "review",  label: "Review",   icon: "checkCircle", sub: "Confirm & checkout" },
+  { id: "when",   label: "When",  icon: "calendar",    sub: "Pick your day" },
+  { id: "beach",  label: "Where", icon: "umbrella",    sub: "Pick your zone and sets" },
+  { id: "people", label: "Who",          icon: "group",       sub: "Tell us who's coming" },
+  { id: "review", label: "Pay",          icon: "checkCircle", sub: "Check, add extras and pay" },
 ];
+/** The extras section heading for what the beach sells (AENR-696). */
+const EXTRAS_TITLE: Record<Exclude<ExtrasKind, "none">, string> = { both: "Locker and parking", locker: "Locker", parking: "Parking" };
+/** Old deep links to the retired locker / parking steps open the extras on Pay. */
+const EXTRA_STEPS = ["locker", "parking"];
+const BEACH_IDX = STEPS.findIndex((s) => s.id === "beach");
 
 type FlipStateT = ReturnType<typeof Flip.getState>;
 
@@ -81,11 +99,11 @@ function bedPickFx(el: HTMLElement, price: number, adding: boolean) {
 }
 
 /* ---- Zone fly-out snapshots (C1) ----
-   When a store cluster is tapped, the overview unmounts immediately so the
+   When a zone cluster is tapped, the overview unmounts immediately so the
    picked zone's umbrellas can FLIP into the full grid. The *other* clusters
    (and the picked one's name label) would vanish abruptly — so they're cloned
    at their viewport rects into a throwaway fixed layer and drift away from the
-   picked store while fading. Pure snapshots: no reflow, no React. */
+   picked zone while fading. Pure snapshots: no reflow, no React. */
 function cloneFadeClusters(pickedId: string) {
   const layer = document.createElement("div");
   layer.className = "fixed inset-0 z-10 pointer-events-none";
@@ -143,39 +161,106 @@ function useAnimatedNumber(value: number, duration = 480) {
    forms, running total and Back/Continue. After the Beach step the sand keeps
    showing the picks, read-only, while later steps run in the menu.
    ============================================================================ */
+/* The wizard, unless the tenant isn't taking bookings (suspended / paused / closed, AENR-518). */
 export function CustomerWizard() {
+  const site = useSiteStatus();
+  const { go } = useApp();
+  if (site.blockOnline)
+    return (
+      <div className="grid place-items-center min-h-[60dvh] px-3">
+        <div role="alert" className="glass-card rounded-2xl p-8 max-w-md text-center">
+          <span className="mx-auto w-12 h-12 rounded-xl bg-amber-100 text-amber-700 grid place-items-center"><Icon.clock size={22} /></span>
+          <h1 className="mt-3 font-display font-bold text-guest-head text-navy-900">{site.tenant?.name}</h1>
+          <p className="mt-1 text-guest-body text-slate-600">{site.message}</p>
+          <p className="mt-1 text-guest-meta text-slate-500">Bookings you already have stay valid — show your QR at the entrance.</p>
+          <Btn variant="teal" className="mt-4" icon={Icon.grid} onClick={() => go("customer", "mybookings")}>My bookings</Btn>
+        </div>
+      </div>
+    );
+  return <WizardInner />;
+}
+
+function WizardInner() {
   const tr = useT();
-  const { go, toast, addToCart, hint, lang, beachLayout } = useApp();
+  const { go, toast, addToCart, removeFromCart, hint, lang, beachPricing, priceRules, calendar, inventory, account, setAccount } = useApp();
+  const { weather, live: sceneLive } = useGuestScene(); // AENR-737: off → a sunny forecast every day
+  const [newGuest] = useDemoFlag("newGuest"); // Demo › first-time guest (AENR-702)
   useSpotlight("customer", "plan");
+  const liveSlots = useLiveSlots();
+  // Lockers / parking only when the beach has the module (AENR-696) — the Pay row, the usual and the basket.
+  const { module } = useTenantFeatures();
+  const canLocker = module("Day Locker");
+  const canParking = module("Parking");
+  const extrasKind = extrasPhrase(canLocker, canParking);
+
+  // "Book again" (AENR-611): the guest's usual — zone, sets, party, locker / parking — on the
+  // next day it is free, worked out once when the wizard opens and shown on Pay.
+  const [plan] = useState(() => {
+    const u = hint?.persona === "customer" && hint.page === "plan" ? hint.rebook : undefined;
+    const z = u && ZONES.find((x) => x.name === u.zone || x.id === u.zone);
+    if (!u || !z) return null;
+    const time = new Date().toTimeString().slice(0, 5);
+    // AENR-705: Home already checked the proposed day free — start there (it re-checks, in case it changed).
+    const start = u.date && u.date >= todayISO() ? u.date : todayISO();
+    for (let i = 0; i < 21; i++) {
+      const iso = addDays(start, i);
+      if (dateBlock(z.id, iso, calendar.restrictions, todayISO(), time) || stopSellFor(inventory, z.id, [iso])) continue;
+      const free = liveSlots(z, [iso]).filter((x) => x.state === "a");
+      if (free.length < u.sets) continue;
+      // The sets they had before when they're free (most-booked first), then the next free ones.
+      const fav = u.setIds.flatMap((id) => free.filter((x) => x.id === id));
+      const picks = [...fav, ...free.filter((x) => !u.setIds.includes(x.id))].slice(0, u.sets);
+      return { zoneId: z.id, date: iso, picks: picks.map((x): BedPick => ({ id: x.id, price: x.price, zoneId: z.id })), lockers: u.lockers, parking: u.parking, party: u.party };
+    }
+    return null;
+  });
 
   // Deep-link: a Home tile can open the wizard straight at a given step.
+  const hintStep = hint && hint.persona === "customer" && hint.page === "plan" ? hint.step : undefined;
   const initialStep = useMemo(() => {
-    if (hint && hint.persona === "customer" && hint.page === "plan" && hint.step) {
-      const i = STEPS.findIndex((s) => s.id === hint.step);
+    if (plan) return STEPS.findIndex((s) => s.id === "review");
+    // A zone already open (deep link or the usual) starts on Where; the day is set.
+    if (hintStep === "beach") return BEACH_IDX;
+    if (hintStep) {
+      const i = STEPS.findIndex((s) => s.id === (EXTRA_STEPS.includes(hintStep) ? "review" : hintStep));
       if (i >= 0) return i;
     }
     return 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // "Add a locker or parking" on Pay — closed until asked for (or deep-linked).
+  const [extrasOpen, setExtrasOpen] = useState(() => !!hintStep && EXTRA_STEPS.includes(hintStep));
+  const extrasRef = useRef<HTMLElement>(null);
+  // Bring the locker / parking pickers into view when they open.
+  useEffect(() => {
+    if (extrasOpen) extrasRef.current?.scrollIntoView({ block: "start", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+  }, [extrasOpen]);
 
   const [stepIdx, setStepIdx] = useState(initialStep);
-  const [people, setPeople] = useState<People>({ adult: 0, resident: 0, child: 0, senior: 0 });
+  // Who starts with as many tickets as the chosen sets seat — 2 per set (AENR-712); "Your usual"
+  // (AENR-613) is one tap away. A one-tap rebook of the usual keeps that party.
+  const [people, setPeople] = useState<People>(() => (plan ? plan.party ?? account.party ?? { adult: plan.picks.length * 2, resident: 0, child: 0, senior: 0 } : { adult: 0, resident: 0, child: 0, senior: 0 }));
   const [includeTickets, setIncludeTickets] = useState(true);
   // Track whether the guest has hand-edited the headcount. Until they do, we
   // pre-fill it from the chosen sets (2 entry tickets per set — see below).
-  const [peopleTouched, setPeopleTouched] = useState(false);
-  const [selDates, setSelDates] = useState([todayISO()]);
+  const [peopleTouched, setPeopleTouched] = useState(!!plan);
+  const [selDates, setSelDates] = useState([plan?.date ?? todayISO()]);
   const [multiDate, setMultiDate] = useState(false);
-  const [zoneId, setZoneId] = useState("central");
+  const [zoneId, setZoneId] = useState(plan?.zoneId ?? "central");
   // Explicit umbrella-set picks — the single source of truth for sunbeds
   // (zone-scoped; cleared when the zone changes).
-  const [bedSel, setBedSel] = useState<BedPick[]>([]);
-  const [lockerOn, setLockerOn] = useState(false);
-  const [lockerQty, setLockerQty] = useState(1);
+  const [bedSel, setBedSel] = useState<BedPick[]>(plan?.picks ?? []);
+  // Opt-in: combine sets from several zones in one booking (AENR-524).
+  const [multiStore, setMultiStore] = useState(false);
+  const multiStoreRef = useRef(false);
+  useEffect(() => { multiStoreRef.current = multiStore; }, [multiStore]);
+  const [lockerOn, setLockerOn] = useState(!!plan?.lockers);
+  const [lockerQty, setLockerQty] = useState(plan?.lockers || 1);
   const [lockerScope, setLockerScope] = useState<DayScope>("all");
   const [lockerDays, setLockerDays] = useState<string[]>([]);
-  const [parkingOn, setParkingOn] = useState(false);
-  const [parkingQty, setParkingQty] = useState(1);
+  const [lockerBank, setLockerBank] = useState("A");
+  const [parkingOn, setParkingOn] = useState(!!plan?.parking);
+  const [parkingQty, setParkingQty] = useState(plan?.parking || 1);
   const [parkingScope, setParkingScope] = useState<DayScope>("all");
   const [parkingDays, setParkingDays] = useState<string[]>([]);
   // Vehicle plate per ISO date (multi-day trips can use a different plate each
@@ -186,7 +271,7 @@ export function CustomerWizard() {
   // Most guests park the same car all week — default to one shared plate.
   const [parkingSamePlate, setParkingSamePlate] = useState(true);
   // Within the Beach step: choosing a zone vs. tapping its sets.
-  const [phase, setPhase] = useState<BeachPhase>("zones");
+  const [phase, setPhase] = useState<BeachPhase>(plan ? "sets" : "zones");
   // Desktop overview = clusters on open sand (FLIP-zoomable); phones = cards.
   const richOverview = useMediaQuery("(min-width: 768px) and (min-height: 560px)");
   // Camera-zoom plumbing: the captured FLIP state riding across the phase
@@ -196,12 +281,21 @@ export function CustomerWizard() {
   const flipBackRef = useRef(false);
   const zoomingRef = useRef(false);
 
-  const totalPeople = people.adult + people.resident + people.child + people.senior;
+  const ex = useExtras();
+  const firstDay = selDates[0] ?? todayISO();
+  const TICKET: TicketInfo = Object.fromEntries(ex.tickets.map((t) => [t.id, { price: ex.ticketPrice(t.id, firstDay), label: t.name, sub: t.note ?? "" }]));
+  const totalPeople = ex.tickets.reduce((a, t) => a + (people[t.id] ?? 0), 0);
   const dayCount = selDates.length;
   const zone = ZONES.find((z) => z.id === zoneId) || ZONES[0];
 
   // Bed IDs are zone-scoped — switching zone clears any picked beds.
-  useEffect(() => { setBedSel([]); }, [zoneId]);
+  // …unless the guest opted into several zones, then picks are kept per zone.
+  const shownZone = useRef(zoneId);
+  useEffect(() => {
+    if (shownZone.current === zoneId) return; // not on mount — "Book again" opens with its sets picked
+    shownZone.current = zoneId;
+    if (!multiStoreRef.current) setBedSel([]);
+  }, [zoneId]);
 
   // A set seats two, so default the headcount to 2 entry tickets per chosen set.
   // We stop auto-filling the moment the guest adjusts the numbers themselves.
@@ -217,26 +311,64 @@ export function CustomerWizard() {
     setParkingDays((d) => d.filter((x) => set.has(x)));
   }, [selDates]);
   // The days each service actually covers: all chosen days, or a subset (multi-day).
-  const lockerDates = lockerOn ? (multiDate && lockerScope === "some" ? lockerDays : selDates) : [];
-  const parkingDates = parkingOn ? (multiDate && parkingScope === "some" ? parkingDays : selDates) : [];
+  const lockerDates = lockerOn && canLocker ? (multiDate && lockerScope === "some" ? lockerDays : selDates) : [];
+  const parkingDates = parkingOn && canParking ? (multiDate && parkingScope === "some" ? parkingDays : selDates) : [];
 
   // The admin-authored layout for this zone, if any — otherwise the default grid.
-  const slots = useMemo(() => beachLayout[zone.id] ?? zoneLayout(zone), [beachLayout, zone]);
-  const selectedIds = useMemo(() => new Set(bedSel.map((b) => b.id)), [bedSel]);
+  // …with the live status for the chosen dates applied: sets sold at the till
+  // or held in a till basket aren't bookable online (AENR-520).
+  const slots = useMemo(() => liveSlots(zone, selDates), [liveSlots, zone, selDates]);
+  const selectedIds = useMemo(() => new Set(bedSel.filter((b) => b.zoneId === zone.id).map((b) => b.id)), [bedSel, zone.id]);
+  // Live sets of every zone with a pick — prices and the stale check before checkout.
+  const pickZones = useMemo(() => [...new Set(bedSel.map((b) => b.zoneId))], [bedSel]);
+  const pickSlots = useMemo(() => Object.fromEntries(pickZones.map((zid) => [zid, liveSlots(ZONES.find((z) => z.id === zid) ?? zone, selDates)])), [pickZones, liveSlots, selDates, zone]);
+  const stalePicks = bedSel.filter((b) => pickSlots[b.zoneId]?.find((x) => x.id === b.id)?.state !== "a");
   const avail = useMemo(() => slots.filter((s) => s.state === "a").length, [slots]);
 
-  const setSubtotal = bedSel.reduce((a, b) => a + b.price, 0) * dayCount;
-  const ticketBreak = Object.entries(people).map(([k, n]) => ({ k, n, t: TICKET[k], total: n * TICKET[k].price * dayCount }));
+  // Each day before choosing it (AENR-570): weather, price level and spots left —
+  // for the chosen zone once inside it, for the whole beach on the zone overview.
+  const scopeZones = phase === "sets" ? [zone] : ZONES;
+  const minBase = useMemo(() => Math.min(...ZONES.map((z) => z.from)), []);
+  const dayInfo = (iso: string): DayInfo => {
+    const free = scopeZones.flatMap((z) => liveSlots(z, [iso]).filter((x) => x.state === "a").map((x) => ({ x, z })));
+    const prices = free.map(({ x, z }) => resolvePrice(x, z.id, iso, beachPricing, priceRules).price);
+    const price = prices.length ? Math.min(...prices) : undefined;
+    const fc = forecastFor(iso, todayISO(), weather, sceneLive);
+    const ref = phase === "sets" ? zone.from : minBase;
+    return { icon: WEATHER_DEMO[fc.kind].icon, temp: fc.tempC, price, level: price == null ? undefined : price <= ref ? "low" : price >= ref * 1.25 ? "high" : "mid", left: free.length };
+  };
+  // A full day never ends the journey: nearest days with room, other zones that day, or a notification.
+  const fullDay = !multiDate && selDates.length === 1 && dayInfo(selDates[0]).left === 0 ? selDates[0] : null;
+
+  // Booking restrictions (AENR-511): closed days, booking window and same-day
+  // cut-off disable a date; minimum / maximum stay rules block Continue.
+  const nowTime = new Date().toTimeString().slice(0, 5);
+  const today = todayISO();
+  const blockReason = (iso: string) => dateBlock(zone.id, iso, calendar.restrictions, today, nowTime);
+  const stayCheck = checkRestrictions(zone.id, selDates, calendar.restrictions, today, nowTime);
+  // Stop-sell (AENR-512): the zone isn't sold online on these dates.
+  const stopSell = stopSellFor(inventory, zone.id, selDates);
+  // Each chosen day is priced on its own (categories, seasonal rules, date
+  // overrides) and with the booking context (early-bird, last-minute, multi-day).
+  const ctx = { bookedOn: today, time: nowTime, stayDays: selDates.length };
+  const bedPrice = (b: BedPick, iso: string, withCtx = true) => { const s = (pickSlots[b.zoneId] ?? slots).find((x) => x.id === b.id); return s ? resolvePrice(s, b.zoneId, iso, beachPricing, priceRules, withCtx ? ctx : undefined).price : 0; };
+  const setSubtotal = bedSel.reduce((a, b) => a + selDates.reduce((x, iso) => x + bedPrice(b, iso), 0), 0);
+  // Switched-off categories drop out; each day is priced on its own (weekday / weekend, periods).
+  const ticketBreak = ex.tickets.map((tc) => { const n = people[tc.id] ?? 0; return { k: tc.id, n, t: TICKET[tc.id], total: selDates.reduce((a, iso) => a + n * ex.ticketPrice(tc.id, iso), 0) }; });
   const ticketSubtotal = includeTickets ? ticketBreak.reduce((a, b) => a + b.total, 0) : 0;
-  const lockerSubtotal = lockerQty * LOCKER_PRICE * lockerDates.length;
+  // Lockers: the chosen bank's price per day; availability from the locker provider (AENR-530).
+  const lockerDaysForAvail = lockerOn ? lockerDates : selDates;
+  const bankAvail = (id: string) => { const v = lockerDaysForAvail.map((d) => ex.lockerAvail(id, d)); return v.some((x) => x === null) ? null : Math.min(...(v as number[])); };
+  const lockerChoices: LockerChoice[] = ex.banks.map((b) => ({ id: b.id, name: b.name, price: ex.lockerPrice(b.id, firstDay), avail: bankAvail(b.id) }));
+  const lockerSubtotal = lockerDates.reduce((a, iso) => a + lockerQty * ex.lockerPrice(lockerBank, iso), 0);
   const parkingSubtotal = parkingQty * PARKING_PRICE * parkingDates.length;
   const grandTotal = setSubtotal + ticketSubtotal + lockerSubtotal + parkingSubtotal;
 
   const step = STEPS[stepIdx];
   const last = STEPS.length - 1;
 
-  // Tap a store → the camera dives in: its umbrellas FLIP from the cluster into
-  // the full pick grid while the other stores drift away (desktop only; the
+  // Tap a zone → the camera dives in: its umbrellas FLIP from the cluster into
+  // the full pick grid while the other zones drift away (desktop only; the
   // phone card list keeps the instant swap).
   const pickZone = (id: string) => {
     if (zoomingRef.current) return;
@@ -247,6 +379,8 @@ export function CustomerWizard() {
     }
     flipBackRef.current = false;
     setZoneId(id);
+    // The guest picks their own sets (owner, AENR-732) — opening a zone no longer pre-selects any;
+    // "Pick for me" stays as an explicit choice.
     setPhase("sets");
   };
   // Reverse camera: the big grid FLIPs back down into its cluster on the map.
@@ -285,42 +419,101 @@ export function CustomerWizard() {
     return () => cancelAnimationFrame(raf);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- flip reads refs + DOM
   }, [phase]);
+  const [announce, setAnnounce] = useState("");
+  const [sheetPref, setSheetPref] = useState<Record<string, boolean>>({});
   const toggleBed = (slot: SunbedSlot, el?: HTMLElement | null) => {
     const adding = !bedSel.find((b) => b.id === slot.id);
-    setBedSel((s) => (adding ? [...s, { id: slot.id, price: slot.price }] : s.filter((b) => b.id !== slot.id)));
+    setBedSel((s) => (adding ? [...s, { id: slot.id, price: slot.price, zoneId: zone.id }] : s.filter((b) => b.id !== slot.id)));
+    setAuto((a) => (a && !a.edited ? { ...a, edited: true } : a));
     if (el) bedPickFx(el, slot.price, adding);
+    const n = bedSel.length + (adding ? 1 : -1);
+    setAnnounce(`${slot.id} ${adding ? tr("selected") : tr("removed")}, €${slot.price}. ${n} ${n === 1 ? tr("set") : tr("sets")} ${tr("picked")}.`);
   };
+  // Tapping a set opens its spot sheet first (AENR-568); Select there picks it.
+  const [inspect, setInspect] = useState<{ slot: SunbedSlot; el: HTMLElement | null } | null>(null);
+  const tierOfZone = useMemo(() => tierInfo(slots), [slots]);
+
+  // "Choose for me" (AENR-641): opening a zone lands on the best free sets for the
+  // party (two guests a set) — side by side, cheapest, nearest the sea — the way an
+  // airline app assigns seats. Tapping a set swaps it; the pick follows the party
+  // size until the guest edits it by hand.
+  const usualSize = account.party && !newGuest ? Object.values(account.party).reduce((a, b) => a + b, 0) : 2;
+  const wantSets = Math.max(1, Math.ceil((peopleTouched ? totalPeople : usualSize) / 2));
+  const [auto, setAuto] = useState<{ zoneId: string; ids: string[]; together: boolean; rowIdx: number; edited: boolean } | null>(null);
+  const autoPick = (id: string, n = wantSets, onlyRow?: number, replace = false) => {
+    const z = ZONES.find((x) => x.id === id);
+    if (!z || (!replace && bedSel.some((b) => b.zoneId === id))) return; // the guest's own picks stay
+    const all = liveSlots(z, selDates);
+    const pick = bestSets(all.filter((x) => x.state === "a"), all, n, onlyRow);
+    if (!pick) return;
+    const price = new Map(all.map((x) => [x.id, x.price]));
+    const picks = pick.ids.map((sid) => ({ id: sid, price: price.get(sid) ?? 0, zoneId: id }));
+    shownZone.current = id; // the zone-switch effect must not wipe this pick
+    setBedSel((s) => (multiStoreRef.current ? [...s.filter((b) => b.zoneId !== id), ...picks] : picks));
+    setAuto({ zoneId: id, ids: pick.ids, together: pick.together, rowIdx: pick.rowIdx, edited: false });
+    setAnnounce(`${tr("Picked for you")}: ${pick.ids.join(", ")}, €${pick.total}.`);
+  };
+  const autoIntact = !!auto && !auto.edited && auto.ids.every((id) => bedSel.some((b) => b.id === id)) && bedSel.filter((b) => b.zoneId === auto.zoneId).length === auto.ids.length;
+  const lastWant = useRef(wantSets);
+  useEffect(() => {
+    if (lastWant.current === wantSets) return;
+    lastWant.current = wantSets;
+    if (auto && autoIntact) autoPick(auto.zoneId, wantSets, undefined, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- re-pick only when the party size changes
+  }, [wantSets]);
+  const autoNote = useMemo(() => {
+    if (!auto || !autoIntact || auto.zoneId !== zone.id) return null;
+    const picked = slots.filter((x) => auto.ids.includes(x.id));
+    const total = picked.reduce((a, x) => a + x.price, 0);
+    const n = picked.length;
+    const rowName = picked[0] ? tierOfZone(picked[0]).tier.name : TIERS[1].name;
+    const head = n === 1 ? tr("1 set") : `${n} ${tr("sets")} ${auto.together ? tr("together") : tr("— none free side by side")}`;
+    const text = `${head} · ${tr(rowName)} · €${total}${dayCount > 1 ? ` ${tr("a day")}` : ""}`;
+    let upgrade: { label: string; onClick: () => void } | undefined;
+    if (auto.rowIdx > 0) {
+      const front = bestSets(slots.filter((x) => x.state === "a"), slots, n, 0);
+      if (front) upgrade = { label: `${tr("Front row instead")} (+€${front.total - total})`, onClick: () => autoPick(zone.id, n, 0, true) };
+    }
+    return { text, upgrade };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- autoPick is a plain closure
+  }, [auto, autoIntact, zone.id, slots, tierOfZone, dayCount, tr]);
   // Any manual change to the headcount flips off the auto pre-fill for the rest
   // of the session, so the guest's numbers are never overwritten.
   const editPeople = (v: SetStateAction<People>) => { setPeopleTouched(true); setPeople(v); };
 
-  const next = () => setStepIdx((i) => Math.min(last, i + 1));
-  // Back walks the flow in reverse: sets → zones → out to Home.
+  // Where with no set picked never moves on silently (AENR-673): Continue says what is
+  // missing and offers entry tickets only instead.
+  const [noSet, setNoSet] = useState(false);
+  const next = () => {
+    if (step.id === "beach" && bedSel.length === 0) { setNoSet(true); return; }
+    setNoSet(false);
+    setStepIdx((i) => Math.min(last, i + 1));
+  };
+  const entryOnly = () => { setNoSet(false); setIncludeTickets(true); setStepIdx(BEACH_IDX + 1); };
+  // Back walks the flow in reverse: sets → zones → When → out to Home.
   const back = () => {
-    if (stepIdx === 0) {
-      if (step.id === "beach" && phase === "sets") { backToZones(); return; }
-      go("customer", "home");
-      return;
-    }
+    setNoSet(false);
+    if (step.id === "beach" && phase === "sets") { backToZones(); return; }
+    if (stepIdx === 0) { go("customer", "home"); return; }
     setStepIdx((i) => Math.max(0, i - 1));
   };
 
-  const confirm = () => {
-    let added = 0;
+  // The basket lines this plan becomes — one per set, ticket kind, locker and spot per day.
+  const buildItems = (): CartItem[] => {
+    const items: CartItem[] = [];
     const subOf = (iso: string) => chipLabel(iso, localeFor(lang)).sub;
     // Sunbeds + tickets cover every chosen day.
     selDates.forEach((iso) => {
       const sub = subOf(iso);
       bedSel.forEach((b) => {
-        addToCart({ kind: "sunbed", id: `${b.id}@${iso}`, label: `${tr("Sunbed")} ${b.id}`, sub: `${zone.name} · ${sub}`, price: b.price });
-        added++;
+        const bz = ZONES.find((z) => z.id === b.zoneId) ?? zone;
+        items.push({ kind: "sunbed", id: `${b.id}@${iso}`, label: `${tr("Sunbed")} ${b.id}`, sub: `${bz.name} · ${sub}`, price: bedPrice(b, iso), setId: b.id, zoneId: bz.id, date: iso });
       });
       if (includeTickets) {
         ticketBreak.forEach(({ k, n, t }) => {
           if (n > 0) {
-            addToCart({ kind: "ticket", id: `${k}@${iso}`, label: `${tr(t.label)} × ${n}`, sub: `${tr("Entry ticket")} · ${sub}`, price: n * t.price });
-            added++;
-          }
+            items.push({ kind: "ticket", id: `${k}@${iso}`, label: `${tr(t.label)} × ${n}`, sub: `${tr("Entry ticket")} · ${sub}`, price: n * ex.ticketPrice(k, iso), qty: n, date: iso });
+              }
         });
       }
     });
@@ -328,8 +521,7 @@ export function CustomerWizard() {
     lockerDates.forEach((iso) => {
       const sub = subOf(iso);
       for (let i = 0; i < lockerQty; i++) {
-        addToCart({ kind: "locker", id: `LK${i + 1}@${iso}`, label: `${tr("Day locker")} ${i + 1}`, sub, price: LOCKER_PRICE });
-        added++;
+        items.push({ kind: "locker", id: `LK-${lockerBank}${i + 1}@${iso}`, label: `${tr("Day locker")} ${i + 1}`, sub: `${ex.banks.find((b) => b.id === lockerBank)?.name ?? ""} · ${sub}`, price: ex.lockerPrice(lockerBank, iso) });
       }
     });
     // One cart line per spot per day; the plate comes from the per-spot list
@@ -337,16 +529,52 @@ export function CustomerWizard() {
     parkingDates.forEach((iso) => {
       for (let i = 0; i < parkingQty; i++) {
         const plate = (parkingQty > 1 ? spotPlates[i] : plates[iso]) || "—";
-        addToCart({
+        items.push({
           kind: "parking",
           id: `P${i + 1}@${iso}`,
           label: parkingQty > 1 ? `${tr("Parking spot")} ${i + 1}` : tr("Parking spot"),
           sub: `${plate} · ${subOf(iso)}`,
           price: PARKING_PRICE,
         });
-        added++;
       }
     });
+    return items;
+  };
+  // All-in total (AENR-569 / 725): the beach prices plus the guest's service fee from the tenant's
+  // commercial terms — the same function and sum checkout charges.
+  const terms = useSiteTerms();
+  const feeTotal = grandTotal > 0 ? serviceFees(buildItems(), terms).total : 0;
+  const allIn = Math.round((grandTotal + feeTotal) * 100) / 100;
+  // The footer grows step by step (owner, AENR-733): Where shows the sets only, Who adds the entry
+  // tickets, and Pay shows the all-in total with the service fee and any locker / parking.
+  const stepTotal = step.id === "beach" ? setSubtotal : step.id === "people" ? setSubtotal + ticketSubtotal : allIn;
+  const stepFee = step.id === "beach" || step.id === "people" ? 0 : feeTotal;
+
+  // The Pay step pays (AENR-640): this visit's items are kept in the basket while the guest is on
+  // Pay (replacing the ones from an earlier pass), and the checkout panel below takes the payment.
+  const wizKeys = useRef<{ kind: CartItem["kind"]; id: string }[]>([]);
+  const payItems = step.id === "review" && !stalePicks.length && grandTotal > 0 ? buildItems() : null;
+  const payKey = payItems ? JSON.stringify(payItems.map((i) => [i.kind, i.id, i.price])) : "";
+  useEffect(() => {
+    if (!payItems) return;
+    wizKeys.current.forEach((k) => removeFromCart(k.kind, k.id));
+    payItems.forEach((it) => addToCart(it));
+    wizKeys.current = payItems.map((i) => ({ kind: i.kind, id: i.id }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- payKey captures the items
+  }, [payKey]);
+  const payRef = useRef<HTMLElement>(null);
+  const confirm = () => {
+    // A set taken or put on hold since it was picked must be replaced first (AENR-524 / 520).
+    if (stalePicks.length) {
+      toast(`${stalePicks.map((b) => b.id).join(", ")} ${tr("is no longer available — remove it and pick another set.")}`, { tone: "warn" });
+      setStepIdx(BEACH_IDX);
+      return;
+    }
+    const items = buildItems();
+    items.forEach((it) => addToCart(it));
+    // Remember who came (AENR-613) — next time the party is already filled in.
+    if (totalPeople > 0) setAccount((a) => ({ ...a, party: Object.fromEntries(Object.entries(people).filter(([, n]) => n > 0)) }));
+    const added = items.length;
     toast(`${tr("Booking ready")} — ${added} ${added !== 1 ? tr("items") : tr("item")} ${tr("added to your basket.")}`, { tone: "success" });
     // Hand the menu card's rect to Checkout so its summary panel morphs out of
     // it — the journey's last scene instead of a hard screen swap.
@@ -358,27 +586,64 @@ export function CustomerWizard() {
   // step it stays alive: your picked sets remain on the sand (read-only) and
   // each later step adds its vignette — towels for the guests, the locker
   // cabin, your car at the parking pad — so the booking visibly builds up.
-  const showZones = step.id === "beach" && phase === "zones";
+  // When shows the whole beach behind the day picker; tapping a zone there goes straight to Where.
+  const showZones = step.id === "when" || (step.id === "beach" && phase === "zones");
   const showSets = step.id === "beach" && phase === "sets";
-  const showScene = step.id !== "beach" && bedSel.length > 0;
+  const showScene = step.id !== "beach" && step.id !== "when" && bedSel.length > 0;
+  // The zone shown behind Who and Pay: where the last set was picked (AENR-670).
+  const sceneZone = ZONES.find((z) => z.id === bedSel[bedSel.length - 1]?.zoneId) ?? zone;
+  const sceneSlots = sceneZone.id === zone.id ? slots : liveSlots(sceneZone, selDates);
+  const sceneIds = new Set(bedSel.filter((b) => b.zoneId === sceneZone.id).map((b) => b.id));
+  const pickedByZone = bedSel.reduce<Record<string, number>>((m, b) => ({ ...m, [b.zoneId]: (m[b.zoneId] ?? 0) + 1 }), {});
   const revealDelay = prefersReducedMotion() ? "0ms" : "420ms";
+  // Below 1024px the panel is a bottom sheet over the beach (AENR-660): on the beach
+  // step it starts lowered (total + Continue) so the sand is the screen; the form
+  // steps start raised. The guest's own choice per step wins.
+  const sheetKey = `${step.id}-${phase}`;
+  // Phones choose the zone inside the panel (AENR-693), so it starts raised there; the sets
+  // phase lowers it onto the map.
+  const sheetOpen = sheetPref[sheetKey] ?? (step.id !== "beach" || (!richOverview && phase === "zones"));
+  const setSheetOpen = (v: boolean) => setSheetPref((m) => ({ ...m, [sheetKey]: v }));
+  const swipe = useRef<number | null>(null);
+  const sheetHide = sheetOpen ? "" : "max-lg:hidden";
 
   return (
-    <div className="fixed inset-0 z-20 flex flex-col pointer-events-none select-none pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
+    <div className="fixed inset-0 z-20 flex flex-col pointer-events-none select-none pt-[72px] md:pt-0 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0">
       {/* ============ Menu over the sea (top) ============
            When picking sunbeds, the min-height holds the menu band down to ~the
            shoreline so the sets always start on the sand (never the sea). The
-           store overview gives the menu band less reserved height so the
+           zone overview gives the menu band less reserved height so the
            clusters get more room to spread. */}
-      <div className={`shrink-0 flex items-start justify-center px-3 pt-2 sm:pt-3 ${showSets ? "min-h-[50vh]" : "min-h-[44vh]"}`}>
-        <div className="pointer-events-auto w-full max-w-2xl glass-card rounded-3xl shadow-float flex flex-col max-h-[64vh] overflow-hidden animate-fade-down" data-flip-id="checkout-panel">
+      {/* Desktop (≥1024px): a sticky column on the right, the beach fills the rest.
+          Smaller screens: a bottom sheet the guest raises or lowers (AENR-660). */}
+      <div className="absolute z-10 inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] md:bottom-0 lg:inset-x-auto lg:right-0 lg:top-[68px] lg:bottom-0 lg:w-[min(460px,36vw)] lg:px-4 lg:pb-4 flex items-end lg:items-start justify-center">
+        <div className="pointer-events-auto w-full max-w-2xl glass-card rounded-t-3xl lg:rounded-3xl shadow-float flex flex-col max-h-[78vh] lg:max-h-full overflow-hidden animate-fade-down" data-flip-id="checkout-panel">
+          {/* Sheet handle (phones/tablets): tap or swipe to raise / lower. */}
+          <button
+            type="button"
+            aria-expanded={sheetOpen}
+            onClick={() => setSheetOpen(!sheetOpen)}
+            onPointerDown={(e) => { swipe.current = e.clientY; }}
+            onPointerUp={(e) => { const y0 = swipe.current; swipe.current = null; if (y0 != null && Math.abs(e.clientY - y0) > 24) { e.preventDefault(); setSheetOpen(e.clientY < y0); } }}
+            className="lg:hidden shrink-0 w-full pt-2 pb-1 flex flex-col items-center gap-1 touch-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500 rounded-t-3xl"
+          >
+            <span aria-hidden className="w-10 h-1.5 rounded-full bg-slate-300" />
+            {sheetOpen ? (
+              <span className="sr-only">{tr("Lower the panel to see the beach")}</span>
+            ) : (
+              <span className="text-guest-caption font-semibold text-slate-600 inline-flex items-center gap-1">
+                {step.id === "beach" && !richOverview && phase === "sets" ? `${zone.name} · ${bedSel.length ? `${bedSel.length} ${bedSel.length === 1 ? tr("set") : tr("sets")} · ` : ""}${tr("tap a set on the map")}` : step.id === "beach" ? `${selDates.length === 1 ? chipLabel(selDates[0], localeFor(lang)).sub : `${selDates.length} ${tr("days")}`} · ${phase === "sets" ? zone.name : tr("all zones")} · ${tr("Change")}` : `${tr("Step")} ${stepIdx + 1} ${tr("of")} ${STEPS.length} · ${tr(step.label)}`}
+                <Icon.chevD size={13} className="rotate-180" />
+              </span>
+            )}
+          </button>
           {/* Pinned header — leave, progress, (step title only on the form steps). */}
-          <div className="p-4 sm:p-5 pb-3 shrink-0">
+          <div className={`p-4 sm:p-5 pb-3 max-lg:pt-1 shrink-0 ${sheetHide}`}>
             <div className="flex items-center justify-between mb-3">
-              <button onClick={() => go("customer", "home")} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-600 hover:text-navy-900 rounded-lg px-2 py-1 hover:bg-white/60 transition">
+              <button onClick={() => go("customer", "home")} className="inline-flex items-center gap-1.5 text-guest-meta font-semibold text-slate-600 hover:text-navy-900 rounded-lg px-2 py-1 hover:bg-white/60 transition">
                 <Icon.arrowL size={14} /> {tr("Leave")}
               </button>
-              <div className="text-[12px] font-semibold text-slate-500 tnum">{stepIdx + 1} / {STEPS.length}</div>
+              <div className="text-guest-caption font-semibold text-slate-500 tnum">{tr("Step")} {stepIdx + 1} {tr("of")} {STEPS.length} · <span className="text-navy-900">{tr(step.label)}</span></div>
             </div>
 
             <ProgressRail stepIdx={stepIdx} onJump={(i) => setStepIdx(i)} />
@@ -386,45 +651,40 @@ export function CustomerWizard() {
 
           {/* Scrolling step body — a real scrollbar appears when a step (e.g.
               Review with many lines) overflows the panel. */}
-          <div key={`${step.id}-${phase}`} className="px-4 sm:px-5 pb-1 overflow-y-auto animate-fade-up">
-            {step.id === "beach" && (
-              <BeachMenu
+          <div key={`${step.id}-${phase}`} className={`px-4 sm:px-5 pb-1 overflow-y-auto animate-fade-up ${sheetHide}`}>
+            {(step.id === "when" || step.id === "beach") && (
+              <BeachMenu part={step.id === "when" ? "when" : "where"} onEditDates={() => { setNoSet(false); setStepIdx(0); }}
+                zonePicker={!richOverview && step.id === "beach" ? <ZoneList days={selDates} selectedId={zoneId} onPick={pickZone} picked={pickedByZone} /> : undefined} blockReason={blockReason} dayInfo={dayInfo} fullDay={fullDay}
+                alternatives={fullDay ? {
+                  days: [1, -1, 2, -2, 3, 4, 5, 6, 7].map((n) => addDays(fullDay, n)).filter((d) => d >= todayISO() && !blockReason(d) && (dayInfo(d).left ?? 0) > 0).slice(0, 3),
+                  zones: step.id === "beach" && phase === "sets" ? ZONES.filter((z) => z.id !== zone.id).map((z) => ({ z, left: liveSlots(z, [fullDay]).filter((x) => x.state === "a").length })).filter((x) => x.left > 0).slice(0, 3) : [],
+                } : null}
+                onPickZone={(id) => { setBedSel([]); setZoneId(id); }} stayReasons={[...(stopSell ? [`${zone.name}: not available online — ask at the beach (${stopSell.reason}).`] : []), ...Object.entries(stayCheck.blocked).map(([d, why]) => `${chipLabel(d, localeFor(lang)).sub}: ${why}`), ...stayCheck.reasons]}
                 selDates={selDates} setSelDates={setSelDates}
                 multiDate={multiDate} setMultiDate={setMultiDate}
                 phase={phase} setPhase={(p) => (p === "zones" ? backToZones() : setPhase(p))}
                 zone={zone} bedSel={bedSel} setBedSel={setBedSel}
                 avail={avail} dayCount={dayCount}
+                multiStore={multiStore} setMultiStore={setMultiStore} stale={stalePicks.map((b) => b.id)}
+                autoNote={autoNote}
               />
             )}
             {step.id === "people" && (
               <PeopleStep
+                tickets={TICKET}
                 people={people} setPeople={editPeople}
                 includeTickets={includeTickets} setIncludeTickets={setIncludeTickets}
                 pickedSets={bedSel.length}
                 autoFilled={!peopleTouched}
                 onPreset={(v) => editPeople(v)}
+                usualParty={newGuest ? null : account.party}
               />
             )}
-            {step.id === "locker" && (
-              <LockerStep
-                on={lockerOn} setOn={setLockerOn}
-                scope={lockerScope} setScope={setLockerScope}
-                days={lockerDays} setDays={setLockerDays}
-                qty={lockerQty} setQty={setLockerQty}
-                selDates={selDates} multiDate={multiDate}
-              />
-            )}
-            {step.id === "parking" && (
-              <ParkingStep
-                on={parkingOn} setOn={setParkingOn}
-                qty={parkingQty} setQty={setParkingQty}
-                scope={parkingScope} setScope={setParkingScope}
-                days={parkingDays} setDays={setParkingDays}
-                plates={plates} setPlates={setPlates}
-                spotPlates={spotPlates} setSpotPlates={setSpotPlates}
-                samePlate={parkingSamePlate} setSamePlate={setParkingSamePlate}
-                selDates={selDates} multiDate={multiDate}
-              />
+            {step.id === "review" && plan && (
+              <div role="status" className="mb-3 rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2 flex items-start gap-2 text-guest-meta text-navy-900">
+                <Icon.sparkles size={14} className="text-teal-600 shrink-0 mt-0.5" />
+                <span><b>{tr("Your usual, ready for")} {((c) => `${c.label}, ${c.sub}`)(chipLabel(plan.date, localeFor(lang), tr))}.</b> {tr("Change anything with Edit, or pay now.")}</span>
+              </div>
             )}
             {step.id === "review" && (
               <ReviewStep
@@ -432,27 +692,117 @@ export function CustomerWizard() {
                 selDates={selDates} dayCount={dayCount}
                 zone={zone} bedSel={bedSel}
                 includeTickets={includeTickets} ticketBreak={ticketBreak}
-                lockerOn={lockerOn} lockerQty={lockerQty} lockerDates={lockerDates}
-                parkingOn={parkingOn} parkingQty={parkingQty} parkingDates={parkingDates} plates={plates} spotPlates={spotPlates}
-                onJump={(id) => { const i = STEPS.findIndex((s) => s.id === id); if (i >= 0) setStepIdx(i); }}
+                lockerOn={lockerOn && canLocker} lockerQty={lockerQty} lockerDates={lockerDates}
+                parkingOn={parkingOn && canParking} parkingQty={parkingQty} parkingDates={parkingDates} plates={plates} spotPlates={spotPlates}
+                onJump={(id) => { if (EXTRA_STEPS.includes(id)) { setExtrasOpen(true); return; } const i = STEPS.findIndex((s) => s.id === id); if (i >= 0) setStepIdx(i); }}
               />
+            )}
+            {step.id === "review" && extrasKind !== "none" && (
+              <section ref={extrasRef} aria-label={tr(EXTRAS_TITLE[extrasKind])} className="mt-3 mb-2 scroll-mt-2">
+                {!extrasOpen && !(lockerOn && canLocker) && !(parkingOn && canParking) ? (
+                  <button
+                    type="button"
+                    onClick={() => setExtrasOpen(true)}
+                    aria-expanded={false}
+                    className="w-full flex items-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white/60 px-3.5 py-3 text-left hover:border-teal-400 hover:bg-white/80 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                  >
+                    <span className="w-8 h-8 rounded-xl bg-teal-50 text-teal-700 grid place-items-center shrink-0"><Icon.plus size={15} /></span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-guest-meta font-semibold text-navy-900">{tr(ADD_EXTRAS_LABEL[extrasKind])}</span>
+                      <span className="block text-guest-caption text-slate-600">
+                        {canLocker && lockerChoices.length > 0 && <>{tr("Optional — day lockers from")} €{Math.min(...lockerChoices.map((b) => b.price))}</>}
+                        {canLocker && lockerChoices.length > 0 && canParking && " · "}
+                        {canParking && <>{canLocker && lockerChoices.length > 0 ? tr("parking") : tr("Optional — parking")} €{PARKING_PRICE} {tr("a day")}</>}
+                      </span>
+                    </span>
+                    <Icon.chevR size={15} className="text-slate-400" />
+                  </button>
+                ) : (
+                  <div className="space-y-3 rounded-2xl ring-1 ring-slate-200 bg-white/60 p-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-guest-meta font-semibold text-navy-900">{tr(EXTRAS_TITLE[extrasKind])}</div>
+                      {!(lockerOn && canLocker) && !(parkingOn && canParking) && (
+                        <button type="button" onClick={() => setExtrasOpen(false)} className="text-guest-caption font-semibold text-slate-500 hover:text-navy-900 rounded px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">{tr("Not now")}</button>
+                      )}
+                    </div>
+                    {canLocker && <LockerStep
+                      on={lockerOn} setOn={setLockerOn}
+                      scope={lockerScope} setScope={setLockerScope}
+                      days={lockerDays} setDays={setLockerDays}
+                      qty={lockerQty} setQty={setLockerQty}
+                      selDates={selDates} multiDate={multiDate}
+                      banks={lockerChoices} bank={lockerBank} setBank={setLockerBank}
+                    />}
+                    {canParking && <ParkingStep
+                      on={parkingOn} setOn={setParkingOn}
+                      qty={parkingQty} setQty={setParkingQty}
+                      scope={parkingScope} setScope={setParkingScope}
+                      days={parkingDays} setDays={setParkingDays}
+                      plates={plates} setPlates={setPlates}
+                      spotPlates={spotPlates} setSpotPlates={setSpotPlates}
+                      samePlate={parkingSamePlate} setSamePlate={setParkingSamePlate}
+                      selDates={selDates} multiDate={multiDate}
+                    />}
+                  </div>
+                )}
+              </section>
+            )}
+            {step.id === "review" && payItems && (
+              <section ref={payRef} aria-label={tr("Payment")} className="mb-2 scroll-mt-2">
+                <Checkout embedded />
+                <p className="mt-1.5 px-1 text-guest-caption text-slate-600">{tr("Not paying now? This visit waits in your basket.")}</p>
+              </section>
             )}
           </div>
 
           {/* Pinned footer — live total + nav. */}
-          <div className="flex items-center justify-between gap-3 p-4 sm:p-5 pt-3 border-t border-slate-200/70 shrink-0">
-            <div className="leading-tight">
-              <div className="text-[10px] uppercase font-bold tracking-wider text-slate-500">{tr("Total")}</div>
-              <div className="font-display text-2xl font-bold text-navy-900 tnum leading-none" data-wizard-total>€<LiveEuro value={grandTotal} /></div>
+          {noSet && step.id === "beach" && bedSel.length === 0 && (
+            <div role="alert" className="mx-4 sm:mx-5 mb-2 rounded-xl bg-amber-50 ring-1 ring-amber-600/25 px-3 py-2.5 text-guest-meta text-amber-900 shrink-0">
+              <div className="flex items-start gap-2">
+                <Icon.umbrella size={15} className="shrink-0 mt-0.5 text-amber-700" />
+                <div className="min-w-0">
+                  <b>{tr("You haven't picked a set yet.")}</b>{" "}
+                  {phase === "zones" ? (richOverview ? tr("Tap a zone on the sand, then tap a set (an umbrella with two sunbeds) to add it.") : tr("Pick a zone in the list, then tap a set (an umbrella with two sunbeds) on the map.")) : tr("Tap a free set on the sand to add it.")}
+                </div>
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2 pl-[23px]">
+                {phase === "sets" && avail > 0 && (
+                  <button type="button" onClick={() => autoPick(zone.id, wantSets, undefined, true)} className="inline-flex items-center gap-1.5 min-h-[36px] rounded-lg bg-white px-3 font-semibold text-teal-800 ring-1 ring-teal-300 hover:ring-teal-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                    <Icon.sparkles size={13} /> {tr("Pick for me")}
+                  </button>
+                )}
+                <button type="button" onClick={entryOnly} className="inline-flex items-center min-h-[36px] rounded-lg bg-white/70 px-3 font-semibold text-navy-900 ring-1 ring-amber-300 hover:ring-teal-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                  {tr("Entry tickets only")}
+                </button>
+              </div>
             </div>
+          )}
+          <div className="flex items-center justify-between gap-3 p-4 sm:p-5 pt-3 border-t border-slate-200/70 shrink-0">
+            {step.id === "review" && payItems ? (
+              // On Pay the payment panel holds the one total that counts (rewards, credit, passes applied).
+              <div className="leading-tight min-w-0 text-guest-meta text-slate-600">{tr("Check the total and pay below.")}</div>
+            ) : step.id === "when" || stepTotal === 0 || (step.id === "beach" && bedSel.length === 0) ? (
+              // A calm first step (AENR-658): no price before a set is chosen; the
+              // cancellation terms appear once, on Pay.
+              <div className="leading-tight min-w-0 text-guest-meta text-slate-600">
+                {step.id === "when" ? tr("Pick your day, then choose where to sit.") : step.id === "beach" ? (phase === "zones" ? tr("Pick a zone, then your sets.") : tr("Tap a set to add it.")) : tr("Add a set or a ticket to see the price.")}
+              </div>
+            ) : (
+            // Just the total (AENR-682): the truncated set/day line and the "all-in" toggle are gone.
+            <div className="leading-tight min-w-0">
+              <span className="font-display text-2xl font-bold text-navy-900 tnum leading-none" data-wizard-total>€<LiveEuro value={stepTotal} /></span>
+              {step.id === "people" && ticketSubtotal > 0 && <span className="block mt-1 text-guest-caption text-slate-500 tnum">{tr("incl. entry tickets")} €{ticketSubtotal}</span>}
+              {stepFee > 0 && <span className="block mt-1 text-guest-caption text-slate-500 tnum" data-wizard-fee>{tr("incl. service fee")} €{stepFee.toFixed(2)}</span>}
+            </div>
+            )}
             <div className="flex items-center gap-2">
-              <Btn variant="ghost" icon={Icon.arrowL} onClick={back}>
-                {stepIdx === 0 && phase === "zones" ? tr("Home") : tr("Back")}
+              <Btn variant="ghost" icon={Icon.arrowL} onClick={back} className="whitespace-nowrap">
+                {step.id === "beach" && phase === "sets" ? tr("All zones") : stepIdx === 0 ? tr("Home") : tr("Back")}
               </Btn>
               {stepIdx < last ? (
-                <Btn variant="teal" onClick={next}>{tr("Continue")} <Icon.arrowR size={15} /></Btn>
+                <Btn variant="teal" onClick={next} disabled={(step.id === "beach" && (!stayCheck.ok || !!stopSell)) || (step.id === "when" && Object.keys(stayCheck.blocked).length > 0)}>{tr("Continue")} <Icon.arrowR size={15} /></Btn>
               ) : (
-                <Btn variant="dark" icon={Icon.card} onClick={confirm} disabled={grandTotal === 0}>{tr("Confirm")} · €{grandTotal}</Btn>
+                <Btn variant="dark" icon={Icon.card} disabled={grandTotal === 0} onClick={() => (stalePicks.length ? confirm() : payRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" }))}>{tr("Go to payment")}</Btn>
               )}
             </div>
           </div>
@@ -461,51 +811,72 @@ export function CustomerWizard() {
 
       {/* ============ The beach itself — fills the space below the menu so every
            set is visible (never hidden behind it) and is tapped directly. ====== */}
-      <div className="flex-1 min-h-0 px-3 sm:px-5 flex justify-center animate-fade-in" style={{ animationDelay: revealDelay, animationFillMode: "both" }}>
-        {/* The store overview spreads the full beach width (panoramic); a single
+      <div className={`flex-1 min-h-0 px-3 sm:px-5 pt-[20vh] lg:pt-[max(calc(50vh+8px),440px)] max-lg:pb-[132px] ${showZones ? "" : "lg:mr-[min(460px,36vw)]"} flex justify-center animate-fade-in`} style={{ animationDelay: revealDelay, animationFillMode: "both" }}>
+        {/* The zone overview spreads the full beach width (panoramic); a single
             zone's sunbed grid stays at a comfortable reading width. */}
         <div className={`relative w-full ${showSets ? "max-w-5xl" : "max-w-[1700px]"}`}>
-          {showZones && <StoreOverview selectedId={zoneId} onPick={pickZone} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} />}
-          {showSets && <SandSunbeds slots={slots} selected={selectedIds} onToggle={toggleBed} />}
-          {showScene && (
-            <SandScene
-              slots={slots} picked={selectedIds} stepId={step.id}
-              guests={totalPeople}
-              lockerOn={lockerOn} lockerQty={lockerQty}
-              parkingOn={parkingOn && parkingDates.length > 0} parkingQty={parkingQty}
-              plate={parkingQty > 1 ? spotPlates[0] : plates[selDates[0]]}
-            />
-          )}
+          {showZones && richOverview && <StoreOverview days={selDates} selectedId={zoneId} onPick={(id) => { if (step.id === "when") setStepIdx(BEACH_IDX); pickZone(id); }} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} picked={pickedByZone} />}
+          {showSets && (richOverview ? (
+            <SandSunbeds slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} />
+          ) : (
+            // Phones: the sets at a tappable size, pan + pinch, opened on your picks (AENR-660).
+            <ZoomBox className="h-full pointer-events-auto" maxHeight="100%" hint={null} minWidth={540} aspect={0.95}
+              focus={(() => { const f = slots.find((x) => selectedIds.has(x.id)) ?? slots.find((x) => x.state === "a"); return f ? { x: f.x, y: f.y } : undefined; })()}>
+              <SandSunbeds slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} />
+            </ZoomBox>
+          ))}
+          {/* Who and Pay keep your zone on the sand (AENR-670): the last zone you picked
+              sets from, read-only, your sets highlighted — no extra vignettes. */}
+          {showScene && (richOverview ? (
+            <SandSunbeds readOnly slots={sceneSlots} selected={sceneIds} />
+          ) : (
+            <ZoomBox className="h-full pointer-events-auto" maxHeight="100%" hint={null} minWidth={540} aspect={0.95}
+              focus={(() => { const f = sceneSlots.find((x) => sceneIds.has(x.id)); return f ? { x: f.x, y: f.y } : undefined; })()}>
+              <SandSunbeds readOnly slots={sceneSlots} selected={sceneIds} />
+            </ZoomBox>
+          ))}
         </div>
       </div>
 
+      <div className="sr-only" aria-live="polite">{announce}</div>
+      {inspect && (
+        <div className="pointer-events-auto">
+          <SpotSheet zoneName={zone.name} slot={inspect.slot} info={tierOfZone(inspect.slot)} selected={selectedIds.has(inspect.slot.id)} priceText={`€${inspect.slot.price}`}
+            onClose={() => setInspect(null)}
+            onSelect={() => { toggleBed(inspect.slot, inspect.el); setInspect(null); }} />
+        </div>
+      )}
       {/* ============ Bottom bar — guidance + always-on Slaice credit ============ */}
-      <div className="shrink-0 px-3 pb-1.5 pt-1 pointer-events-none">
+      <div className={`shrink-0 px-3 pb-1.5 pt-1 pointer-events-none max-lg:hidden ${showZones ? "" : "lg:mr-[min(460px,36vw)]"}`}>
         {(showZones || showSets || showScene) && (
           <div className="max-w-3xl mx-auto pointer-events-auto">
             {showZones && (
               <div className="rounded-2xl glass px-4 py-1.5 text-center">
-                <span className="text-[12.5px] text-navy-900"><b>{tr("Tap a zone on the beach")}</b> {tr("to choose where you'll sit — the sea is at the top.")}</span>
+                {step.id === "when"
+                  ? <span className="text-guest-meta text-navy-900"><b>{tr("Pick your day")}</b> {tr("— the free sets on the beach update with it. Or tap a zone to go straight to it.")}</span>
+                  : <span className="text-guest-meta text-navy-900"><b>{tr("Tap a zone on the beach")}</b> {tr("to choose where you'll sit — the sea is at the top.")}</span>}
               </div>
             )}
             {showScene && (
               <div className="rounded-2xl glass px-4 py-1.5 text-center">
-                <span className="text-[12.5px] text-navy-900"><b>{zone.name}</b> · {bedSel.length} {bedSel.length !== 1 ? tr("umbrella sets") : tr("umbrella set")} — {tr("your picks stay on the sand while you finish up.")}</span>
+                <span className="text-guest-meta text-navy-900"><b>{pickZones.length > 1 ? pickZones.map((z) => `${ZONES.find((x) => x.id === z)?.name} ×${pickedByZone[z]}`).join(" · ") : sceneZone.name}</b> · {bedSel.length} {bedSel.length !== 1 ? tr("umbrella sets") : tr("umbrella set")} — {tr("your picks stay on the sand while you finish up.")}</span>
               </div>
             )}
             {showSets && (
-              <div className="rounded-2xl glass px-4 py-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-slate-700">
+              <div className="rounded-2xl glass px-4 py-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-guest-caption text-slate-700">
                 <span className="flex items-center gap-1"><Sunbed state="a" size={14} readOnly />{tr("Available")}</span>
                 <span className="flex items-center gap-1"><Sunbed state="h" size={14} readOnly />{tr("On hold")}</span>
                 <span className="flex items-center gap-1"><Sunbed state="u" size={14} readOnly />{tr("Taken")}</span>
                 <span className="flex items-center gap-1"><Sunbed state="a" sel size={14} readOnly />{tr("Yours")}</span>
                 <span className="text-slate-500">·</span>
-                <span className="text-slate-600">{tr("Tap the umbrellas on the sand to pick your sets.")}</span>
+                {TIERS.map((ti) => <span key={ti.key} className="flex items-center gap-1"><span className="rounded px-1 text-guest-caption font-bold text-white" style={{ background: ti.color }}>{ti.letter}</span>{tr(ti.name)}</span>)}
+                <span className="text-slate-500">·</span>
+                <span className="text-slate-600">{tr("Tap a set to see its view and price.")}</span>
               </div>
             )}
           </div>
         )}
-        <div className="mt-1.5 flex items-center justify-center gap-1.5 text-[11.5px] text-slate-700">
+        <div className="mt-1.5 flex items-center justify-center gap-1.5 text-guest-caption text-slate-700">
           <span>{tr("powered by")}</span>
           <span className="font-bold text-navy-900">SLA<span className="text-gold-600">i</span>CE</span>
         </div>
@@ -523,7 +894,12 @@ export function CustomerWizard() {
    marker precisely on each dot. No vector-effect on the strokes: Chromium
    mis-evaluates pathLength-normalised dashes under non-scaling-stroke, which
    rendered the walked line as broken dash cycles. */
-const TRAIL_D = "M 10 8.5 C 16 6, 24 10.5, 30 8 S 44 6, 50 8.2 S 64 10.5, 70 7.8 S 84 6, 90 8.5";
+// Station centres in the 0–100 viewBox for an N-column grid, and a gently wavy footpath through them.
+const CENTRES = STEPS.map((_, i) => ((i + 0.5) / STEPS.length) * 100);
+const TRAIL_D = CENTRES.slice(1).reduce(
+  (d, x, i) => `${d} Q ${(CENTRES[i] + x) / 2} ${i % 2 ? 10.5 : 6}, ${x} 8.5`,
+  `M ${CENTRES[0]} 8.5`,
+);
 function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number) => void }) {
   const tr = useT();
   const root = useRef<HTMLDivElement>(null);
@@ -549,9 +925,9 @@ function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number
       <div
         aria-hidden="true"
         className="absolute top-[7px] w-3.5 h-3.5 rounded-full bg-white ring-2 ring-teal-500 shadow -translate-x-1/2 z-[1]"
-        style={{ left: `calc(10% + ${frac} * 80%)`, transition: "left .7s cubic-bezier(.22,1,.36,1)" }}
+        style={{ left: `calc(${CENTRES[0]}% + ${frac} * ${CENTRES[CENTRES.length - 1] - CENTRES[0]}%)`, transition: "left .7s cubic-bezier(.22,1,.36,1)" }}
       />
-      <div className="relative grid grid-cols-5">
+      <div className="relative grid" style={{ gridTemplateColumns: `repeat(${STEPS.length}, minmax(0, 1fr))` }}>
         {STEPS.map((s, i) => {
           const I = Icon[s.icon];
           const done = i < stepIdx;
@@ -574,7 +950,7 @@ function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number
               >
                 {done ? <Icon.check size={13} /> : I ? <I size={12} /> : i + 1}
               </span>
-              <span className={`text-[10px] font-semibold leading-none truncate max-w-full px-0.5 ${active ? "text-navy-900" : done ? "text-teal-700" : "text-slate-400"}`}>
+              <span className={`text-guest-caption font-semibold leading-none truncate max-w-full px-0.5 ${active ? "text-navy-900" : done ? "text-teal-700" : "text-slate-400"}`}>
                 {tr(s.label)}
               </span>
             </button>
@@ -588,7 +964,24 @@ function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number
 /* ============ Beach step — menu side (dates + phase controls) ============
    The map and the sunbed grid have moved onto the page background; the menu keeps
    the dates and the supporting info (zone summary, legend, picks). */
-function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setPhase, zone, bedSel, setBedSel, avail, dayCount }: {
+function BeachMenu({ part, onEditDates, zonePicker, selDates, setSelDates, multiDate, setMultiDate, phase, setPhase, zone, bedSel, setBedSel, avail, dayCount, blockReason, stayReasons, multiStore, setMultiStore, stale, dayInfo, fullDay, alternatives, onPickZone, autoNote }: {
+  /** When = the day(s); Where = zone, sets and several zones (AENR-673). */
+  part: "when" | "where";
+  onEditDates: () => void;
+  /** Phones (AENR-693): the zones are part of the step — a list in the panel, with a Zone → Sets indicator. */
+  zonePicker?: ReactNode;
+  /** The "Choose for me" pick in words, with the front-row upgrade (AENR-641). */
+  autoNote?: { text: string; upgrade?: { label: string; onClick: () => void } } | null;
+  dayInfo: (iso: string) => DayInfo;
+  fullDay: string | null;
+  alternatives: { days: string[]; zones: { z: WizardZone; left: number }[] } | null;
+  onPickZone: (id: string) => void;
+  multiStore: boolean;
+  setMultiStore: (v: boolean) => void;
+  /** Picks taken or put on hold since they were chosen. */
+  stale: string[];
+  blockReason: (iso: string) => string | null;
+  stayReasons: string[];
   selDates: string[];
   setSelDates: Dispatch<SetStateAction<string[]>>;
   multiDate: boolean;
@@ -602,23 +995,74 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
   dayCount: number;
 }) {
   const tr = useT();
+  const { lang } = useApp();
   const pickedSubtotal = bedSel.reduce((a, b) => a + b.price, 0);
+  const groups = [...new Set(bedSel.map((b) => b.zoneId))].map((zid) => ({ zone: ZONES.find((z) => z.id === zid) ?? zone, picks: bedSel.filter((b) => b.zoneId === zid) }));
+  const [keepAsk, setKeepAsk] = useState(false);
+  const turnMulti = (v: boolean) => {
+    if (v) return setMultiStore(true);
+    if (groups.length > 1) return setKeepAsk(true); // never drop picks silently
+    setMultiStore(false);
+  };
   return (
     <div className="space-y-4">
-      {/* Dates — apply to the whole booking. */}
+      {/* Dates — apply to the whole booking (When). */}
+      {part === "where" ? (
+        <button type="button" onClick={onEditDates} className="w-full flex items-center gap-2 rounded-xl bg-white/70 ring-1 ring-slate-200 px-3 min-h-[40px] text-left text-guest-meta hover:ring-teal-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+          <Icon.calendar size={13} className="text-slate-500 shrink-0" />
+          <span className="flex-1 min-w-0 truncate text-navy-900 font-semibold">{selDates.length === 1 ? ((c) => `${c.label} ${c.sub}`)(chipLabel(selDates[0], localeFor(lang), tr)) : `${selDates.length} ${tr("days")}`}</span>
+          <span className="text-teal-700 font-semibold">{tr("Change")}</span>
+        </button>
+      ) : (
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.calendar size={12} /> {tr("When are you coming?")}</div>
-        <DatePickerRow value={selDates} onChange={setSelDates} multiple={multiDate} maxDays={7} />
+        <div className="text-guest-over font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.calendar size={12} /> {tr("When are you coming?")}</div>
+        <DatePickerRow value={selDates} onChange={setSelDates} multiple={multiDate} maxDays={7} blockReason={blockReason} dayInfo={dayInfo} />
+        {fullDay && alternatives && <FullDayHelp day={fullDay} zoneName="" alt={alternatives} onDay={(d) => setSelDates([d])} onZone={onPickZone} />}
+        {stayReasons.length > 0 && <div role="alert" className="mt-2 rounded-xl bg-amber-50 ring-1 ring-amber-600/20 px-3 py-2 text-guest-caption text-amber-800 space-y-0.5">{stayReasons.map((r) => <div key={r}>{r}</div>)}</div>}
+        {multiDate && (
         <div className="mt-2 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
-          <div className="flex items-start gap-2 text-[12.5px]">
+          <div className="flex items-start gap-2 text-guest-meta">
             <Icon.calendar size={13} className="text-slate-500 shrink-0 mt-0.5" />
             <span className="text-slate-700">{multiDate
               ? <><b className="text-navy-900">{selDates.length} {selDates.length !== 1 ? tr("days") : tr("day")}</b> {tr("selected")} · {tr("up to 7")}</>
               : tr("Book several days at once")}</span>
           </div>
-          <Toggle on={multiDate} onChange={(v) => { setMultiDate(v); if (!v && selDates.length > 1) setSelDates([selDates[0]]); }} />
+          <Toggle on={multiDate} onChange={(v) => { setMultiDate(v); if (!v && selDates.length > 1) setSelDates([selDates[0]]); }} ariaLabel={tr("Book several days at once")} />
         </div>
+        )}
+        {!multiDate && (
+          <div className="mt-2 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
+            <div className="flex items-start gap-2 text-guest-meta">
+              <Icon.calendar size={13} className="text-slate-500 shrink-0 mt-0.5" />
+              <span className="text-slate-700">{tr("Book several days at once")}</span>
+            </div>
+            <Toggle on={multiDate} onChange={(v) => setMultiDate(v)} ariaLabel={tr("Book several days at once")} />
+          </div>
+        )}
       </div>
+      )}
+      {part === "where" && fullDay && alternatives && <FullDayHelp day={fullDay} zoneName={phase === "sets" ? zone.name : ""} alt={alternatives} onDay={(d) => setSelDates([d])} onZone={onPickZone} />}
+      {part === "where" && stayReasons.length > 0 && <div role="alert" className="rounded-xl bg-amber-50 ring-1 ring-amber-600/20 px-3 py-2 text-guest-caption text-amber-800 space-y-0.5">{stayReasons.map((r) => <div key={r}>{r}</div>)}</div>}
+      {part === "where" && <>
+
+      {zonePicker && (
+        <ol aria-label={tr("Where — two parts")} className="grid grid-cols-2 gap-1.5 text-guest-caption font-semibold">
+          {([["zones", tr("Zone")], ["sets", tr("Sets")]] as const).map(([k, l], i) => {
+            const now = phase === k;
+            const done = k === "zones" && phase === "sets";
+            return (
+              <li key={k}>
+                <button type="button" disabled={k === "sets" && phase === "zones"} onClick={() => k === "zones" && phase === "sets" && setPhase("zones")} aria-current={now ? "step" : undefined}
+                  className={`w-full flex items-center gap-2 rounded-xl px-2.5 min-h-[40px] ring-1 text-left transition disabled:cursor-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${now ? "bg-navy-900 text-white ring-navy-900" : done ? "bg-teal-50 text-teal-800 ring-teal-300" : "bg-white/60 text-slate-500 ring-slate-200"}`}>
+                  <span className={`w-5 h-5 rounded-full grid place-items-center text-guest-caption shrink-0 ${now ? "bg-white text-navy-900" : done ? "bg-teal-600 text-white" : "bg-slate-200 text-slate-600"}`}>{done ? <Icon.check size={11} /> : i + 1}</span>
+                  <span className="truncate">{k === "zones" ? (phase === "sets" ? zone.name : l) : bedSel.length ? `${l} · ${bedSel.length}` : l}</span>
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+      {zonePicker && phase === "zones" && zonePicker}
 
       {/* The map and the sunbed glyphs live on the sand; here the menu keeps only
           the chosen-zone summary and your picks. The legend + tap prompts sit in
@@ -626,92 +1070,138 @@ function BeachMenu({ selDates, setSelDates, multiDate, setMultiDate, phase, setP
       {phase === "sets" && (
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <button onClick={() => setPhase("zones")} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-slate-600 hover:text-navy-900 rounded-lg px-2 py-1 hover:bg-white/60">
+            {/* A real button, not grey text: it is how guests reach the other zones (AENR-666).
+                Phones use the Zone step above instead (AENR-693). */}
+            <button type="button" onClick={() => setPhase("zones")} className={`${zonePicker ? "hidden" : ""} inline-flex items-center gap-1.5 min-h-[36px] text-guest-meta font-semibold text-navy-900 rounded-xl px-3 py-1.5 bg-white/80 ring-1 ring-slate-200 hover:ring-teal-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500`}>
               <Icon.arrowL size={14} /> {tr("All zones")}
             </button>
             <div className="flex items-center gap-2 min-w-0">
               <span className="w-6 h-6 rounded-lg grid place-items-center shrink-0" style={{ background: zone.color, color: "white" }}><Icon.umbrella size={13} /></span>
-              <div className="font-display font-bold text-navy-900 text-sm truncate">{zone.name}</div>
+              <div className="font-display font-bold text-navy-900 text-guest-body truncate">{zone.name}</div>
               <Badge tone="green">{avail} {tr("free")}</Badge>
             </div>
           </div>
 
-          {bedSel.length > 0 && (
+          {bedSel.length > 0 && !multiStore && (
             <div className="rounded-xl px-3 py-2.5 ring-1 ring-teal-300 bg-teal-50/80 flex items-center justify-between gap-3">
-              <div className="min-w-0 text-[12.5px]">
-                <div className="font-semibold text-navy-900 truncate">{bedSel.length} {bedSel.length !== 1 ? tr("umbrella sets") : tr("umbrella set")} · {bedSel.map((b) => b.id).join(", ")}</div>
-                <div className="text-[11px] text-slate-600">€{pickedSubtotal} × {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}</div>
+              <div className="min-w-0 text-guest-meta flex items-start gap-2" role="status">
+                {autoNote && <Icon.sparkles size={14} className="text-teal-700 shrink-0 mt-0.5" />}
+                <div className="min-w-0">
+                  {autoNote && <div className="font-semibold text-navy-900">{tr("Picked for you")}: {autoNote.text}</div>}
+                  <div className={autoNote ? "text-guest-caption text-slate-600" : "font-semibold text-navy-900 truncate"}>{bedSel.length} {bedSel.length !== 1 ? tr("umbrella sets") : tr("umbrella set")} · {bedSel.map((b) => b.id).join(", ")}</div>
+                  <div className="text-guest-caption text-slate-600">€{pickedSubtotal} × {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}{autoNote ? ` · ${tr("tap a set on the sand to swap it")}` : ""}</div>
+                </div>
               </div>
-              <button onClick={() => setBedSel([])} className="text-[11px] font-semibold text-slate-500 hover:text-rose-600 shrink-0">{tr("Clear")}</button>
+              <button onClick={() => setBedSel([])} className="text-guest-caption font-semibold text-slate-500 hover:text-rose-600 shrink-0 min-h-[32px] px-1">{tr("Clear")}</button>
             </div>
+          )}
+          {autoNote?.upgrade && !multiStore && (
+            <button type="button" onClick={autoNote.upgrade.onClick} className="inline-flex items-center gap-1.5 min-h-[36px] rounded-full px-3 text-guest-caption font-semibold text-teal-800 bg-white/90 ring-1 ring-teal-300 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+              <Icon.wave size={13} /> {autoNote.upgrade.label}
+            </button>
           )}
         </div>
       )}
+
+      {/* Several days live on When; "Book in more than one zone" (AENR-524) is always in view (AENR-709). */}
+          <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2 flex items-center justify-between gap-3">
+            <div className="text-guest-meta min-w-0">
+              <div className="font-semibold text-navy-900">{tr("Book in more than one zone")}</div>
+              <div className="text-guest-caption text-slate-500">{tr("e.g. 2 sets in Macaw and 1 in Central — one payment.")}</div>
+            </div>
+            <Toggle on={multiStore} onChange={turnMulti} ariaLabel={tr("Book in more than one zone")} />
+          </div>
+      {multiStore && bedSel.length > 0 && (
+        <section aria-label={tr("Your sets by zone")} className="rounded-xl ring-1 ring-teal-300 bg-teal-50/80 px-3 py-2.5 space-y-2">
+          {groups.map((g) => (
+            <div key={g.zone.id} className="text-guest-meta">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-navy-900 flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: g.zone.color }} aria-hidden />{g.zone.name} · {g.picks.length} {g.picks.length !== 1 ? tr("sets") : tr("set")}</span>
+                <span className="tnum text-slate-700">€{g.picks.reduce((a, b) => a + b.price, 0) * dayCount}</span>
+              </div>
+              <ul className="mt-1 flex flex-wrap gap-1">
+                {g.picks.map((b) => (
+                  <li key={b.id}>
+                    <button type="button" onClick={() => setBedSel((s) => s.filter((x) => x.id !== b.id))} aria-label={`${tr("Remove")} ${b.id}`}
+                      className={`inline-flex items-center gap-1 rounded-lg px-2 py-1 text-guest-caption font-semibold ring-1 ${stale.includes(b.id) ? "bg-rose-50 text-rose-700 ring-rose-300" : "bg-white text-navy-900 ring-slate-200 hover:ring-rose-300"}`}>
+                      {b.id}{stale.includes(b.id) ? ` · ${tr("no longer free")}` : ""} <Icon.x size={11} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+          {phase === "sets" && (
+            <button type="button" onClick={() => setPhase("zones")} className="w-full inline-flex items-center justify-center gap-1.5 min-h-[40px] rounded-xl bg-white text-teal-800 text-guest-meta font-semibold ring-1 ring-teal-300 hover:ring-teal-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+              <Icon.plus size={14} /> {tr("Add sets in another zone")}
+            </button>
+          )}
+          <div className="border-t border-teal-200 pt-1.5 flex items-center justify-between text-guest-meta font-semibold text-navy-900">
+            <span>{bedSel.length} {tr("sets in")} {groups.length} {groups.length !== 1 ? tr("zones") : tr("zone")} · {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}</span>
+            <span className="tnum">€{pickedSubtotal * dayCount}</span>
+          </div>
+        </section>
+      )}
+      {!multiStore && stale.length > 0 && <div role="alert" className="rounded-xl bg-rose-50 ring-1 ring-rose-300 px-3 py-2 text-guest-caption text-rose-800">{stale.join(", ")} {tr("is no longer available — remove it and pick another set.")}</div>}
+      </>}
+      <Modal open={keepAsk} onClose={() => setKeepAsk(false)} title={tr("Keep sets from one zone?")}
+        footer={<Btn variant="ghost" onClick={() => setKeepAsk(false)}>{tr("Cancel")}</Btn>}>
+        <p className="text-guest-body text-slate-600 mb-3">{tr("You picked sets in several zones. Choose the zone whose sets you keep — the others are removed.")}</p>
+        <div className="grid gap-2">
+          {groups.map((g) => (
+            <Btn key={g.zone.id} variant="outline" onClick={() => { setBedSel((s) => s.filter((b) => b.zoneId === g.zone.id)); setMultiStore(false); setKeepAsk(false); }}>
+              {tr("Keep")} {g.zone.name} · {g.picks.map((b) => b.id).join(", ")}
+            </Btn>
+          ))}
+        </div>
+      </Modal>
     </div>
   );
 }
 
-/* Track a CSS media query — used to pick the rich (desktop) vs compact (phone)
-   store overview. */
-function useMediaQuery(query: string) {
-  const [matches, setMatches] = useState(() => typeof window !== "undefined" && window.matchMedia(query).matches);
-  useEffect(() => {
-    const mq = window.matchMedia(query);
-    const on = () => setMatches(mq.matches);
-    on();
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, [query]);
-  return matches;
+/* A sold-out day (AENR-570): the nearest days with room, other zones that day,
+   or "Notify me" (simulated SMS when a spot frees up). */
+function FullDayHelp({ day, zoneName, alt, onDay, onZone }: { day: string; zoneName: string; alt: { days: string[]; zones: { z: WizardZone; left: number }[] }; onDay: (d: string) => void; onZone: (id: string) => void }) {
+  const tr = useT();
+  const { toast, lang } = useApp();
+  const [notified, setNotified] = useState(false);
+  const loc = localeFor(lang);
+  const dayLbl = chipLabel(day, loc, tr);
+  return (
+    <div role="status" className="mt-2 rounded-xl bg-amber-50 ring-1 ring-amber-600/20 px-3 py-2.5 text-guest-meta text-amber-900 space-y-2">
+      <div><b>{zoneName ? `${zoneName} ${tr("is full on")}` : tr("The beach is full on")} {dayLbl.label} {dayLbl.sub}.</b> {tr("Try one of these:")}</div>
+      <div className="flex flex-wrap gap-1.5">
+        {alt.days.map((d) => { const c = chipLabel(d, loc, tr); return <button key={d} type="button" onClick={() => onDay(d)} className="rounded-lg bg-white ring-1 ring-amber-300 px-2.5 min-h-[36px] font-semibold text-navy-900 hover:ring-teal-400">{c.label} {c.sub}</button>; })}
+        {alt.zones.map(({ z, left }) => <button key={z.id} type="button" onClick={() => onZone(z.id)} className="rounded-lg bg-white ring-1 ring-amber-300 px-2.5 min-h-[36px] font-semibold text-navy-900 hover:ring-teal-400">{z.name} · {left} {tr("free")}</button>)}
+      </div>
+      <button type="button" disabled={notified} onClick={() => { setNotified(true); toast(`${tr("We'll text you if a spot frees up on")} ${dayLbl.sub}.`, { tone: "success" }); }} className="inline-flex items-center gap-1.5 font-semibold text-teal-800 hover:underline disabled:no-underline disabled:text-emerald-800">
+        <Icon.bell size={13} /> {notified ? tr("You'll be notified") : tr("Notify me if a spot frees up")}
+      </button>
+    </div>
+  );
 }
+
+/* One selection colour on the beach overview (owner, AENR-732): every zone's glow, name and tick use
+   the sky blue Central had, instead of each zone's own colour. */
+const ZONE_ACTIVE = "#0ea5e9";
 
 const clampN = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
-/* Push equal-size boxes apart until none overlap, starting from their given
-   centres and keeping them inside [0,W]×[0,H]. A handful of relaxation passes —
-   enough for six store clusters to settle near the admin's arrangement without
-   colliding. */
-function declutter(init: { x: number; y: number }[], W: number, H: number, cw: number, ch: number, gap: number) {
-  const pos = init.map((p) => ({ ...p }));
-  const minX = cw / 2, maxX = Math.max(cw / 2, W - cw / 2);
-  const minY = ch / 2, maxY = Math.max(ch / 2, H - ch / 2);
-  for (let it = 0; it < 90; it++) {
-    for (let i = 0; i < pos.length; i++) {
-      for (let j = i + 1; j < pos.length; j++) {
-        const dx = pos[j].x - pos[i].x;
-        const dy = pos[j].y - pos[i].y;
-        const ox = cw + gap - Math.abs(dx);
-        const oy = ch + gap - Math.abs(dy);
-        if (ox > 0 && oy > 0) {
-          if (ox < oy) {
-            const push = (ox / 2) * (dx < 0 ? -1 : 1);
-            pos[i].x -= push; pos[j].x += push;
-          } else {
-            const push = (oy / 2) * (dy < 0 ? -1 : 1);
-            pos[i].y -= push; pos[j].y += push;
-          }
-        }
-      }
-    }
-    for (const p of pos) { p.x = clampN(p.x, minX, maxX); p.y = clampN(p.y, minY, maxY); }
-  }
-  return pos;
-}
-
-/* ============ Store overview ============
-   Tablet / desktop: a panoramic beach — each store's real umbrella rows laid out
-   on the open sand (no card chrome) at the admin's position, auto-spaced so they
-   never overlap, with the store name + optional logo set on the sand beneath. Tap
+/* ============ Zone overview ============
+   Tablet / desktop: a panoramic beach — each zone's real umbrella rows laid out
+   on the open sand (no card chrome) in one front row along the water, in beach
+   order across the whole width (AENR-668), with the zone name + optional logo set on the sand beneath. Tap
    to open it. Phones / tight screens fall back to compact cards. `rich` is owned
    by the wizard (it gates the FLIP zoom); `flipEnter` names the zone whose beds
    are flying back in, so the entrance stagger skips that cluster. */
-function StoreOverview({ selectedId, onPick, rich, flipEnter }: { selectedId: string; onPick: (id: string) => void; rich: boolean; flipEnter: string | null }) {
-  return rich ? <StoreClusters selectedId={selectedId} onPick={onPick} flipEnter={flipEnter} /> : <StoreCards selectedId={selectedId} onPick={onPick} />;
+function StoreOverview({ days, selectedId, onPick, rich, flipEnter, picked }: { days: string[]; selectedId: string; onPick: (id: string) => void; rich: boolean; flipEnter: string | null; picked: Record<string, number> }) {
+  return rich ? <StoreClusters days={days} selectedId={selectedId} onPick={onPick} flipEnter={flipEnter} picked={picked} /> : <StoreCards days={days} selectedId={selectedId} onPick={onPick} picked={picked} />;
 }
 
-function StoreClusters({ selectedId, onPick, flipEnter }: { selectedId: string; onPick: (id: string) => void; flipEnter: string | null }) {
+function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: string[]; selectedId: string; onPick: (id: string) => void; flipEnter: string | null; picked: Record<string, number> }) {
   const tr = useT();
-  const { beachLayout, zoneLogos } = useApp();
+  const { zoneLogos } = useApp();
+  const liveSlots = useLiveSlots();
   const ref = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
   // Layout effect: the first measure must land before paint so the zoom-out
@@ -742,29 +1232,30 @@ function StoreClusters({ selectedId, onPick, flipEnter }: { selectedId: string; 
   }, [hasPositions, flipEnter]);
 
   // Big enough to fill the open beach, small enough that six sit side by side.
-  const cw = clampN(box.w * 0.155, 120, 290);
+  const cw = clampN(Math.min(box.w * 0.155, box.w / (ZONES.length + 0.6)), 120, 290);
   const plotH = cw * 0.86;
   const ch = plotH + 46; // + the name/logo band on the sand
   const glyph = clampN(cw * 0.12, 16, 40);
 
   const positions = useMemo(() => {
     if (!box.w || !box.h) return [];
-    const init = ZONES.map((z) => {
-      const blk = ZONE_BLOCKS.find((b) => b.id === z.id);
-      const left = blk ? parseFloat(blk.left) + parseFloat(blk.w) / 2 : 50;
-      const depth = blk ? clampN((parseFloat(blk.top) - 71) / 6, 0, 1) : 0.5;
-      return { x: (left / 100) * box.w, y: ch / 2 + 4 + depth * Math.max(0, box.h - ch - 10) };
-    });
-    return declutter(init, box.w, box.h, cw, ch, 12);
-  }, [box, cw, ch]);
+    // Every zone in one front row along the water (AENR-668), in beach order, evenly
+    // across the whole width (this also keeps them right under the shoreline, AENR-667).
+    const order = [...ZONES].sort((a, b) => parseFloat(ZONE_BLOCKS.find((x) => x.id === a.id)?.left ?? "50") - parseFloat(ZONE_BLOCKS.find((x) => x.id === b.id)?.left ?? "50"));
+    const gap = box.w / ZONES.length;
+    // Centred in the open sand between the shoreline and the guidance bar (AENR-670).
+    return ZONES.map((z) => ({ x: gap * (order.indexOf(z) + 0.5), y: Math.max(ch / 2 + 4, box.h / 2) }));
+  }, [box, ch]);
 
   return (
     <div ref={ref} className="absolute inset-0">
       {ZONES.map((z, i) => {
         const pos = positions[i];
         if (!pos) return null;
-        const slots = beachLayout[z.id] ?? zoneLayout(z);
+        const slots = liveSlots(z, days);
         const free = slots.filter((s) => s.state === "a").length;
+        const from = Math.min(...slots.filter((s) => s.state === "a").map((s) => s.price), Infinity);
+        const fromLabel = Number.isFinite(from) ? from : z.from;
         const logo = zoneLogos[z.id];
         const active = z.id === selectedId;
         return (
@@ -773,15 +1264,15 @@ function StoreClusters({ selectedId, onPick, flipEnter }: { selectedId: string; 
             data-cluster={z.id}
             onClick={() => onPick(z.id)}
             aria-pressed={active}
-            aria-label={`${z.name} — ${slots.length} ${tr("sets")}, ${free} ${tr("free")}, ${tr("from")} €${z.from}${active ? `, ${tr("selected")}` : ""}`}
+            aria-label={`${z.name} — ${slots.length} ${tr("sets")}, ${free} ${tr("free")}, ${tr("from")} €${fromLabel}${picked[z.id] ? `, ${picked[z.id]} ${tr("picked")}` : ""}${active ? `, ${tr("selected")}` : ""}`}
             className="absolute group focus:outline-none pointer-events-auto"
             style={{ left: pos.x - cw / 2, top: pos.y - ch / 2, width: cw }}
           >
-            {/* Soft tint on the sand under the selected / hovered store, so it
+            {/* Soft tint on the sand under the selected / hovered zone, so it
                 reads as one beach section without a hard card edge. */}
-            <span aria-hidden className={`absolute left-1/2 -translate-x-1/2 top-0 rounded-[45%] blur-2xl transition-opacity duration-300 ${active ? "opacity-45" : "opacity-0 group-hover:opacity-25"}`} style={{ width: "94%", height: plotH, background: z.color }} />
+            <span aria-hidden className={`absolute left-1/2 -translate-x-1/2 top-0 rounded-[45%] blur-2xl transition-opacity duration-300 ${active ? "opacity-45" : "opacity-0"}`} style={{ width: "94%", height: plotH, background: ZONE_ACTIVE }} />
 
-            {/* The store's real umbrella rows, straight on the sand (no card).
+            {/* The zone's real umbrella rows, straight on the sand (no card).
                 data-flip-id pairs each mini glyph with its big grid cell so the
                 zoom-in/out FLIPs them as one continuous camera move. */}
             <span className={`relative block transition-transform duration-300 ease-spring group-hover:-translate-y-1.5 ${active ? "-translate-y-0.5" : ""}`} style={{ height: plotH }}>
@@ -792,17 +1283,20 @@ function StoreClusters({ selectedId, onPick, flipEnter }: { selectedId: string; 
               ))}
             </span>
 
-            {/* Store label set on the sand — logo + name + a line of detail. */}
+            {/* Zone label set on the sand — logo + name + a line of detail. */}
             <span className="relative block text-center mt-0.5" data-cluster-label>
               {logo && <img src={logo} alt="" className="mx-auto mb-1 h-8 w-auto max-w-[82%] object-contain drop-shadow-[0_1px_2px_rgba(255,255,255,0.55)]" />}
-              <span className={`block font-display font-bold text-[15px] tracking-wide transition-colors drop-shadow-[0_1px_1px_rgba(255,255,255,0.75)] ${active ? "" : "text-navy-900 group-hover:text-teal-800"}`} style={active ? { color: z.color } : undefined}>{z.name}</span>
-              <span className="block text-[10.5px] font-semibold tnum text-navy-800/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.6)]">{tr("from")} €{z.from} · {free} {tr("free")}</span>
+              <span className={`block font-display font-bold text-guest-body tracking-wide transition-colors drop-shadow-[0_1px_1px_rgba(255,255,255,0.75)] ${active ? "" : "text-navy-900 group-hover:text-teal-800"}`} style={active ? { color: ZONE_ACTIVE } : undefined}>{z.name}</span>
+              <span className="block text-[10.5px] font-semibold tnum text-navy-800/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.6)]">{tr("from")} €{fromLabel} · {free} {tr("free")}</span>
             </span>
 
             {active && (
-              <span className="absolute -top-1 right-2 w-5 h-5 rounded-full text-white grid place-items-center shadow ring-2 ring-white" style={{ background: z.color }}>
+              <span className="absolute -top-1 right-2 w-5 h-5 rounded-full text-white grid place-items-center shadow ring-2 ring-white" style={{ background: ZONE_ACTIVE }}>
                 <Icon.check size={12} />
               </span>
+            )}
+            {(picked[z.id] ?? 0) > 0 && (
+              <span className="absolute -top-1 left-2 min-w-5 h-5 px-1.5 rounded-full bg-navy-900 text-white text-guest-caption font-bold grid place-items-center shadow ring-2 ring-white">{picked[z.id]} {tr("picked")}</span>
             )}
           </button>
         );
@@ -811,21 +1305,24 @@ function StoreClusters({ selectedId, onPick, flipEnter }: { selectedId: string; 
   );
 }
 
-/* Compact store cards — phones / tight screens. The same translucent glass
-   material as the menu above, with the store's logo/name, from-price and live
+/* Compact zone cards — phones / tight screens. The same translucent glass
+   material as the menu above, with the zone's logo/name, from-price and live
    availability, in a tidy two-column grid. A small zone-colour umbrella chip
-   keeps the stores distinguishable. */
-function StoreCards({ selectedId, onPick }: { selectedId: string; onPick: (id: string) => void }) {
+   keeps the zones distinguishable. */
+function StoreCards({ days, selectedId, onPick, picked }: { days: string[]; selectedId: string; onPick: (id: string) => void; picked: Record<string, number> }) {
   const tr = useT();
-  const { beachLayout, zoneLogos } = useApp();
+  const { zoneLogos } = useApp();
+  const liveSlots = useLiveSlots();
   return (
     <div className="absolute inset-0 overflow-y-auto no-scrollbar pointer-events-auto">
       <div className="grid grid-cols-2 gap-2.5 p-0.5">
         {ZONES.map((z) => {
           const active = z.id === selectedId;
           const logo = zoneLogos[z.id];
-          const slots = beachLayout[z.id] ?? zoneLayout(z);
+          const slots = liveSlots(z, days);
           const free = slots.filter((s) => s.state === "a").length;
+        const from = Math.min(...slots.filter((s) => s.state === "a").map((s) => s.price), Infinity);
+        const fromLabel = Number.isFinite(from) ? from : z.from;
           return (
             <button
               key={z.id}
@@ -838,12 +1335,15 @@ function StoreCards({ selectedId, onPick }: { selectedId: string; onPick: (id: s
               ) : (
                 <span className="mx-auto mb-1.5 w-9 h-9 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: z.color }}><Icon.umbrella size={18} /></span>
               )}
-              <span className="block text-navy-900 font-bold text-[14px] leading-tight">{z.name}</span>
-              <span className="block text-slate-600 text-[11px] tnum mt-0.5">{tr("from")} €{z.from} · {free} {tr("free")}</span>
+              <span className="block text-navy-900 font-bold text-guest-body leading-tight">{z.name}</span>
+              <span className="block text-slate-600 text-guest-caption tnum mt-0.5">{tr("from")} €{fromLabel} · {free} {tr("free")}</span>
               {active && (
                 <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-teal-500 text-white grid place-items-center shadow ring-2 ring-white">
                   <Icon.check size={12} />
                 </span>
+              )}
+              {(picked[z.id] ?? 0) > 0 && (
+                <span className="absolute top-2 left-2 h-5 px-1.5 rounded-full bg-navy-900 text-white text-guest-caption font-bold grid place-items-center shadow">{picked[z.id]} {tr("picked")}</span>
               )}
             </button>
           );
@@ -853,12 +1353,132 @@ function StoreCards({ selectedId, onPick }: { selectedId: string; onPick: (id: s
   );
 }
 
+/* Phones (AENR-693): the zones as a list inside the Where step — big rows with what
+   matters for choosing (free sets, price from, your picks). */
+function ZoneList({ days, selectedId, onPick, picked }: { days: string[]; selectedId: string; onPick: (id: string) => void; picked: Record<string, number> }) {
+  const tr = useT();
+  const { zoneLogos } = useApp();
+  const liveSlots = useLiveSlots();
+  const closure = useClosure();
+  return (
+    <section aria-labelledby="zone-list-h">
+      <h2 id="zone-list-h" className="font-display font-bold text-navy-900 text-guest-head mb-0.5">{tr("Where would you like to sit?")}</h2>
+      <p className="text-guest-meta text-slate-600 mb-2.5">{tr("Pick a zone — then choose your sets on the map.")}</p>
+      <ul className="space-y-2">
+        {ZONES.map((z) => {
+          const slots = liveSlots(z, days);
+          const freeSlots = slots.filter((s) => s.state === "a");
+          const closed = days.map((d) => closure(z.id, d)).find(Boolean);
+          const from = freeSlots.length ? Math.min(...freeSlots.map((s) => s.price)) : null;
+          const off = !!closed || freeSlots.length === 0;
+          const n = picked[z.id] ?? 0;
+          const logo = zoneLogos[z.id];
+          return (
+            <li key={z.id}>
+              <button type="button" onClick={() => onPick(z.id)} disabled={off}
+                aria-label={`${z.name} — ${closed ? closed : off ? tr("full") : `${freeSlots.length} ${tr("free")}, ${tr("from")} €${from}`}${n ? `, ${n} ${tr("picked")}` : ""}`}
+                className={`w-full flex items-center gap-3 rounded-2xl px-3 py-2.5 min-h-[64px] text-left ring-1 transition active:scale-[.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:opacity-60 disabled:active:scale-100 ${z.id === selectedId && n ? "bg-teal-50 ring-teal-400" : "bg-white/80 ring-slate-200 hover:ring-teal-400"}`}>
+                {logo ? (
+                  <img src={logo} alt="" className="h-10 w-10 object-contain shrink-0" />
+                ) : (
+                  <span className="w-10 h-10 rounded-xl grid place-items-center text-white shrink-0 shadow-sm" style={{ background: z.color }}><Icon.umbrella size={18} /></span>
+                )}
+                <span className="flex-1 min-w-0">
+                  <span className="block font-bold text-navy-900 text-guest-body leading-tight">{z.name}</span>
+                  <span className="block text-guest-meta text-slate-600 tnum">{closed ? closed : off ? tr("Full on this day") : `${freeSlots.length} ${tr("free")} · ${tr("from")} €${from}`}</span>
+                </span>
+                {n > 0 && <span className="h-6 px-2 rounded-full bg-navy-900 text-white text-guest-caption font-bold grid place-items-center shrink-0">{n} {tr("picked")}</span>}
+                {!off && <Icon.chevR size={16} className="text-slate-400 shrink-0" />}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 /* ============ Sand layer — umbrella sets ============
    The chosen zone's layout, drawn directly on the sand. Front row (small y) sits
    near the sea at the top; the back row toward the promenade. Each set is sized to
    its nearest neighbour so glyphs keep clear air and never collide. Cells carry
    data-flip-id (the zoom FLIP pairs them with the overview minis) and hand their
    element to onToggle so the pick effects can run from the tapped spot. */
+/* ---- Price tiers and the spot sheet (AENR-568) ----
+   Rows nearer the sea cost more; guests see the tier (colour + letter, never
+   colour alone) and the price on every set before tapping. Tapping opens the
+   spot sheet: row, metres to the sea, shade, what's included, the view, price. */
+export type Tier = { key: "front" | "middle" | "back"; name: string; letter: string; color: string };
+export const TIERS: Tier[] = [
+  { key: "front", name: "Front row", letter: "F", color: "#0e7490" },
+  { key: "middle", name: "Middle rows", letter: "M", color: "#b45309" },
+  { key: "back", name: "Back rows", letter: "B", color: "#475569" },
+];
+export function tierInfo(slots: readonly SunbedSlot[]) {
+  const rows = [...new Set(slots.map((s) => Math.round(s.y)))].sort((a, b) => a - b);
+  return (s: SunbedSlot) => {
+    const row = rows.indexOf(Math.round(s.y));
+    const f = rows.length > 1 ? row / (rows.length - 1) : 0;
+    const tier = row === 0 ? TIERS[0] : f < 0.67 ? TIERS[1] : TIERS[2];
+    return { tier, row: row + 1, metres: 8 + row * 5 };
+  };
+}
+
+function SpotView({ row, tier }: { row: number; tier: Tier }) {
+  // A simple "view from the spot": the closer the row, the more sea you see.
+  const sea = Math.max(18, 46 - (row - 1) * 6);
+  const rowsInFront = Math.min(3, row - 1);
+  return (
+    <svg viewBox="0 0 320 140" className="w-full h-auto rounded-xl" role="img" aria-label={`View from the ${tier.name.toLowerCase()}: ${rowsInFront ? `${rowsInFront} row${rowsInFront === 1 ? "" : "s"} of umbrellas, then the sea` : "nothing between you and the sea"}`}>
+      <rect width="320" height="140" fill="#e0f2fe" />
+      <rect y={60 - sea / 2} width="320" height={sea} fill="#38bdf8" />
+      <rect y={60 + sea / 2} width="320" height={140 - (60 + sea / 2)} fill="#f5deb3" />
+      {Array.from({ length: rowsInFront }).flatMap((_, r) =>
+        Array.from({ length: 5 }).map((__, i) => {
+          const y = 60 + sea / 2 + 10 + r * 18;
+          const x = 30 + i * 65 + (r % 2) * 30;
+          return (
+            <g key={`${r}-${i}`}>
+              <line x1={x} y1={y} x2={x} y2={y + 16} stroke="#78350f" strokeWidth="2" />
+              <path d={`M${x - 16} ${y} Q${x} ${y - 12} ${x + 16} ${y} Z`} fill={r % 2 ? "#fb923c" : "#f97316"} />
+            </g>
+          );
+        }),
+      )}
+      <circle cx="270" cy="22" r="10" fill="#fde047" />
+    </svg>
+  );
+}
+
+/* A slim set card (AENR-707): the zone as the title, the view, and just the two facts that
+   matter — the row and what the set includes. The price sits on the Select button. */
+function SpotSheet({ zoneName, slot, info, selected, priceText, onClose, onSelect }: { zoneName: string; slot: SunbedSlot; info: ReturnType<ReturnType<typeof tierInfo>>; selected: boolean; priceText: string; onClose: () => void; onSelect: () => void }) {
+  const tr = useT();
+  const beds = slot.cap ?? 2;
+  return (
+    <Sheet open onClose={onClose} title={zoneName}
+      footer={<><Btn variant="ghost" onClick={onClose}>{tr("Close")}</Btn><Btn variant={selected ? "outline" : "teal"} icon={selected ? Icon.x : Icon.check} onClick={onSelect}>{selected ? tr("Remove") : `${tr("Select")} · ${priceText}`}</Btn></>}>
+      <div className="space-y-3 text-guest-meta">
+        <SpotView row={info.row} tier={info.tier} />
+        <dl className="grid grid-cols-2 gap-2">
+          <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+            <dt className="text-guest-caption text-slate-500">{tr("Row")}</dt>
+            <dd className="font-semibold text-navy-900 flex items-center gap-1.5">
+              <span className="rounded px-1 text-guest-caption font-bold text-white" style={{ background: info.tier.color }} aria-hidden>{info.tier.letter}</span>
+              {info.row} · {tr(info.tier.name)}
+            </dd>
+          </div>
+          <div className="rounded-xl bg-slate-50 px-3 py-2.5">
+            <dt className="text-guest-caption text-slate-500">{tr("Includes")}</dt>
+            <dd className="font-semibold text-navy-900">{beds} {tr("sunbeds")} + 1 {tr("umbrella")}</dd>
+          </div>
+        </dl>
+        <p className="text-guest-caption text-slate-500">{tr("Set")} {slot.id}{slot.access ? ` · ${tr("step-free access")}` : ""}</p>
+      </div>
+    </Sheet>
+  );
+}
+
 function SandSunbeds({ slots, selected, onToggle, readOnly = false }: {
   slots: SunbedSlot[];
   selected: Set<string>;
@@ -892,6 +1512,7 @@ function SandSunbeds({ slots, selected, onToggle, readOnly = false }: {
     }
     return Math.max(26, Math.min(base, min * 0.84));
   }, [slots, box]);
+  const tierOf = useMemo(() => tierInfo(slots), [slots]);
   return (
     <div ref={ref} className="absolute inset-0">
       {slots.map((s) => (
@@ -903,7 +1524,14 @@ function SandSunbeds({ slots, selected, onToggle, readOnly = false }: {
           className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
           style={{ left: `${s.x}%`, top: `${s.y}%`, width: size, height: size }}
         >
-          <Sunbed state={s.state} sel={selected.has(s.id)} price={s.price} label={s.id} fill readOnly={readOnly} onClick={readOnly ? undefined : () => onToggle?.(s, cells.current.get(s.id) ?? null)} />
+          <Sunbed state={s.state} sel={selected.has(s.id)} price={s.price} label={`${s.id}, ${tierOf(s).tier.name}${s.access ? " (step-free)" : ""}${s.inv ? ` — ${s.inv}` : ""}`} fill readOnly={readOnly} onClick={readOnly ? undefined : () => onToggle?.(s, cells.current.get(s.id) ?? null)} />
+          {!readOnly && s.state === "a" && size >= 30 && (
+            <span aria-hidden className="absolute left-1/2 -translate-x-1/2 -bottom-2 rounded px-1 text-guest-caption font-bold leading-[13px] text-white whitespace-nowrap pointer-events-none shadow-sm" style={{ background: tierOf(s).tier.color }}>
+              {tierOf(s).tier.letter} €{s.price}
+            </span>
+          )}
+          {s.inv && <span aria-hidden title={s.inv} className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-navy-900 text-white text-guest-caption grid place-items-center ring-2 ring-white pointer-events-none">🔒</span>}
+          {s.access && <span aria-hidden className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-sky-600 text-white text-guest-caption grid place-items-center ring-2 ring-white pointer-events-none">♿</span>}
         </div>
       ))}
     </div>
@@ -911,7 +1539,8 @@ function SandSunbeds({ slots, selected, onToggle, readOnly = false }: {
 }
 
 /* ============ Guests ============ */
-function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, pickedSets, autoFilled, onPreset }: {
+function PeopleStep({ tickets: TICKET, people, setPeople, includeTickets, setIncludeTickets, pickedSets, autoFilled, onPreset, usualParty }: {
+  tickets: TicketInfo;
   people: People;
   setPeople: Dispatch<SetStateAction<People>>;
   includeTickets: boolean;
@@ -920,35 +1549,41 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, pick
   /** True while the headcount is still the auto pre-fill (untouched by the guest). */
   autoFilled: boolean;
   onPreset: (v: People) => void;
+  /** The party from their last booking (AENR-613), offered first. */
+  usualParty: People | null;
 }) {
   const tr = useT();
   const totalPeople = Object.values(people).reduce((a, b) => a + b, 0);
+  const same = (a: People, b: People) => Object.keys({ ...a, ...b }).every((k) => (a[k] ?? 0) === (b[k] ?? 0));
+  const isUsual = !!usualParty && same(people, usualParty);
   const presets = [
-    { id: "solo",   label: tr("Solo"),       sub: tr("1 person"),     v: { adult: 1, resident: 0, child: 0, senior: 0 } },
-    { id: "couple", label: tr("Couple"),     sub: tr("2 people"),     v: { adult: 2, resident: 0, child: 0, senior: 0 } },
-    { id: "family", label: tr("Family · 4"), sub: tr("2 adults + 2 kids"), v: { adult: 2, resident: 0, child: 2, senior: 0 } },
-    { id: "group",  label: tr("Group · 6"),  sub: tr("Friends day"),  v: { adult: 6, resident: 0, child: 0, senior: 0 } },
+    ...(usualParty ? [{ id: "usual", label: tr("Your usual"), sub: partyLabel(usualParty, Object.fromEntries(Object.entries(TICKET).map(([k, t]) => [k, t.label.toLowerCase()])), tr), v: usualParty }] : []),
+    // Plain adult counts (AENR-713): Solo, Adult ×2, ×3, ×4.
+    { id: "solo", label: tr("Solo"),     sub: tr("1 adult"),  v: { adult: 1, resident: 0, child: 0, senior: 0 } },
+    { id: "a2",   label: `${tr("Adult")} ×2`, sub: tr("2 adults"), v: { adult: 2, resident: 0, child: 0, senior: 0 } },
+    { id: "a3",   label: `${tr("Adult")} ×3`, sub: tr("3 adults"), v: { adult: 3, resident: 0, child: 0, senior: 0 } },
+    { id: "a4",   label: `${tr("Adult")} ×4`, sub: tr("4 adults"), v: { adult: 4, resident: 0, child: 0, senior: 0 } },
   ];
   return (
     <div className="space-y-4">
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{tr("Quick picks")}</div>
+        <div className="text-guest-over font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{tr("Quick picks")}</div>
         <div className="flex flex-wrap gap-1.5">
           {presets.map((p) => {
-            const match = JSON.stringify(p.v) === JSON.stringify(people);
+            const match = p.id === "usual" ? isUsual : !(isUsual && usualParty && same(p.v, usualParty)) && same(p.v, people);
             return (
               <button key={p.id} onClick={() => onPreset(p.v)}
                 className={`text-left rounded-xl px-3 py-2 ring-1 transition ${match ? "bg-navy-900 text-white ring-navy-900" : "bg-white/70 ring-slate-200 hover:ring-teal-400"}`}>
-                <div className="text-[13px] font-semibold leading-tight">{p.label}</div>
-                <div className={`text-[11px] leading-tight ${match ? "text-white/70" : "text-slate-500"}`}>{p.sub}</div>
+                <div className="text-guest-meta font-semibold leading-tight">{p.label}</div>
+                <div className={`text-guest-caption leading-tight ${match ? "text-white/70" : "text-slate-500"}`}>{p.sub}</div>
               </button>
             );
           })}
           {/* Entry-tickets toggle sits inline, right after the quick picks. */}
           <button onClick={() => setIncludeTickets((v) => !v)} aria-pressed={includeTickets}
             className={`relative text-left rounded-xl pl-3 pr-9 py-2 ring-1 transition ${includeTickets ? "bg-teal-50 ring-teal-500" : "bg-white/70 ring-slate-200 hover:ring-teal-400"}`}>
-            <div className="text-[13px] font-semibold leading-tight text-navy-900 flex items-center gap-1.5"><Icon.ticket size={13} className={includeTickets ? "text-teal-600" : "text-slate-500"} /> {tr("Add Entry tickets")}</div>
-            <div className="text-[11px] leading-tight text-slate-500">{tr("One ticket per guest")}</div>
+            <div className="text-guest-meta font-semibold leading-tight text-navy-900 flex items-center gap-1.5"><Icon.ticket size={13} className={includeTickets ? "text-teal-600" : "text-slate-500"} /> {tr("Add Entry tickets")}</div>
+            <div className="text-guest-caption leading-tight text-slate-500">{tr("One ticket per guest")}</div>
             <span className={`absolute top-1/2 -translate-y-1/2 right-2 w-5 h-5 rounded-full grid place-items-center ${includeTickets ? "bg-teal-600 text-white" : "ring-1 ring-slate-300 text-slate-400"}`}>
               {includeTickets ? <Icon.check size={12} /> : <Icon.plus size={12} />}
             </span>
@@ -956,35 +1591,42 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, pick
         </div>
       </div>
 
+      {isUsual && (
+        <div className="rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2 flex items-start gap-2 text-guest-meta text-navy-900 animate-fade-up">
+          <Icon.group size={14} className="text-teal-600 shrink-0 mt-0.5" />
+          <span>{tr("Same people as last time.")} {tr("Change the headcount below if someone else is coming.")}</span>
+        </div>
+      )}
       {autoFilled && pickedSets > 0 && (
-        <div className="rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2 flex items-start gap-2 text-[12.5px] text-navy-900 animate-fade-up">
+        <div className="rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2 flex items-start gap-2 text-guest-meta text-navy-900 animate-fade-up">
           <Icon.ticket size={14} className="text-teal-600 shrink-0 mt-0.5" />
           <span>{tr("We pre-filled")} <b>{pickedSets * 2} {tr("entry tickets")}</b> — {tr("2 per set. Change the headcount below if you need to.")}</span>
         </div>
       )}
 
       <div>
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{tr("Headcount by category")}</div>
+        <div className="text-guest-over font-semibold uppercase tracking-wide text-slate-500 mb-1.5">{tr("Headcount by category")}</div>
         <div className="space-y-1.5">
           {Object.keys(TICKET).map((k) => {
             const t = TICKET[k];
             return (
               <div key={k} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
                 <div className="min-w-0">
-                  <div className="font-semibold text-sm text-navy-900">{tr(t.label)}</div>
-                  <div className="text-[11px] text-slate-500">€{t.price} {tr("entry")} · {tr(t.sub)}</div>
+                  <div className="font-semibold text-guest-body text-navy-900">{tr(t.label)}</div>
+                  <div className="text-guest-caption text-slate-500">€{t.price} {tr("entry")}{t.sub ? ` · ${tr(t.sub)}` : ""}</div>
                 </div>
-                <Stepper label={tr(t.label)} value={people[k]} onChange={(v) => setPeople((p) => ({ ...p, [k]: v }))} />
+                <Stepper label={tr(t.label)} value={people[k] ?? 0} onChange={(v) => setPeople((p) => ({ ...p, [k]: v }))} />
               </div>
             );
           })}
         </div>
+        <p className="mt-1.5 text-guest-caption text-slate-500 flex items-start gap-1.5"><Icon.shield size={12} className="shrink-0 mt-0.5" /> {tr("Child tickets record only the type and count — no names or dates of birth.")}</p>
       </div>
 
       {pickedSets > 0 && (
         <div className={`rounded-xl ring-1 px-3 py-2.5 flex items-start gap-2.5 ${totalPeople > pickedSets * 2 ? "ring-amber-300 bg-amber-50/80" : "ring-teal-200 bg-teal-50/70"}`}>
           <span className={`w-8 h-8 rounded-lg text-white grid place-items-center shrink-0 ${totalPeople > pickedSets * 2 ? "bg-amber-500" : "bg-teal-600"}`}><Icon.umbrella size={15} /></span>
-          <div className="text-[13px] leading-snug text-navy-900">
+          <div className="text-guest-meta leading-snug text-navy-900">
             {tr("You picked")} <b>{pickedSets} {pickedSets !== 1 ? tr("umbrella sets") : tr("umbrella set")}</b> — {tr("seats up to")} <b>{pickedSets * 2}</b>.{" "}
             {totalPeople > pickedSets * 2
               ? tr("That's fewer seats than guests — add a set on the Beach step if you need more.")
@@ -997,7 +1639,10 @@ function PeopleStep({ people, setPeople, includeTickets, setIncludeTickets, pick
 }
 
 /* ============ Locker ============ */
-function LockerStep({ on, setOn, scope, setScope, days, setDays, qty, setQty, selDates, multiDate }: {
+function LockerStep({ on, setOn, scope, setScope, days, setDays, qty, setQty, selDates, multiDate, banks, bank, setBank }: {
+  banks: LockerChoice[];
+  bank: string;
+  setBank: (id: string) => void;
   on: boolean;
   setOn: Dispatch<SetStateAction<boolean>>;
   scope: DayScope;
@@ -1012,14 +1657,35 @@ function LockerStep({ on, setOn, scope, setScope, days, setDays, qty, setQty, se
   const tr = useT();
   const activeDays = multiDate && scope === "some" ? days : selDates;
   const n = activeDays.length;
+  const cur = banks.find((b) => b.id === bank) ?? banks[0];
+  const LOCKER_PRICE = cur?.price ?? 0;
+  const paused = banks.length > 0 && banks.every((b) => b.avail === null);
   const choose = (mode: "all" | "some" | "off") => {
     if (mode === "off") { setOn(false); return; }
     setOn(true);
     setScope(mode);
     if (mode === "some" && days.length === 0) setDays([...selDates]); // start from all chosen days
   };
+  if (paused)
+    return (
+      <div role="status" className="rounded-xl ring-1 ring-amber-300 bg-amber-50/80 px-3 py-3 text-guest-meta text-amber-900 flex items-start gap-2">
+        <Icon.alert size={15} className="shrink-0 mt-0.5" /> {tr("Lockers can't be booked online right now — ask at the entrance.")}
+      </div>
+    );
   return (
     <div className="space-y-3">
+      <div role="radiogroup" aria-label={tr("Locker type")} className="grid sm:grid-cols-3 gap-2">
+        {banks.map((b) => {
+          const none = b.avail === 0;
+          return (
+            <button key={b.id} type="button" role="radio" aria-checked={bank === b.id} disabled={none} onClick={() => { setBank(b.id); setOn(true); }}
+              className={`text-left rounded-xl px-3 py-2 ring-1 transition disabled:opacity-50 disabled:cursor-not-allowed ${bank === b.id ? "bg-teal-50 ring-teal-500" : "bg-white/70 ring-slate-200 hover:ring-teal-400"}`}>
+              <div className="text-guest-meta font-semibold text-navy-900">{b.name}</div>
+              <div className="text-guest-caption text-slate-500">€{b.price}/{tr("day")} · {none ? tr("Sold out") : `${b.avail} ${tr("left")}`}</div>
+            </button>
+          );
+        })}
+      </div>
       {multiDate ? (
         <div className="grid sm:grid-cols-3 gap-2">
           <YesNo on={on && scope === "all"} onClick={() => choose("all")} title={tr("Yes — all days")} sub={`${selDates.length} ${selDates.length !== 1 ? tr("days") : tr("day")} · €${LOCKER_PRICE}/day`} icon={Icon.lock} />
@@ -1034,20 +1700,20 @@ function LockerStep({ on, setOn, scope, setScope, days, setDays, qty, setQty, se
       )}
       {on && multiDate && scope === "some" && (
         <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 animate-pop">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.calendar size={12} /> {tr("Which days?")}</div>
+          <div className="text-guest-over font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.calendar size={12} /> {tr("Which days?")}</div>
           <DayChips days={selDates} value={days} onChange={setDays} />
         </div>
       )}
       {on && (
         <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 flex items-center justify-between animate-pop">
           <div>
-            <div className="font-semibold text-sm text-navy-900">{tr("How many lockers?")}</div>
-            <div className="text-[11px] text-slate-500">{qty} × €{LOCKER_PRICE} × {n} {n !== 1 ? tr("days") : tr("day")}</div>
+            <div className="font-semibold text-guest-body text-navy-900">{tr("How many lockers?")}</div>
+            <div className="text-guest-caption text-slate-500">{qty} × €{LOCKER_PRICE} × {n} {n !== 1 ? tr("days") : tr("day")}</div>
           </div>
-          <Stepper label={tr("lockers")} value={qty} onChange={(v) => setQty(Math.max(1, v))} min={1} />
+          <Stepper label={tr("lockers")} value={qty} onChange={(v) => setQty(Math.max(1, Math.min(cur?.avail ?? v, v)))} min={1} />
         </div>
       )}
-      <div className="text-[12px] text-slate-500 flex items-center gap-1.5">
+      <div className="text-guest-caption text-slate-500 flex items-center gap-1.5">
         <Icon.info size={13} /> {tr("Pick exact lockers later from the My Bookings")} QR.
       </div>
     </div>
@@ -1068,8 +1734,8 @@ function DayChips({ days, value, onChange }: { days: string[]; value: string[]; 
         return (
           <button key={iso} type="button" onClick={() => toggle(iso)} aria-pressed={on}
             className={`rounded-xl px-3 py-1.5 ring-1 text-center transition ${on ? "bg-navy-900 text-white ring-navy-900" : "bg-white ring-slate-200 hover:ring-teal-400"}`}>
-            <span className="block text-[12px] font-semibold leading-tight">{c.label}</span>
-            <span className={`block text-[10px] leading-tight ${on ? "text-white/70" : "text-slate-500"}`}>{c.sub}</span>
+            <span className="block text-guest-caption font-semibold leading-tight">{c.label}</span>
+            <span className={`block text-guest-caption leading-tight ${on ? "text-white/70" : "text-slate-500"}`}>{c.sub}</span>
           </button>
         );
       })}
@@ -1135,15 +1801,15 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
       )}
       {on && multiDate && scope === "some" && (
         <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 animate-pop">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.calendar size={12} /> {tr("Which days?")}</div>
+          <div className="text-guest-over font-semibold uppercase tracking-wide text-slate-500 mb-1.5 flex items-center gap-1.5"><Icon.calendar size={12} /> {tr("Which days?")}</div>
           <DayChips days={selDates} value={days} onChange={setDays} />
         </div>
       )}
       {on && (
         <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 flex items-center justify-between animate-pop">
           <div>
-            <div className="font-semibold text-sm text-navy-900">{tr("How many spots?")}</div>
-            <div className="text-[11px] text-slate-500">{qty} × €{PARKING_PRICE} × {n} {n !== 1 ? tr("days") : tr("day")}</div>
+            <div className="font-semibold text-guest-body text-navy-900">{tr("How many spots?")}</div>
+            <div className="text-guest-caption text-slate-500">{qty} × €{PARKING_PRICE} × {n} {n !== 1 ? tr("days") : tr("day")}</div>
           </div>
           <Stepper label={tr("parking spots")} value={qty} onChange={changeQty} min={1} />
         </div>
@@ -1152,14 +1818,14 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
           day. The per-day plate matrix below stays for the single-spot case. */}
       {on && qty > 1 && (
         <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-3 animate-pop space-y-2.5">
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.car size={12} /> {tr("Vehicle plate per spot")}</div>
+          <div className="text-guest-over font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.car size={12} /> {tr("Vehicle plate per spot")}</div>
           {Array.from({ length: qty }).map((_, i) => (
             <div key={i} className="flex items-center gap-2">
-              <span className="text-[12px] font-semibold text-navy-900 w-24 shrink-0">{tr("Spot")} {i + 1}</span>
+              <span className="text-guest-caption font-semibold text-navy-900 w-24 shrink-0">{tr("Spot")} {i + 1}</span>
               <Input value={spotPlates[i] || ""} onChange={(e) => setSpotPlate(i, e.target.value)} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" />
             </div>
           ))}
-          <div className="flex items-center justify-between text-[12px] text-slate-600 pt-1.5 border-t border-slate-100">
+          <div className="flex items-center justify-between text-guest-caption text-slate-600 pt-1.5 border-t border-slate-100">
             <span>{qty} {tr("spots")} × {n} {n !== 1 ? tr("days") : tr("day")} × €{PARKING_PRICE}</span>
             <span className="font-semibold text-navy-900 tnum">€{qty * PARKING_PRICE * n}</span>
           </div>
@@ -1168,26 +1834,26 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
       {on && qty === 1 && (multiDate ? (
         <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-3 animate-pop space-y-2.5">
           <div className="flex items-center justify-between gap-3">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.car size={12} /> {samePlate ? tr("Vehicle plate") : tr("Vehicle plate per day")}</div>
-            <label className="flex items-center gap-2 text-[12px] font-semibold text-navy-900 cursor-pointer shrink-0">
+            <div className="text-guest-over font-semibold uppercase tracking-wide text-slate-500 flex items-center gap-1.5"><Icon.car size={12} /> {samePlate ? tr("Vehicle plate") : tr("Vehicle plate per day")}</div>
+            <label className="flex items-center gap-2 text-guest-caption font-semibold text-navy-900 cursor-pointer shrink-0">
               {tr("Same car plate")}
-              <Toggle on={samePlate} onChange={(v) => { setSamePlate(v); if (v) writeShared(plates[activeDays[0]] ?? plates[selDates[0]] ?? ""); }} />
+              <Toggle on={samePlate} onChange={(v) => { setSamePlate(v); if (v) writeShared(plates[activeDays[0]] ?? plates[selDates[0]] ?? ""); }} ariaLabel={tr("Same car plate")} />
             </label>
           </div>
           {activeDays.length === 0 ? (
-            <div className="text-[12px] text-slate-500">{tr("Pick at least one day above.")}</div>
+            <div className="text-guest-caption text-slate-500">{tr("Pick at least one day above.")}</div>
           ) : samePlate ? (
             <Input value={plates[selDates[0]] || ""} onChange={(e) => writeShared(e.target.value)} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" />
           ) : activeDays.map((iso) => {
             const c = chipLabel(iso, loc, tr);
             return (
               <div key={iso} className="flex items-center gap-2">
-                <span className="text-[12px] font-semibold text-navy-900 w-24 shrink-0 leading-tight">{c.label}<span className="block text-[10px] text-slate-500 font-normal">{c.sub}</span></span>
+                <span className="text-guest-caption font-semibold text-navy-900 w-24 shrink-0 leading-tight">{c.label}<span className="block text-guest-caption text-slate-500 font-normal">{c.sub}</span></span>
                 <Input value={plates[iso] || ""} onChange={(e) => setPlate(iso, e.target.value)} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" />
               </div>
             );
           })}
-          <div className="flex items-center justify-between text-[12px] text-slate-600 pt-1.5 border-t border-slate-100">
+          <div className="flex items-center justify-between text-guest-caption text-slate-600 pt-1.5 border-t border-slate-100">
             <span>{activeDays.length} {activeDays.length !== 1 ? tr("days") : tr("day")} × €{PARKING_PRICE}</span>
             <span className="font-semibold text-navy-900 tnum">€{PARKING_PRICE * activeDays.length}</span>
           </div>
@@ -1197,7 +1863,7 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
           <Field label={tr("Vehicle plate")} hint={tr("Used by the gate camera to let you in automatically.")}>
             <Input value={plates[selDates[0]] || ""} onChange={(e) => setPlate(selDates[0], e.target.value)} placeholder="e.g. ΙΖΡ-1234" className="uppercase tnum" />
           </Field>
-          <div className="mt-2 flex items-center justify-between text-[12px] text-slate-600">
+          <div className="mt-2 flex items-center justify-between text-guest-caption text-slate-600">
             <span>{tr("1 spot")} × {selDates.length} {selDates.length !== 1 ? tr("days") : tr("day")}</span>
             <span className="font-semibold text-navy-900 tnum">€{PARKING_PRICE * selDates.length}</span>
           </div>
@@ -1215,8 +1881,8 @@ function YesNo({ on, title, sub, icon: IconC, onClick }: { on: boolean; title: R
         <IconC size={17} />
       </span>
       <span className="min-w-0">
-        <span className="block text-[13px] font-semibold text-navy-900 leading-tight">{title}</span>
-        <span className="block text-[11px] text-slate-600 leading-tight">{sub}</span>
+        <span className="block text-guest-meta font-semibold text-navy-900 leading-tight">{title}</span>
+        <span className="block text-guest-caption text-slate-600 leading-tight">{sub}</span>
       </span>
     </button>
   );
@@ -1253,58 +1919,63 @@ function ReviewStep({ people, totalPeople, selDates, zone, bedSel = [], includeT
   const dateLabel = selDates.length === 1
     ? first.label + ", " + first.sub
     : `${selDates.length} ${tr("days")} (${selDates.map((d) => chipLabel(d, loc).sub).join(", ")})`;
-  const beachBody = bedSel.length > 0
-    ? `${zone.name} · ${bedSel.length} ${bedSel.length !== 1 ? tr("sets") : tr("set")} · ${bedSel.map((b) => b.id).join(", ")}`
-    : tr("Not included");
+  // Per zone, how many sets — the set codes stay on the map (AENR-714); grouped by zone when the booking spans several (AENR-524).
+  const byStore = [...new Set(bedSel.map((b) => b.zoneId))].map((zid) => ({ name: ZONES.find((z) => z.id === zid)?.name ?? zone.name, n: bedSel.filter((b) => b.zoneId === zid).length }));
+  const ticketCount = ticketBreak.reduce((a, b) => a + b.n, 0);
   return (
-    <div className="space-y-2">
-      <ReviewRow icon={Icon.umbrella} title={tr("Beach")} body={beachBody} onEdit={() => onJump("beach")} />
-      <ReviewRow icon={Icon.calendar} title={tr("Dates")} body={dateLabel} onEdit={() => onJump("beach")} />
-      <ReviewRow icon={Icon.group} title={tr("Guests")} body={totalPeople > 0 ? `${totalPeople} ${tr("total")} · ${humanPeople(people)}` : tr("None added")} onEdit={() => onJump("people")} />
-      <ReviewRow
-        icon={Icon.ticket}
-        title={tr("Entry tickets")}
-        body={includeTickets ? ticketBreak.filter((t) => t.n > 0).map((t) => `${t.n} × ${tr(t.t.label)}`).join(" · ") || "—" : tr("Not included")}
-        onEdit={() => onJump("people")}
-      />
-      <ReviewRow icon={Icon.lock} title={tr("Day locker")} body={lockerOn && lockerDates.length > 0 ? `${lockerQty} ${lockerQty !== 1 ? tr("lockers") : tr("locker")} · ${lockerDates.length} ${lockerDates.length !== 1 ? tr("days") : tr("day")}` : tr("Not added")} onEdit={() => onJump("locker")} />
-      <ReviewRow
-        icon={Icon.car}
-        title={tr("Parking Spot")}
-        body={parkingOn && parkingDates.length > 0
-          ? `${parkingQty} ${parkingQty !== 1 ? tr("spots") : tr("spot")} · ${parkingDates.length} ${parkingDates.length !== 1 ? tr("days") : tr("day")} · ${plateSummary}`
-          : tr("Not added")}
-        onEdit={() => onJump("parking")}
-      />
+    <div className="space-y-2.5">
+      {/* Order (AENR-714): when, where, who — then any extras. */}
+      <ReviewRow icon={Icon.calendar} title={tr("Dates")} onEdit={() => onJump("when")}>{dateLabel}</ReviewRow>
+      <ReviewRow icon={Icon.umbrella} title={tr("Beach")} onEdit={() => onJump("beach")}>
+        {bedSel.length > 0
+          ? byStore.map((g) => <span key={g.name} className="block"><b className="font-semibold text-navy-900">{g.name}</b> · {g.n} {g.n !== 1 ? tr("umbrella sets") : tr("umbrella set")}</span>)
+          : tr("No sunbeds — entry only")}
+      </ReviewRow>
+      <ReviewRow icon={Icon.group} title={tr("Guests & entry tickets")} onEdit={() => onJump("people")}>
+        <span className="block">{totalPeople > 0 ? `${totalPeople} ${totalPeople !== 1 ? tr("guests") : tr("guest")} · ${humanPeople(people, tr)}` : tr("None added")}</span>
+        <span className="block">{includeTickets && ticketCount > 0 ? `${ticketCount} ${ticketCount !== 1 ? tr("entry tickets included") : tr("entry ticket included")}` : tr("Entry tickets not included")}</span>
+      </ReviewRow>
+      {/* Locker and parking show here once added; "Add a locker or parking" below adds them (AENR-612) — only when the beach sells them (AENR-696). */}
+      {lockerOn && lockerDates.length > 0 && (
+        <ReviewRow icon={Icon.lock} title={tr("Day locker")} onEdit={() => onJump("locker")}>{`${lockerQty} ${lockerQty !== 1 ? tr("lockers") : tr("locker")} · ${lockerDates.length} ${lockerDates.length !== 1 ? tr("days") : tr("day")}`}</ReviewRow>
+      )}
+      {parkingOn && parkingDates.length > 0 && (
+        <ReviewRow icon={Icon.car} title={tr("Parking Spot")} onEdit={() => onJump("parking")}>
+          {`${parkingQty} ${parkingQty !== 1 ? tr("spots") : tr("spot")} · ${parkingDates.length} ${parkingDates.length !== 1 ? tr("days") : tr("day")} · ${plateSummary}`}
+        </ReviewRow>
+      )}
     </div>
   );
 }
 
-function ReviewRow({ icon: IconC, title, body, onEdit }: { icon: IconRenderer; title: ReactNode; body: ReactNode; onEdit: () => void }) {
+/* One Pay-step tile (AENR-714): a clear icon, the title and what was chosen in full (no truncation), and a 44px Edit. */
+function ReviewRow({ icon: IconC, title, children, onEdit }: { icon: IconRenderer; title: string; children: ReactNode; onEdit: () => void }) {
   const tr = useT();
   return (
-    <div className="flex items-center gap-3 rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
-      <span className="w-9 h-9 rounded-lg bg-slate-100 text-slate-600 grid place-items-center shrink-0"><IconC size={16} /></span>
+    <div className="flex items-center gap-3.5 rounded-2xl ring-1 ring-slate-200 bg-white/80 px-3.5 py-3">
+      <span className="w-11 h-11 rounded-xl bg-teal-50 text-teal-700 grid place-items-center shrink-0"><IconC size={20} /></span>
       <div className="min-w-0 flex-1">
-        <div className="text-[13px] font-semibold text-navy-900 leading-tight">{title}</div>
-        <div className="text-[12px] text-slate-600 leading-snug truncate">{body}</div>
+        <div className="text-guest-body font-semibold text-navy-900 leading-tight">{title}</div>
+        <div className="mt-0.5 text-guest-meta text-slate-600 leading-snug">{children}</div>
       </div>
-      <button onClick={onEdit} className="text-[12px] font-semibold text-teal-700 hover:text-teal-800 px-2 py-1 rounded-lg hover:bg-teal-50">{tr("Edit")}</button>
+      <button type="button" onClick={onEdit} aria-label={`${tr("Edit")} ${title}`} className="shrink-0 min-h-[44px] px-3 rounded-xl text-guest-meta font-semibold text-teal-700 hover:text-teal-800 hover:bg-teal-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">{tr("Edit")}</button>
     </div>
   );
 }
 
-function humanPeople(p: People) {
+function humanPeople(p: People, tr: (s: string) => string = (s) => s) {
   const parts = [];
-  if (p.adult)    parts.push(`${p.adult} adult${p.adult !== 1 ? "s" : ""}`);
-  if (p.resident) parts.push(`${p.resident} resident${p.resident !== 1 ? "s" : ""}`);
-  if (p.child)    parts.push(`${p.child} child${p.child !== 1 ? "ren" : ""}`);
-  if (p.senior)   parts.push(`${p.senior} senior${p.senior !== 1 ? "s" : ""}`);
+  if (p.adult)    parts.push(`${p.adult} ${tr(p.adult !== 1 ? "adults" : "adult")}`);
+  if (p.resident) parts.push(`${p.resident} ${tr(p.resident !== 1 ? "residents" : "resident")}`);
+  if (p.child)    parts.push(`${p.child} ${tr(p.child !== 1 ? "children" : "child")}`);
+  if (p.senior)   parts.push(`${p.senior} ${tr(p.senior !== 1 ? "seniors" : "senior")}`);
   return parts.join(", ") || "—";
 }
 
 /* Renders an integer euro amount, smoothly tweened on change. */
 function LiveEuro({ value }: { value: number }) {
   const display = useAnimatedNumber(value);
-  return <span className="tnum">{Math.round(display).toLocaleString()}</span>;
+  // Cents when the total has them, so it reads exactly like checkout (AENR-569).
+  const cents = Math.round(value * 100) % 100 !== 0;
+  return <span className="tnum">{cents ? display.toFixed(2) : Math.round(display).toLocaleString()}</span>;
 }

@@ -5,8 +5,9 @@ import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
 import { Btn } from "./primitives";
 
-/* Dialog focus management (WCAG 2.4.3 + ARIA dialog pattern). */
-function useDialogFocus(open: boolean, panelRef: RefObject<HTMLElement | null>) {
+/* Dialog focus management (WCAG 2.4.3 + ARIA dialog pattern): focus moves in (to `initialRef`
+   when given, else the first control), Tab cycles inside, and focus returns on close. */
+export function useDialogFocus(open: boolean, panelRef: RefObject<HTMLElement | null>, initialRef?: RefObject<HTMLElement | null>) {
   useEffect(() => {
     if (!open) return;
     const panel = panelRef.current;
@@ -17,7 +18,8 @@ function useDialogFocus(open: boolean, panelRef: RefObject<HTMLElement | null>) 
         'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])',
       )).filter((el) => el.offsetParent !== null || el === document.activeElement);
     const first = focusables()[0];
-    (first || panel).focus?.();
+    const initial = initialRef?.current;
+    (initial && !initial.hasAttribute("disabled") ? initial : first || panel).focus?.();
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;
       const f = focusables();
@@ -42,7 +44,8 @@ export function Modal({ open, onClose, title, children, footer, wide }: {
   title?: ReactNode;
   children?: ReactNode;
   footer?: ReactNode;
-  wide?: boolean;
+  /** true = 2xl; "xl" for editors that sit beside a live preview. */
+  wide?: boolean | "xl";
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -57,13 +60,49 @@ export function Modal({ open, onClose, title, children, footer, wide }: {
   return createPortal((
     <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in">
       <button type="button" aria-label="Close" tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-navy-950/40 backdrop-blur-xl cursor-default" />
-      <div ref={panelRef} tabIndex={-1} className={`glass-card-solid relative w-full ${wide ? "sm:max-w-2xl" : "sm:max-w-md"} rounded-t-3xl sm:rounded-3xl animate-slide-up sm:animate-pop max-h-[92dvh] sm:max-h-[90dvh] flex flex-col pb-safe sm:pb-0 outline-none`}>
+      <div ref={panelRef} tabIndex={-1} className={`glass-card-solid relative w-full ${wide === "xl" ? "sm:max-w-5xl" : wide ? "sm:max-w-2xl" : "sm:max-w-md"} rounded-t-3xl sm:rounded-3xl animate-slide-up sm:animate-pop max-h-[92dvh] sm:max-h-[90dvh] flex flex-col pb-safe sm:pb-0 outline-none`}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200/70">
           <div id={titleId} className="font-display font-bold text-navy-900 text-lg">{title}</div>
           <button aria-label="Close" onClick={onClose} className="w-10 h-10 grid place-items-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition"><Icon.x size={20} /></button>
         </div>
         <div className="p-5 overflow-y-auto overscroll-contain">{children}</div>
         {footer && <div className="px-5 py-4 border-t border-slate-200/70 flex justify-end gap-2">{footer}</div>}
+      </div>
+    </div>
+  ), document.body);
+}
+
+/* ---------- Drawer (side panel on sm+, full screen on phones) ----------
+   For record detail views (e.g. a guest profile) that sit beside the list. */
+export function Drawer({ open, onClose, title, children, footer, label }: {
+  open?: boolean;
+  onClose: () => void;
+  title?: ReactNode;
+  children?: ReactNode;
+  footer?: ReactNode;
+  /** Accessible name when the title isn't plain text. */
+  label?: string;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [open, onClose]);
+  useDialogFocus(!!open, panelRef);
+  if (!open) return null;
+  return createPortal((
+    <div role="dialog" aria-modal="true" aria-labelledby={label ? undefined : titleId} aria-label={label} className="fixed inset-0 z-[60] flex justify-end animate-fade-in">
+      <button type="button" aria-label="Close" tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-navy-950/30 backdrop-blur-sm cursor-default" />
+      <div ref={panelRef} tabIndex={-1} className="glass-card-solid relative w-full sm:max-w-2xl h-full flex flex-col outline-none sm:rounded-l-3xl animate-slide-in-right pb-safe sm:pb-0">
+        <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-slate-200/70">
+          <div id={titleId} className="min-w-0 flex-1">{title}</div>
+          <button aria-label="Close" onClick={onClose} className="w-10 h-10 grid place-items-center text-slate-400 hover:text-slate-800 hover:bg-slate-100 rounded-full transition shrink-0"><Icon.x size={20} /></button>
+        </div>
+        <div className="p-5 overflow-y-auto overscroll-contain flex-1">{children}</div>
+        {footer && <div className="px-5 py-4 border-t border-slate-200/70 flex flex-wrap justify-end gap-2">{footer}</div>}
       </div>
     </div>
   ), document.body);

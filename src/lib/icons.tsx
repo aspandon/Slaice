@@ -4,16 +4,17 @@
 // width) onto the lucide component, keeping a consistent 1.75 stroke and
 // crisp absolute stroke width across sizes.
 import {
-  Umbrella, Ticket, ReceiptText, CreditCard, Car, BarChart3, LayoutGrid,
+  Umbrella, ShoppingBag, Ticket, ReceiptText, CreditCard, Car, BarChart3, LayoutGrid,
   Users, Map, ScanLine, RotateCcw, Building2, Banknote, Lock, Home, Calendar,
-  Download, Check, CheckCircle2, X, ChevronRight, ChevronDown, ArrowLeft,
+  Download, Check, CheckCircle2, X, ChevronRight, ChevronLeft, ChevronDown, ArrowLeft, MoreHorizontal,
   ArrowRight, Bell, Search, Globe, Tag, FileText, Settings, Zap, Package,
   TrendingUp, Phone, Mail, QrCode, Printer, Star, Filter, Plus, Minus, Trash2,
   Pencil, Play, List, Layers, Martini, MessageCircle, Gift, Shield, Eye, EyeOff, Sun,
   Info, TriangleAlert, Clock, Inbox, Droplet, Waves, Wind, Plus as CrossPlus,
   UsersRound, ShieldCheck, ShieldAlert, FileDown, Database, SlidersHorizontal,
   Sparkles, CircleHelp, Wallet, LogOut, Moon, Armchair, Image as ImageIcon, Upload,
-  Cloud, CloudRain,
+  Cloud, CloudRain, Link2, Send, Copy, Headset, Monitor, RefreshCw,
+  WifiOff, Archive, Pause,
 } from "lucide-react";
 import type { LucideIcon, LucideProps } from "lucide-react";
 import type { ReactElement } from "react";
@@ -54,7 +55,9 @@ export const Icon: Record<string, IconRenderer> = {
   checkCircle: w(CheckCircle2),
   x: w(X),
   chevR: w(ChevronRight),
+  chevL: w(ChevronLeft),
   chevD: w(ChevronDown),
+  more: w(MoreHorizontal),
   arrowL: w(ArrowLeft),
   arrowR: w(ArrowRight),
   bell: w(Bell),
@@ -65,6 +68,7 @@ export const Icon: Record<string, IconRenderer> = {
   cog: w(Settings),
   bolt: w(Zap),
   pkg: w(Package),
+  bag: w(ShoppingBag),
   trend: w(TrendingUp),
   phone: w(Phone),
   mail: w(Mail),
@@ -77,6 +81,8 @@ export const Icon: Record<string, IconRenderer> = {
   trash: w(Trash2),
   edit: w(Pencil),
   play: w(Play),
+  pause: w(Pause),
+  archive: w(Archive),
   list: w(List),
   layers: w(Layers),
   stripe: w(CreditCard),
@@ -113,4 +119,11 @@ export const Icon: Record<string, IconRenderer> = {
   moon: w(Moon),
   image: w(ImageIcon),
   upload: w(Upload),
+  link: w(Link2),
+  send: w(Send),
+  copy: w(Copy),
+  headset: w(Headset),
+  monitor: w(Monitor),
+  refresh: w(RefreshCw),
+  wifiOff: w(WifiOff),
 };

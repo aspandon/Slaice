@@ -51,6 +51,8 @@ const DATA_SOURCES = [
   { file: "domain/pricing.ts", keys: ["label", "sub"] },
   { file: "data/gdpr.ts", keys: ["label", "desc", "title"] },
   { file: "screens/CustomerWizard.tsx", keys: ["label", "sub"] }, // the STEPS array
+  // Invoice field errors and country names (AENR-714): every sentence-like literal in the file.
+  { file: "domain/invoiceDetails.ts", all: true },
 ];
 
 function collectStrings() {
@@ -64,10 +66,14 @@ function collectStrings() {
     const text = fs.readFileSync(path.join(SRC, rel), "utf8");
     for (const m of text.matchAll(callRe)) found.add(unescape(m[2]));
   }
-  for (const { file, keys } of DATA_SOURCES) {
+  for (const { file, keys, all } of DATA_SOURCES) {
     const full = path.join(SRC, file);
     if (!fs.existsSync(full)) continue;
     const text = fs.readFileSync(full, "utf8");
+    if (all) {
+      for (const m of text.matchAll(/"([A-Z][^"\\]{3,})"/g)) found.add(m[1]);
+      continue;
+    }
     const re = new RegExp(`(?:${keys.join("|")}):\\s*(['"])((?:\\\\.|(?!\\1).)*?)\\1`, "g");
     for (const m of text.matchAll(re)) found.add(unescape(m[2]));
   }

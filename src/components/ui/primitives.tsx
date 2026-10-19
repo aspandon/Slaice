@@ -2,18 +2,28 @@ import type { ReactNode } from "react";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
 import { usePointerGlow } from "../../lib/motion";
+import { textOf, useGuardReason } from "./guard";
 
 /* ---------- Badge ---------- */
 export function Badge({ tone = "slate", children, className = "" }: { tone?: string; children?: ReactNode; className?: string }) {
   const tones: Record<string, string> = {
     mvp: "bg-teal-100 text-teal-600 ring-teal-600/20",
     future: "bg-orange-50 text-orange-600 ring-orange-500/20",
+    // Roadmap features shown inside MVP screens (NotMvpBadge) — purple.
+    roadmap: "bg-purple-50 text-purple-700 ring-purple-600/25",
     slate: "bg-slate-100 text-slate-600 ring-slate-400/20",
     green: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
     blue: "bg-sky-50 text-sky-700 ring-sky-600/20",
     amber: "bg-amber-50 text-amber-700 ring-amber-600/20",
     red: "bg-rose-50 text-rose-700 ring-rose-600/20",
-    indigo: "bg-indigo-50 text-indigo-700 ring-indigo-600/20",
+    // Semantic status tones (AENR-557): the same meaning gets the same tone in every module.
+    success: "bg-emerald-50 text-emerald-700 ring-emerald-600/20",
+    warning: "bg-amber-50 text-amber-700 ring-amber-600/20",
+    critical: "bg-rose-50 text-rose-700 ring-rose-600/20",
+    info: "bg-sky-50 text-sky-700 ring-sky-600/20",
+    neutral: "bg-slate-100 text-slate-600 ring-slate-400/20",
+    // Legacy alias — indigo was off-brand; it now reads as info.
+    indigo: "bg-sky-50 text-sky-700 ring-sky-600/20",
     coral: "bg-orange-100 text-coral-600 ring-coral-500/20",
   };
   return (
@@ -26,21 +36,24 @@ export function Badge({ tone = "slate", children, className = "" }: { tone?: str
 /* ---------- StatusBadge ----------
    Status conveyed by colour AND an icon + text, so meaning never relies on
    colour alone (WCAG 1.4.1 Use of Color). Pass a known status or any label. */
+// Order matters: the first key the status contains wins, so "unpaid" must
+// come before "paid" (AENR defect: Unpaid showed as a green success badge).
 const STATUS_MAP: Record<string, { tone: string; icon: IconRenderer }> = {
-  confirmed: { tone: "green", icon: Icon.checkCircle },
-  paid: { tone: "green", icon: Icon.checkCircle },
-  active: { tone: "green", icon: Icon.checkCircle },
-  live: { tone: "green", icon: Icon.checkCircle },
-  ok: { tone: "green", icon: Icon.checkCircle },
-  used: { tone: "slate", icon: Icon.check },
-  unpaid: { tone: "amber", icon: Icon.clock },
-  pending: { tone: "amber", icon: Icon.clock },
-  awaiting: { tone: "amber", icon: Icon.clock },
-  issued: { tone: "blue", icon: Icon.doc },
-  refunded: { tone: "red", icon: Icon.refund },
-  cancelled: { tone: "red", icon: Icon.x },
-  canceled: { tone: "red", icon: Icon.x },
-  failed: { tone: "red", icon: Icon.alert },
+  unpaid: { tone: "warning", icon: Icon.clock },
+  expired: { tone: "neutral", icon: Icon.clock },
+  confirmed: { tone: "success", icon: Icon.checkCircle },
+  paid: { tone: "success", icon: Icon.checkCircle },
+  active: { tone: "success", icon: Icon.checkCircle },
+  live: { tone: "success", icon: Icon.checkCircle },
+  ok: { tone: "success", icon: Icon.checkCircle },
+  used: { tone: "neutral", icon: Icon.check },
+  pending: { tone: "warning", icon: Icon.clock },
+  awaiting: { tone: "warning", icon: Icon.clock },
+  issued: { tone: "info", icon: Icon.doc },
+  refunded: { tone: "critical", icon: Icon.refund },
+  cancelled: { tone: "critical", icon: Icon.x },
+  canceled: { tone: "critical", icon: Icon.x },
+  failed: { tone: "critical", icon: Icon.alert },
 };
 export function StatusBadge({ status, label, className = "" }: { status?: string; label?: ReactNode; className?: string }) {
   const text = label ?? status;
@@ -56,13 +69,14 @@ export function StatusBadge({ status, label, className = "" }: { status?: string
    the cursor-tracking "lit glass" highlight (usePointerGlow). Sheen defaults to
    `hover`, so interactive cards light up automatically; pass sheen={false} to
    opt out, or sheen on an otherwise-static card. */
-export function Card({ className = "", children, hover, press, sheen }: { className?: string; children?: ReactNode; hover?: boolean; press?: boolean; sheen?: boolean }) {
+/** `surface="raised"`: a solid card for data — forms and lists (AENR-549); tables get it automatically. */
+export function Card({ className = "", children, hover, press, sheen, surface = "glass" }: { className?: string; children?: ReactNode; hover?: boolean; press?: boolean; sheen?: boolean; surface?: "glass" | "raised" }) {
   const showSheen = sheen ?? hover;
   const ref = usePointerGlow<HTMLDivElement>(!!showSheen);
   return (
     <div
       ref={ref}
-      className={`glass-card rounded-3xl ${hover ? "transition duration-300 ease-spring hover:-translate-y-1 hover:shadow-lift" : ""} ${press ? "pressable cursor-pointer" : ""} ${showSheen ? "relative isolate" : ""} ${className}`}>
+      className={`glass-card ${surface === "raised" ? "surface-raised" : ""} rounded-3xl ${hover ? "transition duration-300 ease-spring hover:-translate-y-1 hover:shadow-lift" : ""} ${press ? "pressable cursor-pointer" : ""} ${showSheen ? "relative isolate" : ""} ${className}`}>
       {showSheen && <span aria-hidden className="sheen" />}
       {children}
     </div>
@@ -72,7 +86,7 @@ export function Card({ className = "", children, hover, press, sheen }: { classN
 /* ---------- Button ----------
    Apple-style hierarchy: filled (primary/teal/dark/indigo/danger), tinted
    (tint — light-accent fill), and quiet (ghost/outline). Springy press. */
-export function Btn({ children, variant = "primary", size = "md", onClick, icon: IconC, full, disabled, loading, className = "", type = "button" }: {
+export function Btn({ children, variant = "primary", size = "md", onClick, icon: IconC, full, disabled, loading, className = "", type = "button", form, title, "aria-label": ariaLabel }: {
   children?: ReactNode;
   variant?: string;
   size?: "sm" | "md" | "lg";
@@ -83,6 +97,12 @@ export function Btn({ children, variant = "primary", size = "md", onClick, icon:
   loading?: boolean;
   className?: string;
   type?: "button" | "submit" | "reset";
+  /** Submits a form outside the button (e.g. a modal footer for a form in the body). */
+  form?: string;
+  /** Tooltip — e.g. why the button is disabled. A View-as guard reason wins. */
+  title?: string;
+  /** Accessible name for icon-only buttons. */
+  "aria-label"?: string;
 }) {
   const base = "relative inline-flex items-center justify-center gap-2 rounded-[14px] font-semibold transition-all duration-150 ease-spring active:scale-[.96] disabled:pointer-events-none select-none";
   // min-heights enforce a comfortable touch target (≈ Apple HIG 44pt for md/lg)
@@ -97,7 +117,8 @@ export function Btn({ children, variant = "primary", size = "md", onClick, icon:
     teal: "bg-teal-600 text-white hover:bg-teal-500 shadow-btn-teal hover:shadow-lift",
     coral: "bg-coral-600 text-white hover:bg-coral-500 shadow-lift",
     dark: "bg-navy-950 text-white hover:bg-navy-900 shadow-btn-primary hover:shadow-lift",
-    indigo: "bg-slaice-600 text-white hover:bg-slaice-500 shadow-lift",
+    // One palette across personas (AENR-557): the old indigo primary is brand navy now.
+    indigo: "bg-navy-900 text-white hover:bg-navy-800 shadow-btn-primary hover:shadow-lift",
     // Tinted secondary — Apple's light-accent button.
     tint: "bg-teal-50 text-teal-700 hover:bg-teal-100 ring-1 ring-teal-600/15",
     ghost: "bg-slate-100/80 text-navy-900 hover:bg-slate-200/90",
@@ -105,9 +126,11 @@ export function Btn({ children, variant = "primary", size = "md", onClick, icon:
     light: "bg-white/15 text-white hover:bg-white/25 ring-1 ring-white/20 backdrop-blur-sm",
     danger: "bg-rose-600 text-white hover:bg-rose-500 shadow-lift",
   };
-  const isDisabled = disabled && !loading;
+  // View-as guard: a read-only session or a blocked action turns the button off, with the reason.
+  const guarded = useGuardReason(textOf(children));
+  const isDisabled = (disabled || !!guarded) && !loading;
   return (
-    <button type={type} disabled={disabled || loading} onClick={onClick}
+    <button type={type} form={form} disabled={disabled || loading || !!guarded} onClick={onClick} title={guarded || title} aria-label={ariaLabel}
       className={`${base} ${sizes[size]} ${variants[variant]} ${full ? "w-full" : ""} ${isDisabled ? off : ""} ${className}`}>
       {loading ? <Spinner size={size === "sm" ? 14 : 16} /> : IconC && <IconC size={size === "sm" ? 15 : 17} />}
       {children}

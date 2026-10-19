@@ -65,6 +65,19 @@ body::before {
 *:focus:not(:focus-visible) {
   outline: none;
 }
+/* Text fields draw the focus outline inside their box (AENR-695): an outside ring was
+   clipped by overflow-hidden panels — e.g. the search palette — and looked cut off. */
+input:focus-visible,
+textarea:focus-visible {
+  outline-offset: -2px;
+}
+/* Touch density for the till (AENR-698): the cashier works on tablets and touch
+   terminals — fields are a full 48px with 16px text (no iOS focus zoom). */
+.touch-ui input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.touch-ui select {
+  min-height: 48px;
+  font-size: 16px;
+}
 
 ::selection {
   background: rgba(13, 148, 136, 0.20);
@@ -113,6 +126,10 @@ html[data-persona="customer"]::-webkit-scrollbar {
 }
 
 @layer utilities {
+  /* Table rowLink: the row's main button covers the whole row (Table rowLink). */
+  .row-link::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+  .row-link:focus-visible { outline: none; }
+  .row-link:focus-visible::after { box-shadow: inset 0 0 0 2px theme("colors.teal.500"); border-radius: 12px; }
   .tnum {
     font-variant-numeric: tabular-nums;
   }
@@ -454,7 +471,28 @@ html[data-persona="customer"]::-webkit-scrollbar {
   }
 }
 
+/* Scrims behind sticky staff bars (AENR-738): the canvas colour, fading out on the
+   side that faces the page, so content scrolling under a bar never shows around it. */
+.scrim-top {
+  background: linear-gradient(to bottom, #f6f8fb calc(100% - 1rem), rgba(246, 248, 251, 0));
+}
+.scrim-bottom {
+  background: linear-gradient(to top, #f6f8fb calc(100% - 1rem), rgba(246, 248, 251, 0));
+}
+
 /* Respect users who prefer reduced motion (WCAG 2.3.3). */
+/* Payment moment (AENR-734): the success check draws itself; the bar under "View your pass"
+   shows the pass opening by itself. */
+.pp-check circle { stroke-dasharray: 152; stroke-dashoffset: 152; animation: pp-draw 0.5s ease-out forwards; }
+.pp-check path { stroke-dasharray: 36; stroke-dashoffset: 36; animation: pp-draw 0.35s 0.4s ease-out forwards; }
+@keyframes pp-draw { to { stroke-dashoffset: 0; } }
+.pp-countdown { width: 0; animation-name: pp-fill; animation-timing-function: linear; animation-fill-mode: forwards; }
+@keyframes pp-fill { to { width: 100%; } }
+@media (prefers-reduced-motion: reduce) {
+  .pp-check circle, .pp-check path { animation: none; stroke-dashoffset: 0; }
+  .pp-countdown { animation: none; width: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -477,4 +515,39 @@ html[data-persona="customer"]::-webkit-scrollbar {
     background: none;
     -webkit-text-fill-color: currentColor;
   }
+}
+
+/* ---------- Elevation by role (AENR-549) ----------
+   surface  = the page; raised = solid cards that hold data (tables, forms,
+   lists); overlay = modals, drawers, menus. Glass is kept for chrome — the top
+   bar, hero cards, overlays' scrims. Any card holding a table becomes a solid
+   raised surface in every persona, so rows never take the sky / sand tint.
+   Unlayered so it wins over the customer persona's translucent cards. */
+.surface-raised,
+.glass-card:has(table),
+.glass-card.surface-raised,
+[data-persona] .glass-card:has(table),
+[data-persona] .glass-card.surface-raised {
+  background: #ffffff;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 10px 24px -18px rgba(15, 23, 42, 0.2);
+}
+/* Table text stays ≥ 4.5:1 on the raised surface (slate-400 is only 2.6:1). */
+table .text-slate-400 {
+  color: #64748b;
+}
+
+/* Keyboard keys in the shortcut sheet (AENR-553). */
+.kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0.05em 0.4em;
+  border-radius: 6px;
+  background: #f1f5f9;
+  box-shadow: inset 0 -1px 0 rgba(15, 23, 42, 0.15);
+  font: 600 12px/1.6 ui-monospace, monospace;
+  text-align: center;
+  color: #0b2545;
 }

@@ -9,11 +9,109 @@
  * strings.
  */
 
+/** A staff note on a booking (e.g. from the call centre); `escalated` flags it
+ *  for a manager — such as a refund request the agent can't action. */
+export interface BookingNote {
+  text: string;
+  at: string; // ISO timestamp
+  by: string; // persona label of the author
+  escalated: boolean;
+}
+
+/** Tenant staff roles that can be assigned to a user (RBAC). Customer is not a
+ *  staff role and Platform / Slaice is the platform back office, not a tenant role. */
+export type StaffRole = "admin" | "callcenter" | "cashier" | "controller" | "support" | "accountant";
+export type StaffStatus = "active" | "invited" | "suspended";
+export interface StaffUser {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  /** Roles the user holds — at least one (AENR-717). The first is their default
+   *  start role; they switch between the others from the account menu. */
+  roles: StaffRole[];
+  status: StaffStatus;
+  /** ISO timestamp, or null if the user never signed in. */
+  lastSignIn: string | null;
+  created: string; // ISO date
+  suspendReason?: string;
+  /** Personal 4-digit PIN to take over a shared till (AENR-608) — cashier and support roles. */
+  tillPin?: string;
+  /** Sign-in name shown in the invitation e-mail (AENR-718). */
+  username?: string;
+  /** The open invitation of an Invited user (AENR-718). */
+  invite?: StaffInvite;
+  /** When they set their own password on first sign-in (AENR-718). */
+  passwordSetAt?: string;
+  /** Their 2-step verification method, set on first sign-in (AENR-718). */
+  twoFactor?: { method: TwoFactorMethod; enrolledAt: string };
+}
+/** An invitation e-mail (AENR-718): valid until `expiresAt`, re-sent with a new link, or revoked. */
+export interface StaffInvite {
+  sentAt: string; // ISO timestamp
+  expiresAt: string; // ISO timestamp
+  /** How many times it was sent (1 = the first e-mail). */
+  sends: number;
+  revokedAt?: string;
+}
+export type TwoFactorMethod = "sms" | "email" | "app";
+export interface StaffAuditEntry {
+  at: string; // ISO timestamp
+  by: string;
+  action: string;
+}
+
+/** Guest CRM state (Users & Segments) — persisted demo state. Segments and
+ *  tag definitions are the tenant's; `edits` overlays the seed customers. */
+export interface CrmState {
+  segments: import("./segments").Segment[];
+  tagDefs: { name: string; color: string }[];
+  edits: Record<number, Partial<Customer>>;
+  /** Visits after which a guest counts as Regular (system rule). */
+  regularAfter: number;
+  /** Lifecycle thresholds (AENR-475). */
+  lifecycle: import("./lifecycle").LifecycleSettings;
+  /** Optional guest-list columns the admin chose to show. */
+  columns: string[];
+  /** Guests added by CSV import (AENR-476). */
+  imported: Customer[];
+  /** Guest ids merged into another record (hidden from the list). */
+  mergedAway: number[];
+  /** Guests with a GDPR erasure request raised from the CRM. */
+  eraseRequests: number[];
+  /** 360° profile data per guest (AENR-477). */
+  profiles: Record<number, GuestProfileData>;
+  /** Tenant-defined guest fields. */
+  customFields: { id: string; label: string; type: "text" | "number" | "date" | "select"; options?: string[] }[];
+  /** Saved guest-list views, per staff member (AENR-581). */
+  views?: GuestView[];
+}
+export interface GuestView {
+  id: string;
+  name: string;
+  owner: string;
+  q: string;
+  segId: string;
+  stage: string | null;
+  filters: Record<string, unknown>;
+}
+export interface GuestProfileData {
+  prefs?: { zone?: string; sunbed?: string; party?: string; arrival?: string; needs?: string; contact?: string };
+  notes?: { text: string; at: string; by: string }[];
+  important?: boolean;
+  consent?: Record<string, { on: boolean; at: string; source: string }>;
+  custom?: Record<string, string>;
+  /** Art. 18 — data kept but not used (no marketing, profiling or edits). */
+  restricted?: boolean;
+}
+
 export type PersonaId =
   | "customer"
   | "admin"
+  | "callcenter"
   | "cashier"
   | "controller"
+  | "support"
   | "accountant"
   | "platform";
 
@@ -31,6 +129,12 @@ export interface CartItem {
   label: string;
   sub: string;
   price: number;
+  /** Structured details for the order, My Bookings and live availability (AENR-524/532). */
+  setId?: string;
+  zoneId?: string;
+  date?: string;
+  /** People on a ticket line. */
+  qty?: number;
 }
 
 /* ---------- Beach / inventory ---------- */
@@ -61,15 +165,97 @@ export interface Sunbed {
    x runs left→right along the shore, y runs from the sea / front row (0) to the
    promenade / back (100). This is the shared contract the admin Map Editor
    writes and the customer wizard's zoom view renders — one source, no drift. */
-export type SunbedKind = "standard" | "front" | "cabana";
+export type SunbedKind = "standard" | "front" | "cabana" | "daybed" | "vip";
 
 export interface SunbedSlot {
   id: string;
   x: number;
   y: number;
   state: SunbedState;
+  /** Default €/day for this set (used when it has no price category). */
   price: number;
   kind?: SunbedKind;
+  /** Price category id (AENR-469). */
+  cat?: string;
+  /** Step-free / near the ramp — shown with an accessibility icon. */
+  access?: boolean;
+  /** Persons the set seats (default 2). */
+  cap?: number;
+  /** Derived, never stored: why the set can't be sold on this channel/date (hold, allocation, stop-sell). */
+  inv?: string;
+}
+
+/* ---------- Beach workspace: price categories, date overrides, landmarks (AENR-469) ---------- */
+/** A colour-coded price category per zone, e.g. "Front row · FR · €45". */
+export interface PriceCategory {
+  id: string;
+  zoneId: string;
+  name: string;
+  /** Short code shown on the map next to the colour (never colour alone). */
+  code: string;
+  color: string;
+  /** Default €/day. */
+  price: number;
+  /** Optional minimum spend shown to guests (information only). */
+  minSpend?: number;
+}
+/** A per-sunbed price for a date window — wins over every other rule. */
+export interface PriceOverride {
+  id: string;
+  zoneId: string;
+  setIds: string[];
+  from: string;
+  to: string;
+  days: PriceRuleDays;
+  price: number;
+  label: string;
+  /** Where it came from — "suggestion" for an accepted demand-pricing suggestion (AENR-513). */
+  source?: "manual" | "suggestion";
+  /** Price category the override was made for (suggestions are per category). */
+  catId?: string;
+}
+/** Demand-pricing band for a price category (AENR-513). */
+export interface DemandBand {
+  catId: string;
+  enabled: boolean;
+  wkMin: number;
+  wkMax: number;
+  weMin: number;
+  weMax: number;
+  step: number;
+}
+export interface DemandLogEntry {
+  id: string;
+  at: string;
+  date: string;
+  zoneId: string;
+  catId: string;
+  from: number;
+  to: number;
+  reason: string;
+  overrideId: string;
+  mode: "accepted" | "auto";
+  reverted?: boolean;
+}
+export type LandmarkKind = "bar" | "shower" | "wc" | "lifeguard" | "entrance" | "ramp" | "path";
+/** A non-bookable map object that orients guests and staff. */
+export interface Landmark {
+  id: string;
+  zoneId: string;
+  kind: LandmarkKind;
+  x: number;
+  y: number;
+  label?: string;
+}
+export interface BeachPricing {
+  categories: PriceCategory[];
+  overrides: PriceOverride[];
+  landmarks: Landmark[];
+  /** Demand pricing (AENR-513): bands, locked date|category keys, auto-apply and its log. */
+  demand?: DemandBand[];
+  demandLocks?: string[];
+  demandAuto?: boolean;
+  demandLog?: DemandLogEntry[];
 }
 
 /* ---------- Bookings & documents ---------- */
@@ -101,6 +287,10 @@ export interface CustomerDocument {
   mark: string;
   /** [description, net, vat, gross] rows. */
   lines: string[][];
+  /** Booking reference the document is for, e.g. "#40281". */
+  ref?: string;
+  /** Invoices: the company billed (AENR-685). */
+  billTo?: { company: string; vatNo: string; address: string };
 }
 
 /* ---------- CRM ---------- */
@@ -134,12 +324,17 @@ export interface NavItem {
   short?: string;
   icon: string;
   badge?: "MVP" | "Future";
+  /** Heading this item sits under in the sidebar / nav sheet (e.g. Support Agent: Gate · Beach · Till). */
+  group?: string;
   /** "account" marks personal destinations kept out of the desktop primary nav. */
   area?: string;
+  /** The tenant module the page belongs to — hidden when the module is off (AENR-696). */
+  module?: import("./plans").ModuleId;
 }
 
 /* ---------- Tickets ---------- */
-export type TicketCategory = "adult" | "resident" | "child" | "senior";
+/** A tenant ticket category id (Admin › Entry tickets, AENR-529) — seeded adult, amea, resident, child, senior. */
+export type TicketCategory = string;
 
 /* ---------- Consent / GDPR ---------- */
 export interface Consent {
@@ -148,6 +343,8 @@ export interface Consent {
   marketing: boolean;
   decided: boolean;
   ts: string | null;
+  /** Privacy-notice version the choice was made under (AENR-485). */
+  version?: string;
 }
 
 /* ---------- Tenant beach background ----------
@@ -289,4 +486,47 @@ export interface PriceRule {
   /** € for `set`/`addAbs`, percent for `addPct` (may be negative). */
   amount: number;
   enabled: boolean;
+  /* — calendar extensions (AENR-511), all optional — */
+  /** standard (default) · early-bird (booked ≥ `lead` days ahead) · last-minute
+   *  (same day from `after`) · multi-day (stay of ≥ `minDays` consecutive days). */
+  kind?: "standard" | "earlybird" | "lastminute" | "multiday";
+  /** Specific dates (holidays, a selection on the calendar) — replaces from/to/days. */
+  dates?: string[];
+  /** Specific weekdays 0 (Sun) – 6 (Sat) — replaces `days`. */
+  dow?: number[];
+  /** Price categories it applies to; empty / absent = all. */
+  cats?: string[];
+  lead?: number;
+  after?: string;
+  minDays?: number;
+}
+
+/* ---------- Booking restrictions (AENR-511) ---------- */
+export type RestrictionKind = "minDays" | "maxDays" | "window" | "cutoff" | "closed";
+export interface Restriction {
+  id: string;
+  label: string;
+  /** Zone id or "all". */
+  zone: string;
+  from: string;
+  to: string;
+  days: PriceRuleDays;
+  dow?: number[];
+  dates?: string[];
+  kind: RestrictionKind;
+  /** minDays / maxDays: days · window: bookable up to N days ahead. */
+  value?: number;
+  /** cutoff: same-day online booking closes at HH:MM. */
+  time?: string;
+  enabled: boolean;
+}
+export interface SeasonTemplate {
+  id: string;
+  name: string;
+  /** % change applied on top of category prices. */
+  pct: number;
+}
+export interface CalendarState {
+  restrictions: Restriction[];
+  templates: SeasonTemplate[];
 }

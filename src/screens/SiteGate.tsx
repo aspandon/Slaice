@@ -55,10 +55,14 @@ const persistUnlocked = () => {
   }
 };
 
+/** A booking shared with the group (AENR-715) opens for anyone with the link: the guest view
+ *  shows only what the link carries, like a real pass link would. Everything else stays walled. */
+const isSharedPass = () => window.location.hash.startsWith("#/pass");
+
 /** Wraps the app: shows the login until the device is unlocked, then the app. */
 export function SiteGate({ children }: { children: ReactNode }) {
   const [unlocked, setUnlocked] = useState(readUnlocked);
-  if (unlocked) return <>{children}</>;
+  if (unlocked || isSharedPass()) return <>{children}</>;
   return (
     <SiteLogin
       onUnlock={() => {

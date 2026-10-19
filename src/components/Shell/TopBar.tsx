@@ -1,18 +1,23 @@
-import { useMemo, useState } from "react";
-import type { ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import * as Popover from "@radix-ui/react-popover";
+import { usePageHelp } from "../../lib/pageHelp";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
-import { Badge, Btn, Modal, Field, Input, Select, Toggle, EmptyState } from "../ui";
-import { PrivacyCenter } from "../PrivacyCenter";
-import { ChangePasswordModal, Enable2FAModal } from "../Security";
+import { Badge, Btn, EmptyState, NotMvpBadge } from "../ui";
+import { PROFILE } from "../../domain/account";
 import { PERSONAS, NAV } from "../../data/personas";
 import { LANGUAGES, useApp, useT } from "../../app/store";
+import { deviceLang } from "../../app/i18n";
+import { useInbox } from "../../lib/useInbox";
+import { useTenantFeatures } from "../../lib/useFeatures";
 import type { CartItem, LangCode, PersonaId } from "../../domain/types";
 import { NavSheet } from "./Nav";
 import { PersonaSwitcher } from "./PersonaSwitcher";
 import type { NavProps } from "./types";
+import type { StaffUser } from "../../domain/types";
+import { DEFAULT_CASHIER } from "../../data/till";
+import { hasRole, roleLabel } from "../../data/staff";
 
 interface FeedItem { ic: string; tone: string; t: string; b: string; time: string }
 
@@ -36,6 +41,11 @@ const FEEDS: Record<string, FeedItem[]> = {
     { ic: "bell", tone: "indigo", t: "Capacity at 87%", b: "Macaw zone is nearly full for tomorrow.", time: "1h" },
     { ic: "users", tone: "slate", t: "5 new accounts", b: "From the Saturday push campaign.", time: "3h" },
   ],
+  callcenter: [
+    { ic: "phone", tone: "green", t: "Phone booking sent", b: "Macaw · MC-04 blocked · QR sent by SMS to +30 694 …0011.", time: "5m" },
+    { ic: "refund", tone: "amber", t: "Escalation answered", b: "Manager approved the refund for #BK-10410.", time: "40m" },
+    { ic: "bell", tone: "indigo", t: "Busy line", b: "Calls peak 10:00–12:00 on weekends — 2 agents scheduled.", time: "2h" },
+  ],
   cashier: [
     { ic: "ticket", tone: "green", t: "Session opened", b: "Float €100 logged at 09:02. Have a great shift!", time: "now" },
     { ic: "cash", tone: "amber", t: "Cash handover due", b: "Drawer threshold reached: €500 — record a handover.", time: "20m" },
@@ -45,6 +55,11 @@ const FEEDS: Record<string, FeedItem[]> = {
     { ic: "scan", tone: "green", t: "Gate validated · 124", b: "All scans clear so far this morning.", time: "now" },
     { ic: "bell", tone: "amber", t: "Walk-in spike", b: "5 walk-ins waiting at gate A — bring a teammate?", time: "8m" },
     { ic: "umbrella", tone: "indigo", t: "Same-day map opened", b: "12 sunbeds released for late arrivals.", time: "1h" },
+  ],
+  support: [
+    { ic: "link", tone: "amber", t: "Pay-by-link awaiting", b: "MC-04, MC-05 reserved for Eleni — link expires in 25 min.", time: "5m" },
+    { ic: "scan", tone: "green", t: "Gate validated · 124", b: "All scans clear so far this morning.", time: "now" },
+    { ic: "cash", tone: "slate", t: "Till shift open", b: "SH-0205 at the main entrance — you can sell from the till too.", time: "1h" },
   ],
   accountant: [
     { ic: "receipt", tone: "green", t: "MyDATA: 38 docs ok", b: "All ΑΠΥ from yesterday transmitted with a MARK.", time: "now" },
@@ -58,10 +73,40 @@ const FEEDS: Record<string, FeedItem[]> = {
   ],
 };
 
+/* ---------- Who is signed in on a staff device (AENR-646) ---------- */
+const PERSONA_USER: Partial<Record<PersonaId, string>> = {
+  admin: "Eleni Markou",
+  cashier: DEFAULT_CASHIER,
+  callcenter: "Maria Kontou",
+  controller: "Petros Nikolaou",
+  accountant: "Anna Mavridi",
+};
+// `meId` is the user who picked this role from "Your roles" (AENR-717): they stay
+// signed in while their role changes, as long as they hold the current one.
+function staffMe(persona: PersonaId, staff: readonly StaffUser[], name?: string, meId?: string | null) {
+  const signed = meId ? staff.find((x) => x.id === meId && x.status === "active" && hasRole(x, persona)) : undefined;
+  const want = name ?? signed?.name ?? PERSONA_USER[persona];
+  const u = staff.find((x) => x.name === want) ?? staff.find((x) => hasRole(x, persona) && x.status === "active");
+  const full = u?.name ?? want ?? (persona === "platform" ? "Sofia Antoniou" : "Staff");
+  const initials = full.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  return { initials, name: full, email: u?.email ?? (persona === "platform" ? "ops@slaice.com" : ""), user: u && hasRole(u, persona) ? u : undefined };
+}
+
 /* ---------- Top bar ---------- */
-export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setPersona: (p: PersonaId) => void }) {
-  const { setSignedIn, go, toast, cart, removeFromCart, addToCart, clearCart } = useApp();
+export function TopBar({ persona, setPersona, page, setPage, previewing = false, lead }: NavProps & { setPersona: (p: PersonaId) => void; previewing?: boolean; /** A persona-specific control left of search (e.g. Switch cashier, AENR-697). */ lead?: ReactNode }) {
+  const { setSignedIn, go, toast, cart, removeFromCart, addToCart, clearCart, staffUsers, till, viewAs, staffMeId, switchRole } = useApp();
   const t = useT();
+  // Who is signed in (AENR-646): the guest on the customer side; elsewhere the demo
+  // staff member for this persona from Team & roles — on the till the active
+  // cashier, so Switch cashier changes the avatar at once.
+  const me = persona === "customer"
+    ? { initials: `${PROFILE.first[0]}${PROFILE.last[0]}`, name: `${PROFILE.first} ${PROFILE.last}`, email: PROFILE.email }
+    : staffMe(persona, staffUsers, viewAs?.name ?? (persona === "cashier" ? till.active ?? till.shift?.cashier : undefined), staffMeId);
+  // The signed-in staff member's roles (AENR-717) — a switcher only when they hold more than one.
+  const meUser = "user" in me ? me.user : undefined;
+  // Roles the beach doesn't use (AENR-716) aren't offered.
+  const { role: roleOn } = useTenantFeatures();
+  const myRoles = (meUser?.roles ?? []).filter((r) => roleOn(r));
   const cartCount = (cart || []).length;
   const cartTotal = (cart || []).reduce((a, b) => a + b.price, 0);
   // Basket + notifications are controlled Popovers so their in-panel CTAs can
@@ -70,14 +115,25 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
   const [basketOpen, setBasketOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false); // mobile page-nav sheet
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [notifSettingsOpen, setNotifSettingsOpen] = useState(false);
   const cur = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[0];
   const baseFeed = FEEDS[persona] || FEEDS.customer;
-  const [readIds, setReadIds] = useState<Set<string>>(new Set());
-  const feed = useMemo(() => baseFeed.map((n, i) => ({ ...n, id: `${persona}-${i}`, read: readIds.has(`${persona}-${i}`) })), [baseFeed, persona, readIds]);
+  // Inbox (AENR-554): live "Needs action" items first, then the FYI feed; read
+  // state is remembered on this device.
+  const live = useInbox(persona);
+  const [readIds, setReadIdsRaw] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("slaice.inbox.read") ?? "[]")); } catch { return new Set(); }
+  });
+  const setReadIds = (f: (s: Set<string>) => Set<string>) => setReadIdsRaw((s) => {
+    const n = f(s);
+    try { localStorage.setItem("slaice.inbox.read", JSON.stringify([...n])); } catch { /* not remembered */ }
+    return n;
+  });
+  const feed = useMemo(() => [
+    ...live.map((n) => ({ ic: n.icon, tone: n.tone, t: n.title, b: n.body, time: n.time, id: n.id, kind: n.kind, href: n.href, read: readIds.has(n.id) })),
+    ...baseFeed.map((n, i) => ({ ...n, id: `${persona}-${i}`, kind: "fyi" as const, href: undefined as string | undefined, read: readIds.has(`${persona}-${i}`) })),
+  ], [live, baseFeed, persona, readIds]);
   const unread = feed.filter((n) => !n.read).length;
-  const markAll = () => setReadIds(new Set(feed.map((n) => n.id)));
+  const markAll = () => setReadIds(() => new Set([...readIds, ...feed.map((n) => n.id)]));
   const removeBasketItem = (it: CartItem) => {
     if (!removeFromCart) return;
     removeFromCart(it.kind, it.id);
@@ -95,17 +151,18 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
   // is the primary nav). On the customer surface, the logo acts as the home
   // link and the bar is a compact action cluster — no inline nav here.
   const navItems = NAV[persona] || [];
-  const currentItem = navItems.find((it) => it.k === page);
+  const pageHelp = usePageHelp();
+  // Pages outside the nav (e.g. a tenant page, AENR-500) get a plain title.
+  const currentItem = navItems.find((it) => it.k === page) ?? (page === "tenant" ? { k: "tenant", label: "Tenant", short: "Tenant", icon: "building" } : page === "onboarding" ? { k: "onboarding", label: "Onboard tenant", short: "Onboard", icon: "bolt" } : undefined);
   const CurrentIcon = currentItem && Icon[currentItem.icon];
-  return (
+  const bar = (
     <header
       className={
         persona === "customer"
-          ? // Customer: a compact action cluster pinned to the top-right corner,
-            // floating over the beach surface (the centered tenant logo sits
-            // separately in App). fixed so it stays reachable while scrolling.
-            "glass text-navy-900 rounded-2xl flex items-center z-40 shadow-soft fixed top-3 right-3 sm:right-5 px-1.5 py-1 gap-0.5"
-          : "glass text-navy-900 rounded-2xl mb-4 flex items-center relative z-30 shadow-soft sticky top-2 px-2 py-1.5 gap-2"
+          ? // Customer: a compact action cluster. Phones: part of the layout (sticky,
+            // content starts below it — AENR-575); md+: pinned to the top-right corner.
+            "glass text-navy-900 rounded-2xl flex items-center z-40 shadow-soft order-first md:order-none sticky top-2 self-end w-max mb-2 md:mb-0 md:fixed md:top-3 md:right-5 px-1.5 py-1 gap-0.5"
+          : "glass bg-white/95 pointer-events-auto text-navy-900 rounded-2xl flex items-center relative shadow-soft px-1.5 sm:px-2 py-1.5 gap-1 sm:gap-2"
       }
     >
       {/* Staff personas: current page title — tapping opens the full nav sheet
@@ -115,7 +172,7 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
           onClick={() => setNavOpen(true)}
           className="md:pointer-events-none flex items-center gap-2 pl-1.5 pr-2 h-11 rounded-xl min-w-0 flex-1 hover:bg-white/60 md:hover:bg-transparent transition"
           aria-label={t("Open navigation")}>
-          {CurrentIcon && <CurrentIcon size={17} className="text-slate-500 shrink-0" />}
+          {CurrentIcon && <CurrentIcon size={17} className="text-slate-500 shrink-0 hidden sm:block" />}
           <span className="font-display font-bold truncate text-[15px]">
             <span className="md:hidden">{currentItem ? t(currentItem.short || currentItem.label) : ""}</span>
             <span className="hidden md:inline">{currentItem ? t(currentItem.label) : ""}</span>
@@ -123,14 +180,30 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
           <Icon.chevD size={15} className="text-slate-400 shrink-0 md:hidden" />
         </button>
       )}
+      {persona !== "customer" && pageHelp && (
+        <Popover.Root>
+          <Popover.Trigger asChild>
+            <button type="button" aria-label="About this page" className="-ml-1 w-8 h-8 shrink-0 grid place-items-center rounded-full text-slate-500 hover:text-navy-900 hover:bg-slate-100 data-[state=open]:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+              <Icon.help size={16} />
+            </button>
+          </Popover.Trigger>
+          <Popover.Portal>
+            <Popover.Content align="start" sideOffset={6} className="z-[60] max-w-xs rounded-xl bg-white p-3 text-[13px] text-slate-700 leading-snug shadow-overlay ring-1 ring-slate-200">
+              {pageHelp}
+            </Popover.Content>
+          </Popover.Portal>
+        </Popover.Root>
+      )}
 
-      <div className={`flex items-center shrink-0 ${persona === "customer" ? "gap-0.5" : "gap-2"}`}>
+      {/* Tight on phones so the staff page title keeps room (AENR defect: it showed one letter at 390px). */}
+      <div className={`flex items-center shrink-0 ${persona === "customer" ? "gap-0.5" : "gap-0.5 sm:gap-2"}`}>
         {/* basket popup — only on the customer persona */}
-        {persona === "customer" && (
+        {/* A bag with a count, only when something is in it (AENR-649). */}
+        {persona === "customer" && (cartCount > 0 || basketOpen) && (
         <Popover.Root open={basketOpen} onOpenChange={setBasketOpen}>
           <Popover.Trigger asChild>
-            <button className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 data-[state=open]:bg-slate-100 data-[state=open]:text-navy-900 relative transition" aria-label={t("Basket")} title={t("Basket")}>
-              <Icon.card size={18} />
+            <button className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 data-[state=open]:bg-slate-100 data-[state=open]:text-navy-900 relative transition" aria-label={`${t("Basket")} · ${cartCount}`} title={t("Basket")}>
+              <Icon.bag size={18} />
               {cartCount > 0 && (
                 <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 grid place-items-center text-[10px] font-bold bg-teal-500 text-white rounded-full ring-2 ring-white">{cartCount}</span>
               )}
@@ -140,7 +213,7 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
             <Popover.Content align="end" sideOffset={8} aria-label={t("Basket")} className="glass w-[320px] max-w-[calc(100vw-1.5rem)] text-ink rounded-xl p-2 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
               <div className="flex items-center justify-between px-2 py-1.5">
                 <div className="font-semibold text-navy-900 text-sm flex items-center gap-2">
-                  <Icon.card size={14} /> {t("Your basket")}
+                  <Icon.bag size={14} /> {t("Your basket")}
                   {cartCount > 0 && <Badge tone="green">{cartCount} {cartCount === 1 ? t("item") : t("items")}</Badge>}
                 </div>
                 {cartCount > 0 && <span className="text-[12px] font-bold text-navy-900 tnum">€{cartTotal}</span>}
@@ -170,7 +243,7 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
                       <span className="text-slate-600">{t("Subtotal")}</span>
                       <span className="font-bold text-navy-900 tnum">€{cartTotal}</span>
                     </div>
-                    <Btn variant="teal" full size="sm" icon={Icon.card} onClick={() => { setBasketOpen(false); go("customer", "checkout"); }}>{t("Checkout")}</Btn>
+                    <Btn variant="teal" full size="sm" icon={Icon.bag} onClick={() => { setBasketOpen(false); go("customer", "checkout"); }}>{t("Checkout")}</Btn>
                     <div className="flex items-center justify-between gap-2">
                       <button onClick={emptyBasket} className="text-[11px] text-slate-500 hover:text-rose-600 py-1 inline-flex items-center gap-1"><Icon.trash size={12} /> {t("Empty basket")}</button>
                       <button onClick={() => { setBasketOpen(false); go("customer", "plan"); }} className="text-[11px] text-slate-500 hover:text-navy-900 py-1">{t("Continue planning")}</button>
@@ -183,6 +256,13 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
         </Popover.Root>
         )}
 
+        {lead}
+        {["admin", "callcenter", "cashier", "controller", "accountant", "support"].includes(persona) && (
+          <button type="button" onClick={() => window.dispatchEvent(new Event("slaice:command"))} aria-label="Search and commands (⌘K)" title="Search and commands (⌘K)"
+            className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 transition">
+            <Icon.search size={18} />
+          </button>
+        )}
         <Popover.Root open={notifOpen} onOpenChange={setNotifOpen}>
           <Popover.Trigger asChild>
             <button className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 data-[state=open]:bg-slate-100 data-[state=open]:text-navy-900 relative transition" aria-label={t("Notifications")}>
@@ -201,27 +281,42 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
                 </div>
                 <button onClick={markAll} className="text-[11px] font-semibold text-teal-700 hover:text-teal-800 disabled:text-slate-300" disabled={unread === 0}>{t("Mark all read")}</button>
               </div>
-              <div className="max-h-[420px] overflow-y-auto space-y-1 pr-0.5">
-                {feed.map((n) => {
-                  const IC = Icon[n.ic] || Icon.bell;
+              <div className="max-h-[420px] overflow-y-auto pr-0.5">
+                {(["action", "fyi"] as const).map((k) => {
+                  const list = feed.filter((n) => n.kind === k);
+                  if (!list.length) return k === "action" && persona !== "customer" ? (
+                    <div key={k} className="px-2 py-2 text-[12px] text-slate-500 flex items-center gap-1.5"><Icon.checkCircle size={13} className="text-emerald-600" /> {t("Nothing needs action")}</div>
+                  ) : null;
                   return (
-                    <button key={n.id} onClick={() => setReadIds((s) => new Set([...s, n.id]))} className={`w-full text-left flex gap-2.5 px-2 py-2 rounded-lg hover:bg-slate-100 transition ${n.read ? "opacity-60" : ""}`}>
-                      <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 mt-0.5 ${toneBg(n.tone)}`}><IC size={15} /></span>
-                      <span className="min-w-0 flex-1">
-                        <span className="flex items-center justify-between gap-2">
-                          <span className="font-semibold text-[13px] text-navy-900 truncate">{n.t}</span>
-                          <span className="text-[10px] text-slate-500 shrink-0">{n.time}</span>
-                        </span>
-                        <span className="block text-[12px] text-slate-500 leading-snug mt-0.5">{n.b}</span>
-                      </span>
-                      {!n.read && <span className="w-2 h-2 rounded-full bg-teal-500 mt-2 shrink-0" />}
-                    </button>
+                    <section key={k} aria-label={k === "action" ? t("Needs action") : "FYI"} className="mb-1">
+                      {persona !== "customer" && <div className="px-2 pt-1.5 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-slate-500">{k === "action" ? `${t("Needs action")} · ${list.length}` : "FYI"}</div>}
+                      <div className="space-y-1">
+                        {list.map((n) => {
+                          const IC = Icon[n.ic] || Icon.bell;
+                          return (
+                            <button key={n.id} onClick={() => { setReadIds((s) => new Set([...s, n.id])); if (n.href) { setNotifOpen(false); window.location.hash = n.href; } }}
+                              className={`w-full text-left flex gap-2.5 px-2 py-2 rounded-lg hover:bg-slate-100 transition ${n.read ? "opacity-60" : ""}`}>
+                              <span className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 mt-0.5 ${toneBg(n.tone)}`}><IC size={15} /></span>
+                              <span className="min-w-0 flex-1">
+                                <span className="flex items-center justify-between gap-2">
+                                  <span className="font-semibold text-[13px] text-navy-900 truncate">{n.t}</span>
+                                  <span className="text-[10px] text-slate-500 shrink-0">{n.time}</span>
+                                </span>
+                                <span className="block text-[12px] text-slate-500 leading-snug mt-0.5">{n.b}</span>
+                                {n.href && <span className="block text-[11px] font-semibold text-teal-700 mt-0.5">{t("Open")} →</span>}
+                              </span>
+                              {!n.read && <span className="w-2 h-2 rounded-full bg-teal-500 mt-2 shrink-0" aria-label={t("Unread")} />}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </section>
                   );
                 })}
               </div>
               <div className="px-2 py-1.5 border-t border-slate-200/70 mt-1 text-[11px] text-slate-500 flex items-center justify-between">
                 <span>{t("Showing")} {feed.length} {t("for")} {t(cur.label)}</span>
-                <button onClick={() => { setNotifOpen(false); setNotifSettingsOpen(true); }} className="hover:text-navy-900 inline-flex items-center gap-1"><Icon.cog size={12} /> {t("Settings")}</button>
+                <button onClick={() => { setNotifOpen(false); window.location.hash = "#/customer/account?section=notifications"; }} className="hover:text-navy-900 inline-flex items-center gap-1"><Icon.cog size={12} /> {t("Settings")}</button>
               </div>
             </Popover.Content>
           </Popover.Portal>
@@ -233,20 +328,42 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
         {/* avatar menu */}
         <DropdownMenu.Root modal={false}>
           <DropdownMenu.Trigger asChild>
-            <button aria-label={t("Account menu")} className="flex items-center gap-1.5 bg-slate-100/80 hover:bg-slate-200/80 data-[state=open]:bg-slate-200/80 rounded-xl pl-1 pr-1.5 py-1 transition">
-              <span className="w-7 h-7 rounded-lg grid place-items-center text-white text-xs font-bold" style={{ background: "linear-gradient(135deg,#f7b535,#e8920e)" }}>EM</span>
-              <Icon.chevD size={14} className="text-slate-500" />
+            <button aria-label={t("Account menu")} className="flex items-center gap-1.5 bg-slate-100/80 hover:bg-slate-200/80 data-[state=open]:bg-slate-200/80 rounded-xl p-1 sm:pr-1.5 transition">
+              <span className="w-7 h-7 rounded-lg grid place-items-center text-white text-xs font-bold" style={{ background: "linear-gradient(135deg,#f7b535,#e8920e)" }}>{me.initials}</span>
+              <Icon.chevD size={14} className="text-slate-500 hidden sm:block" />
             </button>
           </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content align="end" sideOffset={8} className="glass w-60 text-ink rounded-xl p-1.5 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
               <div className="px-3 py-2 border-b border-slate-100 mb-1">
-                <div className="font-semibold text-sm text-navy-900">Elena M.</div>
-                <div className="text-[12px] text-slate-500">elena@example.com</div>
+                <div className="font-semibold text-sm text-navy-900">{me.name}</div>
+                <div className="text-[12px] text-slate-500">{me.email}</div>
+                {myRoles.length === 1 && (
+                  <div className="mt-1 text-[11.5px] text-slate-600">Role · <b className="font-semibold text-navy-900">{roleLabel(myRoles[0])}</b></div>
+                )}
               </div>
+              {meUser && myRoles.length > 1 && <>
+                <DropdownMenu.Label className="px-3 pt-1 pb-1 text-[10px] uppercase tracking-wider font-semibold text-slate-500">Your roles</DropdownMenu.Label>
+                <DropdownMenu.RadioGroup value={persona} onValueChange={(v) => { const r = myRoles.find((x) => x === v); if (r && r !== persona) switchRole(meUser.id, r); }} className="grid gap-0.5 pb-1">
+                  {myRoles.map((r) => {
+                    const p = PERSONAS.find((x) => x.id === r);
+                    const I = p ? Icon[p.icon] : undefined;
+                    const on = persona === r;
+                    return (
+                      <DropdownMenu.RadioItem key={r} value={r}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 min-h-[40px] rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100 focus-visible:ring-2 focus-visible:ring-teal-500 ${on ? "font-semibold text-navy-900" : "text-slate-700"}`}>
+                        <span className="w-6 h-6 rounded-md grid place-items-center text-white shrink-0" style={{ background: p?.color ?? "#64748b" }}>{I ? <I size={13} /> : null}</span>
+                        <span className="flex-1 min-w-0 truncate">{roleLabel(r)}</span>
+                        <DropdownMenu.ItemIndicator><Icon.check size={14} className="text-teal-600" /></DropdownMenu.ItemIndicator>
+                      </DropdownMenu.RadioItem>
+                    );
+                  })}
+                </DropdownMenu.RadioGroup>
+              </>}
+              {persona === "customer" && <>
               <DropdownMenu.Item onSelect={() => go("customer", "mybookings")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.grid size={15} /> {t("My bookings")}</DropdownMenu.Item>
-              <DropdownMenu.Item onSelect={() => go("customer", "mydocs")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.receipt size={15} /> {t("My documents")}</DropdownMenu.Item>
-              <DropdownMenu.Item onSelect={() => setSettingsOpen(true)} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.cog size={15} /> {t("Account settings")}</DropdownMenu.Item>
+              <DropdownMenu.Item onSelect={() => go("customer", "account")} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"><Icon.cog size={15} /> {t("Account")}</DropdownMenu.Item>
+              </>}
               <div className="border-t border-slate-100 mt-1 pt-1">
                 <DropdownMenu.Item onSelect={() => { setSignedIn(false); toast(t("Signed out (demo).")); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-rose-600 cursor-pointer select-none outline-none hover:bg-rose-50 data-[highlighted]:bg-rose-50"><Icon.arrowL size={15} /> {t("Sign out")}</DropdownMenu.Item>
               </div>
@@ -258,20 +375,30 @@ export function TopBar({ persona, setPersona, page, setPage }: NavProps & { setP
             ("you are in role X"). On the customer surface the quiet "Demo"
             variant lives in the bottom-right corner instead (see App.tsx), so
             it doesn't crowd this compact action cluster. */}
-        {persona !== "customer" && (
+        {/* While previewing a staff user (RBAC) the role is fixed — exit via the banner. */}
+        {persona !== "customer" && !previewing && (
           <PersonaSwitcher persona={persona} setPersona={setPersona} variant="role" />
         )}
+        {/* Phones: the customer's Demo menu (persona + scene) docks here instead of floating (AENR-575). */}
+        {persona === "customer" && !previewing && (
+          <span className="md:hidden"><PersonaSwitcher persona={persona} setPersona={setPersona} variant="demo" compact /></span>
+        )}
       </div>
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
-      <NotificationSettingsModal open={notifSettingsOpen} onClose={() => setNotifSettingsOpen(false)} />
       <NavSheet open={navOpen} onClose={() => setNavOpen(false)} persona={persona} page={page} setPage={setPage} />
     </header>
   );
+  if (persona === "customer") return bar;
+  // Staff: the bar sticks on a canvas-coloured scrim that runs to the top edge and fades out
+  // below it, so a page scrolling underneath (the call-center map, long tables) never shows
+  // around or through the bar (AENR-738).
+  return <div className="scrim-top sticky top-0 z-30 -mt-2 pt-2 pb-4 pointer-events-none">{bar}</div>;
 }
 
 /* ---------- Language picker (own globe menu) ---------- */
 function LanguageMenu() {
-  const { lang, setLang } = useApp();
+  const { lang, setLang, langAuto, setLangAuto, showPreviews } = useApp();
+  // Non-MVP languages are roadmap (FUTURE) — listed only with previews on, or while in use (AENR-691).
+  const langs = LANGUAGES.filter((l) => l.mvp || showPreviews || (!langAuto && lang === l.code));
   const t = useT();
   return (
     <DropdownMenu.Root modal={false}>
@@ -281,14 +408,21 @@ function LanguageMenu() {
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content align="end" sideOffset={8} aria-label={t("Language")} className="glass w-56 text-ink rounded-xl p-1.5 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
+        <DropdownMenu.Content align="end" sideOffset={8} aria-label={t("Language")} className="glass w-60 text-ink rounded-xl p-1.5 z-[60] shadow-float origin-top-right data-[state=open]:animate-scale-in">
           <DropdownMenu.Label className="px-3 pt-1.5 pb-1.5 text-[10px] uppercase tracking-wider font-semibold text-slate-500 flex items-center gap-1.5"><Icon.globe size={11} /> {t("Language")}</DropdownMenu.Label>
-          <DropdownMenu.RadioGroup value={lang} onValueChange={(v) => setLang(v as LangCode)} className="px-0.5 pb-0.5 grid grid-cols-2 gap-1">
-            {LANGUAGES.map((l) => (
+          <DropdownMenu.RadioGroup value={langAuto ? "auto" : lang} onValueChange={(v) => (v === "auto" ? setLangAuto() : setLang(v as LangCode))} className="px-0.5 pb-0.5 grid gap-0.5">
+            {/* Follows the device until a language is picked (AENR-626). */}
+            <DropdownMenu.RadioItem value="auto"
+              className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12px] cursor-pointer select-none outline-none ${langAuto ? "bg-slate-100 font-semibold text-navy-900" : "text-slate-700 hover:bg-slate-100 data-[highlighted]:bg-slate-100"}`}>
+              <span className="flex-1 min-w-0 truncate">{t("Automatic")} <span className="text-slate-500 font-normal">· {LANGUAGES.find((l) => l.code === deviceLang())?.native}</span></span>
+              <Icon.check size={12} className={`text-teal-600 shrink-0 ${langAuto ? "" : "invisible"}`} />
+            </DropdownMenu.RadioItem>
+            {langs.map((l) => (
               <DropdownMenu.RadioItem key={l.code} value={l.code}
-                className={`flex items-center justify-between px-2 py-1.5 rounded-lg text-[12px] cursor-pointer select-none outline-none ${lang === l.code ? "bg-slate-100 font-semibold text-navy-900" : "text-slate-700 hover:bg-slate-100 data-[highlighted]:bg-slate-100"}`}>
-                <span><span className="font-semibold mr-1.5 uppercase">{l.code}</span><span className="text-slate-500">{l.native}</span></span>
-                {lang === l.code && <Icon.check size={12} className="text-teal-600" />}
+                className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-[12px] cursor-pointer select-none outline-none ${!langAuto && lang === l.code ? "bg-slate-100 font-semibold text-navy-900" : "text-slate-700 hover:bg-slate-100 data-[highlighted]:bg-slate-100"}`}>
+                <span className="flex-1 min-w-0 truncate"><span className="font-semibold mr-1.5 uppercase">{l.code}</span><span className="text-slate-500">{l.native}</span></span>
+                {!l.mvp && <NotMvpBadge className="!text-[10px] !px-1.5" />}
+                <Icon.check size={12} className={`text-teal-600 shrink-0 ${!langAuto && lang === l.code ? "" : "invisible"}`} />
               </DropdownMenu.RadioItem>
             ))}
           </DropdownMenu.RadioGroup>
@@ -302,6 +436,7 @@ function toneBg(tone: string) {
   return {
     green: "bg-teal-100 text-teal-700 ring-1 ring-teal-200",
     amber: "bg-amber-100 text-amber-700 ring-1 ring-amber-200",
+    red: "bg-rose-100 text-rose-700 ring-1 ring-rose-200",
     indigo: "bg-slaice-100 text-slaice-700 ring-1 ring-slaice-100",
     slate: "bg-slate-200 text-slate-700 ring-1 ring-slate-300",
     blue: "bg-sky-100 text-sky-700 ring-1 ring-sky-200",
@@ -309,135 +444,3 @@ function toneBg(tone: string) {
 }
 
 /* ---------- Account Settings (modal) ---------- */
-function NotificationSettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { toast } = useApp();
-  const t = useT();
-  const [chan, setChan] = useState({ push: true, email: true, sms: false });
-  const [cats, setCats] = useState({ bookings: true, weather: true, offers: true, receipts: true });
-  const done = () => { onClose(); toast(t("Notification preferences saved."), { tone: "success" }); };
-  return (
-    <Modal open={open} onClose={onClose} title={t("Notification settings")}
-      footer={<Btn variant="primary" icon={Icon.check} onClick={done}>{t("Done")}</Btn>}>
-      <div className="space-y-5">
-        <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">{t("Channels")}</div>
-          <div className="space-y-2">
-            <PrefRow label={t("Push")} sub={t("In-app and device alerts.")} on={chan.push} set={(v) => setChan((c) => ({ ...c, push: v }))} />
-            <PrefRow label={t("E-mail")} sub={t("A copy to elena@example.com.")} on={chan.email} set={(v) => setChan((c) => ({ ...c, email: v }))} />
-            <PrefRow label={t("SMS")} sub={t("Critical alerts only.")} on={chan.sms} set={(v) => setChan((c) => ({ ...c, sms: v }))} />
-          </div>
-        </section>
-        <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">{t("What to notify me about")}</div>
-          <div className="space-y-2">
-            <PrefRow label={t("Booking updates")} sub={t("Confirmations, gate scans, refunds.")} on={cats.bookings} set={(v) => setCats((c) => ({ ...c, bookings: v }))} />
-            <PrefRow label={t("Weather alerts")} sub={t("Wind or conditions affecting your visit.")} on={cats.weather} set={(v) => setCats((c) => ({ ...c, weather: v }))} />
-            <PrefRow label={t("Offers & promotions")} sub={t("Weekend deals and seasonal perks.")} on={cats.offers} set={(v) => setCats((c) => ({ ...c, offers: v }))} />
-            <PrefRow label={t("Receipts & documents")} sub={t("myDATA receipts and invoices.")} on={cats.receipts} set={(v) => setCats((c) => ({ ...c, receipts: v }))} />
-          </div>
-        </section>
-      </div>
-    </Modal>
-  );
-}
-
-function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { toast, lang, setLang } = useApp();
-  const t = useT();
-  const [name, setName] = useState("Elena Manoli");
-  const [email, setEmail] = useState("elena@example.com");
-  const [phone, setPhone] = useState("+30 694 000 0000");
-  const [prefs, setPrefs] = useState({ push: true, email: true, sms: false, offers: true });
-  const [cards, setCards] = useState<{ brand: string; last4: string; exp: string }[]>([
-    { brand: "Visa", last4: "4242", exp: "08/27" },
-    { brand: "Mastercard", last4: "5210", exp: "11/26" },
-  ]);
-  const [privacy, setPrivacy] = useState(false);
-  const [changePw, setChangePw] = useState(false);
-  const [twoFA, setTwoFA] = useState(false);
-  const save = () => { onClose(); toast(t("Account settings saved."), { tone: "success" }); };
-  const removeCard = (card: { brand: string; last4: string; exp: string }) => {
-    setCards((cs) => cs.filter((c) => c.last4 !== card.last4));
-    toast(`${t("Removed card ending")} ${card.last4}.`, { action: { label: t("Undo"), onClick: () => setCards((cs) => (cs.find((c) => c.last4 === card.last4) ? cs : [...cs, card])) } });
-  };
-  return (
-    <Modal open={open} onClose={onClose} title={t("Account settings")} wide
-      footer={<><Btn variant="ghost" onClick={onClose}>{t("Cancel")}</Btn><Btn variant="primary" icon={Icon.check} onClick={save}>{t("Save changes")}</Btn></>}>
-      <div className="space-y-5">
-        <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">{t("Profile")}</div>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <Field label={t("Full name")}><Input value={name} onChange={(e) => setName(e.target.value)} /></Field>
-            <Field label={t("E-mail")}><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
-            <Field label={t("Phone")}><Input value={phone} onChange={(e) => setPhone(e.target.value)} /></Field>
-            <Field label={t("Language")}>
-              <Select value={lang} onChange={(e) => setLang(e.target.value as LangCode)} options={LANGUAGES.map((l) => ({ v: l.code, l: `${l.code.toUpperCase()} — ${l.native}` }))} />
-            </Field>
-          </div>
-        </section>
-
-        <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">{t("Notifications")}</div>
-          <div className="space-y-2">
-            <PrefRow label={t("Push notifications")} sub={t("Booking updates, gate scans, refunds.")} on={prefs.push} set={(v) => setPrefs((p) => ({ ...p, push: v }))} />
-            <PrefRow label={t("E-mail")} sub={t("Receipts, invoices, weekly summaries.")} on={prefs.email} set={(v) => setPrefs((p) => ({ ...p, email: v }))} />
-            <PrefRow label={t("SMS")} sub={t("Critical alerts only.")} on={prefs.sms} set={(v) => setPrefs((p) => ({ ...p, sms: v }))} />
-            <PrefRow label={t("Marketing offers")} sub={t("Weekend deals & seasonal promotions.")} on={prefs.offers} set={(v) => setPrefs((p) => ({ ...p, offers: v }))} />
-          </div>
-        </section>
-
-        <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2 flex items-center justify-between">
-            <span>{t("Saved payment methods")}</span>
-            <button onClick={() => toast(t("Demo — Stripe SetupIntent flow."))} className="text-teal-700 text-[12px] font-semibold normal-case tracking-normal inline-flex items-center gap-1"><Icon.plus size={12} /> {t("Add card")}</button>
-          </div>
-          <div className="space-y-2">
-            {cards.length === 0 ? (
-              <div className="text-[13px] text-slate-500 rounded-xl bg-slate-50 px-3 py-4 text-center">{t("No saved cards. Add one for faster checkout.")}</div>
-            ) : cards.map((c) => (
-              <div key={c.last4} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
-                <div className="flex items-center gap-3">
-                  <span className="w-9 h-7 rounded-md bg-gradient-to-br from-navy-800 to-navy-950 text-white text-[10px] font-bold grid place-items-center">{c.brand.slice(0, 4).toUpperCase()}</span>
-                  <div><div className="font-semibold text-sm text-navy-900">•••• {c.last4}</div><div className="text-[11px] text-slate-500">{t("Exp")} {c.exp}</div></div>
-                </div>
-                <button aria-label={`${t("Remove card ending")} ${c.last4}`} onClick={() => removeCard(c)} className="w-9 h-9 grid place-items-center rounded-lg text-slate-300 hover:text-rose-500 hover:bg-rose-50"><Icon.trash size={15} /></button>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">{t("Privacy & data")}</div>
-          <button onClick={() => setPrivacy(true)} className="w-full text-left flex items-center gap-3 rounded-2xl ring-1 ring-slate-200 bg-white/70 px-3.5 py-3 hover:ring-teal-400 hover:bg-slate-50 transition group">
-            <span className="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 grid place-items-center shrink-0"><Icon.shieldCheck size={20} /></span>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-sm text-navy-900">{t("Privacy Centre")}</div>
-              <div className="text-[12px] text-slate-600 leading-snug">{t("Export your data, manage consents, see who processes it, or delete your account.")}</div>
-            </div>
-            <Icon.chevR size={18} className="text-slate-300 group-hover:text-teal-600 group-hover:translate-x-0.5 transition" />
-          </button>
-        </section>
-
-        <section>
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-2">{t("Security")}</div>
-          <div className="flex gap-2 flex-wrap">
-            <Btn variant="outline" size="sm" icon={Icon.lock} onClick={() => setChangePw(true)}>{t("Change password")}</Btn>
-            <Btn variant="outline" size="sm" icon={Icon.phone} onClick={() => setTwoFA(true)}>{t("Enable 2FA")}</Btn>
-          </div>
-        </section>
-      </div>
-      <PrivacyCenter open={privacy} onClose={() => setPrivacy(false)} />
-      <ChangePasswordModal open={changePw} onClose={() => setChangePw(false)} />
-      <Enable2FAModal open={twoFA} onClose={() => setTwoFA(false)} />
-    </Modal>
-  );
-}
-
-function PrefRow({ label, sub, on, set }: { label: ReactNode; sub: ReactNode; on: boolean; set: (v: boolean) => void }) {
-  return (
-    <div className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
-      <div><div className="font-semibold text-sm text-navy-900">{label}</div><div className="text-[11px] text-slate-500">{sub}</div></div>
-      <Toggle on={on} onChange={set} />
-    </div>
-  );
-}

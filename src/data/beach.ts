@@ -1,5 +1,6 @@
 // Beach zones — values match the video (Akanthus, Central, Macaw, Bestbuy, Main, Bolivar).
 import type { Sunbed, SunbedSlot, SunbedState, Zone } from "../domain/types";
+import { DEMO_TODAY } from "../domain/period";
 
 export const ZONES: Zone[] = [
   { id: "akanthus", name: "Akanthus", avail: 67, total: 100, from: 30, color: "#6366f1", prefix: "AK" },
@@ -29,11 +30,23 @@ export const ZONE_BLOCKS: ZoneBlock[] = [
 ];
 
 // Build a deterministic sunbed grid for a zone.
+// Deterministic 0–1 per key (FNV-1a + xorshift), so every persona sees the same beach.
+function unit(key: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < key.length; i++) h = Math.imul(h ^ key.charCodeAt(i), 16777619);
+  h ^= h << 13;
+  h ^= h >>> 17;
+  return ((h >>> 0) % 10000) / 10000;
+}
 export function makeGrid(zone: Zone, cols = 14, rows = 8): Sunbed[] {
-  const states: SunbedState[] = ["a", "a", "a", "h", "a", "u", "a", "a", "h", "a", "a", "u", "a", "a"];
+  // A realistic mix per zone (AENR-592): roughly half to two-thirds booked,
+  // a few held, the rest free — front rows fill first.
+  const booked = 0.45 + (zone.total % 5) * 0.04;
   const arr: Sunbed[] = [];
   for (let i = 0; i < cols * rows; i++) {
-    const s = states[(i * 7 + zone.total) % states.length];
+    const front = Math.floor(i / cols) === 0 ? 0.15 : 0;
+    const x = unit(`${zone.id}:${i}`);
+    const s: SunbedState = x < 0.06 ? "h" : x < 0.06 + booked + front ? "u" : "a";
     arr.push({
       id: `${zone.prefix}-${String(i + 1).padStart(2, "0")}`,
       s,
@@ -55,12 +68,16 @@ export function zoneLayout(zone: Zone, cols = 8, rows = 6): SunbedSlot[] {
   const padY = 12;
   const spanX = 100 - padX * 2;
   const spanY = 100 - padY * 2;
+  // Rows map to the zone's price categories: front row, standard, back row.
+  const cat = (r: number) => `${zone.id}-${r === 0 ? "fr" : r === rows - 1 && rows > 1 ? "bk" : "st"}`;
   return makeGrid(zone, cols, rows).map((b) => ({
     id: b.id,
     x: padX + (cols <= 1 ? spanX / 2 : (b.c / (cols - 1)) * spanX),
     y: padY + (rows <= 1 ? spanY / 2 : (b.r / (rows - 1)) * spanY),
     state: b.s,
     price: b.price,
+    cat: cat(b.r),
+    ...(b.r === 0 ? { kind: "front" as const } : {}),
   }));
 }
 
@@ -75,7 +92,15 @@ export function fromISO(iso: string): Date {
   const [y, m, d] = iso.split("-").map(Number);
   return new Date(y, m - 1, d);
 }
+/** "Today" for every tenant-side flow — customer, call center, cashier,
+ *  controller and back office all run on the demo calendar (AENR-547), so a
+ *  booking made in the wizard lands on the same days Reporting shows. */
 export function todayISO(): string {
+  return DEMO_TODAY;
+}
+/** The real calendar date — only the Platform console runs on it (its tenant,
+ *  billing and trial seeds are dated around the real calendar). */
+export function realTodayISO(): string {
   const d = new Date();
   d.setHours(0, 0, 0, 0);
   return toISO(d);
@@ -90,8 +115,7 @@ export interface DateChip {
 // translates the "Today"/"Tomorrow" tokens. Both default to English/identity so
 // non-localized callers keep working.
 export function chipLabel(iso: string, locale = "en-GB", t: (s: string) => string = (s) => s): DateChip {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const today = fromISO(todayISO());
   const d = fromISO(iso);
   const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
   const sub = d.toLocaleDateString(locale, { day: "numeric", month: "short" });
@@ -101,8 +125,7 @@ export function chipLabel(iso: string, locale = "en-GB", t: (s: string) => strin
 }
 // Quick strip: today + next n-1 days, each with iso + label + sub.
 export const dateStrip = (n = 7, locale = "en-GB", t: (s: string) => string = (s) => s): Array<DateChip & { iso: string }> => {
-  const base = new Date();
-  base.setHours(0, 0, 0, 0);
+  const base = fromISO(todayISO());
   return Array.from({ length: n }).map((_, i) => {
     const dt = new Date(base);
     dt.setDate(base.getDate() + i);
@@ -171,6 +194,8 @@ export const DEFAULT_SCENE_FX: SceneFx = { weather: true, daytime: true };
 export const DAY_MIN = 5.5;
 export const DAY_MAX = 21.5;
 export const DAY_DEFAULT = 10;
+/** The guest site's fixed hour when the tenant turns live weather and time of day off (AENR-737). */
+export const STILL_HOUR = 11;
 
 const rampH = (h: number, a: number, b: number) => Math.min(1, Math.max(0, (h - a) / (b - a)));
 /** warm = golden-hour factor (0–1), night = dawn/dusk darkening (0–1). */
@@ -207,3 +232,23 @@ export const TENANT = {
   place: "Alimos",
   subdomain: "aktitouiliou.slaice.app",
 };
+
+/** The legal operator behind the beach — on checkout and on every tax document (receipts, invoices). */
+export const OPERATOR = { legal: "Akti tou Iliou AE", vat: "EL123456789", taxOffice: "Glyfada", address: "Leof. Poseidonos 1, 174 55 Alimos", phone: "+30 210 980 0000", email: "help@aktitouiliou.gr" };
+
+/** Default zones closed for the day (demo seed) — the live list is the app
+ *  zone's `closedStores`, edited in Beach, Availability & Pricing. */
+export const DEFAULT_CLOSED_STORES: Record<string, string> = { bolivar: "Closed today — private event" };
+
+/** A deterministic demo forecast per date (AENR-567 / 570): today follows the
+ *  demo scene's weather; other days are mostly sunny summer days. */
+export function forecastFor(iso: string, today: string, todayKind: WeatherKind, live = true): { kind: WeatherKind; tempC: number } {
+  // The tenant turned live weather off (AENR-737): every day is clear and sunny.
+  if (!live) return { kind: "sunny", tempC: WEATHER_DEMO.sunny.tempC };
+  if (iso === today) return { kind: todayKind, tempC: WEATHER_DEMO[todayKind].tempC };
+  let h = 0;
+  for (const c of iso) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const r = h % 20;
+  const kind: WeatherKind = r < 13 ? "sunny" : r < 16 ? "windy" : r < 19 ? "overcast" : "rainy";
+  return { kind, tempC: WEATHER_DEMO[kind].tempC + ((h >> 5) % 4) - 1 };
+}

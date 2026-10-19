@@ -11,6 +11,7 @@ on:
     branches:
       - main
       - claude/lucid-goodall-z4fbR
+      - claude/pensive-bell-ydm3xm
     paths-ignore:
       - "docs/**"
   workflow_dispatch:
