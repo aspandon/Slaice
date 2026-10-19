@@ -241,7 +241,7 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 
 #### Also open at P1
 
-- **4.2 · Calendar dialog focus:** render the date picker through `Modal`, or reuse its
+- ✅ **Resolved (AENR-767, 19 Oct 2026: focus moves in and is trapped, Escape closes and returns focus to the date field, the dialog is named by its title)** — **4.2 · Calendar dialog focus:** render the date picker through `Modal`, or reuse its
   `useDialogFocus`, and give the dialog its title as a name.
 - **4.6 · i18n:** route the remaining customer strings through `t()`, then have a native speaker review
   the Greek.

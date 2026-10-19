@@ -1,8 +1,9 @@
 import { useGuard } from "./guard";
-import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../../lib/icons";
+import { useDialogFocus } from "./overlays";
 import { chipLabel, dateStrip, fromISO, todayISO, toISO } from "../../data/beach";
 import { useApp, useT } from "../../app/store";
 import { localeFor } from "../../app/i18n";
@@ -208,6 +209,11 @@ function DateCalendarModal({ value, onChange, onClose, locale = "en-GB", t = (s)
   });
   const todayIso = todayISO();
   const today = fromISO(todayIso);
+  // Same focus handling as every dialog (AENR-767): focus moves in, Tab stays
+  // inside, and focus returns to the date field on close.
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useDialogFocus(true, panelRef);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -243,11 +249,11 @@ function DateCalendarModal({ value, onChange, onClose, locale = "en-GB", t = (s)
   const canPrev = monthStart > todayMonth;
   const title = monthStart.toLocaleDateString(locale, { month: "long", year: "numeric" });
   return createPortal((
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[70] grid place-items-center p-4 animate-fade-in">
+    <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="fixed inset-0 z-[70] grid place-items-center p-4 animate-fade-in">
       <button type="button" aria-label={t("Close")} tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-navy-950/45 backdrop-blur-xl cursor-default" />
-      <div className="glass-card-solid relative rounded-2xl w-full max-w-sm animate-pop">
+      <div ref={panelRef} tabIndex={-1} className="glass-card-solid relative rounded-2xl w-full max-w-sm animate-pop outline-none">
         <div className="px-4 py-3 border-b border-white/40 flex items-center justify-between">
-          <div className="font-display font-bold text-navy-900 inline-flex items-center gap-2"><Icon.calendar size={16} /> {multiple ? t("Pick dates") : t("Pick a date")}</div>
+          <div id={titleId} className="font-display font-bold text-navy-900 inline-flex items-center gap-2"><Icon.calendar size={16} /> {multiple ? t("Pick dates") : t("Pick a date")}</div>
           <button aria-label={t("Close")} onClick={onClose} className="text-slate-500 hover:text-navy-900 hover:bg-white/40 p-1.5 rounded-lg"><Icon.x size={18} /></button>
         </div>
         <div className="p-4">
