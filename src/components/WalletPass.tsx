@@ -56,6 +56,7 @@ function GoogleG({ size = 18 }: { size?: number }) {
 
 // A black pill that mirrors the official "Add to … Wallet" badges (compact on visit cards).
 function WalletBadge({ onClick, logo, label, compact = false }: { onClick?: () => void; logo?: ReactNode; label?: ReactNode; compact?: boolean }) {
+  const t = useT();
   return (
     <button
       type="button"
@@ -63,7 +64,7 @@ function WalletBadge({ onClick, logo, label, compact = false }: { onClick?: () =
       className={`inline-flex items-center justify-center gap-2.5 rounded-xl bg-black text-white shadow-btn-primary hover:bg-neutral-800 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 ${compact ? "pl-2.5 pr-3 h-9" : "pl-3 pr-4 h-12 min-w-[180px]"}`}>
       {logo}
       <span className="text-left leading-none">
-        <span className="block text-[9px] text-white/70 -mb-0.5">Add to</span>
+        <span className="block text-[9px] text-white/70 -mb-0.5">{t("Add to")}</span>
         <span className={`block font-semibold ${compact ? "text-[12.5px]" : "text-[15px]"}`}>{label}</span>
       </span>
     </button>
@@ -162,6 +163,7 @@ export function WalletOptions({ pass, className = "" }: { pass: WalletPassData; 
 
 /* ---------- The pass preview (looks like a real wallet pass) ---------- */
 function PassPreview({ pass }: { pass: WalletPassData }) {
+  const t = useT();
   // VIP / Season passes render the tenant membership card art + a scan strip.
   if (pass.variant === "vip" || pass.variant === "season") {
     const no = "NO. " + (pass.ref.match(/\d+/)?.[0] ?? "0042");
@@ -187,7 +189,7 @@ function PassPreview({ pass }: { pass: WalletPassData }) {
     <div className="relative rounded-3xl overflow-hidden shadow-float ring-1 ring-black/5 max-w-[340px] mx-auto">
       {pass.voided && (
         <div className="absolute inset-0 z-[1] grid place-items-center bg-navy-950/70">
-          <span className="rounded-xl bg-white text-rose-700 font-bold px-4 py-2 text-[14px] ring-2 ring-rose-300">Cancelled — pass voided</span>
+          <span className="rounded-xl bg-white text-rose-700 font-bold px-4 py-2 text-[14px] ring-2 ring-rose-300">{t("Cancelled — pass voided")}</span>
         </div>
       )}
       <div className="grad-sea text-white p-5">
@@ -196,7 +198,7 @@ function PassPreview({ pass }: { pass: WalletPassData }) {
             <TenantLogo size={28} />
             <div className="leading-tight">
               <div className="font-display font-bold text-[15px]">{TENANT.name}</div>
-              <div className="text-[10px] uppercase tracking-wider text-teal-200">Beach entry pass</div>
+              <div className="text-[10px] uppercase tracking-wider text-teal-200">{t("Beach entry pass")}</div>
             </div>
           </div>
           <Icon.umbrella size={20} className="text-teal-200" />
@@ -214,10 +216,10 @@ function PassPreview({ pass }: { pass: WalletPassData }) {
       <div className="bg-white px-5 py-4 flex items-center gap-4">
         <div className="rounded-lg ring-1 ring-slate-200 p-1.5 shrink-0"><QR size={92} seed={qrCode(pass.ref)} /></div>
         <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Booking</div>
+          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">{t("Booking")}</div>
           <div className="font-mono font-semibold text-navy-900 text-sm">#{pass.ref.replace(/^#/, "")}</div>
           {pass.total && <div className="text-[12px] text-slate-500 mt-1">{pass.total} · paid</div>}
-          <div className="text-[11px] text-slate-500 mt-1.5">Scan at the gate</div>
+          <div className="text-[11px] text-slate-500 mt-1.5">{t("Scan at the gate")}</div>
         </div>
       </div>
     </div>

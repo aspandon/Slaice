@@ -8,7 +8,7 @@ import { DateInput } from "../../components/ui/DateInput";
 import { WalletButtons, WalletSheetFor, otherWallets } from "../../components/WalletPass";
 import { QR, Sparkline } from "../../components/charts";
 import { qrCode } from "../../domain/entry";
-import { useApp, useT } from "../../app/store";
+import { useApp, useMoney, useT } from "../../app/store";
 import { ZONES, todayISO } from "../../data/beach";
 import { addDays, fmtDay, fmtWeekday } from "../../domain/period";
 import { PARKING_PRICE } from "../../domain/pricing";
@@ -50,6 +50,7 @@ type Dialog =
   | { kind: "share"; v: Visit };
 
 export function CustomerBookings() {
+  const money = useMoney();
   const { go, toast, account } = useApp();
   const t = useT();
   const { status, refetch, visits, policy } = useVisits();
@@ -84,7 +85,7 @@ export function CustomerBookings() {
           </div>
           <div className="flex items-center gap-5 shrink-0 sm:pl-0 pl-[52px]">
             <div className="text-center"><div className="text-2xl font-bold font-display tnum text-navy-900">{used.length}</div><div className="text-guest-caption text-slate-500">{t("visits")}</div></div>
-            <div className="text-center"><div className="text-2xl font-bold font-display tnum text-navy-900">€{spent}</div><div className="text-guest-caption text-slate-500">{t("spent")}</div></div>
+            <div className="text-center"><div className="text-2xl font-bold font-display tnum text-navy-900">{money(spent)}</div><div className="text-guest-caption text-slate-500">{t("spent")}</div></div>
             <div className="w-px h-10 bg-slate-200" />
             <div className="w-28"><Sparkline data={[1, 2, 1, 3, 2, 4, 3, 5]} color="#0D9488" width={112} height={36} /><div className="text-guest-caption text-slate-500 text-center mt-1">{t("visits / month")}</div></div>
           </div>
@@ -95,7 +96,7 @@ export function CustomerBookings() {
         <Tabs tabs={[["upcoming", `${t("Upcoming")} ${count("upcoming")}`], ["past", `${t("Past")} ${count("past")}`], ["cancelled", `${t("Cancelled")} ${count("cancelled")}`]]} value={filter} onChange={setFilter} />
         {account.credit.balance > 0 && (
           <button type="button" onClick={() => go("customer", "wallet")} className="text-guest-meta font-semibold text-teal-700 hover:underline px-2">
-            {t("Beach credit")} €{account.credit.balance.toFixed(2)} →
+            {t("Beach credit")} {money(account.credit.balance, true)} →
           </button>
         )}
       </div>
@@ -157,6 +158,7 @@ export function CustomerBookings() {
 }
 
 function VisitCard({ v, deadline, onOpen }: { v: Visit; deadline: string; onOpen: (d: Dialog) => void }) {
+  const money = useMoney();
   const t = useT();
   const { account, toast } = useApp();
   const live = v.status === "today" || v.status === "upcoming";
@@ -212,7 +214,7 @@ function VisitCard({ v, deadline, onOpen }: { v: Visit; deadline: string; onOpen
           <p className="mt-1 text-guest-meta text-slate-600">
             {v.status === "cancelled" && v.cancelled
               ? v.cancelled.refund > 0
-                ? `${t("Cancelled")} · €${v.cancelled.refund.toFixed(2)} ${v.cancelled.to === "credit" ? t("added to your beach credit") : t("refunded to your card")}`
+                ? `${t("Cancelled")} · ${money(v.cancelled.refund, true)} ${v.cancelled.to === "credit" ? t("added to your beach credit") : t("refunded to your card")}`
                 : t("Cancelled · no refund")
               : live
                 ? `${t("Arrive")} ${ARRIVAL_WINDOW} · ${inWindow ? `${t("free cancellation until")} ${fmtDeadline(deadline)}` : t("the free-cancellation window has closed")}`
@@ -220,7 +222,7 @@ function VisitCard({ v, deadline, onOpen }: { v: Visit; deadline: string; onOpen
           </p>
         </div>
         <div className="text-right shrink-0">
-          <div className="font-display font-bold text-navy-900 text-lg tnum">€{v.total}</div>
+          <div className="font-display font-bold text-navy-900 text-lg tnum">{money(v.total)}</div>
           {invoice && <div className="text-guest-caption text-slate-500">{t("Invoice issued")}</div>}
         </div>
       </div>
@@ -270,6 +272,7 @@ function MoveDialog({ v, onClose }: { v: Visit; onClose: () => void }) {
 
 /* Add tickets, parking or a locker to a booked visit — charged to the saved card. */
 export function ExtrasDialog({ v, only, onClose }: { v: Visit; /** "extras" = locker and parking only (AENR-704). */ only?: "extras"; onClose: () => void }) {
+  const money = useMoney();
   const t = useT();
   const { toast, account } = useApp();
   const { addExtra } = useVisits();
@@ -292,20 +295,20 @@ export function ExtrasDialog({ v, only, onClose }: { v: Visit; /** "extras" = lo
   const card = account.savedCard ? `${account.savedCard.brand} ···· ${account.savedCard.last4}` : "Visa ···· 4242";
   return (
     <Modal open onClose={onClose} title={only === "extras" && kind !== "none" ? `${t(ADD_EXTRAS_LABEL[kind])} · ${fmtWeekday(v.date)} ${fmtDay(v.date)}` : `${t("Add to")} ${fmtWeekday(v.date)} ${fmtDay(v.date)}`}
-      footer={<><Btn variant="ghost" onClick={onClose}>{t("Cancel")}</Btn><Btn variant="primary" icon={Icon.card} loading={busy} disabled={!lines.length} onClick={() => { setBusy(true); window.setTimeout(() => { lines.forEach((l) => addExtra(v, l)); toast(`${t("Added")} · €${total} ${t("charged to")} ${card}. ${t("Your QR now includes them.")}`, { tone: "success" }); onClose(); }, 900); }}>{`${t("Pay")} €${total}`}</Btn></>}>
+      footer={<><Btn variant="ghost" onClick={onClose}>{t("Cancel")}</Btn><Btn variant="primary" icon={Icon.card} loading={busy} disabled={!lines.length} onClick={() => { setBusy(true); window.setTimeout(() => { lines.forEach((l) => addExtra(v, l)); toast(`${t("Added")} · ${money(total)} ${t("charged to")} ${card}. ${t("Your QR now includes them.")}`, { tone: "success" }); onClose(); }, 900); }}>{`${t("Pay")} ${money(total)}`}</Btn></>}>
       <div className="space-y-2.5">
         {only !== "extras" && <>
         <div className="text-guest-over font-semibold uppercase tracking-wider text-slate-500">{t("Entry tickets")}</div>
         {ex.tickets.map((c) => (
           <div key={c.id} className="flex items-center justify-between text-guest-body">
-            <span>{ex.ticketLabel(c.id)} <span className="text-slate-500">€{ex.ticketPrice(c.id, v.date)}</span></span>
+            <span>{ex.ticketLabel(c.id)} <span className="text-slate-500">{money(ex.ticketPrice(c.id, v.date))}</span></span>
             <Stepper label={`${ex.ticketLabel(c.id)} ${t("tickets")}`} value={qty[c.id] ?? 0} onChange={(n) => setQty((q) => ({ ...q, [c.id]: n }))} />
           </div>
         ))}
         {kind !== "none" && <div className="pt-1 text-guest-over font-semibold uppercase tracking-wider text-slate-500">{t("Extras")}</div>}
         </>}
-        {canParking && <div className="flex items-center justify-between text-guest-body"><span>{t("Parking")} <span className="text-slate-500">€{PARKING_PRICE}</span></span><Stepper label={t("Parking spots")} value={parking} onChange={setParking} /></div>}
-        {bank && <div className="flex items-center justify-between text-guest-body"><span>{bank.name} <span className="text-slate-500">€{ex.lockerPrice(bank.id, v.date)}</span></span><Stepper label={t("Lockers")} value={locker} onChange={setLocker} /></div>}
+        {canParking && <div className="flex items-center justify-between text-guest-body"><span>{t("Parking")} <span className="text-slate-500">{money(PARKING_PRICE)}</span></span><Stepper label={t("Parking spots")} value={parking} onChange={setParking} /></div>}
+        {bank && <div className="flex items-center justify-between text-guest-body"><span>{bank.name} <span className="text-slate-500">{money(ex.lockerPrice(bank.id, v.date))}</span></span><Stepper label={t("Lockers")} value={locker} onChange={setLocker} /></div>}
         <p className="text-guest-caption text-slate-500 pt-1">{t("Paid with")} {card}. {t("Free cancellation follows your booking.")}</p>
       </div>
     </Modal>
@@ -314,6 +317,7 @@ export function ExtrasDialog({ v, only, onClose }: { v: Visit; /** "extras" = lo
 
 /* Cancel inside the window: refund to the card or as beach credit. */
 function CancelDialog({ v, onClose }: { v: Visit; onClose: () => void }) {
+  const money = useMoney();
   const t = useT();
   const { toast } = useApp();
   const { cancel, policy } = useVisits();
@@ -321,13 +325,13 @@ function CancelDialog({ v, onClose }: { v: Visit; onClose: () => void }) {
   const [to, setTo] = useState<"card" | "credit">("card");
   return (
     <Modal open onClose={onClose} title={t("Cancel this visit?")}
-      footer={<><Btn variant="ghost" onClick={onClose}>{t("Keep my booking")}</Btn><Btn variant="danger" icon={Icon.x} onClick={() => { cancel(v, to); toast(q.refund > 0 ? `${t("Cancelled")} — €${q.refund.toFixed(2)} ${to === "card" ? t("back to your card in 5–10 days.") : t("added to your beach credit.")}` : t("Cancelled — your sunbeds are free for others."), { tone: "success" }); onClose(); }}>{q.refund > 0 ? `${t("Cancel and refund")} €${q.refund.toFixed(2)}` : t("Cancel without refund")}</Btn></>}>
+      footer={<><Btn variant="ghost" onClick={onClose}>{t("Keep my booking")}</Btn><Btn variant="danger" icon={Icon.x} onClick={() => { cancel(v, to); toast(q.refund > 0 ? `${t("Cancelled")} — ${money(q.refund, true)} ${to === "card" ? t("back to your card in 5–10 days.") : t("added to your beach credit.")}` : t("Cancelled — your sunbeds are free for others."), { tone: "success" }); onClose(); }}>{q.refund > 0 ? `${t("Cancel and refund")} ${money(q.refund, true)}` : t("Cancel without refund")}</Btn></>}>
       <div className="space-y-3 text-guest-meta">
-        <p className="text-slate-700"><b className="text-navy-900">{fmtWeekday(v.date)} {fmtDay(v.date)}{v.zone ? ` · ${v.zone}` : ""}</b> · €{v.total}</p>
+        <p className="text-slate-700"><b className="text-navy-900">{fmtWeekday(v.date)} {fmtDay(v.date)}{v.zone ? ` · ${v.zone}` : ""}</b> · {money(v.total)}</p>
         <div className={`rounded-xl px-3 py-2.5 ring-1 ${q.inWindow ? "bg-emerald-50 ring-emerald-600/20 text-emerald-900" : "bg-amber-50 ring-amber-600/20 text-amber-900"}`}>
           {q.inWindow
-            ? `${t("Free cancellation until")} ${fmtDeadline(cancelDeadline(v.date, policy))} — ${t("you get")} €${q.refund.toFixed(2)} (${q.pct}%).`
-            : `${t("The free-cancellation window closed")} ${fmtDeadline(cancelDeadline(v.date, policy))}. ${q.refund > 0 ? `${t("You get")} €${q.refund.toFixed(2)} (${q.pct}%).` : t("No refund — cancelling frees your sunbeds for other guests.")}`}
+            ? `${t("Free cancellation until")} ${fmtDeadline(cancelDeadline(v.date, policy))} — ${t("you get")} ${money(q.refund, true)} (${q.pct}%).`
+            : `${t("The free-cancellation window closed")} ${fmtDeadline(cancelDeadline(v.date, policy))}. ${q.refund > 0 ? `${t("You get")} ${money(q.refund, true)} (${q.pct}%).` : t("No refund — cancelling frees your sunbeds for other guests.")}`}
         </div>
         {q.refund > 0 && (
           <fieldset className="space-y-1.5">

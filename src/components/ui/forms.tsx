@@ -57,14 +57,15 @@ export function Toggle({ on, onChange, label, ariaLabel, disabled }: { on?: bool
 
 /* ---------- Stepper (quantity) ---------- */
 export function Stepper({ value, onChange, min = 0, max, label, size = "md" }: { value: number; onChange: (v: number) => void; min?: number; /** Upper bound — the + turns off there. */ max?: number; label?: string; /** "lg" = 56px targets for the tablet till and the gate. */ size?: "md" | "lg" }) {
+  const t = useT();
   const what = label ? ` ${label}` : "";
   const box = size === "lg" ? "w-14 h-14" : "w-11 h-11 sm:w-10 sm:h-10";
   const atMax = max != null && value >= max;
   return (
     <div className="flex items-center gap-3">
-      <button aria-label={`Decrease${what}`} onClick={() => onChange(Math.max(min, value - 1))} className={`${box} rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90 disabled:opacity-40`} disabled={value <= min}><Icon.minus size={16} /></button>
+      <button aria-label={`${t("Decrease")}${what}`} onClick={() => onChange(Math.max(min, value - 1))} className={`${box} rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90 disabled:opacity-40`} disabled={value <= min}><Icon.minus size={16} /></button>
       <span className="w-6 text-center font-semibold tnum tabular-nums" aria-live="polite" aria-label={label ? `${value} ${label}` : undefined}>{value}</span>
-      <button aria-label={`Increase${what}`} onClick={() => onChange(max != null ? Math.min(max, value + 1) : value + 1)} className={`${box} rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90 disabled:opacity-40`} disabled={atMax}><Icon.plus size={16} /></button>
+      <button aria-label={`${t("Increase")}${what}`} onClick={() => onChange(max != null ? Math.min(max, value + 1) : value + 1)} className={`${box} rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90 disabled:opacity-40`} disabled={atMax}><Icon.plus size={16} /></button>
     </div>
   );
 }

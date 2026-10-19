@@ -468,7 +468,17 @@ Cookie Policy. The decision is stored with a timestamp and can be changed any ti
   loads the saved or device language before the first render (no flash of English), and a switch keeps the
   current language until the new dictionary arrives, then changes in one go. English needs none.
 - `<html lang>` follows the selected language; dates use `Intl` (`en-GB` for English).
-- Coverage: the **customer surface** is translated; **staff screens are largely English-only**.
+- **Prices in the guest's language** (AENR-768): every guest-facing euro amount goes through `useMoney()`
+  (`fmtMoney` in `src/app/i18n.ts`, `Intl.NumberFormat` currency EUR) — "€31.50" in English, "31,50 €" in
+  Greek, German, French, Spanish and Italian. Whole amounts drop the cents ("€30" / "30 €"); totals,
+  refunds and balances always show two places. Documents (PDF receipts, the privacy export, card art)
+  stay in English.
+- Coverage: the **customer surface** is translated — since AENR-768 also the Privacy Center (requests,
+  statuses, processing records), Security (change password, two-factor setup), the wallet pass preview,
+  the closed-beach notice, the cookie banner's name, sunbed button names and tooltips, and the stepper's
+  "Increase / Decrease"; **staff screens are largely English-only**.
+- `npm run i18n` keeps a string untranslated (English fallback) when the translation endpoint fails or
+  rate-limits, and retries it on the next run instead of saving the English as the translation.
 - MVP languages are **English and Greek**. German, French, Spanish and Italian stay selectable but carry
   a **FUTURE** badge in the language menu and the account-settings language select (`mvp` flag on
   `LANGUAGES` in `src/app/i18n.ts`).

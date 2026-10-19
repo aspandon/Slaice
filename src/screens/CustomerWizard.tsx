@@ -10,14 +10,14 @@ import { prefersReducedMotion } from "../lib/motion";
 import { gsap, Flip, motionOK, stashFlip, EASE, DUR } from "../lib/fx";
 import { DURATION, EASING } from "../lib/motionTokens";
 import { Sunbed, SunbedMark } from "../components/Beach";
-import { SetTile, SetTileLegend, euro, tileGeometry, tilePosition } from "../components/SetTile";
+import { SetTile, SetTileLegend, tileGeometry, tilePosition } from "../components/SetTile";
 import { ZONES, ZONE_BLOCKS, todayISO, chipLabel, forecastFor, WEATHER_DEMO } from "../data/beach";
 import { addDays } from "../domain/period";
 import { useClosure, useLiveSlots } from "../lib/useLiveSlots";
 import { checkRestrictions, dateBlock, resolvePrice } from "../domain/pricing";
 import { stopSellFor } from "../domain/inventory";
 import type { CartItem, SunbedSlot } from "../domain/types";
-import { useApp, useSpotlight, useT } from "../app/store";
+import { useApp, useMoney, useSpotlight, useT } from "../app/store";
 import { localeFor } from "../app/i18n";
 import { PARKING_PRICE } from "../domain/pricing";
 import { useExtras } from "../lib/useExtras";
@@ -64,7 +64,7 @@ type FlipStateT = ReturnType<typeof Flip.getState>;
    Selecting a set pops the umbrella open, ripples the sand around it, and arcs
    a price chip up into the running total, which pulses on arrival. Deselecting
    gives a small dip. Imperative one-shot DOM — nothing for React to track. */
-function bedPickFx(el: HTMLElement, price: number, adding: boolean) {
+function bedPickFx(el: HTMLElement, price: string, adding: boolean) {
   if (!motionOK()) return;
   if (!adding) {
     gsap.fromTo(el, { scale: 0.88 }, { scale: 1, duration: 0.3, ease: "power2.out" });
@@ -82,7 +82,7 @@ function bedPickFx(el: HTMLElement, price: number, adding: boolean) {
   const b = totalEl.getBoundingClientRect();
   const chip = document.createElement("div");
   chip.className = "fixed z-[60] pointer-events-none rounded-full bg-navy-900 text-white text-[12px] font-bold px-2.5 py-1 shadow-float tnum";
-  chip.textContent = `+€${price}`;
+  chip.textContent = `+${price}`;
   chip.style.left = `${a.left + a.width / 2}px`;
   chip.style.top = `${a.top + a.height * 0.2}px`;
   document.body.appendChild(chip);
@@ -167,6 +167,7 @@ function useAnimatedNumber(value: number, duration = 480) {
 export function CustomerWizard() {
   const site = useSiteStatus();
   const { go } = useApp();
+  const t = useT();
   if (site.blockOnline)
     return (
       <div className="grid place-items-center min-h-[60dvh] px-3">
@@ -174,8 +175,8 @@ export function CustomerWizard() {
           <span className="mx-auto w-12 h-12 rounded-xl bg-amber-100 text-amber-700 grid place-items-center"><Icon.clock size={22} /></span>
           <h1 className="mt-3 font-display font-bold text-guest-head text-navy-900">{site.tenant?.name}</h1>
           <p className="mt-1 text-guest-body text-slate-600">{site.message}</p>
-          <p className="mt-1 text-guest-meta text-slate-500">Bookings you already have stay valid — show your QR at the entrance.</p>
-          <Btn variant="teal" className="mt-4" icon={Icon.grid} onClick={() => go("customer", "mybookings")}>My bookings</Btn>
+          <p className="mt-1 text-guest-meta text-slate-500">{t("Bookings you already have stay valid — show your QR at the entrance.")}</p>
+          <Btn variant="teal" className="mt-4" icon={Icon.grid} onClick={() => go("customer", "mybookings")}>{t("My bookings")}</Btn>
         </div>
       </div>
     );
@@ -183,6 +184,7 @@ export function CustomerWizard() {
 }
 
 function WizardInner() {
+  const money = useMoney();
   const tr = useT();
   const { go, toast, addToCart, removeFromCart, hint, lang, beachPricing, priceRules, calendar, inventory, account, setAccount } = useApp();
   const { weather, live: sceneLive } = useGuestScene(); // AENR-737: off → a sunny forecast every day
@@ -427,9 +429,9 @@ function WizardInner() {
     const adding = !bedSel.find((b) => b.id === slot.id);
     setBedSel((s) => (adding ? [...s, { id: slot.id, price: slot.price, zoneId: zone.id }] : s.filter((b) => b.id !== slot.id)));
     setAuto((a) => (a && !a.edited ? { ...a, edited: true } : a));
-    if (el) bedPickFx(el, slot.price, adding);
+    if (el) bedPickFx(el, money(slot.price), adding);
     const n = bedSel.length + (adding ? 1 : -1);
-    setAnnounce(`${slot.id} ${adding ? tr("selected") : tr("removed")}, €${slot.price}. ${n} ${n === 1 ? tr("set") : tr("sets")} ${tr("picked")}.`);
+    setAnnounce(`${slot.id} ${adding ? tr("selected") : tr("removed")}, ${money(slot.price)}. ${n} ${n === 1 ? tr("set") : tr("sets")} ${tr("picked")}.`);
   };
   // Tapping a set opens its spot sheet first (AENR-568); Select there picks it.
   const [inspect, setInspect] = useState<{ slot: SunbedSlot; el: HTMLElement | null } | null>(null);
@@ -453,7 +455,7 @@ function WizardInner() {
     shownZone.current = id; // the zone-switch effect must not wipe this pick
     setBedSel((s) => (multiStoreRef.current ? [...s.filter((b) => b.zoneId !== id), ...picks] : picks));
     setAuto({ zoneId: id, ids: pick.ids, together: pick.together, rowIdx: pick.rowIdx, edited: false });
-    setAnnounce(`${tr("Picked for you")}: ${pick.ids.join(", ")}, €${pick.total}.`);
+    setAnnounce(`${tr("Picked for you")}: ${pick.ids.join(", ")}, ${money(pick.total)}.`);
   };
   const autoIntact = !!auto && !auto.edited && auto.ids.every((id) => bedSel.some((b) => b.id === id)) && bedSel.filter((b) => b.zoneId === auto.zoneId).length === auto.ids.length;
   const lastWant = useRef(wantSets);
@@ -470,11 +472,11 @@ function WizardInner() {
     const n = picked.length;
     const rowName = picked[0] ? tierOfZone(picked[0]).tier.name : TIERS[1].name;
     const head = n === 1 ? tr("1 set") : `${n} ${tr("sets")} ${auto.together ? tr("together") : tr("— none free side by side")}`;
-    const text = `${head} · ${tr(rowName)} · €${total}${dayCount > 1 ? ` ${tr("a day")}` : ""}`;
+    const text = `${head} · ${tr(rowName)} · ${money(total)}${dayCount > 1 ? ` ${tr("a day")}` : ""}`;
     let upgrade: { label: string; onClick: () => void } | undefined;
     if (auto.rowIdx > 0) {
       const front = bestSets(slots.filter((x) => x.state === "a"), slots, n, 0);
-      if (front) upgrade = { label: `${tr("Front row instead")} (+€${front.total - total})`, onClick: () => autoPick(zone.id, n, 0, true) };
+      if (front) upgrade = { label: `${tr("Front row instead")} (+${money(front.total - total)})`, onClick: () => autoPick(zone.id, n, 0, true) };
     }
     return { text, upgrade };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- autoPick is a plain closure
@@ -728,9 +730,9 @@ function WizardInner() {
                     <span className="flex-1 min-w-0">
                       <span className="block text-guest-meta font-semibold text-navy-900">{tr(ADD_EXTRAS_LABEL[extrasKind])}</span>
                       <span className="block text-guest-caption text-slate-600">
-                        {canLocker && lockerChoices.length > 0 && <>{tr("Optional — day lockers from")} €{Math.min(...lockerChoices.map((b) => b.price))}</>}
+                        {canLocker && lockerChoices.length > 0 && <>{tr("Optional — day lockers from")} {money(Math.min(...lockerChoices.map((b) => b.price)))}</>}
                         {canLocker && lockerChoices.length > 0 && canParking && " · "}
-                        {canParking && <>{canLocker && lockerChoices.length > 0 ? tr("parking") : tr("Optional — parking")} €{PARKING_PRICE} {tr("a day")}</>}
+                        {canParking && <>{canLocker && lockerChoices.length > 0 ? tr("parking") : tr("Optional — parking")} {money(PARKING_PRICE)} {tr("a day")}</>}
                       </span>
                     </span>
                     <Icon.chevR size={15} className="text-slate-500" />
@@ -795,14 +797,16 @@ function WizardInner() {
               </div>
             </div>
           )}
-          <div className="flex items-center justify-between gap-3 p-4 sm:p-5 pt-3 border-t border-slate-200/70 shrink-0">
+          {/* Wraps when the buttons leave the note under ~6rem — long languages (Greek)
+              otherwise squeezed it into an unreadable sliver under the buttons. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 p-4 sm:p-5 pt-3 border-t border-slate-200/70 shrink-0">
             {step.id === "review" && payItems ? (
               // On Pay the payment panel holds the one total that counts (rewards, credit, passes applied).
-              <div className="leading-tight min-w-0 text-guest-meta text-slate-600">{tr("Check the total and pay below.")}</div>
+              <div className="leading-tight min-w-0 flex-1 basis-24 text-guest-meta text-slate-600">{tr("Check the total and pay below.")}</div>
             ) : step.id === "when" || stepTotal === 0 || (step.id === "beach" && bedSel.length === 0) ? (
               // A calm first step (AENR-658): no price before a set is chosen; the
               // cancellation terms appear once, on Pay.
-              <div className="leading-tight min-w-0 text-guest-meta text-slate-600">
+              <div className="leading-tight min-w-0 flex-1 basis-24 text-guest-meta text-slate-600">
                 {step.id === "when" ? tr("Pick your day, then choose where to sit.") : step.id === "beach" ? (phase === "zones" ? tr("Pick a zone, then your sets.") : guidePick ? (
                   // The sheet's header already says "tap a set"; this is the quiet way
                   // to come without one (AENR-747).
@@ -811,13 +815,13 @@ function WizardInner() {
               </div>
             ) : (
             // Just the total (AENR-682): the truncated set/day line and the "all-in" toggle are gone.
-            <div className="leading-tight min-w-0">
-              <span className="font-display text-2xl font-bold text-navy-900 tnum leading-none" data-wizard-total>€<LiveEuro value={stepTotal} /></span>
-              {step.id === "people" && ticketSubtotal > 0 && <span className="block mt-1 text-guest-caption text-slate-500 tnum">{tr("incl. entry tickets")} €{ticketSubtotal}</span>}
-              {stepFee > 0 && <span className="block mt-1 text-guest-caption text-slate-500 tnum" data-wizard-fee>{tr("incl. service fee")} €{stepFee.toFixed(2)}</span>}
+            <div className="leading-tight min-w-0 flex-1 basis-24">
+              <span className="font-display text-2xl font-bold text-navy-900 tnum leading-none" data-wizard-total><LiveEuro value={stepTotal} /></span>
+              {step.id === "people" && ticketSubtotal > 0 && <span className="block mt-1 text-guest-caption text-slate-500 tnum">{tr("incl. entry tickets")} {money(ticketSubtotal)}</span>}
+              {stepFee > 0 && <span className="block mt-1 text-guest-caption text-slate-500 tnum" data-wizard-fee>{tr("incl. service fee")} {money(stepFee, true)}</span>}
             </div>
             )}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 ml-auto">
               <Btn variant="ghost" icon={Icon.arrowL} onClick={back} className="whitespace-nowrap">
                 {step.id === "beach" && phase === "sets" ? tr("All zones") : stepIdx === 0 ? tr("Home") : tr("Back")}
               </Btn>
@@ -872,7 +876,7 @@ function WizardInner() {
       <div className="sr-only" aria-live="polite">{announce}</div>
       {inspect && (
         <div className="pointer-events-auto">
-          <SpotSheet zoneName={zone.name} slot={inspect.slot} info={tierOfZone(inspect.slot)} selected={selectedIds.has(inspect.slot.id)} priceText={`€${inspect.slot.price}`}
+          <SpotSheet zoneName={zone.name} slot={inspect.slot} info={tierOfZone(inspect.slot)} selected={selectedIds.has(inspect.slot.id)} priceText={`${money(inspect.slot.price)}`}
             onClose={() => setInspect(null)}
             onSelect={() => { toggleBed(inspect.slot, inspect.el); setInspect(null); }} />
         </div>
@@ -1041,6 +1045,7 @@ function BeachMenu({ part, onEditDates, zonePicker, selDates, setSelDates, multi
   avail: number;
   dayCount: number;
 }) {
+  const money = useMoney();
   const tr = useT();
   const { lang } = useApp();
   const pickedSubtotal = bedSel.reduce((a, b) => a + b.price, 0);
@@ -1136,7 +1141,7 @@ function BeachMenu({ part, onEditDates, zonePicker, selDates, setSelDates, multi
                 <div className="min-w-0">
                   {autoNote && <div className="font-semibold text-navy-900">{tr("Picked for you")}: {autoNote.text}</div>}
                   <div className={autoNote ? "text-guest-caption text-slate-600" : "font-semibold text-navy-900 truncate"}>{bedSel.length} {bedSel.length !== 1 ? tr("umbrella sets") : tr("umbrella set")} · {bedSel.map((b) => b.id).join(", ")}</div>
-                  <div className="text-guest-caption text-slate-600">€{pickedSubtotal} × {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}{autoNote ? ` · ${tr("tap a set on the sand to swap it")}` : ""}</div>
+                  <div className="text-guest-caption text-slate-600">{money(pickedSubtotal)} × {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}{autoNote ? ` · ${tr("tap a set on the sand to swap it")}` : ""}</div>
                 </div>
               </div>
               <button onClick={() => setBedSel([])} className="text-guest-caption font-semibold text-slate-500 hover:text-rose-600 shrink-0 min-h-[32px] px-1">{tr("Clear")}</button>
@@ -1164,7 +1169,7 @@ function BeachMenu({ part, onEditDates, zonePicker, selDates, setSelDates, multi
             <div key={g.zone.id} className="text-guest-meta">
               <div className="flex items-center justify-between gap-2">
                 <span className="font-semibold text-navy-900 flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full" style={{ background: g.zone.color }} aria-hidden />{g.zone.name} · {g.picks.length} {g.picks.length !== 1 ? tr("sets") : tr("set")}</span>
-                <span className="tnum text-slate-700">€{g.picks.reduce((a, b) => a + b.price, 0) * dayCount}</span>
+                <span className="tnum text-slate-700">{money(g.picks.reduce((a, b) => a + b.price, 0) * dayCount)}</span>
               </div>
               <ul className="mt-1 flex flex-wrap gap-1">
                 {g.picks.map((b) => (
@@ -1185,7 +1190,7 @@ function BeachMenu({ part, onEditDates, zonePicker, selDates, setSelDates, multi
           )}
           <div className="border-t border-teal-200 pt-1.5 flex items-center justify-between text-guest-meta font-semibold text-navy-900">
             <span>{bedSel.length} {tr("sets in")} {groups.length} {groups.length !== 1 ? tr("zones") : tr("zone")} · {dayCount} {dayCount !== 1 ? tr("days") : tr("day")}</span>
-            <span className="tnum">€{pickedSubtotal * dayCount}</span>
+            <span className="tnum">{money(pickedSubtotal * dayCount)}</span>
           </div>
         </section>
       )}
@@ -1282,6 +1287,7 @@ function ZoneStrip({ days, onPick }: { days: string[]; onPick: (id: string) => v
   );
 }
 function ZoneStripTile({ zone, slots, onPick }: { zone: WizardZone; slots: SunbedSlot[]; onPick: (id: string) => void }) {
+  const money = useMoney();
   const tr = useT();
   const freeSlots = slots.filter((s) => s.state === "a");
   const free = useAnimatedNumber(freeSlots.length, DURATION.slow);
@@ -1289,7 +1295,7 @@ function ZoneStripTile({ zone, slots, onPick }: { zone: WizardZone; slots: Sunbe
   const full = freeSlots.length === 0;
   return (
     <button type="button" onClick={() => onPick(zone.id)}
-      aria-label={`${zone.name} — ${freeSlots.length} ${tr("free")}${from !== null ? `, ${tr("from")} ${euro(from)}` : ""}`}
+      aria-label={`${zone.name} — ${freeSlots.length} ${tr("free")}${from !== null ? `, ${tr("from")} ${money(from)}` : ""}`}
       className={`snap-start shrink-0 w-[118px] rounded-2xl glass-card px-2.5 pt-2 pb-2 text-left transition duration-fast ease-ios active:scale-[.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${full ? "opacity-70" : ""}`}>
       <span className="flex items-center gap-1.5 min-w-0">
         <span aria-hidden className="w-2 h-2 rounded-full shrink-0" style={{ background: zone.color }} />
@@ -1302,7 +1308,7 @@ function ZoneStripTile({ zone, slots, onPick }: { zone: WizardZone; slots: Sunbe
       </span>
       <span className="mt-1.5 block text-guest-caption leading-tight">
         <b className="tnum text-navy-900">{full ? tr("Full") : `${Math.round(free)} ${tr("free")}`}</b>
-        {from !== null && <span className="block text-slate-600 tnum">{tr("from")} {euro(from)}</span>}
+        {from !== null && <span className="block text-slate-600 tnum">{tr("from")} {money(from)}</span>}
       </span>
     </button>
   );
@@ -1315,6 +1321,7 @@ function ZoneStripTile({ zone, slots, onPick }: { zone: WizardZone; slots: Sunbe
    It snaps zone by zone; tapping a zone opens its sets. The zone list stays in
    the raised sheet as the accessible alternative. */
 function ZonePanorama({ days, selectedId, picked, onPick }: { days: string[]; selectedId: string; picked: Record<string, number>; onPick: (id: string) => void }) {
+  const money = useMoney();
   const tr = useT();
   const liveSlots = useLiveSlots();
   const placed = useZoneOrder().map(({ z, depth }) => ({ z, lift: Math.round(depth * 28) }));
@@ -1333,7 +1340,7 @@ function ZonePanorama({ days, selectedId, picked, onPick }: { days: string[]; se
           return (
             <li key={z.id} className="snap-center shrink-0" style={{ marginTop: lift }}>
               <button type="button" onClick={() => onPick(z.id)}
-                aria-label={`${z.name} — ${freeSlots.length} ${tr("free")}${from !== null ? `, ${tr("from")} ${euro(from)}` : ""}${n ? `, ${n} ${tr("picked")}` : ""}`}
+                aria-label={`${z.name} — ${freeSlots.length} ${tr("free")}${from !== null ? `, ${tr("from")} ${money(from)}` : ""}${n ? `, ${n} ${tr("picked")}` : ""}`}
                 className={`relative w-[160px] rounded-3xl p-3 text-left transition duration-fast ease-ios active:scale-[.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${active ? "bg-white/85 ring-2 ring-teal-600 shadow-lift" : "bg-white/55 ring-1 ring-white/70 shadow-soft"} ${freeSlots.length ? "" : "opacity-70"}`}>
                 <span aria-hidden className="relative block h-[96px] rounded-2xl bg-[#f3e3c4]">
                   {slots.map((x) => (
@@ -1345,7 +1352,7 @@ function ZonePanorama({ days, selectedId, picked, onPick }: { days: string[]; se
                   <span className="font-display font-bold text-guest-body text-navy-900 truncate">{z.name}</span>
                 </span>
                 <span className="mt-1 inline-flex rounded-full bg-white px-2 py-0.5 text-guest-caption font-semibold text-navy-900 ring-1 ring-slate-200 tnum">
-                  {freeSlots.length ? `${freeSlots.length} ${tr("free")}${from !== null ? ` · ${tr("from")} ${euro(from)}` : ""}` : tr("Full")}
+                  {freeSlots.length ? `${freeSlots.length} ${tr("free")}${from !== null ? ` · ${tr("from")} ${money(from)}` : ""}` : tr("Full")}
                 </span>
                 {n > 0 && <span className="absolute -top-2 -right-2 min-w-6 h-6 px-1.5 rounded-full bg-coral-700 text-white text-guest-caption font-bold grid place-items-center ring-2 ring-white">{n}</span>}
               </button>
@@ -1358,6 +1365,7 @@ function ZonePanorama({ days, selectedId, picked, onPick }: { days: string[]; se
 }
 
 function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: string[]; selectedId: string; onPick: (id: string) => void; flipEnter: string | null; picked: Record<string, number> }) {
+  const money = useMoney();
   const tr = useT();
   const { zoneLogos } = useApp();
   const liveSlots = useLiveSlots();
@@ -1429,7 +1437,7 @@ function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: 
             data-cluster={z.id}
             onClick={() => onPick(z.id)}
             aria-pressed={active}
-            aria-label={`${z.name} — ${slots.length} ${tr("sets")}, ${free} ${tr("free")}, ${tr("from")} €${fromLabel}${picked[z.id] ? `, ${picked[z.id]} ${tr("picked")}` : ""}${active ? `, ${tr("selected")}` : ""}`}
+            aria-label={`${z.name} — ${slots.length} ${tr("sets")}, ${free} ${tr("free")}, ${tr("from")} ${money(fromLabel)}${picked[z.id] ? `, ${picked[z.id]} ${tr("picked")}` : ""}${active ? `, ${tr("selected")}` : ""}`}
             className="absolute group focus:outline-none pointer-events-auto"
             style={{ left: pos.x - cw / 2, top: pos.y - ch / 2, width: cw }}
           >
@@ -1452,7 +1460,7 @@ function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: 
             <span className="relative block text-center mt-0.5" data-cluster-label>
               {logo && <img src={logo} alt="" className="mx-auto mb-1 h-8 w-auto max-w-[82%] object-contain drop-shadow-[0_1px_2px_rgba(255,255,255,0.55)]" />}
               <span className={`block font-display font-bold text-guest-body tracking-wide transition-colors drop-shadow-[0_1px_1px_rgba(255,255,255,0.75)] ${active ? "" : "text-navy-900 group-hover:text-teal-800"}`} style={active ? { color: ZONE_ACTIVE } : undefined}>{z.name}</span>
-              <span className="block text-[10.5px] font-semibold tnum text-navy-800/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.6)]">{tr("from")} €{fromLabel} · {free} {tr("free")}</span>
+              <span className="block text-[10.5px] font-semibold tnum text-navy-800/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.6)]">{tr("from")} {money(fromLabel)} · {free} {tr("free")}</span>
             </span>
 
             {active && (
@@ -1475,6 +1483,7 @@ function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: 
    availability, in a tidy two-column grid. A small zone-colour umbrella chip
    keeps the zones distinguishable. */
 function StoreCards({ days, selectedId, onPick, picked }: { days: string[]; selectedId: string; onPick: (id: string) => void; picked: Record<string, number> }) {
+  const money = useMoney();
   const tr = useT();
   const { zoneLogos } = useApp();
   const liveSlots = useLiveSlots();
@@ -1501,7 +1510,7 @@ function StoreCards({ days, selectedId, onPick, picked }: { days: string[]; sele
                 <span className="mx-auto mb-1.5 w-9 h-9 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: z.color }}><Icon.umbrella size={18} /></span>
               )}
               <span className="block text-navy-900 font-bold text-guest-body leading-tight">{z.name}</span>
-              <span className="block text-slate-600 text-guest-caption tnum mt-0.5">{tr("from")} €{fromLabel} · {free} {tr("free")}</span>
+              <span className="block text-slate-600 text-guest-caption tnum mt-0.5">{tr("from")} {money(fromLabel)} · {free} {tr("free")}</span>
               {active && (
                 <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-teal-500 text-white grid place-items-center shadow ring-2 ring-white">
                   <Icon.check size={12} />
@@ -1521,6 +1530,7 @@ function StoreCards({ days, selectedId, onPick, picked }: { days: string[]; sele
 /* Phones (AENR-693): the zones as a list inside the Where step — big rows with what
    matters for choosing (free sets, price from, your picks). */
 function ZoneList({ days, selectedId, onPick, picked }: { days: string[]; selectedId: string; onPick: (id: string) => void; picked: Record<string, number> }) {
+  const money = useMoney();
   const tr = useT();
   const { zoneLogos } = useApp();
   const liveSlots = useLiveSlots();
@@ -1541,7 +1551,7 @@ function ZoneList({ days, selectedId, onPick, picked }: { days: string[]; select
           return (
             <li key={z.id}>
               <button type="button" onClick={() => onPick(z.id)} disabled={off}
-                aria-label={`${z.name} — ${closed ? closed : off ? tr("full") : `${freeSlots.length} ${tr("free")}, ${tr("from")} €${from}`}${n ? `, ${n} ${tr("picked")}` : ""}`}
+                aria-label={`${z.name} — ${closed ? closed : off ? tr("full") : `${freeSlots.length} ${tr("free")}, ${tr("from")} ${money(from ?? 0)}`}${n ? `, ${n} ${tr("picked")}` : ""}`}
                 className={`w-full flex items-center gap-3 rounded-2xl px-3 py-2.5 min-h-[64px] text-left ring-1 transition active:scale-[.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:opacity-60 disabled:active:scale-100 ${z.id === selectedId && n ? "bg-teal-50 ring-teal-400" : "bg-white/80 ring-slate-200 hover:ring-teal-400"}`}>
                 {logo ? (
                   <img src={logo} alt="" className="h-10 w-10 object-contain shrink-0" />
@@ -1550,7 +1560,7 @@ function ZoneList({ days, selectedId, onPick, picked }: { days: string[]; select
                 )}
                 <span className="flex-1 min-w-0">
                   <span className="block font-bold text-navy-900 text-guest-body leading-tight">{z.name}</span>
-                  <span className="block text-guest-meta text-slate-600 tnum">{closed ? closed : off ? tr("Full on this day") : `${freeSlots.length} ${tr("free")} · ${tr("from")} €${from}`}</span>
+                  <span className="block text-guest-meta text-slate-600 tnum">{closed ? closed : off ? tr("Full on this day") : `${freeSlots.length} ${tr("free")} · ${tr("from")} ${money(from ?? 0)}`}</span>
                 </span>
                 {n > 0 && <span className="h-6 px-2 rounded-full bg-navy-900 text-white text-guest-caption font-bold grid place-items-center shrink-0">{n} {tr("picked")}</span>}
                 {!off && <Icon.chevR size={16} className="text-slate-500 shrink-0" />}
@@ -1652,6 +1662,7 @@ function SandSunbeds({ slots, selected, onToggle, readOnly = false, tiles = fals
   /** Phones: modern set tiles fitted to the width (AENR-749) instead of umbrella glyphs. */
   tiles?: boolean;
 }) {
+  const money = useMoney();
   const ref = useRef<HTMLDivElement>(null);
   const cells = useRef(new Map<string, HTMLElement>());
   const [box, setBox] = useState({ w: 0, h: 0 });
@@ -1720,7 +1731,7 @@ function SandSunbeds({ slots, selected, onToggle, readOnly = false, tiles = fals
           <Sunbed state={s.state} sel={selected.has(s.id)} price={s.price} label={`${s.id}, ${tierOf(s).tier.name}${s.access ? " (step-free)" : ""}${s.inv ? ` — ${s.inv}` : ""}`} fill readOnly={readOnly} onClick={readOnly ? undefined : () => onToggle?.(s, cells.current.get(s.id) ?? null)} />
           {!readOnly && s.state === "a" && size >= 30 && (
             <span aria-hidden className="absolute left-1/2 -translate-x-1/2 -bottom-2 rounded px-1 text-guest-caption font-bold leading-[13px] text-white whitespace-nowrap pointer-events-none shadow-sm" style={{ background: tierOf(s).tier.color }}>
-              {tierOf(s).tier.letter} €{s.price}
+              {tierOf(s).tier.letter} {money(s.price)}
             </span>
           )}
           {s.inv && <span aria-hidden title={s.inv} className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-navy-900 text-white text-guest-caption grid place-items-center ring-2 ring-white pointer-events-none">🔒</span>}
@@ -1762,6 +1773,7 @@ function PeopleStep({ tickets: TICKET, people, setPeople, includeTickets, setInc
   /** The party from their last booking (AENR-613), offered first. */
   usualParty: People | null;
 }) {
+  const money = useMoney();
   const tr = useT();
   const totalPeople = Object.values(people).reduce((a, b) => a + b, 0);
   const same = (a: People, b: People) => Object.keys({ ...a, ...b }).every((k) => (a[k] ?? 0) === (b[k] ?? 0));
@@ -1823,7 +1835,7 @@ function PeopleStep({ tickets: TICKET, people, setPeople, includeTickets, setInc
               <div key={k} className="flex items-center justify-between rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5">
                 <div className="min-w-0">
                   <div className="font-semibold text-guest-body text-navy-900">{tr(t.label)}</div>
-                  <div className="text-guest-caption text-slate-500">€{t.price} {tr("entry")}{t.sub ? ` · ${tr(t.sub)}` : ""}</div>
+                  <div className="text-guest-caption text-slate-500">{money(t.price)} {tr("entry")}{t.sub ? ` · ${tr(t.sub)}` : ""}</div>
                 </div>
                 <Stepper label={tr(t.label)} value={people[k] ?? 0} onChange={(v) => setPeople((p) => ({ ...p, [k]: v }))} />
               </div>
@@ -1864,6 +1876,7 @@ function LockerStep({ on, setOn, scope, setScope, days, setDays, qty, setQty, se
   selDates: string[];
   multiDate: boolean;
 }) {
+  const money = useMoney();
   const tr = useT();
   const activeDays = multiDate && scope === "some" ? days : selDates;
   const n = activeDays.length;
@@ -1891,20 +1904,20 @@ function LockerStep({ on, setOn, scope, setScope, days, setDays, qty, setQty, se
             <button key={b.id} type="button" role="radio" aria-checked={bank === b.id} disabled={none} onClick={() => { setBank(b.id); setOn(true); }}
               className={`text-left rounded-xl px-3 py-2 ring-1 transition disabled:opacity-50 disabled:cursor-not-allowed ${bank === b.id ? "bg-teal-50 ring-teal-500" : "bg-white/70 ring-slate-200 hover:ring-teal-400"}`}>
               <div className="text-guest-meta font-semibold text-navy-900">{b.name}</div>
-              <div className="text-guest-caption text-slate-500">€{b.price}/{tr("day")} · {none ? tr("Sold out") : `${b.avail} ${tr("left")}`}</div>
+              <div className="text-guest-caption text-slate-500">{money(b.price)}/{tr("day")} · {none ? tr("Sold out") : `${b.avail} ${tr("left")}`}</div>
             </button>
           );
         })}
       </div>
       {multiDate ? (
         <div className="grid sm:grid-cols-3 gap-2">
-          <YesNo on={on && scope === "all"} onClick={() => choose("all")} title={tr("Yes — all days")} sub={`${selDates.length} ${selDates.length !== 1 ? tr("days") : tr("day")} · €${LOCKER_PRICE}/day`} icon={Icon.lock} />
+          <YesNo on={on && scope === "all"} onClick={() => choose("all")} title={tr("Yes — all days")} sub={`${selDates.length} ${selDates.length !== 1 ? tr("days") : tr("day")} · ${money(LOCKER_PRICE)} ${tr("a day")}`} icon={Icon.lock} />
           <YesNo on={on && scope === "some"} onClick={() => choose("some")} title={tr("Yes — specific days")} sub={tr("Pick which days")} icon={Icon.calendar} />
           <YesNo on={!on} onClick={() => choose("off")} title={tr("No, skip lockers")} sub={tr("Continue without")} icon={Icon.x} />
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2">
-          <YesNo on={on} onClick={() => choose("all")} title={tr("Yes, add lockers")} sub={`€${LOCKER_PRICE}/locker/day`} icon={Icon.lock} />
+          <YesNo on={on} onClick={() => choose("all")} title={tr("Yes, add lockers")} sub={`${money(LOCKER_PRICE)} ${tr("per locker a day")}`} icon={Icon.lock} />
           <YesNo on={!on} onClick={() => choose("off")} title={tr("No, skip lockers")} sub={tr("Continue without")} icon={Icon.x} />
         </div>
       )}
@@ -1918,7 +1931,7 @@ function LockerStep({ on, setOn, scope, setScope, days, setDays, qty, setQty, se
         <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 flex items-center justify-between animate-pop">
           <div>
             <div className="font-semibold text-guest-body text-navy-900">{tr("How many lockers?")}</div>
-            <div className="text-guest-caption text-slate-500">{qty} × €{LOCKER_PRICE} × {n} {n !== 1 ? tr("days") : tr("day")}</div>
+            <div className="text-guest-caption text-slate-500">{qty} × {money(LOCKER_PRICE)} × {n} {n !== 1 ? tr("days") : tr("day")}</div>
           </div>
           <Stepper label={tr("lockers")} value={qty} onChange={(v) => setQty(Math.max(1, Math.min(cur?.avail ?? v, v)))} min={1} />
         </div>
@@ -1972,6 +1985,7 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
   selDates: string[];
   multiDate: boolean;
 }) {
+  const money = useMoney();
   const tr = useT();
   const { lang } = useApp();
   const loc = localeFor(lang);
@@ -1999,13 +2013,13 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
     <div className="space-y-3">
       {multiDate ? (
         <div className="grid sm:grid-cols-3 gap-2">
-          <YesNo on={on && scope === "all"} onClick={() => choose("all")} title={tr("Yes — all days")} sub={`${selDates.length} ${selDates.length !== 1 ? tr("days") : tr("day")} · €${PARKING_PRICE}/day`} icon={Icon.car} />
+          <YesNo on={on && scope === "all"} onClick={() => choose("all")} title={tr("Yes — all days")} sub={`${selDates.length} ${selDates.length !== 1 ? tr("days") : tr("day")} · ${money(PARKING_PRICE)} ${tr("a day")}`} icon={Icon.car} />
           <YesNo on={on && scope === "some"} onClick={() => choose("some")} title={tr("Yes — specific days")} sub={tr("Pick which days")} icon={Icon.calendar} />
           <YesNo on={!on} onClick={() => choose("off")} title={tr("No, skip parking")} sub={tr("Walking or public transport")} icon={Icon.x} />
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2">
-          <YesNo on={on} onClick={() => choose("all")} title={tr("Yes, reserve parking")} sub={`€${PARKING_PRICE}/spot/day`} icon={Icon.car} />
+          <YesNo on={on} onClick={() => choose("all")} title={tr("Yes, reserve parking")} sub={`${money(PARKING_PRICE)} ${tr("per spot a day")}`} icon={Icon.car} />
           <YesNo on={!on} onClick={() => choose("off")} title={tr("No, skip parking")} sub={tr("Walking or public transport")} icon={Icon.x} />
         </div>
       )}
@@ -2019,7 +2033,7 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
         <div className="rounded-xl ring-1 ring-slate-200 bg-white/70 px-3 py-2.5 flex items-center justify-between animate-pop">
           <div>
             <div className="font-semibold text-guest-body text-navy-900">{tr("How many spots?")}</div>
-            <div className="text-guest-caption text-slate-500">{qty} × €{PARKING_PRICE} × {n} {n !== 1 ? tr("days") : tr("day")}</div>
+            <div className="text-guest-caption text-slate-500">{qty} × {money(PARKING_PRICE)} × {n} {n !== 1 ? tr("days") : tr("day")}</div>
           </div>
           <Stepper label={tr("parking spots")} value={qty} onChange={changeQty} min={1} />
         </div>
@@ -2036,8 +2050,8 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
             </div>
           ))}
           <div className="flex items-center justify-between text-guest-caption text-slate-600 pt-1.5 border-t border-slate-100">
-            <span>{qty} {tr("spots")} × {n} {n !== 1 ? tr("days") : tr("day")} × €{PARKING_PRICE}</span>
-            <span className="font-semibold text-navy-900 tnum">€{qty * PARKING_PRICE * n}</span>
+            <span>{qty} {tr("spots")} × {n} {n !== 1 ? tr("days") : tr("day")} × {money(PARKING_PRICE)}</span>
+            <span className="font-semibold text-navy-900 tnum">{money(qty * PARKING_PRICE * n)}</span>
           </div>
         </div>
       )}
@@ -2064,8 +2078,8 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
             );
           })}
           <div className="flex items-center justify-between text-guest-caption text-slate-600 pt-1.5 border-t border-slate-100">
-            <span>{activeDays.length} {activeDays.length !== 1 ? tr("days") : tr("day")} × €{PARKING_PRICE}</span>
-            <span className="font-semibold text-navy-900 tnum">€{PARKING_PRICE * activeDays.length}</span>
+            <span>{activeDays.length} {activeDays.length !== 1 ? tr("days") : tr("day")} × {money(PARKING_PRICE)}</span>
+            <span className="font-semibold text-navy-900 tnum">{money(PARKING_PRICE * activeDays.length)}</span>
           </div>
         </div>
       ) : (
@@ -2075,7 +2089,7 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
           </Field>
           <div className="mt-2 flex items-center justify-between text-guest-caption text-slate-600">
             <span>{tr("1 spot")} × {selDates.length} {selDates.length !== 1 ? tr("days") : tr("day")}</span>
-            <span className="font-semibold text-navy-900 tnum">€{PARKING_PRICE * selDates.length}</span>
+            <span className="font-semibold text-navy-900 tnum">{money(PARKING_PRICE * selDates.length)}</span>
           </div>
         </div>
       ))}
@@ -2184,8 +2198,9 @@ function humanPeople(p: People, tr: (s: string) => string = (s) => s) {
 
 /* Renders an integer euro amount, smoothly tweened on change. */
 function LiveEuro({ value }: { value: number }) {
+  const money = useMoney();
   const display = useAnimatedNumber(value);
   // Cents when the total has them, so it reads exactly like checkout (AENR-569).
   const cents = Math.round(value * 100) % 100 !== 0;
-  return <span className="tnum">{cents ? display.toFixed(2) : Math.round(display).toLocaleString()}</span>;
+  return <span className="tnum">{money(cents ? display : Math.round(display), cents)}</span>;
 }

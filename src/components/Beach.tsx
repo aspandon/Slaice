@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { liteScene, prefersReducedMotion, useParallax } from "../lib/motion";
 import { gsap, motionOK } from "../lib/fx";
-import { useApp } from "../app/store";
+import { useApp, useMoney, useT } from "../app/store";
 import { presetById } from "../data/backgrounds";
 import type { BeachPreset } from "../data/backgrounds";
 import type { BeachBackground, SunbedState } from "../domain/types";
@@ -64,6 +64,8 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
    *  later booking steps, where the chosen beach is shown but not editable). */
   readOnly?: boolean;
 }) {
+  const t = useT();
+  const money = useMoney();
   const p = sunbedPalette(state, sel);
   const dim = p.dim;
   // On-hold sets are shown (amber) but can't be picked — someone else is
@@ -74,7 +76,7 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
     <button
       disabled={dim || held || readOnly}
       onClick={onClick}
-      aria-label={`Sunbed ${label || ""}${dim ? " unavailable" : state === "h" ? " on hold" : ` €${price}`}${sel ? ", selected" : ""}`}
+      aria-label={`${t("Sunbed")} ${label || ""}${dim ? ` ${t("unavailable")}` : state === "h" ? ` ${t("on hold")}` : ` ${money(price ?? 0)}`}${sel ? `, ${t("selected")}` : ""}`}
       aria-pressed={sel}
       // `fill` lets the glyph scale to its cell (used by the wizard's pick grid so
       // each umbrella grows on desktop yet stays tappable on phones); `block`
@@ -88,9 +90,9 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
           <span className="block font-bold text-[12.5px] leading-none tnum">{label}</span>
           <span className="mt-1.5 flex items-center gap-1.5 text-[11.5px] leading-none">
             <span className={`w-1.5 h-1.5 rounded-full ${state === "h" ? "bg-amber-400" : "bg-teal-400"}`} />
-            <span className="text-white/80">{state === "h" ? "On hold" : "Available"}</span>
+            <span className="text-white/80">{state === "h" ? t("On hold") : t("Available")}</span>
             <span className="text-white/30">·</span>
-            <span className="font-semibold">€{price}</span>
+            <span className="font-semibold">{money(price ?? 0)}</span>
           </span>
           {/* caret */}
           <span className="absolute left-1/2 -translate-x-1/2 top-full -mt-1.5 w-2.5 h-2.5 rotate-45 bg-navy-900/95" />

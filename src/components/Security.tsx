@@ -3,7 +3,7 @@ import type { ClipboardEvent as ReactClipboardEvent, KeyboardEvent as ReactKeybo
 import { Icon } from "../lib/icons";
 import { Modal, Btn, Input } from "./ui";
 import { QR } from "./charts";
-import { useApp } from "../app/store";
+import { useApp, useT } from "../app/store";
 
 /* Security flows opened from Account settings. Both are mockup simulations —
    no real backend: they validate input, surface realistic pending/success and
@@ -13,11 +13,11 @@ import { useApp } from "../app/store";
 
 // Five-stop scale indexed by the password score (0 = empty/too short … 4).
 const STRENGTH = [
-  { label: "Too short", bar: "bg-slate-300", text: "text-slate-500" },
-  { label: "Weak", bar: "bg-rose-500", text: "text-rose-600" },
-  { label: "Fair", bar: "bg-amber-500", text: "text-amber-600" },
-  { label: "Good", bar: "bg-teal-500", text: "text-teal-600" },
-  { label: "Strong", bar: "bg-teal-600", text: "text-teal-700" },
+  { bar: "bg-slate-300", text: "text-slate-500" },
+  { bar: "bg-rose-500", text: "text-rose-600" },
+  { bar: "bg-amber-500", text: "text-amber-600" },
+  { bar: "bg-teal-500", text: "text-teal-600" },
+  { bar: "bg-teal-600", text: "text-teal-700" },
 ];
 
 function PasswordField({ label, value, onChange, autoComplete }: {
@@ -26,6 +26,7 @@ function PasswordField({ label, value, onChange, autoComplete }: {
   onChange: (v: string) => void;
   autoComplete: string;
 }) {
+  const t = useT();
   const id = useId();
   const [show, setShow] = useState(false);
   return (
@@ -35,7 +36,7 @@ function PasswordField({ label, value, onChange, autoComplete }: {
         <Input id={id} type={show ? "text" : "password"} value={value} autoComplete={autoComplete}
           onChange={(e) => onChange(e.target.value)} className="pr-11" />
         <button type="button" onClick={() => setShow((s) => !s)} aria-pressed={show}
-          aria-label={show ? "Hide password" : "Show password"}
+          aria-label={show ? t("Hide password") : t("Show password")}
           className={`absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 grid place-items-center rounded-lg transition ${show ? "text-teal-600 bg-teal-50" : "text-slate-500 hover:text-slate-700 hover:bg-slate-100"}`}>
           <Icon.eye size={16} />
         </button>
@@ -56,6 +57,8 @@ function Req({ ok, children }: { ok: boolean; children: ReactNode }) {
 }
 
 export function ChangePasswordModal({ open, onClose }: { open?: boolean; onClose: () => void }) {
+  const t = useT();
+  const strengthLabel = [t("Too short password"), t("Weak password"), t("Fair password"), t("Good password"), t("Strong password")];
   const { toast } = useApp();
   const [current, setCurrent] = useState("");
   const [next, setNext] = useState("");
@@ -79,20 +82,20 @@ export function ChangePasswordModal({ open, onClose }: { open?: boolean; onClose
     if (!valid) return;
     setSaving(true);
     // Simulate the round-trip, then confirm.
-    setTimeout(() => { reset(); onClose(); toast("Password updated.", { tone: "success" }); }, 750);
+    setTimeout(() => { reset(); onClose(); toast(t("Password updated."), { tone: "success" }); }, 750);
   };
 
   return (
-    <Modal open={open} onClose={close} title="Change password"
+    <Modal open={open} onClose={close} title={t("Change password")}
       footer={<>
-        <Btn variant="ghost" onClick={close}>Cancel</Btn>
-        <Btn variant="primary" icon={Icon.lock} onClick={submit} disabled={!valid} loading={saving}>Update password</Btn>
+        <Btn variant="ghost" onClick={close}>{t("Cancel")}</Btn>
+        <Btn variant="primary" icon={Icon.lock} onClick={submit} disabled={!valid} loading={saving}>{t("Update password")}</Btn>
       </>}>
       <div className="space-y-4">
-        <PasswordField label="Current password" value={current} onChange={setCurrent} autoComplete="current-password" />
+        <PasswordField label={t("Current password")} value={current} onChange={setCurrent} autoComplete="current-password" />
 
         <div>
-          <PasswordField label="New password" value={next} onChange={setNext} autoComplete="new-password" />
+          <PasswordField label={t("New password")} value={next} onChange={setNext} autoComplete="new-password" />
           {next.length > 0 && (
             <div className="mt-2 space-y-2">
               <div className="flex gap-1" aria-hidden="true">
@@ -100,16 +103,16 @@ export function ChangePasswordModal({ open, onClose }: { open?: boolean; onClose
                   <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors ${i < score ? STRENGTH[score].bar : "bg-slate-200"}`} />
                 ))}
               </div>
-              <div className={`text-[11px] font-semibold ${STRENGTH[score].text}`}>{STRENGTH[score].label} password</div>
+              <div className={`text-[11px] font-semibold ${STRENGTH[score].text}`}>{strengthLabel[score]}</div>
               <ul className="grid grid-cols-2 gap-x-3 gap-y-1">
-                <Req ok={checks.len}>8+ characters</Req>
-                <Req ok={checks.mixed}>Upper &amp; lowercase</Req>
-                <Req ok={checks.num}>A number</Req>
-                <Req ok={checks.sym}>A symbol</Req>
+                <Req ok={checks.len}>{t("8+ characters")}</Req>
+                <Req ok={checks.mixed}>{t("Upper and lowercase")}</Req>
+                <Req ok={checks.num}>{t("A number")}</Req>
+                <Req ok={checks.sym}>{t("A symbol")}</Req>
               </ul>
               {reuse && (
                 <div className="text-[12px] text-rose-600 flex items-center gap-1.5">
-                  <Icon.alert size={13} /> New password must differ from the current one.
+                  <Icon.alert size={13} /> {t("New password must differ from the current one.")}
                 </div>
               )}
             </div>
@@ -117,11 +120,11 @@ export function ChangePasswordModal({ open, onClose }: { open?: boolean; onClose
         </div>
 
         <div>
-          <PasswordField label="Confirm new password" value={confirm} onChange={setConfirm} autoComplete="new-password" />
+          <PasswordField label={t("Confirm new password")} value={confirm} onChange={setConfirm} autoComplete="new-password" />
           {confirm.length > 0 && (
             <div className={`text-[12px] mt-1.5 flex items-center gap-1.5 ${match ? "text-teal-700" : "text-rose-600"}`}>
               {match ? <Icon.check size={13} /> : <Icon.x size={13} />}
-              {match ? "Passwords match." : "Passwords don't match yet."}
+              {match ? t("Passwords match.") : t("Passwords don’t match yet.")}
             </div>
           )}
         </div>
@@ -150,6 +153,7 @@ function useCopy() {
 // Six single-digit boxes with auto-advance, backspace-to-previous, arrow nav
 // and paste support.
 function OtpInput({ value, onChange, length = 6 }: { value: string; onChange: (v: string) => void; length?: number }) {
+  const t = useT();
   const refs = useRef<(HTMLInputElement | null)[]>([]);
   useEffect(() => { refs.current[0]?.focus(); }, []);
 
@@ -183,7 +187,7 @@ function OtpInput({ value, onChange, length = 6 }: { value: string; onChange: (v
         <input key={i} ref={(el) => { refs.current[i] = el; }} value={value[i] || ""}
           onChange={(e) => setAt(i, e.target.value)} onKeyDown={(e) => onKey(i, e)}
           inputMode="numeric" autoComplete={i === 0 ? "one-time-code" : "off"} maxLength={1}
-          aria-label={`Digit ${i + 1}`}
+          aria-label={`${t("Digit")} ${i + 1}`}
           className="glass-input w-11 h-14 sm:w-12 rounded-xl text-center text-2xl font-bold tnum text-navy-900 outline-none transition focus:ring-2 focus:ring-teal-500/70 focus:shadow-glow" />
       ))}
     </div>
@@ -193,6 +197,7 @@ function OtpInput({ value, onChange, length = 6 }: { value: string; onChange: (v
 const rnd4 = () => Math.random().toString(36).slice(2, 6).padEnd(4, "0");
 
 export function Enable2FAModal({ open, onClose }: { open?: boolean; onClose: () => void }) {
+  const t = useT();
   const { toast } = useApp();
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [code, setCode] = useState("");
@@ -214,7 +219,7 @@ export function Enable2FAModal({ open, onClose }: { open?: boolean; onClose: () 
     setVerifying(true);
     setTimeout(() => { setVerifying(false); setStep(3); }, 750);
   };
-  const finish = () => { close(); toast("Two-factor authentication enabled.", { tone: "success" }); };
+  const finish = () => { close(); toast(t("Two-factor authentication enabled."), { tone: "success" }); };
   const downloadCodes = () => {
     const blob = new Blob([recovery.join("\n") + "\n"], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
@@ -225,20 +230,20 @@ export function Enable2FAModal({ open, onClose }: { open?: boolean; onClose: () 
 
   const footer = step === 1 ? (
     <>
-      <Btn variant="ghost" onClick={close}>Cancel</Btn>
-      <Btn variant="primary" icon={Icon.arrowR} onClick={() => setStep(2)}>I&rsquo;ve scanned it</Btn>
+      <Btn variant="ghost" onClick={close}>{t("Cancel")}</Btn>
+      <Btn variant="primary" icon={Icon.arrowR} onClick={() => setStep(2)}>{t("I’ve scanned it")}</Btn>
     </>
   ) : step === 2 ? (
     <>
-      <Btn variant="ghost" onClick={() => { setStep(1); setCode(""); }}>Back</Btn>
-      <Btn variant="primary" icon={Icon.check} onClick={verify} disabled={code.length < 6} loading={verifying}>Verify code</Btn>
+      <Btn variant="ghost" onClick={() => { setStep(1); setCode(""); }}>{t("Back")}</Btn>
+      <Btn variant="primary" icon={Icon.check} onClick={verify} disabled={code.length < 6} loading={verifying}>{t("Verify code")}</Btn>
     </>
   ) : (
-    <Btn variant="primary" full icon={Icon.shieldCheck} onClick={finish} disabled={!saved}>Finish setup</Btn>
+    <Btn variant="primary" full icon={Icon.shieldCheck} onClick={finish} disabled={!saved}>{t("Finish setup")}</Btn>
   );
 
   return (
-    <Modal open={open} onClose={close} title="Enable two-factor authentication" footer={footer}>
+    <Modal open={open} onClose={close} title={t("Enable two-factor authentication")} footer={footer}>
       {/* Step indicator */}
       <div className="flex items-center mb-5">
         {[1, 2, 3].map((s) => (
@@ -254,20 +259,20 @@ export function Enable2FAModal({ open, onClose }: { open?: boolean; onClose: () 
       {step === 1 && (
         <div className="space-y-4">
           <p className="text-sm text-slate-600 leading-relaxed">
-            Scan this code with an authenticator app — Google Authenticator, Authy, 1Password. Can&rsquo;t scan? Enter the setup key by hand.
+            {t("Scan this code with an authenticator app — Google Authenticator, Authy, 1Password. Can’t scan? Enter the setup key by hand.")}
           </p>
           <div className="flex flex-col sm:flex-row items-center gap-4">
             <div className="p-3 rounded-2xl ring-1 ring-slate-200 bg-white shrink-0"><QR size={148} seed={OTPAUTH} /></div>
             <div className="min-w-0 flex-1 w-full">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1">Setup key</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1">{t("Setup key")}</div>
               <div className="flex items-center gap-2 rounded-xl ring-1 ring-slate-200 bg-slate-50 px-3 py-2">
                 <code className="font-mono text-[13px] tracking-wider text-navy-900 flex-1 break-all">{SECRET.replace(/(.{4})/g, "$1 ").trim()}</code>
-                <button type="button" onClick={() => keyCopy.copy(SECRET)} aria-label="Copy setup key"
+                <button type="button" onClick={() => keyCopy.copy(SECRET)} aria-label={t("Copy setup key")}
                   className="shrink-0 inline-flex items-center gap-1 text-[12px] font-semibold text-teal-700 hover:text-teal-800 transition">
-                  {keyCopy.done ? <><Icon.check size={13} /> Copied</> : "Copy"}
+                  {keyCopy.done ? <><Icon.check size={13} /> {t("Copied")}</> : t("Copy")}
                 </button>
               </div>
-              <div className="text-[11px] text-slate-500 mt-2">Issuer Slaice · elena@example.com</div>
+              <div className="text-[11px] text-slate-500 mt-2">{t("Issuer")} Slaice · elena@example.com</div>
             </div>
           </div>
         </div>
@@ -275,9 +280,9 @@ export function Enable2FAModal({ open, onClose }: { open?: boolean; onClose: () 
 
       {step === 2 && (
         <div className="space-y-4">
-          <p className="text-sm text-slate-600 leading-relaxed text-center">Enter the 6-digit code from your authenticator app.</p>
+          <p className="text-sm text-slate-600 leading-relaxed text-center">{t("Enter the 6-digit code from your authenticator app.")}</p>
           <OtpInput value={code} onChange={setCode} />
-          <div className="text-[12px] text-slate-500 text-center">The code refreshes every 30 seconds.</div>
+          <div className="text-[12px] text-slate-500 text-center">{t("The code refreshes every 30 seconds.")}</div>
         </div>
       )}
 
@@ -285,7 +290,7 @@ export function Enable2FAModal({ open, onClose }: { open?: boolean; onClose: () 
         <div className="space-y-4">
           <div className="flex items-start gap-2.5 rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-2.5 text-[12.5px] text-amber-800">
             <Icon.alert size={16} className="shrink-0 mt-0.5" />
-            <span>Save these recovery codes somewhere safe. Each works once and lets you sign in if you lose your device.</span>
+            <span>{t("Save these recovery codes somewhere safe. Each works once and lets you sign in if you lose your device.")}</span>
           </div>
           <div className="grid grid-cols-2 gap-2">
             {recovery.map((rc) => (
@@ -293,12 +298,12 @@ export function Enable2FAModal({ open, onClose }: { open?: boolean; onClose: () 
             ))}
           </div>
           <div className="flex gap-2">
-            <Btn variant="outline" size="sm" icon={codesCopy.done ? Icon.check : Icon.doc} onClick={() => codesCopy.copy(recovery.join("\n"))}>{codesCopy.done ? "Copied" : "Copy codes"}</Btn>
-            <Btn variant="outline" size="sm" icon={Icon.download} onClick={downloadCodes}>Download</Btn>
+            <Btn variant="outline" size="sm" icon={codesCopy.done ? Icon.check : Icon.doc} onClick={() => codesCopy.copy(recovery.join("\n"))}>{codesCopy.done ? t("Copied") : t("Copy codes")}</Btn>
+            <Btn variant="outline" size="sm" icon={Icon.download} onClick={downloadCodes}>{t("Download")}</Btn>
           </div>
           <label className="flex items-center gap-2.5 cursor-pointer select-none pt-1">
             <input type="checkbox" checked={saved} onChange={(e) => setSaved(e.target.checked)} className="w-4 h-4 accent-teal-600" />
-            <span className="text-[13px] text-slate-700">I&rsquo;ve saved my recovery codes</span>
+            <span className="text-[13px] text-slate-700">{t("I’ve saved my recovery codes")}</span>
           </label>
         </div>
       )}

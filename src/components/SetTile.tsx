@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Icon } from "../lib/icons";
-import { useT } from "../app/store";
+import { useMoney, useT } from "../app/store";
 import type { SunbedSlot, SunbedState } from "../domain/types";
 
 /* ============ Set tiles — the phone sunbed map (AENR-749) ============
@@ -61,8 +61,6 @@ export function tilePosition(
 }
 
 type TileState = "free" | "hold" | "taken" | "yours";
-/** Whole euros as "€30", cents as "€31.50". */
-export const euro = (n: number) => `€${Number.isInteger(n) ? n : n.toFixed(2)}`;
 
 const tileState = (state: SunbedState, sel: boolean): TileState =>
   sel ? "yours" : state === "h" ? "hold" : state === "u" ? "taken" : "free";
@@ -91,15 +89,17 @@ export function SetTile({
   readOnly?: boolean;
   onClick?: () => void;
 }) {
+  const tr = useT();
+  const money = useMoney();
   const t = tileState(state, sel);
   const blocked = t === "hold" || t === "taken";
-  const status = t === "hold" ? "on hold" : t === "taken" ? "unavailable" : euro(price);
+  const status = t === "hold" ? tr("on hold") : t === "taken" ? tr("unavailable") : money(price);
   return (
     <button
       type="button"
       disabled={blocked || readOnly}
       onClick={onClick}
-      aria-label={`Sunbed ${label} ${status}${sel ? ", selected" : ""}`}
+      aria-label={`${tr("Sunbed")} ${label} ${status}${sel ? `, ${tr("selected")}` : ""}`}
       aria-pressed={sel}
       className={`relative w-full h-full rounded-[14px] flex flex-col items-center justify-center gap-0.5 transition duration-fast ease-spring ${SKIN[t]} ${
         readOnly
@@ -123,7 +123,7 @@ export function SetTile({
         )
       )}
       {(t === "free" || t === "yours") && (
-        <span className="text-[12px] font-bold leading-none tnum">{euro(price)}</span>
+        <span className="text-[12px] font-bold leading-none tnum">{money(price)}</span>
       )}
       {t === "yours" && (
         <span

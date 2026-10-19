@@ -29,7 +29,7 @@ import { SEASON_END_LABEL } from "../../data/passes";
 import { BUILTIN_SCHEMES, makeCustomScheme, schemeProgress, HOME_LOYALTY_STATS } from "../../data/loyalty";
 import type { RewardState, LoyaltyState } from "../../data/loyalty";
 import { BADGE_COLORS, statValue, metricFmt, HOME_GAME_STATS } from "../../data/gamification";
-import { useApp, useT } from "../../app/store";
+import { useApp, useMoney, useT } from "../../app/store";
 import { useTenantFeatures } from "../../lib/useFeatures";
 import { useGuestScene } from "../../lib/useGuestScene";
 import { ADD_EXTRAS_LABEL, extrasPhrase } from "../../domain/features";
@@ -49,6 +49,7 @@ const CARD = "glass-flat rounded-3xl overflow-hidden relative";
 let homeIntroPlayed = false;
 
 export function CustomerHome() {
+  const money = useMoney();
   const { dive, loyalty, beachLayout } = useApp();
   const { weather, dayTime, sceneFx } = useGuestScene();
   const { visits, status: visitsStatus } = useVisits();
@@ -154,7 +155,7 @@ export function CustomerHome() {
             </div>
             <div className="mt-4 flex items-center gap-2.5 text-guest-meta font-semibold text-navy-900" data-hero-live>
               <span aria-hidden="true" className="live-dot relative w-2 h-2 rounded-full bg-teal-500 text-teal-500 shrink-0" />
-              <span><b className="tnum">{freeDisplay}</b> {t("sunbeds free today")} · {t("from")} €{fromPrice}</span>
+              <span><b className="tnum">{freeDisplay}</b> {t("sunbeds free today")} · {t("from")} {money(fromPrice)}</span>
             </div>
             <span ref={cta} className="cta-breathe mt-5 inline-flex items-center gap-2 rounded-[14px] px-5 py-2.5 text-guest-body font-semibold bg-navy-900 text-white shadow-btn-primary" data-hero-cta>
               <Icon.sparkles size={16} /> {t("Start guided booking")} <Icon.arrowR size={16} />
@@ -187,7 +188,7 @@ export function CustomerHome() {
               <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
               <div className="min-w-0">
                 <div className="font-semibold text-navy-900 text-guest-body leading-tight">{next ? t("Plan another visit") : t("Your first visit")}</div>
-                <div className="text-guest-meta text-slate-600 mt-0.5 leading-snug">{`${freeDisplay} ${t("sunbeds free today")} · ${t("from")} €${fromPrice}`}</div>
+                <div className="text-guest-meta text-slate-600 mt-0.5 leading-snug">{`${freeDisplay} ${t("sunbeds free today")} · ${t("from")} ${money(fromPrice)}`}</div>
               </div>
             </div>
             <div className="self-start flex items-center gap-1 text-teal-700 text-guest-meta font-semibold px-3 py-1.5 -ml-3">{t("Start guided booking")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" /></div>
@@ -421,7 +422,6 @@ function WeatherNow({ kind }: { kind: keyof typeof WEATHER_DEMO }) {
 /* "Rebook your usual" (AENR-705): exactly what "Book again" will book — the day, zone, sets, party and
    extras, checked free — and the all-in total Pay will show. When the day the guest would go doesn't
    work it says why and offers the next one; when nothing works soon it falls back to planning a visit. */
-const euro = (n: number) => `€${Math.round(n * 100) % 100 ? n.toFixed(2) : Math.round(n)}`;
 
 function useRebookText(rebook: Rebook) {
   const { lang } = useApp();
@@ -445,6 +445,7 @@ function useRebookText(rebook: Rebook) {
 }
 
 function RebookTile({ rebook, title }: { rebook: Exclude<Rebook, { status: "none" }>; title: string }) {
+  const money = useMoney();
   const { go, dive } = useApp();
   const t = useT();
   const { miss, ok: text } = useRebookText(rebook);
@@ -490,8 +491,8 @@ function RebookTile({ rebook, title }: { rebook: Exclude<Rebook, { status: "none
           {swapped && <div className="text-guest-caption text-slate-600 mt-0.5">{t("Your usual set is taken that day — the next free one instead.")}</div>}
         </div>
         <div className="text-right shrink-0">
-          <div className="font-display text-xl font-bold text-navy-900 tnum leading-none">{euro(due.toPay)}</div>
-          <div className="text-guest-caption text-slate-600 mt-1">{due.deducted ? <>{t("to pay")} · <s className="tnum">{euro(quote.total)}</s></> : t("all-in")}</div>
+          <div className="font-display text-xl font-bold text-navy-900 tnum leading-none">{money(due.toPay)}</div>
+          <div className="text-guest-caption text-slate-600 mt-1">{due.deducted ? <>{t("to pay")} · <s className="tnum">{money(quote.total)}</s></> : t("all-in")}</div>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -504,6 +505,7 @@ function RebookTile({ rebook, title }: { rebook: Exclude<Rebook, { status: "none
 
 /* After the visit (AENR-610): the receipt and the same day again, one tap each. */
 function AfterVisitCard({ v, rebook }: { v: Visit; rebook: Rebook }) {
+  const money = useMoney();
   const { go, dive } = useApp();
   const t = useT();
   const [doc, setDoc] = useState(false);
@@ -514,14 +516,14 @@ function AfterVisitCard({ v, rebook }: { v: Visit; rebook: Rebook }) {
       <div className="inline-flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-700"><Icon.checkCircle size={13} /> {t("Thanks for coming")}</div>
       <h2 id="after-visit" className="mt-1.5 font-display font-bold text-guest-title leading-tight text-navy-900">{today ? t("How was today?") : `${t("How was")} ${fmtWeekday(v.date)}?`}</h2>
       <p className="mt-1 text-guest-body text-slate-700">
-        {fmtWeekday(v.date)} {fmtDay(v.date)}{v.zone ? ` · ${v.zone}` : ""} · €{v.total} {t("paid")}
+        {fmtWeekday(v.date)} {fmtDay(v.date)}{v.zone ? ` · ${v.zone}` : ""} · {money(v.total)} {t("paid")}
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <Btn variant="primary" icon={Icon.refresh} onClick={() => (rebook.status === "ok" ? go("customer", "plan", { rebook: rebook.hint }) : dive())}>{t("Book again")}</Btn>
         <Btn variant="outline" icon={Icon.receipt} onClick={() => setDoc(true)}>{t("Receipt")}</Btn>
       </div>
       {again && rebook.status === "ok" && (
-        <p className="mt-2 text-guest-meta text-slate-600">{t("Book again")}: {again.day} · {again.where} · {again.what} · <b className="text-navy-900 tnum">{euro(rebook.due.toPay)}</b> {rebook.due.deducted ? t("to pay") : t("all-in")}</p>
+        <p className="mt-2 text-guest-meta text-slate-600">{t("Book again")}: {again.day} · {again.where} · {again.what} · <b className="text-navy-900 tnum">{money(rebook.due.toPay)}</b> {rebook.due.deducted ? t("to pay") : t("all-in")}</p>
       )}
       {doc && <ReceiptModal doc={receiptForVisit(v)} onClose={() => setDoc(false)} />}
     </section>
@@ -576,6 +578,7 @@ function RewardsStrip({ rewards, ready }: { rewards: ReturnType<typeof activeRew
    Tilts in 3D toward the cursor with a light sweep across the card art
    (useCardTilt owns the transform, so hover lift is shadow-only here). */
 export function VipTile() {
+  const money = useMoney();
   const { go, passes, passPricing, clearPass } = useApp();
   const me = useGuestRecord();
   const t = useT();
@@ -587,11 +590,11 @@ export function VipTile() {
     <div ref={tilt} className={`${CARD} flex flex-col w-full transition-shadow duration-300 hover:shadow-lift`} data-home-card>
       <span aria-hidden="true" className="sheen-card" />
       <button onClick={() => go("customer", "vip")} aria-label={`${vip ? t("Top up VIP credit") : t("Get VIP Pass")} · ${t("FUTURE")}`} className="block w-full group">
-        <PassCard kind="vip" holder={me.cardName} subtitle={vip ? `€${vip.balance.toLocaleString()} CREDIT` : `MEMBER · ${disc}% OFF`} validUntil={SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
+        <PassCard kind="vip" holder={me.cardName} subtitle={vip ? `€${vip.balance.toLocaleString("en-GB")} CREDIT` : `MEMBER · ${disc}% OFF`} validUntil={SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
       </button>
       <div className="mt-auto flex items-center justify-between gap-2 px-4 py-3">
         <button onClick={() => go("customer", "vip")} className="inline-flex items-center gap-1 text-sky-700 hover:text-sky-800 text-guest-meta font-semibold">
-          {t("Get VIP pass")} — {t("from")} €{from.toLocaleString()} <Icon.chevR size={14} />
+          {t("Get VIP pass")} — {t("from")} {money(from)} <Icon.chevR size={14} />
         </button>
         <div className="flex items-center gap-2 shrink-0">
           {vip && <button onClick={() => clearPass("vip")} className="text-guest-caption text-slate-500 hover:text-rose-600">{t("Reset")}</button>}
@@ -605,6 +608,7 @@ export function VipTile() {
 /* Season pass tile — the tenant membership card art + a buy/manage footer.
    Same 3D tilt + light sweep as the VIP tile. */
 export function SeasonTile() {
+  const money = useMoney();
   const { go, passes, passPricing, clearPass } = useApp();
   const me = useGuestRecord();
   const t = useT();
@@ -619,7 +623,7 @@ export function SeasonTile() {
       </button>
       <div className="mt-auto flex items-center justify-between gap-2 px-4 py-3">
         <button onClick={() => go("customer", "season")} className="inline-flex items-center gap-1 text-teal-700 hover:text-teal-800 text-guest-meta font-semibold">
-          {season ? t("Manage pass") : `${t("Get Season pass")} — ${t("from")} €${from.toLocaleString()}`} <Icon.chevR size={14} />
+          {season ? t("Manage pass") : `${t("Get Season pass")} — ${t("from")} ${money(from)}`} <Icon.chevR size={14} />
         </button>
         <div className="flex items-center gap-2 shrink-0">
           {season && <button onClick={() => clearPass("season")} className="text-guest-caption text-slate-500 hover:text-rose-600">{t("Reset")}</button>}

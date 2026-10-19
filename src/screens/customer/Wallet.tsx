@@ -5,7 +5,7 @@ import type { IconRenderer } from "../../lib/icons";
 import { Badge, Btn, EmptyState, ErrorState, NotMvpBadge, Skeleton } from "../../components/ui";
 import { QR } from "../../components/charts";
 import { qrCode } from "../../domain/entry";
-import { useApp, useT } from "../../app/store";
+import { useApp, useMoney, useT } from "../../app/store";
 import { TENANT, ZONES, todayISO, zoneLayout } from "../../data/beach";
 import { SEASON_ZONE, seasonSetIn } from "../../data/passes";
 import { layoutFor } from "../../domain/layoutVersions";
@@ -57,6 +57,7 @@ function SectionHead({
 }
 
 export function CustomerWallet() {
+  const money = useMoney();
   const { loyalty, go, account, passes, passPricing } = useApp();
   const t = useT();
   const rewards = activeRewards(loyalty);
@@ -154,7 +155,7 @@ export function CustomerWallet() {
               <PassOffer
                 tone="vip"
                 title={`${t("Become VIP")} — ${Math.round(passPricing.vipDiscount * 100)}% ${t("off every visit")}`}
-                sub={`${t("from")} €${Math.min(...passPricing.vipTiers).toLocaleString()} ${t("of credit")}`}
+                sub={`${t("from")} ${money(Math.min(...passPricing.vipTiers))} ${t("of credit")}`}
                 onClick={() => go("customer", "vip")}
               />
             )}
@@ -162,7 +163,7 @@ export function CustomerWallet() {
               <PassOffer
                 tone="season"
                 title={`${t("Season pass")} — ${t("your own set all summer")}`}
-                sub={`${t("from")} €${Math.min(passPricing.seasonMonthly, passPricing.seasonSummer).toLocaleString()}`}
+                sub={`${t("from")} ${money(Math.min(passPricing.seasonMonthly, passPricing.seasonSummer))}`}
                 onClick={() => go("customer", "season")}
               />
             )}
@@ -177,6 +178,7 @@ export function CustomerWallet() {
 
 /* Beach credit: the balance (used at checkout by itself) and its latest movements. */
 function BeachCredit() {
+  const money = useMoney();
   const { account } = useApp();
   const t = useT();
   return (
@@ -187,7 +189,7 @@ function BeachCredit() {
       <div className="glass-flat rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-start gap-4">
         <div className="sm:w-48 shrink-0">
           <div className="font-display font-bold text-3xl text-navy-900 tnum">
-            €{account.credit.balance.toFixed(2)}
+            {money(account.credit.balance, true)}
           </div>
           <div className="text-guest-meta text-slate-600">{t("Used automatically at checkout.")}</div>
         </div>
@@ -201,7 +203,7 @@ function BeachCredit() {
                 <span
                   className={`tnum font-semibold shrink-0 ${e.amount >= 0 ? "text-emerald-700" : "text-navy-900"}`}
                 >
-                  {e.amount >= 0 ? "+" : "−"}€{Math.abs(e.amount).toFixed(2)}
+                  {e.amount >= 0 ? "+" : "−"}{money(Math.abs(e.amount), true)}
                 </span>
               </li>
             ))}
@@ -368,6 +370,7 @@ function PassCard({ v, open, onToggle, onShow }: { v: Visit; open: boolean; onTo
 /* Release my day (AENR-578): the season set goes back on sale for a day the
    holder won't use; when it sells again they earn credit. */
 function ReleaseMyDay() {
+  const money = useMoney();
   const { account, setAccount, toast, beachLayout, layouts, beachPricing, priceRules, extras } =
     useApp();
   const t = useT();
@@ -441,7 +444,7 @@ function ReleaseMyDay() {
                   </div>
                   <div className="text-guest-caption text-slate-600">
                     {r?.resold
-                      ? `${t("Resold")} · +€${r.resold.credit.toFixed(2)} ${t("credit")}`
+                      ? `${t("Resold")} · +${money(r.resold.credit, true)} ${t("credit")}`
                       : r
                         ? t("Released — on sale")
                         : open

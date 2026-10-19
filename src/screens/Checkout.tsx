@@ -15,7 +15,7 @@ import { ShareSheet } from "./customer/ShareBooking";
 import { useEntry } from "../lib/useEntry";
 import { OPERATOR, TENANT, ZONES, todayISO } from "../data/beach";
 import { round2 } from "../data/passes";
-import { useApp, useT } from "../app/store";
+import { useApp, useMoney, useT } from "../app/store";
 import type { CartItem } from "../domain/types";
 import { PROFILE, allCards, cardBrand, cardKey, cartKey, serviceFees, settleCheckout, withCard, type InvoiceRequest, type PlacedBooking, type SavedCard } from "../domain/account";
 import { emptyInvoice, invoiceAddress, invoiceErrors, normalVatNo, type InvoiceDetails } from "../domain/invoiceDetails";
@@ -40,6 +40,7 @@ const bookingRefFor = (n: number) => `BK-${30001 + n}`;
 /* `embedded` (AENR-640): the booking wizard's Pay step shows only the summary and the
    payment buttons, and a paid booking goes straight to the confirmation. */
 export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
+  const money = useMoney();
   const { cart, removeFromCart, addToCart, clearCart, go, toast, passes, spendVipCredit, passPricing, account, setAccount, loyalty } = useApp();
   const t = useT();
   const mine = usual(useVisits().visits);
@@ -242,7 +243,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
         <Card className="p-8 max-w-md w-full">
           <div className="w-12 h-12 rounded-xl bg-teal-600 text-white grid place-items-center"><Icon.lock size={22} /></div>
           <h2 className="mt-3 font-display font-bold text-guest-head text-navy-900">{t("Sign in to finish your booking")}</h2>
-          <p className="mt-1 text-guest-body text-slate-600">{t("Your basket is saved —")} {cart.length} {cart.length === 1 ? t("item") : t("items")} · €{total.toFixed(2)}. {t("We need an account to send your QR and receipt.")}</p>
+          <p className="mt-1 text-guest-body text-slate-600">{t("Your basket is saved —")} {cart.length} {cart.length === 1 ? t("item") : t("items")} · {money(total, true)}. {t("We need an account to send your QR and receipt.")}</p>
           <div className="mt-5 grid gap-2">
             <QuickSignIn onSignedIn={(how) => signIn(how === "passkey" ? t("passkey") : how)} />
             <Btn variant="ghost" full icon={Icon.mail} onClick={() => signIn(t("e-mail link"))}>{t("Use e-mail instead")}</Btn>
@@ -282,15 +283,15 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
                             <li key={it.kind + it.id} className="flex items-center gap-1.5 min-w-0">
                               <span className="text-slate-500 shrink-0">{kindIcon(it.kind)}</span>
                               <span className="truncate">{it.label}{it.kind === "parking" ? ` · ${plateOf(it)}` : ""}</span>
-                              <span className="ml-auto pl-2 tnum shrink-0">€{it.price}</span>
+                              <span className="ml-auto pl-2 tnum shrink-0">{money(it.price)}</span>
                             </li>
                           ))}
                         </ul>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="font-semibold tnum text-navy-900">€{v.total.toFixed(2)}</div>
-                      {v.fees > 0 && <div className="text-guest-caption text-slate-500 tnum">+€{v.fees.toFixed(2)} {t("service fee")}</div>}
+                      <div className="font-semibold tnum text-navy-900">{money(v.total, true)}</div>
+                      {v.fees > 0 && <div className="text-guest-caption text-slate-500 tnum">+{money(v.fees, true)} {t("service fee")}</div>}
                     </div>
                   </div>
                   <div className="mt-2 flex justify-end gap-1">
@@ -310,29 +311,29 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
         <Card className={embedded ? "p-4" : "p-5"}>
           <div className="flex items-center gap-2 mb-3"><TenantLogo size={30} /><div className="text-guest-body font-semibold text-navy-900">{TENANT.name}</div></div>
           {/* Customer-facing summary: subtotal, any pass deductions, then what's due now. */}
-          {sunbedSub > 0 && <Row l={t("Sunbeds")} v={`€${sunbedSub.toFixed(2)}`} />}
-          {ticketSub > 0 && <Row l={t("Entry tickets")} v={`€${ticketSub.toFixed(2)}`} />}
-          {extrasSub > 0 && <Row l={t(extrasLabel)} v={`€${extrasSub.toFixed(2)}`} />}
-          {sf.total > 0 && <Row l={t("Service fee")} v={`€${sf.total.toFixed(2)}`} />}
+          {sunbedSub > 0 && <Row l={t("Sunbeds")} v={`${money(sunbedSub, true)}`} />}
+          {ticketSub > 0 && <Row l={t("Entry tickets")} v={`${money(ticketSub, true)}`} />}
+          {extrasSub > 0 && <Row l={t(extrasLabel)} v={`${money(extrasSub, true)}`} />}
+          {sf.total > 0 && <Row l={t("Service fee")} v={`${money(sf.total, true)}`} />}
           {best && (rewardOff > 0 ? (
             <div className="flex items-center justify-between gap-2 text-guest-body py-0.5 text-teal-700 font-medium">
               <span className="min-w-0"><Icon.gift size={13} className="inline align-[-2px] mr-1" />{t(best.reward.title)} · {best.reward.reward} <button type="button" aria-label={t("Remove reward")} onClick={() => setSkipReward(true)} className="ml-1 text-guest-caption font-semibold text-slate-500 underline-offset-2 hover:underline hover:text-navy-900 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">{t("Remove")}</button></span>
-              <span className="tnum shrink-0">−€{rewardOff.toFixed(2)}</span>
+              <span className="tnum shrink-0">−{money(rewardOff, true)}</span>
             </div>
           ) : (
             <button type="button" onClick={() => setSkipReward(false)} className="block text-left text-guest-meta font-semibold text-teal-700 hover:underline py-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
-              <Icon.gift size={13} className="inline align-[-2px] mr-1" />{t("Use your reward")} · {best.reward.reward} (−€{Math.min(best.amount, total).toFixed(2)})
+              <Icon.gift size={13} className="inline align-[-2px] mr-1" />{t("Use your reward")} · {best.reward.reward} (−{money(Math.min(best.amount, total), true)})
             </button>
           ))}
-          {seasonCovered > 0 && <Row l={`${t("Season pass")} · ${t("1 entry")}`} v={`−€${seasonCovered.toFixed(2)}`} discount />}
-          {vipCover > 0 && <Row l={t("Paid with VIP credit")} v={`−€${vipCover.toFixed(2)}`} discount />}
-          {creditUsed > 0 && <Row l={t("Beach credit")} v={`−€${creditUsed.toFixed(2)}`} discount />}
+          {seasonCovered > 0 && <Row l={`${t("Season pass")} · ${t("1 entry")}`} v={`−${money(seasonCovered, true)}`} discount />}
+          {vipCover > 0 && <Row l={t("Paid with VIP credit")} v={`−${money(vipCover, true)}`} discount />}
+          {creditUsed > 0 && <Row l={t("Beach credit")} v={`−${money(creditUsed, true)}`} discount />}
           <div className="h-px bg-slate-100 my-2" />
-          <Row l={passApplied ? t("To pay") : t("Total")} v={`€${fullDue.toFixed(2)}`} bold />
+          <Row l={passApplied ? t("To pay") : t("Total")} v={`${money(fullDue, true)}`} bold />
           <div className="text-guest-caption text-slate-500 mt-1" data-vat-note>{vatNote}</div>
           {vipCover > 0 && (
             <div className="mt-2 rounded-xl bg-sky-50 ring-1 ring-sky-600/15 px-3 py-2 text-guest-caption text-sky-800 leading-snug">
-              <Icon.sparkles size={12} className="inline align-[-1px] mr-1" />{t("VIP credit used")} €{vipDebit.toFixed(2)} · {t("you saved")} €{vipSaved.toFixed(2)} ({Math.round(disc * 100)}%). {t("Balance")} €{vipBalance.toFixed(2)} → €{round2(vipBalance - vipDebit).toFixed(2)}.
+              <Icon.sparkles size={12} className="inline align-[-1px] mr-1" />{t("VIP credit used")} {money(vipDebit, true)} · {t("you saved")} {money(vipSaved, true)} ({Math.round(disc * 100)}%). {t("Balance")} {money(vipBalance, true)} → {money(round2(vipBalance - vipDebit), true)}.
             </div>
           )}
 
@@ -344,7 +345,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <div className="text-guest-meta font-semibold text-navy-900 flex items-center gap-1.5"><Icon.sparkles size={13} className="text-sky-700" /> {t("VIP credit")}</div>
-                    <div className="text-guest-caption text-slate-500 tnum">{t("Balance")} €{vipBalance.toFixed(2)} · {Math.round(disc * 100)}% {t("off")}</div>
+                    <div className="text-guest-caption text-slate-500 tnum">{t("Balance")} {money(vipBalance, true)} · {Math.round(disc * 100)}% {t("off")}</div>
                   </div>
                   <Toggle on={applyVip} onChange={setApplyVip} ariaLabel={t("VIP credit")} />
                 </div>
@@ -387,14 +388,14 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
             <div className="mt-4 space-y-2">
               {/* Card is the way to pay today; Apple Pay, Google Pay (AENR-683) and Klarna (AENR-684)
                   are roadmap — shown with the FUTURE badge. */}
-              <Btn variant="indigo" full size="lg" icon={Icon.card} onClick={pay}>{`${t("Pay by card")} · €${cashDue.toFixed(2)}`}</Btn>
+              <Btn variant="indigo" full size="lg" icon={Icon.card} onClick={pay}>{`${t("Pay by card")} · ${money(cashDue, true)}`}</Btn>
               {roadmap && <>
               <div className="flex items-center gap-2 text-guest-caption text-slate-500"><span className="h-px flex-1 bg-slate-200" />{t("or")}<span className="h-px flex-1 bg-slate-200" /></div>
-              <button type="button" onClick={() => walletPay("apple")} disabled={!!wallet} className="relative w-full min-h-[48px] rounded-[14px] bg-black text-white font-semibold text-guest-body inline-flex items-center justify-center gap-1.5 hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 disabled:opacity-70" aria-label={`${t("Pay with Apple Pay")} €${cashDue.toFixed(2)} · ${t("coming soon")}`}>
+              <button type="button" onClick={() => walletPay("apple")} disabled={!!wallet} className="relative w-full min-h-[48px] rounded-[14px] bg-black text-white font-semibold text-guest-body inline-flex items-center justify-center gap-1.5 hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 disabled:opacity-70" aria-label={`${t("Pay with Apple Pay")} ${money(cashDue, true)} · ${t("coming soon")}`}>
                 {wallet === "apple" ? t("Confirming…") : <><AppleLogo size={17} /> Pay</>}
                 <NotMvpBadge className="absolute right-2.5 top-1/2 -translate-y-1/2" />
               </button>
-              <button type="button" onClick={() => walletPay("google")} disabled={!!wallet} className="relative w-full min-h-[48px] rounded-[14px] bg-white ring-1 ring-slate-300 text-navy-900 font-semibold text-guest-body inline-flex items-center justify-center gap-1.5 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:opacity-70" aria-label={`${t("Pay with Google Pay")} €${cashDue.toFixed(2)} · ${t("coming soon")}`}>
+              <button type="button" onClick={() => walletPay("google")} disabled={!!wallet} className="relative w-full min-h-[48px] rounded-[14px] bg-white ring-1 ring-slate-300 text-navy-900 font-semibold text-guest-body inline-flex items-center justify-center gap-1.5 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:opacity-70" aria-label={`${t("Pay with Google Pay")} ${money(cashDue, true)} · ${t("coming soon")}`}>
                 {wallet === "google" ? t("Confirming…") : <><b className="text-[#4285F4]">G</b> Pay</>}
                 <NotMvpBadge className="absolute right-2.5 top-1/2 -translate-y-1/2" />
               </button>
@@ -435,6 +436,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
 /* The tenant's Stripe Checkout (simulated): saved card or a new one, with
    "save card for faster checkout"; Pay → processing → back to Slaice. */
 function StripeStep({ amount, cards, onBack, onPaid }: { amount: number; cards: SavedCard[]; onBack: () => void; onPaid: (card: { save: boolean; last4: string; brand?: string }) => void }) {
+  const money = useMoney();
   const t = useT();
   // Every saved card (AENR-736), the default first; or a new one.
   const [pick, setPick] = useState(cards.length ? 0 : -1);
@@ -457,7 +459,7 @@ function StripeStep({ amount, cards, onBack, onPaid }: { amount: number; cards: 
           <div className="text-guest-body font-semibold text-navy-900">{TENANT.name}</div>
         </div>
         <div className="mt-4 text-guest-caption text-slate-500">{t("Total")}</div>
-        <div className="font-display text-3xl font-bold text-navy-900 tnum">€{amount.toFixed(2)}</div>
+        <div className="font-display text-3xl font-bold text-navy-900 tnum">{money(amount, true)}</div>
         <form className="mt-4 space-y-3" onSubmit={(e) => { e.preventDefault(); if (valid && !busy) submit(); }}>
           {cards.length > 0 && (
             <fieldset className="space-y-1.5">
@@ -482,7 +484,7 @@ function StripeStep({ amount, cards, onBack, onPaid }: { amount: number; cards: 
               <label className="flex items-center gap-2 text-guest-meta text-slate-700 min-h-[40px]"><input type="checkbox" className="accent-[#635bff] w-4 h-4" checked={save} onChange={(e) => setSave(e.target.checked)} /> {t("Save card for faster checkout")}</label>
             </>
           )}
-          <Btn type="submit" variant="indigo" full size="lg" disabled={!valid} loading={busy}>{busy ? t("Processing…") : `${t("Pay")} €${amount.toFixed(2)}`}</Btn>
+          <Btn type="submit" variant="indigo" full size="lg" disabled={!valid} loading={busy}>{busy ? t("Processing…") : `${t("Pay")} ${money(amount, true)}`}</Btn>
         </form>
         <div className="mt-3 text-guest-caption text-slate-500 flex items-center gap-1.5"><Icon.lock size={12} /> {t("Demo — no real card is charged. Saved cards are stored by Stripe as a token; Slaice only keeps the last 4 digits.")}</div>
         <button type="button" onClick={onBack} disabled={busy} className="mt-3 text-guest-caption text-slate-600 hover:text-navy-900">← {t("Back to the basket")}</button>
@@ -502,6 +504,7 @@ function kindIcon(kind: string) {
 }
 
 export function Confirmation({ inline, booking: given }: { inline?: boolean; booking?: PlacedBooking | null }) {
+  const money = useMoney();
   const { clearCart, go, toast, extras, account } = useApp();
   // Opened directly (#/customer/confirm): the guest's latest booking.
   const booking = given ?? account.bookings[0] ?? null;
@@ -540,7 +543,7 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
     date: fmtDay(date),
     seat: visit?.sets.join(", ") || "—",
     guests: group?.total || Math.max(1, (visit?.sets.length ?? 1) * 2),
-    total: `€${booking?.total ?? 0}`,
+    total: `${money(booking?.total ?? 0)}`,
     // Remembered as "In Wallet" on My bookings and Home too (AENR-620).
     visitKey: visit?.key,
   };
@@ -574,8 +577,8 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
           <div className="text-guest-meta text-slate-500">{t("Tap the code to show it full screen at the gate.")}</div>
           <dl className="mt-4 grid grid-cols-2 gap-3 text-left text-guest-meta">
             <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-slate-500 text-guest-caption">{t("Arrive")}</dt><dd className="font-semibold text-navy-900">{ARRIVAL_WINDOW}</dd></div>
-            <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-slate-500 text-guest-caption">{t("Paid")}</dt><dd className="font-semibold text-navy-900">€{(booking?.deposit ?? booking?.total ?? 0).toFixed(2)}{booking?.card ? ` · ${booking.card}` : ""}</dd></div>
-            {onSite > 0 && <div className="rounded-xl bg-amber-50 px-3 py-2 col-span-2"><dt className="text-amber-800 text-guest-caption">{t("To pay on site")}</dt><dd className="font-semibold text-amber-900">€{onSite.toFixed(2)} · {t("cash or card at the gate")}</dd></div>}
+            <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-slate-500 text-guest-caption">{t("Paid")}</dt><dd className="font-semibold text-navy-900">{money((booking?.deposit ?? booking?.total ?? 0), true)}{booking?.card ? ` · ${booking.card}` : ""}</dd></div>
+            {onSite > 0 && <div className="rounded-xl bg-amber-50 px-3 py-2 col-span-2"><dt className="text-amber-800 text-guest-caption">{t("To pay on site")}</dt><dd className="font-semibold text-amber-900">{money(onSite, true)} · {t("cash or card at the gate")}</dd></div>}
             {group && group.total > 0 && (
               <div className="rounded-xl bg-teal-50 px-3 py-2 col-span-2 flex items-center gap-2.5">
                 <Icon.users size={16} className="text-teal-700 shrink-0" />

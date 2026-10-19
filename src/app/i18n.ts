@@ -91,3 +91,18 @@ const INTL_LOCALES: Record<string, string> = { en: "en-GB" };
 export function localeFor(lang: LangCode): string {
   return INTL_LOCALES[lang] || lang;
 }
+
+// Euro amounts in the guest's language: "€31.50" in English, "31,50 €" in
+// Greek, German, French… (AENR-768). Whole amounts drop the cents ("€30")
+// unless `cents` asks for them (totals and refunds always show two places).
+const MONEY = new Map<string, Intl.NumberFormat>();
+export function fmtMoney(n: number, lang: LangCode, cents = false): string {
+  const fraction = cents || Math.round(n * 100) % 100 !== 0 ? 2 : 0;
+  const key = `${lang}:${fraction}`;
+  let f = MONEY.get(key);
+  if (!f) {
+    f = new Intl.NumberFormat(localeFor(lang), { style: "currency", currency: "EUR", minimumFractionDigits: fraction, maximumFractionDigits: fraction });
+    MONEY.set(key, f);
+  }
+  return f.format(n);
+}
