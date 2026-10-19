@@ -3217,7 +3217,7 @@ src/
 
 ### 20.3 Typography, radius, elevation, motion tokens
 
-- **Fonts:** system stack — SF Pro Text/Display on Apple, Inter elsewhere; mono IBM Plex Mono.
+- **Fonts:** system stack — SF Pro Text/Display on Apple, Inter elsewhere; mono IBM Plex Mono. Both are **served from the site** (AENR-763, `@fontsource-variable/inter` opsz + `@fontsource/ibm-plex-mono` 400/500/600, imported in `main.tsx`): no Google Fonts request; browsers fetch only the script subset they need (Inter Latin 71 KB, Greek 29 KB; Plex Latin ~14 KB per weight), with the size-matched `Inter Fallback` while it loads. Phone LCP on Home ≈ 1.82 → ≈ 1.66 s.
   `font-display` is used for headings with tight tracking (−0.022em); body tracking −0.011em; tabular
   numbers (`tnum`) for all money and counts.
 - **Radii:** cards `rounded-2xl/3xl`, extra `4xl` (2 rem); inputs and buttons `rounded-xl` (~14 px).

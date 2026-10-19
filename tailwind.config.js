@@ -14,11 +14,11 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["-apple-system", "BlinkMacSystemFont", '"SF Pro Text"', '"Inter"', '"Inter Fallback"', "system-ui", '"Segoe UI"', "Roboto", "sans-serif"],
+        sans: ["-apple-system", "BlinkMacSystemFont", '"SF Pro Text"', '"Inter Variable"', '"Inter"', '"Inter Fallback"', "system-ui", '"Segoe UI"', "Roboto", "sans-serif"],
         mono: ['"IBM Plex Mono"', "ui-monospace", "monospace"],
         // Display now uses the SF/Inter system stack (no serif); tracking is
         // tightened in the .font-display base layer.
-        display: ["-apple-system", "BlinkMacSystemFont", '"SF Pro Display"', '"Inter"', '"Inter Fallback"', "system-ui", "sans-serif"],
+        display: ["-apple-system", "BlinkMacSystemFont", '"SF Pro Display"', '"Inter Variable"', '"Inter"', '"Inter Fallback"', "system-ui", "sans-serif"],
       },
       colors: {
         // Tenant-branded beach experience (Akti tou Iliou) — navy + teal
