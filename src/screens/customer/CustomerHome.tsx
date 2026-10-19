@@ -130,9 +130,11 @@ export function CustomerHome() {
   const next = moment.kind === "morning" || moment.kind === "upcoming" ? moment.v : null;
   const rebook = useRebook(visits, rewards);
   const hero = (
-      <button onClick={() => dive()} className="text-left group block w-full" data-home-card>
-        <div className={`${CARD} p-6 sm:p-9 pressable cursor-pointer transition duration-300 ease-spring hover:-translate-y-1 hover:bg-white/80`}>
-          <div className="relative">
+      // The heading and copy stay content; only the CTA is a button, stretched over the
+      // card (its ::after) so the whole card still opens the guided booking (AENR-770).
+      <div className="group block w-full" data-home-card>
+        <div className={`${CARD} p-6 sm:p-9 pressable cursor-pointer transition duration-300 ease-spring hover:-translate-y-1 hover:bg-white/80 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-teal-500`}>
+          <div>
             <div className="inline-flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-700" data-hero-chip>
               <span className={`w-6 h-6 rounded-full grid place-items-center bg-gradient-to-br ${chipBubble} text-white shadow-sm`}>
                 <WIcon size={11} />
@@ -157,12 +159,15 @@ export function CustomerHome() {
               <span aria-hidden="true" className="live-dot relative w-2 h-2 rounded-full bg-teal-500 text-teal-500 shrink-0" />
               <span><b className="tnum">{freeDisplay}</b> {t("sunbeds free today")} · {t("from")} {money(fromPrice)}</span>
             </div>
-            <span ref={cta} className="cta-breathe mt-5 inline-flex items-center gap-2 rounded-[14px] px-5 py-2.5 text-guest-body font-semibold bg-navy-900 text-white shadow-btn-primary" data-hero-cta>
-              <Icon.sparkles size={16} /> {t("Start guided booking")} <Icon.arrowR size={16} />
-            </span>
+            {/* The button stays untransformed so its ::after spans the card; the magnetic pull moves the pill inside. */}
+            <button type="button" onClick={() => dive()} className="mt-5 inline-flex rounded-[14px] after:absolute after:inset-0 after:content-[''] focus-visible:outline-none" data-hero-cta>
+              <span ref={cta} className="cta-breathe inline-flex items-center gap-2 rounded-[14px] px-5 py-2.5 text-guest-body font-semibold bg-navy-900 text-white shadow-btn-primary">
+                <Icon.sparkles size={16} /> {t("Start guided booking")} <Icon.arrowR size={16} />
+              </span>
+            </button>
           </div>
         </div>
-      </button>
+      </div>
 
   );
 
@@ -183,16 +188,17 @@ export function CustomerHome() {
         {moment.kind !== "after" && <>
         {/* "Book again" opens Pay with exactly this proposal filled in (AENR-611 / 705); first-timers get the guided booking. */}
         {visitsStatus === "loading" && !firstTimer ? <RebookSkeleton /> : rebook.status === "none" ? (
-          <button onClick={() => dive()} className={`${CARD} p-5 flex flex-col gap-2.5 text-left hover:bg-white/80 transition-colors group`} data-home-card>
+          <section aria-labelledby="first-visit" className={`${CARD} p-5 flex flex-col gap-2.5 hover:bg-white/80 transition-colors group cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-teal-500`} data-home-card>
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
               <div className="min-w-0">
-                <div className="font-semibold text-navy-900 text-guest-body leading-tight">{next ? t("Plan another visit") : t("Your first visit")}</div>
-                <div className="text-guest-meta text-slate-600 mt-0.5 leading-snug">{`${freeDisplay} ${t("sunbeds free today")} · ${t("from")} ${money(fromPrice)}`}</div>
+                <h2 id="first-visit" className="font-semibold text-navy-900 text-guest-body leading-tight">{next ? t("Plan another visit") : t("Your first visit")}</h2>
+                <p className="text-guest-meta text-slate-600 mt-0.5 leading-snug">{`${freeDisplay} ${t("sunbeds free today")} · ${t("from")} ${money(fromPrice)}`}</p>
               </div>
             </div>
-            <div className="self-start flex items-center gap-1 text-teal-700 text-guest-meta font-semibold px-3 py-1.5 -ml-3">{t("Start guided booking")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" /></div>
-          </button>
+            {/* Only the CTA is a button; its ::after covers the card (AENR-770). */}
+            <button type="button" onClick={() => dive()} className="self-start flex items-center gap-1 text-teal-700 text-guest-meta font-semibold px-3 py-1.5 -ml-3 rounded-lg after:absolute after:inset-0 after:content-[''] focus-visible:outline-none">{t("Start guided booking")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" /></button>
+          </section>
         ) : (
           <RebookTile rebook={rebook} title={next ? t("Plan another visit") : t("Rebook your usual")} />
         )}
