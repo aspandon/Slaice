@@ -664,12 +664,17 @@ export function BadgesTile() {
           const v = statValue(stats, a.metric);
           const earned = v >= a.threshold;
           return (
-            <div key={a.id} title={earned ? `${a.name} — ${t("earned!")}` : `${a.name} — ${metricFmt(a.metric, v)} / ${metricFmt(a.metric, a.threshold)}`} className="flex flex-col items-center gap-1 w-[3.4rem]">
-              <span className={`relative w-11 h-11 rounded-full grid place-items-center ring-2 ring-white shadow-sm transition ${earned ? `text-white bg-gradient-to-br ${BADGE_COLORS[a.color] || BADGE_COLORS.sun}` : "bg-slate-200/80 text-slate-500"}`}>
+            // Progress is visible text, not a hover-only tooltip (AENR-771).
+            <div key={a.id} className="flex flex-col items-center gap-1 w-[3.4rem]">
+              <span aria-hidden className={`relative w-11 h-11 rounded-full grid place-items-center ring-2 ring-white shadow-sm transition ${earned ? `text-white bg-gradient-to-br ${BADGE_COLORS[a.color] || BADGE_COLORS.sun}` : "bg-slate-200/80 text-slate-500"}`}>
                 <Glyph size={18} />
                 {!earned && <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-white ring-1 ring-slate-200 grid place-items-center"><Icon.lock size={8} className="text-slate-500" /></span>}
               </span>
-              <span className={`text-guest-caption text-center leading-tight w-full truncate ${earned ? "text-navy-900 font-semibold" : "text-slate-500"}`}>{a.name}</span>
+              <span className={`text-guest-caption text-center leading-tight w-full truncate ${earned ? "text-navy-900 font-semibold" : "text-slate-600"}`}>{a.name}</span>
+              <span className={`-mt-0.5 text-[10.5px] leading-none tnum text-center ${earned ? "text-teal-700 font-semibold" : "text-slate-600"}`}>
+                {earned ? t("Earned") : <>{metricFmt(a.metric, v)}/<wbr />{metricFmt(a.metric, a.threshold)}</>}
+                <span className="sr-only">{earned ? "" : ` ${t("progress")}`}</span>
+              </span>
             </div>
           );
         })}

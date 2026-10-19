@@ -1834,7 +1834,7 @@ function PeopleStep({ tickets: TICKET, people, setPeople, includeTickets, setInc
           {presets.map((p) => {
             const match = p.id === "usual" ? isUsual : !(isUsual && usualParty && same(p.v, usualParty)) && same(p.v, people);
             return (
-              <button key={p.id} onClick={() => onPreset(p.v)}
+              <button key={p.id} type="button" onClick={() => onPreset(p.v)} aria-pressed={match}
                 className={`text-left rounded-xl px-3 py-2 ring-1 transition ${match ? "bg-navy-900 text-white ring-navy-900" : "bg-white/70 ring-slate-200 hover:ring-teal-400"}`}>
                 <div className="text-guest-meta font-semibold leading-tight">{p.label}</div>
                 <div className={`text-guest-caption leading-tight ${match ? "text-white/70" : "text-slate-500"}`}>{p.sub}</div>
@@ -2170,8 +2170,9 @@ function PlateInput({ value, onChange, label, showErrors }: { value: string; onC
 }
 
 function YesNo({ on, title, sub, icon: IconC, onClick }: { on: boolean; title: ReactNode; sub: ReactNode; icon: IconRenderer; onClick: () => void }) {
+  // The chosen card says so to assistive tech as well as by colour (AENR-771).
   return (
-    <button onClick={onClick}
+    <button type="button" onClick={onClick} aria-pressed={on}
       className={`flex items-center gap-2.5 rounded-xl px-3 py-2.5 ring-1 transition text-left ${on ? "ring-teal-500 bg-teal-50" : "ring-slate-200 bg-white/70 hover:ring-teal-400"}`}>
       <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${on ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600"}`}>
         <IconC size={17} />
