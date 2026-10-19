@@ -94,8 +94,9 @@ async function translateOne(text, target, attempt = 0) {
     if (!out) throw new Error("empty translation");
     return out;
   } catch (e) {
-    if (attempt < 3) {
-      await sleep(400 * (attempt + 1));
+    if (attempt < 4) {
+      // Rate limits (429) need a real back-off: 2 s, 4 s, 8 s, 16 s.
+      await sleep(/429/.test(e.message) ? 2000 * 2 ** attempt : 400 * (attempt + 1));
       return translateOne(text, target, attempt + 1);
     }
     // Not stored, so the next run retries it; t() shows English meanwhile.
@@ -111,7 +112,7 @@ async function translateList(list, target, onProgress) {
   const result = {};
   let i = 0;
   let done = 0;
-  const workers = Array.from({ length: 3 }, async () => {
+  const workers = Array.from({ length: 2 }, async () => {
     while (i < list.length) {
       const text = list[i++];
       const out = await translateOne(text, target);
