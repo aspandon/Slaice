@@ -7,7 +7,7 @@ import type { IconRenderer } from "../../lib/icons";
 import { Badge, Btn, EmptyState, NotMvpBadge } from "../ui";
 import { PROFILE } from "../../domain/account";
 import { PERSONAS, NAV } from "../../data/personas";
-import { LANGUAGES, useApp, useT } from "../../app/store";
+import { LANGUAGES, useApp, useMoney, useT } from "../../app/store";
 import { deviceLang } from "../../app/i18n";
 import { useInbox } from "../../lib/useInbox";
 import { useTenantFeatures } from "../../lib/useFeatures";
@@ -96,6 +96,7 @@ function staffMe(persona: PersonaId, staff: readonly StaffUser[], name?: string,
 export function TopBar({ persona, setPersona, page, setPage, previewing = false, lead }: NavProps & { setPersona: (p: PersonaId) => void; previewing?: boolean; /** A persona-specific control left of search (e.g. Switch cashier, AENR-697). */ lead?: ReactNode }) {
   const { setSignedIn, go, toast, cart, removeFromCart, addToCart, clearCart, staffUsers, till, viewAs, staffMeId, switchRole } = useApp();
   const t = useT();
+  const money = useMoney();
   // Who is signed in (AENR-646): the guest on the customer side; elsewhere the demo
   // staff member for this persona from Team & roles — on the till the active
   // cashier, so Switch cashier changes the avatar at once.
@@ -216,7 +217,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
                   <Icon.bag size={14} /> {t("Your basket")}
                   {cartCount > 0 && <Badge tone="green">{cartCount} {cartCount === 1 ? t("item") : t("items")}</Badge>}
                 </div>
-                {cartCount > 0 && <span className="text-[12px] font-bold text-navy-900 tnum">€{cartTotal}</span>}
+                {cartCount > 0 && <span className="text-[12px] font-bold text-navy-900 tnum">{money(cartTotal)}</span>}
               </div>
               {cartCount === 0 ? (
                 <div className="px-2 pb-2">
@@ -233,7 +234,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
                           <span className="block font-semibold text-[13px] text-navy-900 truncate">{t(it.label)}</span>
                           <span className="block text-[11px] text-slate-500 truncate">{t(it.sub)}</span>
                         </span>
-                        <span className="text-[12px] font-semibold text-navy-900 tnum shrink-0">€{it.price}</span>
+                        <span className="text-[12px] font-semibold text-navy-900 tnum shrink-0">{money(it.price)}</span>
                         <button aria-label={`${t("Remove")} ${t(it.label)}`} onClick={() => removeBasketItem(it)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-500 hover:text-rose-500 hover:bg-rose-50 shrink-0"><Icon.trash size={13} /></button>
                       </div>
                     ))}
@@ -241,8 +242,13 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
                   <div className="px-2 pt-2 mt-1 border-t border-slate-200/70 space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-slate-600">{t("Subtotal")}</span>
-                      <span className="font-bold text-navy-900 tnum">€{cartTotal}</span>
+                      <span className="font-bold text-navy-900 tnum">{money(cartTotal)}</span>
                     </div>
+                    {/* The basket lives in this browser only — say so (AENR-773). */}
+                    <p className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-600">
+                      <Icon.check size={12} className="shrink-0 mt-px text-teal-700" aria-hidden />
+                      {t("Saved on this device — it waits here until you pay or empty it.")}
+                    </p>
                     <Btn variant="teal" full size="sm" icon={Icon.bag} onClick={() => { setBasketOpen(false); go("customer", "checkout"); }}>{t("Checkout")}</Btn>
                     <div className="flex items-center justify-between gap-2">
                       <button onClick={emptyBasket} className="text-[11px] text-slate-500 hover:text-rose-600 py-1 inline-flex items-center gap-1"><Icon.trash size={12} /> {t("Empty basket")}</button>

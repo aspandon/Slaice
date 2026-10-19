@@ -303,6 +303,10 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
               </div>
             ))}
           </div>
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 pt-2 pb-1 border-t border-slate-100 text-guest-caption text-slate-600">
+            <span className="inline-flex items-center gap-1.5"><Icon.check size={13} className="text-teal-700" aria-hidden /> {t("Saved on this device — it waits here until you pay or empty it.")}</span>
+            <button type="button" onClick={emptyBasket} className="font-semibold text-slate-600 hover:text-rose-700 rounded px-1 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">{t("Empty basket")}</button>
+          </div>
         </Card>
         <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg glass-card-solid px-2.5 py-1 text-guest-caption text-slate-700"><Icon.shield size={13} /> {t("Your ticket and receipt arrive by e-mail the moment you pay.")}</div>
       </div>}

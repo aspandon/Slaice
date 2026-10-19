@@ -568,6 +568,10 @@ and Season pass pages they open show the roadmap banner.
    - **Live availability:** "N sunbeds free today · from €X" — N = count of available sets across all
      zones (from the admin-published layouts), X = lowest zone base price (€18).
    - CTA **Start guided booking**.
+   - **Semantics** (AENR-770): the headline is the page's real `<h1>` and the copy is plain text; only the
+     CTA is a button, stretched over the card (`::after`), so the whole card still opens the wizard and a
+     focus ring circles the card. The first-visit tile ("Your first visit" / "Plan another visit") works
+     the same way, with its title as an `<h2>`.
 2. **Weekend promo** (dismissible): "20% off front-row sunbeds — This weekend only · gates open
    09:00–20:00" → **Claim** opens the wizard. **[GAP]** the discount is not applied.
 3. **Rebook your usual:** "Central · front row — your favourite zone last season" → **Book again**
@@ -577,8 +581,9 @@ and Season pass pages they open show the roadmap banner.
    where the zone is open, sold online and has enough free sets. A note says “Your usual, ready for Today,
    19 Jul. Change anything with Edit, or pay now.”; each row's Edit goes back to its step. No usual yet →
    the guided booking.
-4. **Your badges:** gamification achievements, earned in colour, locked greyed with a lock and progress
-   tooltip; counter "3/6".
+4. **Your badges:** gamification achievements, earned in colour, locked greyed with a lock; under each
+   name its progress as text — "8/10", "€120/€500" or **Earned** (AENR-771, was a hover-only tooltip);
+   counter "3/6".
 5. **Your rewards** (tall tile): active loyalty schemes sorted _claimable → in progress → perk_;
    "N ready" badge. Row types:
    - **Claim** (e.g. Tiered membership Gold → "Free parking + late checkout"): **Claim** button → toast
@@ -712,7 +717,8 @@ back; forward only via Continue). Footer: live **Total €** (animated) + **Back
   children”) with “Same people as last time. Change the headcount below if someone else is coming.”
 - **Auto-fill** (every booking, AENR-712): until the guest edits the numbers, headcount = **2 adults per picked set** (5 sets → 10 tickets) ("We
   pre-filled 2 per set. Change the headcount below if you need to.").
-- **Quick picks** (AENR-713): Solo (1 adult), Adult ×2, Adult ×3, Adult ×4.
+- **Quick picks** (AENR-713): Solo (1 adult), Adult ×2, Adult ×3, Adult ×4. The chosen one is announced as
+  pressed (`aria-pressed`, AENR-771), as are the Yes / No cards of the locker and parking forms.
 - Toggle **Add Entry tickets** (one ticket per guest) — or continue without tickets.
 - Warning when guests > 2 × sets: "That's fewer seats than guests — add a set on the Beach step if you
   need more."
@@ -802,6 +808,9 @@ the last zone you picked sets from, read-only, with your sets highlighted — no
   without one, AENR-769),
   the visit total and its fees, with **Edit** (reopens the wizard) and **Remove** (or **swipe left**) for
   the whole visit, with **Undo**. **Empty basket** (with Undo) lives once, in the basket's "…" menu.
+  **Saved on this device** (AENR-773): the basket popover and Checkout say "Saved on this device — it waits
+  here until you pay or empty it." (Checkout with an **Empty basket** link beside it), since the basket
+  lives only in this browser (`localStorage`). An expiry follows once real holds exist.
   Empty state → "Plan my visit".
 - **Summary panel** (tenant logo + name): Subtotal → pass deductions → **Total / Pay now**. "VAT
   included where applicable."

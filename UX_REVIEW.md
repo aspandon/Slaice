@@ -99,7 +99,7 @@ Numbers 1.1–7.4 are the original ones; 8.1–9.3 were numbered in this revisio
 | 5.2 | Hold timer for selected sunbeds | ⏪ Regressed | Shipped once; not in the code now. Other guests' holds show as "On hold", but the guest's own picks aren't held — and on-hold sets can be picked (N1).                                                                                 |
 | 5.3 | Stable confirmation reference   | ✅ Resolved  | Sequential `BK-10429`, `BK-10430`… (`Checkout.tsx:19`). The counter restarts on reload, which is fine for a mockup; production references come from the server.                                                                        |
 | 5.4 | Bundle / "save €X" pricing      | ⏪ Regressed | Shipped once; the wizard now prices every line flat. The Loyalty "Bundle perks" scheme is a separate Future feature, and the Home "20% off front-row" promo isn't applied either (spec §22, item 6).                                   |
-| 5.5 | Cart persistence is silent      | 🔴 Open      | The basket persists in `localStorage["slaice.v1"]` with no "saved" or expiry cue.                                                                                                                                                      |
+| 5.5 | Cart persistence is silent      | ✅ Resolved (AENR-773) | The basket persists in `localStorage["slaice.v1"]` with no "saved" or expiry cue.                                                                                                                                                      |
 
 ### P2 — forms, inputs, validation [demo-ok]
 
@@ -298,7 +298,11 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 - **Fix:** build the picker or change the copy to what actually happens; translate the sentence as one
   string.
 
-#### N7 · Whole cards are single buttons
+#### N7 · Whole cards are single buttons — ✅ Resolved (AENR-770, 19 Oct 2026)
+
+- **Fixed:** the hero's `<h1>` and copy are content; only **Start guided booking** is a button, stretched over
+  the card, so the card still opens the wizard and shows one focus ring. The first-visit tile is built the
+  same way; the Rebook tile was already a section with a real button.
 
 - **Evidence:** the Home hero is one `<button>` wrapping the page's only `<h1>`, a paragraph, the live
   availability line and the CTA (`src/screens/customer/CustomerHome.tsx:92`–`:121`); _Rebook your
@@ -307,7 +311,10 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 - **Fix:** keep the heading and copy as plain content and make only the CTA a real button. If the
   whole card must stay clickable, stretch the CTA over it with a pseudo-element.
 
-#### N8 · Some state is visual only
+#### N8 · Some state is visual only — ✅ Resolved (AENR-771, 19 Oct 2026)
+
+- **Fixed:** Who quick picks and the locker / parking Yes / No cards carry `aria-pressed`; each badge shows its
+  progress ("8/10", "Earned") as text instead of a tooltip.
 
 - **Evidence:** the Guests quick picks (`src/screens/CustomerWizard.tsx:926`) and the Yes/No choice
   cards on the Locker and Parking steps (`:1210`) show selection by colour alone, with no
@@ -321,7 +328,7 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 
 - ✅ **Resolved (AENR-772, 19 Oct 2026: ΑΦΜ check digit in New tenant, onboarding step 1, tenant Profile and guest invoice details; inline e-mail and mobile errors in New booking; plate format in the wizard)** — **6.1 · Validation:** add an ΑΦΜ checksum in onboarding, e-mail and phone checks in Manual booking,
   and a plate format in the wizard.
-- **5.5 · Silent cart persistence:** add a quiet "Saved on this device" note in the basket, and an
+- ✅ **Resolved (AENR-773, 19 Oct 2026: "Saved on this device — it waits here until you pay or empty it." in the basket popover and on Checkout, with Empty basket beside it; the expiry waits for real holds)** — **5.5 · Silent cart persistence:** add a quiet "Saved on this device" note in the basket, and an
   expiry once holds exist.
 
 ### Low priority and deferred
