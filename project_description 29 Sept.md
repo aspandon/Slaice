@@ -3194,6 +3194,7 @@ src/
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `navy`                     | 950 `#071a30`, 900 `#0B2545`, 800 `#13315c`, 700 `#1d4172`, 600 `#2a5589`                                              |
 | `teal`                     | 600 `#0A8276` (4.7 : 1 on white, AENR-746; was `#0D9488`), 500 `#14b8a6`, 400 `#2dd4bf`, 300 `#5EEAD4`, 100 `#ccfbf1`                                              |
+| `slate` (override)         | 500 `#5b6b82` — secondary text, darkened from `#64748b` so it passes AA on tinted panels as well as on white (AENR-755); the rest of the scale is Tailwind's |
 | `coral` (selection accent) | 600 `#e2552f`, 500 `#f1683c`, 400 `#fb8a63`                                                                            |
 | `slaice` (platform)        | 700 `#2f3bb3`, 600 `#3a47cc`, 500 `#4a57e0`, 100 `#e7e9fb`                                                             |
 | `gold`                     | 600 `#e0a800`, 500 `#f2b705`, 400 `#ffc933`                                                                            |

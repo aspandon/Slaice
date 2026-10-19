@@ -31,6 +31,9 @@ export default {
         // SLAiCE platform brand — indigo + gold
         slaice: { 700: "#2f3bb3", 600: "#3a47cc", 500: "#4a57e0", 100: "#e7e9fb" },
         gold: { 600: "#e0a800", 500: "#f2b705", 400: "#ffc933", 300: "#ffdc73" },
+        // Secondary text (AENR-755): slate-500 is darkened from #64748b so it passes AA
+        // (4.5 : 1) on the tinted panels too, not only on white.
+        slate: { 500: "#5b6b82" },
         sand: "#E9E3D5",
         ink: "#1E293B",
         // Elevation by role (AENR-549): data sits on solid surfaces; glass is for chrome.

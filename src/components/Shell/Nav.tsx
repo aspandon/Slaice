@@ -38,14 +38,14 @@ export function NavSheet({ open, onClose, persona, page, setPage }: NavProps & {
       <div className="grid grid-cols-1 gap-1.5">
         {items.map((it, i) => (
           <Fragment key={it.k}>
-            {it.group && it.group !== items[i - 1]?.group && <div className="px-3 pt-2 pb-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t(it.group)}</div>}
+            {it.group && it.group !== items[i - 1]?.group && <div className="px-3 pt-2 pb-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t(it.group)}</div>}
             {Row(it)}
           </Fragment>
         ))}
         {persona === "platform" && <TenantNav onNavigate={onClose} />}
         {account.length > 0 && (
           <>
-            <div className="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t("Account")}</div>
+            <div className="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Account")}</div>
             {account.map(Row)}
           </>
         )}
@@ -76,7 +76,7 @@ export function Sidebar({ persona, page, setPage }: NavProps) {
           const active = page === it.k;
           return (
             <Fragment key={it.k}>
-            {it.group && it.group !== items[i - 1]?.group && <div className={`px-4 pt-3 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 ${rail ? "hidden xl:block" : ""}`}>{t(it.group)}</div>}
+            {it.group && it.group !== items[i - 1]?.group && <div className={`px-4 pt-3 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 ${rail ? "hidden xl:block" : ""}`}>{t(it.group)}</div>}
             <button onClick={() => setPage(it.k)} title={rail ? t(it.label) : undefined} aria-current={active ? "page" : undefined}
               className={`group relative w-full flex items-center gap-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${rail ? "justify-center min-h-[52px] xl:min-h-0 xl:justify-start xl:pl-4 xl:pr-3 xl:py-2" : "pl-4 pr-3 py-2"} ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-600 hover:bg-slate-100 hover:text-navy-900"}`}>
               <span className={`absolute left-1.5 top-2 bottom-2 w-1 rounded-full transition-all duration-200 ${active ? "bg-teal-400 opacity-100" : "bg-transparent opacity-0 group-hover:bg-teal-300 group-hover:opacity-100"}`} />

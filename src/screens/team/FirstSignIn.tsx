@@ -176,7 +176,7 @@ export function FirstSignInModal({
       )}
       {step.k === "done" && (
         <div className="text-center py-2">
-          <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-50 text-emerald-600 grid place-items-center">
+          <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-50 text-emerald-700 grid place-items-center">
             <Icon.checkCircle size={28} aria-hidden />
           </div>
           <p className="mt-3 text-[14px] text-slate-700">

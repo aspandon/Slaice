@@ -73,7 +73,7 @@ function BrokenLink({ why }: { why: "missing" | "changed" | "unreadable" }) {
   const t = useT();
   return (
     <section role="alert" className="glass-card-solid rounded-3xl p-6 text-center">
-      <span className="mx-auto w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 grid place-items-center">
+      <span className="mx-auto w-14 h-14 rounded-2xl bg-rose-50 text-rose-700 grid place-items-center">
         <Icon.alert size={26} />
       </span>
       <h1 className="mt-3 font-display font-bold text-guest-head text-navy-900">

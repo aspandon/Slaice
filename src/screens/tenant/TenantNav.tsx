@@ -109,7 +109,7 @@ export function TenantNav({ onNavigate }: { onNavigate?: () => void }) {
           </ul>
           {onboarding.length > 0 && (
             <>
-              <div className="px-2 pt-1 text-[10.5px] font-semibold uppercase tracking-wider text-slate-400">
+              <div className="px-2 pt-1 text-[10.5px] font-semibold uppercase tracking-wider text-slate-500">
                 In onboarding
               </div>
               <ul>{onboarding.map(Row)}</ul>

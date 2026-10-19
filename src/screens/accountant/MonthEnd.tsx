@@ -420,7 +420,7 @@ export function MonthEnd() {
                 <li key={t.type} className="flex justify-between gap-2">
                   <span className="text-slate-700">
                     {t.type}{" "}
-                    <span className="text-slate-400">× {t.count.toLocaleString("en-GB")}</span>
+                    <span className="text-slate-500">× {t.count.toLocaleString("en-GB")}</span>
                   </span>
                   <span className="tnum text-navy-900">{eur(t.total)}</span>
                 </li>

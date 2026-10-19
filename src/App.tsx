@@ -626,7 +626,7 @@ export default function App() {
 function AccessDenied({ user, onHome }: { user: StaffUser; onHome: () => void }) {
   return (
     <div className="glass-card rounded-3xl p-8 max-w-lg mx-auto mt-6 text-center">
-      <div className="w-12 h-12 mx-auto rounded-2xl bg-rose-50 text-rose-600 grid place-items-center"><Icon.lock size={22} /></div>
+      <div className="w-12 h-12 mx-auto rounded-2xl bg-rose-50 text-rose-700 grid place-items-center"><Icon.lock size={22} /></div>
       <h1 className="mt-3 font-display font-bold text-xl text-navy-900">Access denied</h1>
       <p className="mt-1 text-sm text-slate-600">{user.roles.length > 1 ? `None of ${user.name}'s roles (${rolesLabel(user)}) can` : `The ${roleLabel(user.roles[0])} role can't`} open this page.</p>
       <button type="button" onClick={onHome} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-navy-900 text-white px-4 py-2 text-sm font-semibold">Go to my start page</button>

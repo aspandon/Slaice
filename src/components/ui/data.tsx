@@ -48,7 +48,7 @@ export function StatCard({ label, value, valueTitle, sub, tone = "navy", delta, 
       <div className="flex items-start justify-between gap-2">
         <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">{label}</div>
         {trend && (
-          <span className={`inline-flex items-center gap-0.5 text-[11px] font-bold tnum rounded-full px-1.5 py-0.5 ${trendUp ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}>
+          <span className={`inline-flex items-center gap-0.5 text-[11px] font-bold tnum rounded-full px-1.5 py-0.5 ${trendUp ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
             <Icon.trend size={11} className={trendUp ? "" : "-scale-y-100"} />{trend}{compare && <span className="sr-only"> {compare}</span>}
           </span>
         )}

@@ -422,7 +422,7 @@ function IssueInner() {
                       <button key={b.id} type="button" onClick={() => addBundle(b)}
                         className="min-h-[68px] rounded-2xl bg-teal-50 text-teal-800 ring-1 ring-teal-600/25 px-4 py-2.5 text-left text-[15px] hover:bg-teal-100 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
                         <span className="font-semibold">{b.label}</span>
-                        <span className="block text-[11.5px] text-teal-700/90">{Object.entries(b.tickets).map(([c, n]) => `${n} ${ex.ticketLabel(c)}`).join(" + ")} + {b.sets} set{b.sets > 1 ? "s" : ""} · save €{b.saving}</span>
+                        <span className="block text-[11.5px] text-teal-700">{Object.entries(b.tickets).map(([c, n]) => `${n} ${ex.ticketLabel(c)}`).join(" + ")} + {b.sets} set{b.sets > 1 ? "s" : ""} · save €{b.saving}</span>
                       </button>
                     ))}
                   </div>
@@ -601,7 +601,7 @@ function IssueInner() {
                       <div key={r.rate} className="flex justify-between text-[12px] text-slate-500"><span>Net {eur(r.net)} + VAT {Math.round(r.rate * 100)}%</span><span className="tnum">{eur(r.vat)}</span></div>
                     ))}
                     <div className="flex items-end justify-between pt-1">
-                      <span className="text-slate-600">Total <span className="text-[11px] text-slate-400">incl. VAT {eur(totals.vat)}</span></span>
+                      <span className="text-slate-600">Total <span className="text-[11px] text-slate-500">incl. VAT {eur(totals.vat)}</span></span>
                       <span className="font-display text-3xl font-bold text-navy-900 tnum" aria-live="polite">{eur(totals.total)}</span>
                     </div>
                   </div>

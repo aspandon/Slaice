@@ -25,9 +25,9 @@ const DEMO_SCANS: Validation[] = [
 ];
 
 const RESULT_STYLE: Record<string, { wrap: string; badge: string; label: string; icon: IconRenderer }> = {
-  valid: { wrap: "bg-emerald-50 text-emerald-600 ring-emerald-600/20", badge: "green", label: "Valid", icon: Icon.checkCircle },
+  valid: { wrap: "bg-emerald-50 text-emerald-700 ring-emerald-600/20", badge: "green", label: "Valid", icon: Icon.checkCircle },
   used: { wrap: "bg-amber-50 text-amber-600 ring-amber-600/20", badge: "amber", label: "Already entered", icon: Icon.clock },
-  invalid: { wrap: "bg-rose-50 text-rose-600 ring-rose-600/20", badge: "red", label: "Invalid", icon: Icon.alert },
+  invalid: { wrap: "bg-rose-50 text-rose-700 ring-rose-600/20", badge: "red", label: "Invalid", icon: Icon.alert },
 };
 
 export function ControllerScan() {

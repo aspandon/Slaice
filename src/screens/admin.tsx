@@ -311,7 +311,7 @@ export function AdminReporting() {
                 className="group text-left rounded-2xl bg-white p-4 ring-1 ring-slate-200 shadow-soft transition hover:ring-slate-300 active:scale-[0.99] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 min-h-[44px]">
                 <div className="flex items-start justify-between gap-2">
                   <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">{x.label}</span>
-                  {x.trend && <span className={`text-[11px] font-bold tnum rounded-full px-1.5 py-0.5 ${/^[-−]/.test(x.trend) === !x.lowerIsBetter ? "bg-rose-50 text-rose-600" : "bg-emerald-50 text-emerald-600"}`}>{x.trend}</span>}
+                  {x.trend && <span className={`text-[11px] font-bold tnum rounded-full px-1.5 py-0.5 ${/^[-−]/.test(x.trend) === !x.lowerIsBetter ? "bg-rose-50 text-rose-700" : "bg-emerald-50 text-emerald-700"}`}>{x.trend}</span>}
                 </div>
                 <div className="mt-1.5 text-[24px] leading-none font-bold text-navy-900 tnum font-display tracking-tight">{x.value}</div>
                 <div className="mt-2 flex items-center gap-1 text-[12.5px] font-semibold text-teal-700">{tabLabel(x.to)}<Icon.chevR size={14} className="transition group-hover:translate-x-0.5" /></div>
