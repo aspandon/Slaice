@@ -53,6 +53,8 @@ const DATA_SOURCES = [
   { file: "screens/CustomerWizard.tsx", keys: ["label", "sub"] }, // the STEPS array
   // Invoice field errors and country names (AENR-714): every sentence-like literal in the file.
   { file: "domain/invoiceDetails.ts", all: true },
+  // Shared field checks (AENR-772): the ΑΦΜ / VAT messages shown on the guest invoice form.
+  { file: "domain/validate.ts", all: true },
 ];
 
 function collectStrings() {
