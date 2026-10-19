@@ -1,18 +1,17 @@
 import { useSyncExternalStore } from "react";
-import { useDemoFlag } from "./useDemoFlag";
+import { useTenantFeatures } from "./useFeatures";
 import { prefersReducedMotion } from "./motion";
 
 /* ---------- One beach, one camera (AENR-784) ----------
    Every guest screen is a shot of the same beach; moving between screens moves
    the camera (CustomerBackdrop tweens it with GSAP). This module is the whole
    feature's logic — pure shot maths plus a tiny store the booking wizard writes
-   its step and zone to — so switching it off (Demo › One-beach camera) or
+   its step and zone to — so switching it off (the tenant's One-beach camera feature) or
    deleting it leaves the backdrop exactly as it was. */
 
-/** Demo switch, on until first turned off; reduced motion always keeps the still backdrop. */
-export function useCameraOn(): [boolean, (v: boolean) => void] {
-  const [on, set] = useDemoFlag("camera", true);
-  return [on && !prefersReducedMotion(), set];
+/** The tenant's "One-beach camera" switch (Platform › tenant › Features); reduced motion always keeps the still backdrop. */
+export function useCameraOn(): boolean {
+  return useTenantFeatures().feature("guest.camera") && !prefersReducedMotion();
 }
 
 /* The wizard tells the camera where the guest is (step, phase, zone). */

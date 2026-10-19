@@ -405,10 +405,12 @@ Four pages with distinct names (AENR-642); old `invoicing` and `commission` link
     has no shoreline).
   - **Cost:** transforms only; the live WebGL sea renders at a correspondingly lower pixel ratio in the
     larger layer, so tap latency matches the camera-off backdrop (UX-18 budget).
-  - **Switch:** Demo › **One-beach camera** (on by default) — off, or reduced motion, gives the previous
-    still backdrop exactly. Code: `src/lib/camera.ts` (shots), `src/components/BeachWorld.tsx`
-    (landmarks), the camera layer in `CustomerBackdrop.tsx`; the wizard reports its step and zone with
-    `setWizardShot`. Removing it = reverting the AENR-784 commit.
+  - **Switch, per tenant** (AENR-785): Platform › tenant › **Features** › Guest site › **One-beach camera**
+    (on by default, audited like the other switches); the guest site follows its tenant's setting, and the
+    customer Demo menu shows and changes the same setting for the beach being previewed. Off, or reduced
+    motion, gives the previous still backdrop exactly. Code: `src/lib/camera.ts` (shots),
+    `src/components/BeachWorld.tsx` (landmarks), the camera layer in `CustomerBackdrop.tsx`; the wizard
+    reports its step and zone with `setWizardShot`. Removing it = reverting the AENR-784 and AENR-785 commits.
 - **Bottom tab bar** on phones (guest and staff) on a near-solid material (`.tabbar-material`, AENR-753) with
   a 20 px fade above it, so content dissolves before reaching the bar instead of reading through it; with a **More** sheet when a persona has more than 5 destinations. In
   the booking wizard it slides away and the step's own action bar (total + Back/Continue) is the only

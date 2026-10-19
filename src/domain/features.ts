@@ -72,7 +72,8 @@ export type TenantFeatureId =
   | "till.sunbeds"
   | "till.lockers"
   | "till.parking"
-  | "guest.liveScene";
+  | "guest.liveScene"
+  | "guest.camera";
 export type TenantFeatureGroup = "Guest site" | "Refunds" | "Cashier till";
 export interface TenantFeatureDef {
   key: TenantFeatureId;
@@ -90,6 +91,14 @@ export const TENANT_FEATURES: readonly TenantFeatureDef[] = [
     label: "Live weather and time of day",
     description:
       "The guest site follows the beach's weather (clouds, rain, wind, the forecast on Home and in Plan a visit) and the light of the day (golden hour, dusk). Off: guests always see a clear sunny day at 11:00 (AENR-737).",
+    group: "Guest site",
+    default: true,
+  },
+  {
+    key: "guest.camera",
+    label: "One-beach camera",
+    description:
+      "Every guest screen is a shot of one beach: changing screen moves the camera along the shore, into a zone and back, with the beach's landmarks and a flag per zone. Off: the still beach backdrop (AENR-784).",
     group: "Guest site",
     default: true,
   },

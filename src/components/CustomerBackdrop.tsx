@@ -84,7 +84,7 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
   // The scene sits in a layer larger than the screen; each page is a shot of it and a page
   // change tweens the layer (transform only). Off (Demo switch, reduced motion) = no layer
   // margins and no transform: the backdrop exactly as before.
-  const [cameraOn] = useCameraOn();
+  const cameraOn = useCameraOn();
   const wiz = useWizardShot();
   const { zoneMap, cart, background } = useApp();
   const zoneId = (page === "plan" ? wiz?.zoneId : cart.find((i) => i.kind === "sunbed" && i.zoneId)?.zoneId) ?? null;
