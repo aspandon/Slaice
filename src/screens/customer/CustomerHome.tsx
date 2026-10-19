@@ -244,12 +244,22 @@ function NextVisitCard({ v, qrFirst = false }: { v: Visit; qrFirst?: boolean }) 
     <section aria-labelledby="next-visit" className={`${CARD} p-5 sm:p-7`} data-home-card>
       <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
         <div className="min-w-0 flex-1">
-          <div className="inline-flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-700">
-            <Icon.calendar size={13} /> {days <= 0 ? (qrFirst ? `${t("Today")} · ${t("arrive by")} ${ARRIVAL_ENDS}` : t("Today")) : days === 1 ? t("Tomorrow") : `${t("In")} ${days} ${t("days")}`}
+          {/* Phones lead with the visit (AENR-754): what and when first, the QR as a
+              thumbnail beside the title that opens the full-screen pass. */}
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="inline-flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-700">
+                <Icon.calendar size={13} /> {days <= 0 ? (qrFirst ? `${t("Today")} · ${t("arrive by")} ${ARRIVAL_ENDS}` : t("Today")) : days === 1 ? t("Tomorrow") : `${t("In")} ${days} ${t("days")}`}
+              </div>
+              <h2 id="next-visit" className="mt-1.5 font-display font-bold text-guest-title leading-tight text-navy-900">
+                {fmtWeekday(v.date)} {fmtDay(v.date)}{v.zone ? ` · ${v.zone}` : ""}
+              </h2>
+            </div>
+            <button type="button" onClick={() => setQr(true)} aria-label={`${t("Show QR")} ${v.refs[0]}`}
+              className="sm:hidden shrink-0 rounded-xl bg-white p-1.5 ring-1 ring-slate-200 shadow-soft active:scale-95 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+              <QR size={64} seed={qrCode(v.refs[0])} />
+            </button>
           </div>
-          <h2 id="next-visit" className="mt-1.5 font-display font-bold text-guest-title leading-tight text-navy-900">
-            {fmtWeekday(v.date)} {fmtDay(v.date)}{v.zone ? ` · ${v.zone}` : ""}
-          </h2>
           <p className="mt-1 text-guest-body text-slate-700">
             {v.sets.length ? `${t("Sunbeds")} ${v.sets.join(", ")}` : t("Entry tickets")}
             {extras.length ? ` · ${extras.join(" · ")}` : ""}
@@ -275,8 +285,8 @@ function NextVisitCard({ v, qrFirst = false }: { v: Visit; qrFirst?: boolean }) 
             <Btn variant="ghost" onClick={() => go("customer", "mybookings")}>{t("Manage booking")}</Btn>
           </div>
         </div>
-        {/* The morning of the visit the QR leads, also on phones. */}
-        <button type="button" onClick={() => setQr(true)} aria-label={`${t("Show QR")} ${v.refs[0]}`} className={`${qrFirst ? "order-first sm:order-none" : ""} self-center shrink-0 rounded-2xl bg-white p-2.5 ring-1 ring-slate-200 shadow-soft hover:shadow-lift transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500`}>
+        {/* Larger screens: the QR beside the visit, larger on the morning of it. */}
+        <button type="button" onClick={() => setQr(true)} aria-label={`${t("Show QR")} ${v.refs[0]}`} className={`hidden sm:block self-center shrink-0 rounded-2xl bg-white p-2.5 ring-1 ring-slate-200 shadow-soft hover:shadow-lift transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500`}>
           <QR size={qrFirst ? 168 : 132} seed={qrCode(v.refs[0])} />
           <span className="block mt-1 font-mono text-guest-caption font-semibold text-navy-900">{v.refs[0]}</span>
         </button>
@@ -297,8 +307,13 @@ function VisitCardSkeleton() {
     <section aria-busy="true" aria-label={t("Loading your next visit")} className={`${CARD} p-5 sm:p-7`}>
       <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
         <div className="min-w-0 flex-1">
-          <div className={`${bar} h-[15px] w-40`} />
-          <div className={`${bar} mt-1.5 h-[30px] w-64 max-w-full`} />
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <div className={`${bar} h-[15px] w-40`} />
+              <div className={`${bar} mt-1.5 h-[30px] w-64 max-w-full`} />
+            </div>
+            <div className="sm:hidden skeleton rounded-xl w-[78px] h-[78px] shrink-0" />
+          </div>
           <div className={`${bar} mt-1 h-[22px] w-full max-w-md`} />
           <div className={`${bar} mt-1 h-[22px] w-40 sm:hidden`} />
           <div className={`${bar} mt-3 h-[19px] w-56`} />
@@ -306,7 +321,7 @@ function VisitCardSkeleton() {
             {[112, 96, 124, 150].map((w) => <div key={w} className="skeleton rounded-[14px] h-11" style={{ width: w }} />)}
           </div>
         </div>
-        <div className="order-first sm:order-none self-center shrink-0 rounded-2xl bg-white/70 p-2.5 ring-1 ring-slate-200">
+        <div className="hidden sm:block self-center shrink-0 rounded-2xl bg-white/70 p-2.5 ring-1 ring-slate-200">
           <div className="skeleton rounded-lg w-[168px] h-[168px]" />
           <div className="skeleton rounded mt-1 h-4 w-20 mx-auto" />
         </div>

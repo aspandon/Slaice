@@ -503,9 +503,11 @@ export default function App() {
   // Move focus to the new page so keyboard and screen-reader users start there
   // (not on first load, and not into the immersive wizard, which manages its own).
   const mainRef = useRef<HTMLElement>(null);
-  const firstPage = useRef(true);
+  const focusedFor = useRef(`${persona}/${page}`);
   useEffect(() => {
-    if (firstPage.current) { firstPage.current = false; return; }
+    const at = `${persona}/${page}`;
+    if (focusedFor.current === at) return; // first load (and StrictMode's re-run)
+    focusedFor.current = at;
     if (persona === "customer" && page !== "plan") mainRef.current?.focus({ preventScroll: true });
   }, [persona, page]);
   const guard = useMemo(() => ({ viewAs: !!platform.viewAs && persona !== "platform", readOnly: platform.viewAs?.scope === "read" }), [platform.viewAs, persona]);
