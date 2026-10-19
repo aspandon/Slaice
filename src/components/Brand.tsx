@@ -12,7 +12,7 @@ export function SlaiceLogo({ size = 36, withText = false, light = false }: { siz
           <div className={`font-display font-bold tracking-tight ${light ? "text-white" : "text-slaice-700"}`} style={{ fontSize: size * 0.5 }}>
             SLA<span className="text-gold-500">i</span>CE
           </div>
-          <div className={`text-[10px] ${light ? "text-white/60" : "text-slate-400"}`}>Live Through Digital</div>
+          <div className={`text-[10px] ${light ? "text-white/60" : "text-slate-500"}`}>Live Through Digital</div>
         </div>
       )}
     </div>

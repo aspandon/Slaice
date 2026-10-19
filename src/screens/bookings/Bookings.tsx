@@ -297,7 +297,7 @@ export function AdminBookings() {
     const g = entry.stateOf(b, DEMO_TODAY);
     if (g.arrivals.length) return <ArrivalBadge st={g} />;
     const ids = b.items.filter((i) => i.startsWith("Sunbed · ")).map((i) => i.split(" · "));
-    if (!ids.length) return <span className="text-slate-400">—</span>;
+    if (!ids.length) return <span className="text-slate-500">—</span>;
     const states = ids.map(([, zName, id]) => {
       const z = zoneByName(zName);
       const slot = z ? liveSlots(z, [DEMO_TODAY]).find((x) => x.id === id) : undefined;

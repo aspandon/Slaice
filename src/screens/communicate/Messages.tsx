@@ -202,7 +202,7 @@ export function MessagesTab({ onUse }: { onUse: (messageId: string) => void }) {
                       style={{ objectPosition: `center ${m.image.focus}` }}
                     />
                   ) : (
-                    <span className="text-slate-400 text-[12px] inline-flex items-center gap-1.5">
+                    <span className="text-slate-500 text-[12px] inline-flex items-center gap-1.5">
                       <Icon.doc size={14} /> Text only
                     </span>
                   )}
@@ -226,7 +226,7 @@ export function MessagesTab({ onUse }: { onUse: (messageId: string) => void }) {
                     )}
                     {m.promoCode && <Badge tone="amber">{m.promoCode}</Badge>}
                   </div>
-                  <div className="text-[11px] text-slate-400 mt-auto pt-2">
+                  <div className="text-[11px] text-slate-500 mt-auto pt-2">
                     Edited {fmtEdited(m.updatedAt)} · {m.updatedBy}
                   </div>
                   <div className="flex flex-wrap gap-1.5 mt-2.5">
@@ -448,7 +448,7 @@ function MessageEditor({
                   role="tab"
                   aria-selected={lang === l}
                   onClick={() => setLang(l)}
-                  className={`px-2.5 py-1 rounded-lg text-[12px] font-semibold ring-1 ${lang === l ? "bg-navy-900 text-white ring-navy-900" : m.content[l] ? "bg-white text-navy-900 ring-slate-300" : "bg-white text-slate-400 ring-slate-200 border-dashed"}`}
+                  className={`px-2.5 py-1 rounded-lg text-[12px] font-semibold ring-1 ${lang === l ? "bg-navy-900 text-white ring-navy-900" : m.content[l] ? "bg-white text-navy-900 ring-slate-300" : "bg-white text-slate-500 ring-slate-200 border-dashed"}`}
                 >
                   {l.toUpperCase()}
                   {l === "en" ? " *" : m.content[l] ? "" : " +"}

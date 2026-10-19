@@ -733,7 +733,7 @@ function WizardInner() {
                         {canParking && <>{canLocker && lockerChoices.length > 0 ? tr("parking") : tr("Optional — parking")} €{PARKING_PRICE} {tr("a day")}</>}
                       </span>
                     </span>
-                    <Icon.chevR size={15} className="text-slate-400" />
+                    <Icon.chevR size={15} className="text-slate-500" />
                   </button>
                 ) : (
                   <div className="space-y-3 rounded-2xl ring-1 ring-slate-200 bg-white/60 p-3">
@@ -992,12 +992,12 @@ function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number
               <span
                 data-station-dot
                 className={`w-7 h-7 rounded-full grid place-items-center transition-colors ${
-                  active ? "bg-navy-900 text-white shadow-btn-primary" : done ? "bg-teal-500 text-white" : "bg-white/80 ring-1 ring-slate-300 text-slate-400 group-hover:ring-teal-400"
+                  active ? "bg-navy-900 text-white shadow-btn-primary" : done ? "bg-teal-500 text-white" : "bg-white/80 ring-1 ring-slate-300 text-slate-500 group-hover:ring-teal-400"
                 }`}
               >
                 {done ? <Icon.check size={13} /> : I ? <I size={12} /> : i + 1}
               </span>
-              <span className={`text-guest-caption font-semibold leading-none truncate max-w-full px-0.5 ${active ? "text-navy-900" : done ? "text-teal-700" : "text-slate-400"}`}>
+              <span className={`text-guest-caption font-semibold leading-none truncate max-w-full px-0.5 ${active ? "text-navy-900" : done ? "text-teal-700" : "text-slate-500"}`}>
                 {tr(s.label)}
               </span>
             </button>
@@ -1542,7 +1542,7 @@ function ZoneList({ days, selectedId, onPick, picked }: { days: string[]; select
                   <span className="block text-guest-meta text-slate-600 tnum">{closed ? closed : off ? tr("Full on this day") : `${freeSlots.length} ${tr("free")} · ${tr("from")} €${from}`}</span>
                 </span>
                 {n > 0 && <span className="h-6 px-2 rounded-full bg-navy-900 text-white text-guest-caption font-bold grid place-items-center shrink-0">{n} {tr("picked")}</span>}
-                {!off && <Icon.chevR size={16} className="text-slate-400 shrink-0" />}
+                {!off && <Icon.chevR size={16} className="text-slate-500 shrink-0" />}
               </button>
             </li>
           );
@@ -1783,7 +1783,7 @@ function PeopleStep({ tickets: TICKET, people, setPeople, includeTickets, setInc
             className={`relative text-left rounded-xl pl-3 pr-9 py-2 ring-1 transition ${includeTickets ? "bg-teal-50 ring-teal-500" : "bg-white/70 ring-slate-200 hover:ring-teal-400"}`}>
             <div className="text-guest-meta font-semibold leading-tight text-navy-900 flex items-center gap-1.5"><Icon.ticket size={13} className={includeTickets ? "text-teal-600" : "text-slate-500"} /> {tr("Add Entry tickets")}</div>
             <div className="text-guest-caption leading-tight text-slate-500">{tr("One ticket per guest")}</div>
-            <span className={`absolute top-1/2 -translate-y-1/2 right-2 w-5 h-5 rounded-full grid place-items-center ${includeTickets ? "bg-teal-600 text-white" : "ring-1 ring-slate-300 text-slate-400"}`}>
+            <span className={`absolute top-1/2 -translate-y-1/2 right-2 w-5 h-5 rounded-full grid place-items-center ${includeTickets ? "bg-teal-600 text-white" : "ring-1 ring-slate-300 text-slate-500"}`}>
               {includeTickets ? <Icon.check size={12} /> : <Icon.plus size={12} />}
             </span>
           </button>

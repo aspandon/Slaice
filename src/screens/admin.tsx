@@ -599,7 +599,7 @@ export function AdminRefunds() {
 
       <Card className="p-4 mb-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2 mb-3">
-          <h2 className="font-display font-bold text-navy-900 text-lg">Needs decision <span className="text-slate-400 tnum">{queue.length}</span></h2>
+          <h2 className="font-display font-bold text-navy-900 text-lg">Needs decision <span className="text-slate-500 tnum">{queue.length}</span></h2>
           <span className="text-[12px] text-slate-500 flex items-center gap-2">Oldest first · decide within 48 h
             {!agent && <Btn size="sm" variant="ghost" icon={Icon.sliders} onClick={() => setRulesOpen((v) => !v)} aria-expanded={rulesOpen}>Rules</Btn>}</span>
         </div>
@@ -806,7 +806,7 @@ export function AdminLoyalty() {
             <span className="flex flex-col items-center gap-2 text-slate-500 group-hover:text-teal-700">
               <span className="w-11 h-11 rounded-2xl bg-white ring-1 ring-slate-200 group-hover:ring-teal-300 grid place-items-center shadow-sm transition"><Icon.plus size={20} /></span>
               <span className="text-[13px] font-semibold">Add a custom scheme</span>
-              <span className="text-[11.5px] text-slate-400 group-hover:text-teal-600">Name it, pick a reward, choose when.</span>
+              <span className="text-[11.5px] text-slate-500 group-hover:text-teal-600">Name it, pick a reward, choose when.</span>
             </span>
           </button>
         </div>
@@ -821,7 +821,7 @@ export function AdminLoyalty() {
             <Field label="Reward"><Select value={reward} onChange={(e) => setReward(e.target.value)} options={LOYALTY_REWARDS} /></Field>
             <Field label="Applies to"><Select value={store} onChange={(e) => setStore(e.target.value)} options={["All zones", ...ZONES.map((z) => z.name)]} /></Field>
             <Field label="When"><Select value={schedule} onChange={(e) => setSchedule(e.target.value)} options={["Weekday mornings", "Weekends", "Specific date range", "All month", "Happy hour 17:00–19:00"]} /></Field>
-            <Field label="Time window"><div className="flex items-center gap-2"><Input type="time" defaultValue="09:00" /><span className="text-slate-400">–</span><Input type="time" defaultValue="11:00" /></div></Field>
+            <Field label="Time window"><div className="flex items-center gap-2"><Input type="time" defaultValue="09:00" /><span className="text-slate-500">–</span><Input type="time" defaultValue="11:00" /></div></Field>
           </div>
           <div className="rounded-xl bg-teal-50/70 ring-1 ring-teal-200 px-3 py-2 text-[12.5px] text-navy-900"><b>Preview:</b> {reward} · {store} · {schedule}.</div>
           <div className="flex justify-end">
@@ -834,7 +834,7 @@ export function AdminLoyalty() {
                 <div key={o.id} className="flex items-center gap-2 rounded-lg ring-1 ring-teal-200 bg-teal-50/50 px-3 py-2 text-[12.5px] animate-pop">
                   <Icon.clock size={13} className="text-teal-600 shrink-0" />
                   <span className="flex-1 min-w-0 text-navy-900"><b>{o.reward}</b> · {o.store} · {o.schedule}</span>
-                  <button type="button" onClick={() => setOffers((x) => x.filter((y) => y.id !== o.id))} className="text-slate-400 hover:text-rose-600 shrink-0" aria-label="Remove offer"><Icon.x size={14} /></button>
+                  <button type="button" onClick={() => setOffers((x) => x.filter((y) => y.id !== o.id))} className="text-slate-500 hover:text-rose-600 shrink-0" aria-label="Remove offer"><Icon.x size={14} /></button>
                 </div>
               ))}
             </div>
@@ -901,7 +901,7 @@ function ColorField({ label, value, onChange }: { label: string; value: string; 
     <label className="flex items-center justify-between gap-2 text-[12px] text-slate-600">
       <span>{label}</span>
       <span className="inline-flex items-center gap-1.5">
-        <span className="font-mono text-[11px] text-slate-400 uppercase">{value}</span>
+        <span className="font-mono text-[11px] text-slate-500 uppercase">{value}</span>
         <input type="color" value={value} onChange={(e) => onChange(e.target.value)} aria-label={label} className="w-7 h-7 rounded-md ring-1 ring-slate-200 bg-white p-0.5 cursor-pointer" />
       </span>
     </label>
@@ -946,11 +946,11 @@ function PassPricingPanel() {
             <div className="space-y-2">
               {tiers.map((amt, i) => (
                 <div key={i} className="flex items-center gap-2">
-                  <span className="text-slate-400 text-sm">€</span>
+                  <span className="text-slate-500 text-sm">€</span>
                   <div className="w-28"><Input type="number" min={0} value={amt} onChange={(e) => setTier(i, Math.max(0, Math.round(+e.target.value) || 0))} /></div>
                   <span className="text-[12px] text-slate-500 flex-1">credit · spends like <b className="text-navy-900 tnum">€{spendsLike(amt).toLocaleString()}</b></span>
                   <button type="button" onClick={() => removeTier(i)} aria-label="Remove pack" disabled={tiers.length <= 1}
-                    className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40 transition"><Icon.trash size={15} /></button>
+                    className="w-9 h-9 grid place-items-center rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40 transition"><Icon.trash size={15} /></button>
                 </div>
               ))}
             </div>
@@ -1185,7 +1185,7 @@ export function AdminGamification() {
               <div className="flex items-center gap-3">
                 <span className={`w-12 h-12 rounded-2xl grid place-items-center text-white shrink-0 shadow-sm ring-2 ring-white bg-gradient-to-br ${BADGE_COLORS[a.color] || BADGE_COLORS.sun}`}><Glyph size={22} /></span>
                 <div className="min-w-0 flex-1"><Input value={a.name} onChange={(e) => update(a.id, { name: e.target.value })} className="font-semibold" /></div>
-                <button onClick={() => remove(a.id)} aria-label={`Remove ${a.name}`} className="w-9 h-9 grid place-items-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 shrink-0 transition"><Icon.trash size={15} /></button>
+                <button onClick={() => remove(a.id)} aria-label={`Remove ${a.name}`} className="w-9 h-9 grid place-items-center rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 shrink-0 transition"><Icon.trash size={15} /></button>
               </div>
               <div>
                 <div className="text-[11px] font-semibold text-slate-500 mb-1.5">Icon</div>
@@ -1215,7 +1215,7 @@ export function AdminGamification() {
           <span className="flex flex-col items-center gap-2 text-slate-500 group-hover:text-teal-700">
             <span className="w-11 h-11 rounded-2xl bg-white ring-1 ring-slate-200 group-hover:ring-teal-300 grid place-items-center shadow-sm transition"><Icon.plus size={20} /></span>
             <span className="text-[13px] font-semibold">Add an achievement</span>
-            <span className="text-[11.5px] text-slate-400 group-hover:text-teal-600">Name it, pick an icon + rule.</span>
+            <span className="text-[11.5px] text-slate-500 group-hover:text-teal-600">Name it, pick an icon + rule.</span>
           </span>
         </button>
       </div>

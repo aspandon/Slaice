@@ -137,7 +137,7 @@ export function ImportModal({
       <div className="space-y-4">
         {!table ? (
           <div className="rounded-2xl border-2 border-dashed border-slate-300 p-6 text-center">
-            <Icon.upload size={22} className="mx-auto text-slate-400" />
+            <Icon.upload size={22} className="mx-auto text-slate-500" />
             <div className="mt-2 text-sm text-slate-600">
               Choose a CSV with a header row (first name, surname, e-mail, phone).
             </div>
@@ -309,7 +309,7 @@ export function MergeModal({
                   · {a.email} · {a.bookings} visits
                 </span>
               </div>
-              <Icon.arrowL size={14} className="text-slate-400" />
+              <Icon.arrowL size={14} className="text-slate-500" />
               <div className="text-[13px] min-w-0 flex-1">
                 <b className="text-navy-900">
                   {b.first} {b.last}

@@ -451,7 +451,7 @@ function SupportCard({ view, editing, err, patch }: CardProps) {
                   type="button"
                   aria-label={`Remove ${it.label || "item"}`}
                   onClick={() => setItems((xs) => xs.filter((y) => y.id !== it.id))}
-                  className="mt-[22px] w-10 h-10 rounded-xl grid place-items-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                  className="mt-[22px] w-10 h-10 rounded-xl grid place-items-center text-slate-500 hover:text-rose-600 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
                 >
                   <Icon.trash size={15} />
                 </button>

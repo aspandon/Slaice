@@ -463,7 +463,7 @@ export function ControllerBeach() {
                   <ul className="space-y-1 text-[12px] text-slate-600">
                     {history.map((h, i) => (
                       <li key={i}>
-                        <span className="tnum text-slate-400">{hhmm(h.at)}</span> · {h.setId}{" "}
+                        <span className="tnum text-slate-500">{hhmm(h.at)}</span> · {h.setId}{" "}
                         {OPS_LABEL[h.from]} → <b className="text-navy-900">{OPS_LABEL[h.to]}</b>
                         {h.reason ? ` (${h.reason})` : ""}
                         {h.date !== today ? ` · for ${fmtDateGB(h.date)}` : ""} · {h.by}

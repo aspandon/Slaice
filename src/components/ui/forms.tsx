@@ -260,7 +260,7 @@ function DateCalendarModal({ value, onChange, onClose, locale = "en-GB", t = (s)
               className="w-9 h-9 grid place-items-center rounded-lg ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50"
               aria-label={t("Next month")}><Icon.arrowR size={15} /></button>
           </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+          <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
             {weekdays.map((d, i) => <div key={i}>{d}</div>)}
           </div>
           <div className="grid grid-cols-7 gap-1">

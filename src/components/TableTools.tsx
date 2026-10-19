@@ -45,7 +45,7 @@ export function Pager({ page, pageCount, total, pageSize, onPage }: { page: numb
         <Btn size="sm" variant="ghost" disabled={page === 0} onClick={() => onPage(page - 1)}>Prev</Btn>
         {pageWindow(page, pageCount).map((i, k) =>
           i === null ? (
-            <span key={`gap-${k}`} className="min-w-6 text-center text-slate-400" aria-hidden>…</span>
+            <span key={`gap-${k}`} className="min-w-6 text-center text-slate-500" aria-hidden>…</span>
           ) : (
             <button key={i} type="button" onClick={() => onPage(i)} aria-current={i === page ? "page" : undefined} aria-label={`Page ${i + 1}`}
               className={`min-w-8 h-8 px-2 rounded-lg text-[12.5px] font-semibold tnum transition ${i === page ? "bg-navy-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}>{i + 1}</button>

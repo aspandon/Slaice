@@ -210,7 +210,11 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 - **Fix:** in the set phase on phones, collapse the menu to a one-line summary (zone · picks · total ·
   Continue) that expands on tap.
 
-#### 4.5 · Small-text contrast — 🟡 Partly done (19 Oct 2026, AENR-755)
+#### 4.5 · Small-text contrast — ✅ Resolved (19 Oct 2026, AENR-755, AENR-765)
+
+- **Resolution:** every plain `text-slate-400` (117 uses in 55 files) moved to the secondary-text grey;
+  slate-400 stays only for placeholders, hover/disabled variants and the disabled button style.
+  axe reports no contrast failures on 36 customer and staff pages at 1440 and 390 px.
 
 - **Progress:** `slate-500` is darkened to `#5b6b82` (passes on tinted panels), the staff sidebar group
   labels, till and month-end captions moved off `slate-400`, notification counts are navy on gold and trend

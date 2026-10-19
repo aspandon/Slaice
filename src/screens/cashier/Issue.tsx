@@ -670,7 +670,7 @@ function HoldChip({ ms }: { ms: number }) {
 
 function RemoveBtn({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button type="button" aria-label={label} onClick={onClick} className="w-11 h-11 -my-2 -mr-1 rounded-xl grid place-items-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 shrink-0">
+    <button type="button" aria-label={label} onClick={onClick} className="w-11 h-11 -my-2 -mr-1 rounded-xl grid place-items-center text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 shrink-0">
       <Icon.x size={18} />
     </button>
   );

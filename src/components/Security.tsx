@@ -13,7 +13,7 @@ import { useApp } from "../app/store";
 
 // Five-stop scale indexed by the password score (0 = empty/too short … 4).
 const STRENGTH = [
-  { label: "Too short", bar: "bg-slate-300", text: "text-slate-400" },
+  { label: "Too short", bar: "bg-slate-300", text: "text-slate-500" },
   { label: "Weak", bar: "bg-rose-500", text: "text-rose-600" },
   { label: "Fair", bar: "bg-amber-500", text: "text-amber-600" },
   { label: "Good", bar: "bg-teal-500", text: "text-teal-600" },
@@ -36,7 +36,7 @@ function PasswordField({ label, value, onChange, autoComplete }: {
           onChange={(e) => onChange(e.target.value)} className="pr-11" />
         <button type="button" onClick={() => setShow((s) => !s)} aria-pressed={show}
           aria-label={show ? "Hide password" : "Show password"}
-          className={`absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 grid place-items-center rounded-lg transition ${show ? "text-teal-600 bg-teal-50" : "text-slate-400 hover:text-slate-700 hover:bg-slate-100"}`}>
+          className={`absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-8 grid place-items-center rounded-lg transition ${show ? "text-teal-600 bg-teal-50" : "text-slate-500 hover:text-slate-700 hover:bg-slate-100"}`}>
           <Icon.eye size={16} />
         </button>
       </div>
@@ -47,7 +47,7 @@ function PasswordField({ label, value, onChange, autoComplete }: {
 function Req({ ok, children }: { ok: boolean; children: ReactNode }) {
   return (
     <li className={`flex items-center gap-1.5 text-[12px] transition-colors ${ok ? "text-teal-700" : "text-slate-500"}`}>
-      <span className={`w-4 h-4 rounded-full grid place-items-center shrink-0 transition-colors ${ok ? "bg-teal-600 text-white" : "bg-slate-200 text-slate-400"}`}>
+      <span className={`w-4 h-4 rounded-full grid place-items-center shrink-0 transition-colors ${ok ? "bg-teal-600 text-white" : "bg-slate-200 text-slate-500"}`}>
         {ok ? <Icon.check size={11} /> : <span className="w-1 h-1 rounded-full bg-current" />}
       </span>
       {children}

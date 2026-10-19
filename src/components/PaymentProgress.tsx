@@ -121,13 +121,13 @@ export function PaymentProgress({ moment, onDone }: { moment: PaymentMoment; onD
                     </span>
                     <span className="min-w-0">
                       <span
-                        className={`block text-guest-body font-semibold ${state === "next" ? "text-slate-400" : "text-navy-900"}`}
+                        className={`block text-guest-body font-semibold ${state === "next" ? "text-slate-500" : "text-navy-900"}`}
                       >
                         {s.label}
                       </span>
                       {s.sub && (
                         <span
-                          className={`block text-guest-caption ${state === "next" ? "text-slate-400" : "text-slate-500"}`}
+                          className={`block text-guest-caption ${state === "next" ? "text-slate-500" : "text-slate-500"}`}
                         >
                           {s.sub}
                         </span>

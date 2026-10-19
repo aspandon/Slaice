@@ -345,7 +345,7 @@ export function PlatformTenants() {
                   {actions.length} open
                 </Badge>
               ) : (
-                <span className="text-slate-400">—</span>
+                <span className="text-slate-500">—</span>
               ),
               <Badge tone={t.stripe.charges && t.stripe.payouts ? "green" : "amber"}>
                 {t.stripe.charges && t.stripe.payouts ? "enabled" : "restricted"}
@@ -795,7 +795,7 @@ export function PlatformSuperAdmin() {
                           ) : (
                             <span
                               aria-label={`${m} for ${t.name}: ${st.on ? "on" : "off"}`}
-                              className={`inline-flex items-center justify-center w-7 h-7 rounded-full ${st.on ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-400"}`}
+                              className={`inline-flex items-center justify-center w-7 h-7 rounded-full ${st.on ? "bg-teal-50 text-teal-700" : "bg-slate-100 text-slate-500"}`}
                             >
                               {st.on ? <Icon.check size={14} /> : <Icon.minus size={14} />}
                             </span>

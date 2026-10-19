@@ -213,7 +213,7 @@ function SharedPass({ b }: { b: SharedBooking }) {
             </div>
           )}
           {phase === "cancelled" ? (
-            <div className="mx-auto w-[208px] h-[208px] rounded-2xl bg-slate-100 grid place-items-center text-slate-400">
+            <div className="mx-auto w-[208px] h-[208px] rounded-2xl bg-slate-100 grid place-items-center text-slate-500">
               <Icon.x size={56} />
             </div>
           ) : (

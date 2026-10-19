@@ -200,7 +200,7 @@ export function CustomerHome() {
         <div className="min-w-0">
           {(
             <div className={`${CARD} p-5 relative flex flex-col gap-2.5`} data-home-card>
-              <button aria-label={t("Dismiss offer")} onClick={() => setPromoDismissed(true)} className="absolute top-3 right-3 w-7 h-7 grid place-items-center rounded-lg text-slate-400 hover:text-navy-900 hover:bg-white/50 transition"><Icon.x size={14} /></button>
+              <button aria-label={t("Dismiss offer")} onClick={() => setPromoDismissed(true)} className="absolute top-3 right-3 w-7 h-7 grid place-items-center rounded-lg text-slate-500 hover:text-navy-900 hover:bg-white/50 transition"><Icon.x size={14} /></button>
               <div className="flex items-center gap-3 pr-7">
                 <span className="w-10 h-10 rounded-xl grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm"><Icon.bolt size={18} /></span>
                 <div className="min-w-0 flex-1">
@@ -594,7 +594,7 @@ export function VipTile() {
           {t("Get VIP pass")} — {t("from")} €{from.toLocaleString()} <Icon.chevR size={14} />
         </button>
         <div className="flex items-center gap-2 shrink-0">
-          {vip && <button onClick={() => clearPass("vip")} className="text-guest-caption text-slate-400 hover:text-rose-600">{t("Reset")}</button>}
+          {vip && <button onClick={() => clearPass("vip")} className="text-guest-caption text-slate-500 hover:text-rose-600">{t("Reset")}</button>}
           <NotMvpBadge />
         </div>
       </div>
@@ -622,7 +622,7 @@ export function SeasonTile() {
           {season ? t("Manage pass") : `${t("Get Season pass")} — ${t("from")} €${from.toLocaleString()}`} <Icon.chevR size={14} />
         </button>
         <div className="flex items-center gap-2 shrink-0">
-          {season && <button onClick={() => clearPass("season")} className="text-guest-caption text-slate-400 hover:text-rose-600">{t("Reset")}</button>}
+          {season && <button onClick={() => clearPass("season")} className="text-guest-caption text-slate-500 hover:text-rose-600">{t("Reset")}</button>}
           <NotMvpBadge />
         </div>
       </div>
@@ -655,11 +655,11 @@ export function BadgesTile() {
           const earned = v >= a.threshold;
           return (
             <div key={a.id} title={earned ? `${a.name} — ${t("earned!")}` : `${a.name} — ${metricFmt(a.metric, v)} / ${metricFmt(a.metric, a.threshold)}`} className="flex flex-col items-center gap-1 w-[3.4rem]">
-              <span className={`relative w-11 h-11 rounded-full grid place-items-center ring-2 ring-white shadow-sm transition ${earned ? `text-white bg-gradient-to-br ${BADGE_COLORS[a.color] || BADGE_COLORS.sun}` : "bg-slate-200/80 text-slate-400"}`}>
+              <span className={`relative w-11 h-11 rounded-full grid place-items-center ring-2 ring-white shadow-sm transition ${earned ? `text-white bg-gradient-to-br ${BADGE_COLORS[a.color] || BADGE_COLORS.sun}` : "bg-slate-200/80 text-slate-500"}`}>
                 <Glyph size={18} />
-                {!earned && <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-white ring-1 ring-slate-200 grid place-items-center"><Icon.lock size={8} className="text-slate-400" /></span>}
+                {!earned && <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-white ring-1 ring-slate-200 grid place-items-center"><Icon.lock size={8} className="text-slate-500" /></span>}
               </span>
-              <span className={`text-guest-caption text-center leading-tight w-full truncate ${earned ? "text-navy-900 font-semibold" : "text-slate-400"}`}>{a.name}</span>
+              <span className={`text-guest-caption text-center leading-tight w-full truncate ${earned ? "text-navy-900 font-semibold" : "text-slate-500"}`}>{a.name}</span>
             </div>
           );
         })}

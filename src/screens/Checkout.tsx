@@ -280,7 +280,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
                         <ul className="mt-1 space-y-0.5 text-guest-meta text-slate-600">
                           {v.items.map((it) => (
                             <li key={it.kind + it.id} className="flex items-center gap-1.5 min-w-0">
-                              <span className="text-slate-400 shrink-0">{kindIcon(it.kind)}</span>
+                              <span className="text-slate-500 shrink-0">{kindIcon(it.kind)}</span>
                               <span className="truncate">{it.label}{it.kind === "parking" ? ` · ${plateOf(it)}` : ""}</span>
                               <span className="ml-auto pl-2 tnum shrink-0">€{it.price}</span>
                             </li>

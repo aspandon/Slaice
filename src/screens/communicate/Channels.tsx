@@ -149,7 +149,7 @@ function ChannelSetupModal({
                 />
               </Field>
               <div className="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-3 py-2 text-[11.5px] text-slate-500 flex items-start gap-1.5">
-                <Icon.lock size={13} className="shrink-0 mt-0.5 text-slate-400" /> Demo — keys
+                <Icon.lock size={13} className="shrink-0 mt-0.5 text-slate-500" /> Demo — keys
                 aren’t stored or sent anywhere. In production they’re held server-side and never
                 reach the browser.
               </div>
@@ -169,7 +169,7 @@ function ChannelSetupModal({
                       className={`flex items-center gap-2.5 rounded-lg px-2.5 py-2 ring-1 transition ${st === "done" ? "ring-teal-200 bg-teal-50/60" : st === "active" ? "ring-slate-200 bg-white shadow-soft" : "ring-slate-100 bg-slate-50/50 opacity-55"}`}
                     >
                       <span
-                        className={`w-6 h-6 rounded-full grid place-items-center shrink-0 ${st === "done" ? "bg-teal-600 text-white" : st === "active" ? "bg-navy-900 text-white" : "bg-slate-200 text-slate-400"}`}
+                        className={`w-6 h-6 rounded-full grid place-items-center shrink-0 ${st === "done" ? "bg-teal-600 text-white" : st === "active" ? "bg-navy-900 text-white" : "bg-slate-200 text-slate-500"}`}
                       >
                         {st === "done" ? (
                           <Icon.check size={13} />
@@ -180,7 +180,7 @@ function ChannelSetupModal({
                         )}
                       </span>
                       <span
-                        className={`text-[13px] ${st === "todo" ? "text-slate-400" : "text-navy-900"}`}
+                        className={`text-[13px] ${st === "todo" ? "text-slate-500" : "text-navy-900"}`}
                       >
                         {s}
                       </span>
@@ -248,7 +248,7 @@ function ChannelConnections({
                       <Icon.checkCircle size={11} /> Connected
                     </div>
                   ) : (
-                    <div className="text-[11px] text-slate-400">Not connected</div>
+                    <div className="text-[11px] text-slate-500">Not connected</div>
                   )}
                 </div>
               </div>
@@ -273,7 +273,7 @@ function ChannelConnections({
                   {conn.connected ? "Manage" : "Set up"}
                 </Btn>
               ) : (
-                <div className="mt-2.5 text-[11px] text-slate-400 inline-flex items-center gap-1">
+                <div className="mt-2.5 text-[11px] text-slate-500 inline-flex items-center gap-1">
                   <Icon.check size={11} className="text-teal-600" /> No setup needed
                 </div>
               )}

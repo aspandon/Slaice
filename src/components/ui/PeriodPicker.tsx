@@ -200,7 +200,7 @@ export function PeriodPicker({
         className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-slate-600 tnum"
         aria-live="polite"
       >
-        <Icon.calendar size={13} className="text-slate-400" />
+        <Icon.calendar size={13} className="text-slate-500" />
         {range ? rangeLabel(range) : t("All dates")}
       </span>
     </div>

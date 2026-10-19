@@ -753,7 +753,7 @@ export function PricingCalendar({
                             <span className="text-[11px] font-normal text-slate-500">from </span>€{fromPrice(d)}
                           </span>
                         )}
-                        <Icon.chevR size={14} className={`text-slate-400 transition ${on ? "rotate-90" : ""}`} />
+                        <Icon.chevR size={14} className={`text-slate-500 transition ${on ? "rotate-90" : ""}`} />
                       </button>
                       {on && <div className="mt-2 mb-1 rounded-xl ring-1 ring-teal-200 bg-white p-3">{panel}</div>}
                     </li>
@@ -871,7 +871,7 @@ export function PricingAdvanced({
                   <button
                     type="button"
                     aria-label={`Remove ${r.label}`}
-                    className="text-slate-400 hover:text-rose-600 p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                    className="text-slate-500 hover:text-rose-600 p-1 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
                     onClick={() =>
                       withUndo(`Removed “${r.label}”.`, {
                         ...calendar,
@@ -929,7 +929,7 @@ export function PricingAdvanced({
             {priceRules
               .filter((r) => r.zone === "all" || r.zone === zoneId)
               .map((r) => (
-                <li key={r.id} className={r.enabled ? "" : "text-slate-400"}>
+                <li key={r.id} className={r.enabled ? "" : "text-slate-500"}>
                   <button type="button" className="text-left hover:underline" onClick={() => onEditRule(r)}>
                     <b>{r.label}</b> · {ruleEffectLabel(r)}
                     {r.kind && r.kind !== "standard" ? ` · ${RULE_KIND_LABEL[r.kind]}` : ""}

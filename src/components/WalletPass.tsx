@@ -171,7 +171,7 @@ function PassPreview({ pass }: { pass: WalletPassData }) {
         <div className="px-5 py-4 flex items-center gap-4">
           <div className="rounded-lg ring-1 ring-slate-200 p-1.5 shrink-0"><QR size={84} seed={pass.ref} /></div>
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">{pass.title || "Pass"}</div>
+            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">{pass.title || "Pass"}</div>
             <div className="font-mono font-semibold text-navy-900 text-sm">#{pass.ref.replace(/^#/, "")}</div>
             <div className="mt-1.5 space-y-0.5">
               {(pass.fields || []).map((f, i) => (
@@ -214,7 +214,7 @@ function PassPreview({ pass }: { pass: WalletPassData }) {
       <div className="bg-white px-5 py-4 flex items-center gap-4">
         <div className="rounded-lg ring-1 ring-slate-200 p-1.5 shrink-0"><QR size={92} seed={qrCode(pass.ref)} /></div>
         <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Booking</div>
+          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Booking</div>
           <div className="font-mono font-semibold text-navy-900 text-sm">#{pass.ref.replace(/^#/, "")}</div>
           {pass.total && <div className="text-[12px] text-slate-500 mt-1">{pass.total} · paid</div>}
           <div className="text-[11px] text-slate-500 mt-1.5">Scan at the gate</div>
@@ -287,7 +287,7 @@ function WalletSheet({ open, onClose, pass, kind, platform }: { open: boolean; o
         )}
 
         <div className="flex items-start gap-2 rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-2.5 text-[11.5px] text-slate-500 leading-snug">
-          <Icon.info size={14} className="shrink-0 mt-0.5 text-slate-400" />
+          <Icon.info size={14} className="shrink-0 mt-0.5 text-slate-500" />
           <span>
             Demo — Apple downloads a real <b>.pkpass</b> and Google copies a <b>Save</b> link.
             In production the pass is signed server-side so your phone adds it in one tap

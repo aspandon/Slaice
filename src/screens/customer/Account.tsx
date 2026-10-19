@@ -87,7 +87,7 @@ export function CustomerAccount() {
           <span className="block font-display font-bold text-guest-head text-navy-900">{PROFILE.first} {PROFILE.last}</span>
           <span className="block text-guest-meta text-slate-600 truncate">{PROFILE.email} · {PROFILE.phone}</span>
         </span>
-        <Icon.chevR size={18} className="text-slate-400 shrink-0" />
+        <Icon.chevR size={18} className="text-slate-500 shrink-0" />
       </button>
 
       <Group>
@@ -122,7 +122,7 @@ function Row({ icon: I, tone, label, value, onClick }: { icon: IconRenderer; ton
       <span aria-hidden className={`w-8 h-8 rounded-lg grid place-items-center text-white shrink-0 ${tone}`}><I size={16} /></span>
       <span className="flex-1 min-w-0 text-guest-body font-medium text-navy-900">{label}</span>
       {value && <span className="text-guest-meta text-slate-500 truncate max-w-[45%] text-right">{value}</span>}
-      <Icon.chevR size={16} className="text-slate-400 shrink-0" />
+      <Icon.chevR size={16} className="text-slate-500 shrink-0" />
     </button>
   );
 }

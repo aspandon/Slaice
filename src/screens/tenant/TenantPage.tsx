@@ -471,7 +471,7 @@ export function TenantPage() {
         >
           {GROUPS.map((g) => (
             <div key={g} className="mb-1.5">
-              <div className="px-2 pt-1.5 pb-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-slate-400">
+              <div className="px-2 pt-1.5 pb-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-slate-500">
                 {g}
               </div>
               {SECTIONS.filter((s) => s.group === g).map((s) => {

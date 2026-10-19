@@ -231,7 +231,7 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
       </Card>
 
       <div className="mt-3 text-guest-caption text-slate-600 flex items-start gap-1.5">
-        <Icon.info size={13} className="shrink-0 mt-0.5 text-slate-400" />
+        <Icon.info size={13} className="shrink-0 mt-0.5 text-slate-500" />
         {vip
           ? t("At checkout, the VIP discount applies to whatever your credit pays for; anything left is paid as usual.")
           : t("At checkout, one entry ticket per visit is covered automatically while your pass is valid.")}
@@ -247,7 +247,7 @@ function SelectCard({ on, onClick, title, sub, foot, accent }: { on: boolean; on
       className={`relative text-left rounded-2xl p-4 ring-1 transition ${on ? `ring-2 ${ring} bg-white shadow-lift` : "ring-slate-200 bg-white/70 hover:ring-slate-300"}`}>
       <div className="font-display font-bold text-navy-900 text-guest-head">{title}</div>
       <div className="text-guest-meta text-slate-600 mt-0.5">{sub}</div>
-      <div className="text-guest-caption text-slate-400 mt-1.5">{foot}</div>
+      <div className="text-guest-caption text-slate-500 mt-1.5">{foot}</div>
       {on && <span className={`absolute top-3 right-3 w-5 h-5 rounded-full text-white grid place-items-center ${accent === "gold" ? "bg-navy-900" : "bg-teal-600"}`}><Icon.check size={12} /></span>}
     </button>
   );

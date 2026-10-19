@@ -177,7 +177,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
             <span className="md:hidden">{currentItem ? t(currentItem.short || currentItem.label) : ""}</span>
             <span className="hidden md:inline">{currentItem ? t(currentItem.label) : ""}</span>
           </span>
-          <Icon.chevD size={15} className="text-slate-400 shrink-0 md:hidden" />
+          <Icon.chevD size={15} className="text-slate-500 shrink-0 md:hidden" />
         </button>
       )}
       {persona !== "customer" && pageHelp && (
@@ -234,7 +234,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
                           <span className="block text-[11px] text-slate-500 truncate">{t(it.sub)}</span>
                         </span>
                         <span className="text-[12px] font-semibold text-navy-900 tnum shrink-0">€{it.price}</span>
-                        <button aria-label={`${t("Remove")} ${t(it.label)}`} onClick={() => removeBasketItem(it)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 shrink-0"><Icon.trash size={13} /></button>
+                        <button aria-label={`${t("Remove")} ${t(it.label)}`} onClick={() => removeBasketItem(it)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-500 hover:text-rose-500 hover:bg-rose-50 shrink-0"><Icon.trash size={13} /></button>
                       </div>
                     ))}
                   </div>

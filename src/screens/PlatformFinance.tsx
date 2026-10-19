@@ -52,7 +52,7 @@ export function FinanceSettingsModal({ tenant, tenantId, subdomain, onClose }: {
               <li key={x.id} className="flex items-center gap-2">
                 <div className="flex-1"><Input aria-label="Terminal name" value={x.name} onChange={(e) => setCfg((c) => ({ ...c, terminals: c.terminals?.map((y) => (y.id === x.id ? { ...y, name: e.target.value } : y)) }))} /></div>
                 <Toggle on={x.online} onChange={(v) => setCfg((c) => ({ ...c, terminals: c.terminals?.map((y) => (y.id === x.id ? { ...y, online: v } : y)) }))} ariaLabel={`${x.name} online`} />
-                <button type="button" aria-label={`Remove ${x.name}`} onClick={() => setCfg((c) => ({ ...c, terminals: c.terminals?.filter((y) => y.id !== x.id) }))} className="w-8 h-8 rounded-lg grid place-items-center text-slate-400 hover:text-rose-600 hover:bg-rose-50"><Icon.trash size={14} /></button>
+                <button type="button" aria-label={`Remove ${x.name}`} onClick={() => setCfg((c) => ({ ...c, terminals: c.terminals?.filter((y) => y.id !== x.id) }))} className="w-8 h-8 rounded-lg grid place-items-center text-slate-500 hover:text-rose-600 hover:bg-rose-50"><Icon.trash size={14} /></button>
               </li>
             ))}
           </ul>

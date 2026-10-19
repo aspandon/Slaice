@@ -237,7 +237,7 @@ export function AdminToday() {
         <div className="min-w-0">
           <Card className="p-5 sm:p-6">
             <h2 className="font-display font-bold text-navy-900 mb-2">
-              Needs attention <span className="text-slate-400 tnum">{attention.length}</span>
+              Needs attention <span className="text-slate-500 tnum">{attention.length}</span>
             </h2>
             {attention.length === 0 ? (
               <p className="text-[13px] text-slate-600 flex items-center gap-1.5">
@@ -316,7 +316,7 @@ export function AdminToday() {
             {done.length > 0 && (
               <details className="mt-3 border-t border-slate-100 pt-2 text-[12.5px] text-slate-600">
                 <summary className="cursor-pointer font-semibold text-slate-700 hover:text-navy-900 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
-                  Done today <span className="tnum text-slate-400">{done.length}</span>
+                  Done today <span className="tnum text-slate-500">{done.length}</span>
                 </summary>
                 <ul className="mt-1.5 space-y-1">
                   {done.map((d) => (

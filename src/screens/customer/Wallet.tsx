@@ -502,7 +502,7 @@ function PassOffer({
         <span className="block text-guest-meta text-slate-600">{sub}</span>
       </span>
       <NotMvpBadge />
-      <Icon.chevR size={15} className="text-slate-400 shrink-0" />
+      <Icon.chevR size={15} className="text-slate-500 shrink-0" />
     </button>
   );
 }

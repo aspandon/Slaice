@@ -61,13 +61,13 @@ export function PersonaSwitcher({
               {(() => { const I = Icon[cur.icon]; return I ? <I size={13} /> : null; })()}
             </span>
             <span className="hidden md:inline text-navy-900">{t(cur.label)}</span>
-            <Icon.chevD size={14} className="text-slate-400 hidden sm:block" />
+            <Icon.chevD size={14} className="text-slate-500 hidden sm:block" />
           </button>
         )}
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content side={side} align="end" sideOffset={8} className={`glass w-72 text-ink rounded-xl p-1.5 z-[60] shadow-float ${origin} data-[state=open]:animate-scale-in`}>
-          <DropdownMenu.Label className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{t("View as persona")}</DropdownMenu.Label>
+          <DropdownMenu.Label className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">{t("View as persona")}</DropdownMenu.Label>
           {PERSONAS.map((p) => {
             // A role the demo beach doesn't use (AENR-716) stays reachable, greyed, and opens an explanation.
             const off = !roleOn(p.id);
@@ -115,7 +115,7 @@ export function PersonaSwitcher({
           {persona === "customer" && (
             <>
               <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
-              <DropdownMenu.Label className="px-2.5 pt-1 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{t("Preview Home")}</DropdownMenu.Label>
+              <DropdownMenu.Label className="px-2.5 pt-1 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">{t("Preview Home")}</DropdownMenu.Label>
               <DropdownMenu.RadioGroup value={momentPreview} onValueChange={(m) => { window.location.hash = `#/customer/home${m ? `?moment=${m}` : ""}`; }}>
                 {([["", "Live (by the clock)"], ["morning", "Morning of a visit"], ["during", "At the beach"], ["after", "After the visit"], ["offseason", "Off-season"]] as const).map(([k, l]) => (
                   <DropdownMenu.RadioItem key={k || "live"} value={k} className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100">
@@ -175,7 +175,7 @@ export function PersonaSwitcher({
           {persona === "admin" && (
             <>
               <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
-              <DropdownMenu.Label className="px-2.5 pt-1 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">
+              <DropdownMenu.Label className="px-2.5 pt-1 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
                 {t("Demo clock")} · {new Date(Date.now() + inventory.clockOffset * 60000).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}{inventory.clockOffset ? ` (+${Math.round(inventory.clockOffset / 60)}h)` : ""}
               </DropdownMenu.Label>
               <div className="flex gap-1.5 px-2 pb-1.5">

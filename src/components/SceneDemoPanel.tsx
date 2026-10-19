@@ -47,8 +47,8 @@ export function SceneDemoPanel() {
       >
         <WIcon size={14} className="text-teal-700" />
         <span className="tnum">{sceneFx.daytime ? fmtHour(dayTime) : t(wd.label)}</span>
-        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{t("Demo")}</span>
-        <Icon.chevD size={13} className={`text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
+        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{t("Demo")}</span>
+        <Icon.chevD size={13} className={`text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
     </div>
   );
@@ -78,7 +78,7 @@ export function SceneControls() {
             aria-label={t("Time of day")}
             className="demo-range w-full"
           />
-          <div className="flex justify-between text-[9.5px] text-slate-400 mt-0.5">
+          <div className="flex justify-between text-[9.5px] text-slate-500 mt-0.5">
             <span className="tnum">{fmtHour(DAY_MIN)}</span>
             <span>{t("golden hour")} ≈ 19:30</span>
             <span className="tnum">{fmtHour(DAY_MAX)}</span>

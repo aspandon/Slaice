@@ -413,9 +413,9 @@ export function AdminUsers() {
               <div className="leading-tight">
                 <span className="inline-flex items-center gap-1.5">{(crm.profiles[u.id]?.important || tagsFor(u).some((x) => x.t === "VIP")) && <Icon.star size={12} className="text-amber-500" aria-label="VIP" />}<button type="button" className="row-link font-semibold text-navy-900 hover:text-teal-700 text-left whitespace-nowrap" onClick={() => setProfileId(u.id)} aria-label={`Open profile of ${u.first} ${u.last}`}>{u.first} {u.last}</button>{crm.eraseRequests.includes(u.id) && <Badge tone="red">Erasure requested</Badge>}{u.id >= 1000 && <Badge tone="slate">Imported</Badge>}</span>
                 <div className="text-[11.5px] text-slate-500 tnum whitespace-nowrap">{u.phone}</div>
-              </div>, u.bookings, nextVisitOf(u) ? <span className="whitespace-nowrap font-medium text-navy-900">{fmtDay(nextVisitOf(u)!)}</span> : <span className="text-slate-400">—</span>, ...shownOptional.map((c) => c.cell(byId.get(u.id)!)),
+              </div>, u.bookings, nextVisitOf(u) ? <span className="whitespace-nowrap font-medium text-navy-900">{fmtDay(nextVisitOf(u)!)}</span> : <span className="text-slate-500">—</span>, ...shownOptional.map((c) => c.cell(byId.get(u.id)!)),
               <span className="flex gap-1 flex-wrap">{tagsFor(u).map(({ t, pass }) => <Badge key={t} tone={tagTone(t)} className="whitespace-nowrap">{pass && <Icon.wallet size={9} />}{t}</Badge>)}</span>,
-              <Icon.chevR size={16} className="text-slate-400" aria-hidden />])} />
+              <Icon.chevR size={16} className="text-slate-500" aria-hidden />])} />
           {pageCount > 1 && <Pager page={safePage} pageCount={pageCount} total={sorted.length} pageSize={PAGE} onPage={setPage} />}
           </>
         )}

@@ -191,7 +191,7 @@ export function FeeModelNote({ cfg, terms }: { cfg?: FinanceConfig; terms: Comme
   const s = terms.services;
   return (
     <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3 text-[12.5px] text-slate-600 flex flex-wrap items-center gap-2">
-      <Icon.info size={14} className="text-slate-400" />
+      <Icon.info size={14} className="text-slate-500" />
       <span>
         <b className="text-navy-900">Commercial terms:</b> commission sunbeds {rateLabel(s.sunbeds)}, entry tickets {rateLabel(s.tickets)}, lockers {rateLabel(s.lockers)}, parking {rateLabel(s.parking)} per online booking · guest fee {feeLabel("sunbeds", s.sunbeds)}, {feeLabel("tickets", s.tickets)} ({terms.feeTo === "slaice" ? "kept by Slaice" : "kept by the beach"}) · corporate tax {pctOf(terms.corporateTax)} re-billed monthly{cfg ? ` · e-invoicing via ${cfg.provider}` : ""}.
       </span>

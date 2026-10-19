@@ -143,7 +143,7 @@ export function InventoryPanel({ zoneId, slots, date }: { zoneId: string; slots:
           {allocs.map((a) => (
             <li key={a.id} className="flex items-center gap-2 rounded-lg ring-1 ring-slate-200 px-2.5 py-1.5">
               <div className="min-w-0 flex-1"><b className="text-navy-900">{CHANNEL_LABEL[a.channel]}</b><div className="text-slate-500">{a.setIds.length} sets · {a.dates[0]}{a.dates.length > 1 ? ` → ${a.dates[a.dates.length - 1]}` : ""}{a.release ? ` · releases ${a.release.daysBefore} day(s) before at ${a.release.time}` : ""}{a.dates.every((d) => !allocationLive(a, d, now)) ? " · released" : ""}</div></div>
-              <button type="button" aria-label="Remove allocation" className="text-slate-400 hover:text-rose-600" onClick={() => update((i) => ({ ...i, allocations: i.allocations.filter((x) => x.id !== a.id) }), `Removed ${CHANNEL_LABEL[a.channel]} (${a.setIds.length} sets)`)}><Icon.trash size={12} /></button>
+              <button type="button" aria-label="Remove allocation" className="text-slate-500 hover:text-rose-600" onClick={() => update((i) => ({ ...i, allocations: i.allocations.filter((x) => x.id !== a.id) }), `Removed ${CHANNEL_LABEL[a.channel]} (${a.setIds.length} sets)`)}><Icon.trash size={12} /></button>
             </li>
           ))}
           {stops.map((s) => (
@@ -161,7 +161,7 @@ export function InventoryPanel({ zoneId, slots, date }: { zoneId: string; slots:
       {inventory.log.length > 0 && (
         <details className="text-[12px]">
           <summary className="cursor-pointer font-semibold text-navy-900">Activity ({inventory.log.length})</summary>
-          <ul className="mt-1 space-y-0.5 text-slate-600 max-h-40 overflow-auto">{inventory.log.map((l, i) => <li key={i}><span className="tnum text-slate-400">{fmt(new Date(l.at).getTime())}</span> · {l.text}</li>)}</ul>
+          <ul className="mt-1 space-y-0.5 text-slate-600 max-h-40 overflow-auto">{inventory.log.map((l, i) => <li key={i}><span className="tnum text-slate-500">{fmt(new Date(l.at).getTime())}</span> · {l.text}</li>)}</ul>
         </details>
       )}
     </Card>

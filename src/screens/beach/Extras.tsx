@@ -338,7 +338,7 @@ function RulesAndPreview({
                     onClick={() =>
                       setDraft((s) => ({ ...s, rules: s.rules.filter((x) => x.id !== r.id) }))
                     }
-                    className="w-8 h-8 grid place-items-center rounded-lg text-slate-400 hover:text-rose-600"
+                    className="w-8 h-8 grid place-items-center rounded-lg text-slate-500 hover:text-rose-600"
                   >
                     <Icon.trash size={14} />
                   </button>}

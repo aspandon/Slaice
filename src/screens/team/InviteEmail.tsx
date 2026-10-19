@@ -52,19 +52,19 @@ export function InviteEmailModal({
         >
           <header className="px-4 py-3 border-b border-slate-100 text-[12.5px] text-slate-600 space-y-0.5">
             <div>
-              <span className="text-slate-400 inline-block w-14">From</span>
+              <span className="text-slate-500 inline-block w-14">From</span>
               <b className="text-navy-900">Slaice</b> &lt;no-reply@slaice.app&gt;
             </div>
             <div>
-              <span className="text-slate-400 inline-block w-14">To</span>
+              <span className="text-slate-500 inline-block w-14">To</span>
               {user.name} &lt;{user.email}&gt;
             </div>
             <div>
-              <span className="text-slate-400 inline-block w-14">Subject</span>
+              <span className="text-slate-500 inline-block w-14">Subject</span>
               <b className="text-navy-900">You're invited to {beach} on Slaice</b>
             </div>
             <div>
-              <span className="text-slate-400 inline-block w-14">Sent</span>
+              <span className="text-slate-500 inline-block w-14">Sent</span>
               {fmtWhen(inv.sentAt)}
               {inv.sends > 1 && ` · resent (${inv.sends}×)`}
             </div>

@@ -24,7 +24,7 @@ export function Badge({ tone = "slate", children, className = "" }: { tone?: str
     neutral: "bg-slate-100 text-slate-600 ring-slate-400/20",
     // Legacy alias — indigo was off-brand; it now reads as info.
     indigo: "bg-sky-50 text-sky-700 ring-sky-600/20",
-    coral: "bg-orange-100 text-coral-600 ring-coral-500/20",
+    coral: "bg-orange-100 text-orange-800 ring-coral-500/20",
   };
   return (
     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ring-1 ${tones[tone] || tones.slate} ${className}`}>
