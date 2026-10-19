@@ -3101,7 +3101,7 @@ hint, **consent**, **background**, **beachLayout** (zoneId → slots), **zoneLog
 `listCustomerDocuments`, `listCustomers`, `listZones`), each resolving sample data after **450 ms**
 of simulated latency [DEMO]. Screens consume it via `useAsync()` which returns a status union
 `loading | error | success` + `refetch`. Other staff tables use `useMockLoad()` (650 ms skeleton).
-Many screens still import `src/data/*` constants directly.
+Many screens still import `src/data/*` constants directly. **Screen loading** (AENR-756): while a screen's code chunk loads, the shell (top bar, tab bar, sidebar) stays and the content area shows the shape of what is coming — frosted guest cards on the customer surface; a title, four stat tiles and table rows on staff pages — never a blank fill. Every screen of the current role is prefetched 1.5 s after start (AENR-730).
 
 ---
 

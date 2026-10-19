@@ -1,6 +1,6 @@
 import { Suspense, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
-import { AppCtx, DEFAULT_CRM } from "./app/store";
+import { AppCtx, DEFAULT_CRM, useT } from "./app/store";
 import type { AppContextValue, SpotlightHint, ToastOptions } from "./app/store";
 import { DEFAULT_PAGE } from "./data/personas";
 import { Icon } from "./lib/icons";
@@ -37,7 +37,7 @@ import type { BookingOpsState } from "./domain/bookingOps";
 import type { PayLink } from "./domain/payLink";
 import { DEFAULT_DISPLAY, displayLangs, type DisplayConfig } from "./domain/display";
 import { lazyWithReload } from "./lib/staleChunk";
-import { CardGridSkeleton, GuardCtx } from "./components/ui";
+import { GuardCtx, Skeleton, TableSkeleton } from "./components/ui";
 import { ViewAsBanner } from "./screens/tenant/ViewAs";
 import { PlatformJanitor } from "./screens/tenant/Janitor";
 import { TenantSwitcher } from "./screens/tenant/TenantSwitcher";
@@ -585,7 +585,7 @@ export default function App() {
             <div className="flex-1">
               <main ref={mainRef} tabIndex={-1} className="min-w-0 outline-none">
                 <div key={page} className={immersive ? undefined : pageDir > 0 ? "animate-page-fwd" : "animate-page-back"}>
-                  {viewAs ? <AccessDenied user={viewAs} onHome={() => go(viewAsHome, DEFAULT_PAGE[viewAsHome])} /> : <PageGate persona={persona} page={page}><Suspense fallback={<RouteLoading />}>{routeFor(persona, page)}</Suspense></PageGate>}
+                  {viewAs ? <AccessDenied user={viewAs} onHome={() => go(viewAsHome, DEFAULT_PAGE[viewAsHome])} /> : <PageGate persona={persona} page={page}><Suspense fallback={<RouteLoading guest />}>{routeFor(persona, page)}</Suspense></PageGate>}
                 </div>
               </main>
             </div>
@@ -635,6 +635,39 @@ function AccessDenied({ user, onHome }: { user: StaffUser; onHome: () => void })
 }
 
 /* While a screen's chunk downloads (AENR-730) — a quiet skeleton in the page's shape. */
-function RouteLoading() {
-  return <CardGridSkeleton count={3} className="grid gap-3 pt-2" />;
+/* While a screen's code loads, the shell stays and the content area shows the
+   shape of what is coming (AENR-756): guest pages get frosted guest cards,
+   staff pages a title, stat tiles and table rows — never a blank fill. */
+function RouteLoading({ guest = false }: { guest?: boolean }) {
+  const t = useT();
+  if (guest)
+    return (
+      <div aria-busy="true" className="flex flex-col gap-4 max-w-6xl mx-auto w-full">
+        <span className="sr-only">{t("Loading…")}</span>
+        <div className="glass-flat rounded-3xl p-5 sm:p-7 grid gap-2.5">
+          <Skeleton className="h-4 w-36" />
+          <Skeleton className="h-7 w-64 max-w-full" />
+          <Skeleton className="h-5 w-full max-w-md" />
+          <div className="flex gap-2 pt-2"><Skeleton className="h-11 w-28 rounded-[14px]" /><Skeleton className="h-11 w-24 rounded-[14px]" /></div>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-4">
+          {[0, 1].map((i) => (
+            <div key={i} className="glass-flat rounded-3xl p-5 grid gap-2.5">
+              <div className="flex items-center gap-3"><Skeleton className="w-10 h-10 rounded-xl" /><Skeleton className="h-4 flex-1" /></div>
+              <Skeleton className="h-16 rounded-2xl" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  return (
+    <div aria-busy="true" className="grid gap-4 pt-1">
+      <span className="sr-only">Loading…</span>
+      <div className="flex items-center justify-between gap-3"><Skeleton className="h-7 w-48" /><Skeleton className="h-9 w-28 rounded-xl" /></div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[0, 1, 2, 3].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+      </div>
+      <div className="rounded-2xl bg-white ring-1 ring-slate-200/70 shadow-soft py-1"><TableSkeleton rows={6} cols={5} /></div>
+    </div>
+  );
 }
