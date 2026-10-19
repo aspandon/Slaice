@@ -81,6 +81,10 @@ export default {
         scaleIn: { from: { opacity: 0, transform: "scale(.97)" }, to: { opacity: 1, transform: "scale(1)" } },
         slideInRight: { from: { opacity: 0, transform: `translateX(${DISTANCE.page}px)` }, to: { opacity: 1, transform: "translateX(0)" } },
         slideUp: { from: { transform: "translateY(100%)" }, to: { transform: "translateY(0)" } },
+        // Direction-aware step / page entrances (AENR-748, AENR-750): forward
+        // arrives from the right, back from the left.
+        stepFwd: { from: { opacity: 0, transform: `translateX(${DISTANCE.page}px)` }, to: { opacity: 1, transform: "translateX(0)" } },
+        stepBack: { from: { opacity: 0, transform: `translateX(-${DISTANCE.page}px)` }, to: { opacity: 1, transform: "translateX(0)" } },
         shimmer: { "100%": { transform: "translateX(100%)" } },
         floaty: { "0%,100%": { transform: "translateY(0)" }, "50%": { transform: "translateY(-5px)" } },
         ripple: { "0%": { transform: "scale(.55)", opacity: "0.85" }, "100%": { transform: "scale(2.4)", opacity: "0" } },
@@ -101,6 +105,8 @@ export default {
         "scale-in": `scaleIn ${ms("page")} ${E.out.css} both`,
         "slide-in-right": `slideInRight ${ms("page")} ${E.out.css} both`,
         "slide-up": `slideUp ${ms("base")} ${E.spring.css} both`,
+        "step-fwd": `stepFwd ${ms("page")} ${E.out.css} both`,
+        "step-back": `stepBack ${ms("page")} ${E.out.css} both`,
         floaty: "floaty 5s ease-in-out infinite",
         ripple: "ripple 4s ease-out infinite",
         "sea-tilt": "seaTilt 4.5s ease-in-out infinite",

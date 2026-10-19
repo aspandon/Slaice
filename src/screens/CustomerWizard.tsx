@@ -7,7 +7,8 @@ import { Icon } from "../lib/icons";
 import type { IconRenderer } from "../lib/icons";
 import { Btn, Badge, Stepper, Input, Field, DatePickerRow, Toggle, Modal, Sheet, type DayInfo } from "../components/ui";
 import { prefersReducedMotion } from "../lib/motion";
-import { gsap, Flip, motionOK, stashFlip, EASE } from "../lib/fx";
+import { gsap, Flip, motionOK, stashFlip, EASE, DUR } from "../lib/fx";
+import { DURATION, EASING } from "../lib/motionTokens";
 import { Sunbed, SunbedMark } from "../components/Beach";
 import { ZONES, ZONE_BLOCKS, todayISO, chipLabel, forecastFor, WEATHER_DEMO } from "../data/beach";
 import { addDays } from "../domain/period";
@@ -485,8 +486,21 @@ function WizardInner() {
   // missing and offers entry tickets only instead.
   const [noSet, setNoSet] = useState(false);
   const [leaveAsk, setLeaveAsk] = useState(false);
+  // Which way the guest is moving through the flow (AENR-748): forward (and from
+  // zones into a zone's sets) slides the next step in from the right, back from
+  // the left. Derived while rendering — the previous position lives in state.
+  const flowPos = stepIdx * 2 + (step.id === "beach" && phase === "sets" ? 1 : 0);
+  const [lastPos, setLastPos] = useState(flowPos);
+  const [stepDir, setStepDir] = useState<1 | -1>(1);
+  if (flowPos !== lastPos) {
+    setLastPos(flowPos);
+    setStepDir(flowPos > lastPos ? 1 : -1);
+  }
   /** Leave the flow — asking first when sets are picked (AENR-752). */
   const leave = () => (bedSel.length > 0 ? setLeaveAsk(true) : go("customer", "home"));
+  // With a zone open and nothing picked, the main button reads "Pick for me" (AENR-747)
+  // while the zone has a free set; with none free, Continue explains (AENR-673).
+  const guidePick = step.id === "beach" && phase === "sets" && bedSel.length === 0 && !stopSell && slots.some((x) => x.state === "a");
   const next = () => {
     if (step.id === "beach" && bedSel.length === 0) { setNoSet(true); return; }
     setNoSet(false);
@@ -654,7 +668,7 @@ function WizardInner() {
 
           {/* Scrolling step body — a real scrollbar appears when a step (e.g.
               Review with many lines) overflows the panel. */}
-          <div key={`${step.id}-${phase}`} className={`px-4 sm:px-5 pb-1 overflow-y-auto animate-fade-up ${sheetHide}`}>
+          <div key={`${step.id}-${phase}`} className={`px-4 sm:px-5 pb-1 overflow-y-auto ${stepDir > 0 ? "animate-step-fwd" : "animate-step-back"} ${sheetHide}`}>
             {(step.id === "when" || step.id === "beach") && (
               <BeachMenu part={step.id === "when" ? "when" : "where"} onEditDates={() => { setNoSet(false); setStepIdx(0); }}
                 zonePicker={!richOverview && step.id === "beach" ? <ZoneList days={selDates} selectedId={zoneId} onPick={pickZone} picked={pickedByZone} /> : undefined} blockReason={blockReason} dayInfo={dayInfo} fullDay={fullDay}
@@ -788,7 +802,11 @@ function WizardInner() {
               // A calm first step (AENR-658): no price before a set is chosen; the
               // cancellation terms appear once, on Pay.
               <div className="leading-tight min-w-0 text-guest-meta text-slate-600">
-                {step.id === "when" ? tr("Pick your day, then choose where to sit.") : step.id === "beach" ? (phase === "zones" ? tr("Pick a zone, then your sets.") : tr("Tap a set to add it.")) : tr("Add a set or a ticket to see the price.")}
+                {step.id === "when" ? tr("Pick your day, then choose where to sit.") : step.id === "beach" ? (phase === "zones" ? tr("Pick a zone, then your sets.") : guidePick ? (
+                  // The sheet's header already says "tap a set"; this is the quiet way
+                  // to come without one (AENR-747).
+                  <button type="button" onClick={entryOnly} className="font-semibold text-teal-700 underline underline-offset-2 decoration-teal-700/40 hover:decoration-teal-700 rounded text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">{tr("Entry tickets only")}</button>
+                ) : tr("Tap a set to add it.")) : tr("Add a set or a ticket to see the price.")}
               </div>
             ) : (
             // Just the total (AENR-682): the truncated set/day line and the "all-in" toggle are gone.
@@ -802,7 +820,12 @@ function WizardInner() {
               <Btn variant="ghost" icon={Icon.arrowL} onClick={back} className="whitespace-nowrap">
                 {step.id === "beach" && phase === "sets" ? tr("All zones") : stepIdx === 0 ? tr("Home") : tr("Back")}
               </Btn>
-              {stepIdx < last ? (
+              {guidePick ? (
+                // Nothing picked yet on the map (AENR-747): the main button does the
+                // useful thing — picks the best free set(s) — instead of leading
+                // to a "you haven't picked a set" notice.
+                <Btn variant="teal" icon={Icon.sparkles} className="whitespace-nowrap" onClick={() => autoPick(zone.id, wantSets, undefined, true)}>{tr("Pick for me")}</Btn>
+              ) : stepIdx < last ? (
                 <Btn variant="teal" onClick={next} disabled={(step.id === "beach" && (!stayCheck.ok || !!stopSell)) || (step.id === "when" && Object.keys(stayCheck.blocked).length > 0)}>{tr("Continue")} <Icon.arrowR size={15} /></Btn>
               ) : (
                 <Btn variant="dark" icon={Icon.card} className="whitespace-nowrap" disabled={grandTotal === 0} onClick={() => (stalePicks.length ? confirm() : payRef.current?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" }))}>{tr("Go to payment")}</Btn>
@@ -915,11 +938,19 @@ function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number
   const tr = useT();
   const root = useRef<HTMLDivElement>(null);
   const frac = stepIdx / (STEPS.length - 1);
-  // Pop the active station's dot whenever the step changes.
+  // Pop the active station's dot whenever the step changes; moving forward, the
+  // station just finished pops its tick in as well (AENR-748).
+  const prevIdx = useRef(stepIdx);
   useEffect(() => {
+    const from = prevIdx.current;
+    prevIdx.current = stepIdx;
     if (!motionOK() || !root.current) return;
     const el = root.current.querySelector(`[data-station="${stepIdx}"] [data-station-dot]`);
-    if (el) gsap.fromTo(el, { scale: 0.55 }, { scale: 1, duration: 0.5, ease: EASE.pop });
+    if (el) gsap.fromTo(el, { scale: 0.55 }, { scale: 1, duration: DUR.sm, ease: EASE.pop });
+    if (stepIdx > from) {
+      const tick = root.current.querySelector(`[data-station="${stepIdx - 1}"] [data-station-dot] svg`);
+      if (tick) gsap.fromTo(tick, { scale: 0, rotate: -45 }, { scale: 1, rotate: 0, duration: DUR.sm, ease: EASE.pop, delay: DUR.xs });
+    }
   }, [stepIdx]);
   return (
     <div ref={root} className="relative">
@@ -930,13 +961,13 @@ function ProgressRail({ stepIdx, onJump }: { stepIdx: number; onJump: (i: number
         <path
           d={TRAIL_D} fill="none" stroke="#14b8a6" strokeWidth={2.5} strokeLinecap="round"
           pathLength={100} strokeDasharray={100} strokeDashoffset={100 - frac * 100}
-          style={{ transition: "stroke-dashoffset .7s cubic-bezier(.22,1,.36,1)" }}
+          style={{ transition: `stroke-dashoffset ${DURATION.slow}ms ${EASING.out.css}` }}
         />
       </svg>
       <div
         aria-hidden="true"
         className="absolute top-[7px] w-3.5 h-3.5 rounded-full bg-white ring-2 ring-teal-500 shadow -translate-x-1/2 z-[1]"
-        style={{ left: `calc(${CENTRES[0]}% + ${frac} * ${CENTRES[CENTRES.length - 1] - CENTRES[0]}%)`, transition: "left .7s cubic-bezier(.22,1,.36,1)" }}
+        style={{ left: `calc(${CENTRES[0]}% + ${frac} * ${CENTRES[CENTRES.length - 1] - CENTRES[0]}%)`, transition: `left ${DURATION.slow}ms ${EASING.out.css}` }}
       />
       <div className="relative grid" style={{ gridTemplateColumns: `repeat(${STEPS.length}, minmax(0, 1fr))` }}>
         {STEPS.map((s, i) => {
