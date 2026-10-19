@@ -1245,6 +1245,23 @@ function StoreOverview({ days, selectedId, onPick, rich, flipEnter, picked }: { 
   return rich ? <StoreClusters days={days} selectedId={selectedId} onPick={onPick} flipEnter={flipEnter} picked={picked} /> : <StoreCards days={days} selectedId={selectedId} onPick={onPick} picked={picked} />;
 }
 
+/* The zones in the order and front-to-back stagger of the admin's zone map
+   (Beach layout › zone positions) — one source for the desktop overview, the
+   phone panorama and the When strip (AENR-760, AENR-766). `depth` runs 0 (front,
+   nearest the sea) to 1 (back). */
+function useZoneOrder() {
+  const { zoneMap } = useApp();
+  return useMemo(() => {
+    const at = (id: string) => zoneMap.find((m) => m.id === id);
+    const xOf = (id: string) => at(id)?.x ?? parseFloat(ZONE_BLOCKS.find((b) => b.id === id)?.left ?? "50");
+    const ys = ZONES.map((z) => at(z.id)?.y ?? 50);
+    const [y0, y1] = [Math.min(...ys), Math.max(...ys)];
+    return [...ZONES]
+      .sort((a, b) => xOf(a.id) - xOf(b.id))
+      .map((z) => ({ z, depth: y1 > y0 ? ((at(z.id)?.y ?? 50) - y0) / (y1 - y0) : 0 }));
+  }, [zoneMap]);
+}
+
 /* ============ Phones, When step: the beach filling up (AENR-758) ============
    A swipeable strip of the zones in beach order, each a mini map of its sets
    coloured by state for the chosen day (free teal, on hold amber, taken grey)
@@ -1254,10 +1271,7 @@ const STRIP_DOT: Record<string, string> = { a: "bg-teal-500", h: "bg-amber-400",
 function ZoneStrip({ days, onPick }: { days: string[]; onPick: (id: string) => void }) {
   const tr = useT();
   const liveSlots = useLiveSlots();
-  const order = useMemo(
-    () => [...ZONES].sort((a, b) => parseFloat(ZONE_BLOCKS.find((x) => x.id === a.id)?.left ?? "50") - parseFloat(ZONE_BLOCKS.find((x) => x.id === b.id)?.left ?? "50")),
-    [],
-  );
+  const order = useZoneOrder().map((o) => o.z);
   return (
     <div className="absolute inset-x-0 top-0 pointer-events-auto animate-fade-up">
       <div className="px-1 pb-1.5 text-guest-caption font-semibold text-navy-900/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.7)]">{tr("Free sets on the beach that day")} · {tr("tap a zone")}</div>
@@ -1302,17 +1316,8 @@ function ZoneStripTile({ zone, slots, onPick }: { zone: WizardZone; slots: Sunbe
    the raised sheet as the accessible alternative. */
 function ZonePanorama({ days, selectedId, picked, onPick }: { days: string[]; selectedId: string; picked: Record<string, number>; onPick: (id: string) => void }) {
   const tr = useT();
-  const { zoneMap } = useApp();
   const liveSlots = useLiveSlots();
-  const placed = useMemo(() => {
-    const at = (id: string) => zoneMap.find((m) => m.id === id);
-    const xOf = (id: string) => at(id)?.x ?? parseFloat(ZONE_BLOCKS.find((b) => b.id === id)?.left ?? "50");
-    const ys = ZONES.map((z) => at(z.id)?.y ?? 50);
-    const [y0, y1] = [Math.min(...ys), Math.max(...ys)];
-    return [...ZONES]
-      .sort((a, b) => xOf(a.id) - xOf(b.id))
-      .map((z) => ({ z, lift: y1 > y0 ? Math.round((((at(z.id)?.y ?? 50) - y0) / (y1 - y0)) * 28) : 0 }));
-  }, [zoneMap]);
+  const placed = useZoneOrder().map(({ z, depth }) => ({ z, lift: Math.round(depth * 28) }));
   return (
     <div className="absolute inset-x-0 top-0 pointer-events-auto animate-fade-up">
       <div className="px-1 pb-1 text-guest-caption font-semibold text-navy-900/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.7)] flex items-center gap-1.5">
@@ -1391,15 +1396,21 @@ function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: 
   const ch = plotH + 46; // + the name/logo band on the sand
   const glyph = clampN(cw * 0.12, 16, 40);
 
+  const zoneOrder = useZoneOrder();
   const positions = useMemo(() => {
     if (!box.w || !box.h) return [];
-    // Every zone in one front row along the water (AENR-668), in beach order, evenly
-    // across the whole width (this also keeps them right under the shoreline, AENR-667).
-    const order = [...ZONES].sort((a, b) => parseFloat(ZONE_BLOCKS.find((x) => x.id === a.id)?.left ?? "50") - parseFloat(ZONE_BLOCKS.find((x) => x.id === b.id)?.left ?? "50"));
+    // Every zone along the water (AENR-668), in the order of the admin's zone map
+    // (AENR-766), evenly across the whole width (keeping them under the shoreline,
+    // AENR-667), stepped back a little by the zone map's front-to-back position.
+    const order = zoneOrder.map((o) => o.z);
     const gap = box.w / ZONES.length;
+    const room = Math.max(0, Math.min(56, box.h - ch - 8));
     // Centred in the open sand between the shoreline and the guidance bar (AENR-670).
-    return ZONES.map((z) => ({ x: gap * (order.indexOf(z) + 0.5), y: Math.max(ch / 2 + 4, box.h / 2) }));
-  }, [box, ch]);
+    return ZONES.map((z) => {
+      const depth = zoneOrder.find((o) => o.z.id === z.id)?.depth ?? 0;
+      return { x: gap * (order.indexOf(z) + 0.5), y: Math.max(ch / 2 + 4, box.h / 2) - room / 2 + depth * room };
+    });
+  }, [box, ch, zoneOrder]);
 
   return (
     <div ref={ref} className="absolute inset-0">

@@ -19,7 +19,7 @@ import { DEFAULT_LOYALTY } from "./data/loyalty";
 import type { LoyaltyState } from "./data/loyalty";
 import { DEFAULT_ACHIEVEMENTS } from "./data/gamification";
 import type { Achievement } from "./data/gamification";
-import { DEFAULT_ZONE_MAP, DEFAULT_PRICE_RULES } from "./data/pricing";
+import { DEFAULT_ZONE_MAP, DEFAULT_PRICE_RULES, isLegacyZoneMap } from "./data/pricing";
 import { DEFAULT_CHANNELS } from "./data/channels";
 import { DEFAULT_STAFF, DEFAULT_STAFF_AUDIT, hasRole, migrateStaffUser, roleLabel, rolesLabel } from "./data/staff";
 import type { LegacyStaffUser } from "./data/staff";
@@ -183,7 +183,7 @@ export default function App() {
   const [passPricing, setPassPricing] = useState<PassPricing>(saved.passPricing || DEFAULT_PASS_PRICING);
   const [loyalty, setLoyaltyState] = useState<LoyaltyState>(saved.loyalty || DEFAULT_LOYALTY);
   const [achievements, setAchievements] = useState<Achievement[]>(saved.achievements || DEFAULT_ACHIEVEMENTS);
-  const [zoneMap, setZoneMap] = useState<ZoneMapItem[]>(saved.zoneMap || DEFAULT_ZONE_MAP);
+  const [zoneMap, setZoneMap] = useState<ZoneMapItem[]>(saved.zoneMap && !isLegacyZoneMap(saved.zoneMap) ? saved.zoneMap : DEFAULT_ZONE_MAP);
   const [priceRules, setPriceRules] = useState<PriceRule[]>(saved.priceRules || DEFAULT_PRICE_RULES);
   const [channels, setChannels] = useState<ChannelSetupState>(saved.channels || DEFAULT_CHANNELS);
   const [passCards, setPassCards] = useState<PassDesign[]>(saved.passCards || DEFAULT_PASS_CARDS);

@@ -3323,7 +3323,7 @@ Fix these when recreating (the intended behaviour is stated):
 
 1. **Pricing rules are not applied to customer prices.** The wizard should price each set with
    `effectivePrice(base, zone, date, rules)` per chosen date.
-2. **Zone map positions/identity don't drive the customer overview** (partly closed by AENR-760: on phones the zone panorama follows the zone map's order and stagger; the desktop overview still uses fixed blocks), which uses fixed block positions.
+2. ~~**Zone map positions/identity don't drive the customer overview**~~ **Resolved (AENR-760, AENR-766):** the desktop overview, the phone panorama and the phone When strip all place zones in the order and front-to-back stagger of the admin's zone map (`useZoneOrder`). The default zone map is seeded along the shoreline in beach order (Akanthus · Central · Macaw · Bestbuy · Main · Bolivar) instead of a 3 × 2 grid; an untouched old grid in a browser is replaced by it, an edited one is kept., which uses fixed block positions.
    The zone map should be the single source for zone placement and identity.
 3. **Zone open/closed** (Availability) doesn't hide or disable zones in the wizard.
 4. **Wallet card designs** (Passes → Card designer) don't drive the customer's VIP/Season cards or

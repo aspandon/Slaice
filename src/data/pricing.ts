@@ -2,22 +2,33 @@
 // day-of-week pricing rules. These seed the persisted zone the first time, so a
 // fresh visitor still sees a sensible beach + a couple of live pricing rules to
 // demonstrate the feature. (Pricing *logic* lives in domain/pricing.ts.)
-import { ZONES } from "./beach";
+import { ZONES, ZONE_BLOCKS } from "./beach";
 import type { BeachPricing, CalendarState, Landmark, LandmarkKind, PriceCategory, PriceRule, ZoneMapItem } from "../domain/types";
 
 // Seed zone positions across the lower (sand) band of the editor canvas: a 3×2
 // grid, all sitting on the sand so they read as beach plots, not floating sea.
-export const DEFAULT_ZONE_MAP: ZoneMapItem[] = ZONES.map((z, i) => ({
-  id: z.id,
-  name: z.name,
-  prefix: z.prefix,
-  color: z.color,
-  total: z.total,
-  rows: 8,
-  cols: Math.max(6, Math.round(z.total / 8)),
-  x: 6 + (i % 3) * 32,
-  y: 30 + Math.floor(i / 3) * 30,
-}));
+/* The zones where they really are (AENR-766): along the shoreline in beach order —
+   Akanthus · Central · Macaw · Bestbuy · Main · Bolivar — at the positions of the
+   illustrated beach (ZONE_BLOCKS), so the zone map the manager edits starts as the
+   beach guests see, and the guest overviews follow it. */
+export const DEFAULT_ZONE_MAP: ZoneMapItem[] = ZONES.map((z) => {
+  const b = ZONE_BLOCKS.find((x) => x.id === z.id);
+  return {
+    id: z.id,
+    name: z.name,
+    prefix: z.prefix,
+    color: z.color,
+    total: z.total,
+    rows: 8,
+    cols: Math.max(6, Math.round(z.total / 8)),
+    x: b ? Math.round(parseFloat(b.left) + parseFloat(b.w) / 2) : 50,
+    y: b ? Math.round(parseFloat(b.top) - 40) : 40,
+  };
+});
+
+/** The zone map as first seeded (a 3 × 2 grid) — an untouched copy is replaced by the beach-order default. */
+export const isLegacyZoneMap = (m: ZoneMapItem[]) =>
+  m.length === ZONES.length && m.every((z, i) => z.id === ZONES[i]?.id && z.x === 6 + (i % 3) * 32 && z.y === 30 + Math.floor(i / 3) * 30);
 
 // A couple of demonstrative rules so the feature isn't empty on first load:
 // peak August weekends cost more; July weekdays get an early-bird discount.
