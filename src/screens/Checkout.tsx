@@ -2,9 +2,10 @@ import { useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../lib/icons";
 import { AgeCheck } from "../components/AgeCheck";
+import { PaymentProgress } from "../components/PaymentProgress";
 import { QuickSignIn } from "../components/QuickSignIn";
 import type { IconRenderer } from "../lib/icons";
-import { gsap, motionOK, takeFlip, Flip, EASE, burstConfetti } from "../lib/fx";
+import { gsap, motionOK, takeFlip, Flip, EASE } from "../lib/fx";
 import { Card, Btn, EmptyState, NotMvpBadge, SwipeRow, Toggle } from "../components/ui";
 import { QR } from "../components/charts";
 import { qrCode } from "../domain/entry";
@@ -105,9 +106,14 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
   const firstDay = cart.map((i) => i.date).filter(Boolean).sort()[0] ?? todayISO();
   const cancelBy = t(cancelLine(firstDay, guestNow(), policy));
 
+  // Pay → the payment moment (AENR-734): the progress steps and the success message run first, and
+  // the booking is settled when they finish, so the pass appears only once everything is confirmed.
+  const [processing, setProcessing] = useState<{ card: { save: boolean; last4: string } | null; method: "card" | "apple" | "google" } | null>(null);
+  const finish = (card?: { save: boolean; last4: string } | null, method: "card" | "apple" | "google" = "card") =>
+    setProcessing({ card: card ?? null, method });
   // Settle the order: debit VIP credit (if any), save the booking (and the card
   // if asked), clear the basket and land on the confirmation.
-  const finish = (card?: { save: boolean; last4: string } | null, method: "card" | "apple" | "google" = "card") => {
+  const commit = (card?: { save: boolean; last4: string } | null, method: "card" | "apple" | "google" = "card") => {
     if (vipDebit > 0) spendVipCredit(vipDebit);
     const vatNo = wantInvoice ? normalVatNo(inv) : "";
     const booking: PlacedBooking = { ref: bookingRefFor(account.bookings.length), at: new Date().toISOString(), items: [...cart], fees: sf.lines, total: fullDue, guest: PROFILE, method, 
@@ -132,6 +138,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
     }));
     setPlaced(booking);
     clearCart();
+    setProcessing(null);
     setPhase("done");
     // Embedded in the wizard (AENR-640): the paid booking opens its confirmation page.
     if (embedded) go("customer", "confirm");
@@ -157,7 +164,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
     if (account.guest) return setPhase("signin");
     if (needAge()) return;
     setWallet(w);
-    window.setTimeout(() => { setWallet(null); finish(null, w); }, 1300);
+    window.setTimeout(() => { setWallet(null); finish(null, w); }, 700);
   };
   // Arriving from the wizard: its glass menu hands over its rect and the
   // summary panel morphs out of it while the basket rows stagger in — checkout
@@ -195,6 +202,17 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
     toast(t("Basket emptied."), { action: { label: t("Undo"), onClick: () => snapshot.forEach(addToCart) } });
   };
 
+  if (processing)
+    return (
+      <PaymentProgress
+        moment={{
+          amount: cashDue,
+          method: cashDue <= 0 ? "" : processing.method === "apple" ? "Apple Pay" : processing.method === "google" ? "Google Pay" : `Visa ···· ${processing.card?.last4 ?? "4242"}`,
+          reference: bookingRefFor(account.bookings.length),
+        }}
+        onDone={() => commit(processing.card, processing.method)}
+      />
+    );
   // Embedded in the wizard, a paid booking opens its confirmation page.
   if (embedded && (phase === "done" || cart.length === 0)) return null;
   if (cart.length === 0 && phase !== "done") {
@@ -425,7 +443,8 @@ function StripeStep({ amount, saved, onBack, onPaid }: { amount: number; saved: 
   const [busy, setBusy] = useState(false);
   const digits = num.replace(/\D/g, "");
   const valid = useSaved || (digits.length >= 15 && /^\d{2}\/\d{2}$/.test(exp) && /^\d{3,4}$/.test(cvc));
-  const submit = () => { setBusy(true); window.setTimeout(() => onPaid(useSaved && saved ? { save: false, last4: saved.last4 } : { save, last4: digits.slice(-4) }), 1200); };
+  // The payment moment (AENR-734) shows the processing, so the form hands over at once.
+  const submit = () => { setBusy(true); onPaid(useSaved && saved ? { save: false, last4: saved.last4 } : { save, last4: digits.slice(-4) }); };
   return (
     <div className="animate-fade-in grid place-items-center min-h-[60dvh]">
       <Card className="p-8 max-w-md w-full">
@@ -492,19 +511,13 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
   const ob = booking ? entry.find(booking.ref) : undefined;
   const group = ob && visit ? entry.stateOf(ob, visit.date) : null;
 
-  // Celebration: the check springs in and throws confetti, the ticket flips up
-  // in 3D, then the actions stagger in. Elements render in their final state —
-  // under reduced motion none of this runs.
+  // The success message is shown by the payment moment (AENR-734); here the pass rises in and the
+  // actions follow. Elements render in their final state — under reduced motion none of this runs.
   useLayoutEffect(() => {
     if (!motionOK()) return;
     const ctx = gsap.context(() => {
       gsap.timeline({ defaults: { ease: EASE.out } })
-        .from("[data-confirm-check]", { scale: 0, rotation: -100, duration: 0.7, ease: EASE.pop })
-        .add(() => {
-          const el = scope.current?.querySelector<HTMLElement>("[data-confirm-check]");
-          if (el) burstConfetti(el);
-        }, "-=0.25")
-        .from("[data-confirm-head]", { y: 14, opacity: 0, duration: 0.45 }, "-=0.4")
+        .from("[data-confirm-head]", { y: 10, opacity: 0, duration: 0.35 })
         .fromTo("[data-confirm-qr]",
           { transformPerspective: 900, rotationY: 95, opacity: 0 },
           { rotationY: 0, opacity: 1, duration: 0.85, clearProps: "transform" }, "-=0.2")
@@ -528,9 +541,13 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
   const onSite = booking?.deposit != null ? round2(booking.total - booking.deposit) : 0;
   return (
     <div ref={scope} className="animate-fade-up max-w-xl mx-auto" data-inline={inline ? "" : undefined}>
-      <div className="text-center mb-4">
-        <div className="w-14 h-14 mx-auto rounded-2xl bg-teal-600 text-white grid place-items-center" data-confirm-check><Icon.check size={30} /></div>
-        <h1 className="mt-3 font-display font-bold text-guest-title text-navy-900 glass-card-solid inline-block rounded-xl px-3 py-1" data-confirm-head>{t("You're booked")}</h1>
+      {/* A quiet confirmation line above the pass (AENR-734) — the big success moment came with the payment. */}
+      <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl glass-card-solid px-4 py-2.5" data-confirm-head>
+        <h1 className="flex items-center gap-2 text-guest-body font-semibold text-navy-900">
+          <span aria-hidden className="w-5 h-5 rounded-full bg-teal-600 text-white grid place-items-center"><Icon.check size={12} /></span>
+          {t("Booking confirmed")}
+        </h1>
+        <span className="font-mono text-guest-meta text-slate-600">{ref}</span>
       </div>
 
       {/* The ticket — what the guest shows at the gate */}

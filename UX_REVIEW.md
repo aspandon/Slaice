@@ -516,6 +516,7 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-716 — roles per tenant** (Platform › tenant › Roles).
 - **AENR-718 — invite staff by e-mail + mobile** with a first sign-in: password and 2-step (SMS, e-mail, authenticator).
 - **AENR-720 — Call Center Incidents** and a Slaice Incidents inbox.
+- **AENR-734 — the payment moment**: progress steps → Payment complete with amount and reference → the pass; the big tick and You're booked removed from the confirmation.
 - **AENR-733 — the total grows step by step**: Where = sets, Who = + entry tickets, Pay = + service fee and extras.
 - **AENR-732 — the guest picks their own sets**: no automatic pick when a zone opens (Pick for me stays as a button); the selected zone glows sky blue whichever zone it is.
 - **AENR-731 — visual QA of every screen** (phone and desktop): Tenants header, Compliance sub-processors, Revenue badges, Profile contacts fixed; 146 views clean.

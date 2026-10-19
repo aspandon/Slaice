@@ -472,6 +472,18 @@ html[data-persona="customer"]::-webkit-scrollbar {
 }
 
 /* Respect users who prefer reduced motion (WCAG 2.3.3). */
+/* Payment moment (AENR-734): the success check draws itself; the bar under "View your pass"
+   shows the pass opening by itself. */
+.pp-check circle { stroke-dasharray: 152; stroke-dashoffset: 152; animation: pp-draw 0.5s ease-out forwards; }
+.pp-check path { stroke-dasharray: 36; stroke-dashoffset: 36; animation: pp-draw 0.35s 0.4s ease-out forwards; }
+@keyframes pp-draw { to { stroke-dashoffset: 0; } }
+.pp-countdown { width: 0; animation-name: pp-fill; animation-timing-function: linear; animation-fill-mode: forwards; }
+@keyframes pp-fill { to { width: 100%; } }
+@media (prefers-reduced-motion: reduce) {
+  .pp-check circle, .pp-check path { animation: none; stroke-dashoffset: 0; }
+  .pp-countdown { animation: none; width: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
