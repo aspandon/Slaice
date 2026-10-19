@@ -618,9 +618,9 @@ function WizardInner() {
   // step it starts lowered (total + Continue) so the sand is the screen; the form
   // steps start raised. The guest's own choice per step wins.
   const sheetKey = `${step.id}-${phase}`;
-  // Phones choose the zone inside the panel (AENR-693), so it starts raised there; the sets
-  // phase lowers it onto the map.
-  const sheetOpen = sheetPref[sheetKey] ?? (step.id !== "beach" || (!richOverview && phase === "zones"));
+  // Zones are now chosen on the beach panorama (AENR-760), so the sheet starts lowered on
+  // Where too; raising it still shows the zone list.
+  const sheetOpen = sheetPref[sheetKey] ?? step.id !== "beach";
   const setSheetOpen = (v: boolean) => setSheetPref((m) => ({ ...m, [sheetKey]: v }));
   const swipe = useRef<number | null>(null);
   const sheetHide = sheetOpen ? "" : "max-lg:hidden";
@@ -844,6 +844,7 @@ function WizardInner() {
         <div className={`relative w-full ${showSets ? "max-w-5xl" : "max-w-[1700px]"}`}>
           {showZones && richOverview && <StoreOverview days={selDates} selectedId={zoneId} onPick={(id) => { if (step.id === "when") setStepIdx(BEACH_IDX); pickZone(id); }} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} picked={pickedByZone} />}
           {step.id === "when" && !richOverview && <ZoneStrip days={selDates} onPick={(id) => { setStepIdx(BEACH_IDX); pickZone(id); }} />}
+          {step.id === "beach" && phase === "zones" && !richOverview && <ZonePanorama days={selDates} selectedId={zoneId} picked={pickedByZone} onPick={pickZone} />}
           {showSets && (richOverview ? (
             <SandSunbeds slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} />
           ) : (
@@ -1290,6 +1291,64 @@ function ZoneStripTile({ zone, slots, onPick }: { zone: WizardZone; slots: Sunbe
         {from !== null && <span className="block text-slate-600 tnum">{tr("from")} {euro(from)}</span>}
       </span>
     </button>
+  );
+}
+
+/* ============ Phones, Where: choose a zone on the beach (AENR-760) ============
+   A sideways-swiping panorama of the sand: the zones in the order and the
+   front-to-back stagger of the admin's zone map (Beach layout), each drawn as a
+   mini map of its sets for the chosen day with its name and a free · from chip.
+   It snaps zone by zone; tapping a zone opens its sets. The zone list stays in
+   the raised sheet as the accessible alternative. */
+function ZonePanorama({ days, selectedId, picked, onPick }: { days: string[]; selectedId: string; picked: Record<string, number>; onPick: (id: string) => void }) {
+  const tr = useT();
+  const { zoneMap } = useApp();
+  const liveSlots = useLiveSlots();
+  const placed = useMemo(() => {
+    const at = (id: string) => zoneMap.find((m) => m.id === id);
+    const xOf = (id: string) => at(id)?.x ?? parseFloat(ZONE_BLOCKS.find((b) => b.id === id)?.left ?? "50");
+    const ys = ZONES.map((z) => at(z.id)?.y ?? 50);
+    const [y0, y1] = [Math.min(...ys), Math.max(...ys)];
+    return [...ZONES]
+      .sort((a, b) => xOf(a.id) - xOf(b.id))
+      .map((z) => ({ z, lift: y1 > y0 ? Math.round((((at(z.id)?.y ?? 50) - y0) / (y1 - y0)) * 28) : 0 }));
+  }, [zoneMap]);
+  return (
+    <div className="absolute inset-x-0 top-0 pointer-events-auto animate-fade-up">
+      <div className="px-1 pb-1 text-guest-caption font-semibold text-navy-900/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.7)] flex items-center gap-1.5">
+        <Icon.arrowR size={12} className="rotate-180" /> {tr("Swipe along the beach · tap a zone")} <Icon.arrowR size={12} />
+      </div>
+      <ul className="flex gap-3 overflow-x-auto snap-x snap-mandatory overscroll-x-contain pb-3 pt-1 -mx-3 px-[max(0.75rem,calc(50%-80px))] [scrollbar-width:none]" aria-label={tr("Zones on the beach")}>
+        {placed.map(({ z, lift }) => {
+          const slots = liveSlots(z, days);
+          const freeSlots = slots.filter((x) => x.state === "a");
+          const from = freeSlots.length ? Math.min(...freeSlots.map((x) => x.price)) : null;
+          const active = z.id === selectedId;
+          const n = picked[z.id] ?? 0;
+          return (
+            <li key={z.id} className="snap-center shrink-0" style={{ marginTop: lift }}>
+              <button type="button" onClick={() => onPick(z.id)}
+                aria-label={`${z.name} — ${freeSlots.length} ${tr("free")}${from !== null ? `, ${tr("from")} ${euro(from)}` : ""}${n ? `, ${n} ${tr("picked")}` : ""}`}
+                className={`relative w-[160px] rounded-3xl p-3 text-left transition duration-fast ease-ios active:scale-[.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${active ? "bg-white/85 ring-2 ring-teal-600 shadow-lift" : "bg-white/55 ring-1 ring-white/70 shadow-soft"} ${freeSlots.length ? "" : "opacity-70"}`}>
+                <span aria-hidden className="relative block h-[96px] rounded-2xl bg-[#f3e3c4]">
+                  {slots.map((x) => (
+                    <span key={x.id} className={`absolute w-[9px] h-[9px] rounded-[3px] -translate-x-1/2 -translate-y-1/2 transition-colors duration-base ${STRIP_DOT[x.state] ?? STRIP_DOT.u}`} style={{ left: `${x.x}%`, top: `${x.y}%` }} />
+                  ))}
+                </span>
+                <span className="mt-2 flex items-center gap-1.5">
+                  <span aria-hidden className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: z.color }} />
+                  <span className="font-display font-bold text-guest-body text-navy-900 truncate">{z.name}</span>
+                </span>
+                <span className="mt-1 inline-flex rounded-full bg-white px-2 py-0.5 text-guest-caption font-semibold text-navy-900 ring-1 ring-slate-200 tnum">
+                  {freeSlots.length ? `${freeSlots.length} ${tr("free")}${from !== null ? ` · ${tr("from")} ${euro(from)}` : ""}` : tr("Full")}
+                </span>
+                {n > 0 && <span className="absolute -top-2 -right-2 min-w-6 h-6 px-1.5 rounded-full bg-coral-700 text-white text-guest-caption font-bold grid place-items-center ring-2 ring-white">{n}</span>}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }
 
