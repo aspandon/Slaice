@@ -182,7 +182,7 @@ export function BottomTabBar({ persona, page, setPage, away = false }: NavProps 
   };
   return (
     <>
-      <nav ref={navRef} aria-hidden={away || undefined} className={`md:hidden fixed bottom-0 inset-x-0 z-40 glass border-t border-white/40 pb-safe shadow-[0_-8px_24px_-16px_rgba(15,23,42,0.35)] transition-transform duration-base ${away ? "translate-y-full ease-exit" : "translate-y-0 ease-ios"}`}>
+      <nav ref={navRef} aria-hidden={away || undefined} className={`md:hidden fixed bottom-0 inset-x-0 z-40 tabbar-material pb-safe shadow-[0_-8px_24px_-16px_rgba(15,23,42,0.35)] transition-transform duration-base ${away ? "translate-y-full ease-exit" : "translate-y-0 ease-ios"}`}>
         <div className="flex items-stretch px-1">
           {primary.map((it) => (
             <Tab key={it.k} icon={it.icon} label={t(it.short || it.label.split(" ")[0])} badge={it.badge} active={page === it.k} onClick={() => setPage(it.k)} />
