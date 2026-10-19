@@ -17,7 +17,7 @@ import { OPERATOR, TENANT, ZONES, todayISO } from "../data/beach";
 import { round2 } from "../data/passes";
 import { useApp, useT } from "../app/store";
 import type { CartItem } from "../domain/types";
-import { PROFILE, cartKey, serviceFees, settleCheckout, type InvoiceRequest, type PlacedBooking } from "../domain/account";
+import { PROFILE, allCards, cardBrand, cardKey, cartKey, serviceFees, settleCheckout, withCard, type InvoiceRequest, type PlacedBooking, type SavedCard } from "../domain/account";
 import { emptyInvoice, invoiceAddress, invoiceErrors, normalVatNo, type InvoiceDetails } from "../domain/invoiceDetails";
 import { InvoiceFields } from "./customer/InvoiceFields";
 import { SERVICE_NOUN, vatRates } from "../domain/economics";
@@ -108,16 +108,16 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
 
   // Pay → the payment moment (AENR-734): the progress steps and the success message run first, and
   // the booking is settled when they finish, so the pass appears only once everything is confirmed.
-  const [processing, setProcessing] = useState<{ card: { save: boolean; last4: string } | null; method: "card" | "apple" | "google" } | null>(null);
-  const finish = (card?: { save: boolean; last4: string } | null, method: "card" | "apple" | "google" = "card") =>
+  const [processing, setProcessing] = useState<{ card: { save: boolean; last4: string; brand?: string } | null; method: "card" | "apple" | "google" } | null>(null);
+  const finish = (card?: { save: boolean; last4: string; brand?: string } | null, method: "card" | "apple" | "google" = "card") =>
     setProcessing({ card: card ?? null, method });
   // Settle the order: debit VIP credit (if any), save the booking (and the card
   // if asked), clear the basket and land on the confirmation.
-  const commit = (card?: { save: boolean; last4: string } | null, method: "card" | "apple" | "google" = "card") => {
+  const commit = (card?: { save: boolean; last4: string; brand?: string } | null, method: "card" | "apple" | "google" = "card") => {
     if (vipDebit > 0) spendVipCredit(vipDebit);
     const vatNo = wantInvoice ? normalVatNo(inv) : "";
     const booking: PlacedBooking = { ref: bookingRefFor(account.bookings.length), at: new Date().toISOString(), items: [...cart], fees: sf.lines, total: fullDue, guest: PROFILE, method, 
-      card: method === "apple" ? "Apple Pay" : method === "google" ? "Google Pay" : card ? `Visa ···· ${card.last4}` : undefined,
+      card: method === "apple" ? "Apple Pay" : method === "google" ? "Google Pay" : card ? `${card.brand ?? "Visa"} ···· ${card.last4}` : undefined,
       invoiceTo: wantInvoice ? { company: inv.company.trim(), vatNo, email: inv.email.trim() } : undefined };
     // One invoice (ΤΠΥ) per visit day, as My bookings › Request an invoice makes them.
     const invoiceReqs: InvoiceRequest[] = wantInvoice
@@ -132,7 +132,8 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
       adultConfirmed: true,
       invoices: invoiceReqs.length ? [...invoiceReqs, ...a.invoices] : a.invoices,
       invoiceDetails: wantInvoice && saveInv ? { ...inv, vatNo: normalVatNo(inv) } : a.invoiceDetails ?? null,
-      savedCard: card?.save ? { brand: "Visa", last4: card.last4, exp: "12/28" } : a.savedCard,
+      // A card saved at payment joins the saved cards and becomes the default (AENR-736).
+      ...(card?.save ? (({ cards, savedCard }) => ({ cards, savedCard }))(withCard(a, { brand: card.brand ?? "Visa", last4: card.last4, exp: "12/28" }, true)) : {}),
       rewardsUsed: rewardOff > 0 && best && !best.reward.reusable ? [...(a.rewardsUsed ?? []), best.reward.id] : a.rewardsUsed ?? [],
       credit: creditUsed > 0 ? { balance: round2(a.credit.balance - creditUsed), log: [{ at: guestNow(), text: `Used at checkout · ${booking.ref}`, amount: -creditUsed }, ...a.credit.log] } : a.credit,
     }));
@@ -207,7 +208,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
       <PaymentProgress
         moment={{
           amount: cashDue,
-          method: cashDue <= 0 ? "" : processing.method === "apple" ? "Apple Pay" : processing.method === "google" ? "Google Pay" : `Visa ···· ${processing.card?.last4 ?? "4242"}`,
+          method: cashDue <= 0 ? "" : processing.method === "apple" ? "Apple Pay" : processing.method === "google" ? "Google Pay" : `${processing.card?.brand ?? "Visa"} ···· ${processing.card?.last4 ?? "4242"}`,
           reference: bookingRefFor(account.bookings.length),
         }}
         onDone={() => commit(processing.card, processing.method)}
@@ -252,7 +253,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
     );
   }
 
-  if (phase === "redirect") return <StripeStep amount={cashDue} saved={account.savedCard} onBack={() => setPhase("cart")} onPaid={finish} />;
+  if (phase === "redirect") return <StripeStep amount={cashDue} cards={(() => { const all = allCards(account); const d = account.savedCard; return d ? [d, ...all.filter((c) => cardKey(c) !== cardKey(d))] : all; })()} onBack={() => setPhase("cart")} onPaid={finish} />;
 
   if (phase === "done") return <Confirmation inline booking={placed} />;
 
@@ -433,9 +434,12 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
 
 /* The tenant's Stripe Checkout (simulated): saved card or a new one, with
    "save card for faster checkout"; Pay → processing → back to Slaice. */
-function StripeStep({ amount, saved, onBack, onPaid }: { amount: number; saved: { brand: string; last4: string; exp: string } | null; onBack: () => void; onPaid: (card: { save: boolean; last4: string }) => void }) {
+function StripeStep({ amount, cards, onBack, onPaid }: { amount: number; cards: SavedCard[]; onBack: () => void; onPaid: (card: { save: boolean; last4: string; brand?: string }) => void }) {
   const t = useT();
-  const [useSaved, setUseSaved] = useState(!!saved);
+  // Every saved card (AENR-736), the default first; or a new one.
+  const [pick, setPick] = useState(cards.length ? 0 : -1);
+  const useSaved = pick >= 0;
+  const saved = useSaved ? cards[pick] : null;
   const [num, setNum] = useState("4242 4242 4242 4242");
   const [exp, setExp] = useState("12/28");
   const [cvc, setCvc] = useState("123");
@@ -444,7 +448,7 @@ function StripeStep({ amount, saved, onBack, onPaid }: { amount: number; saved: 
   const digits = num.replace(/\D/g, "");
   const valid = useSaved || (digits.length >= 15 && /^\d{2}\/\d{2}$/.test(exp) && /^\d{3,4}$/.test(cvc));
   // The payment moment (AENR-734) shows the processing, so the form hands over at once.
-  const submit = () => { setBusy(true); onPaid(useSaved && saved ? { save: false, last4: saved.last4 } : { save, last4: digits.slice(-4) }); };
+  const submit = () => { setBusy(true); onPaid(saved ? { save: false, last4: saved.last4, brand: saved.brand } : { save, last4: digits.slice(-4), brand: cardBrand(digits) ?? "Visa" }); };
   return (
     <div className="animate-fade-in grid place-items-center min-h-[60dvh]">
       <Card className="p-8 max-w-md w-full">
@@ -455,14 +459,16 @@ function StripeStep({ amount, saved, onBack, onPaid }: { amount: number; saved: 
         <div className="mt-4 text-guest-caption text-slate-500">{t("Total")}</div>
         <div className="font-display text-3xl font-bold text-navy-900 tnum">€{amount.toFixed(2)}</div>
         <form className="mt-4 space-y-3" onSubmit={(e) => { e.preventDefault(); if (valid && !busy) submit(); }}>
-          {saved && (
+          {cards.length > 0 && (
             <fieldset className="space-y-1.5">
               <legend className="sr-only">{t("Card")}</legend>
-              <label className={`flex items-center gap-2 rounded-xl ring-1 px-3 min-h-[48px] cursor-pointer ${useSaved ? "ring-[#635bff] bg-indigo-50/50" : "ring-slate-200"}`}>
-                <input type="radio" name="card" className="accent-[#635bff]" checked={useSaved} onChange={() => setUseSaved(true)} /> <Icon.card size={16} /> {t("Pay with")} {saved.brand} ···· {saved.last4} <span className="ml-auto text-guest-caption text-slate-500">{saved.exp}</span>
-              </label>
-              <label className={`flex items-center gap-2 rounded-xl ring-1 px-3 min-h-[48px] cursor-pointer ${!useSaved ? "ring-[#635bff] bg-indigo-50/50" : "ring-slate-200"}`}>
-                <input type="radio" name="card" className="accent-[#635bff]" checked={!useSaved} onChange={() => setUseSaved(false)} /> {t("Use another card")}
+              {cards.map((c, i) => (
+                <label key={`${c.brand}-${c.last4}-${c.exp}`} className={`flex items-center gap-2 rounded-xl ring-1 px-3 min-h-[48px] cursor-pointer ${pick === i ? "ring-[#635bff] bg-indigo-50/50" : "ring-slate-200"}`}>
+                  <input type="radio" name="card" className="accent-[#635bff]" checked={pick === i} onChange={() => setPick(i)} /> <Icon.card size={16} /> {t("Pay with")} {c.brand} ···· {c.last4} <span className="ml-auto text-guest-caption text-slate-500">{c.exp}</span>
+                </label>
+              ))}
+              <label className={`flex items-center gap-2 rounded-xl ring-1 px-3 min-h-[48px] cursor-pointer ${pick < 0 ? "ring-[#635bff] bg-indigo-50/50" : "ring-slate-200"}`}>
+                <input type="radio" name="card" className="accent-[#635bff]" checked={pick < 0} onChange={() => setPick(-1)} /> {t("Use another card")}
               </label>
             </fieldset>
           )}

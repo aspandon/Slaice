@@ -11,6 +11,8 @@ export interface SavedCard {
   brand: string;
   last4: string;
   exp: string;
+  /** Name on the card (cards added in Account › Payment methods, AENR-736). */
+  holder?: string;
 }
 export interface PlacedBooking {
   ref: string;
@@ -53,7 +55,10 @@ export interface InvoiceRequest {
 export interface AccountState {
   /** Browsing without an account — checkout asks to sign in first. */
   guest: boolean;
+  /** The default card — offered first at checkout. */
   savedCard: SavedCard | null;
+  /** Every saved card, the default included (AENR-736); missing = just `savedCard`. */
+  cards?: SavedCard[];
   bookings: PlacedBooking[];
   /** The guest's changes to their visits (AENR-572). */
   selfService: SelfService;
@@ -144,3 +149,67 @@ export function bookedSets(bookings: readonly PlacedBooking[], date: string): Se
     ),
   );
 }
+
+/* ---------- Saved cards (AENR-736) ----------
+   Demo of a Stripe SetupIntent: the card is checked here (Luhn, expiry, CVC) and only its brand, last
+   4 digits, expiry and holder are kept — the number never is. The default card is `savedCard`, the one
+   checkout offers first; `cards` holds them all. */
+export const cardKey = (c: Pick<SavedCard, "brand" | "last4" | "exp">) => `${c.brand}-${c.last4}-${c.exp}`;
+export const allCards = (a: Pick<AccountState, "cards" | "savedCard">): SavedCard[] =>
+  a.cards ?? (a.savedCard ? [a.savedCard] : []);
+/** Add (or refresh) a card; it becomes the default when asked or when it is the first. */
+export function withCard(a: AccountState, c: SavedCard, makeDefault: boolean): AccountState {
+  const rest = allCards(a).filter((x) => cardKey(x) !== cardKey(c));
+  const cards = [...rest, c];
+  return { ...a, cards, savedCard: makeDefault || !a.savedCard ? c : a.savedCard };
+}
+export function withoutCard(a: AccountState, c: SavedCard): AccountState {
+  const cards = allCards(a).filter((x) => cardKey(x) !== cardKey(c));
+  const wasDefault = !!a.savedCard && cardKey(a.savedCard) === cardKey(c);
+  return { ...a, cards, savedCard: wasDefault ? cards[0] ?? null : a.savedCard };
+}
+export type CardBrand = "Visa" | "Mastercard" | "Amex";
+export function cardBrand(num: string): CardBrand | null {
+  const d = num.replace(/\D/g, "");
+  if (/^4/.test(d)) return "Visa";
+  if (/^(5[1-5]|2[2-7])/.test(d)) return "Mastercard";
+  if (/^3[47]/.test(d)) return "Amex";
+  return null;
+}
+export function luhnOk(num: string): boolean {
+  const d = num.replace(/\D/g, "");
+  if (d.length < 13 || d.length > 19) return false;
+  let sum = 0;
+  for (let i = 0; i < d.length; i++) {
+    let n = Number(d[d.length - 1 - i]);
+    if (i % 2 === 1) {
+      n *= 2;
+      if (n > 9) n -= 9;
+    }
+    sum += n;
+  }
+  return sum % 10 === 0;
+}
+/** "4242424242424242" → "4242 4242 4242 4242" (Amex 4-6-5). */
+export function formatCardNumber(raw: string): string {
+  const d = raw.replace(/\D/g, "").slice(0, 19);
+  if (cardBrand(d) === "Amex") return [d.slice(0, 4), d.slice(4, 10), d.slice(10, 15)].filter(Boolean).join(" ");
+  return d.replace(/(.{4})/g, "$1 ").trim();
+}
+/** Field → message; empty when the card can be saved. `today` is YYYY-MM-DD. */
+export function cardErrors(f: { holder: string; number: string; exp: string; cvc: string }, today: string) {
+  const e: Partial<Record<"holder" | "number" | "exp" | "cvc", string>> = {};
+  if (f.holder.trim().length < 2) e.holder = "Enter the name on the card";
+  const brand = cardBrand(f.number);
+  if (!brand) e.number = "Visa, Mastercard or American Express";
+  else if (!luhnOk(f.number)) e.number = "Check the card number";
+  const m = /^(\d{2})\s*\/\s*(\d{2})$/.exec(f.exp.trim());
+  if (!m || Number(m[1]) < 1 || Number(m[1]) > 12) e.exp = "MM/YY";
+  else {
+    const exp = `20${m[2]}-${m[1]}`;
+    if (exp < today.slice(0, 7)) e.exp = "This card has expired";
+  }
+  if (!new RegExp(brand === "Amex" ? "^\\d{4}$" : "^\\d{3}$").test(f.cvc.trim())) e.cvc = brand === "Amex" ? "4 digits" : "3 digits";
+  return e;
+}
+

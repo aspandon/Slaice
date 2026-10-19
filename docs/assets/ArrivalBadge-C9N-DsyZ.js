@@ -1,0 +1,1 @@
+import{j as n}from"./react-BSyyv8QX.js";import{ek as i,ej as l,bV as g,v as c}from"./index-DTv2BzAh.js";const d={expected:"slate",inProgress:"amber",arrived:"green"};function x({st:e,t:a=r=>r,detail:s=!0}){const r=i(e),t=a(l[r]),o=r==="inProgress"&&s?` · ${g(e,a)}`:r==="arrived"&&e.total>1?` · ${e.total}`:"";return n.jsxs(c,{tone:d[r],children:[t,o]})}export{x as A};

@@ -25,14 +25,16 @@ export function useVisits() {
   const { account, setAccount, extras } = useApp();
   const history = useAsync(listCustomerBookings);
   const today = todayISO();
-  // Demo › "Simulate a first-time guest" (AENR-702): no bookings at all, everywhere.
+  // Demo › "Simulate a first-time guest" (AENR-702): no booking history. Bookings the guest makes in
+  // this browser still show — kept in localStorage with the account — so a first-time journey runs
+  // end to end: book, pay, then find the pass in Wallet, My bookings and Home (AENR-735).
   const [newGuest] = useDemoFlag("newGuest");
   const visits: Visit[] = useMemo(
     () =>
-      newGuest ? [] : resolveVisits(
+      resolveVisits(
         [
           ...placedVisits(account.bookings, zoneName),
-          ...(history.status === "success" ? historyVisits(history.data) : []),
+          ...(!newGuest && history.status === "success" ? historyVisits(history.data) : []),
         ],
         account.selfService,
         today,

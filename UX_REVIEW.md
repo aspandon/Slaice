@@ -516,6 +516,8 @@ Re-checked on 29 Sep 2026 — all of this still holds:
 - **AENR-716 — roles per tenant** (Platform › tenant › Roles).
 - **AENR-718 — invite staff by e-mail + mobile** with a first sign-in: password and 2-step (SMS, e-mail, authenticator).
 - **AENR-720 — Call Center Incidents** and a Slaice Incidents inbox.
+- **AENR-736 — cards that work**: Add card with validation and a simulated bank check, several cards, Make default, Remove with Undo; checkout lists every card.
+- **AENR-735 — the new pass shows in the Wallet**: bookings kept in browser storage; the first-time-guest switch hides only sample history.
 - **AENR-734 — the payment moment**: progress steps → Payment complete with amount and reference → the pass; the big tick and You're booked removed from the confirmation.
 - **AENR-733 — the total grows step by step**: Where = sets, Who = + entry tickets, Pay = + service fee and extras.
 - **AENR-732 — the guest picks their own sets**: no automatic pick when a zone opens (Pick for me stays as a button); the selected zone glows sky blue whichever zone it is.

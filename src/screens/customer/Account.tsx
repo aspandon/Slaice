@@ -8,7 +8,8 @@ import { readHashQuery } from "../../app/router";
 import { deviceLang } from "../../app/i18n";
 import { PrivacyCenter } from "../../components/PrivacyCenter";
 import { ChangePasswordModal, Enable2FAModal } from "../../components/Security";
-import { PROFILE, partyLabel } from "../../domain/account";
+import { PROFILE, allCards, cardKey, partyLabel, withCard, withoutCard, type SavedCard } from "../../domain/account";
+import { AddCardModal } from "./AddCard";
 import { useExtras } from "../../lib/useExtras";
 import { CustomerDocs } from "./CustomerDocs";
 import { AppleLogo } from "../../components/WalletPass";
@@ -51,7 +52,8 @@ export function CustomerAccount() {
   const [prefs, setPrefs] = useState<Record<string, boolean>>({ push: true, email: true, sms: false, bookings: true, weather: true, offers: true, receipts: true });
 
   const names = Object.fromEntries(ex.tickets.map((c) => [c.id, ex.ticketLabel(c.id).toLowerCase()]));
-  const card = account.savedCard ? `${account.savedCard.brand} ···· ${account.savedCard.last4}` : t("None saved");
+  const nCards = allCards(account).length;
+  const card = account.savedCard ? `${account.savedCard.brand} ···· ${account.savedCard.last4}${nCards > 1 ? ` +${nCards - 1}` : ""}` : t("None saved");
   const langName = `${langAuto ? `${t("Automatic")} · ` : ""}${LANGUAGES.find((l) => l.code === lang)?.native ?? "English"}`;
   const onCount = [prefs.push, prefs.email, prefs.sms].filter(Boolean).length;
 
@@ -174,7 +176,15 @@ function CompanionsPage() {
 function PaymentPage() {
   const { account, setAccount, toast } = useApp();
   const t = useT();
-  const c = account.savedCard;
+  // Every saved card, the default first (AENR-736) — kept with the account in localStorage.
+  const def = account.savedCard;
+  const cards = allCards(account).sort((a, b) => (def && cardKey(a) === cardKey(def) ? -1 : def && cardKey(b) === cardKey(def) ? 1 : 0));
+  const [adding, setAdding] = useState(false);
+  const remove = (c: SavedCard) => {
+    const before = account;
+    setAccount((a) => withoutCard(a, c));
+    toast(`${t("Removed card ending")} ${c.last4}.`, { action: { label: t("Undo"), onClick: () => setAccount(() => before) } });
+  };
   return (
     <div className="space-y-3">
       <div className={`${PAGE} space-y-2`}>
@@ -182,17 +192,44 @@ function PaymentPage() {
           <span aria-hidden className="w-10 h-7 rounded-md bg-black text-white grid place-items-center"><AppleLogo size={14} /></span>
           <span className="flex-1 text-guest-body text-navy-900">Apple Pay · Google Pay<span className="block text-guest-caption text-slate-500">{t("Offered first at checkout on this device")}</span></span>
         </div>
-        {c ? (
-          <div className="flex items-center gap-3 min-h-[44px] border-t border-slate-200/70 pt-2">
-            <span aria-hidden className="w-10 h-7 rounded-md bg-gradient-to-br from-navy-800 to-navy-950 text-white text-guest-caption font-bold grid place-items-center">{c.brand.slice(0, 4).toUpperCase()}</span>
-            <span className="flex-1 text-guest-body text-navy-900">•••• {c.last4}<span className="block text-guest-caption text-slate-500">{t("Exp")} {c.exp}</span></span>
-            <Btn variant="ghost" size="sm" className="text-rose-700" onClick={() => { setAccount((a) => ({ ...a, savedCard: null })); toast(`${t("Removed card ending")} ${c.last4}.`, { action: { label: t("Undo"), onClick: () => setAccount((a) => ({ ...a, savedCard: c })) } }); }}>{t("Remove")}</Btn>
-          </div>
-        ) : (
-          <p className="text-guest-meta text-slate-600 border-t border-slate-200/70 pt-2">{t("No saved card. Tick “Save this card” when you pay and it appears here.")}</p>
+        {cards.length === 0 && (
+          <p className="text-guest-meta text-slate-600 border-t border-slate-200/70 pt-2">{t("No saved card yet — add one here, or tick “Save card” when you pay.")}</p>
         )}
+        {cards.map((c) => {
+          const isDefault = !!def && cardKey(c) === cardKey(def);
+          return (
+            <div key={cardKey(c)} className="flex flex-wrap items-center gap-x-3 gap-y-1 min-h-[52px] border-t border-slate-200/70 pt-2">
+              <span aria-hidden className="w-10 h-7 rounded-md bg-gradient-to-br from-navy-800 to-navy-950 text-white text-guest-caption font-bold grid place-items-center">{c.brand === "Mastercard" ? "MC" : c.brand.slice(0, 4).toUpperCase()}</span>
+              <span className="flex-1 min-w-[180px] text-guest-body text-navy-900">
+                <span className="block">{c.brand} •••• {c.last4}</span>
+                <span className="flex items-center gap-1.5 text-guest-caption text-slate-500 min-w-0">
+                  {isDefault && <span className="shrink-0 rounded-full bg-teal-50 text-teal-800 ring-1 ring-teal-600/20 px-2 py-px font-semibold">{t("Default")}</span>}
+                  <span className="truncate">{t("Exp")} {c.exp}{c.holder ? ` · ${c.holder}` : ""}</span>
+                </span>
+              </span>
+              {/* The actions sit on their own line on phones, under the card details. */}
+              <span className="flex gap-1 ml-auto">
+              {!isDefault && (
+                <Btn variant="ghost" size="sm" onClick={() => { setAccount((a) => withCard(a, c, true)); toast(`${c.brand} •••• ${c.last4} ${t("is now your default card.")}`, { tone: "success" }); }}>{t("Make default")}</Btn>
+              )}
+              <Btn variant="ghost" size="sm" className="text-rose-700" onClick={() => remove(c)} aria-label={`${t("Remove")} ${c.brand} ${c.last4}`}>{t("Remove")}</Btn>
+              </span>
+            </div>
+          );
+        })}
       </div>
-      <Btn variant="outline" icon={Icon.plus} onClick={() => toast(t("Demo — Stripe SetupIntent flow."))}>{t("Add card")}</Btn>
+      <Btn variant="outline" icon={Icon.plus} onClick={() => setAdding(true)}>{t("Add card")}</Btn>
+      {adding && (
+        <AddCardModal
+          first={cards.length === 0}
+          onClose={() => setAdding(false)}
+          onSaved={(c, makeDefault) => {
+            setAccount((a) => withCard(a, c, makeDefault));
+            setAdding(false);
+            toast(`${c.brand} •••• ${c.last4} ${t("saved")}${makeDefault ? ` — ${t("your default card")}` : ""}.`, { tone: "success" });
+          }}
+        />
+      )}
     </div>
   );
 }
