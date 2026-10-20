@@ -40,19 +40,30 @@ export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, 
     if (was.current === sel) return;
     was.current = sel;
     if (!motionOK() || !canopy.current || !shade.current) return;
-    const gores = Array.from(canopy.current.querySelectorAll<SVGPathElement>("[data-gore]"));
-    const tl = gsap.timeline({ defaults: { overwrite: "auto" } });
+    const cn = canopy.current;
+    const sh = shade.current;
+    const gores = Array.from(cn.querySelectorAll<SVGPathElement>("[data-gore]"));
+    // Settle back to the plain glyph: no transform left on the canopy or its shadow, every gore whole.
+    // (AENR-817: a box-relative origin measured mid-morph left the canopy off its pole.)
+    const settle = () => {
+      gsap.set([cn, sh], { clearProps: "transform" });
+      gores.forEach((g, i) => g.setAttribute("d", CANOPY_WEDGES[i].d));
+    };
+    const tl = gsap.timeline({ defaults: { overwrite: "auto" }, onComplete: settle });
     if (sel) {
-      tl.set(canopy.current, { transformOrigin: "50% 50%" })
-        .fromTo(canopy.current, { rotation: -70 }, { rotation: 0, duration: 0.55, ease: EASE.out }, 0)
-        .fromTo(shade.current, { scale: 0.2, opacity: 0, transformOrigin: "50% 50%" }, { scale: 1, opacity: 1, duration: 0.45, ease: EASE.out }, 0.05);
+      // Turned about the pole, in the glyph's own units — never about a box that changes as it morphs.
+      tl.fromTo(cn, { rotation: -70, svgOrigin: `${CANOPY.cx} ${CANOPY.cy}` }, { rotation: 0, duration: 0.55, ease: EASE.out }, 0)
+        .fromTo(sh, { scale: 0.2, opacity: 0, svgOrigin: `${CANOPY.cx + 2.5} ${CANOPY.cy - 3}` }, { scale: 1, opacity: 1, duration: 0.45, ease: EASE.out }, 0.05);
       gores.forEach((g, i) => tl.fromTo(g, { morphSVG: CANOPY_FOLDED[i] }, { morphSVG: CANOPY_WEDGES[i].d, duration: 0.42, ease: "back.out(1.5)" }, i * 0.014));
     } else {
       gores.forEach((g, i) =>
         tl.to(g, { morphSVG: CANOPY_FOLDED[i], duration: 0.14, ease: EASE.in }, 0).to(g, { morphSVG: CANOPY_WEDGES[i].d, duration: 0.3, ease: "back.out(1.3)" }, 0.14),
       );
     }
-    return () => { tl.kill(); };
+    return () => {
+      tl.kill();
+      settle();
+    };
   }, [sel]);
   return (
     <svg aria-hidden="true" width={fill ? "100%" : size} height={fill ? "100%" : size} viewBox={`0 0 ${GLYPH_BOX} ${GLYPH_BOX}`} className={`${fill ? "w-full h-full " : ""}${className}`}>
