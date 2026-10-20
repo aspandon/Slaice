@@ -3,6 +3,7 @@ import { gsap } from "gsap";
 import { SplitText } from "gsap/SplitText";
 import { ScrambleTextPlugin } from "gsap/ScrambleTextPlugin";
 import { motionOK, EASE } from "../lib/fx";
+import { DURATION } from "../lib/motionTokens";
 
 gsap.registerPlugin(SplitText, ScrambleTextPlugin);
 
@@ -17,20 +18,31 @@ gsap.registerPlugin(SplitText, ScrambleTextPlugin);
 
 const DIGITS = "0123456789";
 
-/** An odometer: each digit is a 0–9 strip moved to its value; everything else stays still. */
+/** An odometer: each digit is a 0–9 strip moved to its value; everything else stays still.
+ *  Once the roll lands it shows plain text again (AENR-822): a strip shifted by a fraction
+ *  of a pixel (3 × 1.2em) sat a hair off the baseline of its neighbours at rest. */
 export function Rolling({ value, className = "" }: { value: string | number; className?: string }) {
   const text = String(value);
   const live = motionOK();
   // Mount at zeros, then roll to the value on the next frame.
   const [shown, setShown] = useState(live ? text.replace(/\d/g, "0") : text);
+  const [rolling, setRolling] = useState(live);
   useLayoutEffect(() => {
     if (!live) {
       setShown(text);
+      setRolling(false);
       return;
     }
+    setRolling(true);
     const id = requestAnimationFrame(() => setShown(text));
-    return () => cancelAnimationFrame(id);
+    // A safety net for a roll with nothing to move (e.g. to "0"), which fires no transitionend.
+    const done = window.setTimeout(() => setRolling(false), DURATION.slow + 150);
+    return () => {
+      cancelAnimationFrame(id);
+      window.clearTimeout(done);
+    };
   }, [text, live]);
+  if (!rolling) return <span className={`relative inline-flex tnum ${className}`}>{text}</span>;
   // Columns are keyed from the right, so a value growing a digit (95 → 100) rolls in place.
   const chars = shown.split("");
   return (
@@ -49,6 +61,8 @@ export function Rolling({ value, className = "" }: { value: string | number; cla
               <span
                 className="absolute inset-x-0 top-0 flex flex-col transition-transform duration-slow ease-ios"
                 style={{ transform: `translateY(-${Number(c) * 1.2}em)` }}
+                // The roll has landed on the final value: back to plain, pixel-aligned text.
+                onTransitionEnd={() => shown === text && setRolling(false)}
               >
                 {DIGITS.split("").map((d) => (
                   <span key={d} className="h-[1.2em] leading-[1.2em] text-center">
