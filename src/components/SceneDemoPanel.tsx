@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { Icon } from "../lib/icons";
 import { DAY_MAX, DAY_MIN, fmtHour, WEATHER_DEMO, WEATHER_KINDS } from "../data/beach";
 import { useApp, useT } from "../app/store";
@@ -117,6 +117,75 @@ export function SceneControls() {
 
       <div className="text-[10px] text-slate-500 leading-snug border-t border-slate-200/70 pt-2">
         {t("Demo only — drives the scene and hero, not a real forecast.")}
+      </div>
+    </div>
+  );
+}
+
+/** Two demo sliders for the guest Demo menu (AENR-825): the weather and the time of day, so a
+ *  demonstration can walk the beach through a day — the sea, its light and the weather layer follow
+ *  at once (they glide). Keys stay with the sliders, not the menu's own arrow-key navigation. */
+export function DemoSceneSliders() {
+  const { weather, setWeather, dayTime, setDayTime } = useApp();
+  const t = useT();
+  const wi = Math.max(0, WEATHER_KINDS.indexOf(weather));
+  const W = WEATHER_DEMO[weather];
+  const WI = Icon[W.icon] || Icon.sun;
+  const keep = (e: KeyboardEvent) => e.stopPropagation();
+  return (
+    <div className="space-y-3">
+      <div>
+        <div className="mb-1.5 flex items-center justify-between">
+          <label htmlFor="demo-weather" className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <Icon.cloud size={12} aria-hidden /> {t("Weather")}
+          </label>
+          <span className="flex items-center gap-1 text-[12px] font-bold text-navy-900">
+            <WI size={13} aria-hidden className="text-teal-600" /> {t(W.label)}
+          </span>
+        </div>
+        <input
+          id="demo-weather"
+          type="range"
+          min={0}
+          max={WEATHER_KINDS.length - 1}
+          step={1}
+          value={wi}
+          onChange={(e) => setWeather(WEATHER_KINDS[Number(e.target.value)])}
+          onKeyDown={keep}
+          aria-valuetext={t(W.label)}
+          className="demo-range w-full"
+        />
+        <div aria-hidden className="mt-0.5 flex justify-between text-[9.5px] text-slate-500">
+          {WEATHER_KINDS.map((k) => (
+            <span key={k}>{t(WEATHER_DEMO[k].label)}</span>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div className="mb-1.5 flex items-center justify-between">
+          <label htmlFor="demo-daytime" className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <Icon.clock size={12} aria-hidden /> {t("Time of day")}
+          </label>
+          <span className="text-[12px] font-bold text-navy-900 tnum">{fmtHour(dayTime)}</span>
+        </div>
+        <input
+          id="demo-daytime"
+          type="range"
+          min={DAY_MIN}
+          max={DAY_MAX}
+          step={0.25}
+          value={dayTime}
+          onChange={(e) => setDayTime(parseFloat(e.target.value))}
+          onKeyDown={keep}
+          aria-valuetext={fmtHour(dayTime)}
+          className="demo-range w-full"
+        />
+        <div aria-hidden className="mt-0.5 flex justify-between text-[9.5px] text-slate-500">
+          <span className="tnum">{fmtHour(DAY_MIN)}</span>
+          <span>{t("sunrise")} ≈ 06:15</span>
+          <span>{t("sunset")} ≈ 20:50</span>
+          <span className="tnum">{fmtHour(DAY_MAX)}</span>
+        </div>
       </div>
     </div>
   );

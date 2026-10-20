@@ -360,7 +360,7 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky =
             ))}
           </g>
         )}
-        {light && style === "classic" && <SeaLightGroup light={light} dy={dy} view={view} />}
+        {light && style === "classic" && <SeaLightGroup light={light} dy={dy} view={view} wind={seaEnv?.wind} />}
       </svg>
       {style !== "classic" && seaEnv && (
         <SeaLayer style={style} preset={preset} dy={dy} env={seaEnv} tier={liteScene() ? "mobile" : "desktop"} onFail={() => setFailed(true)} />
@@ -402,7 +402,8 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky =
 
       {/* Optional decor (sun, palms, clouds…) above the sand, behind the greenery. */}
       <svg aria-hidden="true" className={svg} viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-        <SceneDecor preset={preset} id={id} noSky={noSky} />
+        {/* Cartoon clouds and birds only over the painted sea — over real water they read as blobs (AENR-814). */}
+        <SceneDecor preset={preset} id={id} noSky={noSky || style !== "classic"} />
       </svg>
 
       {preset.veg && !noVeg && (
@@ -623,7 +624,7 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea, seaS
           )}
           {sea.detail && style === "classic" && <SeaWavelets dy={dy} />}
           {/* Sunrise, sunset and night on the still sea; the live water draws its own light. */}
-          {seaEnv && style === "classic" && !liveSea && <SeaLightGroup light={seaEnv.light} dy={dy} twinkle view={view} />}
+          {seaEnv && style === "classic" && !liveSea && <SeaLightGroup light={seaEnv.light} dy={dy} twinkle view={view} wind={seaEnv.wind} />}
           <rect width="1600" height="160" fill={`url(#${id("vignette")})`} />
         </svg>
         {style !== "classic" && seaEnv && (
@@ -679,7 +680,7 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea, seaS
         </svg>
         </div>
         <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-          <SceneDecor preset={preset} id={id} liveClouds />
+          <SceneDecor preset={preset} id={id} liveClouds noSky={style !== "classic"} />
         </svg>
       </div>
       {/* Near plane — the vegetation belt and tree dots (moves the most). */}

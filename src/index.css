@@ -765,6 +765,14 @@ table .text-slate-400 {
   .sea-glints > ellipse {
     animation: sea-glint 2.4s ease-in-out infinite;
   }
+  .sea-caps > path {
+    animation: sea-cap 3.2s ease-in-out infinite;
+  }
+}
+@keyframes sea-cap {
+  0%, 100% { opacity: 0; }
+  20% { opacity: 0.85; }
+  55% { opacity: 0.25; }
 }
 @keyframes sea-glint {
   0%, 100% { opacity: 0.15; }

@@ -95,6 +95,9 @@ const KEYS: readonly Key[] = [
   { h: 21.6, ...NIGHT_KEY },
   { h: 24, ...NIGHT_KEY },
 ];
+/** The sea under a cloudy sky (AENR-824), horizon → shore. */
+const CLOUD_WATER: readonly Rgb[] = ["#2b6c84", "#2e8794", "#45a7ab", "#8ccac2"].map(hex);
+
 function keyAt(hour: number) {
   const h = ((hour % 24) + 24) % 24;
   let i = 0;
@@ -128,7 +131,8 @@ export function seaLight(hour: number, weather: Pick<WeatherDemo, "glint" | "dim
   const cloud = clamp01(1 - weather.glint);
   // Golden light peaks with the sun on the horizon and lingers a little after it sets.
   const golden = smooth(0.32, 0.02, sunElev) * smooth(-0.32, -0.02, sunElev);
-  const warm = golden * (1 - 0.7 * cloud);
+  // Cloudy sunsets keep most of their fire (the owner's photos): cloud mutes the warmth only so far.
+  const warm = golden * (1 - 0.45 * cloud);
   const night = smooth(-0.05, -0.55, sunElev);
   // Glitter: a broad sheen at noon narrowing to a long column as the sun gets low.
   const low = smooth(0.45, 0.05, sunElev);
@@ -143,15 +147,15 @@ export function seaLight(hour: number, weather: Pick<WeatherDemo, "glint" | "dim
   const glitter = atNight
     ? { color: MOON, strength: moonStrength * 0.8, width: 0.06, x: 0.66 }
     : { color: sunColor, strength: sunGlitter, width: 0.45 - 0.37 * low, x: sunX };
-  // Water: the hour's keyframe. Under cloud it greys toward slate and the hour's colour weakens.
-  const grey: Rgb = [0.42, 0.5, 0.56];
-  const palette = key.water.map((c) => mix(c, grey, cloud * 0.45)) as unknown as readonly [
-    Rgb,
-    Rgb,
-    Rgb,
-    Rgb,
-  ];
-  const amount = clamp01(key.amount * (1 - 0.35 * cloud) * (1 - weather.dim * 0.3));
+  // Water: the hour's keyframe. Under cloud it doesn't go grey — in the owner's cloudy photos the
+  // sea stays teal and clear, muted toward slate out to sea and still turquoise over the sand.
+  const palette = key.water.map((c, i) =>
+    mix(c, CLOUD_WATER[i], cloud * 0.7 * (1 - 0.55 * key.amount)),
+  ) as unknown as readonly [Rgb, Rgb, Rgb, Rgb];
+  // By day the beach's own preset shows; cloud brings in the muted teal too.
+  const amount = clamp01(
+    Math.max(key.amount, cloud * 0.62 * (1 - key.amount)) * (1 - weather.dim * 0.25),
+  );
   return {
     sunElev,
     sunX,

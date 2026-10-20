@@ -3,7 +3,7 @@ import { Icon } from "../../lib/icons";
 import { PERSONAS } from "../../data/personas";
 import { useApp, useT } from "../../app/store";
 import type { PersonaId } from "../../domain/types";
-import { SceneControls } from "../SceneDemoPanel";
+import { DemoSceneSliders } from "../SceneDemoPanel";
 import { readHashQuery } from "../../app/router";
 import { useDemoFlag } from "../../lib/useDemoFlag";
 import { FIRST_TIME_RESET } from "../../lib/firstTimeGuest";
@@ -201,11 +201,17 @@ export function PersonaSwitcher({
               </span>
             </DropdownMenu.CheckboxItem>
           )}
-          {/* Phones: the scene demo controls live here instead of floating over content (AENR-575). */}
-          {compact && persona === "customer" && sceneLive && showPreviews && (sceneFx.weather || sceneFx.daytime) && (
-            <div className="border-t border-slate-200 mt-1 px-2.5 pt-2 pb-1.5">
-              <SceneControls />
-            </div>
+          {/* Demo sliders for the weather and the time of day (AENR-825), on every screen size — they
+              drive the same scene state as Beach › Atmosphere. Hidden when the tenant pins the scene
+              (live weather and time of day off, AENR-737) or the manager switched both effects off. */}
+          {persona === "customer" && sceneLive && (sceneFx.weather || sceneFx.daytime) && (
+            <>
+              <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
+              <DropdownMenu.Label className="px-2.5 pt-1 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">{t("Beach scene")}</DropdownMenu.Label>
+              <div className="px-2.5 pt-1 pb-2">
+                <DemoSceneSliders />
+              </div>
+            </>
           )}
           {/* Demo clock for holds / allocation releases (AENR-561 — moved out of the Beach pages). */}
           {persona === "admin" && (

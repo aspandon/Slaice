@@ -75,16 +75,32 @@ const GLINTS: ReadonlyArray<readonly [number, number, number]> = Array.from(
   },
 );
 
+// Fixed whitecap positions: [across 0–1, down the water 0–1 (more toward the shore), size 0–1].
+const CAPS: ReadonlyArray<readonly [number, number, number]> = Array.from(
+  { length: 46 },
+  (_, i) => {
+    const fr = (v: number) => v - Math.floor(v);
+    return [
+      fr(Math.sin(i * 91.7) * 4375.5),
+      Math.pow(fr(Math.sin(i * 27.3) * 1543.1), 0.7),
+      fr(Math.sin(i * 63.1) * 2614.9),
+    ] as const;
+  },
+);
+
 export function SeaLightGroup({
   light,
   dy = 0,
   twinkle = false,
   tint = "full",
   view = FULL_VIEW,
+  wind = 0,
 }: {
   light: SeaLight;
   /** The visible part of the scene — where the horizon, the sun and the moon are. */
   view?: SceneView;
+  /** 0 … 1 wind — whitecaps and foam streaks from a fresh breeze up (AENR-824). */
+  wind?: number;
   dy?: number;
   twinkle?: boolean;
   /** Colour the water: "full" for a painted sea; "soft" over real footage (a glow that keeps its
@@ -195,7 +211,7 @@ export function SeaLightGroup({
       )}
       {/* The sun's disc on the horizon while it is low (sunrise, sunset), glowing through the haze. */}
       {sunGlow && light.sunElev > -0.06 && light.sunElev < 0.32 && (
-        <g opacity={Math.min(1, warm * 1.4) * (1 - light.cloud * 0.85)}>
+        <g opacity={Math.min(1, warm * 2.2) * (1 - light.cloud * 0.85)}>
           <circle
             cx={X(light.sunX)}
             cy={top + 34 + 90 * Math.max(0, light.sunElev)}
@@ -211,12 +227,41 @@ export function SeaLightGroup({
         </g>
       )}
       {moon && (
-        <g opacity={light.moon.strength}>
+        <g opacity={Math.min(1, light.moon.strength * 1.6)}>
           <circle cx={X(light.moon.x)} cy={top + 105} r={190} fill={`url(#${id("moon")})`} />
           <circle cx={X(light.moon.x)} cy={top + 105} r={21} fill="#f4f6ff" />
           {/* A hint of the moon's seas. */}
           <circle cx={X(light.moon.x) - 6} cy={top + 100} r={6} fill="#dfe3f2" />
           <circle cx={X(light.moon.x) + 7} cy={top + 111} r={4} fill="#e2e6f4" />
+        </g>
+      )}
+
+      {/* Whitecaps (the owner's windy photos): white crests breaking across the water, more and
+          longer the stronger the wind, smaller toward the horizon; slanted with the wind. */}
+      {wind > 0.45 && (
+        <g
+          fill="#ffffff"
+          opacity={Math.min(1, (wind - 0.45) / 0.45) * (1 - night * 0.6)}
+          className={twinkle ? "sea-caps" : undefined}
+        >
+          {CAPS.map(([u, t, k], i) => {
+            // A short curled crest, drawn as a stroke — longer and thicker toward the shore.
+            const y = top + 20 + t * (shore - top - 30);
+            const len = (9 + 24 * k) * (0.35 + 0.9 * t) * Math.max(0.5, view.w / 1600);
+            const x = view.x0 + u * view.w - len / 2;
+            return (
+              <path
+                key={i}
+                d={`M ${x} ${y} q ${len * 0.45} ${-len * 0.22} ${len} ${-len * 0.04}`}
+                fill="none"
+                stroke="#ffffff"
+                strokeWidth={(0.9 + 2.1 * t) * (0.7 + 0.5 * k)}
+                strokeLinecap="round"
+                opacity={0.4 + 0.5 * k}
+                style={twinkle ? { animationDelay: `${-((i * 0.53) % 3.2)}s` } : undefined}
+              />
+            );
+          })}
         </g>
       )}
 
@@ -262,12 +307,14 @@ export function SeaLightSvg({
   dy,
   twinkle,
   tint,
+  wind,
   className = "",
 }: {
   light: SeaLight;
   dy?: number;
   twinkle?: boolean;
   tint?: "full" | "soft" | false;
+  wind?: number;
   className?: string;
 }) {
   const ref = useRef<SVGSVGElement>(null);
@@ -280,7 +327,7 @@ export function SeaLightSvg({
       viewBox="0 0 1600 900"
       preserveAspectRatio="xMidYMid slice"
     >
-      <SeaLightGroup light={light} dy={dy} twinkle={twinkle} tint={tint} view={view} />
+      <SeaLightGroup light={light} dy={dy} twinkle={twinkle} tint={tint} view={view} wind={wind} />
     </svg>
   );
 }
