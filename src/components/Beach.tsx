@@ -18,7 +18,7 @@ import type { SeaEnv } from "./LiveSeaCanvas";
    renders it behind `children`. Pass an explicit `background` to preview a
    specific scene (the picker does this); otherwise it reads the zone, so the
    choice flows to the booking map and the customer surface automatically. */
-/** The sea's effects a tenant can switch (AENR-810): the live WebGL water, the depth planes + birds,
+/** The sea's effects a tenant can switch (AENR-810): the live WebGL water, the depth planes,
  *  and the wave lines. Omitted = all on (admin previews, the guest pass). */
 export interface SeaFx {
   live: boolean;
@@ -171,7 +171,7 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky =
   preview?: boolean;
   shoreline?: number;
   noVeg?: boolean;
-  /** Drop clouds and birds — the still phone backdrop (AENR-730), where the shoreline moves and they'd sit on the sand. */
+  /** Drop the clouds — the still phone backdrop (AENR-730), where the shoreline moves and they'd sit on the sand. */
   noSky?: boolean;
   /** Wave lines on the water (AENR-810). */
   detail?: boolean;
@@ -273,7 +273,7 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky =
 
       {/* Optional decor (sun, palms, clouds…) above the sand, behind the greenery. */}
       <svg aria-hidden="true" className={svg} viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-        {/* Cartoon clouds and birds only over the painted sea — over real water they read as blobs (AENR-814). */}
+        {/* Cartoon clouds only over the painted sea — over real water they read as blobs (AENR-814). */}
         {!ownBeach && <SceneDecor preset={preset} id={id} noSky={noSky || style !== "classic"} />}
       </svg>
 
@@ -378,7 +378,7 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea, seaS
   useShoreSlide(dy, [land, green]);
   const seaSvg = useRef<SVGSVGElement>(null);
   const view = useSceneView(seaSvg);
-  // Depth off (AENR-810): the planes stay stacked and still, and no birds fly.
+  // Depth off (AENR-810): the planes stay stacked and still.
   const k = sea.depth ? 1 : 0;
   const far = useParallax<HTMLDivElement>(-0.018 * k, 24);
   const mid = useParallax<HTMLDivElement>(-0.04 * k, 44);
@@ -391,9 +391,8 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea, seaS
 
   // Ambient life (desktop layered scene only): clouds belong to the weather —
   // hidden when sunny, otherwise drifting right-to-left (wrap-around) at the
-  // weather's own pace — and a flock of birds crosses every so often. The
-  // recursive bird timeline outlives gsap.context capture, so tweens are
-  // tracked and killed by hand. Re-inits on scene or weather changes.
+  // weather's own pace (the gulls are gone, AENR-858). Tweens are tracked and
+  // killed by hand. Re-inits on scene or weather changes.
   useEffect(() => {
     const root = mid.current;
     if (!root || !motionOK()) return;
@@ -413,30 +412,11 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea, seaS
         }));
       }
     });
-    const birds = sea.depth ? root.querySelector('[data-amb="birds"]') : null;
-    let flight: gsap.core.Timeline | null = null;
-    let alive = true;
-    if (birds) {
-      gsap.set(birds, { opacity: 0 });
-      const cross = () => {
-        if (!alive) return;
-        flight = gsap.timeline({ delay: 7 + Math.random() * 16, onComplete: cross });
-        flight
-          .fromTo(birds, { x: -700, y: -30 + Math.random() * 90 }, { x: 1320, duration: 36, ease: "none" }, 0)
-          .fromTo(birds, { opacity: 0 }, { opacity: 0.5, duration: 2.2, ease: "none" }, 0)
-          .to(birds, { opacity: 0, duration: 2.2, ease: "none" }, 33.8)
-          .to(birds, { y: "+=16", duration: 3.6, yoyo: true, repeat: 9, ease: "sine.inOut" }, 0);
-      };
-      cross();
-    }
     return () => {
-      alive = false;
-      flight?.kill();
       anims.forEach((a) => a.kill());
-      if (birds) gsap.set(birds, { clearProps: "all" });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mid is a stable ref
-  }, [preset.id, cloudVis, cloudSpeed, sea.depth]);
+  }, [preset.id, cloudVis, cloudSpeed]);
   return (
     <>
       {/* Far plane — sea, glint, wave bands and the top vignette. */}
@@ -595,7 +575,6 @@ function SceneDecor({ preset, id, liveClouds = false, noSky = false }: { preset:
     <>
       {d.includes("clouds") && !noSky && <Clouds hidden={liveClouds} />}
       {d.includes("sun") && <SunDisc gradId={id("sun")} />}
-      {d.includes("birds") && !noSky && <Birds />}
       {d.includes("rocks") && <Rocks />}
       {d.includes("palms") && <Palms />}
     </>
@@ -638,21 +617,6 @@ function Clouds({ hidden = false }: { hidden?: boolean }) {
       <Cloud x={1120} y={120} s={0.75} hidden={hidden} />
       <Cloud x={1430} y={205} s={0.95} hidden={hidden} />
       <Cloud x={310} y={255} s={0.55} hidden={hidden} />
-    </g>
-  );
-}
-
-/* A compact flock — static scenes show it resting mid-sky; the ambient driver
-   (desktop layered backdrop) flies it across the bay every so often. */
-function Birds() {
-  const pts: [number, number][] = [
-    [0, 0], [46, 15], [92, -7], [38, -24], [128, 6],
-  ];
-  return (
-    <g data-amb="birds" transform="translate(430 130)" stroke="#1f3a4d" strokeWidth="3" fill="none" strokeLinecap="round" opacity="0.5">
-      {pts.map(([x, y], i) => (
-        <path key={i} d={`M ${x} ${y} q 11 -10 22 0 q 11 -10 22 0`} />
-      ))}
     </g>
   );
 }

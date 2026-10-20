@@ -128,7 +128,7 @@ export const TENANT_FEATURES: readonly TenantFeatureDef[] = [
     key: "guest.seaDepth",
     label: "Sea depth and ambient life",
     description:
-      "The sea, the sand and the greenery drift at different speeds as the guest scrolls, and a flock of birds crosses now and then. Off: one flat, still scene.",
+      "The sea, the sand and the greenery drift at different speeds as the guest scrolls. Off: one flat, still scene.",
     group: "Guest site",
     default: true,
   },
