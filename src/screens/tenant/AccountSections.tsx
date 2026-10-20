@@ -47,7 +47,7 @@ const SEV_ICON = {
 } as const;
 
 /* ---------- Overview ---------- */
-export function Overview({ t, go }: SectionProps) {
+export function Overview({ t, canEdit, go }: SectionProps) {
   const { today, updateTenant, toast, mrr, planName } = usePlatform();
   const statementOpts = useStatementOpts(today);
   const slaice = useMemo(() => seasonToDate(t, statementOpts(t)), [t, statementOpts]);
@@ -206,6 +206,8 @@ export function Overview({ t, go }: SectionProps) {
           </Btn>
         </Card>
       </div>
+      {/* The usage meters live here since the Usage & limits page went (AENR-798). */}
+      <Usage t={t} canEdit={canEdit} go={go} />
     </SectionFrame>
   );
 }
@@ -727,8 +729,8 @@ function PlanChangeModal({ t: tn, onClose }: { t: TenantRecord; onClose: () => v
   );
 }
 
-/* ---------- Usage & limits (AENR-517) ---------- */
-export function Usage({ t }: SectionProps) {
+/* ---------- Usage & limits (AENR-517) — a part of Overview (AENR-798) ---------- */
+function Usage({ t, go }: SectionProps) {
   const { plan, today } = usePlatform();
   const pv = plan(t);
   const reset = (() => {
@@ -739,11 +741,18 @@ export function Usage({ t }: SectionProps) {
     );
   })();
   return (
-    <SectionFrame
+    <Part
+      id="usage"
+      icon={Icon.trend}
       title="Usage & limits"
       sub={`Meters against ${pv ? "the plan" : "no plan"} · monthly limits reset on ${fmtDay(reset)}.`}
+      actions={
+        <Btn size="sm" variant="ghost" onClick={() => go("billing")}>
+          Plan & billing
+        </Btn>
+      }
     >
-      <Card className="p-4 space-y-3">
+      <Card className="p-4 grid lg:grid-cols-2 gap-x-8 gap-y-3">
         {(Object.keys(LIMIT_LABEL) as LimitId[]).map((k) => {
           const inc = pv?.limits[k].included ?? 0;
           const u = usageLevel(t.usage[k], inc);
@@ -784,6 +793,6 @@ export function Usage({ t }: SectionProps) {
           );
         })}
       </Card>
-    </SectionFrame>
+    </Part>
   );
 }

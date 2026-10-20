@@ -10,7 +10,7 @@ import {
   type TenantRecord,
 } from "../../domain/tenants";
 import { SectionCtx, confirmLeave, type SectionProps } from "./kit";
-import { Billing, Overview, Profile, Usage } from "./AccountSections";
+import { Billing, Overview, Profile } from "./AccountSections";
 import { Branding, Modules } from "./ProductSections";
 import { EntryTickets } from "./TicketSection";
 import { Compliance, Invoicing, Payments, Security, Users } from "./AccessSections";
@@ -34,6 +34,7 @@ export const SECTION_ALIASES: Record<string, string> = {
   localisation: "profile",
   features: "modules",
   integrations: "modules",
+  usage: "overview",
 };
 /** The path segment (+ part anchor) for a section id, old or current. */
 export const sectionPath = (s: string) =>
@@ -52,6 +53,7 @@ interface SectionDef {
 }
 export const SECTIONS: SectionDef[] = [
   {
+    // Includes the Usage & limits meters (AENR-798).
     id: "overview",
     label: "Overview",
     icon: Icon.chart,
@@ -78,14 +80,6 @@ export const SECTIONS: SectionDef[] = [
     edit: "admin",
     badge: (t) => t.invoices.filter((i) => i.status === "Overdue").length,
     render: (p) => <Billing {...p} />,
-  },
-  {
-    id: "usage",
-    label: "Usage & limits",
-    icon: Icon.trend,
-    group: "Account",
-    edit: "admin",
-    render: (p) => <Usage {...p} />,
   },
   {
     // Modules, feature switches (AENR-677 / 721 — the permanent home for new ones) and
