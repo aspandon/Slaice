@@ -1,4 +1,5 @@
-import { useId } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { DUR } from "../../lib/fx";
 import { rgbCss, type SeaLight } from "../../lib/seaLight";
 
 /* ============ The light on a drawn or filmed sea (AENR-815) ============
@@ -13,6 +14,53 @@ import { rgbCss, type SeaLight } from "../../lib/seaLight";
      glints under a low sun, the moon's silver path at night (SeaLight.glitter).
    `twinkle` sets the glints shimmering (CSS, off under reduced motion) — only where
    it's cheap: a full-screen SVG repaints on every frame of it, so phones keep it still. */
+
+/** The part of the 1600×900 scene the guest actually sees (scene units): the scene is cover-fitted
+ *  ("slice"), overscanned for parallax and moved by the camera, so on a portrait phone only its
+ *  middle third shows. The sun, the moon and their paths are placed across this view — things at
+ *  infinity stay put on screen while the camera pans. */
+export interface SceneView {
+  x0: number;
+  w: number;
+  y0: number;
+}
+export const FULL_VIEW: SceneView = { x0: 0, w: 1600, y0: 0 };
+
+/** Measures the visible part of the scene drawn by `ref`'s <svg>, again after a resize and once the camera settles. */
+export function useSceneView(ref: RefObject<SVGSVGElement>): SceneView {
+  const [view, setView] = useState(FULL_VIEW);
+  const measure = () => {
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const k = Math.max(r.width / 1600, r.height / 900);
+    if (!k) return;
+    const ox = (r.width - 1600 * k) / 2;
+    const oy = (r.height - 900 * k) / 2;
+    const x0 = Math.max(0, (0 - r.left - ox) / k);
+    const x1 = Math.min(1600, (window.innerWidth - r.left - ox) / k);
+    const y0 = Math.max(0, (0 - r.top - oy) / k);
+    const next = { x0: Math.round(x0), w: Math.round(Math.max(200, x1 - x0)), y0: Math.round(y0) };
+    setView((v) => (v.x0 === next.x0 && v.w === next.w && v.y0 === next.y0 ? v : next));
+  };
+  useLayoutEffect(measure);
+  useEffect(() => {
+    let t = 0;
+    const later = () => {
+      window.clearTimeout(t);
+      t = window.setTimeout(measure, DUR.camera * 1000 + 120);
+    };
+    window.addEventListener("resize", measure);
+    window.addEventListener("hashchange", later);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("hashchange", later);
+      window.clearTimeout(t);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the ref is stable
+  }, []);
+  return view;
+}
 
 // Fixed glint positions so the path never jumps between renders: [t 0–1 down the path, spread −1…1, size 0–1].
 const GLINTS: ReadonlyArray<readonly [number, number, number]> = Array.from(
@@ -31,12 +79,17 @@ export function SeaLightGroup({
   light,
   dy = 0,
   twinkle = false,
-  tint = true,
+  tint = "full",
+  view = FULL_VIEW,
 }: {
   light: SeaLight;
+  /** The visible part of the scene — where the horizon, the sun and the moon are. */
+  view?: SceneView;
   dy?: number;
   twinkle?: boolean;
-  /** Colour the water — off where the sea grades itself (the video's CSS filter). */ tint?: boolean;
+  /** Colour the water: "full" for a painted sea; "soft" over real footage (a glow that keeps its
+   *  detail, a lighter navy at night); false where the sea colours itself. */
+  tint?: "full" | "soft" | false;
 }) {
   const rid = useId().replace(/:/g, "");
   const id = (k: string) => `${k}-${rid}`;
@@ -44,7 +97,9 @@ export function SeaLightGroup({
   const warm = light.warm * (1 - light.night);
   const night = light.night;
   const g = light.glitter;
-  const gx = g.x * 1600;
+  const X = (f: number) => view.x0 + f * view.w;
+  const top = view.y0;
+  const gx = X(g.x);
   const sunGlow = warm > 0.02 && light.sunElev > -0.3;
   const moon = light.moon.strength > 0.03;
   return (
@@ -82,29 +137,37 @@ export function SeaLightGroup({
           <stop offset="0%" stopColor={rgbCss(light.moon.color, 0.45)} />
           <stop offset="100%" stopColor={rgbCss(light.moon.color, 0)} />
         </radialGradient>
+        {/* The path's soft column: bright in the middle, gone at its sides. */}
         <linearGradient
           id={id("path")}
-          x1="0"
+          x1={gx - view.w * g.width * 0.55}
           y1="0"
-          x2="0"
-          y2={shore}
+          x2={gx + view.w * g.width * 0.55}
+          y2="0"
           gradientUnits="userSpaceOnUse"
         >
-          <stop offset="0%" stopColor={rgbCss(g.color)} stopOpacity={0.55} />
-          <stop offset="100%" stopColor={rgbCss(g.color)} stopOpacity={0.08} />
+          <stop offset="0%" stopColor={rgbCss(g.color)} stopOpacity={0} />
+          <stop offset="50%" stopColor={rgbCss(g.color)} stopOpacity={0.5} />
+          <stop offset="100%" stopColor={rgbCss(g.color)} stopOpacity={0} />
         </linearGradient>
       </defs>
 
       {/* The water's colour. Night darkens by multiplying, so the drawn wave lines still read. */}
       {tint && warm > 0.01 && (
-        <rect width="1600" height={shore + 60} fill={`url(#${id("warm")})`} opacity={warm} />
+        <rect
+          width="1600"
+          height={shore + 60}
+          fill={`url(#${id("warm")})`}
+          opacity={warm}
+          style={tint === "soft" ? { mixBlendMode: "soft-light" } : undefined}
+        />
       )}
       {tint && night > 0.01 && (
         <rect
           width="1600"
           height={shore + 60}
           fill={`url(#${id("night")})`}
-          opacity={night * 0.78}
+          opacity={night * (tint === "soft" ? 0.6 : 0.78)}
           style={{ mixBlendMode: "multiply" }}
         />
       )}
@@ -112,8 +175,8 @@ export function SeaLightGroup({
       {/* The low sun's glow on the horizon; the moon and its halo at night. */}
       {sunGlow && (
         <ellipse
-          cx={light.sunX * 1600}
-          cy={0}
+          cx={X(light.sunX)}
+          cy={top}
           rx={420}
           ry={190}
           fill={`url(#${id("sun")})`}
@@ -122,8 +185,8 @@ export function SeaLightGroup({
       )}
       {moon && (
         <g opacity={light.moon.strength}>
-          <circle cx={light.moon.x * 1600} cy={46} r={150} fill={`url(#${id("moon")})`} />
-          <circle cx={light.moon.x * 1600} cy={46} r={19} fill={rgbCss(light.moon.color)} />
+          <circle cx={X(light.moon.x)} cy={top + 105} r={150} fill={`url(#${id("moon")})`} />
+          <circle cx={X(light.moon.x)} cy={top + 105} r={19} fill={rgbCss(light.moon.color)} />
         </g>
       )}
 
@@ -131,16 +194,19 @@ export function SeaLightGroup({
       {g.strength > 0.02 && (
         <g opacity={Math.min(1, g.strength)} style={{ mixBlendMode: "screen" }}>
           <path
-            d={`M ${gx - 1600 * g.width * 0.18} 0 L ${gx + 1600 * g.width * 0.18} 0 L ${gx + 1600 * g.width * 0.55} ${shore} L ${gx - 1600 * g.width * 0.55} ${shore} Z`}
+            d={`M ${gx - view.w * g.width * 0.18} ${top} L ${gx + view.w * g.width * 0.18} ${top} L ${gx + view.w * g.width * 0.55} ${shore} L ${gx - view.w * g.width * 0.55} ${shore} Z`}
             fill={`url(#${id("path")})`}
-            opacity={0.55}
+            // Only a low sun or the moon draws a column; the noon sheen is the glints alone.
+            opacity={0.6 * Math.min(1, Math.max(0, (0.3 - g.width) / 0.2))}
           />
           <g fill={rgbCss(g.color)} className={twinkle ? "sea-glints" : undefined}>
             {GLINTS.map(([t, s, k], i) => {
-              const y = 8 + t * (shore - 18);
-              const spread = 1600 * g.width * (0.16 + 0.42 * t);
-              const w = 5 + (14 + 26 * k) * (0.25 + t);
-              const h = 1.4 + 2.2 * t;
+              const y = top + 8 + t * (shore - top - 18);
+              const spread = view.w * g.width * (0.16 + 0.42 * t);
+              // Glints sized to the visible view, so a phone's narrow strip isn't a stack of bars.
+              const vs = Math.max(0.42, view.w / 1600);
+              const w = vs * (5 + (14 + 26 * k) * (0.25 + t));
+              const h = (0.6 + 0.4 * vs) * (1.4 + 2.2 * t);
               return (
                 <ellipse
                   key={i}
@@ -171,17 +237,20 @@ export function SeaLightSvg({
   light: SeaLight;
   dy?: number;
   twinkle?: boolean;
-  tint?: boolean;
+  tint?: "full" | "soft" | false;
   className?: string;
 }) {
+  const ref = useRef<SVGSVGElement>(null);
+  const view = useSceneView(ref);
   return (
     <svg
+      ref={ref}
       aria-hidden="true"
       className={`absolute inset-0 w-full h-full ${className}`}
       viewBox="0 0 1600 900"
       preserveAspectRatio="xMidYMid slice"
     >
-      <SeaLightGroup light={light} dy={dy} twinkle={twinkle} tint={tint} />
+      <SeaLightGroup light={light} dy={dy} twinkle={twinkle} tint={tint} view={view} />
     </svg>
   );
 }

@@ -13,6 +13,11 @@ import {
   featureSwitch,
   isLastOn,
   tenantHasModule,
+  SEA_DEVICES,
+  SEA_STYLES,
+  seaStyleOf,
+  type SeaDevice,
+  type SeaStyle,
   type TenantFeatureId,
 } from "../../domain/features";
 import { KV, Part, SectionFrame, useTenantDraft, type SectionProps } from "./kit";
@@ -35,6 +40,7 @@ export { blockersOf };
 const PRODUCT_PARTS = [
   { id: "modules", label: "Modules" },
   { id: "features", label: "Features" },
+  { id: "sea", label: "Guest sea" },
   { id: "integrations", label: "Integrations" },
 ] as const;
 export function Modules(p: SectionProps) {
@@ -46,6 +52,7 @@ export function Modules(p: SectionProps) {
     >
       <ModuleList {...p} />
       <Features {...p} />
+      <GuestSea {...p} />
       <Integrations {...p} />
     </SectionFrame>
   );
@@ -217,6 +224,76 @@ function Features({ t }: SectionProps) {
           </ul>
         </div>
       ))}
+      </Card>
+    </Part>
+  );
+}
+
+/* ---------- Guest sea (AENR-813) — a part of Modules & features ----------
+   Which sea the tenant's guests see, chosen separately for desktop and for phones and
+   tablets: Classic (today's), Coastal or Video. Every sea follows the weather and the
+   time of day (AENR-815); Classic's own switches (live sea, depth, wave lines) are in
+   Features above. A radio group per device; changes reach the guest site at once. */
+function GuestSea({ t }: SectionProps) {
+  const { updateTenant, toast, canEdit } = usePlatform();
+  const set = (d: SeaDevice, label: string, style: SeaStyle) => {
+    const name = SEA_STYLES.find((x) => x.id === style)?.label ?? style;
+    updateTenant(t.id, (x) => ({ ...x, sea: { ...x.sea, [d]: style } }), {
+      section: "Features",
+      change: `Guest sea (${label}): ${name}`,
+    });
+    toast(`${label}: ${name} sea for ${t.name}.`, { tone: "success" });
+  };
+  return (
+    <Part
+      id="sea"
+      icon={Icon.wave}
+      title="Guest sea"
+      sub="The water behind the guest site — one choice for desktop, one for phones and tablets."
+      edit="admin"
+    >
+      <Card className="p-4 space-y-5">
+        {SEA_DEVICES.map((d) => {
+          const on = seaStyleOf(t, d.id);
+          return (
+            <fieldset key={d.id} disabled={!canEdit}>
+              <legend className="mb-2 flex items-center gap-2 text-[13px] font-semibold text-navy-900">
+                {d.id === "desktop" ? <Icon.monitor size={15} className="text-slate-500" /> : <Icon.phone size={15} className="text-slate-500" />}
+                {d.label}
+                <span className="font-normal text-slate-500">{d.id === "desktop" ? "1024 px and wider" : "under 1024 px"}</span>
+              </legend>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {SEA_STYLES.map((o) => {
+                  const picked = on === o.id;
+                  return (
+                    <label
+                      key={o.id}
+                      className={`relative flex cursor-pointer flex-col gap-1 rounded-xl p-3 ring-1 transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-teal-500 has-[:disabled]:cursor-not-allowed ${picked ? "bg-teal-50/70 ring-teal-600" : "bg-white ring-slate-200 hover:ring-teal-400"}`}
+                    >
+                      <span className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name={`sea-${t.id}-${d.id}`}
+                          value={o.id}
+                          checked={picked}
+                          onChange={() => set(d.id, d.label, o.id)}
+                          className="h-4 w-4 accent-teal-600"
+                        />
+                        <span className="font-semibold text-[14px] text-navy-900">{o.label}</span>
+                        {o.id === "classic" && <Badge tone="slate">Default</Badge>}
+                      </span>
+                      <span className="text-[12px] leading-snug text-slate-500">{o.description}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </fieldset>
+          );
+        })}
+        <p className="text-[12px] text-slate-500">
+          Every sea follows the beach's weather and the time of day — orange water and a sun path at sunrise and sunset, the moon and its reflection at night.
+          Reduced motion, Save-Data or a device without WebGL get a still sea.
+        </p>
       </Card>
     </Part>
   );

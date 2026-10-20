@@ -8,7 +8,7 @@ import { presetById } from "../data/backgrounds";
 import type { BeachPreset } from "../data/backgrounds";
 import type { BeachBackground, SunbedState } from "../domain/types";
 import type { SeaStyle } from "../domain/features";
-import { SeaLightGroup } from "./sea/SeaLightSvg";
+import { SeaLightGroup, useSceneView } from "./sea/SeaLightSvg";
 import { SeaLayer } from "./sea/SeaLayer";
 import { BEDS, CANOPY, CANOPY_FOLDED, CANOPY_WEDGES, FIN, GLYPH_BOX, GLYPH_CONTENT, sunbedPalette } from "./sunbedGlyph";
 gsap.registerPlugin(MorphSVGPlugin);
@@ -329,11 +329,13 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky =
   const [failed, setFailed] = useState(false);
   const style = failed ? "classic" : seaStyle;
   const light = seaEnv?.light;
+  const seaSvg = useRef<SVGSVGElement>(null);
+  const view = useSceneView(seaSvg);
   const svg = "absolute inset-0 w-full h-full";
   return (
     <>
       {/* The sea — always painted: the Classic look, and the loading state under a swapped-in sea. */}
-      <svg aria-hidden="true" className={svg} viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+      <svg ref={seaSvg} aria-hidden="true" className={svg} viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
         <defs>
           <linearGradient id={id("sea")} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={preset.sea[0]} />
@@ -358,7 +360,7 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky =
             ))}
           </g>
         )}
-        {light && style === "classic" && <SeaLightGroup light={light} dy={dy} />}
+        {light && style === "classic" && <SeaLightGroup light={light} dy={dy} view={view} />}
       </svg>
       {style !== "classic" && seaEnv && (
         <SeaLayer style={style} preset={preset} dy={dy} env={seaEnv} tier={liteScene() ? "mobile" : "desktop"} onFail={() => setFailed(true)} />
@@ -526,6 +528,8 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea, seaS
   const land = useRef<HTMLDivElement>(null);
   const green = useRef<HTMLDivElement>(null);
   useShoreSlide(dy, [land, green]);
+  const seaSvg = useRef<SVGSVGElement>(null);
+  const view = useSceneView(seaSvg);
   // Depth off (AENR-810): the planes stay stacked and still, and no birds fly.
   const k = sea.depth ? 1 : 0;
   const far = useParallax<HTMLDivElement>(-0.018 * k, 24);
@@ -589,7 +593,7 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea, seaS
     <>
       {/* Far plane — sea, glint, wave bands and the top vignette. */}
       <div ref={far} className={plane} style={overscan}>
-        <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+        <svg ref={seaSvg} aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
           <defs>
             <linearGradient id={id("sea")} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={preset.sea[0]} />
@@ -619,7 +623,7 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea, seaS
           )}
           {sea.detail && style === "classic" && <SeaWavelets dy={dy} />}
           {/* Sunrise, sunset and night on the still sea; the live water draws its own light. */}
-          {seaEnv && style === "classic" && !liveSea && <SeaLightGroup light={seaEnv.light} dy={dy} twinkle />}
+          {seaEnv && style === "classic" && !liveSea && <SeaLightGroup light={seaEnv.light} dy={dy} twinkle view={view} />}
           <rect width="1600" height="160" fill={`url(#${id("vignette")})`} />
         </svg>
         {style !== "classic" && seaEnv && (

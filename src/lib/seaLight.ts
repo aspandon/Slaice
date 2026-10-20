@@ -9,7 +9,7 @@ import type { WeatherDemo } from "../data/beach";
 
    Geometry: the guest scene looks out to sea with the horizon at the top edge.
    Alimos faces south-west, so the sun rises on the left (east) and sets on the
-   right over the water; the moon stands left of centre at night. Times follow a
+   right over the water; the moon stands right of centre at night (clear of the logo). Times follow a
    July day in Athens: sunrise ≈ 06:15, sunset ≈ 20:50. */
 
 export type Rgb = readonly [number, number, number];
@@ -83,11 +83,12 @@ export function seaLight(hour: number, weather: Pick<WeatherDemo, "glint" | "dim
   const moonStrength = night * (1 - 0.75 * cloud);
   const atNight = night > 0.5;
   const glitter = atNight
-    ? { color: MOON, strength: moonStrength * 0.8, width: 0.06, x: 0.34 }
+    ? { color: MOON, strength: moonStrength * 0.8, width: 0.06, x: 0.66 }
     : { color: sunColor, strength: sunGlitter, width: 0.45 - 0.37 * low, x: sunX };
   // Water: orange-pink at the horizon in golden light, deep navy at night.
-  const warmTop: Rgb = dawn ? [1, 0.7, 0.6] : [1, 0.6, 0.36];
-  const warmDeep: Rgb = dawn ? [0.62, 0.55, 0.75] : [0.72, 0.45, 0.5];
+  // Both ends of the day burn orange; dawn is a touch lighter and rosier at the shore.
+  const warmTop: Rgb = dawn ? [1, 0.64, 0.4] : [1, 0.58, 0.32];
+  const warmDeep: Rgb = dawn ? [0.86, 0.56, 0.48] : [0.78, 0.45, 0.42];
   const nightTop: Rgb = [0.16, 0.22, 0.38];
   const nightDeep: Rgb = [0.05, 0.08, 0.18];
   const tintTop = night > 0 ? mix(warmTop, nightTop, night) : warmTop;
@@ -100,7 +101,7 @@ export function seaLight(hour: number, weather: Pick<WeatherDemo, "glint" | "dim
     night,
     dawn,
     glitter,
-    moon: { strength: moonStrength, x: 0.34, color: MOON },
+    moon: { strength: moonStrength, x: 0.66, color: MOON },
     tint: { top: tintTop, deep: tintDeep, amount },
     cloud,
   };

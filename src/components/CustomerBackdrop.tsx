@@ -165,7 +165,7 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
           actually turning. */}
       <div
         className="absolute inset-0 transition-opacity"
-        style={{ transitionDuration: "1600ms", opacity: warm, mixBlendMode: "soft-light", background: "linear-gradient(to top, rgba(255,118,40,0.85), rgba(255,82,96,0.45) 45%, rgba(122,72,150,0.3))" }}
+        style={{ transitionDuration: "1600ms", opacity: warm, mixBlendMode: "soft-light", background: "linear-gradient(to top, rgba(255,118,40,0.85), rgba(255,104,72,0.45) 45%, rgba(255,150,80,0.3))" }}
       />
       <div
         className="absolute inset-0 transition-opacity"

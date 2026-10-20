@@ -22,10 +22,11 @@ const src = (f: string) => `${BASE}sea/${f}`;
 /** The colour grade for the light: a CSS filter string. */
 function grade(env: SeaEnv) {
   const { night: n, warm: w, cloud: c } = env.light;
-  const brightness = 1.06 - 0.5 * n - 0.12 * c;
-  const saturate = Math.max(0.35, 1.12 + 0.3 * w - 0.45 * c - 0.4 * n);
-  const sepia = 0.38 * w * (1 - n);
-  const hue = -14 * w;
+  // A light hand: the glow and the night come from the light layer on top (no muddy sepia).
+  const brightness = 1.06 - 0.3 * n - 0.12 * c + 0.05 * w;
+  const saturate = Math.max(0.35, 1.12 + 0.2 * w - 0.45 * c - 0.35 * n);
+  const sepia = 0.12 * w * (1 - n);
+  const hue = -8 * w;
   return `brightness(${brightness.toFixed(3)}) saturate(${saturate.toFixed(3)}) sepia(${sepia.toFixed(3)}) hue-rotate(${hue.toFixed(1)}deg) contrast(${(1 + 0.06 * w).toFixed(3)})`;
 }
 
@@ -96,7 +97,7 @@ export default function VideoSea({
         </video>
       )}
       {/* The light the video can't film: the path under the sun or the moon, the horizon glow. */}
-      <SeaLightSvg light={env.light} dy={dy} tint={false} twinkle={tier === "desktop" && !still} />
+      <SeaLightSvg light={env.light} dy={dy} tint="soft" twinkle={tier === "desktop" && !still} />
     </div>
   );
 }
