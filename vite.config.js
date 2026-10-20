@@ -28,9 +28,6 @@ export default defineConfig({
           // three rides along with the lazy LiveSeaCanvas chunk — only WebGL2
           // desktops fetch it; phones / reduced-motion never do.
           if (id.includes("/three/")) return undefined;
-          // ScrollTrigger rides along with Home's chunk — only the first-time
-          // guest's How it works story uses it (AENR-789).
-          if (id.includes("gsap/ScrollTrigger")) return undefined;
           if (id.includes("lucide-react")) return "icons";
           // Radix + its Floating UI positioning stack must be grouped *before*
           // the react rule below: `@floating-ui/react-dom` matches the
