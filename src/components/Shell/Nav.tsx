@@ -128,7 +128,7 @@ export function CustomerNav({ page, setPage }: Pick<NavProps, "page" | "setPage"
   const t = useT();
   return (
     <nav aria-label={t("Main")} className="hidden md:flex justify-center -mt-1 mb-4">
-      <div className="glass-card-solid rounded-2xl p-1 flex gap-1 shadow-soft">
+      <div className="glass-card-solid rounded-2xl p-1 flex gap-1 shadow-soft" data-main-nav="">
         {NAV.customer.map((it) => {
           const IconC = Icon[it.icon];
           const active = page === it.k;

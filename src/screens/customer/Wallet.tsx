@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
@@ -226,58 +226,55 @@ function UpcomingEntries() {
   const [open, setOpen] = useState<Visit | null>(null);
   const ahead = visits.filter((v) => v.status === "today" || v.status === "upcoming");
   const shown = ahead.slice(0, ENTRY_LIMIT);
-  const more = ahead.length - shown.length;
+  const width = useMainNavWidth();
+  // One translucent tile, as wide as the menu bar above it (owner, AENR-794); managing a visit
+  // stays in My bookings, a tab away — so no separate link here.
   return (
-    <section aria-labelledby="wallet-entries" aria-busy={status === "loading"}>
-      <SectionHead
-        id="wallet-entries"
-        icon={Icon.ticket}
-        aside={
-          ahead.length > 0 && (
-            <button
-              type="button"
-              onClick={() => go("customer", "mybookings")}
-              className="inline-flex items-center gap-1 rounded-lg glass-card-solid px-2.5 py-1 text-guest-meta font-semibold text-teal-700 hover:text-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
-            >
-              {more > 0 ? `${t("All")} ${ahead.length} ${t("in My bookings")}` : t("My bookings")}
-              <Icon.chevR size={13} />
-            </button>
-          )
-        }
-      >
-        {t("Upcoming entries")}
+    <section
+      aria-labelledby="wallet-entries"
+      aria-busy={status === "loading"}
+      className="glass-flat rounded-3xl p-4 sm:p-5 mx-auto w-full"
+      style={width ? { maxWidth: width } : undefined}
+    >
+      <h2 id="wallet-entries" className="mb-4 flex items-center gap-2 font-display font-bold text-navy-900">
+        <Icon.ticket size={17} className="text-teal-700" /> {t("Upcoming entries")}
         {ahead.length > 0 && <Badge tone="info">{ahead.length}</Badge>}
-      </SectionHead>
+      </h2>
       {status === "loading" ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          {[0, 1].map((i) => (
-            <Skeleton key={i} className="h-[164px] !rounded-3xl" />
-          ))}
-        </div>
+        <Skeleton className="h-[164px] !rounded-3xl max-w-md mx-auto" />
       ) : status === "error" ? (
-        <div className="glass-flat rounded-3xl">
-          <ErrorState compact body={t("We couldn't load your bookings.")} onRetry={refetch} />
-        </div>
+        <ErrorState compact body={t("We couldn't load your bookings.")} onRetry={refetch} />
       ) : shown.length === 0 ? (
-        <div className="glass-flat rounded-3xl">
-          <EmptyState
-            compact
-            icon={Icon.ticket}
-            title={t("No upcoming visits")}
-            body={t("Book a day at the beach — its entry QR will be here, ready for the gate.")}
-            action={
-              <Btn variant="teal" icon={Icon.sparkles} onClick={() => go("customer", "plan")}>
-                {t("Plan a visit")}
-              </Btn>
-            }
-          />
-        </div>
+        <EmptyState
+          compact
+          icon={Icon.ticket}
+          title={t("No upcoming visits")}
+          body={t("Book a day at the beach — its entry QR will be here, ready for the gate.")}
+          action={
+            <Btn variant="teal" icon={Icon.sparkles} onClick={() => go("customer", "plan")}>
+              {t("Plan a visit")}
+            </Btn>
+          }
+        />
       ) : (
         <PassStack visits={shown} onShow={setOpen} />
       )}
       {open && <VisitQR v={open} onClose={() => setOpen(null)} />}
     </section>
   );
+}
+
+/** The width of the guest menu bar (desktop) — sections that line up with it use it as their max width. */
+function useMainNavWidth() {
+  const [w, setW] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const el = document.querySelector<HTMLElement>("[data-main-nav]");
+    if (!el) return;
+    const ro = new ResizeObserver(() => setW(el.offsetWidth || null));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return w;
 }
 
 /* ============ Pass stack (AENR-759) ============
