@@ -7,6 +7,16 @@
     <title>Slaice — Platform Mockup</title>
     <meta name="theme-color" content="#f6f8fb" />
     <meta name="description" content="Slaice — a modern, multitenant beach-experience SaaS platform. Book sunbeds, tickets and more on a live beach map." />
+    <!-- First paint (AENR-820): the guest site starts on the sea, not a white page. Before the app
+         has loaded, mark the guest persona from the saved demo state so the CSS paints the page in
+         the beach's sea colours; the app then keeps <html data-persona> in sync. -->
+    <script>
+      try {
+        var h = location.hash, s = JSON.parse(localStorage.getItem("slaice.v1") || "{}");
+        if (h.indexOf("#/pass") === 0 || h.indexOf("#/customer") === 0 || (h.indexOf("#/") !== 0 && s.persona === "customer"))
+          document.documentElement.dataset.persona = "customer";
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -129,6 +129,14 @@ textarea:focus-visible {
 html[data-persona="customer"] {
   scrollbar-width: none; /* Firefox */
 }
+/* Until the beach backdrop paints (and under it, while it fades in), the guest page is the sea —
+   never the staff canvas's near-white (AENR-820). The default preset's water, top to bottom. */
+html[data-persona="customer"] body {
+  background: linear-gradient(#1b6fa6, #2a92cf 45%, #5ec3f2 80%, #bfe8fb);
+}
+html[data-persona="customer"] body::before {
+  display: none;
+}
 html[data-persona="customer"]::-webkit-scrollbar {
   width: 0;
   height: 0;
