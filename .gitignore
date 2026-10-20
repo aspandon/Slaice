@@ -14,3 +14,8 @@ tools/orbit/state.json
 
 # Agent worktrees (local only)
 .claude/worktrees/
+
+# Blender (AENR-827) — the portable build, its cache and render frames never go in the repo
+.blender-cache/
+tools/blender/frames/
+*.blend1

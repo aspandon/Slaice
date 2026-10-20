@@ -40,6 +40,15 @@
       "env": {
         "CHROME_PATH": "tools/mcp/chrome.sh"
       }
+    },
+    "blender": {
+      "command": "uvx",
+      "args": ["mcp-for-blender@2.2.1"],
+      "env": {
+        "BLENDER_HOST": "localhost",
+        "BLENDER_PORT": "9876",
+        "DISABLE_TELEMETRY": "true"
+      }
     }
   }
 }
