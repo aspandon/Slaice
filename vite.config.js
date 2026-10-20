@@ -40,6 +40,8 @@ export default defineConfig({
       },
     },
   },
-  server: { host: true, port: 5173 },
+  // Agent worktrees and Playwright MCP output live inside the repo; the dev server must not
+  // watch them (their edits and builds would reload — and re-optimise — the main app).
+  server: { host: true, port: 5173, watch: { ignored: ["**/.claude/**", "**/.playwright-mcp/**", "**/dist/**"] } },
   preview: { host: true, port: 4173 },
 });
