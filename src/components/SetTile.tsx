@@ -4,6 +4,7 @@ import { MorphSVGPlugin } from "gsap/MorphSVGPlugin";
 
 gsap.registerPlugin(MorphSVGPlugin);
 import { Icon } from "../lib/icons";
+import { PARASOL_CANOPY } from "./productIcons";
 import { useMoney, useT } from "../app/store";
 import type { SunbedSlot, SunbedState } from "../domain/types";
 
@@ -141,8 +142,9 @@ export function SetTile({
 
 /* The tile's umbrella (AENR-790): when the set becomes yours its canopy changes shape (MorphSVG,
    AENR-808) from a furled umbrella — a slim spindle down the pole — to the open dome, with a small
-   overshoot; let go, it furls part-way and springs back. Not on mount. */
-const DOME = "M12 3a9 9 0 0 1 9 9H3a9 9 0 0 1 9-9Z";
+   overshoot; let go, it furls part-way and springs back. Not on mount. The open canopy is the
+   product icons' scalloped parasol (AENR-831), so the tile and the icon family match. */
+const DOME = PARASOL_CANOPY;
 const FURLED = "M12 3c1.2 2.6 1.6 6 1.2 9h-2.4C10.4 9 10.8 5.6 12 3Z";
 function Parasol({ open, className }: { open: boolean; className?: string }) {
   const canopy = useRef<SVGPathElement>(null);

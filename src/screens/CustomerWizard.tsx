@@ -16,6 +16,7 @@ import { gsap, Flip, motionOK, stashFlip, EASE, DUR } from "../lib/fx";
 import { DURATION, EASING } from "../lib/motionTokens";
 import { Sunbed, SunbedMark } from "../components/Beach";
 import { SetTile, SetTileLegend, tileGeometry, tilePosition } from "../components/SetTile";
+import { EntryTicketIcon, LockerIcon, ParkingIcon, SunbedSetIcon } from "../components/productIcons";
 import { ZONES, ZONE_BLOCKS, todayISO, chipLabel, forecastFor, WEATHER_DEMO } from "../data/beach";
 import { addDays } from "../domain/period";
 import { useClosure, useLiveSlots } from "../lib/useLiveSlots";
@@ -808,7 +809,7 @@ function WizardInner() {
           {noSet && step.id === "beach" && bedSel.length === 0 && (
             <div role="alert" className="mx-4 sm:mx-5 mb-2 rounded-xl bg-amber-50 ring-1 ring-amber-600/25 px-3 py-2.5 text-guest-meta text-amber-900 shrink-0">
               <div className="flex items-start gap-2">
-                <Icon.umbrella size={15} className="shrink-0 mt-0.5 text-amber-700" />
+                <SunbedSetIcon size={15} className="shrink-0 mt-0.5 text-amber-700" />
                 <div className="min-w-0">
                   <b>{tr("You haven't picked a set yet.")}</b>{" "}
                   {phase === "zones" ? (richOverview ? tr("Tap a zone on the sand, then tap a set (an umbrella with two sunbeds) to add it.") : tr("Pick a zone in the list, then tap a set (an umbrella with two sunbeds) on the map.")) : tr("Tap a free set on the sand to add it.")}
@@ -1169,7 +1170,7 @@ function BeachMenu({ part, onEditDates, zonePicker, selDates, setSelDates, multi
               <Icon.arrowL size={14} /> {tr("All zones")}
             </button>
             <div className="flex items-center gap-2 min-w-0">
-              <span className="w-6 h-6 rounded-lg grid place-items-center shrink-0" style={{ background: zone.color, color: "white" }}><Icon.umbrella size={13} /></span>
+              <span className="w-6 h-6 rounded-lg grid place-items-center shrink-0" style={{ background: zone.color, color: "white" }}><SunbedSetIcon size={13} accent="rgba(255,255,255,0.3)" /></span>
               <div className="font-display font-bold text-navy-900 text-guest-body truncate">{zone.name}</div>
               <Badge tone="green">{avail} {tr("free")}</Badge>
             </div>
@@ -1527,7 +1528,7 @@ function StoreCards({ days, selectedId, onPick, picked }: { days: string[]; sele
               {logo ? (
                 <img src={logo} alt="" className="mx-auto mb-1.5 h-9 w-auto max-w-[72%] object-contain" />
               ) : (
-                <span className="mx-auto mb-1.5 w-9 h-9 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: z.color }}><Icon.umbrella size={18} /></span>
+                <span className="mx-auto mb-1.5 w-9 h-9 rounded-lg grid place-items-center text-white shadow-sm" style={{ background: z.color }}><SunbedSetIcon size={18} accent="rgba(255,255,255,0.3)" /></span>
               )}
               <span className="block text-navy-900 font-bold text-guest-body leading-tight">{z.name}</span>
               <span className="block text-slate-600 text-guest-caption tnum mt-0.5">{tr("from")} {money(fromLabel)} · {free} {tr("free")}</span>
@@ -1576,7 +1577,7 @@ function ZoneList({ days, selectedId, onPick, picked }: { days: string[]; select
                 {logo ? (
                   <img src={logo} alt="" className="h-10 w-10 object-contain shrink-0" />
                 ) : (
-                  <span className="w-10 h-10 rounded-xl grid place-items-center text-white shrink-0 shadow-sm" style={{ background: z.color }}><Icon.umbrella size={18} /></span>
+                  <span className="w-10 h-10 rounded-xl grid place-items-center text-white shrink-0 shadow-sm" style={{ background: z.color }}><SunbedSetIcon size={18} accent="rgba(255,255,255,0.3)" /></span>
                 )}
                 <span className="flex-1 min-w-0">
                   <span className="block font-bold text-navy-900 text-guest-body leading-tight">{z.name}</span>
@@ -1826,7 +1827,7 @@ function PeopleStep({ tickets: TICKET, people, setPeople, includeTickets, setInc
           {/* Entry-tickets toggle sits inline, right after the quick picks. */}
           <button onClick={() => setIncludeTickets((v) => !v)} aria-pressed={includeTickets}
             className={`relative text-left rounded-xl pl-3 pr-9 py-2 ring-1 transition ${includeTickets ? "bg-teal-50 ring-teal-500" : "bg-white/70 ring-slate-200 hover:ring-teal-400"}`}>
-            <div className="text-guest-meta font-semibold leading-tight text-navy-900 flex items-center gap-1.5"><Icon.ticket size={13} className={includeTickets ? "text-teal-600" : "text-slate-500"} /> {tr("Add Entry tickets")}</div>
+            <div className="text-guest-meta font-semibold leading-tight text-navy-900 flex items-center gap-1.5"><EntryTicketIcon size={13} className={includeTickets ? "text-teal-600" : "text-slate-500"} /> {tr("Add Entry tickets")}</div>
             <div className="text-guest-caption leading-tight text-slate-500">{tr("One ticket per guest")}</div>
             <span className={`absolute top-1/2 -translate-y-1/2 right-2 w-5 h-5 rounded-full grid place-items-center ${includeTickets ? "bg-teal-600 text-white" : "ring-1 ring-slate-300 text-slate-500"}`}>
               {includeTickets ? <Icon.check size={12} /> : <Icon.plus size={12} />}
@@ -1843,7 +1844,7 @@ function PeopleStep({ tickets: TICKET, people, setPeople, includeTickets, setInc
       )}
       {autoFilled && pickedSets > 0 && (
         <div className="rounded-xl ring-1 ring-teal-200 bg-teal-50/70 px-3 py-2 flex items-start gap-2 text-guest-meta text-navy-900 animate-fade-up">
-          <Icon.ticket size={14} className="text-teal-600 shrink-0 mt-0.5" />
+          <EntryTicketIcon size={14} className="text-teal-600 shrink-0 mt-0.5" />
           <span>{tr("We pre-filled")} <b>{pickedSets * 2} {tr("entry tickets")}</b> — {tr("2 per set. Change the headcount below if you need to.")}</span>
         </div>
       )}
@@ -1869,7 +1870,7 @@ function PeopleStep({ tickets: TICKET, people, setPeople, includeTickets, setInc
 
       {pickedSets > 0 && (
         <div className={`rounded-xl ring-1 px-3 py-2.5 flex items-start gap-2.5 ${totalPeople > pickedSets * 2 ? "ring-amber-300 bg-amber-50/80" : "ring-teal-200 bg-teal-50/70"}`}>
-          <span className={`w-8 h-8 rounded-lg text-white grid place-items-center shrink-0 ${totalPeople > pickedSets * 2 ? "bg-amber-500" : "bg-teal-600"}`}><Icon.umbrella size={15} /></span>
+          <span className={`w-8 h-8 rounded-lg text-white grid place-items-center shrink-0 ${totalPeople > pickedSets * 2 ? "bg-amber-500" : "bg-teal-600"}`}><SunbedSetIcon size={15} accent="rgba(255,255,255,0.3)" /></span>
           <div className="text-guest-meta leading-snug text-navy-900">
             {tr("You picked")} <b>{pickedSets} {pickedSets !== 1 ? tr("umbrella sets") : tr("umbrella set")}</b> — {tr("seats up to")} <b>{pickedSets * 2}</b>.{" "}
             {totalPeople > pickedSets * 2
@@ -1933,13 +1934,13 @@ function LockerStep({ on, setOn, scope, setScope, days, setDays, qty, setQty, se
       </div>
       {multiDate ? (
         <div className="grid sm:grid-cols-3 gap-2">
-          <YesNo on={on && scope === "all"} onClick={() => choose("all")} title={tr("Yes — all days")} sub={`${selDates.length} ${selDates.length !== 1 ? tr("days") : tr("day")} · ${money(LOCKER_PRICE)} ${tr("a day")}`} icon={Icon.lock} />
+          <YesNo on={on && scope === "all"} onClick={() => choose("all")} title={tr("Yes — all days")} sub={`${selDates.length} ${selDates.length !== 1 ? tr("days") : tr("day")} · ${money(LOCKER_PRICE)} ${tr("a day")}`} icon={LockerIcon} />
           <YesNo on={on && scope === "some"} onClick={() => choose("some")} title={tr("Yes — specific days")} sub={tr("Pick which days")} icon={Icon.calendar} />
           <YesNo on={!on} onClick={() => choose("off")} title={tr("No, skip lockers")} sub={tr("Continue without")} icon={Icon.x} />
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2">
-          <YesNo on={on} onClick={() => choose("all")} title={tr("Yes, add lockers")} sub={`${money(LOCKER_PRICE)} ${tr("per locker a day")}`} icon={Icon.lock} />
+          <YesNo on={on} onClick={() => choose("all")} title={tr("Yes, add lockers")} sub={`${money(LOCKER_PRICE)} ${tr("per locker a day")}`} icon={LockerIcon} />
           <YesNo on={!on} onClick={() => choose("off")} title={tr("No, skip lockers")} sub={tr("Continue without")} icon={Icon.x} />
         </div>
       )}
@@ -2034,13 +2035,13 @@ function ParkingStep({ on, setOn, qty, setQty, scope, setScope, days, setDays, p
     <div className="space-y-3">
       {multiDate ? (
         <div className="grid sm:grid-cols-3 gap-2">
-          <YesNo on={on && scope === "all"} onClick={() => choose("all")} title={tr("Yes — all days")} sub={`${selDates.length} ${selDates.length !== 1 ? tr("days") : tr("day")} · ${money(PARKING_PRICE)} ${tr("a day")}`} icon={Icon.car} />
+          <YesNo on={on && scope === "all"} onClick={() => choose("all")} title={tr("Yes — all days")} sub={`${selDates.length} ${selDates.length !== 1 ? tr("days") : tr("day")} · ${money(PARKING_PRICE)} ${tr("a day")}`} icon={ParkingIcon} />
           <YesNo on={on && scope === "some"} onClick={() => choose("some")} title={tr("Yes — specific days")} sub={tr("Pick which days")} icon={Icon.calendar} />
           <YesNo on={!on} onClick={() => choose("off")} title={tr("No, skip parking")} sub={tr("Walking or public transport")} icon={Icon.x} />
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-2">
-          <YesNo on={on} onClick={() => choose("all")} title={tr("Yes, reserve parking")} sub={`${money(PARKING_PRICE)} ${tr("per spot a day")}`} icon={Icon.car} />
+          <YesNo on={on} onClick={() => choose("all")} title={tr("Yes, reserve parking")} sub={`${money(PARKING_PRICE)} ${tr("per spot a day")}`} icon={ParkingIcon} />
           <YesNo on={!on} onClick={() => choose("off")} title={tr("No, skip parking")} sub={tr("Walking or public transport")} icon={Icon.x} />
         </div>
       )}
@@ -2206,7 +2207,7 @@ function ReviewStep({ people, totalPeople, selDates, zone, bedSel = [], includeT
     <div className="space-y-2.5">
       {/* Order (AENR-714): when, where, who — then any extras. */}
       <ReviewRow icon={Icon.calendar} title={tr("Dates")} onEdit={() => onJump("when")}>{dateLabel}</ReviewRow>
-      <ReviewRow icon={Icon.umbrella} title={tr("Beach")} onEdit={() => onJump("beach")}>
+      <ReviewRow icon={SunbedSetIcon} title={tr("Beach")} onEdit={() => onJump("beach")}>
         {bedSel.length > 0
           ? byStore.map((g) => <span key={g.name} className="block"><b className="font-semibold text-navy-900">{g.name}</b> · {g.n} {g.n !== 1 ? tr("umbrella sets") : tr("umbrella set")}</span>)
           : tr("No sunbeds — entry only")}
@@ -2217,10 +2218,10 @@ function ReviewStep({ people, totalPeople, selDates, zone, bedSel = [], includeT
       </ReviewRow>
       {/* Locker and parking show here once added; "Add a locker or parking" below adds them (AENR-612) — only when the beach sells them (AENR-696). */}
       {lockerOn && lockerDates.length > 0 && (
-        <ReviewRow icon={Icon.lock} title={tr("Day locker")} onEdit={() => onJump("locker")}>{`${lockerQty} ${lockerQty !== 1 ? tr("lockers") : tr("locker")} · ${lockerDates.length} ${lockerDates.length !== 1 ? tr("days") : tr("day")}`}</ReviewRow>
+        <ReviewRow icon={LockerIcon} title={tr("Day locker")} onEdit={() => onJump("locker")}>{`${lockerQty} ${lockerQty !== 1 ? tr("lockers") : tr("locker")} · ${lockerDates.length} ${lockerDates.length !== 1 ? tr("days") : tr("day")}`}</ReviewRow>
       )}
       {parkingOn && parkingDates.length > 0 && (
-        <ReviewRow icon={Icon.car} title={tr("Parking Spot")} onEdit={() => onJump("parking")}>
+        <ReviewRow icon={ParkingIcon} title={tr("Parking Spot")} onEdit={() => onJump("parking")}>
           {`${parkingQty} ${parkingQty !== 1 ? tr("spots") : tr("spot")} · ${parkingDates.length} ${parkingDates.length !== 1 ? tr("days") : tr("day")} · ${plateSummary}`}
         </ReviewRow>
       )}

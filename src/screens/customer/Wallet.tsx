@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../../lib/icons";
+import { EntryTicketIcon, SunbedSetIcon } from "../../components/productIcons";
 import type { IconRenderer } from "../../lib/icons";
 import { Badge, Btn, EmptyState, ErrorState, NotMvpBadge, Skeleton } from "../../components/ui";
 import { QR } from "../../components/charts";
@@ -264,7 +265,7 @@ function UpcomingEntries() {
   return (
     <WalletSection
       id="wallet-entries"
-      icon={Icon.ticket}
+      icon={EntryTicketIcon}
       busy={status === "loading"}
       title={
         <>
@@ -281,7 +282,7 @@ function UpcomingEntries() {
         // A guest who has never booked is told what this place is for; a returning one, what to do next.
         <EmptyState
           compact
-          icon={Icon.ticket}
+          icon={EntryTicketIcon}
           title={visits.length === 0 ? t("Your beach days will be here") : t("No upcoming visits")}
           body={
             visits.length === 0
@@ -445,7 +446,7 @@ function ReleaseMyDay() {
   return (
     <WalletSection
       id="wallet-release"
-      icon={Icon.umbrella}
+      icon={SunbedSetIcon}
       title={`${t("Your season set")} · ${zone.name} ${setId}`}
     >
       <p className="text-guest-meta text-slate-700 mb-4">
@@ -524,7 +525,7 @@ function PassOffer({
       <span
         className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 text-white ${tone === "vip" ? "bg-gradient-to-br from-amber-400 to-amber-600" : "bg-gradient-to-br from-sky-500 to-teal-600"}`}
       >
-        {tone === "vip" ? <Icon.star size={16} /> : <Icon.umbrella size={16} />}
+        {tone === "vip" ? <Icon.star size={16} /> : <SunbedSetIcon size={16} accent="rgba(255,255,255,0.3)" />}
       </span>
       <span className="flex-1 min-w-0">
         <span className="block text-guest-body font-semibold text-navy-900">{title}</span>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ArrivalBadge } from "../../components/ArrivalBadge";
 import { Icon } from "../../lib/icons";
+import { EntryTicketIcon } from "../../components/productIcons";
 import { Btn } from "../../components/ui";
 import { QR } from "../../components/charts";
 import { BeachBackdrop } from "../../components/Beach";
@@ -321,7 +322,7 @@ function SharedPass({ b }: { b: SharedBooking }) {
               const u = ticketLeft(x.cat);
               return (
                 <li key={x.cat} className="flex items-center gap-3 py-2.5">
-                  <Icon.ticket size={16} className="text-teal-600 shrink-0" />
+                  <EntryTicketIcon size={16} className="text-teal-600 shrink-0" />
                   <div className="min-w-0 flex-1 text-guest-body font-semibold text-navy-900">
                     {t(x.label)}
                   </div>

@@ -3,6 +3,7 @@ import { useTenantFeatures } from "../../lib/useFeatures";
 import { ADD_EXTRAS_LABEL, extrasPhrase } from "../../domain/features";
 import { useGuestRecord } from "../../lib/useGuestRecord";
 import { Icon } from "../../lib/icons";
+import { PRODUCT_ICON, type ProductKind } from "../../components/productIcons";
 import { Badge, Btn, Card, EmptyState, ErrorState, Field, Modal, Stepper, Tabs, CardGridSkeleton, ActionsMenu, useLongPress, type MenuAction } from "../../components/ui";
 import { DateInput } from "../../components/ui/DateInput";
 import { WalletButtons, WalletSheetFor, otherWallets } from "../../components/WalletPass";
@@ -186,12 +187,13 @@ function VisitCard({ v, deadline, onOpen }: { v: Visit; deadline: string; onOpen
     ...otherWallets().map((k) => ({ id: `wallet-${k}`, label: `${t("Add to")} ${k === "apple" ? "Apple Wallet" : "Google Wallet"}`, icon: Icon.wallet, onSelect: () => setWalletKind(k) })),
     ...(live ? [{ id: "cancel", label: t("Cancel visit"), icon: Icon.x, destructive: true, hint: inWindow ? t("Free until") + " " + fmtDeadline(deadline) : t("No refund now"), onSelect: () => onOpen({ kind: "cancel", v }) }] : []),
   ];
-  const what = [
-    v.sets.length ? `${t("Sunbeds")} ${v.sets.join(", ")}` : "",
-    ...v.tickets.map((x) => `${t("Entry")} ${x}`),
-    ...v.parking.map((x) => `${t("Parking")} ${x}`),
-    ...v.lockers.map((x) => `${t("Locker")} ${x}`),
-  ].filter(Boolean);
+  // What the visit holds, each line with its product icon (AENR-831).
+  const what: { key: string; kind: ProductKind; text: string }[] = [
+    ...(v.sets.length ? [{ key: "sets", kind: "sunbed" as const, text: `${t("Sunbeds")} ${v.sets.join(", ")}` }] : []),
+    ...v.tickets.map((x, i) => ({ key: `t${i}`, kind: "ticket" as const, text: `${t("Entry")} ${x}` })),
+    ...v.parking.map((x, i) => ({ key: `p${i}`, kind: "parking" as const, text: `${t("Parking")} ${x}` })),
+    ...v.lockers.map((x, i) => ({ key: `l${i}`, kind: "locker" as const, text: `${t("Locker")} ${x}` })),
+  ];
   return (
     // Long-press anywhere on the card (touch) opens the same "…" menu.
     <div {...press} className="select-none sm:select-auto">
@@ -211,7 +213,19 @@ function VisitCard({ v, deadline, onOpen }: { v: Visit; deadline: string; onOpen
             {gate && gate.arrivals.length > 0 && <ArrivalBadge st={gate} t={t} />}
             {v.movedFrom && <span className="text-guest-caption text-slate-500">{t("moved from")} {fmtDay(v.movedFrom)}</span>}
           </div>
-          <p className="mt-0.5 text-guest-meta text-slate-700">{what.join(" · ") || t("Beach day")}</p>
+          <p className="mt-0.5 text-guest-meta text-slate-700 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+            {what.length
+              ? what.map((w) => {
+                  const P = PRODUCT_ICON[w.kind];
+                  return (
+                    <span key={w.key} className="inline-flex items-center gap-1">
+                      <P size={14} className="text-teal-700 shrink-0" />
+                      {w.text}
+                    </span>
+                  );
+                })
+              : t("Beach day")}
+          </p>
           <p className="mt-1 text-guest-meta text-slate-600">
             {v.status === "cancelled" && v.cancelled
               ? v.cancelled.refund > 0

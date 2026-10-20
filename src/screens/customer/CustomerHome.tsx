@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useGuestRecord } from "../../lib/useGuestRecord";
 import { Icon } from "../../lib/icons";
+import { SunbedSetIcon } from "../../components/productIcons";
 import type { IconRenderer } from "../../lib/icons";
 import { Badge, Btn, NotMvpBadge } from "../../components/ui";
 import { PassCard } from "../../components/PassCard";
@@ -192,7 +193,7 @@ export function CustomerHome() {
         {visitsStatus === "loading" && !firstTimer ? <RebookSkeleton /> : rebook.status === "none" ? (
           <section aria-labelledby="first-visit" className={`${CARD} p-5 flex flex-col gap-2.5 hover:bg-white/80 transition-colors group cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-teal-500`} data-home-card>
             <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><SunbedSetIcon size={18} accent="rgba(255,255,255,0.3)" /></span>
               <div className="min-w-0">
                 <h2 id="first-visit" className="font-semibold text-navy-900 text-guest-body leading-tight">{t("Plan another visit")}</h2>
                 <p className="text-guest-meta text-slate-600 mt-0.5 leading-snug">{`${freeToday} ${t("sunbeds free today")} · ${t("from")} ${money(fromPrice)}`}</p>
@@ -371,7 +372,7 @@ function AtBeachCard({ v }: { v: Visit }) {
     <section aria-labelledby="at-beach" className={`${CARD} p-5 sm:p-7`} data-home-card>
       <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
         <div className="min-w-0 flex-1">
-          <div className="inline-flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-700"><Icon.umbrella size={13} /> {t("You're at the beach")}{v.zone ? ` · ${v.zone}` : ""}</div>
+          <div className="inline-flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-700"><SunbedSetIcon size={13} /> {t("You're at the beach")}{v.zone ? ` · ${v.zone}` : ""}</div>
           <RevealLines as="h2" id="at-beach" className="mt-1.5 font-display font-bold text-guest-title leading-tight text-navy-900">{t("Enjoy your day")}</RevealLines>
           <p className="mt-1 text-guest-body text-slate-700">
             {v.sets.length ? `${t("Sunbeds")} ${v.sets.join(", ")}` : t("Entry tickets")}{has.length ? ` · ${has.join(" · ")}` : ""}
@@ -462,7 +463,7 @@ function RebookTile({ rebook, title }: { rebook: Exclude<Rebook, { status: "none
     return (
       <div className={`${CARD} p-5 flex flex-col gap-2.5`} data-home-card>
         <div className="flex items-center gap-3">
-          <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
+          <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><SunbedSetIcon size={18} accent="rgba(255,255,255,0.3)" /></span>
           <div className="min-w-0">
             <h2 className="font-semibold text-navy-900 text-guest-body leading-tight">{title}</h2>
             <p className="text-guest-meta text-slate-600 mt-0.5 leading-snug">
@@ -480,7 +481,7 @@ function RebookTile({ rebook, title }: { rebook: Exclude<Rebook, { status: "none
   return (
     <section aria-labelledby="rebook-usual" className={`${CARD} p-5 flex flex-col gap-3`} data-home-card>
       <div className="flex items-start gap-3">
-        <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
+        <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><SunbedSetIcon size={18} accent="rgba(255,255,255,0.3)" /></span>
         <div className="min-w-0 flex-1">
           <h2 id="rebook-usual" className="font-semibold text-navy-900 text-guest-body leading-tight">{title}</h2>
           <p className="text-guest-meta text-slate-600 mt-0.5 leading-snug">{t("What you book most — checked free for you.")}</p>
