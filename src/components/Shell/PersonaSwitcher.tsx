@@ -77,7 +77,9 @@ export function PersonaSwitcher({
         )}
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content side={side} align="end" sideOffset={8} className={`glass w-72 text-ink rounded-xl p-1.5 z-[60] shadow-float ${origin} data-[state=open]:animate-scale-in`}>
+        {/* Never taller than the room on screen: on a phone the long Demo menu scrolls inside itself
+            (AENR-846) — Radix gives the available height; overscroll stops the page behind moving. */}
+        <DropdownMenu.Content side={side} align="end" sideOffset={8} collisionPadding={8} className={`glass w-72 max-w-[calc(100vw-16px)] max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto overscroll-contain text-ink rounded-xl p-1.5 z-[60] shadow-float ${origin} data-[state=open]:animate-scale-in`}>
           <DropdownMenu.Label className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">{t("View as persona")}</DropdownMenu.Label>
           {PERSONAS.map((p) => {
             // A role the demo beach doesn't use (AENR-716) stays reachable, greyed, and opens an explanation.
