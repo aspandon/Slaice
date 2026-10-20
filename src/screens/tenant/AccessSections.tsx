@@ -306,12 +306,42 @@ export function SlaiceAccess({ t }: SectionProps) {
   );
 }
 
-/* ---------- Security ---------- */
-export function Security({ t }: SectionProps) {
+/* ============ Platform › tenant › Security & compliance (AENR-818) ============
+   One page for how the tenant is protected: the sign-in policies Slaice
+   enforces and the security events they produce first (the controls an Admin
+   edits), then the data-protection position — DPA, DPO, data region and
+   sub-processors. Each part keeps its own save / simulate actions and its
+   Audit-log section ("Security", "Compliance"); old …/compliance links land
+   on the Compliance part. */
+
+const TRUST_PARTS = [
+  { id: "security", label: "Security" },
+  { id: "compliance", label: "Compliance" },
+] as const;
+export function SecurityAndCompliance(p: SectionProps) {
+  return (
+    <SectionFrame
+      title="Security & compliance"
+      sub={`How ${p.t.name}'s accounts and data are protected: sign-in policies and security events, then the DPA, data region and sub-processors.`}
+      parts={TRUST_PARTS}
+    >
+      <Security {...p} />
+      <Compliance {...p} />
+    </SectionFrame>
+  );
+}
+
+/* ---------- Security — a part of Security & compliance (AENR-818) ---------- */
+function Security({ t }: SectionProps) {
   const d = useTenantDraft(t, ["security"] as const, "Security", ["security"]);
   const s = d.draft.security;
   return (
-    <SectionFrame title="Security" sub="Tenant-wide sign-in policies and recent security events.">
+    <Part
+      id="security"
+      icon={Icon.lock}
+      title="Security"
+      sub="Tenant-wide sign-in policies and recent security events."
+    >
       <Card className="p-4 space-y-3">
         <Toggle
           on={s.require2fa}
@@ -355,7 +385,7 @@ export function Security({ t }: SectionProps) {
         </fieldset>
       </Card>
       <Card className="p-4">
-        <h3 className="font-semibold text-navy-900 mb-1">Recent security events</h3>
+        <h4 className="font-semibold text-navy-900 mb-1">Recent security events</h4>
         <ul className="text-[13px] space-y-1">
           {t.security.events.map((e) => (
             <li key={e.at}>
@@ -372,18 +402,23 @@ export function Security({ t }: SectionProps) {
       </Card>
       {d.bar}
       {d.reasonModal}
-    </SectionFrame>
+    </Part>
   );
 }
 
-/* ---------- Compliance ---------- */
-export function Compliance({ t }: SectionProps) {
+/* ---------- Compliance — a part of Security & compliance (AENR-818) ---------- */
+function Compliance({ t }: SectionProps) {
   const { go, privacy } = useApp();
   const nonEu = privacy.subprocessors.filter((s) => !isEu(s));
   const incidents = privacy.breaches.filter((b) => !b.closedAt && b.tenantIds?.includes(t.id)).length;
   const { updateTenant, toast, today } = usePlatform();
   return (
-    <SectionFrame title="Compliance" sub="DPA, DPO, data region and sub-processors.">
+    <Part
+      id="compliance"
+      icon={Icon.shieldCheck}
+      title="Compliance"
+      sub="DPA, DPO, data region and sub-processors."
+    >
       <Card className="p-4 grid sm:grid-cols-2 gap-x-6">
         <div>
           <KV k="DPA">
@@ -425,9 +460,9 @@ export function Compliance({ t }: SectionProps) {
         </div>
       </Card>
       <Card className="p-4">
-        <h3 className="font-semibold text-navy-900 mb-1">
+        <h4 className="font-semibold text-navy-900 mb-1">
           Sub-processors that may process data outside the region
-        </h3>
+        </h4>
         {nonEu.length ? (
           <ul className="text-[13px] space-y-1">
             {nonEu.map((s) => (
@@ -447,6 +482,6 @@ export function Compliance({ t }: SectionProps) {
           </Btn>
         </div>
       </Card>
-    </SectionFrame>
+    </Part>
   );
 }

@@ -13,7 +13,7 @@ import { SectionCtx, confirmLeave, type SectionProps } from "./kit";
 import { Billing, Overview, Profile } from "./AccountSections";
 import { Branding, Modules } from "./ProductSections";
 import { EntryTickets } from "./TicketSection";
-import { Compliance, Security } from "./AccessSections";
+import { SecurityAndCompliance } from "./AccessSections";
 import { Audit, DataExport, Health, Support } from "./SupportSections";
 import { UsersAndRoles } from "./RolesSection";
 import { CommercialTerms } from "./CommercialTerms";
@@ -26,7 +26,7 @@ import { ViewAsDialog } from "./ViewAs";
    permission, badge) so new ones are one entry; a grouped left rail on
    desktop, a select on phones. */
 
-/** Sections merged into another (AENR-796…800): old links open the surviving section and
+/** Sections merged into another (AENR-796…800, 818): old links open the surviving section and
  *  scroll to the part that replaced the old page (`?at=<old id>`). */
 export const SECTION_ALIASES: Record<string, string> = {
   contract: "profile",
@@ -38,6 +38,7 @@ export const SECTION_ALIASES: Record<string, string> = {
   payments: "terms",
   invoicing: "terms",
   users: "roles",
+  compliance: "security",
 };
 /** The path segment (+ part anchor) for a section id, old or current. */
 export const sectionPath = (s: string) =>
@@ -133,21 +134,16 @@ export const SECTIONS: SectionDef[] = [
     render: (p) => <UsersAndRoles {...p} />,
   },
   {
+    // Sign-in policies and security events, then DPA, DPO, region and sub-processors, on one
+    // page (AENR-818). Kept the `security` id; old …/compliance links land on its part, and the
+    // unsigned-DPA badge moved here with it.
     id: "security",
-    label: "Security",
-    icon: Icon.lock,
-    group: "Access & trust",
-    edit: "admin",
-    render: (p) => <Security {...p} />,
-  },
-  {
-    id: "compliance",
-    label: "Compliance",
+    label: "Security & compliance",
     icon: Icon.shieldCheck,
     group: "Access & trust",
     edit: "admin",
     badge: (t) => (t.dpa.status === "Signed" ? 0 : 1),
-    render: (p) => <Compliance {...p} />,
+    render: (p) => <SecurityAndCompliance {...p} />,
   },
   {
     id: "support",

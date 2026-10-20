@@ -2284,7 +2284,7 @@ For a guest who isn't at the beach yet — Support Agent, Call Center and Admin 
   manager; **⋯** menu — View as tenant user, Preview customer site, Send onboarding / remediation link, Copy ID,
   Export data, Suspend / Reactivate.
 - **Sections** come from a registry (id, label, icon, group, edit permission, badge), consolidated at the
-  owner's request (AENR-796–800) — each former page is now a headed **part** of one page (`Part` in `kit.tsx`:
+  owner's request (AENR-796–800, 818) — each former page is now a headed **part** of one page (`Part` in `kit.tsx`:
   h3 + description + its own actions + anchor `part-<id>`, "On this page" links under the title, one sticky
   Unsaved-changes bar per part naming it, parts can be stricter than their page and show "Read-only"):
   _Account_ — **Overview** (Actions required ordered by severity with Send link / Tenant completed it, KPIs,
@@ -2296,11 +2296,16 @@ For a guest who isn't at the beach yet — Support Agent, Call Center and Admin 
   (DNS verify); _Money_ — **Commercial terms** (AENR-799: Commission, fees & subscription; Payments — Stripe
   flags and requirements, payout schedule, terminals & e-invoicing, onboarding link; Invoicing & tax — myDATA,
   series, VAT, accountant, provider); _Access & trust_ — **Users & roles** (AENR-800: Users with Add user, Staff
-  roles — Admin-only, Slaice access — assigned team, support grant, View-as sessions), Security, Compliance;
+  roles — Admin-only, Slaice access — assigned team, support grant, View-as sessions), **Security & compliance**
+  (AENR-818: Security — 2FA rule, session timeout, sign-in methods, recent security events — first, as the
+  controls an Admin edits; then Compliance — DPA with Simulate signed, DPO, data region, open incidents,
+  sub-processors outside the region and the link to Platform › Compliance & DPA; the unsigned-DPA badge sits on
+  this item);
   _Support_ — Support (tickets, internal notes, one timeline), Health score (transparent 0–100 with weights),
   Audit log (actor type, filters, CSV), Data export (Queued → Preparing → Ready, 7-day links), Danger zone.
   **Old links** keep working (`SECTION_ALIASES`): contract / locations / localisation → profile, features /
-  integrations → modules, usage → overview, payments / invoicing → terms, users → roles — the URL becomes
+  integrations → modules, usage → overview, payments / invoicing → terms, users → roles, compliance → security
+  — the URL becomes
   `…/<section>?at=<old id>` and the page scrolls to and focuses that part. Every section has loading, error
   (demo switch in ⋯), read-only (Slaice role Viewer / Support) states; edits are a draft with Save, sensitive
   fields ask for a reason and go to the Audit log with old → new (under the old section names); leaving with
@@ -2334,7 +2339,7 @@ For a guest who isn't at the beach yet — Support Agent, Call Center and Admin 
 - **Tenants (P-01)** becomes a portfolio view: KPIs and MRR from plans, saved views (Needs attention, In
   onboarding, Renewing in 30 days, At risk, Over limit, Trial ending, Closed), filters, search, plan / health /
   actions columns, CSV; rows open the tenant page. **Onboarding (P-02)** saves progress per tenant and _Go live_
-  lands on the new tenant's Overview. **Compliance (P-04)** rows open each tenant's Compliance section.
+  lands on the new tenant's Overview. **Compliance (P-04)** rows open the Compliance part of each tenant's Security & compliance page.
 
 ### P-01 · Tenants [MVP]
 

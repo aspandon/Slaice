@@ -1151,7 +1151,8 @@ function AccessLog() {
   );
 }
 
-/* ---------- Compliance per-tenant table → links to each tenant's Compliance tab ---------- */
+/* ---------- Compliance per-tenant table → links to the Compliance part of each tenant's
+   Security & compliance page (AENR-818) ---------- */
 export function TenantPostureTable() {
   const { platform } = usePlatform();
   const ts = platform.tenants.filter((t) => t.lifecycle !== "closed");
@@ -1164,7 +1165,7 @@ export function TenantPostureTable() {
         t.region,
         t.contacts.find((c) => c.role === "dpo")?.name ?? "—",
         t.dpa.signed ? fmtDay(t.dpa.signed) : "—",
-        <Btn size="sm" variant="ghost" onClick={() => openTenant(t.id, "compliance")}>
+        <Btn size="sm" variant="ghost" onClick={() => openTenant(t.id, "security?at=compliance")}>
           Open
         </Btn>,
       ])}
