@@ -413,6 +413,14 @@ Four pages with distinct names (AENR-642); old `invoicing` and `commission` link
   digits, no layout shift; once on arrival, then on every change); "Enjoy your day" and My bookings'
   season headline rise line by line from behind a mask (SplitText); the confirmation's booking reference
   decodes into place (ScrambleText). Screen readers get the final text at once; reduced motion: static.
+- **Walk along the shore** (AENR-788, `src/screens/customer/ShoreWalk.tsx`; tenant switch Platform › tenant ›
+  Guest site › **Walk along the shore**, on by default): in Plan › Where the zones stand along a beach
+  panorama the guest drags sideways with momentum (GSAP Draggable + Inertia); it settles with one zone in
+  the middle — larger, its sets map, free count and price — while the far sea, the foam line and the near
+  sand move at their own speeds (parallax). ← / → buttons and the arrow keys walk one zone (focus follows),
+  the centred zone is announced, tapping it opens its sets, tapping another walks to it. Phones and
+  desktop (beside the booking panel). Off: the zone cards (phones) and the zones on the sand (desktop).
+  Reduced motion: the same walk in steps, no momentum or parallax.
 - **Tilt the phone** (AENR-792, `src/lib/tilt.ts`): on phones and tablets the beach behind the guest pages
   shifts up to ~7 px against the phone's tilt (scaled 4 % so no edge shows), the compact beach logo up to
   3 px the other way, and the VIP / Season cards lean up to 4° with a foil shimmer that follows the tilt.

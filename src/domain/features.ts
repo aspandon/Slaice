@@ -73,7 +73,8 @@ export type TenantFeatureId =
   | "till.lockers"
   | "till.parking"
   | "guest.liveScene"
-  | "guest.camera";
+  | "guest.camera"
+  | "guest.shoreWalk";
 export type TenantFeatureGroup = "Guest site" | "Refunds" | "Cashier till";
 export interface TenantFeatureDef {
   key: TenantFeatureId;
@@ -98,7 +99,15 @@ export const TENANT_FEATURES: readonly TenantFeatureDef[] = [
     key: "guest.camera",
     label: "One-beach camera",
     description:
-      "Every guest screen is a shot of one beach: changing screen moves the camera along the shore, into a zone and back, with the beach's landmarks and a flag per zone. Off: the still beach backdrop (AENR-784).",
+      "Every guest screen is a shot of one beach: changing screen moves the camera along the shore, into a zone and back. Off: the still beach backdrop (AENR-784).",
+    group: "Guest site",
+    default: true,
+  },
+  {
+    key: "guest.shoreWalk",
+    label: "Walk along the shore",
+    description:
+      "Guests choose a zone by dragging along a beach panorama — momentum, depth and one zone at a time in the middle with its free sets and price. Off: the zone cards (AENR-788).",
     group: "Guest site",
     default: true,
   },

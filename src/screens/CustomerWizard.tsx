@@ -9,6 +9,7 @@ import { Btn, Badge, Stepper, Input, DatePickerRow, Toggle, Modal, Sheet, type D
 import { plateGaps, plateOk } from "../domain/validate";
 import { setWizardShot } from "../lib/camera";
 import { Rolling } from "../components/TextFx";
+import { ShoreWalk } from "./customer/ShoreWalk";
 import { prefersReducedMotion } from "../lib/motion";
 import { gsap, Flip, motionOK, stashFlip, EASE, DUR } from "../lib/fx";
 import { DURATION, EASING } from "../lib/motionTokens";
@@ -167,7 +168,10 @@ function WizardInner() {
   useSpotlight("customer", "plan");
   const liveSlots = useLiveSlots();
   // Lockers / parking only when the beach has the module (AENR-696) — the Pay row, the usual and the basket.
-  const { module } = useTenantFeatures();
+  const { module, feature } = useTenantFeatures();
+  // Walk along the shore to choose a zone (AENR-788) — the tenant's switch.
+  const shoreWalk = feature("guest.shoreWalk");
+  const zoneOrder = useZoneOrder();
   const canLocker = module("Day Locker");
   const canParking = module("Parking");
   const extrasKind = extrasPhrase(canLocker, canParking);
@@ -883,9 +887,15 @@ function WizardInner() {
         {/* The zone overview spreads the full beach width (panoramic); a single
             zone's sunbed grid stays at a comfortable reading width. */}
         <div className={`relative w-full ${showSets ? "max-w-5xl" : "max-w-[1700px]"}`}>
-          {showZones && richOverview && <StoreOverview days={selDates} selectedId={zoneId} onPick={(id) => { if (step.id === "when") setStepIdx(BEACH_IDX); pickZone(id); }} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} picked={pickedByZone} />}
+          {shoreWalk && step.id === "beach" && phase === "zones" && (
+            <div className={richOverview ? "pt-4 lg:pr-[min(480px,38vw)]" : ""}>
+              <ShoreWalk wide={richOverview} selectedId={zoneId} onPick={pickZone}
+                zones={zoneOrder.map(({ z }) => ({ id: z.id, name: z.name, color: z.color, slots: liveSlots(z, selDates), picked: pickedByZone[z.id] ?? 0 }))} />
+            </div>
+          )}
+          {showZones && richOverview && !(shoreWalk && step.id === "beach") && <StoreOverview days={selDates} selectedId={zoneId} onPick={(id) => { if (step.id === "when") setStepIdx(BEACH_IDX); pickZone(id); }} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} picked={pickedByZone} />}
           {step.id === "when" && !richOverview && <ZoneStrip days={selDates} onPick={(id) => { setStepIdx(BEACH_IDX); pickZone(id); }} />}
-          {step.id === "beach" && phase === "zones" && !richOverview && <ZonePanorama days={selDates} selectedId={zoneId} picked={pickedByZone} onPick={pickZone} />}
+          {step.id === "beach" && phase === "zones" && !richOverview && !shoreWalk && <ZonePanorama days={selDates} selectedId={zoneId} picked={pickedByZone} onPick={pickZone} />}
           {showSets && (richOverview ? (
             <SandSunbeds slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} />
           ) : (
