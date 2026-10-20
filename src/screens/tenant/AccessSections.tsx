@@ -185,21 +185,22 @@ export function Invoicing({ t }: SectionProps) {
   );
 }
 
-/* ---------- Users & roles (+ Slaice access, AENR-515) ---------- */
+/* ---------- Users — a part of Users & roles (AENR-718 / 800) ---------- */
 export function Users({ t }: SectionProps) {
-  const { platform, plan, updateTenant, today } = usePlatform();
+  const { plan } = usePlatform();
   // The same people, invitations and actions as the tenant's Team & roles (AENR-718).
   const dir = useStaffDirectory(t, "platform");
   const users = dir.users;
-  const sessions = platform.sessions.filter((s) => s.tenantId === t.id);
   const seats = plan(t)?.limits.seats.included ?? 0;
   const invited = users.filter((u) => u.status === "invited").length;
   return (
-    <SectionFrame
-      title="Users & roles"
-      sub={`Tenant staff · ${users.length} of ${seats} seats used${invited ? ` · ${invited} invited` : ""}. Which roles exist is set in Roles.`}
+    <Part
+      id="users"
+      icon={Icon.users}
+      title="Users"
+      sub={`Tenant staff · ${users.length} of ${seats} seats used${invited ? ` · ${invited} invited` : ""}. Which roles can be given is set in Staff roles below.`}
       actions={
-        <Btn variant="primary" icon={Icon.plus} onClick={dir.openAdd}>
+        <Btn size="sm" variant="primary" icon={Icon.plus} onClick={dir.openAdd}>
           Add user
         </Btn>
       }
@@ -223,8 +224,22 @@ export function Users({ t }: SectionProps) {
         />
       </Card>
       {dir.modals}
+    </Part>
+  );
+}
+
+/* ---------- Slaice access to the tenant (AENR-515) — a part of Users & roles (AENR-800) ---------- */
+export function SlaiceAccess({ t }: SectionProps) {
+  const { platform, updateTenant, today } = usePlatform();
+  const sessions = platform.sessions.filter((s) => s.tenantId === t.id);
+  return (
+    <Part
+      id="access"
+      icon={Icon.headset}
+      title="Slaice access"
+      sub="Who at Slaice looks after this tenant, the support access the tenant grants, and View-as sessions."
+    >
       <Card className="p-4 space-y-2">
-        <h3 className="font-semibold text-navy-900">Slaice access to this tenant</h3>
         <KV k="Assigned">
           {[t.accountManager + " (account manager)", ...t.slaiceTeam].join(" · ")}
         </KV>
@@ -287,7 +302,7 @@ export function Users({ t }: SectionProps) {
           </ul>
         )}
       </Card>
-    </SectionFrame>
+    </Part>
   );
 }
 

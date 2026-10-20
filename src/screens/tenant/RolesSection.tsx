@@ -7,20 +7,44 @@ import { NAV, PERSONAS, navFor } from "../../data/personas";
 import { STAFF_ROLES, hasRole, tenantStaff } from "../../data/staff";
 import { ALWAYS_ON_ROLE, tenantHasModule, tenantRoleOn, usableRoles } from "../../domain/features";
 import type { StaffRole, StaffUser } from "../../domain/types";
-import { SectionFrame, type SectionProps } from "./kit";
+import { Part, SectionFrame, type SectionProps } from "./kit";
+import { SlaiceAccess, Users } from "./AccessSections";
 
-/* ============ Platform › tenant › Roles (AENR-716) ============
+/* ============ Platform › tenant › Users & roles (AENR-716 / 718 / 800) ============
+   One page for the tenant's people: its users, the staff roles it uses and
+   Slaice's own access. Staff roles stay Admin-only; Support can manage users.
+   Old …/users links land on the Users part.
+
    Slaice decides which staff roles a tenant uses. A role that is off
    disappears for the tenant — role pickers, "Your roles", "View as" and its
    pages — while the people who hold it keep it, so switching it back on
    restores their access. Manager / Admin can't be turned off. */
+
+const PEOPLE_PARTS = [
+  { id: "users", label: "Users" },
+  { id: "roles", label: "Staff roles" },
+  { id: "access", label: "Slaice access" },
+] as const;
+export function UsersAndRoles(p: SectionProps) {
+  return (
+    <SectionFrame
+      title="Users & roles"
+      sub={`Who works at ${p.t.name}, which staff roles the tenant uses, and Slaice's own access.`}
+      parts={PEOPLE_PARTS}
+    >
+      <Users {...p} />
+      <Roles {...p} />
+      <SlaiceAccess {...p} />
+    </SectionFrame>
+  );
+}
 
 const DESCR: Partial<Record<StaffRole, string>> = {
   support:
     "Includes the Gate, Beach and till pages — it follows its own switch, not the Cashier's or Controller's.",
 };
 
-export function Roles({ t }: SectionProps) {
+function Roles({ t }: SectionProps) {
   const { staffUsers } = useApp();
   const { platform, today, updateTenant, toast, canEdit } = usePlatform();
   const [confirm, setConfirm] = useState<StaffRole | null>(null);
@@ -55,9 +79,12 @@ export function Roles({ t }: SectionProps) {
   const pendingStranded = confirm ? stranded(confirm) : [];
 
   return (
-    <SectionFrame
-      title="Roles"
+    <Part
+      id="roles"
+      icon={Icon.group}
+      title="Staff roles"
       sub={`Which staff roles ${t.name} uses · ${onCount} of ${STAFF_ROLES.length} on. A role that's off disappears for the whole tenant.`}
+      edit="admin"
     >
       <Card className="p-2">
         <ul className="divide-y divide-slate-100">
@@ -183,12 +210,12 @@ export function Roles({ t }: SectionProps) {
                 className="text-[12.5px] text-amber-800 bg-amber-50 ring-1 ring-amber-600/20 rounded-xl px-3 py-2"
               >
                 People with no other role will see “not used at this beach” after signing in. Give
-                them another role in Users &amp; roles if they should keep working.
+                them another role under Users above if they should keep working.
               </p>
             )}
           </div>
         )}
       </Modal>
-    </SectionFrame>
+    </Part>
   );
 }

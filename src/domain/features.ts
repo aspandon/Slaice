@@ -187,7 +187,7 @@ export function isLastOn(
 }
 
 /* ---------- Tenant roles (AENR-716) ----------
-   Slaice decides which staff roles a tenant uses (Platform › tenant › Roles).
+   Slaice decides which staff roles a tenant uses (Platform › tenant › Users & roles).
    A role that is off disappears for that tenant: no role pickers, no "Your
    roles" / "View as", and its pages show the calm not-available card. Users who
    hold it keep it, shown as "role off for this beach", so turning it back on

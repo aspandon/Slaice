@@ -13,9 +13,9 @@ import { SectionCtx, confirmLeave, type SectionProps } from "./kit";
 import { Billing, Overview, Profile } from "./AccountSections";
 import { Branding, Modules } from "./ProductSections";
 import { EntryTickets } from "./TicketSection";
-import { Compliance, Security, Users } from "./AccessSections";
+import { Compliance, Security } from "./AccessSections";
 import { Audit, DataExport, Health, Support } from "./SupportSections";
-import { Roles } from "./RolesSection";
+import { UsersAndRoles } from "./RolesSection";
 import { CommercialTerms } from "./CommercialTerms";
 import { DangerZone } from "./Lifecycle";
 import { ViewAsDialog } from "./ViewAs";
@@ -37,6 +37,7 @@ export const SECTION_ALIASES: Record<string, string> = {
   usage: "overview",
   payments: "terms",
   invoicing: "terms",
+  users: "roles",
 };
 /** The path segment (+ part anchor) for a section id, old or current. */
 export const sectionPath = (s: string) =>
@@ -121,21 +122,15 @@ export const SECTIONS: SectionDef[] = [
     render: (p) => <CommercialTerms {...p} />,
   },
   {
-    // Which staff roles the tenant uses (AENR-716).
+    // Users, the staff roles the tenant uses (AENR-716) and Slaice access on one page
+    // (AENR-800). Kept the `roles` id the tenant app's "role off" page links to; Staff
+    // roles stay Admin-only inside it.
     id: "roles",
-    label: "Roles",
-    icon: Icon.group,
-    group: "Access & trust",
-    edit: "admin",
-    render: (p) => <Roles {...p} />,
-  },
-  {
-    id: "users",
     label: "Users & roles",
     icon: Icon.users,
     group: "Access & trust",
     edit: "support",
-    render: (p) => <Users {...p} />,
+    render: (p) => <UsersAndRoles {...p} />,
   },
   {
     id: "security",

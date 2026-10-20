@@ -45,7 +45,7 @@ export function PageGate({
                 variant="outline"
                 icon={Icon.building}
                 onClick={() => {
-                  window.location.hash = `#/platform/tenant/${tenant.id}/roles`;
+                  window.location.hash = `#/platform/tenant/${tenant.id}/roles?at=roles`;
                 }}
               >
                 {t("Manage roles in Platform (demo)")}

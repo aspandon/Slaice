@@ -14,7 +14,7 @@ import type { ModuleId } from "../domain/plans";
 /* ============ What this tenant's app shows (AENR-691 / 696 / 677 / 721) ============
    One hook for every gate: roadmap previews (the demo switch), the tenant's
    modules and feature switches (Platform › tenant › Modules & features)
-   and the staff roles it uses (› Roles, AENR-716).
+   and the staff roles it uses (› Users & roles, AENR-716).
    The tenant is the one the demo personas represent (platform.siteTenant), so
    a change on the Platform reaches every role at once — it is the same store. */
 
@@ -47,7 +47,7 @@ export function useTenantFeatures() {
     (!g.future || showPreviews) &&
     (!g.module || module(g.module)) &&
     (!g.feature || feature(g.feature));
-  /** Whether the tenant uses this staff role (Platform › tenant › Roles, AENR-716) — Customer and Platform always do. */
+  /** Whether the tenant uses this staff role (Platform › tenant › Users & roles, AENR-716) — Customer and Platform always do. */
   const role = (r: string) => tenantRoleOn(tenant, r);
   return { tenant, roadmap: showPreviews, module, feature, role, allows };
 }

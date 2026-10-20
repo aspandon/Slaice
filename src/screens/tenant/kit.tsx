@@ -197,7 +197,7 @@ export function Part({
           <Icon.lock size={14} /> Read-only — only a Slaice Admin can change this part.
         </div>
       )}
-      <fieldset disabled={locked} className="min-w-0 space-y-3">
+      <fieldset disabled={locked} className="min-w-0 space-y-3 disabled:opacity-90">
         {children}
       </fieldset>
     </section>
