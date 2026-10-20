@@ -255,8 +255,8 @@ export const BLENDER_RES: readonly {
   mobile: { px: string; mb: string };
 }[] = [
   { id: "standard", label: "Standard", ready: true, desktop: { px: "1280 × 1200", mb: "2.5–2.9 MB" }, mobile: { px: "648 × 1200", mb: "0.9–1.1 MB" } },
-  { id: "high", label: "High", ready: false, desktop: { px: "1600 × 1500", mb: "TBD" }, mobile: { px: "810 × 1500", mb: "TBD" } },
-  { id: "fullhd", label: "Full HD", ready: false, desktop: { px: "1920 × 1800", mb: "TBD" }, mobile: { px: "972 × 1800", mb: "TBD" } },
+  { id: "high", label: "High", ready: true, desktop: { px: "1600 × 1500", mb: "5.2–6.5 MB" }, mobile: { px: "810 × 1500", mb: "2.6–3.3 MB" } },
+  { id: "fullhd", label: "Full HD", ready: true, desktop: { px: "1920 × 1800", mb: "7.5–9.3 MB" }, mobile: { px: "972 × 1800", mb: "3.8–4.7 MB" } },
 ];
 export const blenderResOf = (t: { sea?: TenantSea } | undefined, d: SeaDevice): BlenderRes => {
   const r = t?.sea?.blenderRes?.[d] ?? "standard";

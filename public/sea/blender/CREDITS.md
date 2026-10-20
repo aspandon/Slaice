@@ -61,4 +61,21 @@ spectrum closes the loop just as exactly and also lets the waves feel the depth 
 | `beach-poster.webp`          | the loop's first frame, WebP q80 (reduced motion, Save-Data) | 78 kB   |
 | `beach-portrait-poster.webp` | the same, portrait cut                                       | 40 kB   |
 
-Re-render: `tools/blender/render.sh` (or `render.sh preview` for one quick frame).
+### High and Full HD (AENR-844)
+
+A tenant can pick a sharper loop per device (Platform › tenant › Guest sea › Resolution). Both come from
+one render at 1920 × 1800 px on a finer mesh (`GRID=0.05`, twice the detail of the Standard render, so
+the foam and the swash are sharp at that size — the Standard look of "640p" came from its mesh, not from
+the light layer on top); High is that render scaled down. Encoded at ≈ 0.10 bit per pixel (H.264) and
+0.08 (VP9) — moving foam is fine detail that a lean encode smears.
+
+| File                                                                        | What                                          | Size           |
+| --------------------------------------------------------------------------- | --------------------------------------------- | -------------- |
+| `beach-high.webm` / `.mp4`                                                  | desktop, 1600 × 1500, VP9 / H.264 (level 5.0) | 5.18 / 6.45 MB |
+| `beach-portrait-high.mp4` / `.webm`                                         | phones, 810 × 1500, H.264 (level 4.0) / VP9   | 3.27 / 2.63 MB |
+| `beach-fullhd.webm` / `.mp4`                                                | desktop, 1920 × 1800, VP9 / H.264 (level 5.0) | 7.46 / 9.28 MB |
+| `beach-portrait-fullhd.mp4` / `.webm`                                       | phones, 972 × 1800, H.264 (level 4.2) / VP9   | 4.71 / 3.78 MB |
+| `beach-high-poster.webp`, `beach-fullhd-poster.webp`, and the portrait ones | first frames, WebP q80                        | 64–163 kB      |
+
+Re-render: `tools/blender/render.sh` (or `render.sh preview` for one quick frame; `render.sh fullhd` for
+the Full HD frames, then the High and Full HD encodes).

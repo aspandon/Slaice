@@ -3517,9 +3517,12 @@ src/
     layer, the vignette, the weather grading and the glass off changed sharpness by under 1% — but the mesh,
     a lean encode and the stretch (a desktop shot shows ≈ 500 of the frame's 1200 rows, ≈ 1.8× per video
     pixel through the cover fit, the camera margin and the parallax overscan; ≈ 4× on a 3× phone). The
-    player, the posters and the boot preload follow the choice; a resolution whose files aren't published
-    yet is shown as Rendering and can't be picked (and a saved choice of it plays Standard). A clear midday
-    grade is `filter: none`.
+    player, the posters and the boot preload follow the choice. All three are published: High 5.2–6.5 MB
+    on computers, 2.6–3.3 MB on phones; Full HD 7.5–9.3 MB / 3.8–4.7 MB (Standard 2.5–2.9 / 0.9–1.1 MB) —
+    each file's H.264 level is in its type (5.0 for the wide High and Full HD cuts, 4.0 / 4.2 for their
+    phone cuts), so a device that can't decode it moves to the next file. A resolution whose files aren't
+    published is shown as Rendering and can't be picked (and a saved choice of it plays Standard). A clear
+    midday grade is `filter: none`.
 - **The light on the water** (AENR-815, `lib/seaLight.ts` — one model for every sea): from the hour
   and the weather it gives the sun's height and place (it rises on the left and sets on the right over
   the water, July in Athens: ≈ 06:15 / 20:50), the moon, the water's colour and the reflection path. At

@@ -44,8 +44,8 @@ const mp4 = (level: string) => `video/mp4; codecs="avc1.6400${level}"`;
 /** The tenant's resolution for this device (AENR-844): the file suffix and each cut's H.264 level. */
 const RES: Record<BlenderRes, { suf: string; wide: string; tall: string }> = {
   standard: { suf: "", wide: "28", tall: "1f" },
-  high: { suf: "-high", wide: "32", tall: "20" },
-  fullhd: { suf: "-fullhd", wide: "32", tall: "28" },
+  high: { suf: "-high", wide: "32", tall: "28" },
+  fullhd: { suf: "-fullhd", wide: "32", tall: "2a" },
 };
 const cutsFor = (res: BlenderRes) => {
   const r = RES[res];
