@@ -274,8 +274,8 @@ export const BLENDER_RES: readonly SeaResTier<BlenderRes>[] = [
    a landscape file plays three times enlarged there. */
 export const VIDEO_RES: readonly SeaResTier<VideoRes>[] = [
   { id: "standard", label: "Standard", ready: true, desktop: { px: "1920 × 1080", mb: "3.7–4.6 MB" }, mobile: { px: "1280 × 720", mb: "2.3 MB" } },
-  { id: "fullhd", label: "Full HD", ready: false, desktop: { px: "1920 × 1080", mb: "TBD" }, mobile: { px: "1080 × 1920", mb: "TBD" } },
-  { id: "4k", label: "4K", ready: false, heavy: true, desktop: { px: "3840 × 2160", mb: "TBD" }, mobile: { px: "1216 × 2160", mb: "TBD" } },
+  { id: "fullhd", label: "Full HD", ready: true, desktop: { px: "1920 × 1080", mb: "7.2–9.6 MB" }, mobile: { px: "1080 × 1920", mb: "7.2–9.6 MB" } },
+  { id: "4k", label: "4K", ready: true, heavy: true, desktop: { px: "3840 × 2160", mb: "24–34 MB" }, mobile: { px: "1216 × 2160", mb: "9.0–12 MB" } },
 ];
 /** The seas that offer a resolution, and where the tenant's choice is kept. */
 export const SEA_RES = {

@@ -3489,6 +3489,20 @@ src/
     inside the camera's oversized layer, so the water is sharp and at its filmed scale; the scene leaves its
     water open over it, and the far water doesn't follow the camera's pans. Over the video no drawn
     whitecaps or wind streaks (AENR-834); the rain still falls.
+    **Resolution** (AENR-859, Platform › tenant › Guest sea — under Video, per device; also the Demo
+    menu's Resolution slider): **Standard** (the clip above — 1080p on computers, 720p on phones),
+    **Full HD** and **4K**. Full HD and 4K come from a second clip filmed in 4K (Pexels, "Aerial view of
+    sparkling turquoise sea", Pexels License — `public/sea/CREDITS.md`; the Coverr clip's 4K original
+    is only for signed-in users), graded to the same Greek turquoise with a measured colour transfer
+    baked into a 3D LUT and made into the same kind of seamless 9.6 s loop (`tools/video/`). Computers:
+    1920 × 1080 (7.2–9.6 MB) or 3840 × 2160 (24–34 MB). Phones and tablets held upright get a 9:16 cut
+    of the middle — the 16:9 frame on a tall screen is mostly cropped away, so a landscape file plays
+    about 3× enlarged there (why Standard looks soft on a phone): 1080 × 1920 (7.2–9.6 MB) or
+    1216 × 2160 (9–12 MB), the most a 4K landscape source gives upright. Each file's codec and level is
+    in its type (VP9; H.264 5.0 / 5.1). **Stepping down** (both Video and Blender): a size the device
+    can't decode, or decodes too slowly (two 3 s windows in a row with over a quarter of the frames
+    dropped, page changes aside), steps down one size at a time; only Standard failing hands the sea
+    back to Classic. 4K is labelled "Needs a recent computer or phone".
   - **Blender** (`components/sea/BlenderSea.tsx`, AENR-827): a beach rendered in Blender 5.2 (Cycles) and
     played as video — `public/sea/blender/`, `CREDITS.md` there, sources in `tools/blender/`. Seen straight
     down: open azure sea at the top deepening from turquoise shallows over sloping sand, real refracted-sun

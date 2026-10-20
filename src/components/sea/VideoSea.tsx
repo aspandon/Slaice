@@ -40,9 +40,9 @@ const FILES: Record<VideoRes, { wide: Cut; phone: Cut; tall?: Cut }> = {
     phone: { poster: "sea-poster.webp", files: [{ src: "sea-loop.mp4", type: "video/mp4" }] },
   },
   fullhd: {
-    wide: { poster: "sea-fullhd-poster.webp", files: [{ src: "sea-fullhd.webm", type: vp9("40") }, { src: "sea-fullhd.mp4", type: mp4("28") }] },
-    phone: { poster: "sea-fullhd-poster.webp", files: [{ src: "sea-fullhd.mp4", type: mp4("28") }, { src: "sea-fullhd.webm", type: vp9("40") }] },
-    tall: { poster: "sea-portrait-fullhd-poster.webp", files: [{ src: "sea-portrait-fullhd.mp4", type: mp4("28") }, { src: "sea-portrait-fullhd.webm", type: vp9("40") }] },
+    wide: { poster: "sea-fullhd-poster.webp", files: [{ src: "sea-fullhd.webm", type: vp9("40") }, { src: "sea-fullhd.mp4", type: mp4("32") }] },
+    phone: { poster: "sea-fullhd-poster.webp", files: [{ src: "sea-fullhd.mp4", type: mp4("32") }, { src: "sea-fullhd.webm", type: vp9("40") }] },
+    tall: { poster: "sea-portrait-fullhd-poster.webp", files: [{ src: "sea-portrait-fullhd.mp4", type: mp4("32") }, { src: "sea-portrait-fullhd.webm", type: vp9("40") }] },
   },
   "4k": {
     wide: { poster: "sea-4k-poster.webp", files: [{ src: "sea-4k.webm", type: vp9("50") }, { src: "sea-4k.mp4", type: mp4("33") }] },

@@ -1,4 +1,5 @@
 import { useEffect, useRef, type CSSProperties, type SyntheticEvent } from "react";
+import { isBusy } from "../../lib/busy";
 
 /* ---- A loop nobody can see (AENR-814) ----
    Shared by the Video sea and the Blender sea (AENR-827). Two players take turns: shortly before
@@ -32,8 +33,9 @@ export function LoopVideo({
   /** The loop's period (s) when the clip is exactly periodic and runs a tail of 1 s past it. */
   period?: number;
   onFail: () => void;
-  /** The device decodes it too slowly (over a fifth of the frames dropped) — a 4K file on a
-   *  decoder that can't keep up (AENR-856): the host steps down to a smaller file. */
+  /** The device decodes it too slowly — a 4K file on a
+   *  decoder that can't keep up (AENR-856): the host steps down to a smaller file. Two 3 s
+   *  windows in a row with over a quarter dropped, page changes aside. */
   onSlow?: () => void;
 }) {
   const a = useRef<HTMLVideoElement>(null);
@@ -84,11 +86,21 @@ export function LoopVideo({
       else void front.play().catch(() => undefined);
     };
     document.addEventListener("visibilitychange", onVis);
-    // Measured on the playing player, from its own counts since it started.
+    // Measured on the playing player in 3 s windows: two windows running with over a quarter of
+    // their frames dropped, outside a page change (a page being built drops frames on any device).
+    let seen = { v: front, total: 0, dropped: 0 };
+    let strikes = 0;
     const slow = onSlow
       ? window.setInterval(() => {
           const q = front.getVideoPlaybackQuality?.();
-          if (q && q.totalVideoFrames > 72 && q.droppedVideoFrames / q.totalVideoFrames > 0.2) onSlow();
+          if (!q || document.hidden) return;
+          if (seen.v !== front) seen = { v: front, total: q.totalVideoFrames, dropped: q.droppedVideoFrames };
+          const total = q.totalVideoFrames - seen.total;
+          const dropped = q.droppedVideoFrames - seen.dropped;
+          seen = { v: front, total: q.totalVideoFrames, dropped: q.droppedVideoFrames };
+          if (isBusy() || total < 36) return;
+          strikes = dropped / total > 0.25 ? strikes + 1 : 0;
+          if (strikes >= 2) onSlow();
         }, 3000)
       : 0;
     return () => {
