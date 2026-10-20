@@ -413,6 +413,15 @@ Four pages with distinct names (AENR-642); old `invoicing` and `commission` link
   digits, no layout shift; once on arrival, then on every change); "Enjoy your day" and My bookings'
   season headline rise line by line from behind a mask (SplitText); the confirmation's booking reference
   decodes into place (ScrambleText). Screen readers get the final text at once; reduced motion: static.
+- **The pass tears out — drag it into your wallet** (AENR-791, `src/lib/pocketDrag.ts`): after payment the
+  confirmation's pass prints out of a dark slot in four short pushes (~0.9 s), with a dashed perforation
+  between its header stub and the QR part; the QR scales in and the booking reference decodes. Below it the
+  wallet is drawn as a pocket — Apple Wallet on iPhone, Google Wallet on Android, both on a computer. Drag
+  the pass (a mouse: the whole pass; a finger: its header strip, so the page still scrolls) and it shrinks
+  to aim; drop or throw it into a pocket (≥ 40 % over it) and it slides in, the pocket pulses and that
+  wallet's Add sheet opens, exactly as tapping the badge; anywhere else it springs home. While held, the
+  pockets dock at the bottom of the screen. The wallet buttons stay as the keyboard / screen-reader path;
+  reduced motion: static. The full-screen QR now covers the whole screen (AENR-803).
 - **Walk along the shore** (AENR-788, `src/screens/customer/ShoreWalk.tsx`; tenant switch Platform › tenant › Modules &
   features › Guest site › **Walk along the shore**, on by default): in Plan › Where the zones stand along a beach
   panorama the guest drags sideways with momentum (GSAP Draggable + Inertia); it settles with one zone in
