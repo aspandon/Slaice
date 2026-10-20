@@ -193,7 +193,7 @@ export function prefetchPersona(persona: PersonaId) {
 
 /** The guest pages' own chunks — what a tap on that tab is about to need (AENR-837). */
 const CUSTOMER_PAGE: Record<string, keyof typeof LOADERS> = {
-  home: "customer",
+  home: "customer_CustomerHome",
   mybookings: "customer",
   wallet: "customer",
   account: "customer",
