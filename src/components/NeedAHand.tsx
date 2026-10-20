@@ -49,7 +49,8 @@ export function HelpRing({ className = "" }: { className?: string }) {
   );
 }
 
-function NeedAHand({ onClose }: { onClose: () => void }) {
+/** The help sheet itself — also opened from Account › Need a hand?, since phones have no ring. */
+export function NeedAHand({ onClose }: { onClose: () => void }) {
   const t = useT();
   const { platform, beachPricing, zoneMap, page, go } = useApp();
   const tenant = platform.tenants.find((x) => x.id === platform.siteTenant);

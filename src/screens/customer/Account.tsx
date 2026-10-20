@@ -13,6 +13,7 @@ import { AddCardModal } from "./AddCard";
 import { useExtras } from "../../lib/useExtras";
 import { CustomerDocs } from "./CustomerDocs";
 import { AppleLogo } from "../../components/WalletPass";
+import { NeedAHand } from "../../components/NeedAHand";
 
 /* ============ Account (AENR-563 · one list, AENR-621) ============
    Everything about the guest's account in one list, like iOS Settings: each
@@ -49,6 +50,7 @@ export function CustomerAccount() {
     return () => window.removeEventListener("hashchange", on);
   }, []);
   // Preferences live here so they hold while moving between the list and a page.
+  const [help, setHelp] = useState(false);
   const [prefs, setPrefs] = useState<Record<string, boolean>>({ push: true, email: true, sms: false, bookings: true, weather: true, offers: true, receipts: true });
 
   const names = Object.fromEntries(ex.tickets.map((c) => [c.id, ex.ticketLabel(c.id).toLowerCase()]));
@@ -103,6 +105,11 @@ export function CustomerAccount() {
         <Row icon={Icon.shieldCheck} label={t("Privacy & cookies")} onClick={() => open("privacy")} />
         <Row icon={Icon.lock} label={t("Sign-in & security")} onClick={() => open("security")} />
       </Group>
+      {/* The life ring's help sheet (AENR-781) — the way in on phones, where the sea has no slot for the ring. */}
+      <Group>
+        <Row icon={Icon.lifebuoy} label={t("Need a hand?")} value={t("Call, message, hours")} onClick={() => setHelp(true)} />
+      </Group>
+      {help && <NeedAHand onClose={() => setHelp(false)} />}
       <Group>
         <button type="button" onClick={() => { setSignedIn(false); toast(t("Signed out (demo).")); }} className="w-full min-h-[52px] px-4 text-left text-guest-body font-semibold text-rose-700 hover:bg-rose-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500">
           {t("Sign out")}
