@@ -2284,11 +2284,15 @@ For a guest who isn't at the beach yet — Support Agent, Call Center and Admin 
   manager; **⋯** menu — View as tenant user, Preview customer site, Send onboarding / remediation link, Copy ID,
   Export data, Suspend / Reactivate.
 - **Sections** come from a registry (id, label, icon, group, edit permission, badge), consolidated at the
-  owner's request (AENR-796–800, 818) — each former page is now a headed **part** of one page (`Part` in `kit.tsx`:
+  owner's request (AENR-796–800, 818, 821) — each former page is now a headed **part** of one page (`Part` in
+  `kit.tsx`:
   h3 + description + its own actions + anchor `part-<id>`, "On this page" links under the title, one sticky
   Unsaved-changes bar per part naming it, parts can be stricter than their page and show "Read-only"):
-  _Account_ — **Overview** (Actions required ordered by severity with Send link / Tenant completed it, KPIs,
-  health, activity, and the **usage meters and limits** at its foot — AENR-798), **Profile** (AENR-796: Identity
+  _Account_ — **Overview** (Actions required ordered by severity with Send link / Tenant completed it, KPIs and
+  recent activity, then two parts: the **Health score** — AENR-821: score and label, 12-week trend, Stripe /
+  myDATA / Webhooks status beside the "Why this score" breakdown, transparent 0–100 with weights; it replaced the
+  small Health card and its "Why?" link — and the **usage meters and limits** at its foot — AENR-798; "On this
+  page" links to both), **Profile** (AENR-796: Identity
   & contacts — contacts by role, ownership transfer; Contract & account, Admin-only; Locations & capacity with
   "Open the tenant's map"; Localisation — language, timezone, currency), Subscription & billing;
   _Product_ — **Modules & features** (AENR-797: Modules, Features — every tenant switch incl. Guest site › Live
@@ -2301,12 +2305,10 @@ For a guest who isn't at the beach yet — Support Agent, Call Center and Admin 
   controls an Admin edits; then Compliance — DPA with Simulate signed, DPO, data region, open incidents,
   sub-processors outside the region and the link to Platform › Compliance & DPA; the unsigned-DPA badge sits on
   this item);
-  _Support_ — Support (tickets, internal notes, one timeline), Health score (transparent 0–100 with weights),
-  Audit log (actor type, filters, CSV), Data export (Queued → Preparing → Ready, 7-day links), Danger zone.
+  _Support_ — Support (tickets, internal notes, one timeline), Audit log (actor type, filters, CSV), Data export (Queued → Preparing → Ready, 7-day links), Danger zone.
   **Old links** keep working (`SECTION_ALIASES`): contract / locations / localisation → profile, features /
-  integrations → modules, usage → overview, payments / invoicing → terms, users → roles, compliance → security
-  — the URL becomes
-  `…/<section>?at=<old id>` and the page scrolls to and focuses that part. Every section has loading, error
+  integrations → modules, usage / health → overview, payments / invoicing → terms, users → roles, compliance →
+  security — the URL becomes `…/<section>?at=<old id>` and the page scrolls to and focuses that part. Every section has loading, error
   (demo switch in ⋯), read-only (Slaice role Viewer / Support) states; edits are a draft with Save, sensitive
   fields ask for a reason and go to the Audit log with old → new (under the old section names); leaving with
   any part unsaved asks first.

@@ -6,7 +6,7 @@ import { usePlatform } from "../../lib/usePlatform";
 import { downloadReport } from "../../lib/download";
 import { addDays } from "../../domain/period";
 import { HEALTH_WEIGHTS, healthScore, type ActorType, type Note } from "../../domain/tenants";
-import { SectionFrame, type SectionProps } from "./kit";
+import { Part, SectionFrame, type SectionProps } from "./kit";
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString("en-GB", {
@@ -204,7 +204,10 @@ export function Support({ t }: SectionProps) {
   );
 }
 
-/* ---------- Health score ---------- */
+/* ---------- Health score — a part of Overview (AENR-821) ----------
+   The score, its 12-week trend and the integrations behind it, next to the
+   transparent breakdown (component × weight = points). Old …/health links land
+   here. */
 const PART_LABEL = {
   adoption: "Adoption (modules used, active staff)",
   payments: "Payment success rate",
@@ -215,45 +218,67 @@ export function Health({ t }: SectionProps) {
   const { today } = usePlatform();
   const h = healthScore(t, today);
   return (
-    <SectionFrame
+    <Part
+      id="health"
+      icon={Icon.checkCircle}
       title="Health score"
       sub="A transparent 0–100 composite. Healthy ≥ 70 · At risk 40–69 · Unhealthy < 40."
     >
-      <Card className="p-4">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="font-display text-4xl font-bold text-navy-900 tnum">{h.score}</span>
-          <Badge tone={h.label === "Healthy" ? "green" : h.label === "At risk" ? "amber" : "red"}>
-            {h.label === "Healthy" ? <Icon.checkCircle size={11} /> : <Icon.alert size={11} />}{" "}
-            {h.label}
-          </Badge>
-          <div>
-            <Sparkline data={t.health.trend} color="#0D9488" width={180} height={40} />
-            <div className="text-[11px] text-slate-500">12-week trend</div>
+      <div className="grid lg:grid-cols-2 gap-3">
+        <Card className="p-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="font-display text-4xl font-bold text-navy-900 tnum">{h.score}</span>
+            <Badge tone={h.label === "Healthy" ? "green" : h.label === "At risk" ? "amber" : "red"}>
+              {h.label === "Healthy" ? <Icon.checkCircle size={11} /> : <Icon.alert size={11} />}{" "}
+              {h.label}
+            </Badge>
+            <div>
+              <Sparkline data={t.health.trend} color="#0D9488" width={180} height={40} />
+              <div className="text-[11px] text-slate-500">12-week trend</div>
+            </div>
           </div>
-        </div>
-        <table className="mt-3 w-full text-[13px]">
-          <caption className="sr-only">Why this score</caption>
-          <thead>
-            <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500">
-              <th className="py-1">Component</th>
-              <th>Score</th>
-              <th>Weight</th>
-              <th className="text-right">Points</th>
-            </tr>
-          </thead>
-          <tbody>
-            {h.parts.map((p) => (
-              <tr key={p.k} className="border-t border-slate-100">
-                <td className="py-1.5">{PART_LABEL[p.k]}</td>
-                <td className="tnum">{p.v}</td>
-                <td className="tnum">{Math.round(HEALTH_WEIGHTS[p.k] * 100)}%</td>
-                <td className="text-right tnum font-semibold">{Math.round(p.v * p.w)}</td>
-              </tr>
+          <div className="mt-3 grid grid-cols-3 gap-2 text-[12px]">
+            {(
+              [
+                ["Stripe", t.stripe.charges && t.stripe.payouts],
+                ["myDATA", t.mydata === "connected"],
+                ["Webhooks", t.webhooks === "healthy"],
+              ] as [string, boolean][]
+            ).map(([l, ok]) => (
+              <span
+                key={l}
+                className={`rounded-lg px-2 py-1.5 ring-1 flex items-center gap-1.5 ${ok ? "bg-emerald-50 text-emerald-700 ring-emerald-600/15" : "bg-amber-50 text-amber-800 ring-amber-600/20"}`}
+              >
+                {ok ? <Icon.check size={12} /> : <Icon.alert size={12} />} {l} {ok ? "OK" : "issue"}
+              </span>
             ))}
-          </tbody>
-        </table>
-      </Card>
-    </SectionFrame>
+          </div>
+        </Card>
+        <Card className="p-4">
+          <table className="w-full text-[13px]">
+            <caption className="text-left font-semibold text-navy-900 mb-1">Why this score</caption>
+            <thead>
+              <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500">
+                <th className="py-1">Component</th>
+                <th>Score</th>
+                <th>Weight</th>
+                <th className="text-right">Points</th>
+              </tr>
+            </thead>
+            <tbody>
+              {h.parts.map((p) => (
+                <tr key={p.k} className="border-t border-slate-100">
+                  <td className="py-1.5 pr-2">{PART_LABEL[p.k]}</td>
+                  <td className="tnum">{p.v}</td>
+                  <td className="tnum">{Math.round(HEALTH_WEIGHTS[p.k] * 100)}%</td>
+                  <td className="text-right tnum font-semibold">{Math.round(p.v * p.w)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      </div>
+    </Part>
   );
 }
 

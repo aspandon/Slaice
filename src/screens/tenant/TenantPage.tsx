@@ -14,7 +14,7 @@ import { Billing, Overview, Profile } from "./AccountSections";
 import { Branding, Modules } from "./ProductSections";
 import { EntryTickets } from "./TicketSection";
 import { SecurityAndCompliance } from "./AccessSections";
-import { Audit, DataExport, Health, Support } from "./SupportSections";
+import { Audit, DataExport, Support } from "./SupportSections";
 import { UsersAndRoles } from "./RolesSection";
 import { CommercialTerms } from "./CommercialTerms";
 import { DangerZone } from "./Lifecycle";
@@ -26,7 +26,7 @@ import { ViewAsDialog } from "./ViewAs";
    permission, badge) so new ones are one entry; a grouped left rail on
    desktop, a select on phones. */
 
-/** Sections merged into another (AENR-796…800, 818): old links open the surviving section and
+/** Sections merged into another (AENR-796…800, 818, 821): old links open the surviving section and
  *  scroll to the part that replaced the old page (`?at=<old id>`). */
 export const SECTION_ALIASES: Record<string, string> = {
   contract: "profile",
@@ -39,6 +39,7 @@ export const SECTION_ALIASES: Record<string, string> = {
   invoicing: "terms",
   users: "roles",
   compliance: "security",
+  health: "overview",
 };
 /** The path segment (+ part anchor) for a section id, old or current. */
 export const sectionPath = (s: string) =>
@@ -57,7 +58,7 @@ interface SectionDef {
 }
 export const SECTIONS: SectionDef[] = [
   {
-    // Includes the Usage & limits meters (AENR-798).
+    // Includes the Health score (AENR-821) and the Usage & limits meters (AENR-798).
     id: "overview",
     label: "Overview",
     icon: Icon.chart,
@@ -152,14 +153,6 @@ export const SECTIONS: SectionDef[] = [
     group: "Support",
     edit: "support",
     render: (p) => <Support {...p} />,
-  },
-  {
-    id: "health",
-    label: "Health score",
-    icon: Icon.checkCircle,
-    group: "Support",
-    edit: "support",
-    render: (p) => <Health {...p} />,
   },
   {
     id: "audit",

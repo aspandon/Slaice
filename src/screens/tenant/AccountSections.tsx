@@ -11,7 +11,6 @@ import {
   Select,
   Table,
   DateInput, ExportMenu } from "../../components/ui";
-import { Sparkline } from "../../components/charts";
 import { usePlatform } from "../../lib/usePlatform";
 import { addDays, fmtDay } from "../../domain/period";
 import {
@@ -25,12 +24,12 @@ import {
   LIFECYCLE_LABEL,
   SEVERITY_LABEL,
   actionsRequired,
-  healthScore,
   type Contact,
   type TenantRecord,
 } from "../../domain/tenants";
 import { KV, Part, ReasonModal, SectionFrame, useTenantDraft, type SectionProps } from "./kit";
 import { Localisation, Locations } from "./ProductSections";
+import { Health } from "./SupportSections";
 import { eur as eurFull, rateLabel, subscriptionLabel, termsOf } from "../../domain/economics";
 import { seasonToDate } from "../../data/economics";
 import { useStatementOpts } from "../../lib/useEconomics";
@@ -46,13 +45,18 @@ const SEV_ICON = {
   info: Icon.info,
 } as const;
 
-/* ---------- Overview ---------- */
+/* ---------- Overview ----------
+   Actions required, the season KPIs and recent activity, then two parts: the
+   Health score (AENR-821) and Usage & limits (AENR-798). */
+const OVERVIEW_PARTS = [
+  { id: "health", label: "Health score" },
+  { id: "usage", label: "Usage & limits" },
+] as const;
 export function Overview({ t, canEdit, go }: SectionProps) {
   const { today, updateTenant, toast, mrr, planName } = usePlatform();
   const statementOpts = useStatementOpts(today);
   const slaice = useMemo(() => seasonToDate(t, statementOpts(t)), [t, statementOpts]);
   const actions = actionsRequired(t, today);
-  const h = healthScore(t, today);
   const resolve = (id: string, how: string) => {
     updateTenant(
       t.id,
@@ -89,6 +93,7 @@ export function Overview({ t, canEdit, go }: SectionProps) {
     <SectionFrame
       title="Overview"
       sub={`${LIFECYCLE_LABEL[t.lifecycle]}${t.goLive ? ` since ${fmtDay(t.goLive)}` : ""} · ${t.subdomain} · ${planName(t)}`}
+      parts={OVERVIEW_PARTS}
     >
       {actions.length > 0 && (
         <Card className="p-4">
@@ -154,59 +159,29 @@ export function Overview({ t, canEdit, go }: SectionProps) {
           </Card>
         ))}
       </div>
-      <div className="grid lg:grid-cols-2 gap-3">
-        <Card className="p-4">
-          <h3 className="font-semibold text-navy-900 mb-1">Health</h3>
-          <div className="flex items-center gap-3">
-            <span className="font-display text-3xl font-bold text-navy-900 tnum">{h.score}</span>
-            <Badge tone={h.label === "Healthy" ? "green" : h.label === "At risk" ? "amber" : "red"}>
-              {h.label === "Healthy" ? <Icon.checkCircle size={11} /> : <Icon.alert size={11} />}{" "}
-              {h.label}
-            </Badge>
-            <Sparkline data={t.health.trend} color="#0D9488" width={120} height={32} />
-            <Btn size="sm" variant="ghost" className="ml-auto" onClick={() => go("health")}>
-              Why?
-            </Btn>
-          </div>
-          <div className="mt-2 grid grid-cols-3 gap-2 text-[12px]">
-            {(
-              [
-                ["Stripe", t.stripe.charges && t.stripe.payouts],
-                ["myDATA", t.mydata === "connected"],
-                ["Webhooks", t.webhooks === "healthy"],
-              ] as [string, boolean][]
-            ).map(([l, ok]) => (
-              <span
-                key={l}
-                className={`rounded-lg px-2 py-1.5 ring-1 flex items-center gap-1.5 ${ok ? "bg-emerald-50 text-emerald-700 ring-emerald-600/15" : "bg-amber-50 text-amber-800 ring-amber-600/20"}`}
-              >
-                {ok ? <Icon.check size={12} /> : <Icon.alert size={12} />} {l} {ok ? "OK" : "issue"}
-              </span>
+      <Card className="p-4">
+        <h3 className="font-semibold text-navy-900 mb-1">Recent activity</h3>
+        {t.audit.length === 0 ? (
+          <p className="text-[13px] text-slate-500">No changes yet.</p>
+        ) : (
+          <ul className="text-[12.5px] space-y-1">
+            {t.audit.slice(0, 5).map((a) => (
+              <li key={a.id}>
+                <span className="text-slate-500">
+                  {new Date(a.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                </span>{" "}
+                · <b className="text-navy-900">{a.change}</b> · {a.actor}
+              </li>
             ))}
-          </div>
-        </Card>
-        <Card className="p-4">
-          <h3 className="font-semibold text-navy-900 mb-1">Recent activity</h3>
-          {t.audit.length === 0 ? (
-            <p className="text-[13px] text-slate-500">No changes yet.</p>
-          ) : (
-            <ul className="text-[12.5px] space-y-1">
-              {t.audit.slice(0, 5).map((a) => (
-                <li key={a.id}>
-                  <span className="text-slate-500">
-                    {new Date(a.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                  </span>{" "}
-                  · <b className="text-navy-900">{a.change}</b> · {a.actor}
-                </li>
-              ))}
-            </ul>
-          )}
-          <Btn size="sm" variant="ghost" className="mt-2" onClick={() => go("audit")}>
-            Audit log
-          </Btn>
-        </Card>
-      </div>
-      {/* The usage meters live here since the Usage & limits page went (AENR-798). */}
+          </ul>
+        )}
+        <Btn size="sm" variant="ghost" className="mt-2" onClick={() => go("audit")}>
+          Audit log
+        </Btn>
+      </Card>
+      {/* The Health score page (AENR-821), then the usage meters (AENR-798) — the two pages
+          folded into Overview, each a part old links land on. */}
+      <Health t={t} canEdit={canEdit} go={go} />
       <Usage t={t} canEdit={canEdit} go={go} />
     </SectionFrame>
   );
