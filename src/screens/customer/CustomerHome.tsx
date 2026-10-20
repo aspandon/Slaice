@@ -33,6 +33,7 @@ import { useTenantFeatures } from "../../lib/useFeatures";
 import { useGuestScene } from "../../lib/useGuestScene";
 import { ADD_EXTRAS_LABEL, extrasPhrase } from "../../domain/features";
 import { RevealLines, Rolling } from "../../components/TextFx";
+import { HowItWorks } from "./HowItWorks";
 
 // Bare date from a validity label (e.g. "End of season · 30 Sep 2026").
 const dateOf = (s: string) => s.split(/·|to/).pop()?.trim() ?? s;
@@ -131,6 +132,10 @@ export function CustomerHome() {
   // The rebook slot: the guest's usual, or "Plan another visit" beside an upcoming one. A guest with
   // neither (a first visit) gets nothing here — the planning hero above already says it (AENR-787).
   const rebookTile = moment.kind !== "after" && ((visitsStatus === "loading" && !firstTimer) || rebook.status !== "none" || !!next);
+  // How it works (AENR-789): only under the planning hero, for a guest with no visits at all —
+  // a first-time guest (Demo › newGuest) until their first booking. Waits for the history so a
+  // returning guest never sees it flash.
+  const firstVisit = moment.kind === "none" && visitsStatus === "success" && visits.length === 0;
   const hero = (
       // The heading and copy stay content; only the CTA is a button, stretched over the
       // card (its ::after) so the whole card still opens the guided booking (AENR-770).
@@ -182,6 +187,7 @@ export function CustomerHome() {
         : moment.kind === "offseason" ? <OffSeasonCard opens={moment.opens} />
         : visitsStatus === "loading" && !firstTimer ? <VisitCardSkeleton />
         : hero}
+      {firstVisit && <HowItWorks />}
 
       {/* One column when only one tile is left (roadmap promo hidden / dismissed, AENR-691) — no half-empty row. */}
       {(rebookTile || showPromo) && (
