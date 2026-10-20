@@ -129,6 +129,9 @@ export function CustomerHome() {
   const moment = homeMoment(visits, todayISO(), clock, (force || undefined) as MomentKind | undefined);
   const next = moment.kind === "morning" || moment.kind === "upcoming" ? moment.v : null;
   const rebook = useRebook(visits, rewards);
+  // The rebook slot: the guest's usual, or "Plan another visit" beside an upcoming one. A guest with
+  // neither (a first visit) gets nothing here — the planning hero above already says it (AENR-787).
+  const rebookTile = moment.kind !== "after" && ((visitsStatus === "loading" && !firstTimer) || rebook.status !== "none" || !!next);
   const hero = (
       // The heading and copy stay content; only the CTA is a button, stretched over the
       // card (its ::after) so the whole card still opens the guided booking (AENR-770).
@@ -182,17 +185,17 @@ export function CustomerHome() {
         : hero}
 
       {/* One column when only one tile is left (roadmap promo hidden / dismissed, AENR-691) — no half-empty row. */}
-      {(moment.kind !== "after" || showPromo) && (
-      <div className={`grid gap-4 items-stretch ${moment.kind !== "after" && showPromo ? "sm:grid-cols-2" : ""}`}>
+      {(rebookTile || showPromo) && (
+      <div className={`grid gap-4 items-stretch ${rebookTile && showPromo ? "sm:grid-cols-2" : ""}`}>
         {/* Rebook your usual — from the guest's own visits (the after-visit card already offers it) */}
-        {moment.kind !== "after" && <>
+        {rebookTile && <>
         {/* "Book again" opens Pay with exactly this proposal filled in (AENR-611 / 705); first-timers get the guided booking. */}
         {visitsStatus === "loading" && !firstTimer ? <RebookSkeleton /> : rebook.status === "none" ? (
           <section aria-labelledby="first-visit" className={`${CARD} p-5 flex flex-col gap-2.5 hover:bg-white/80 transition-colors group cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-teal-500`} data-home-card>
             <div className="flex items-center gap-3">
               <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
               <div className="min-w-0">
-                <h2 id="first-visit" className="font-semibold text-navy-900 text-guest-body leading-tight">{next ? t("Plan another visit") : t("Your first visit")}</h2>
+                <h2 id="first-visit" className="font-semibold text-navy-900 text-guest-body leading-tight">{t("Plan another visit")}</h2>
                 <p className="text-guest-meta text-slate-600 mt-0.5 leading-snug">{`${freeDisplay} ${t("sunbeds free today")} · ${t("from")} ${money(fromPrice)}`}</p>
               </div>
             </div>
