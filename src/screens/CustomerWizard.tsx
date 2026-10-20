@@ -1306,25 +1306,30 @@ function useZoneOrder() {
 }
 
 /* ============ Phones, When step: the beach filling up (AENR-758) ============
-   A swipeable strip of the zones in beach order, each a mini map of its sets
-   coloured by state for the chosen day (free teal, on hold amber, taken grey)
-   with the free count and the from-price. Changing the day re-colours the sets
-   and rolls the counts; tapping a zone opens it on Where. */
+   Every zone on screen at once (AENR-782 — no sideways scrolling): a grid of compact
+   tiles in beach order, three to a row from five zones up (two for four, one row for
+   fewer), each a mini map of its sets coloured by state for the chosen day (free teal,
+   on hold amber, taken grey) with the free count and the from-price. Changing the day
+   re-colours the sets and rolls the counts; tapping a zone opens it on Where. */
 const STRIP_DOT: Record<string, string> = { a: "bg-teal-500", h: "bg-amber-400", u: "bg-slate-300" };
+// Two rows need more room than the old single strip: the grid rises from the beach's 20vh
+// top padding to just under the top bar, into sea the sheet never covers (≥ 360×740).
+const ZONE_GRID_TOP = "calc(12px - 20vh)";
+const zoneCols = (n: number) => (n >= 5 ? "grid-cols-3" : n === 4 ? "grid-cols-2" : n === 3 ? "grid-cols-3" : n === 2 ? "grid-cols-2" : "grid-cols-1");
 function ZoneStrip({ days, onPick }: { days: string[]; onPick: (id: string) => void }) {
   const tr = useT();
   const liveSlots = useLiveSlots();
   const order = useZoneOrder().map((o) => o.z);
   return (
-    <div className="absolute inset-x-0 top-0 pointer-events-auto animate-fade-up">
+    <div className="absolute inset-x-0 pointer-events-auto animate-fade-up" style={{ top: ZONE_GRID_TOP }}>
       <div className="px-1 pb-1.5 text-guest-caption font-semibold text-navy-900/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.7)]">{tr("Free sets on the beach that day")} · {tr("tap a zone")}</div>
-      <div className="flex gap-2.5 overflow-x-auto snap-x snap-mandatory overscroll-x-contain pb-2 -mx-3 px-3 [scrollbar-width:none]">
+      <div className={`grid gap-2 ${zoneCols(order.length)}`}>
         {order.map((z) => <ZoneStripTile key={z.id} zone={z} slots={liveSlots(z, days)} onPick={onPick} />)}
       </div>
     </div>
   );
 }
-function ZoneStripTile({ zone, slots, onPick }: { zone: WizardZone; slots: SunbedSlot[]; onPick: (id: string) => void }) {
+function ZoneStripTile({ zone, slots, onPick, active = false, picked = 0 }: { zone: WizardZone; slots: SunbedSlot[]; onPick: (id: string) => void; active?: boolean; picked?: number }) {
   const money = useMoney();
   const tr = useT();
   const freeSlots = slots.filter((s) => s.state === "a");
@@ -1332,70 +1337,45 @@ function ZoneStripTile({ zone, slots, onPick }: { zone: WizardZone; slots: Sunbe
   const full = freeSlots.length === 0;
   return (
     <button type="button" onClick={() => onPick(zone.id)}
-      aria-label={`${zone.name} — ${freeSlots.length} ${tr("free")}${from !== null ? `, ${tr("from")} ${money(from)}` : ""}`}
-      className={`snap-start shrink-0 w-[118px] rounded-2xl glass-card px-2.5 pt-2 pb-2 text-left transition duration-fast ease-ios active:scale-[.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${full ? "opacity-70" : ""}`}>
+      aria-label={`${zone.name} — ${freeSlots.length} ${tr("free")}${from !== null ? `, ${tr("from")} ${money(from)}` : ""}${picked ? `, ${picked} ${tr("picked")}` : ""}`}
+      aria-current={active ? "true" : undefined}
+      className={`relative min-w-0 rounded-2xl glass-card px-2 pt-1.5 pb-1.5 text-left transition duration-fast ease-ios active:scale-[.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${active ? "ring-2 ring-teal-600" : ""} ${full ? "opacity-70" : ""}`}>
       <span className="flex items-center gap-1.5 min-w-0">
         <span aria-hidden className="w-2 h-2 rounded-full shrink-0" style={{ background: zone.color }} />
-        <span className="font-semibold text-guest-meta text-navy-900 truncate">{zone.name}</span>
+        <span className="font-semibold text-guest-caption text-navy-900 truncate">{zone.name}</span>
       </span>
-      <span aria-hidden className="relative block mt-1.5 h-[52px] rounded-lg bg-[#f3e3c4]/70">
+      <span aria-hidden className="relative block mt-1.5 h-[30px] rounded-lg bg-[#f3e3c4]/70">
         {slots.map((s) => (
-          <span key={s.id} className={`absolute w-[6px] h-[6px] rounded-[2px] -translate-x-1/2 -translate-y-1/2 transition-colors duration-base ${STRIP_DOT[s.state] ?? STRIP_DOT.u}`} style={{ left: `${s.x}%`, top: `${s.y}%` }} />
+          <span key={s.id} className={`absolute w-[4px] h-[4px] rounded-[1px] -translate-x-1/2 -translate-y-1/2 transition-colors duration-base ${STRIP_DOT[s.state] ?? STRIP_DOT.u}`} style={{ left: `${s.x}%`, top: `${s.y}%` }} />
         ))}
       </span>
-      <span className="mt-1.5 block text-guest-caption leading-tight">
-        <b className="tnum text-navy-900">{full ? tr("Full") : <><Rolling value={freeSlots.length} /> {tr("free")}</>}</b>
-        {from !== null && <span className="block text-slate-600 tnum">{tr("from")} {money(from)}</span>}
+      <span className="mt-1 block text-guest-caption leading-tight">
+        <b className="block truncate tnum text-navy-900">{full ? tr("Full") : <><Rolling value={freeSlots.length} /> {tr("free")}</>}</b>
+        {from !== null && <span className="block truncate text-slate-600 tnum">{tr("from")} {money(from)}</span>}
       </span>
+      {picked > 0 && <span className="absolute -top-1.5 -right-1.5 min-w-5 h-5 px-1 rounded-full bg-coral-700 text-white text-[11px] font-bold grid place-items-center ring-2 ring-white">{picked}</span>}
     </button>
   );
 }
 
 /* ============ Phones, Where: choose a zone on the beach (AENR-760) ============
-   A sideways-swiping panorama of the sand: the zones in the order and the
-   front-to-back stagger of the admin's zone map (Beach layout), each drawn as a
-   mini map of its sets for the chosen day with its name and a free · from chip.
-   It snaps zone by zone; tapping a zone opens its sets. The zone list stays in
-   the raised sheet as the accessible alternative. */
+   With the tenant's "Walk along the shore" off: the same grid as When — every zone on
+   screen at once (AENR-782), in the admin's beach order, the open zone ringed and your
+   picks counted on each. Tapping a zone opens its sets. The zone list stays in the
+   raised sheet as the accessible alternative. */
 function ZonePanorama({ days, selectedId, picked, onPick }: { days: string[]; selectedId: string; picked: Record<string, number>; onPick: (id: string) => void }) {
-  const money = useMoney();
   const tr = useT();
   const liveSlots = useLiveSlots();
-  const placed = useZoneOrder().map(({ z, depth }) => ({ z, lift: Math.round(depth * 28) }));
+  const order = useZoneOrder().map((o) => o.z);
   return (
-    <div className="absolute inset-x-0 top-0 pointer-events-auto animate-fade-up">
-      <div className="px-1 pb-1 text-guest-caption font-semibold text-navy-900/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.7)] flex items-center gap-1.5">
-        <Icon.arrowR size={12} className="rotate-180" /> {tr("Swipe along the beach · tap a zone")} <Icon.arrowR size={12} />
-      </div>
-      <ul className="flex gap-3 overflow-x-auto snap-x snap-mandatory overscroll-x-contain pb-3 pt-1 -mx-3 px-[max(0.75rem,calc(50%-80px))] [scrollbar-width:none]" aria-label={tr("Zones on the beach")}>
-        {placed.map(({ z, lift }) => {
-          const slots = liveSlots(z, days);
-          const freeSlots = slots.filter((x) => x.state === "a");
-          const from = freeSlots.length ? Math.min(...freeSlots.map((x) => x.price)) : null;
-          const active = z.id === selectedId;
-          const n = picked[z.id] ?? 0;
-          return (
-            <li key={z.id} className="snap-center shrink-0" style={{ marginTop: lift }}>
-              <button type="button" onClick={() => onPick(z.id)}
-                aria-label={`${z.name} — ${freeSlots.length} ${tr("free")}${from !== null ? `, ${tr("from")} ${money(from)}` : ""}${n ? `, ${n} ${tr("picked")}` : ""}`}
-                className={`relative w-[160px] rounded-3xl p-3 text-left transition duration-fast ease-ios active:scale-[.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${active ? "bg-white/85 ring-2 ring-teal-600 shadow-lift" : "bg-white/55 ring-1 ring-white/70 shadow-soft"} ${freeSlots.length ? "" : "opacity-70"}`}>
-                <span aria-hidden className="relative block h-[96px] rounded-2xl bg-[#f3e3c4]">
-                  {slots.map((x) => (
-                    <span key={x.id} className={`absolute w-[9px] h-[9px] rounded-[3px] -translate-x-1/2 -translate-y-1/2 transition-colors duration-base ${STRIP_DOT[x.state] ?? STRIP_DOT.u}`} style={{ left: `${x.x}%`, top: `${x.y}%` }} />
-                  ))}
-                </span>
-                <span className="mt-2 flex items-center gap-1.5">
-                  <span aria-hidden className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: z.color }} />
-                  <span className="font-display font-bold text-guest-body text-navy-900 truncate">{z.name}</span>
-                </span>
-                <span className="mt-1 inline-flex rounded-full bg-white px-2 py-0.5 text-guest-caption font-semibold text-navy-900 ring-1 ring-slate-200 tnum">
-                  {freeSlots.length ? `${freeSlots.length} ${tr("free")}${from !== null ? ` · ${tr("from")} ${money(from)}` : ""}` : tr("Full")}
-                </span>
-                {n > 0 && <span className="absolute -top-2 -right-2 min-w-6 h-6 px-1.5 rounded-full bg-coral-700 text-white text-guest-caption font-bold grid place-items-center ring-2 ring-white">{n}</span>}
-              </button>
-            </li>
-          );
-        })}
+    <div className="absolute inset-x-0 pointer-events-auto animate-fade-up" style={{ top: ZONE_GRID_TOP }}>
+      <div className="px-1 pb-1.5 text-guest-caption font-semibold text-navy-900/80 drop-shadow-[0_1px_1px_rgba(255,255,255,0.7)]">{tr("Tap a zone to see its sets")}</div>
+      <ul className={`grid gap-2 ${zoneCols(order.length)}`} aria-label={tr("Zones on the beach")}>
+        {order.map((z) => (
+          <li key={z.id} className="min-w-0 grid">
+            <ZoneStripTile zone={z} slots={liveSlots(z, days)} onPick={onPick} active={z.id === selectedId} picked={picked[z.id] ?? 0} />
+          </li>
+        ))}
       </ul>
     </div>
   );
