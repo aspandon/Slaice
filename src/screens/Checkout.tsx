@@ -5,7 +5,8 @@ import { AgeCheck } from "../components/AgeCheck";
 import { PaymentProgress } from "../components/PaymentProgress";
 import { QuickSignIn } from "../components/QuickSignIn";
 import type { IconRenderer } from "../lib/icons";
-import { gsap, motionOK, takeFlip, Flip, EASE, DUR } from "../lib/fx";
+import { gsap, motionOK, EASE, DUR } from "../lib/fx";
+import { takeFlip, Flip } from "../lib/fxFlip";
 import { pocketDrag, type PocketDrag } from "../lib/pocketDrag";
 import { Card, Btn, EmptyState, NotMvpBadge, SwipeRow, Toggle } from "../components/ui";
 import { QR } from "../components/charts";
@@ -34,7 +35,7 @@ import { FIRST_TIME_LOYALTY, activeRewards } from "./customer/CustomerHome";
 import { useDemoFlag } from "../lib/useDemoFlag";
 import { useTenantFeatures } from "../lib/useFeatures";
 import { ActionsMenu } from "../components/ui/ActionsMenu";
-import { Decode } from "../components/TextFx";
+import { Decode } from "../components/DecodeText";
 
 // Online booking refs follow the account's bookings (BK-30001, BK-30002…) so they
 // never collide with sample or staff bookings, and survive a reload (AENR-597).

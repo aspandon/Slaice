@@ -6,7 +6,6 @@ import type { AppContextValue, SpotlightHint, ToastOptions } from "./app/store";
 import { DEFAULT_PAGE } from "./data/personas";
 import { Icon } from "./lib/icons";
 import { TopBar, Sidebar, BottomTabBar, CustomerNav, SiteFooter, Toasts, PersonaSwitcher, TillTabs } from "./components/Shell";
-import { AuthGate } from "./screens/auth";
 import { ConsentBanner } from "./components/ConsentBanner";
 import { CustomerBackdrop } from "./components/CustomerBackdrop";
 import { WeatherUi } from "./components/WeatherUi";
@@ -64,7 +63,6 @@ import { DAY_DEFAULT, DEFAULT_SCENE_FX } from "./data/beach";
 import type { SceneFx, WeatherKind } from "./data/beach";
 import { migrateLegacySegments, stripLegacyTags, visitSegmentName } from "./domain/segments";
 
-import { Automations } from "./lib/useAutomations";
 interface ToastItem {
   id: number;
   msg: ReactNode;
@@ -151,6 +149,11 @@ const CommandPalette = lazyWithReload(() => import("./components/CommandPalette"
 // Demo › Performance overlay (AENR-842): its own chunk, fetched only when switched on.
 const PerfOverlay = lazyWithReload(() => import("./components/PerfOverlay"));
 const GuestPass = lazyWithReload(() => import("./screens/customer/GuestPass").then((m) => ({ default: m.GuestPass })));
+// Sign-in (and its react-hook-form + zod form stack) loads only for a signed-out visitor (AENR-839).
+const AuthGate = lazyWithReload(() => import("./screens/auth").then((m) => ({ default: m.AuthGate })));
+// The routine-decision jobs (refund policy, no-show release) render nothing; like the janitors they
+// start right after the first render instead of riding in the first download (AENR-839).
+const Automations = lazyWithReload(() => import("./lib/useAutomations").then((m) => ({ default: m.Automations })));
 
 /** The customer's tabs in navigation order — sets the direction of page transitions (AENR-750). */
 const CUSTOMER_TABS = ["home", "plan", "mybookings", "wallet", "account"];
@@ -683,7 +686,9 @@ export default function App() {
   return (
     <AppCtx.Provider value={ctx}>
       {!signedIn ? (
-        <AuthGate />
+        <Suspense fallback={<div className="min-h-dvh grad-sea" />}>
+          <AuthGate />
+        </Suspense>
       ) : (
         <div className="w-full px-3 sm:px-5 pt-4 relative min-h-dvh flex flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-1">
           {persona === "customer" && <CustomerBackdrop immersive={immersive} page={page} />}
@@ -733,7 +738,9 @@ export default function App() {
             <CommandPalette />
           </Suspense>
           {/* Routine decisions that run by themselves — refund policy, no-show release (AENR-623). */}
-          <Automations />
+          <Suspense fallback={null}>
+            <Automations />
+          </Suspense>
           {persona !== "platform" && platform.siteTenant !== "akti" && (
             <div role="status" className="mb-3 flex flex-wrap items-center gap-2 rounded-2xl bg-slaice-600 text-white px-4 py-2 text-[13px]">
               <Icon.eye size={15} /> Previewing <b>{platform.tenants.find((x) => x.id === platform.siteTenant)?.name}</b>'s site and till

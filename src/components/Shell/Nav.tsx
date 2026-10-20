@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from "react";
+import { Fragment, Suspense, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
@@ -8,8 +8,12 @@ import { useNav } from "../../lib/useNav";
 import type { NavItem } from "../../domain/types";
 import type { NavProps } from "./types";
 import { useT } from "../../app/store";
-import { TenantNav } from "../../screens/tenant/TenantNav";
+import { lazyWithReload } from "../../lib/staleChunk";
 import { useWaterDrop } from "./useWaterDrop";
+
+// The Platform console's tenant tree is the only staff nav part with its own screen kit; it loads
+// for the platform persona only (AENR-839).
+const TenantNav = lazyWithReload(() => import("../../screens/tenant/TenantNav").then((m) => ({ default: m.TenantNav })));
 
 /* ---------- Mobile page-nav sheet ----------
    The single source of truth for "where can I go" on a phone — opened from the
@@ -43,7 +47,7 @@ export function NavSheet({ open, onClose, persona, page, setPage }: NavProps & {
             {Row(it)}
           </Fragment>
         ))}
-        {persona === "platform" && <TenantNav onNavigate={onClose} />}
+        {persona === "platform" && <Suspense fallback={null}><TenantNav onNavigate={onClose} /></Suspense>}
         {account.length > 0 && (
           <>
             <div className="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Account")}</div>
@@ -89,7 +93,7 @@ export function Sidebar({ persona, page, setPage }: NavProps) {
           );
         })}
       </nav>
-      {persona === "platform" && <TenantNav />}
+      {persona === "platform" && <Suspense fallback={null}><TenantNav /></Suspense>}
       <div className={`mt-3 px-2 py-2 rounded-xl bg-slate-50 ring-1 ring-slate-200 text-[11px] text-slate-500 leading-relaxed ${rail ? "hidden xl:block" : ""}`}>
         {t("Non-functional mockup. No payments or backend — actions show a demo note.")}
       </div>

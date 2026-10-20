@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { Icon } from "../lib/icons";
 import { Btn, Sheet, Toggle } from "./ui";
 import { useApp, useT } from "../app/store";
@@ -6,7 +6,11 @@ import { CONSENT_PURPOSES } from "../data/gdpr";
 import { consentVersion, currentPolicy, type Policy } from "../domain/gdpr";
 import { DEFAULT_PRIVACY } from "../data/gdpr";
 import { CUSTOMER_GUEST_ID, usePrivacy } from "../screens/privacy/usePrivacy";
-import { PolicyModal } from "../screens/privacy/Consent";
+import { lazyWithReload } from "../lib/staleChunk";
+
+// The policy reader opens on demand — it (and the admin consent screens it lives with) stays out
+// of the first download (AENR-839).
+const PolicyModal = lazyWithReload(() => import("../screens/privacy/Consent").then((m) => ({ default: m.PolicyModal })));
 
 /* GDPR cookie/consent banner (P4.1).
    Shown until the visitor makes a choice; "Manage preferences" opens a
@@ -98,7 +102,7 @@ export function ConsentBanner() {
           </p>
         </div>
       </Sheet>
-      {policy && <PolicyModal p={policy} onClose={() => setPolicy(null)} />}
+      {policy && <Suspense fallback={null}><PolicyModal p={policy} onClose={() => setPolicy(null)} /></Suspense>}
     </>
   );
 }

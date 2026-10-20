@@ -25,6 +25,9 @@ const LOADERS = {
   communicate_Communicate: () => import("./screens/communicate/Communicate"),
   controller: () => import("./screens/controller"),
   customer: () => import("./screens/customer"),
+  // Home on its own (AENR-839): the first guest screen must not wait for Wallet, Account and the
+  // privacy centre that share the customer barrel; those warm in the background with it.
+  customer_CustomerHome: () => import("./screens/customer/CustomerHome"),
   display_AdminDisplay: () => import("./screens/display/AdminDisplay"),
   incidents_CallCenterIncidents: () => import("./screens/incidents/CallCenterIncidents"),
   incidents_PlatformIncidents: () => import("./screens/incidents/PlatformIncidents"),
@@ -66,7 +69,7 @@ const CT_ControllerScan = lazy(() => LOADERS.controller().then((m) => ({ default
 const CW_CustomerWizard = lazy(() => LOADERS.CustomerWizard().then((m) => ({ default: m.CustomerWizard })));
 const C_CustomerAccount = lazy(() => LOADERS.customer().then((m) => ({ default: m.CustomerAccount })));
 const C_CustomerBookings = lazy(() => LOADERS.customer().then((m) => ({ default: m.CustomerBookings })));
-const C_CustomerHome = lazy(() => LOADERS.customer().then((m) => ({ default: m.CustomerHome })));
+const C_CustomerHome = lazy(() => LOADERS.customer_CustomerHome().then((m) => ({ default: m.CustomerHome })));
 const C_CustomerWallet = lazy(() => LOADERS.customer().then((m) => ({ default: m.CustomerWallet })));
 const CallCenterIncidents = lazy(() => LOADERS.incidents_CallCenterIncidents().then((m) => ({ default: m.CallCenterIncidents })));
 const CallCenterRefunds = lazy(() => LOADERS.bookings_CallCenterRefunds().then((m) => ({ default: m.CallCenterRefunds })));

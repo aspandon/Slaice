@@ -12,9 +12,11 @@ import { setWizardShot } from "../lib/camera";
 import { Rolling } from "../components/TextFx";
 import { ShoreWalk } from "./customer/ShoreWalk";
 import { prefersReducedMotion } from "../lib/motion";
-import { gsap, Flip, motionOK, stashFlip, EASE, DUR } from "../lib/fx";
+import { gsap, motionOK, EASE, DUR } from "../lib/fx";
+// Also registers MotionPath, which the fly-to-total below tweens with.
+import { Flip, stashFlip } from "../lib/fxFlip";
 import { DURATION, EASING } from "../lib/motionTokens";
-import { Sunbed, SunbedMark } from "../components/Beach";
+import { Sunbed, SunbedMark } from "../components/Sunbed";
 import { SetTile, SetTileLegend, tileGeometry, tilePosition } from "../components/SetTile";
 import { EntryTicketIcon, LockerIcon, ParkingIcon, SunbedSetIcon } from "../components/productIcons";
 import { ZONES, ZONE_BLOCKS, todayISO, chipLabel, forecastFor, WEATHER_DEMO } from "../data/beach";

@@ -1,6 +1,6 @@
 /* ---------- Sunbed-set glyph — shared geometry + palette ----------
    The umbrella-over-twin-loungers mark, drawn by two renderers that must agree:
-   the SVG <Sunbed> (booking legend, Beach.tsx) and the Konva <BeachCanvas> (the
+   the SVG <Sunbed> (booking legend, Sunbed.tsx) and the Konva <BeachCanvas> (the
    selectable booking grid + admin map editor). Both consume this one module so
    the canvas and the DOM can never drift.
 

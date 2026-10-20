@@ -1,14 +1,18 @@
+import { Suspense } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon } from "../../lib/icons";
 import { PERSONAS } from "../../data/personas";
 import { useApp, useT } from "../../app/store";
 import type { PersonaId } from "../../domain/types";
-import { DemoSceneSliders } from "../SceneDemoPanel";
+import { lazyWithReload } from "../../lib/staleChunk";
 import { readHashQuery } from "../../app/router";
 import { useDemoFlag } from "../../lib/useDemoFlag";
 import { FIRST_TIME_RESET } from "../../lib/firstTimeGuest";
 import { useTenantFeatures } from "../../lib/useFeatures";
 import { useGuestScene } from "../../lib/useGuestScene";
+
+// The scene sliders show only in the guest demo menu; staff never load them (AENR-839).
+const DemoSceneSliders = lazyWithReload(() => import("../SceneDemoPanel").then((m) => ({ default: m.DemoSceneSliders })));
 
 /* ---------- Persona switcher ----------
    The "view as another persona" control, shared by two surfaces:
@@ -225,7 +229,9 @@ export function PersonaSwitcher({
               <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
               <DropdownMenu.Label className="px-2.5 pt-1 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">{t("Beach scene")}</DropdownMenu.Label>
               <div className="px-2.5 pt-1 pb-2">
-                <DemoSceneSliders />
+                <Suspense fallback={null}>
+                  <DemoSceneSliders />
+                </Suspense>
               </div>
             </>
           )}

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useGuestRecord } from "../../lib/useGuestRecord";
 import { Icon } from "../../lib/icons";
 import { SunbedSetIcon } from "../../components/productIcons";
@@ -17,9 +17,6 @@ import { partyLabel } from "../../domain/account";
 import { localeFor } from "../../app/i18n";
 import { fmtDay, fmtWeekday } from "../../domain/period";
 import { VisitQR, receiptForVisit, visitPass } from "./VisitTicket";
-import { ShareSheet } from "./ShareBooking";
-import { ExtrasDialog } from "./CustomerBookings";
-import { ReceiptModal } from "./CustomerDocs";
 import { useDemoNow } from "../../lib/useLiveSlots";
 import { appliesAtCheckout } from "../../domain/rewards";
 import { readHashQuery } from "../../app/router";
@@ -34,6 +31,13 @@ import { useTenantFeatures } from "../../lib/useFeatures";
 import { useGuestScene } from "../../lib/useGuestScene";
 import { ADD_EXTRAS_LABEL, extrasPhrase } from "../../domain/features";
 import { RevealLines, Rolling } from "../../components/TextFx";
+import { lazyWithReload } from "../../lib/staleChunk";
+
+// Dialogs Home opens on demand load on first use (AENR-839) — the extras dialog lives with My
+// bookings, the receipt with Documents; the customer screens warm them in the background.
+const ShareSheet = lazyWithReload(() => import("./ShareBooking").then((m) => ({ default: m.ShareSheet })));
+const ExtrasDialog = lazyWithReload(() => import("./CustomerBookings").then((m) => ({ default: m.ExtrasDialog })));
+const ReceiptModal = lazyWithReload(() => import("./CustomerDocs").then((m) => ({ default: m.ReceiptModal })));
 
 // Bare date from a validity label (e.g. "End of season · 30 Sep 2026").
 const dateOf = (s: string) => s.split(/·|to/).pop()?.trim() ?? s;
@@ -302,7 +306,7 @@ function NextVisitCard({ v, qrFirst = false }: { v: Visit; qrFirst?: boolean }) 
         </button>
       </div>
       {qr && <VisitQR v={v} onClose={() => setQr(false)} />}
-      {share && <ShareSheet v={v} onClose={() => setShare(false)} />}
+      {share && <Suspense fallback={null}><ShareSheet v={v} onClose={() => setShare(false)} /></Suspense>}
     </section>
   );
 }
@@ -387,7 +391,7 @@ function AtBeachCard({ v }: { v: Visit }) {
         </div>
         <WeatherNow kind={weather} />
       </div>
-      {extras && <ExtrasDialog v={v} only="extras" onClose={() => setExtras(false)} />}
+      {extras && <Suspense fallback={null}><ExtrasDialog v={v} only="extras" onClose={() => setExtras(false)} /></Suspense>}
       {qr && <VisitQR v={v} onClose={() => setQr(false)} />}
     </section>
   );
@@ -534,7 +538,7 @@ function AfterVisitCard({ v, rebook }: { v: Visit; rebook: Rebook }) {
       {again && rebook.status === "ok" && (
         <p className="mt-2 text-guest-meta text-slate-600">{t("Book again")}: {again.day} · {again.where} · {again.what} · <b className="text-navy-900 tnum">{money(rebook.due.toPay)}</b> {rebook.due.deducted ? t("to pay") : t("all-in")}</p>
       )}
-      {doc && <ReceiptModal doc={receiptForVisit(v)} onClose={() => setDoc(false)} />}
+      {doc && <Suspense fallback={null}><ReceiptModal doc={receiptForVisit(v)} onClose={() => setDoc(false)} /></Suspense>}
     </section>
   );
 }

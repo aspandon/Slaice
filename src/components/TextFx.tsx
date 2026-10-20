@@ -1,11 +1,10 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { gsap } from "gsap";
 import { SplitText } from "gsap/SplitText";
-import { ScrambleTextPlugin } from "gsap/ScrambleTextPlugin";
 import { motionOK, EASE } from "../lib/fx";
 import { DURATION } from "../lib/motionTokens";
 
-gsap.registerPlugin(SplitText, ScrambleTextPlugin);
+gsap.registerPlugin(SplitText);
 
 /* ---------- Rolling numbers and type (AENR-793) ----------
    Three small text effects for the guest app, each rendering its final text for
@@ -14,7 +13,8 @@ gsap.registerPlugin(SplitText, ScrambleTextPlugin);
    - <Rolling>: digits roll like an odometer when the value changes (and once on
      mount, from zeros). Tabular digits, fixed column widths: no layout shift.
    - <RevealLines>: a headline revealed line by line from behind a mask (SplitText).
-   - <Decode>: a booking reference decoding into place (ScrambleText). */
+   - <Decode>: a booking reference decoding into place (ScrambleText) — in DecodeText.tsx, so
+     the ScrambleText plugin loads with the checkout alone, not with Home (AENR-839). */
 
 const DIGITS = "0123456789";
 
@@ -107,50 +107,5 @@ export function RevealLines({
     <Tag ref={ref} id={id} className={className}>
       {children}
     </Tag>
-  );
-}
-
-/** A code (booking reference) that decodes into place on mount — after `delay` seconds, so a
- *  choreography can decode it once its card has landed (AENR-791). */
-export function Decode({
-  text,
-  className = "",
-  delay = 0.25,
-}: {
-  text: string;
-  className?: string;
-  delay?: number;
-}) {
-  const ref = useRef<HTMLSpanElement>(null);
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!motionOK() || !el) return;
-    const tween = gsap.fromTo(
-      el,
-      { scrambleText: { text: text.replace(/[A-Z0-9]/g, "·"), chars: "upperCase" } },
-      {
-        duration: 1,
-        delay,
-        ease: "none",
-        scrambleText: {
-          text,
-          chars: "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789",
-          revealDelay: 0.25,
-          speed: 0.6,
-        },
-      },
-    );
-    return () => {
-      tween.kill();
-      el.textContent = text;
-    };
-  }, [text, delay]);
-  return (
-    <span className={className}>
-      <span className="sr-only">{text}</span>
-      <span ref={ref} aria-hidden className="tnum">
-        {text}
-      </span>
-    </span>
   );
 }
