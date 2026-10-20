@@ -116,10 +116,11 @@ export function otherWallets(): WalletKind[] {
   const p = detectWalletPlatform();
   return p === "ios" ? ["google"] : p === "android" ? ["apple"] : ["apple", "google"];
 }
-/** The wallets this device keeps passes in (AENR-791): iPhone → Apple, Android → Google, a computer → both. */
+/** The wallets offered for a pass (AENR-791): both on every device, the device's own first —
+ *  iPhone → Apple, Google; Android → Google, Apple; a computer → Apple, Google (AENR-849: the demo
+ *  shows both; in real life an iPhone has no Google Wallet, nor an Android phone Apple Wallet). */
 export function deviceWallets(): WalletKind[] {
-  const p = detectWalletPlatform();
-  return p === "ios" ? ["apple"] : p === "android" ? ["google"] : ["apple", "google"];
+  return detectWalletPlatform() === "android" ? ["google", "apple"] : ["apple", "google"];
 }
 
 /* A wallet drawn as a pocket (AENR-791): the confirmation's pass is dragged into it, or the pocket is

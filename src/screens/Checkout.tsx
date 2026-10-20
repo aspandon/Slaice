@@ -653,7 +653,7 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
       </div>
       </div>
 
-      {/* The wallets as pockets (AENR-791 / 805) — the device's own, or both on a computer. Drag the pass
+      {/* The wallets as pockets (AENR-791 / 805) — both, the device's own first (AENR-849). Drag the pass
           into one, or tap it: each opens that wallet's add sheet. They are the page's only wallet buttons. */}
       <div className={`mt-5 ${live ? "data-[docked]:sticky data-[docked]:z-20 data-[docked]:bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:data-[docked]:bottom-4" : ""}`} data-confirm-item data-pocket-dock>
         <p data-pocket-hint className="mx-auto mb-2 flex w-max max-w-full items-center gap-1.5 rounded-full glass-card-solid px-3 py-1 text-guest-meta font-semibold text-slate-700">
