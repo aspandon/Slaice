@@ -11,3 +11,6 @@ tools/orbit/state.json
 
 # Playwright MCP output (screenshots, traces)
 .playwright-mcp/
+
+# Agent worktrees (local only)
+.claude/worktrees/
