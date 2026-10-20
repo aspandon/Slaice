@@ -31,7 +31,8 @@ records it anyway.
    `concat`. Final length 9.63 s (231 frames at 23.976 fps).
 3. **Scale** — 1920×1080 → 1280×720 (Lanczos). No crop needed (already 16:9). No colour grading.
 4. **Re-encode** (no audio track):
-   - `sea-loop.mp4` — H.264 High, yuv420p, `+faststart`, 1280×720, two-pass about 1.85 Mbps.
+   - (AENR-835) rebuilt from the 1080p source with the same loop: `sea-loop-1080.mp4` (H.264, 1920×1080, two-pass ≈3.8 Mbps), `sea-loop-1080.webm` (VP9 ≈3 Mbps), `sea-loop.mp4` (H.264, 1280×720 for phones, ≈1.9 Mbps); graded to Greek turquoise (gradient map); the 480p and 720p WebM files are retired.
+  - `sea-loop.mp4` (earlier) — H.264 High, yuv420p, `+faststart`, 1280×720, two-pass about 1.85 Mbps.
    - `sea-loop.webm` — VP9 profile 0, 1280×720, two-pass about 1.55 Mbps.
    - `sea-loop-480.mp4` — H.264 High, yuv420p, `+faststart`, 854×480, two-pass about 0.71 Mbps.
    - `sea-poster.webp` — first frame of the loop, 1280×720, WebP quality 82.
