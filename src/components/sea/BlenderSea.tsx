@@ -1,5 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
+import { blenderResOf, type BlenderRes } from "../../domain/features";
 import { prefersReducedMotion } from "../../lib/motion";
+import { useTenantFeatures } from "../../lib/useFeatures";
 import { seaAbove } from "../../lib/seaShore";
 import { useShoreSlide } from "../../lib/useShoreSlide";
 import type { SeaEnv } from "../LiveSeaCanvas";
@@ -32,34 +34,43 @@ const src = (f: string) => `${BASE}sea/blender/${f}`;
 
 /** The loop: 8 s, exactly periodic; the files run a 1 s tail past it for the handover (LoopVideo). */
 const PERIOD = 8;
-/** The rendered frame in scene units (beach.py: 1280 × 1200 px for 1600 × 1500 units). */
+/** The rendered frame in scene units (beach.py: 1280 × 1200 px — or 1600 × 1500, 1920 × 1800 — for 1600 × 1500 units). */
 const FRAME_TOP = -250;
 const FRAME_H = 1500;
-// Each with its codec in the type, so a browser without H.264 (or VP9) skips to the next file.
-const MP4_HD = 'video/mp4; codecs="avc1.640028"';
-const MP4_SD = 'video/mp4; codecs="avc1.64001f"';
+// Each with its codec in the type, so a browser without H.264 (or VP9) skips to the next file. The
+// H.264 level follows the frame size (the larger frames need a higher level).
 const WEBM = 'video/webm; codecs="vp9"';
-const CUTS = {
-  wide: {
-    x: 0,
-    w: 1600,
-    poster: "beach-poster.webp",
-    files: [
-      { src: src("beach.webm"), type: WEBM },
-      { src: src("beach.mp4"), type: MP4_HD },
-    ],
-  },
-  // H.264 first on phones (the lightest to decode), VP9 where there is no H.264.
-  tall: {
-    x: 395,
-    w: 810,
-    poster: "beach-portrait-poster.webp",
-    files: [
-      { src: src("beach-portrait.mp4"), type: MP4_SD },
-      { src: src("beach-portrait.webm"), type: WEBM },
-    ],
-  },
-} as const;
+const mp4 = (level: string) => `video/mp4; codecs="avc1.6400${level}"`;
+/** The tenant's resolution for this device (AENR-844): the file suffix and each cut's H.264 level. */
+const RES: Record<BlenderRes, { suf: string; wide: string; tall: string }> = {
+  standard: { suf: "", wide: "28", tall: "1f" },
+  high: { suf: "-high", wide: "32", tall: "20" },
+  fullhd: { suf: "-fullhd", wide: "32", tall: "28" },
+};
+const cutsFor = (res: BlenderRes) => {
+  const r = RES[res];
+  return {
+    wide: {
+      x: 0,
+      w: 1600,
+      poster: `beach${r.suf}-poster.webp`,
+      files: [
+        { src: src(`beach${r.suf}.webm`), type: WEBM },
+        { src: src(`beach${r.suf}.mp4`), type: mp4(r.wide) },
+      ],
+    },
+    // H.264 first on phones (the lightest to decode), VP9 where there is no H.264.
+    tall: {
+      x: 395,
+      w: 810,
+      poster: `beach-portrait${r.suf}-poster.webp`,
+      files: [
+        { src: src(`beach-portrait${r.suf}.mp4`), type: mp4(r.tall) },
+        { src: src(`beach-portrait${r.suf}.webm`), type: WEBM },
+      ],
+    },
+  };
+};
 
 export default function BlenderSea({
   dy,
@@ -89,6 +100,9 @@ export default function BlenderSea({
     return () => ro.disconnect();
   }, []);
   useShoreSlide(dy, [slide]);
+  // Standard, High or Full HD — the tenant's choice for this device (Platform › tenant › Guest sea).
+  const { tenant } = useTenantFeatures();
+  const cuts = cutsFor(blenderResOf(tenant, tier));
 
   const still = prefersReducedMotion() || saveData();
   const filter = grade(env);
@@ -96,7 +110,7 @@ export default function BlenderSea({
   // Place the frame in scene space, the way the SVG scene is cover-fitted ("slice").
   const k = size ? Math.max(size.w / 1600, size.h / 900) : 0;
   // The portrait cut only where it covers the whole layer (portrait phones and tablets).
-  const cut = CUTS[tier === "mobile" && size && size.w / k <= CUTS.tall.w - 8 ? "tall" : "wide"];
+  const cut = cuts[tier === "mobile" && size && size.w / k <= cuts.tall.w - 8 ? "tall" : "wide"];
   const box = size && {
     left: (size.w - 1600 * k) / 2 + cut.x * k,
     top: (size.h - 900 * k) / 2 + (FRAME_TOP + dy) * k,
@@ -117,7 +131,8 @@ export default function BlenderSea({
               <img src={src(cut.poster)} alt="" className={media} style={{ filter }} />
             ) : (
               <LoopVideo
-                // A new cut (a resize across the phone / tablet line) is a new pair of players.
+                // A new cut or resolution (a resize across the phone / tablet line, a new tenant setting)
+                // is a new pair of players.
                 key={cut.poster}
                 className={media}
                 style={{ filter }}

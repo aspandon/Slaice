@@ -205,7 +205,11 @@ export const TENANT_FEATURES: readonly TenantFeatureDef[] = [
    (AENR-827). Missing = Classic, so nothing changes until Slaice picks. */
 export type SeaStyle = "classic" | "coastal" | "video" | "blender";
 export type SeaDevice = "desktop" | "mobile";
-export type TenantSea = Partial<Record<SeaDevice, SeaStyle>>;
+/** How sharp the Blender beach plays, per device (AENR-844). Standard is the first render. */
+export type BlenderRes = "standard" | "high" | "fullhd";
+export type TenantSea = Partial<Record<SeaDevice, SeaStyle>> & {
+  blenderRes?: Partial<Record<SeaDevice, BlenderRes>>;
+};
 export const SEA_STYLES: readonly { id: SeaStyle; label: string; description: string }[] = [
   {
     id: "classic",
@@ -237,6 +241,27 @@ export const SEA_DEVICES: readonly { id: SeaDevice; label: string }[] = [
 ];
 export const seaStyleOf = (t: { sea?: TenantSea } | undefined, d: SeaDevice): SeaStyle =>
   t?.sea?.[d] ?? "classic";
+
+/* The Blender beach's resolutions (AENR-844): the same render at three sizes, for the tenant to
+   weigh sharpness against each guest's download. Computers play the whole frame, phones and
+   tablets a portrait cut of its middle. Sizes are the files' (WebM / MP4 for computers, MP4 /
+   WebM for phones — whichever the browser plays). */
+export const BLENDER_RES: readonly {
+  id: BlenderRes;
+  label: string;
+  /** Its files are published (false while the render is still running — offered, not pickable). */
+  ready: boolean;
+  desktop: { px: string; mb: string };
+  mobile: { px: string; mb: string };
+}[] = [
+  { id: "standard", label: "Standard", ready: true, desktop: { px: "1280 × 1200", mb: "2.5–2.9 MB" }, mobile: { px: "648 × 1200", mb: "0.9–1.1 MB" } },
+  { id: "high", label: "High", ready: false, desktop: { px: "1600 × 1500", mb: "TBD" }, mobile: { px: "810 × 1500", mb: "TBD" } },
+  { id: "fullhd", label: "Full HD", ready: false, desktop: { px: "1920 × 1800", mb: "TBD" }, mobile: { px: "972 × 1800", mb: "TBD" } },
+];
+export const blenderResOf = (t: { sea?: TenantSea } | undefined, d: SeaDevice): BlenderRes => {
+  const r = t?.sea?.blenderRes?.[d] ?? "standard";
+  return BLENDER_RES.find((x) => x.id === r)?.ready ? r : "standard";
+};
 
 export const TENANT_FEATURE_GROUPS: readonly TenantFeatureGroup[] = ["Guest site", "Refunds", "Cashier till"];
 /** The group a switch belongs to must keep at least one switch on (e.g. the till needs one tab). */

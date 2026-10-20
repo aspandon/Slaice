@@ -1,4 +1,4 @@
-import type { SeaStyle } from "../../domain/features";
+import { blenderResOf, type SeaStyle, type TenantSea } from "../../domain/features";
 import { LITE_SCENE_QUERY, prefersReducedMotion } from "../../lib/motion";
 
 /* ============ Fetch the tenant's sea first (AENR-838) ============
@@ -16,7 +16,7 @@ const saveData = () =>
 
 interface SavedTenant {
   id: string;
-  sea?: Partial<Record<"desktop" | "mobile", SeaStyle>>;
+  sea?: TenantSea;
 }
 interface Saved {
   signedIn?: boolean;
@@ -51,7 +51,11 @@ export function preloadSavedSea() {
     const link = document.createElement("link");
     link.rel = "preload";
     link.as = "image";
-    link.href = `${BASE}sea/blender/${lite && window.innerHeight > window.innerWidth ? "beach-portrait-poster.webp" : "beach-poster.webp"}`;
+    // At the tenant's resolution for this device (AENR-844).
+    const r = blenderResOf(tenant, lite ? "mobile" : "desktop");
+    const suf = r === "standard" ? "" : `-${r}`;
+    const cut = lite && window.innerHeight > window.innerWidth ? "beach-portrait" : "beach";
+    link.href = `${BASE}sea/blender/${cut}${suf}-poster.webp`;
     document.head.appendChild(link);
     void import("./BlenderSea").catch(quiet);
   } else if (style === "coastal") {

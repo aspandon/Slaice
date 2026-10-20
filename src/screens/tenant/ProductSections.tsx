@@ -13,10 +13,13 @@ import {
   featureSwitch,
   isLastOn,
   tenantHasModule,
+  BLENDER_RES,
   SEA_DEVICES,
   SEA_STYLES,
+  blenderResOf,
   seaStyleOf,
   type SeaDevice,
+  type BlenderRes,
   type SeaStyle,
   type TenantFeatureId,
 } from "../../domain/features";
@@ -244,6 +247,15 @@ function GuestSea({ t }: SectionProps) {
     });
     toast(`${label}: ${name} sea for ${t.name}.`, { tone: "success" });
   };
+  // The Blender beach's resolution for one device (AENR-844).
+  const setRes = (d: SeaDevice, label: string, res: BlenderRes) => {
+    const name = BLENDER_RES.find((x) => x.id === res)?.label ?? res;
+    updateTenant(t.id, (x) => ({ ...x, sea: { ...x.sea, blenderRes: { ...x.sea?.blenderRes, [d]: res } } }), {
+      section: "Features",
+      change: `Blender sea resolution (${label}): ${name}`,
+    });
+    toast(`${label}: Blender beach in ${name} for ${t.name}.`, { tone: "success" });
+  };
   return (
     <Part
       id="sea"
@@ -287,6 +299,46 @@ function GuestSea({ t }: SectionProps) {
                   );
                 })}
               </div>
+              {/* Only for the Blender beach: the same render at three sizes (AENR-844). */}
+              {on === "blender" && (
+                <fieldset className="mt-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
+                  <legend className="sr-only">Blender beach resolution — {d.label}</legend>
+                  <div aria-hidden="true" className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-slate-500">Resolution</div>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {BLENDER_RES.map((r) => {
+                      const picked = blenderResOf(t, d.id) === r.id;
+                      const spec = r[d.id];
+                      return (
+                        <label
+                          key={r.id}
+                          className={`flex cursor-pointer items-start gap-2 rounded-lg p-2.5 ring-1 transition has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-teal-500 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60 ${picked ? "bg-white ring-teal-600" : "bg-white/60 ring-slate-200 hover:ring-teal-400"}`}
+                        >
+                          <input
+                            type="radio"
+                            name={`sea-res-${t.id}-${d.id}`}
+                            value={r.id}
+                            checked={picked}
+                            disabled={!r.ready}
+                            onChange={() => setRes(d.id, d.label, r.id)}
+                            className="mt-0.5 h-4 w-4 accent-teal-600"
+                          />
+                          <span className="min-w-0 font-semibold text-[13px] text-navy-900">
+                            {r.label}
+                            {r.id === "standard" && <span className="ml-2 align-middle"><Badge tone="slate">Default</Badge></span>}
+                            {!r.ready && <span className="ml-2 align-middle"><Badge tone="amber">Rendering</Badge></span>}
+                            <span className="block font-normal text-[12px] text-slate-500 tabular-nums">
+                              {spec.px} px{r.ready ? ` · ${spec.mb}` : ""}
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="mt-2 text-[12px] leading-snug text-slate-500">
+                    The same beach, only sharper. Higher resolutions download more — on phones every guest pays for it in data.
+                  </p>
+                </fieldset>
+              )}
             </fieldset>
           );
         })}

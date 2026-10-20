@@ -3501,6 +3501,19 @@ src/
     loop, two shore-break waves per loop, shader noise on a circle in 4D, caustic maps that loop), so the
     last frame flows into the first by construction; the files run one second past the loop and the two
     players hand over at the loop's own period, crossfading identical frames.
+    **Resolution** (AENR-844, Platform › tenant › Guest sea — under Blender, per device): **Standard**
+    (1280 × 1200 on computers, 648 × 1200 phone cut — the first render), **High** (1600 × 1500 / 810 × 1500)
+    and **Full HD** (1920 × 1800 / 972 × 1800), each listed with its download weight. High and Full HD come
+    from one new Blender render at 1920 × 1800 on a finer surface mesh (0.05 m: the foam, wet sand and swell
+    shading are worked out per vertex, and the first render's 0.1 m mesh was only 640 cells across), High
+    scaled down from it, with about 0.10 bit per pixel (H.264) / 0.08 (VP9) so the moving water isn't
+    smeared. Why the first render looked soft (measured): not the effects — switching the grade, the light
+    layer, the vignette, the weather grading and the glass off changed sharpness by under 1% — but the mesh,
+    a lean encode and the stretch (a desktop shot shows ≈ 500 of the frame's 1200 rows, ≈ 1.8× per video
+    pixel through the cover fit, the camera margin and the parallax overscan; ≈ 4× on a 3× phone). The
+    player, the posters and the boot preload follow the choice; a resolution whose files aren't published
+    yet is shown as Rendering and can't be picked (and a saved choice of it plays Standard). A clear midday
+    grade is `filter: none`.
 - **The light on the water** (AENR-815, `lib/seaLight.ts` — one model for every sea): from the hour
   and the weather it gives the sun's height and place (it rises on the left and sets on the right over
   the water, July in Athens: ≈ 06:15 / 20:50), the moon, the water's colour and the reflection path. At
