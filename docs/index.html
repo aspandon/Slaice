@@ -7,13 +7,23 @@
     <title>Slaice — Platform Mockup</title>
     <meta name="theme-color" content="#f6f8fb" />
     <meta name="description" content="Slaice — a modern, multitenant beach-experience SaaS platform. Book sunbeds, tickets and more on a live beach map." />
-    <script type="module" crossorigin src="./assets/index-ob4Kngpb.js"></script>
+    <!-- First paint (AENR-820): the guest site starts on the sea, not a white page. Before the app
+         has loaded, mark the guest persona from the saved demo state so the CSS paints the page in
+         the beach's sea colours; the app then keeps <html data-persona> in sync. -->
+    <script>
+      try {
+        var h = location.hash, s = JSON.parse(localStorage.getItem("slaice.v1") || "{}");
+        if (h.indexOf("#/pass") === 0 || h.indexOf("#/customer") === 0 || (h.indexOf("#/") !== 0 && s.persona === "customer"))
+          document.documentElement.dataset.persona = "customer";
+      } catch (e) {}
+    </script>
+    <script type="module" crossorigin src="./assets/index-Brjr9zYY.js"></script>
     <link rel="modulepreload" crossorigin href="./assets/react-BSyyv8QX.js">
     <link rel="modulepreload" crossorigin href="./assets/icons-DnMcxnvQ.js">
     <link rel="modulepreload" crossorigin href="./assets/vendor-CExQYCcy.js">
     <link rel="modulepreload" crossorigin href="./assets/radix-DnwMgt5R.js">
     <link rel="stylesheet" crossorigin href="./assets/vendor-CsmG7NuA.css">
-    <link rel="stylesheet" crossorigin href="./assets/index-MtZQM9Hu.css">
+    <link rel="stylesheet" crossorigin href="./assets/index-DrDdkphu.css">
   </head>
   <body>
     <div id="root"></div>
