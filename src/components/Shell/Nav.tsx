@@ -9,6 +9,7 @@ import type { NavItem } from "../../domain/types";
 import type { NavProps } from "./types";
 import { useT } from "../../app/store";
 import { TenantNav } from "../../screens/tenant/TenantNav";
+import { useWaterDrop } from "./useWaterDrop";
 
 /* ---------- Mobile page-nav sheet ----------
    The single source of truth for "where can I go" on a phone — opened from the
@@ -145,6 +146,23 @@ export function CustomerNav({ page, setPage }: Pick<NavProps, "page" | "setPage"
   );
 }
 
+/* One tab of the phone bar. Lives at module level: declared inside the bar it
+   was a new component type on every render, so each page change remounted the
+   buttons and dropped keyboard focus. `current` marks a page tab (aria-current)
+   — "More" only looks active; `line` draws the static top marker. */
+function TabButton({ icon, label, active, current = false, line, onClick, badge }: { icon: string | IconRenderer; label: ReactNode; active: boolean; current?: boolean; line: boolean; onClick: () => void; badge?: string }) {
+  const IconC = typeof icon === "string" ? Icon[icon] : icon;
+  return (
+    <button type="button" onClick={onClick} aria-current={current && active ? "page" : undefined} data-tab-on={active || undefined}
+      className={`relative flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 h-14 px-1 rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500 ${active ? "text-teal-700" : "text-slate-600"}`}>
+      {active && line && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-teal-500" />}
+      {IconC && <IconC size={21} />}
+      <span className="text-[11px] font-semibold leading-none truncate max-w-full">{label}</span>
+      {badge === "Future" && <span className="absolute top-1.5 right-1/2 translate-x-3 w-1.5 h-1.5 rounded-full bg-orange-400" />}
+    </button>
+  );
+}
+
 /* ---------- Bottom tab bar (mobile) ----------
    Replaces the two stacked horizontal scroll-strips (persona tabs + page
    pills). Shows the first few destinations for the active persona as fixed
@@ -168,26 +186,26 @@ export function BottomTabBar({ persona, page, setPage, away = false }: NavProps 
   const primary = mainItems.length > 5 ? mainItems.slice(0, 4) : mainItems.slice(0, 5);
   const hasMore = items.length > primary.length;
   const moreActive = !primary.some((it) => it.k === page);
-  const Tab = ({ icon, label, active, onClick, badge }: { icon: string | IconRenderer; label: ReactNode; active: boolean; onClick: () => void; badge?: string }) => {
-    const IconC = typeof icon === "string" ? Icon[icon] : icon;
-    return (
-      <button onClick={onClick}
-        className={`relative flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 h-14 px-1 transition ${active ? "text-teal-700" : "text-slate-600"}`}>
-        {active && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-teal-500" />}
-        {IconC && <IconC size={21} />}
-        <span className="text-[11px] font-semibold leading-none truncate max-w-full">{label}</span>
-        {badge === "Future" && <span className="absolute top-1.5 right-1/2 translate-x-3 w-1.5 h-1.5 rounded-full bg-orange-400" />}
-      </button>
-    );
-  };
+  // The customer bar marks the active tab with the flowing water drop (AENR-TAB);
+  // the other personas keep the static top line.
+  const water = persona === "customer";
+  const activeKey = primary.some((it) => it.k === page) ? page : hasMore ? "more" : null;
+  const rowRef = useRef<HTMLDivElement>(null);
+  const { drop, trail } = useWaterDrop(rowRef, water ? activeKey : null);
   return (
     <>
       <nav ref={navRef} aria-hidden={away || undefined} className={`md:hidden fixed bottom-0 inset-x-0 z-40 tabbar-material pb-safe shadow-[0_-8px_24px_-16px_rgba(15,23,42,0.35)] transition-transform duration-base ${away ? "translate-y-full ease-exit" : "translate-y-0 ease-ios"}`}>
-        <div className="flex items-stretch px-1">
+        <div ref={rowRef} className="relative flex items-stretch px-1">
+          {water && (
+            <>
+              <span ref={trail} aria-hidden className="pointer-events-none absolute left-0 top-[3px] w-1.5 h-1.5 rounded-full bg-teal-500 opacity-0" />
+              <span ref={drop} aria-hidden className="pointer-events-none absolute left-0 top-[3px] w-7 h-1.5 rounded-full bg-teal-500 will-change-transform" />
+            </>
+          )}
           {primary.map((it) => (
-            <Tab key={it.k} icon={it.icon} label={t(it.short || it.label.split(" ")[0])} badge={it.badge} active={page === it.k} onClick={() => setPage(it.k)} />
+            <TabButton key={it.k} icon={it.icon} label={t(it.short || it.label.split(" ")[0])} badge={it.badge} active={page === it.k} current line={!water} onClick={() => setPage(it.k)} />
           ))}
-          {hasMore && <Tab icon={Icon.layers} label={t("More")} active={moreActive} onClick={() => setMoreOpen(true)} />}
+          {hasMore && <TabButton icon={Icon.layers} label={t("More")} active={moreActive} line={!water} onClick={() => setMoreOpen(true)} />}
         </div>
       </nav>
       <NavSheet open={moreOpen} onClose={() => setMoreOpen(false)} persona={persona} page={page} setPage={setPage} />
