@@ -197,6 +197,38 @@ export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, 
   );
 }
 
+/* ---------- A light glyph for the zone overview (AENR-854) ----------
+   The same umbrella and loungers, palette, sun-side shadow and wind sway, drawn for the small
+   overview clusters (16–40 px): no gradient definitions per glyph, the canopy's gores as one path per
+   colour, no towels or opening animation. ~10 elements instead of ~42 — the desktop overview draws
+   ~290 of them, which made its first render ~12,000 elements (92 % of the page). */
+const GORES_PLAIN = CANOPY_WEDGES.filter((w) => !w.lite).map((w) => w.d).join(" ");
+const GORES_LITE = CANOPY_WEDGES.filter((w) => w.lite).map((w) => w.d).join(" ");
+export function SunbedMini({ state = "a", sel = false, seed = "" }: { state?: SunbedState; sel?: boolean; seed?: string }) {
+  const p = sunbedPalette(state, sel);
+  const cast = useSunCast();
+  const { cx, cy, r } = CANOPY;
+  return (
+    <svg aria-hidden="true" width="100%" height="100%" viewBox={`0 0 ${GLYPH_BOX} ${GLYPH_BOX}`} overflow="visible" className="w-full h-full">
+      <g transform={`translate(0 ${2 * GLYPH_CONTENT.cy}) scale(1 -1)`}>
+        {BEDS.map((bed, i) => (
+          <g key={i}>
+            <rect x={bed.frame.x} y={bed.frame.y} width={bed.frame.w} height={bed.frame.h} rx={bed.frame.r} fill={p.bed} />
+            <rect x={bed.cushion.x} y={bed.cushion.y} width={bed.cushion.w} height={bed.cushion.h} rx={bed.cushion.r} fill={p.cushion} />
+          </g>
+        ))}
+        <ellipse cx={cast.x} cy={cast.y} rx={(r + 0.5) * cast.stretch} ry={r + 0.5} transform={`rotate(${cast.rot.toFixed(1)} ${cast.x.toFixed(2)} ${cast.y.toFixed(2)})`} fill={SHADOW_INK} fillOpacity={cast.alpha * 0.85} />
+        <g data-canopy="" style={{ "--gust-delay": `-${(hashOf(seed) % 34) / 10}s` } as CSSProperties}>
+          <path d={GORES_PLAIN} fill={p.c} stroke={SEAM} strokeWidth={0.45} strokeLinejoin="round" />
+          <path d={GORES_LITE} fill={p.lite} stroke={SEAM} strokeWidth={0.45} strokeLinejoin="round" />
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke={p.edge} strokeOpacity={0.6} strokeWidth={0.7} />
+          <circle cx={FIN.cx} cy={FIN.cy} r={FIN.r} fill={p.fin} />
+        </g>
+      </g>
+    </svg>
+  );
+}
+
 /** Hairline seams between the gores, and the deepest shade the dome takes on its far side. */
 const SEAM = "rgba(11,37,69,0.2)";
 const DOME_INK = "#0b2545";

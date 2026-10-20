@@ -1,10 +1,6 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { gsap } from "gsap";
-import { SplitText } from "gsap/SplitText";
-import { motionOK, EASE } from "../lib/fx";
+import { useLayoutEffect, useState, type ReactNode } from "react";
+import { motionOK } from "../lib/fx";
 import { DURATION } from "../lib/motionTokens";
-
-gsap.registerPlugin(SplitText);
 
 /* ---------- Rolling numbers and type (AENR-793) ----------
    Three small text effects for the guest app, each rendering its final text for
@@ -12,7 +8,7 @@ gsap.registerPlugin(SplitText);
    reduced motion:
    - <Rolling>: digits roll like an odometer when the value changes (and once on
      mount, from zeros). Tabular digits, fixed column widths: no layout shift.
-   - <RevealLines>: a headline revealed line by line from behind a mask (SplitText).
+   - <RevealLines>: a headline rising into view from behind a mask (CSS, AENR-854).
    - <Decode>: a booking reference decoding into place (ScrambleText) — in DecodeText.tsx, so
      the ScrambleText plugin loads with the checkout alone, not with Home (AENR-839). */
 
@@ -78,7 +74,12 @@ export function Rolling({ value, className = "" }: { value: string | number; cla
   );
 }
 
-/** A headline whose lines rise into view from behind a mask, once, when it mounts. */
+/** A headline that rises into view from behind its own bottom edge, once, when it mounts.
+ *  CSS only (AENR-854): it used to split into lines with SplitText, whose measuring forced a
+ *  layout of the whole new page in the first frame of every first visit (~85 ms on a phone).
+ *  The headlines are a line or two, so the block rises as one. The clip reaches past the box
+ *  on every side but the bottom, so descenders and emoji are never cut, and it is dropped once
+ *  the rise lands. Reduced motion: no animation (index.css), the clip goes at once. */
 export function RevealLines({
   as: Tag = "div",
   className = "",
@@ -90,22 +91,19 @@ export function RevealLines({
   children: ReactNode;
   id?: string;
 }) {
-  const ref = useRef<HTMLHeadingElement>(null);
-  useLayoutEffect(() => {
-    if (!motionOK() || !ref.current) return;
-    const split = SplitText.create(ref.current, {
-      type: "lines",
-      mask: "lines",
-      autoSplit: true, // re-splits after fonts load or the width changes
-      aria: "auto",
-      onSplit: (self) =>
-        gsap.from(self.lines, { yPercent: 110, duration: 0.6, ease: EASE.out, stagger: 0.08 }),
-    });
-    return () => split.revert();
-  }, []);
+  const [risen, setRisen] = useState(() => !motionOK());
   return (
-    <Tag ref={ref} id={id} className={className}>
-      {children}
+    <Tag
+      id={id}
+      className={className}
+      style={risen ? undefined : { clipPath: "inset(-50% -10% -0.2em -10%)" }}
+    >
+      <span
+        className={risen ? "block" : "block animate-mask-rise"}
+        onAnimationEnd={() => setRisen(true)}
+      >
+        {children}
+      </span>
     </Tag>
   );
 }

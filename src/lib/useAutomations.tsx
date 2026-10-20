@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useApp } from "../app/store";
+import { isBusy } from "./busy";
 import { ZONES } from "../data/beach";
 import { DEMO_TODAY } from "../domain/period";
 import { DEFAULT_RULES, POLICY_BY, policyCovers, type BookingEvent } from "../domain/bookingOps";
@@ -15,14 +16,15 @@ import { useTenantFeatures } from "./useFeatures";
    today's no-shows at the set time, once a day, with a one-hour Undo shown
    on Today. People see only the exceptions. */
 
-/** Today's no-shows in open zones, and a release that records what it did. */
-export function useNoShowRelease() {
+/** Finding today's no-shows in open zones, and a release that records what it did — without
+ *  computing anything while rendering (AENR-854): the finder walks every set on the beach. */
+function useNoShowOps() {
   const { closedStores, bookingOps, setBookingOps, setSunbedOps } = useApp();
   const { exOf, bookingOf, ops } = useBeachState(DEMO_TODAY);
   const liveSlots = useLiveSlots("walkin");
   const rules = bookingOps.rules ?? DEFAULT_RULES;
-  const noShows = ZONES.filter((z) => !closedStores[z.id]).flatMap((z) => liveSlots(z, [DEMO_TODAY]).filter((s) => exOf(s).includes("noshow")));
-  const releaseAll = (auto: boolean) => {
+  const find = () => ZONES.filter((z) => !closedStores[z.id]).flatMap((z) => liveSlots(z, [DEMO_TODAY]).filter((s) => exOf(s).includes("noshow")));
+  const release = (noShows: ReturnType<typeof find>, auto: boolean) => {
     if (!noShows.length) return 0;
     noShows.forEach((s) => ops.release(s.id, DEMO_TODAY, auto ? `No-show — released automatically at ${rules.noShow.time}` : `No-show after ${rules.noShow.time} — released for resale`, bookingOf(s)?.booking?.id));
     if (auto)
@@ -46,13 +48,25 @@ export function useNoShowRelease() {
       return { ...o, rules: { ...r, noShow: { ...r.noShow, last: undefined } } };
     });
   };
-  return { noShows, releaseAll, undoLast, rules };
+  return { find, release, undoLast, rules };
+}
+
+/** Today's no-shows in open zones (for Today), and a release that records what it did. */
+export function useNoShowRelease() {
+  const { find, release, undoLast, rules } = useNoShowOps();
+  const noShows = find();
+  return { noShows, releaseAll: (auto: boolean) => release(noShows, auto), undoLast, rules };
 }
 
 export function Automations() {
   const { bookingOps, setBookingOps, inventory } = useApp();
   const rules = bookingOps.rules ?? DEFAULT_RULES;
-  const { releaseAll, noShows } = useNoShowRelease();
+  // Mounted under every screen, so it re-renders with every change to the app store: the beach
+  // is walked only on the rule's own clock, never in render (AENR-854 — it cost a phone ~35 ms
+  // on each guest step). The interval reads the latest finder through a ref.
+  const noShowOps = useNoShowOps();
+  const latest = useRef(noShowOps);
+  latest.current = noShowOps;
   useBookingOps();
 
   // Refunds the policy covers are approved as they arrive (and when the policy is widened).
@@ -79,17 +93,18 @@ export function Automations() {
   }, [due, setBookingOps]);
 
   // No-shows go back on sale at the set time, once a business day.
-  const pending = noShows.length;
   useEffect(() => {
-    if (!rules.noShow.on || rules.noShow.lastRun === DEMO_TODAY || !pending) return;
+    if (!rules.noShow.on || rules.noShow.lastRun === DEMO_TODAY) return;
     const check = () => {
       const now = new Date(Date.now() + inventory.clockOffset * 60000).toTimeString().slice(0, 5);
-      if (now >= rules.noShow.time) releaseAll(true);
+      // Not in the middle of a page change: the next tick will do.
+      if (now < rules.noShow.time || isBusy()) return;
+      const { find, release } = latest.current;
+      release(find(), true);
     };
     check();
     const id = window.setInterval(check, 20000);
     return () => window.clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rules.noShow.on, rules.noShow.time, rules.noShow.lastRun, pending, inventory.clockOffset]);
+  }, [rules.noShow.on, rules.noShow.time, rules.noShow.lastRun, inventory.clockOffset]);
   return null;
 }

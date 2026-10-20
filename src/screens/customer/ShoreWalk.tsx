@@ -61,11 +61,11 @@ export function ShoreWalk({
   const GAP = wide ? 28 : 18;
   const STEP = W + GAP;
 
+  // The box's width, measured once and on resize — never read on a frame of a drag, where it
+  // forced a layout after every write (AENR-854).
+  const bw = useRef(0);
   // Where the track sits for zone i to be centred in the box.
-  const xFor = (i: number) => {
-    const bw = box.current?.offsetWidth ?? 0;
-    return bw / 2 - W / 2 - i * STEP;
-  };
+  const xFor = (i: number) => bw.current / 2 - W / 2 - i * STEP;
   // Planes and plot emphasis follow the track's x on every frame of a drag or a throw.
   const follow = () => {
     const el = track.current;
@@ -112,9 +112,22 @@ export function ShoreWalk({
     const el = track.current;
     const b = box.current;
     if (!el || !b) return;
+    bw.current = b.offsetWidth;
     gsap.set(el, { x: xFor(start) });
     follow();
-    const [d] = Draggable.create(el, {
+    // The drag is wired up once the step has painted: Draggable reads the computed style of the
+    // track and its parents, which in the step's first frame means styling the whole new page
+    // (~70 ms on a phone). Nobody can drag before the first paint anyway; the buttons and keys
+    // work at once.
+    let d: Draggable | null = null;
+    let timer = 0;
+    const frame = requestAnimationFrame(() => {
+      timer = window.setTimeout(() => {
+        d = create();
+        drag.current = d;
+      });
+    });
+    const create = () => Draggable.create(el, {
       type: "x",
       inertia: motionOK(),
       edgeResistance: 0.8,
@@ -130,18 +143,23 @@ export function ShoreWalk({
       onThrowUpdate: follow,
       onDragEnd: settle,
       onThrowComplete: settle,
-    });
-    drag.current = d;
+    })[0];
     // Keep the centred zone in the middle when the box resizes.
-    const ro = new ResizeObserver(() => {
-      d.applyBounds({ minX: xFor(zones.length - 1), maxX: xFor(0) });
+    const ro = new ResizeObserver(([e]) => {
+      const w = e.borderBoxSize?.[0]?.inlineSize ?? b.offsetWidth;
+      if (w === bw.current) return;
+      bw.current = w;
+      d?.applyBounds({ minX: xFor(zones.length - 1), maxX: xFor(0) });
       gsap.set(el, { x: xFor(atRef.current) });
       follow();
     });
     ro.observe(b);
     return () => {
+      cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
       ro.disconnect();
-      d.kill();
+      d?.kill();
+      drag.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- set up once per zone list
   }, [zones.length, wide]);

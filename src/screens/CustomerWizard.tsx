@@ -16,7 +16,7 @@ import { gsap, motionOK, EASE, DUR } from "../lib/fx";
 // Also registers MotionPath, which the fly-to-total below tweens with.
 import { Flip, stashFlip } from "../lib/fxFlip";
 import { DURATION, EASING } from "../lib/motionTokens";
-import { Sunbed, SunbedMark } from "../components/Sunbed";
+import { Sunbed, SunbedMini } from "../components/Sunbed";
 import { SetTile, SetTileLegend, tileGeometry, tilePosition } from "../components/SetTile";
 import { EntryTicketIcon, LockerIcon, ParkingIcon, SunbedSetIcon } from "../components/productIcons";
 import { ZONES, ZONE_BLOCKS, todayISO, chipLabel, forecastFor, WEATHER_DEMO } from "../data/beach";
@@ -103,36 +103,6 @@ function bedPickFx(el: HTMLElement, price: string, adding: boolean) {
     .to(chip, { scale: 0.35, opacity: 0, duration: 0.18, ease: "power2.in" }, "-=0.14")
     .fromTo(totalEl, { scale: 1 }, { scale: 1.07, duration: 0.13, yoyo: true, repeat: 1, ease: "power1.inOut", transformOrigin: "left center" }, "-=0.25");
 }
-
-/* ---- Zone fly-out snapshots (C1) ----
-   When a zone cluster is tapped, the overview unmounts immediately so the
-   picked zone's umbrellas can FLIP into the full grid. The *other* clusters
-   (and the picked one's name label) would vanish abruptly — so they're cloned
-   at their viewport rects into a throwaway fixed layer and drift away from the
-   picked zone while fading. Pure snapshots: no reflow, no React. */
-function cloneFadeClusters(pickedId: string) {
-  const layer = document.createElement("div");
-  layer.className = "fixed inset-0 z-10 pointer-events-none";
-  layer.setAttribute("aria-hidden", "true");
-  document.body.appendChild(layer);
-  const picked = document.querySelector<HTMLElement>(`[data-cluster="${pickedId}"]`);
-  const pr = picked?.getBoundingClientRect();
-  const pcx = pr ? pr.left + pr.width / 2 : window.innerWidth / 2;
-  document.querySelectorAll<HTMLElement>("[data-cluster]").forEach((el) => {
-    const isPicked = el.dataset.cluster === pickedId;
-    // The picked cluster's beds continue as the big grid — only its label fades.
-    const src = isPicked ? el.querySelector<HTMLElement>("[data-cluster-label]") : el;
-    if (!src) return;
-    const r = src.getBoundingClientRect();
-    const node = src.cloneNode(true) as HTMLElement;
-    node.style.cssText += `;position:fixed;left:${r.left}px;top:${r.top}px;width:${r.width}px;height:${r.height}px;margin:0;`;
-    layer.appendChild(node);
-    const drift = isPicked ? 0 : (r.left + r.width / 2 - pcx) * 0.14;
-    gsap.to(node, { opacity: 0, scale: isPicked ? 1 : 0.9, x: drift, duration: isPicked ? 0.25 : 0.45, ease: "power2.in" });
-  });
-  gsap.delayedCall(0.6, () => layer.remove());
-}
-
 
 /* ============================================================================
    Immersive booking wizard.
@@ -387,12 +357,15 @@ function WizardInner() {
 
   // Tap a zone → the camera dives in: its umbrellas FLIP from the cluster into
   // the full pick grid while the other zones drift away (desktop only; the
-  // phone card list keeps the instant swap).
+  // phone card list keeps the instant swap). The overview stays mounted for that
+  // fade (`leaving`) rather than being cloned — the clones cost ≈ 0.7 s of the tap
+  // on a computer (AENR-854).
+  const [leaving, setLeaving] = useState<string | null>(null);
   const pickZone = (id: string) => {
     if (zoomingRef.current) return;
     if (richOverview && motionOK() && phase === "zones") {
       flipRef.current = Flip.getState(`[data-cluster="${id}"] [data-flip-id]`);
-      cloneFadeClusters(id);
+      setLeaving(id);
       zoomingRef.current = true;
     }
     flipBackRef.current = false;
@@ -918,7 +891,7 @@ function WizardInner() {
                 zones={zoneOrder.map(({ z }) => ({ id: z.id, name: z.name, color: z.color, slots: liveSlots(z, selDates), picked: pickedByZone[z.id] ?? 0 }))} />
             </div>
           )}
-          {showZones && richOverview && !(shoreWalk && step.id === "beach") && <StoreOverview days={selDates} selectedId={zoneId} onPick={(id) => { if (step.id === "when") setStepIdx(BEACH_IDX); pickZone(id); }} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} picked={pickedByZone} />}
+          {(showZones || leaving) && richOverview && !(shoreWalk && step.id === "beach") && <StoreOverview days={selDates} selectedId={zoneId} onPick={(id) => { if (step.id === "when") setStepIdx(BEACH_IDX); pickZone(id); }} rich={richOverview} flipEnter={flipBackRef.current ? zoneId : null} picked={pickedByZone} leaving={leaving} onLeft={() => setLeaving(null)} />}
           {step.id === "when" && !richOverview && <ZoneStrip days={selDates} onPick={(id) => { setStepIdx(BEACH_IDX); pickZone(id); }} />}
           {step.id === "beach" && phase === "zones" && !richOverview && !shoreWalk && <ZonePanorama days={selDates} selectedId={zoneId} picked={pickedByZone} onPick={pickZone} />}
           {showSets && (richOverview ? (
@@ -1306,8 +1279,8 @@ const clampN = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, 
    to open it. Phones / tight screens fall back to compact cards. `rich` is owned
    by the wizard (it gates the FLIP zoom); `flipEnter` names the zone whose beds
    are flying back in, so the entrance stagger skips that cluster. */
-function StoreOverview({ days, selectedId, onPick, rich, flipEnter, picked }: { days: string[]; selectedId: string; onPick: (id: string) => void; rich: boolean; flipEnter: string | null; picked: Record<string, number> }) {
-  return rich ? <StoreClusters days={days} selectedId={selectedId} onPick={onPick} flipEnter={flipEnter} picked={picked} /> : <StoreCards days={days} selectedId={selectedId} onPick={onPick} picked={picked} />;
+function StoreOverview({ days, selectedId, onPick, rich, flipEnter, picked, leaving = null, onLeft }: { days: string[]; selectedId: string; onPick: (id: string) => void; rich: boolean; flipEnter: string | null; picked: Record<string, number>; leaving?: string | null; onLeft?: () => void }) {
+  return rich ? <StoreClusters days={days} selectedId={selectedId} onPick={onPick} flipEnter={flipEnter} picked={picked} leaving={leaving} onLeft={onLeft} /> : <StoreCards days={days} selectedId={selectedId} onPick={onPick} picked={picked} />;
 }
 
 /* The zones in the order and front-to-back stagger of the admin's zone map
@@ -1403,7 +1376,7 @@ function ZonePanorama({ days, selectedId, picked, onPick }: { days: string[]; se
   );
 }
 
-function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: string[]; selectedId: string; onPick: (id: string) => void; flipEnter: string | null; picked: Record<string, number> }) {
+function StoreClusters({ days, selectedId, onPick, flipEnter, picked, leaving = null, onLeft }: { days: string[]; selectedId: string; onPick: (id: string) => void; flipEnter: string | null; picked: Record<string, number>; leaving?: string | null; onLeft?: () => void }) {
   const money = useMoney();
   const tr = useT();
   const { zoneLogos } = useApp();
@@ -1437,6 +1410,23 @@ function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: 
     gsap.from(targets, { opacity: 0, scale: 0.94, y: 10, duration: 0.5, ease: EASE.out, stagger: 0.06, delay: flipEnter ? 0.1 : 0 });
   }, [hasPositions, flipEnter]);
 
+  // Leaving (a zone was picked): the overview fades out as one layer — compositor-only, so the tap's
+  // frame isn't spent redrawing six zones of umbrellas each frame (AENR-854); the picked zone's
+  // umbrellas are the ones flying into the big grid (the wizard's FLIP), so they go at once. Then the
+  // wizard unmounts the overview.
+  const leftCb = useRef(onLeft);
+  leftCb.current = onLeft;
+  useLayoutEffect(() => {
+    const root = ref.current;
+    if (!leaving || !root) return;
+    root.inert = true; // its buttons can't take focus while it fades
+    gsap.set(root.querySelectorAll(`[data-cluster="${leaving}"]`), { opacity: 0 });
+    const tw = gsap.to(root, { opacity: 0, scale: 0.97, duration: 0.35, ease: "power2.in", force3D: true, onComplete: () => leftCb.current?.() });
+    return () => {
+      tw.kill();
+    };
+  }, [leaving]);
+
   // Big enough to fill the open beach, small enough that six sit side by side.
   const cw = clampN(Math.min(box.w * 0.155, box.w / (ZONES.length + 0.6)), 120, 290);
   const plotH = cw * 0.86;
@@ -1460,7 +1450,7 @@ function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: 
   }, [box, ch, zoneOrder]);
 
   return (
-    <div ref={ref} className="absolute inset-0">
+    <div ref={ref} className={`absolute inset-0 ${leaving ? "pointer-events-none" : ""}`} aria-hidden={leaving ? true : undefined}>
       {ZONES.map((z, i) => {
         const pos = positions[i];
         if (!pos) return null;
@@ -1490,7 +1480,7 @@ function StoreClusters({ days, selectedId, onPick, flipEnter, picked }: { days: 
             <span className={`relative block transition-transform duration-300 ease-spring group-hover:-translate-y-1.5 ${active ? "-translate-y-0.5" : ""}`} style={{ height: plotH }}>
               {slots.map((s) => (
                 <span key={s.id} data-flip-id={s.id} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${s.x}%`, top: `${s.y}%`, width: glyph, height: glyph }}>
-                  <SunbedMark state={s.state} fill />
+                  <SunbedMini state={s.state} seed={s.id} />
                 </span>
               ))}
             </span>
