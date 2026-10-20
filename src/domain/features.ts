@@ -2,9 +2,9 @@
 //
 // Three layers decide whether a feature shows, for every role of the tenant:
 //   1. Modules — what Slaice sells the tenant (plan + overrides + beta, minus
-//      blockers), edited in Platform › tenant › Modules and the Super Admin matrix.
+//      blockers), edited in Platform › tenant › Modules & features and the Super Admin matrix.
 //   2. Tenant features — finer per-tenant switches (auto-approve refunds, the
-//      cashier's Sell tabs…), edited in Platform › tenant › Features. Each is one
+//      cashier's Sell tabs…), edited in Platform › tenant › Modules & features. Each is one
 //      entry in TENANT_FEATURES; a new switch is one more entry.
 //   3. Roadmap previews — the demo switch that shows or hides everything marked
 //      Future (FUTURE badge / roadmap banner).
@@ -40,7 +40,7 @@ export function tenantHasModule(
   ).on;
 }
 
-/** What switching a module off hides in the tenant app (shown on Platform › tenant › Modules). */
+/** What switching a module off hides in the tenant app (shown on Platform › tenant › Modules & features). */
 export const MODULE_REACH: Partial<Record<ModuleId, string>> = {
   "Sunbed Booking": "Sunbeds tab on the till",
   "Entry Ticket": "Entry tickets in Products and on the till",

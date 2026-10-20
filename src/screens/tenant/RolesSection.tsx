@@ -134,7 +134,7 @@ export function Roles({ t }: SectionProps) {
       <p className="text-[12px] text-slate-500 flex items-start gap-1.5">
         <Icon.info size={13} className="mt-px shrink-0" aria-hidden />
         <span>
-          Roles are what a person can do; modules (Product › Modules) are what the tenant buys. A
+          Roles are what a person can do; modules (Product › Modules & features) are what the tenant buys. A
           role can be on while some of its pages stay hidden by a module that's off.
         </span>
       </p>

@@ -9,7 +9,7 @@ import { prefersReducedMotion } from "./motion";
    its step and zone to — so switching it off (the tenant's One-beach camera feature) or
    deleting it leaves the backdrop exactly as it was. */
 
-/** The tenant's "One-beach camera" switch (Platform › tenant › Features); reduced motion always keeps the still backdrop. */
+/** The tenant's "One-beach camera" switch (Platform › tenant › Modules & features); reduced motion always keeps the still backdrop. */
 export function useCameraOn(): boolean {
   return useTenantFeatures().feature("guest.camera") && !prefersReducedMotion();
 }

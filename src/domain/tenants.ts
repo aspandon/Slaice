@@ -160,7 +160,7 @@ export interface TenantRecord {
   addOns: number;
   overrides: ModuleOverride[];
   beta: string[];
-  /** Per-tenant feature switches (Platform › tenant › Features, AENR-677 / 721); missing = the feature's default. */
+  /** Per-tenant feature switches (Platform › tenant › Modules & features, AENR-677 / 721); missing = the feature's default. */
   features?: Partial<Record<TenantFeatureId, boolean>>;
   /** Staff roles the tenant uses (Platform › tenant › Roles, AENR-716); missing = on. Manager / Admin is always on. */
   roles?: Partial<Record<StaffRole, boolean>>;

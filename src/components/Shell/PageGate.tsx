@@ -73,7 +73,7 @@ export function PageGate({
                 )
               : t("This isn't offered at this beach yet.")
             : staff
-              ? `${t("This beach doesn't have the")} ${access.module} ${t("module. Slaice can switch it on in Platform › Tenants › Modules.")}`
+              ? `${t("This beach doesn't have the")} ${access.module} ${t("module. Slaice can switch it on in Platform › Tenants › Modules & features.")}`
               : t("This isn't offered at this beach.")
         }
         action={

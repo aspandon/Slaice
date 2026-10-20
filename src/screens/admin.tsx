@@ -470,7 +470,7 @@ function TillShiftsCard() {
    arrive, so the queue below holds only the exceptions. */
 function RefundPolicyCard() {
   const { bookingOps, setBookingOps } = useApp();
-  // Slaice enables automatic approval per tenant (AENR-677: Platform › tenant › Features).
+  // Slaice enables automatic approval per tenant (AENR-677: Platform › tenant › Modules & features).
   const { feature } = useTenantFeatures();
   const rules = bookingOps.rules ?? DEFAULT_RULES;
   const pol = rules.refunds;

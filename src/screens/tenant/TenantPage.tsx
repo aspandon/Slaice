@@ -11,9 +11,9 @@ import {
 } from "../../domain/tenants";
 import { SectionCtx, confirmLeave, type SectionProps } from "./kit";
 import { Billing, Overview, Profile, Usage } from "./AccountSections";
-import { Branding, Features, Modules } from "./ProductSections";
+import { Branding, Modules } from "./ProductSections";
 import { EntryTickets } from "./TicketSection";
-import { Compliance, Integrations, Invoicing, Payments, Security, Users } from "./AccessSections";
+import { Compliance, Invoicing, Payments, Security, Users } from "./AccessSections";
 import { Audit, DataExport, Health, Support } from "./SupportSections";
 import { Roles } from "./RolesSection";
 import { CommercialTerms } from "./CommercialTerms";
@@ -32,6 +32,8 @@ export const SECTION_ALIASES: Record<string, string> = {
   contract: "profile",
   locations: "profile",
   localisation: "profile",
+  features: "modules",
+  integrations: "modules",
 };
 /** The path segment (+ part anchor) for a section id, old or current. */
 export const sectionPath = (s: string) =>
@@ -86,11 +88,13 @@ export const SECTIONS: SectionDef[] = [
     render: (p) => <Usage {...p} />,
   },
   {
+    // Modules, feature switches (AENR-677 / 721 — the permanent home for new ones) and
+    // integrations on one page (AENR-797); Modules and Features stay Admin-only inside it.
     id: "modules",
-    label: "Modules",
+    label: "Modules & features",
     icon: Icon.pkg,
     group: "Product",
-    edit: "admin",
+    edit: "support",
     render: (p) => <Modules {...p} />,
   },
   {
@@ -101,15 +105,6 @@ export const SECTIONS: SectionDef[] = [
     group: "Product",
     edit: "admin",
     render: (p) => <EntryTickets {...p} />,
-  },
-  {
-    // Per-tenant feature switches (AENR-677 / 721) — the permanent home for new ones.
-    id: "features",
-    label: "Features",
-    icon: Icon.sliders,
-    group: "Product",
-    edit: "admin",
-    render: (p) => <Features {...p} />,
   },
   {
     id: "branding",
@@ -177,14 +172,6 @@ export const SECTIONS: SectionDef[] = [
     edit: "admin",
     badge: (t) => (t.dpa.status === "Signed" ? 0 : 1),
     render: (p) => <Compliance {...p} />,
-  },
-  {
-    id: "integrations",
-    label: "Integrations",
-    icon: Icon.layers,
-    group: "Access & trust",
-    edit: "support",
-    render: (p) => <Integrations {...p} />,
   },
   {
     id: "support",

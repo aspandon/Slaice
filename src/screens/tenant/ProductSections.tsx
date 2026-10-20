@@ -15,7 +15,7 @@ import {
   tenantHasModule,
   type TenantFeatureId,
 } from "../../domain/features";
-import { Part, SectionFrame, useTenantDraft, type SectionProps } from "./kit";
+import { KV, Part, SectionFrame, useTenantDraft, type SectionProps } from "./kit";
 
 const SOURCE: Record<ModuleSource, { l: string; tone: string }> = {
   plan: { l: "Included in plan", tone: "green" },
@@ -27,15 +27,42 @@ const SOURCE: Record<ModuleSource, { l: string; tone: string }> = {
 // The blockers live in the domain so the tenant app gates by module too (AENR-696).
 export { blockersOf };
 
-/* ---------- Modules (single source for the Super Admin matrix too) ---------- */
-export function Modules({ t }: SectionProps) {
+/* ---------- Modules & features (AENR-797) ----------
+   What the tenant can use, on one page: its modules, the finer feature switches
+   on top of them and the integrations they talk to. Modules and Features stay
+   Admin-only; Support can still redeliver webhooks. Old links (…/features,
+   /integrations) land on their part. */
+const PRODUCT_PARTS = [
+  { id: "modules", label: "Modules" },
+  { id: "features", label: "Features" },
+  { id: "integrations", label: "Integrations" },
+] as const;
+export function Modules(p: SectionProps) {
+  return (
+    <SectionFrame
+      title="Modules & features"
+      sub="What the tenant can use — modules from its plan, the switches on top of them, and the integrations they rely on. Every role of the tenant follows changes at once."
+      parts={PRODUCT_PARTS}
+    >
+      <ModuleList {...p} />
+      <Features {...p} />
+      <Integrations {...p} />
+    </SectionFrame>
+  );
+}
+
+/* Modules — single source for the Super Admin matrix too. */
+function ModuleList({ t }: SectionProps) {
   const { plan, today, updateTenant, toast, actor } = usePlatform();
   const [edit, setEdit] = useState<{ module: string; on: boolean } | null>(null);
   const pv = plan(t);
   return (
-    <SectionFrame
+    <Part
+      id="modules"
+      icon={Icon.pkg}
       title="Modules"
-      sub="What the tenant can use and why — plan, override (with reason and expiry), beta or blocked. A module that is off disappears at once for every role of the tenant — booking site, till, gate and back office."
+      sub="Plan, override (with reason and expiry), beta or blocked. A module that is off disappears at once for every role of the tenant — booking site, till, gate and back office."
+      edit="admin"
     >
       <Card className="p-2">
         <ul className="divide-y divide-slate-100">
@@ -127,15 +154,15 @@ export function Modules({ t }: SectionProps) {
           }}
         />
       )}
-    </SectionFrame>
+    </Part>
   );
 }
 
-/* ---------- Features (AENR-677 / 721) ----------
+/* ---------- Features (AENR-677 / 721) — a part of Modules & features (AENR-797) ----------
    Per-tenant switches finer than a module: one list (domain/features.ts), so a
    new switch is one entry. A switch whose module is off shows as unavailable;
    the till keeps at least one Sell tab on. Changes reach the tenant app at once. */
-export function Features({ t }: SectionProps) {
+function Features({ t }: SectionProps) {
   const { platform, today, updateTenant, toast, canEdit } = usePlatform();
   const hasModule = (m: (typeof MODULES)[number]) => tenantHasModule(t, platform.plans, m, today);
   const set = (key: TenantFeatureId, label: string, on: boolean) => {
@@ -146,15 +173,20 @@ export function Features({ t }: SectionProps) {
     toast(`${label} ${on ? "on" : "off"} for ${t.name}.`, { tone: "success" });
   };
   return (
-    <SectionFrame
+    <Part
+      id="features"
+      icon={Icon.sliders}
       title="Features"
-      sub="Switches for this tenant only, on top of its modules. Every role of the tenant follows them at once."
+      sub="Switches for this tenant only, on top of its modules."
+      edit="admin"
     >
+      {/* One card, a group per block — the page already has a card per part. */}
+      <Card className="p-2 divide-y divide-slate-200/80">
       {TENANT_FEATURE_GROUPS.map((g) => (
-        <Card key={g} className="p-2">
-          <h3 className="px-2 pt-1.5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+        <div key={g} className="pt-2 first:pt-0">
+          <h4 className="px-2 pt-1.5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">
             {g}
-          </h3>
+          </h4>
           <ul className="divide-y divide-slate-100">
             {TENANT_FEATURES.filter((f) => f.group === g).map((f) => {
               const moduleOff = !!f.module && !hasModule(f.module);
@@ -183,9 +215,64 @@ export function Features({ t }: SectionProps) {
               );
             })}
           </ul>
-        </Card>
+        </div>
       ))}
-    </SectionFrame>
+      </Card>
+    </Part>
+  );
+}
+
+/* ---------- Integrations — a part of Modules & features (AENR-797); Support can act here ---------- */
+function Integrations({ t }: SectionProps) {
+  const { updateTenant, toast } = usePlatform();
+  return (
+    <Part
+      id="integrations"
+      icon={Icon.layers}
+      title="Integrations"
+      sub="myDATA, messaging channels and webhooks for this tenant."
+    >
+      <Card className="p-4 space-y-2">
+        <KV k="myDATA / AADE">
+          <Badge tone={t.mydata === "connected" ? "green" : "amber"}>{t.mydata}</Badge>
+        </KV>
+        {(["email", "sms", "viber"] as const).map((c) => (
+          <KV key={c} k={c === "sms" ? "SMS" : c[0].toUpperCase() + c.slice(1)}>
+            <Badge tone={t.channels[c] ? "green" : "slate"}>
+              {t.channels[c] ? "Connected" : "Not set up"}
+            </Badge>
+          </KV>
+        ))}
+        <KV k="Stripe webhooks">
+          <span className="inline-flex items-center gap-2">
+            <Badge tone={t.webhooks === "healthy" ? "green" : "red"}>{t.webhooks}</Badge>
+            <Btn
+              size="sm"
+              variant="ghost"
+              onClick={() => {
+                updateTenant(
+                  t.id,
+                  (x) => ({ ...x, webhooks: x.webhooks === "healthy" ? "failing" : "healthy" }),
+                  {
+                    section: "Integrations",
+                    change: `Webhooks ${t.webhooks === "healthy" ? "failing" : "redelivered OK"}`,
+                    actorType: "System",
+                  },
+                );
+                toast(
+                  t.webhooks === "healthy"
+                    ? "Demo — webhook delivery failing."
+                    : "Redelivered — healthy.",
+                  { tone: t.webhooks === "healthy" ? "warn" : "success" },
+                );
+              }}
+            >
+              {t.webhooks === "healthy" ? "Simulate failure" : "Redeliver"}
+            </Btn>
+          </span>
+        </KV>
+      </Card>
+    </Part>
   );
 }
 

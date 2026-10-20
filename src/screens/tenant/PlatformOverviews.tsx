@@ -856,7 +856,7 @@ export function PlatformSuperAdmin() {
               t.name,
               <Badge tone={t.webhooks === "healthy" ? "green" : "red"}>{t.webhooks}</Badge>,
               t.webhooks === "healthy" ? "100% delivered" : "12 failed",
-              <Btn size="sm" variant="ghost" onClick={() => openTenant(t.id, "integrations")}>
+              <Btn size="sm" variant="ghost" onClick={() => openTenant(t.id, "modules?at=integrations")}>
                 Integrations
               </Btn>,
             ])}

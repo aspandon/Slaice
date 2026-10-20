@@ -364,7 +364,7 @@ function IssueInner() {
             )}
 
             <div id="till-panel" role={tabs.length > 1 ? "tabpanel" : undefined} aria-labelledby={tabs.length > 1 ? `till-tab-${tab}` : undefined} className="glass-card surface-raised rounded-3xl p-4 flex-1 min-h-0 overflow-y-auto">
-              {!tab && <EmptyState compact icon={Icon.ticket} title="Nothing to sell here" body="Every product on the till is switched off for this beach. Slaice sets them in Platform › Tenants › Features." />}
+              {!tab && <EmptyState compact icon={Icon.ticket} title="Nothing to sell here" body="Every product on the till is switched off for this beach. Slaice sets them in Platform › Tenants › Modules & features." />}
               {tab === "quick" && (
                 <>
                   {canTickets && <>

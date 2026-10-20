@@ -33,7 +33,7 @@ export function PersonaSwitcher({
 }) {
   const t = useT();
   const [newGuest, setNewGuest] = useDemoFlag("newGuest");
-  // The beach's own One-beach camera switch (Platform › tenant › Features, AENR-784), reachable here too.
+  // The beach's own One-beach camera switch (Platform › tenant › Modules & features, AENR-784), reachable here too.
   const { feature: tenantFeature } = useTenantFeatures();
   const camera = tenantFeature("guest.camera");
   const setCamera = (on: boolean) =>
@@ -163,7 +163,7 @@ export function PersonaSwitcher({
             >
               <span className="flex-1 min-w-0">
                 <span className="block font-semibold">{t("One-beach camera")}</span>
-                <span className="block text-[11px] text-slate-500 leading-tight">{t("This beach's setting — also in Platform › tenant › Features.")}</span>
+                <span className="block text-[11px] text-slate-500 leading-tight">{t("This beach's setting — also in Platform › tenant › Modules & features.")}</span>
               </span>
               <span aria-hidden className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${camera ? "bg-teal-600" : "bg-slate-300"}`}>
                 <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${camera ? "left-[18px]" : "left-0.5"}`} />
