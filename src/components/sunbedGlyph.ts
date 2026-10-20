@@ -14,6 +14,7 @@
    loungers spanning y 20→62. */
 
 import type { SunbedState } from "../domain/types";
+import type { SeaLight } from "../lib/seaLight";
 
 export const GLYPH_BOX = 72;
 /** Content bounding box (parasol top → lounger foot) — used to centre and fit
@@ -106,8 +107,85 @@ export function sunbedPalette(state: SunbedState, sel = false): SunbedPalette {
     edge: darken(c, 0.56),
     fin: c,
     bed: BED_BASE,
-    cushion: darken(BED_BASE, 0.8),
-    slat: darken(BED_BASE, 0.6),
+    cushion: darken(BED_BASE, 0.86),
+    slat: darken(BED_BASE, 0.7),
     dim: state === "u" && !sel,
+  };
+}
+
+/* ----- Light on the set (AENR-829) -----
+   Where the canopy is lit from and where its shadow falls, from the scene's one light model
+   (seaLight). The scene looks out to sea, so the sun stands "up" the screen — east (left) after
+   sunrise, west (right) before sunset — and the shadow falls away from it, toward the promenade:
+   to the right in the morning, to the left in the evening, short at noon and longer and softer
+   as the sun gets low. Cloud diffuses it to a faint blob under the canopy; at night only a faint
+   moon shadow is left. Everything is in canonical (parasol-up) glyph units, so the SVG and the
+   Konva renderers draw it inside their mirrored glyph group unchanged. */
+
+/** The shadow's ink — a warm brown, so it reads as shade on sand rather than grey dirt. */
+export const SHADOW_INK = "#3c2a14";
+/** Midday sun height in degrees (Athens in July ≈ 73°). */
+const SUN_ALT = 75;
+/** How high the canopy stands over the sand, in glyph units — sets the shadow's length. */
+const POLE = 12;
+/** The longest a shadow gets (glyph units), however low the sun. */
+const REACH = 13;
+
+export interface SunCast {
+  /** Shadow centre, canonical glyph units. */
+  x: number;
+  y: number;
+  /** Long-axis rotation (degrees) and stretch (1 = round). */
+  rot: number;
+  stretch: number;
+  /** Shadow opacity at its core, and how much of its radius is penumbra (0…1). */
+  alpha: number;
+  soft: number;
+  /** Unit vector toward the light, canonical — the canopy's lit side. */
+  lx: number;
+  ly: number;
+  /** 0…1 direct light on the canopy (drives the highlight and rim). */
+  lit: number;
+  /** 0…1 night — the canopy's shade deepens. */
+  night: number;
+}
+
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+const smooth = (a: number, b: number, v: number) => {
+  const t = clamp01((v - a) / (b - a));
+  return t * t * (3 - 2 * t);
+};
+const RAD = Math.PI / 180;
+
+export function sunCast(l: SeaLight): SunCast {
+  // Direct sun from just before it clears the horizon; the moon takes over as it gets dark.
+  const day = smooth(-0.04, 0.1, l.sunElev);
+  const moon = l.moon.strength * (1 - day);
+  const bySun = day >= moon;
+  // Azimuth from straight out to sea: ±75° at the ends of the day, the moon right of centre.
+  const az = (((bySun ? l.sunX : l.moon.x) - 0.5) / 0.4) * 75 * RAD;
+  const alt = (bySun ? Math.max(0.05, l.sunElev) * SUN_ALT : 38) * RAD;
+  const len = REACH * Math.tanh(POLE / Math.tan(alt) / REACH) * (1 - 0.7 * l.cloud);
+  const reach = len / REACH;
+  // Direct shade: deep at noon, thinner when spread long at sunrise/sunset, muted by cloud.
+  const direct = bySun ? 0.4 * day * (1 - 0.75 * l.cloud) * (1 - 0.25 * reach) : 0.13 * moon;
+  // A contact shade stays under the canopy in any light — what grounds it on overcast days.
+  const ambient = 0.07 - 0.025 * l.night;
+  const alpha = Math.max(ambient, direct);
+  const w = alpha > 0 ? direct / alpha : 0;
+  // Away from the light: toward the promenade (down the screen = −y canonical).
+  const dx = -Math.sin(az) * len * w;
+  const dy = -Math.cos(az) * len * w;
+  return {
+    x: CANOPY.cx + dx,
+    y: CANOPY.cy + dy,
+    rot: Math.atan2(dy, dx) / RAD,
+    stretch: 1 + 0.5 * reach * w,
+    alpha,
+    soft: clamp01(0.22 + 0.36 * reach + 0.35 * l.cloud),
+    lx: Math.sin(az),
+    ly: Math.cos(az),
+    lit: clamp01(day * (1 - 0.65 * l.cloud) + 0.35 * moon),
+    night: l.night,
   };
 }
