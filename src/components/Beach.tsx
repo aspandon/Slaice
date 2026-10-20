@@ -1,7 +1,7 @@
-import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { liteScene, prefersReducedMotion, useParallax } from "../lib/motion";
-import { gsap, motionOK } from "../lib/fx";
+import { EASE, gsap, motionOK } from "../lib/fx";
 import { useApp, useMoney, useT } from "../app/store";
 import { presetById } from "../data/backgrounds";
 import type { BeachPreset } from "../data/backgrounds";
@@ -23,6 +23,24 @@ export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, 
   className?: string;
 }) {
   const p = sunbedPalette(state, sel);
+  // The umbrella opens when the set becomes yours and folds when it stops being yours (AENR-790):
+  // the gores spin out from a tight bundle while a soft shadow spreads on the sand. Not on mount.
+  const canopy = useRef<SVGGElement>(null);
+  const shade = useRef<SVGCircleElement>(null);
+  const was = useRef(sel);
+  useLayoutEffect(() => {
+    if (was.current === sel) return;
+    was.current = sel;
+    if (!motionOK() || !canopy.current || !shade.current) return;
+    const tl = gsap.timeline({ defaults: { overwrite: "auto" } });
+    if (sel) {
+      tl.fromTo(canopy.current, { scale: 0.22, rotation: -120, transformOrigin: "50% 50%" }, { scale: 1, rotation: 0, duration: 0.5, ease: EASE.spring })
+        .fromTo(shade.current, { scale: 0.2, opacity: 0, transformOrigin: "50% 50%" }, { scale: 1, opacity: 1, duration: 0.45, ease: EASE.out }, 0.05);
+    } else {
+      tl.fromTo(canopy.current, { scale: 0.45, rotation: 60, transformOrigin: "50% 50%" }, { scale: 1, rotation: 0, duration: 0.35, ease: EASE.out });
+    }
+    return () => { tl.kill(); };
+  }, [sel]);
   return (
     <svg aria-hidden="true" width={fill ? "100%" : size} height={fill ? "100%" : size} viewBox={`0 0 ${GLYPH_BOX} ${GLYPH_BOX}`} className={`${fill ? "w-full h-full " : ""}${className}`}>
       {/* Present the set loungers-up: mirror vertically about the content centre
@@ -36,12 +54,16 @@ export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, 
             <path d={bed.slats} fill="none" stroke={p.slat} strokeWidth={1} strokeLinecap="round" />
           </g>
         ))}
+        {/* Your set's umbrella casts a soft shadow on the sand (AENR-790). */}
+        <circle ref={shade} cx={CANOPY.cx + 2.5} cy={CANOPY.cy - 3} r={CANOPY.r + 1} fill="rgba(90,60,25,0.22)" opacity={sel ? 1 : 0} />
         {/* Pinwheel parasol — state-hue gores alternating with white. */}
-        {CANOPY_WEDGES.map((wdg, i) => (
-          <path key={`w${i}`} d={wdg.d} fill={wdg.lite ? p.lite : p.c} />
-        ))}
-        <circle cx={CANOPY.cx} cy={CANOPY.cy} r={CANOPY.r} fill="none" stroke={p.edge} strokeWidth={1} />
-        <circle cx={FIN.cx} cy={FIN.cy} r={FIN.r} fill={p.fin} />
+        <g ref={canopy}>
+          {CANOPY_WEDGES.map((wdg, i) => (
+            <path key={`w${i}`} d={wdg.d} fill={wdg.lite ? p.lite : p.c} />
+          ))}
+          <circle cx={CANOPY.cx} cy={CANOPY.cy} r={CANOPY.r} fill="none" stroke={p.edge} strokeWidth={1} />
+          <circle cx={FIN.cx} cy={FIN.cy} r={FIN.r} fill={p.fin} />
+        </g>
       </g>
     </svg>
   );

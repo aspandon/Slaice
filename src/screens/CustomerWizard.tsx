@@ -64,16 +64,12 @@ const BEACH_IDX = STEPS.findIndex((s) => s.id === "beach");
 type FlipStateT = ReturnType<typeof Flip.getState>;
 
 /* ---- Sunbed pick feedback (C3) ----
-   Selecting a set pops the umbrella open, ripples the sand around it, and arcs
-   a price chip up into the running total, which pulses on arrival. Deselecting
-   gives a small dip. Imperative one-shot DOM — nothing for React to track. */
+   Selecting a set ripples the sand around it and arcs a price chip up into the
+   running total, which pulses on arrival; the umbrella itself opens (and folds on
+   deselect) inside its own glyph — SunbedMark / SetTile (AENR-790). Imperative
+   one-shot DOM — nothing for React to track. */
 function bedPickFx(el: HTMLElement, price: string, adding: boolean) {
-  if (!motionOK()) return;
-  if (!adding) {
-    gsap.fromTo(el, { scale: 0.88 }, { scale: 1, duration: 0.3, ease: "power2.out" });
-    return;
-  }
-  gsap.fromTo(el, { scale: 0.72 }, { scale: 1, duration: 0.55, ease: EASE.pop });
+  if (!motionOK() || !adding) return;
   const rip = document.createElement("span");
   rip.className = "absolute inset-0 rounded-full ring-2 ring-coral-500 pointer-events-none";
   el.appendChild(rip);

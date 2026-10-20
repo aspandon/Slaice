@@ -1,4 +1,5 @@
-import type { ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { EASE, gsap, motionOK } from "../lib/fx";
 import { Icon } from "../lib/icons";
 import { useMoney, useT } from "../app/store";
 import type { SunbedSlot, SunbedState } from "../domain/types";
@@ -114,13 +115,7 @@ export function SetTile({
       {t === "hold" ? (
         <Icon.clock size={15} aria-hidden />
       ) : (
-        t !== "taken" && (
-          <Icon.umbrella
-            size={15}
-            aria-hidden
-            className={t === "free" ? "text-teal-700" : undefined}
-          />
-        )
+        t !== "taken" && <Parasol open={sel} className={t === "free" ? "text-teal-700" : undefined} />
       )}
       {(t === "free" || t === "yours") && (
         <span className="text-[12px] font-bold leading-none tnum">{money(price)}</span>
@@ -134,6 +129,28 @@ export function SetTile({
         </span>
       )}
     </button>
+  );
+}
+
+/* The tile's umbrella (AENR-790): when the set becomes yours its canopy opens out from the
+   tip — folded to a sliver, then spread — and folds back when you let it go. Not on mount. */
+function Parasol({ open, className }: { open: boolean; className?: string }) {
+  const canopy = useRef<SVGPathElement>(null);
+  const was = useRef(open);
+  useLayoutEffect(() => {
+    if (was.current === open) return;
+    was.current = open;
+    if (!motionOK() || !canopy.current) return;
+    const tw = open
+      ? gsap.fromTo(canopy.current, { scaleX: 0.12, transformOrigin: "50% 0%" }, { scaleX: 1, duration: 0.45, ease: EASE.spring })
+      : gsap.fromTo(canopy.current, { scaleX: 0.4, transformOrigin: "50% 0%" }, { scaleX: 1, duration: 0.3, ease: EASE.out });
+    return () => { tw.kill(); };
+  }, [open]);
+  return (
+    <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden className={className}>
+      <path ref={canopy} d="M12 3a9 9 0 0 1 9 9H3a9 9 0 0 1 9-9Z" />
+      <path d="M12 3v1M12 12v7a2 2 0 0 0 4 0" />
+    </svg>
   );
 }
 

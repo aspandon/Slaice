@@ -739,7 +739,9 @@ back; forward only via Continue). Footer: live **Total €** (animated) + **Back
      to see its view and price." On desktop it sits at the foot of the booking panel's column, not under
      the sets, so the sets get the room below the waterline (AENR-786). Only **available** sets are selectable **[GAP]**
      (on-hold sets can currently be picked too — §22).
-   - Feedback: umbrella pops open, sand ripple, a price chip flies into the total which pulses.
+   - Feedback: the umbrella opens (AENR-790 — on the desktop sand its gores spin out from a tight bundle
+     and a soft shadow spreads under it; on a phone tile the canopy opens out from its tip; deselecting
+     folds it back), the sand ripples and a price chip flies into the total, which pulses.
    - Summary chip: "N umbrella sets · CE-01, CE-04 · €X × D days" + **Clear**.
    - **Back** (or the menu) returns to the zones overview (reverse zoom). Changing zone replaces the
      picked sets with that zone's suggestion (several zones on: adds to them).
