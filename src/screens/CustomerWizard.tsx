@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useMediaQuery } from "../lib/useMediaQuery";
+import { RainOnGlass } from "../components/WeatherUi";
 import { useTenantFeatures } from "../lib/useFeatures";
 import { ADD_EXTRAS_LABEL, extrasPhrase, type ExtrasKind } from "../domain/features";
 import type { Dispatch, ReactNode, SetStateAction } from "react";
@@ -638,7 +639,9 @@ function WizardInner() {
       {/* Desktop (≥1024px): a sticky column on the right, the beach fills the rest.
           Smaller screens: a bottom sheet the guest raises or lowers (AENR-660). */}
       <div className="absolute z-10 inset-x-0 bottom-0 lg:inset-x-auto lg:right-0 lg:top-[68px] lg:bottom-0 lg:w-[min(460px,36vw)] lg:px-4 lg:pb-4 flex items-end lg:flex-col lg:items-stretch lg:justify-start justify-center">
-        <div className="pointer-events-auto w-full max-w-2xl glass-card rounded-t-3xl lg:rounded-3xl shadow-float flex flex-col max-h-[78vh] lg:max-h-full overflow-hidden animate-fade-down pb-safe lg:pb-0" data-flip-id="checkout-panel">
+        <div className="pointer-events-auto relative w-full max-w-2xl glass-card rounded-t-3xl lg:rounded-3xl shadow-float flex flex-col max-h-[78vh] lg:max-h-full overflow-hidden animate-fade-down pb-safe lg:pb-0" data-flip-id="checkout-panel">
+          {/* Rain on the glass when it rains (AENR-807). */}
+          <RainOnGlass />
           {/* Sheet handle (phones/tablets): tap or swipe to raise / lower. */}
           <button
             type="button"

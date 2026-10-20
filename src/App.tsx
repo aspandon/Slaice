@@ -8,6 +8,7 @@ import { TopBar, Sidebar, BottomTabBar, CustomerNav, SiteFooter, Toasts, Persona
 import { AuthGate } from "./screens/auth";
 import { ConsentBanner } from "./components/ConsentBanner";
 import { CustomerBackdrop } from "./components/CustomerBackdrop";
+import { WeatherUi } from "./components/WeatherUi";
 import { GlideLogo } from "./components/GlideLogo";
 import { useTilt } from "./lib/tilt";
 import { prefetchPersona, routeFor } from "./routes";
@@ -565,6 +566,7 @@ export default function App() {
       ) : (
         <div className="w-full px-3 sm:px-5 pt-4 relative min-h-dvh flex flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-1">
           {persona === "customer" && <CustomerBackdrop immersive={immersive} page={page} />}
+          {persona === "customer" && <WeatherUi />}
           {persona === "customer" && !immersive && (
             <button
               onClick={() => go("customer", "home")}

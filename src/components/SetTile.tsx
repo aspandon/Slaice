@@ -153,7 +153,7 @@ function Parasol({ open, className }: { open: boolean; className?: string }) {
     return () => { tw.kill(); };
   }, [open]);
   return (
-    <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden className={className}>
+    <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden data-canopy="" className={className}>
       <path ref={canopy} d={DOME} />
       <path d="M12 3v1M12 12v7a2 2 0 0 0 4 0" />
     </svg>

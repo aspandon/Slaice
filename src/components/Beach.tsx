@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { liteScene, prefersReducedMotion, useParallax } from "../lib/motion";
 import { EASE, gsap, motionOK } from "../lib/fx";
 import { MorphSVGPlugin } from "gsap/MorphSVGPlugin";
@@ -11,6 +11,8 @@ import { BEDS, CANOPY, CANOPY_FOLDED, CANOPY_WEDGES, FIN, GLYPH_BOX, GLYPH_CONTE
 gsap.registerPlugin(MorphSVGPlugin);
 // Type-only: erased at build time, so three.js stays in the lazy sea chunk.
 import type { SeaEnv } from "./LiveSeaCanvas";
+
+const hashOf = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
 
 /* ---------- Sunbed-set mark (presentational) ----------
    Just the SVG glyph — a parasol over twin loungers — with no button wrapper, so
@@ -32,6 +34,8 @@ export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, 
   const canopy = useRef<SVGGElement>(null);
   const shade = useRef<SVGCircleElement>(null);
   const was = useRef(sel);
+  // Each umbrella catches the gust a moment apart, so a row never sways in lockstep.
+  const gustDelay = `-${(hashOf(useId()) % 34) / 10}s`;
   useLayoutEffect(() => {
     if (was.current === sel) return;
     was.current = sel;
@@ -65,13 +69,16 @@ export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, 
         ))}
         {/* Your set's umbrella casts a soft shadow on the sand (AENR-790). */}
         <circle ref={shade} cx={CANOPY.cx + 2.5} cy={CANOPY.cy - 3} r={CANOPY.r + 1} fill="rgba(90,60,25,0.22)" opacity={sel ? 1 : 0} />
-        {/* Pinwheel parasol — state-hue gores alternating with white. */}
+        {/* Pinwheel parasol — state-hue gores alternating with white. The outer group sways in the
+            wind (AENR-807, CSS), the inner one opens on pick (GSAP) — two transforms that never fight. */}
+        <g data-canopy="" style={{ "--gust-delay": gustDelay } as CSSProperties}>
         <g ref={canopy}>
           {CANOPY_WEDGES.map((wdg, i) => (
             <path key={`w${i}`} data-gore="" d={wdg.d} fill={wdg.lite ? p.lite : p.c} />
           ))}
           <circle cx={CANOPY.cx} cy={CANOPY.cy} r={CANOPY.r} fill="none" stroke={p.edge} strokeWidth={1} />
           <circle cx={FIN.cx} cy={FIN.cy} r={FIN.r} fill={p.fin} />
+        </g>
         </g>
       </g>
     </svg>
