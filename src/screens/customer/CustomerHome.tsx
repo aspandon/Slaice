@@ -643,46 +643,44 @@ export function SeasonTile() {
   );
 }
 
-/* "Your badges" — gamification achievements; earned ones light up (summer
-   gradients), locked ones dim with progress. Sits exactly under Rebook, same size. */
-export function BadgesTile() {
+/** "Your badges" (gamification achievements, shown in the Wallet — AENR-780): the guest's badges
+ *  and how many are earned — null when gamification is off (a roadmap feature of the Loyalty
+ *  module, AENR-691 / 696) or there are none. */
+export function useBadges() {
   const { achievements } = useApp();
   const [firstTimer] = useDemoFlag("newGuest");
-  const t = useT();
-  // Gamification is a roadmap feature of the Loyalty module (AENR-691 / 696).
   const { allows } = useTenantFeatures();
   if (achievements.length === 0 || !allows({ future: true, module: "Loyalty" })) return null;
   const stats = firstTimer ? { visits: 0, bookings: 0, spend: 0 } : HOME_GAME_STATS;
-  const earnedCount = achievements.filter((a) => statValue(stats, a.metric) >= a.threshold).length;
+  const earned = achievements.filter((a) => statValue(stats, a.metric) >= a.threshold).length;
+  return { achievements, stats, earned };
+}
+
+/** The badges themselves, without a frame (the Wallet section gives it one): earned ones light up
+ *  in summer gradients, locked ones dim with their progress. */
+export function BadgeGrid({ badges: { achievements, stats } }: { badges: NonNullable<ReturnType<typeof useBadges>> }) {
+  const t = useT();
   return (
-    <div className={`${CARD} p-5 flex flex-col gap-3`} data-home-card>
-      <div className="flex items-center gap-2.5">
-        <span className="w-9 h-9 rounded-xl grid place-items-center bg-gradient-to-br from-amber-300 to-amber-500 text-white shrink-0 shadow-sm"><Icon.star size={17} /></span>
-        <div className="font-semibold text-navy-900 text-guest-body flex-1 min-w-0">{t("Your badges")}</div>
-        <Badge tone="amber">{earnedCount}/{achievements.length}</Badge>
-        <NotMvpBadge />
-      </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-2.5">
-        {achievements.map((a) => {
-          const Glyph = Icon[a.icon] || Icon.star;
-          const v = statValue(stats, a.metric);
-          const earned = v >= a.threshold;
-          return (
-            // Progress is visible text, not a hover-only tooltip (AENR-771).
-            <div key={a.id} className="flex flex-col items-center gap-1 w-[3.4rem]">
-              <span aria-hidden className={`relative w-11 h-11 rounded-full grid place-items-center ring-2 ring-white shadow-sm transition ${earned ? `text-white bg-gradient-to-br ${BADGE_COLORS[a.color] || BADGE_COLORS.sun}` : "bg-slate-200/80 text-slate-500"}`}>
-                <Glyph size={18} />
-                {!earned && <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-white ring-1 ring-slate-200 grid place-items-center"><Icon.lock size={8} className="text-slate-500" /></span>}
-              </span>
-              <span className={`text-guest-caption text-center leading-tight w-full truncate ${earned ? "text-navy-900 font-semibold" : "text-slate-600"}`}>{a.name}</span>
-              <span className={`-mt-0.5 text-[10.5px] leading-none tnum text-center ${earned ? "text-teal-700 font-semibold" : "text-slate-600"}`}>
-                {earned ? t("Earned") : <>{metricFmt(a.metric, v)}/<wbr />{metricFmt(a.metric, a.threshold)}</>}
-                <span className="sr-only">{earned ? "" : ` ${t("progress")}`}</span>
-              </span>
-            </div>
-          );
-        })}
-      </div>
+    <div className="flex flex-wrap gap-x-3 gap-y-2.5">
+      {achievements.map((a) => {
+        const Glyph = Icon[a.icon] || Icon.star;
+        const v = statValue(stats, a.metric);
+        const earned = v >= a.threshold;
+        return (
+          // Progress is visible text, not a hover-only tooltip (AENR-771).
+          <div key={a.id} className="flex flex-col items-center gap-1 w-[3.4rem]">
+            <span aria-hidden className={`relative w-11 h-11 rounded-full grid place-items-center ring-2 ring-white shadow-sm transition ${earned ? `text-white bg-gradient-to-br ${BADGE_COLORS[a.color] || BADGE_COLORS.sun}` : "bg-slate-200/80 text-slate-500"}`}>
+              <Glyph size={18} />
+              {!earned && <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-white ring-1 ring-slate-200 grid place-items-center"><Icon.lock size={8} className="text-slate-500" /></span>}
+            </span>
+            <span className={`text-guest-caption text-center leading-tight w-full truncate ${earned ? "text-navy-900 font-semibold" : "text-slate-600"}`}>{a.name}</span>
+            <span className={`-mt-0.5 text-[10.5px] leading-none tnum text-center ${earned ? "text-teal-700 font-semibold" : "text-slate-600"}`}>
+              {earned ? t("Earned") : <>{metricFmt(a.metric, v)}/<wbr />{metricFmt(a.metric, a.threshold)}</>}
+              <span className="sr-only">{earned ? "" : ` ${t("progress")}`}</span>
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }

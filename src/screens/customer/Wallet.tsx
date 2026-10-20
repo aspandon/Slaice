@@ -1,5 +1,5 @@
 import { useLayoutEffect, useState } from "react";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
 import { Badge, Btn, EmptyState, ErrorState, NotMvpBadge, Skeleton } from "../../components/ui";
@@ -14,47 +14,58 @@ import { addDays, fmtDay, fmtWeekday } from "../../domain/period";
 import { ARRIVAL_WINDOW, fmtDeadline, releaseDeadline, type Visit } from "../../domain/visits";
 import { guestNow, useVisits } from "../../lib/useVisits";
 import { useDemoFlag } from "../../lib/useDemoFlag";
-import { BadgesTile, FIRST_TIME_LOYALTY, RewardRow, SeasonTile, VipTile, activeRewards } from "./CustomerHome";
+import { BadgeGrid, FIRST_TIME_LOYALTY, RewardRow, SeasonTile, VipTile, activeRewards, useBadges } from "./CustomerHome";
 import { VisitQR, visitPass } from "./VisitTicket";
 import { WalletRow } from "../../components/WalletPass";
 import { useTenantFeatures } from "../../lib/useFeatures";
 
-/* ============ Wallet (AENR-577 / 578, order AENR-686) ============
-   Everything the guest holds, in one centred column under the top nav (the same
-   max-w-4xl as My bookings):
-     1. the passes they own (VIP credit / Season) and their beach credit,
-     2. their upcoming entries — one ticket per visit with its gate QR,
-     3. rewards (a roadmap feature, marked FUTURE),
-     4. "Release my day" for season holders,
-     5. passes they could buy (slim offers, never a card with their name and a QR),
-     6. badges (gamification, FUTURE). */
+/* ============ Wallet (AENR-577 / 578, order AENR-686, layout AENR-780) ============
+   Everything the guest holds, under the top nav, in the order they need it:
+     1. upcoming entries — one pass per visit with its gate QR, the page's hero,
+     2. the passes they own (VIP credit / Season) and, for season holders, "Release my day",
+     3. their beach credit, beside the passes they could buy (slim offers, never a card
+        with their name and a QR),
+     4. rewards, then badges (roadmap features, marked FUTURE).
+   Every section is one translucent panel with the same heading (WalletSection), on one
+   rhythm: 24px between panels, 16px / 24px inside, 16px under the heading. On a computer
+   the hero keeps the menu bar's width and everything under it shares one wider column —
+   two passes side by side, credit beside the offers, rewards in two columns — so it never
+   reads as a stretched phone column. With previews off only entries and credit remain, so
+   credit lines up with the hero instead. A first-time guest gets each section's guided
+   empty state; passes they don't own collapse into the offers. */
 
 /** Entries shown on the Wallet; the rest live in My bookings. */
 const ENTRY_LIMIT = 4;
 
-/* One heading style for every Wallet section: a solid pill that stays legible over the
-   beach photo, with an optional aside (a count, a FUTURE badge, a link) on the right. */
-function SectionHead({
+/* One section of the Wallet: a translucent panel with the Wallet's one heading style
+   (icon + title, then any count / FUTURE badges). `style` narrows it to the hero width. */
+function WalletSection({
   id,
   icon: I,
+  title,
   children,
-  aside,
+  busy,
+  style,
 }: {
   id: string;
   icon: IconRenderer;
+  title: ReactNode;
   children: ReactNode;
-  aside?: ReactNode;
+  busy?: boolean;
+  style?: CSSProperties;
 }) {
   return (
-    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-      <h2
-        id={id}
-        className="inline-flex items-center gap-2 rounded-xl glass-card-solid px-3 py-1.5 font-display font-bold text-navy-900"
-      >
-        <I size={17} className="text-teal-700" /> {children}
+    <section
+      aria-labelledby={id}
+      aria-busy={busy}
+      className="glass-flat rounded-3xl p-4 sm:p-6 mx-auto w-full"
+      style={style}
+    >
+      <h2 id={id} className="mb-4 flex flex-wrap items-center gap-2 font-display font-bold text-navy-900">
+        <I size={17} className="text-teal-700" /> {title}
       </h2>
-      {aside && <div className="flex items-center gap-2">{aside}</div>}
-    </div>
+      {children}
+    </section>
   );
 }
 
@@ -65,58 +76,87 @@ export function CustomerWallet() {
   const [firstTimer] = useDemoFlag("newGuest");
   const rewards = activeRewards(loyalty, firstTimer ? FIRST_TIME_LOYALTY : undefined);
   const ready = rewards.filter((a) => a.state.kind === "claim").length;
+  const badges = useBadges();
   // VIP / Season passes and rewards are roadmap features (AENR-691); rewards need Loyalty too (AENR-696).
-  // With previews off the Wallet holds only what works today: credit and entries.
+  // With previews off the Wallet holds only what works today: entries and credit.
   const { roadmap, allows } = useTenantFeatures();
   const showRewards = allows({ future: true, module: "Loyalty" });
   const owned = roadmap ? [passes.vip && "vip", passes.season && "season"].filter(Boolean) : [];
-  const hasCredit = account.credit.balance > 0 || account.credit.log.length > 0;
+  const offers = roadmap && owned.length < 2;
+  // The hero width: as wide as the menu bar above (owner, AENR-794); the full column on phones.
+  const nav = useMainNavWidth();
+  const hero = nav ? { maxWidth: nav } : undefined;
   return (
-    <div className="animate-fade-up w-full max-w-4xl mx-auto space-y-8">
+    <div className="animate-fade-up w-full max-w-4xl mx-auto space-y-6">
       <h1 className="sr-only">{t("Wallet")}</h1>
 
+      <UpcomingEntries style={hero} />
+
       {owned.length > 0 && (
-        <section aria-labelledby="wallet-passes">
-          <SectionHead id="wallet-passes" icon={Icon.wallet}>
-            {t("Your passes")}
-          </SectionHead>
-          <div
-            className={`grid gap-4 ${owned.length > 1 ? "sm:grid-cols-2" : "max-w-[26rem] mx-auto"}`}
-          >
+        <WalletSection
+          id="wallet-passes"
+          icon={Icon.wallet}
+          title={t("Your passes")}
+        >
+          <div className={`grid gap-4 ${owned.length > 1 ? "sm:grid-cols-2" : "max-w-[26rem] mx-auto"}`}>
             {owned.includes("vip") && <VipTile />}
             {owned.includes("season") && <SeasonTile />}
           </div>
-          <p className="mt-3 text-center">
-            <span className="inline-flex items-center gap-1.5 rounded-lg glass-card-solid px-2.5 py-1 text-guest-meta text-slate-700">
-              <Icon.qr size={13} className="text-teal-700" />
-              {t("Each pass card carries your gate QR — show it at the entrance.")}
-            </span>
+          <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-guest-meta text-slate-700">
+            <Icon.qr size={13} className="shrink-0 text-teal-700" />
+            {t("Each pass card carries your gate QR — show it at the entrance.")}
           </p>
-        </section>
+        </WalletSection>
       )}
 
-      {hasCredit && <BeachCredit />}
+      {owned.includes("season") && <ReleaseMyDay />}
 
-      <UpcomingEntries />
+      {/* Money: the credit they hold, and beside it on a computer the passes they could buy. */}
+      <div className={offers ? "grid gap-6 md:grid-cols-2" : ""}>
+        <BeachCredit style={roadmap ? undefined : hero} wide={roadmap && !offers} />
+        {offers && (
+          <WalletSection id="wallet-offers" icon={Icon.sparkles} title={t("Passes you can get")}>
+            <div className="grid gap-3">
+              {!passes.vip && (
+                <PassOffer
+                  tone="vip"
+                  title={`${t("Become VIP")} — ${Math.round(passPricing.vipDiscount * 100)}% ${t("off every visit")}`}
+                  sub={`${t("from")} ${money(Math.min(...passPricing.vipTiers))} ${t("of credit")}`}
+                  onClick={() => go("customer", "vip")}
+                />
+              )}
+              {!passes.season && (
+                <PassOffer
+                  tone="season"
+                  title={`${t("Season pass")} — ${t("your own set all summer")}`}
+                  sub={`${t("from")} ${money(Math.min(passPricing.seasonMonthly, passPricing.seasonSummer))}`}
+                  onClick={() => go("customer", "season")}
+                />
+              )}
+            </div>
+          </WalletSection>
+        )}
+      </div>
 
       {showRewards && (
-      <section aria-labelledby="wallet-rewards">
-        <SectionHead
+        <WalletSection
           id="wallet-rewards"
           icon={Icon.gift}
+          title={
+            <>
+              {t("Rewards")}
+              {/* Loyalty rewards are a roadmap feature (AENR-679 / 686). */}
+              <NotMvpBadge />
+              {ready > 0 && (
+                <Badge tone="green">
+                  {ready} {t("ready")}
+                </Badge>
+              )}
+            </>
+          }
         >
-          {t("Rewards")}
-          {/* Loyalty rewards are a roadmap feature (AENR-679 / 686). */}
-          <NotMvpBadge />
-          {ready > 0 && (
-            <Badge tone="green">
-              {ready} {t("ready")}
-            </Badge>
-          )}
-        </SectionHead>
-        <div className="glass-flat rounded-3xl p-3 sm:p-4">
           {rewards.length ? (
-            <div className="grid gap-2.5 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               {rewards.map((a, i) => (
                 // An odd count lets the first (usually the tier) span the row — no orphan tile.
                 <div key={a.id} className={rewards.length % 2 && i === 0 ? "md:col-span-2" : ""}>
@@ -142,64 +182,55 @@ export function CustomerWallet() {
               }
             />
           )}
-        </div>
-      </section>
+        </WalletSection>
       )}
 
-      {owned.includes("season") && <ReleaseMyDay />}
-
-      {roadmap && owned.length < 2 && (
-        <section aria-labelledby="wallet-offers">
-          <SectionHead id="wallet-offers" icon={Icon.sparkles}>
-            {t("Passes you can get")}
-          </SectionHead>
-          <div className={`grid gap-3 ${owned.length === 0 ? "md:grid-cols-2" : ""}`}>
-            {!passes.vip && (
-              <PassOffer
-                tone="vip"
-                title={`${t("Become VIP")} — ${Math.round(passPricing.vipDiscount * 100)}% ${t("off every visit")}`}
-                sub={`${t("from")} ${money(Math.min(...passPricing.vipTiers))} ${t("of credit")}`}
-                onClick={() => go("customer", "vip")}
-              />
-            )}
-            {!passes.season && (
-              <PassOffer
-                tone="season"
-                title={`${t("Season pass")} — ${t("your own set all summer")}`}
-                sub={`${t("from")} ${money(Math.min(passPricing.seasonMonthly, passPricing.seasonSummer))}`}
-                onClick={() => go("customer", "season")}
-              />
-            )}
-          </div>
-        </section>
+      {badges && (
+        <WalletSection
+          id="wallet-badges"
+          icon={Icon.star}
+          title={
+            <>
+              {t("Your badges")}
+              <Badge tone="amber">
+                {badges.earned}/{badges.achievements.length}
+              </Badge>
+              <NotMvpBadge />
+            </>
+          }
+        >
+          <BadgeGrid badges={badges} />
+        </WalletSection>
       )}
-
-      <BadgesTile />
     </div>
   );
 }
 
-/* Beach credit: the balance (used at checkout by itself) and its latest movements. */
-function BeachCredit() {
+/* Beach credit: the balance (used at checkout by itself) and its latest movements. With
+   nothing yet the panel keeps its shape — the €0.00 balance, and where credit comes from.
+   `wide` (the full column to itself): the balance beside the movements from tablet up. */
+function BeachCredit({ style, wide = false }: { style?: CSSProperties; wide?: boolean }) {
   const money = useMoney();
   const { account } = useApp();
   const t = useT();
+  const log = account.credit.log;
   return (
-    <section aria-labelledby="wallet-credit">
-      <SectionHead id="wallet-credit" icon={Icon.cash}>
-        {t("Beach credit")}
-      </SectionHead>
-      <div className="glass-flat rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-start gap-4">
-        <div className="sm:w-48 shrink-0">
+    <WalletSection id="wallet-credit" icon={Icon.cash} title={t("Beach credit")} style={style}>
+      <div className={wide ? "md:flex md:items-start md:gap-6" : ""}>
+        <div
+          className={`flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 ${wide ? "md:block md:w-56 md:shrink-0" : ""}`}
+        >
           <div className="font-display font-bold text-3xl text-navy-900 tnum">
             {money(account.credit.balance, true)}
           </div>
           <div className="text-guest-meta text-slate-600">{t("Used automatically at checkout.")}</div>
         </div>
-        {account.credit.log.length > 0 && (
-          <ul className="flex-1 min-w-0 divide-y divide-slate-100 text-guest-meta">
-            {account.credit.log.slice(0, 5).map((e, i) => (
-              <li key={i} className="py-1.5 flex justify-between gap-3">
+        {log.length > 0 ? (
+          <ul
+            className={`mt-4 divide-y divide-slate-200/70 border-t border-slate-200/70 text-guest-meta ${wide ? "md:-mt-2 md:min-w-0 md:flex-1 md:border-t-0" : ""}`}
+          >
+            {log.slice(0, 5).map((e, i) => (
+              <li key={i} className="py-2 flex justify-between gap-3">
                 <span className="text-slate-700 min-w-0">
                   {e.text} <span className="text-slate-500">· {fmtDay(e.at.slice(0, 10))}</span>
                 </span>
@@ -211,46 +242,59 @@ function BeachCredit() {
               </li>
             ))}
           </ul>
+        ) : (
+          <p
+            className={`mt-4 flex items-start gap-2 rounded-2xl bg-white/60 ring-1 ring-slate-200 px-3 py-2.5 text-guest-meta text-slate-700 ${wide ? "md:mt-0 md:min-w-0 md:flex-1" : ""}`}
+          >
+            <Icon.info size={15} className="mt-0.5 shrink-0 text-teal-700" />
+            {t("Nothing here yet. Take a refund as beach credit and it lands here — it comes off your next booking by itself.")}
+          </p>
         )}
       </div>
-    </section>
+    </WalletSection>
   );
 }
 
 /* Upcoming entries (AENR-686): every visit still ahead (today included, cancelled ones
    left out) as a ticket with its gate QR — tap to enlarge (modal on desktop, white full
    screen on phones, the same VisitQR as Home). */
-function UpcomingEntries() {
+function UpcomingEntries({ style }: { style?: CSSProperties }) {
   const { go } = useApp();
   const t = useT();
   const { status, refetch, visits } = useVisits();
   const [open, setOpen] = useState<Visit | null>(null);
   const ahead = visits.filter((v) => v.status === "today" || v.status === "upcoming");
   const shown = ahead.slice(0, ENTRY_LIMIT);
-  const width = useMainNavWidth();
   // One translucent tile, as wide as the menu bar above it (owner, AENR-794); managing a visit
   // stays in My bookings, a tab away — so no separate link here.
   return (
-    <section
-      aria-labelledby="wallet-entries"
-      aria-busy={status === "loading"}
-      className="glass-flat rounded-3xl p-4 sm:p-5 mx-auto w-full"
-      style={width ? { maxWidth: width } : undefined}
+    <WalletSection
+      id="wallet-entries"
+      icon={Icon.ticket}
+      busy={status === "loading"}
+      style={style}
+      title={
+        <>
+          {t("Upcoming entries")}
+          {ahead.length > 0 && <Badge tone="info">{ahead.length}</Badge>}
+        </>
+      }
     >
-      <h2 id="wallet-entries" className="mb-4 flex items-center gap-2 font-display font-bold text-navy-900">
-        <Icon.ticket size={17} className="text-teal-700" /> {t("Upcoming entries")}
-        {ahead.length > 0 && <Badge tone="info">{ahead.length}</Badge>}
-      </h2>
       {status === "loading" ? (
         <Skeleton className="h-[164px] !rounded-3xl max-w-md mx-auto" />
       ) : status === "error" ? (
         <ErrorState compact body={t("We couldn't load your bookings.")} onRetry={refetch} />
       ) : shown.length === 0 ? (
+        // A guest who has never booked is told what this place is for; a returning one, what to do next.
         <EmptyState
           compact
           icon={Icon.ticket}
-          title={t("No upcoming visits")}
-          body={t("Book a day at the beach — its entry QR will be here, ready for the gate.")}
+          title={visits.length === 0 ? t("Your beach days will be here") : t("No upcoming visits")}
+          body={
+            visits.length === 0
+              ? t("Book a sunbed or an entry ticket — its gate QR lands here, ready to scan, and you can add it to Apple or Google Wallet.")
+              : t("Book a day at the beach — its entry QR will be here, ready for the gate.")
+          }
           action={
             <Btn variant="teal" icon={Icon.sparkles} onClick={() => go("customer", "plan")}>
               {t("Plan a visit")}
@@ -261,7 +305,7 @@ function UpcomingEntries() {
         <PassStack visits={shown} onShow={setOpen} />
       )}
       {open && <VisitQR v={open} onClose={() => setOpen(null)} />}
-    </section>
+    </WalletSection>
   );
 }
 
@@ -419,64 +463,63 @@ function ReleaseMyDay() {
       };
     });
   return (
-    <section aria-labelledby="wallet-release">
-      <SectionHead id="wallet-release" icon={Icon.umbrella}>
-        {t("Your season set")} · {zone.name} {setId}
-      </SectionHead>
-      <div className="glass-flat rounded-3xl p-4">
-        <p className="text-guest-meta text-slate-700 mb-3">
-          {t(
-            "Not coming one day? Release it and the set goes on sale for that day. When it sells, you get",
-          )}{" "}
-          <b>{policy.releaseCreditPct}%</b> {t("of the price as beach credit. Release until")}{" "}
-          {policy.releaseHours} {t("hours before the beach opens.")}
-        </p>
-        <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {days.map((d) => {
-            const r = account.released.find((x) => x.date === d && x.setId === setId);
-            const deadline = releaseDeadline(d, policy);
-            const open = now < deadline;
-            return (
-              <li
-                key={d}
-                className="rounded-xl bg-white/80 ring-1 ring-slate-200 px-3 py-2.5 flex items-center gap-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-navy-900 text-guest-meta">
-                    {fmtWeekday(d)} {fmtDay(d)}
-                  </div>
-                  <div className="text-guest-caption text-slate-600">
-                    {r?.resold
-                      ? `${t("Resold")} · +${money(r.resold.credit, true)} ${t("credit")}`
-                      : r
-                        ? t("Released — on sale")
-                        : open
-                          ? `${t("Reserved for you")} · ${t("release by")} ${fmtDeadline(deadline)}`
-                          : t("Reserved for you")}
-                  </div>
+    <WalletSection
+      id="wallet-release"
+      icon={Icon.umbrella}
+      title={`${t("Your season set")} · ${zone.name} ${setId}`}
+    >
+      <p className="text-guest-meta text-slate-700 mb-4">
+        {t(
+          "Not coming one day? Release it and the set goes on sale for that day. When it sells, you get",
+        )}{" "}
+        <b>{policy.releaseCreditPct}%</b> {t("of the price as beach credit. Release until")}{" "}
+        {policy.releaseHours} {t("hours before the beach opens.")}
+      </p>
+      <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+        {days.map((d) => {
+          const r = account.released.find((x) => x.date === d && x.setId === setId);
+          const deadline = releaseDeadline(d, policy);
+          const open = now < deadline;
+          return (
+            <li
+              key={d}
+              className="rounded-xl bg-white/80 ring-1 ring-slate-200 px-3 py-2.5 flex items-center gap-3"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold text-navy-900 text-guest-meta">
+                  {fmtWeekday(d)} {fmtDay(d)}
                 </div>
-                {!r && open && (
-                  <Btn size="sm" variant="outline" onClick={() => release(d)}>
-                    {t("Release")}
-                  </Btn>
-                )}
-                {r && !r.resold && (
-                  <Btn
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => resell(d)}
-                    title={t("Demo — another guest books the set")}
-                  >
-                    {t("Simulate sale")}
-                  </Btn>
-                )}
-                {r?.resold && <Icon.checkCircle size={18} className="text-emerald-600" />}
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    </section>
+                <div className="text-guest-caption text-slate-600">
+                  {r?.resold
+                    ? `${t("Resold")} · +${money(r.resold.credit, true)} ${t("credit")}`
+                    : r
+                      ? t("Released — on sale")
+                      : open
+                        ? `${t("Reserved for you")} · ${t("release by")} ${fmtDeadline(deadline)}`
+                        : t("Reserved for you")}
+                </div>
+              </div>
+              {!r && open && (
+                <Btn size="sm" variant="outline" onClick={() => release(d)}>
+                  {t("Release")}
+                </Btn>
+              )}
+              {r && !r.resold && (
+                <Btn
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => resell(d)}
+                  title={t("Demo — another guest books the set")}
+                >
+                  {t("Simulate sale")}
+                </Btn>
+              )}
+              {r?.resold && <Icon.checkCircle size={18} className="text-emerald-600" />}
+            </li>
+          );
+        })}
+      </ul>
+    </WalletSection>
   );
 }
 
