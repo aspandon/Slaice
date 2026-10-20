@@ -2309,7 +2309,11 @@ For a guest who isn't at the beach yet — Support Agent, Call Center and Admin 
   `src/domain/plans.ts`): the single place for a tenant's settings. The Platform sidebar lists every tenant
   (status dot, pinned first, search, collapse; tenants still onboarding under _In onboarding_, opening the
   wizard at their step; closed tenants drop out). **⌘/Ctrl K** opens a switcher (name, subdomain, ID, ΑΦΜ;
-  recent first) that keeps the current section.
+  recent first) that keeps the current section. **Sections**: a grouped rail on the left from 1024 px; below
+  that (phones and tablets, AENR-845) a row of section tabs under the header — every section one tap away,
+  in the rail's groups with its red counts, the current one filled and kept in view, sticky under the top
+  bar, edges fading to show it scrolls (it replaced a dropdown that read as a form field). The menu sheet
+  still lists them too.
 - **Header**: logo, name, tenant ID (copy), lifecycle badge (tooltip with reason, date and actor), plan,
   environment tag (Sandbox / Demo — excluded from portfolio MRR unless switched on), data region, account
   manager; **⋯** menu — View as tenant user, Preview customer site, Send onboarding / remediation link, Copy ID,

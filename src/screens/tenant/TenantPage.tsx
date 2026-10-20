@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon, type IconRenderer } from "../../lib/icons";
-import { Badge, Btn, Card, EmptyState, Select } from "../../components/ui";
+import { Badge, Btn, Card, EmptyState } from "../../components/ui";
 import { usePlatform, useTenantRoute } from "../../lib/usePlatform";
 import {
   LIFECYCLE_LABEL,
@@ -402,16 +402,15 @@ export function TenantPage() {
         </div>
       </Card>
 
-      <div className="grid lg:grid-cols-[220px_minmax(0,1fr)] gap-4 items-start">
-        {/* Section rail (desktop) / select (phones) */}
-        <div className="lg:hidden">
-          <Select
-            aria-label="Section"
-            value={def.id}
-            onChange={(e) => nav(e.target.value)}
-            options={SECTIONS.map((s) => ({ v: s.id, l: `${s.group} · ${s.label}` }))}
-          />
-        </div>
+      <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[220px_minmax(0,1fr)] gap-4 items-start">
+        {/* Section rail (desktop) / a row of section tabs (phones and tablets, AENR-845): every
+            section one tap away without a menu, grouped like the rail, sticky under the top bar. */}
+        <SectionStrip
+          label={`${t.name} sections`}
+          sections={SECTIONS.map((s) => ({ ...s, n: s.badge?.(t, today) ?? 0 }))}
+          active={def.id}
+          onPick={nav}
+        />
         <nav
           aria-label={`${t.name} sections`}
           className="hidden lg:block glass rounded-2xl p-2 sticky top-[86px]"
@@ -466,3 +465,73 @@ export function TenantPage() {
   );
 }
 
+
+/* ---------- The sections as a row of tabs, below 1024 px (AENR-845) ----------
+   On a phone the desktop rail has no room, and a dropdown read as a form field: the owner couldn't
+   find a tenant's sub pages. A horizontally scrolling row instead — every section one tap away,
+   in the rail's groups (a small label opens each group), with the rail's red counts, the current
+   section filled and kept in view, sticky under the top bar while a long section scrolls. */
+function SectionStrip({
+  label,
+  sections,
+  active,
+  onPick,
+}: {
+  label: string;
+  sections: (SectionDef & { n: number })[];
+  active: string;
+  onPick: (id: string) => void;
+}) {
+  const row = useRef<HTMLDivElement>(null);
+  // Keep the current section in view (scroll the row only, never the page).
+  useEffect(() => {
+    const el = row.current;
+    const on = el?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!el || !on) return;
+    const left = on.offsetLeft - (el.clientWidth - on.offsetWidth) / 2;
+    el.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
+  }, [active]);
+  return (
+    <nav aria-label={label} className="lg:hidden sticky top-[70px] z-20 -mx-3 min-w-0 sm:-mx-5">
+      <div
+        ref={row}
+        // The edges fade, so a cut-off tab reads as "the row scrolls".
+        className="glass flex items-center gap-1 overflow-x-auto overscroll-x-contain px-3 sm:px-5 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,transparent,#000_14px,#000_calc(100%-14px),transparent)]"
+      >
+        {sections.map((s, i) => {
+          const on = s.id === active;
+          const first = s.group !== sections[i - 1]?.group;
+          return (
+            <span key={s.id} className="flex shrink-0 items-center gap-1">
+              {first && (
+                <span
+                  aria-hidden="true"
+                  className={`pr-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 ${i > 0 ? "ml-2 border-l border-slate-200 pl-2.5" : "pl-0.5"}`}
+                >
+                  {s.group}
+                </span>
+              )}
+              <button
+                type="button"
+                aria-current={on ? "page" : undefined}
+                onClick={() => onPick(s.id)}
+                className={`flex min-h-[44px] items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-[13px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${on ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-700 hover:bg-slate-100 active:bg-slate-200"}`}
+              >
+                <s.icon size={15} aria-hidden />
+                {s.label}
+                {s.n > 0 && (
+                  <span
+                    className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[10.5px] font-bold ${on ? "bg-white text-navy-900" : "bg-rose-600 text-white"}`}
+                    aria-label={`${s.n} open`}
+                  >
+                    {s.n}
+                  </span>
+                )}
+              </button>
+            </span>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}
