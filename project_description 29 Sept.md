@@ -3430,6 +3430,20 @@ src/
   painted sea, which stays as the loading state; if it can't run (no WebGL2, a video that won't play) the
   guest gets Classic. Each loads in its own chunk, only for the tenants and devices that use it
   (`components/sea/SeaLayer.tsx`).
+  - **Coastal** (`components/sea/CoastalSea.tsx`, ≈11 kB gzipped): one shader draws turquoise shallows over
+    sand with moving caustics, deepening into the preset's blues; wind-driven ripples (procedural textures
+    generated once, 256², mipmapped) with a sky sheen toward the horizon, whitecaps in strong wind and a shore
+    break that runs up the beach and washes back; the light model's sun / moon path and horizon glows. Cost is
+    bounded: reduced resolution (0.8× DPR on computers, 0.55× on phones, pixel budgets), 30 fps on computers;
+    phones show one still frame redrawn only when conditions change (live at 20 fps only if a quick GPU probe
+    shows the device is fast); reduced motion always still; pauses briefly after taps and in hidden tabs;
+    lowers its own resolution or freezes on slow devices; falls back to Classic without WebGL2. Its shoreline
+    follows the sand's slide.
+  - **Video**: the footage is graded at encode to the samples' Greek blues (a gradient map — azure out to
+    sea, turquoise toward the shore, AENR-824). **Seamless loop**: the clip ends by crossfading into its first
+    second, and two players take turns — half a second before the end the other starts from the top and they
+    crossfade — so the restart is never seen (only one decodes outside that handover). Over real water the
+    scene's cartoon clouds and birds are left out; cloud reads as the cloud shadows and the muted colours.
 - **The light on the water** (AENR-815, `lib/seaLight.ts` — one model for all three seas): from the hour
   and the weather it gives the sun's height and place (it rises on the left and sets on the right over
   the water, July in Athens: ≈ 06:15 / 20:50), the moon, the water's colour and the reflection path. At
@@ -3442,6 +3456,17 @@ src/
   measured in the part of the scene the guest actually sees (the scene is cover-fitted, overscanned and moved
   by the camera — on a portrait phone only its middle third shows), so the sun and the moon hold still on
   screen while the camera pans. The page's golden-hour grading reads the same model.
+- **The day in colour** (AENR-824 — from the owner's photographs of Greek beaches): hourly keyframes for the
+  water (horizon → shore), the colour of the light on it and how strongly the hour overrides the beach's own
+  preset — night (deep navy), blue hour (slate violet), sunrise (peach-orange), morning, the Greek day (azure
+  `#1565c8` → turquoise `#6fe3ec`, also the default beach's sea and the first paint), late afternoon, golden
+  hour (amber), sunset (burning orange `#ff8a2a`), dusk (rose and violet) — blended smoothly between hours,
+  so the demo clock glides. The low sun's disc stands on the horizon at sunrise and sunset; the full moon has a
+  bright disc, a halo and a silver path. Cloud keeps the sea teal and clear, muted toward slate (cloudy
+  sunsets keep their orange); wind adds whitecaps — curled crests, more and longer the stronger it blows.
+- **Demo sliders** (AENR-825): the guest Demo menu has **Weather** (Sunny · Windy · Overcast · Rainy) and
+  **Time of day** sliders on every screen size; they drive the same scene state as Beach › Atmosphere, so the
+  sea, the light and the weather layer follow at once. Hidden when the tenant pins the scene (AENR-737).
 - **Weather** (demo): sunny / windy / overcast / rainy — sea agitation, backdrop dim, sun glint,
   clouds drifting right-to-left at per-weather speed, rain and wind-gust particles.
 - **Time of day:** dawn half-light, daylight, golden-hour warmth (muted by cloud cover), blue dusk.
