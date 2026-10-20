@@ -759,3 +759,14 @@ table .text-slate-400 {
   48% { transform: translate3d(1px, 44vh, 0); }
   100% { transform: translate3d(-1px, 120vh, 0); opacity: 0.9; }
 }
+
+/* The glints on the reflection path shimmer (AENR-815, SeaLightSvg) — desktop only, still under reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .sea-glints > ellipse {
+    animation: sea-glint 2.4s ease-in-out infinite;
+  }
+}
+@keyframes sea-glint {
+  0%, 100% { opacity: 0.15; }
+  45% { opacity: 1; }
+}

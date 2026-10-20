@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { BeachBackdrop } from "./Beach";
 import { HelpRing } from "./NeedAHand";
-import { prefersReducedMotion, staticBackdrop, useLiteScene } from "../lib/motion";
+import { staticBackdrop, useLiteScene } from "../lib/motion";
 import { WEATHER_DEMO } from "../data/beach";
 import { NOON_LIGHT, seaLight } from "../lib/seaLight";
 import type { SeaEnv } from "./LiveSeaCanvas";
@@ -10,6 +10,7 @@ import { WeatherFxCanvas } from "./WeatherFx";
 import { useGuestScene } from "../lib/useGuestScene";
 import { useApp } from "../app/store";
 import { useTenantFeatures } from "../lib/useFeatures";
+import { seaStyleOf } from "../domain/features";
 import { DUR } from "../lib/fx";
 import { MARGIN_X, MARGIN_Y, cameraTransform, layerShoreline, setCameraLayer, shotFor, useCameraOn, useWizardShot, zoneWorldX } from "../lib/camera";
 
@@ -51,35 +52,13 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
     return () => m.removeEventListener("change", on);
   }, []);
   const target = immersive ? (wide ? IMMERSIVE_WIDE : IMMERSIVE) : REST;
-  const [shoreline, setShoreline] = useState(target);
+  // The shoreline goes straight to its new place; the scene's land layers slide there on their
+  // own (a transform, AENR-823) instead of this component re-rendering the scene every frame.
+  const shoreline = target;
   // Still backdrop for reduced-motion users and on phones / small tablets (AENR-730):
   // no WebGL sea, ambient decor, particles or parallax there. Follows resizes.
   const lite = useLiteScene();
   const stat = lite || staticBackdrop();
-  // Mirror the latest value so the tween can read its start point without
-  // re-subscribing the effect on every frame.
-  const ref = useRef(shoreline);
-  ref.current = shoreline;
-
-  useEffect(() => {
-    if (prefersReducedMotion()) {
-      setShoreline(target);
-      return;
-    }
-    const from = ref.current;
-    if (Math.abs(from - target) < 0.001) return;
-    const dur = 780;
-    const t0 = performance.now();
-    let raf = 0;
-    const tick = (t: number) => {
-      const p = Math.min(1, (t - t0) / dur);
-      const eased = 1 - Math.pow(1 - p, 3); // easeOutCubic
-      setShoreline(from + (target - from) * eased);
-      if (p < 1) raf = requestAnimationFrame(tick);
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [target]);
 
   // ---- One beach, one camera (AENR-784) ----
   // The scene sits in a layer larger than the screen; each page is a shot of it and a page
@@ -87,8 +66,10 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
   // margins and no transform: the backdrop exactly as before.
   const cameraOn = useCameraOn();
   // The sea's effects, switched per tenant (AENR-810).
-  const { feature } = useTenantFeatures();
+  const { feature, tenant } = useTenantFeatures();
   const sea = { live: feature("guest.liveSea"), depth: feature("guest.seaDepth"), detail: feature("guest.seaDetail") };
+  // Which sea this device shows — the tenant's choice per device (AENR-813).
+  const seaStyle = seaStyleOf(tenant, lite ? "mobile" : "desktop");
   const wiz = useWizardShot();
   const { zoneMap } = useApp();
   const zoneId = (page === "plan" ? wiz?.zoneId : null) ?? null;
@@ -111,8 +92,9 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
     const to = cameraTransform(shot, window.innerWidth, window.innerHeight);
     // The first shot is set, not flown to — the camera only moves when the guest moves.
     // force3D "auto": composited while moving, re-rasterised crisp once the camera settles.
+    // power2.inOut (AENR-819): it gets going at once with the page rather than lagging behind it.
     if (first.current) gsap.set(el, to);
-    else gsap.to(el, { ...to, duration: DUR.camera, ease: "power3.inOut", overwrite: "auto", force3D: "auto" });
+    else gsap.to(el, { ...to, duration: DUR.camera, ease: "power2.inOut", overwrite: "auto", force3D: "auto" });
     first.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- shotKey captures the shot
   }, [shotKey]);
@@ -165,7 +147,7 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
         {/* Tilt the phone (AENR-792): the scene drifts a few px with the phone — inside the
             camera, so the two transforms never fight; still in the wizard, where sets stand on the sand. */}
         <div className="tilt-sea absolute inset-0" data-still={immersive ? "" : undefined}>
-          <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax={!stat} shoreline={drawShore} noVeg={immersive} seaEnv={seaEnv} sea={sea} />
+          <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax={!stat} shoreline={drawShore} noVeg={immersive} seaEnv={seaEnv} sea={sea} seaStyle={seaStyle} />
         </div>
       </div>
       {/* Cloud cover for overcast/rainy — drifting banks of soft grey blobs. */}

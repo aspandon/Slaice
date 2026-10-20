@@ -1,12 +1,15 @@
 import { lazy, Suspense, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, ReactNode, RefObject } from "react";
 import { liteScene, prefersReducedMotion, useParallax } from "../lib/motion";
-import { EASE, gsap, motionOK } from "../lib/fx";
+import { DUR, EASE, gsap, motionOK } from "../lib/fx";
 import { MorphSVGPlugin } from "gsap/MorphSVGPlugin";
 import { useApp, useMoney, useT } from "../app/store";
 import { presetById } from "../data/backgrounds";
 import type { BeachPreset } from "../data/backgrounds";
 import type { BeachBackground, SunbedState } from "../domain/types";
+import type { SeaStyle } from "../domain/features";
+import { SeaLightGroup } from "./sea/SeaLightSvg";
+import { SeaLayer } from "./sea/SeaLayer";
 import { BEDS, CANOPY, CANOPY_FOLDED, CANOPY_WEDGES, FIN, GLYPH_BOX, GLYPH_CONTENT, sunbedPalette } from "./sunbedGlyph";
 gsap.registerPlugin(MorphSVGPlugin);
 // Type-only: erased at build time, so three.js stays in the lazy sea chunk.
@@ -165,7 +168,7 @@ export interface SeaFx {
 }
 const ALL_SEA: SeaFx = { live: true, depth: true, detail: true };
 
-export function BeachBackdrop({ children, className = "", pos = "relative", parallax = false, background, preview = false, shoreline, noVeg = false, seaEnv, sea = ALL_SEA }: {
+export function BeachBackdrop({ children, className = "", pos = "relative", parallax = false, background, preview = false, shoreline, noVeg = false, seaEnv, sea = ALL_SEA, seaStyle = "classic" }: {
   children?: ReactNode;
   className?: string;
   pos?: string;
@@ -183,6 +186,8 @@ export function BeachBackdrop({ children, className = "", pos = "relative", para
    *  scene only). Omitted = calm sunny noon. */
   seaEnv?: SeaEnv;
   sea?: SeaFx;
+  /** Which sea this device shows (AENR-813): Classic, Coastal or Video. */
+  seaStyle?: SeaStyle;
 }) {
   const ctx = useApp();
   const bg = background ?? ctx.background;
@@ -190,9 +195,9 @@ export function BeachBackdrop({ children, className = "", pos = "relative", para
     bg.kind === "custom" ? (
       <CustomBeach src={bg.src} parallax={parallax} />
     ) : parallax ? (
-      <BeachSceneLayered preset={presetById(bg.id)} shoreline={shoreline} noVeg={noVeg} seaEnv={seaEnv} sea={sea} />
+      <BeachSceneLayered preset={presetById(bg.id)} shoreline={shoreline} noVeg={noVeg} seaEnv={seaEnv} sea={sea} seaStyle={seaStyle} />
     ) : (
-      <BeachScene preset={presetById(bg.id)} preview={preview} shoreline={shoreline} noVeg={noVeg} noSky={!preview && shoreline !== undefined && !seaEnv?.clouds} detail={sea.detail} />
+      <BeachScene preset={presetById(bg.id)} preview={preview} shoreline={shoreline} noVeg={noVeg} noSky={!preview && shoreline !== undefined && !seaEnv?.clouds} detail={sea.detail} seaStyle={seaStyle} seaEnv={seaEnv} />
     );
   return (
     <div className={`${pos} overflow-hidden rounded-2xl ${className}`}>
@@ -291,107 +296,195 @@ function SeaWavelets({ dy = 0 }: { dy?: number }) {
 }
 
 /* Flat beach scene — drives every gradient and decor layer from `preset`. Used
-   by the booking map, the auth panel, the map editor canvas and the picker. */
-function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky = false, detail = true }: { preset: BeachPreset; preview?: boolean; shoreline?: number; noVeg?: boolean; /** Drop clouds and birds — the still phone backdrop (AENR-730), where the shoreline moves and they'd sit on the sand. */ noSky?: boolean; /** Wave lines on the water (AENR-810). */ detail?: boolean }) {
+   by the booking map, the auth panel, the map editor canvas and the picker, and
+   as the still guest backdrop on phones.
+
+   Drawn as stacked layers of one 1600×900 scene: the sea (and its light, AENR-815),
+   the sea a tenant may swap in (Coastal / Video, AENR-813), the land (wavelets,
+   foam, sand), the decor, the greenery and the top vignette. The land and the
+   greenery slide when the shoreline moves (Home ↔ Plan) — a transform, not a
+   redraw (AENR-823) — so their paths run below the scene (a skirt) to never
+   show a gap while they travel. */
+function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky = false, detail = true, seaStyle = "classic", seaEnv }: {
+  preset: BeachPreset;
+  preview?: boolean;
+  shoreline?: number;
+  noVeg?: boolean;
+  /** Drop clouds and birds — the still phone backdrop (AENR-730), where the shoreline moves and they'd sit on the sand. */
+  noSky?: boolean;
+  /** Wave lines on the water (AENR-810). */
+  detail?: boolean;
+  /** The tenant's sea for this device (AENR-813). */
+  seaStyle?: SeaStyle;
+  /** Weather + light for the sea (AENR-815); omitted = a clear noon. */
+  seaEnv?: SeaEnv;
+}) {
   const rid = useId().replace(/:/g, "");
   const id = (k: string) => `${k}-${rid}`;
   const grain = preset.grain && !preview;
   const dy = shorelineShift(shoreline);
+  const land = useRef<HTMLDivElement>(null);
+  const green = useRef<HTMLDivElement>(null);
+  useShoreSlide(dy, [land, green]);
+  const [failed, setFailed] = useState(false);
+  const style = failed ? "classic" : seaStyle;
+  const light = seaEnv?.light;
+  const svg = "absolute inset-0 w-full h-full";
   return (
-    <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-      <defs>
-        <linearGradient id={id("sea")} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={preset.sea[0]} />
-          <stop offset="35%" stopColor={preset.sea[1]} />
-          <stop offset="70%" stopColor={preset.sea[2]} />
-          <stop offset="100%" stopColor={preset.sea[3]} />
-        </linearGradient>
-        <linearGradient id={id("sand")} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={preset.sand[0]} />
-          <stop offset="55%" stopColor={preset.sand[1]} />
-          <stop offset="100%" stopColor={preset.sand[2]} />
-        </linearGradient>
-        <linearGradient id={id("foam")} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor={preset.foam} />
-          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-        </linearGradient>
-        {preset.glint && (
-          <radialGradient id={id("glint")} cx="50%" cy="0%" r="60%">
-            <stop offset="0%" stopColor="rgba(255,255,255,0.55)" />
-            <stop offset="60%" stopColor="rgba(255,255,255,0)" />
-          </radialGradient>
-        )}
-        {preset.veg && (
-          <linearGradient id={id("veg")} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={preset.veg[0]} />
-            <stop offset="100%" stopColor={preset.veg[1]} />
+    <>
+      {/* The sea — always painted: the Classic look, and the loading state under a swapped-in sea. */}
+      <svg aria-hidden="true" className={svg} viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <linearGradient id={id("sea")} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={preset.sea[0]} />
+            <stop offset="35%" stopColor={preset.sea[1]} />
+            <stop offset="70%" stopColor={preset.sea[2]} />
+            <stop offset="100%" stopColor={preset.sea[3]} />
           </linearGradient>
+          {preset.glint && (
+            <radialGradient id={id("glint")} cx="50%" cy="0%" r="60%">
+              <stop offset="0%" stopColor="rgba(255,255,255,0.55)" />
+              <stop offset="60%" stopColor="rgba(255,255,255,0)" />
+            </radialGradient>
+          )}
+        </defs>
+        <rect width="1600" height="900" fill={`url(#${id("sea")})`} />
+        {/* The noon sheen fades with the light: no white glare at night or under cloud. */}
+        {preset.glint && <rect width="1600" height="900" fill={`url(#${id("glint")})`} opacity={light ? (1 - light.night) * (1 - 0.8 * light.cloud) * (1 - 0.6 * light.warm) : 1} />}
+        {detail && preset.waves > 0 && (
+          <g opacity="0.35" stroke="white" fill="none" strokeLinecap="round">
+            {WAVES.slice(0, preset.waves).map((wv, i) => (
+              <path key={i} d={wv.d} strokeWidth={wv.sw} opacity={wv.o} />
+            ))}
+          </g>
         )}
-        {grain && (
-          <filter id={id("grain")} x="0" y="0" width="100%" height="100%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" />
-            <feColorMatrix values="0 0 0 0 0.62  0 0 0 0 0.48  0 0 0 0 0.32  0 0 0 0.18 0" />
-            <feComposite in2="SourceGraphic" operator="in" />
-          </filter>
-        )}
-        <linearGradient id={id("vignette")} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="rgba(11, 37, 69, 0.35)" />
-          <stop offset="100%" stopColor="rgba(11, 37, 69, 0)" />
-        </linearGradient>
-      </defs>
-
-      {/* Sea fills the canvas; sand + vegetation are drawn over the lower portion. */}
-      <rect width="1600" height="900" fill={`url(#${id("sea")})`} />
-      {preset.glint && <rect width="1600" height="900" fill={`url(#${id("glint")})`} />}
-
-      {detail && preset.waves > 0 && (
-        <g opacity="0.35" stroke="white" fill="none" strokeLinecap="round">
-          {WAVES.slice(0, preset.waves).map((wv, i) => (
-            <path key={i} d={wv.d} strokeWidth={wv.sw} opacity={wv.o} />
-          ))}
-        </g>
+        {light && style === "classic" && <SeaLightGroup light={light} dy={dy} />}
+      </svg>
+      {style !== "classic" && seaEnv && (
+        <SeaLayer style={style} preset={preset} dy={dy} env={seaEnv} tier={liteScene() ? "mobile" : "desktop"} onFail={() => setFailed(true)} />
       )}
 
-      {/* Static surface texture in the open-water band. */}
-      {detail && <SeaWavelets dy={dy} />}
-
-      {/* Curved shoreline foam band */}
-      <path d={foamD(dy)} fill={`url(#${id("foam")})`} />
-      {/* Sand + texture overlay */}
-      <path d={sandD(dy)} fill={`url(#${id("sand")})`} />
-      {grain && <path d={sandD(dy)} filter={`url(#${id("grain")})`} opacity="0.5" />}
-      {/* Wet shading + sheen (both gradient bands — no hard seams), mottling. */}
-      <SandDetail preset={preset} dy={dy} mottle={grain} idp={id} />
+      {/* The land: surface texture by the shore, the foam band, the sand and its detail. */}
+      <div ref={land} className="absolute inset-0">
+        <svg aria-hidden="true" className={svg} viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" overflow="visible">
+          <defs>
+            <linearGradient id={id("sand")} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={preset.sand[0]} />
+              <stop offset="55%" stopColor={preset.sand[1]} />
+              <stop offset="100%" stopColor={preset.sand[2]} />
+            </linearGradient>
+            <linearGradient id={id("foam")} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={preset.foam} />
+              <stop offset="100%" stopColor="rgba(255,255,255,0)" />
+            </linearGradient>
+            {grain && (
+              <filter id={id("grain")} x="0" y="0" width="100%" height="100%">
+                <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" />
+                <feColorMatrix values="0 0 0 0 0.62  0 0 0 0 0.48  0 0 0 0 0.32  0 0 0 0.18 0" />
+                <feComposite in2="SourceGraphic" operator="in" />
+              </filter>
+            )}
+          </defs>
+          {/* Static surface texture in the open-water band. */}
+          {detail && style === "classic" && <SeaWavelets dy={dy} />}
+          {/* Curved shoreline foam band */}
+          <path d={foamD(dy)} fill={`url(#${id("foam")})`} />
+          {/* Sand + texture overlay, and the skirt below the scene that a slide may show. */}
+          <path d={sandD(dy)} fill={`url(#${id("sand")})`} />
+          <rect x="-20" y="899" width="1640" height={SKIRT} fill={preset.sand[2]} />
+          {grain && <path d={sandD(dy)} filter={`url(#${id("grain")})`} opacity="0.5" />}
+          {/* Wet shading + sheen (both gradient bands — no hard seams), mottling. */}
+          <SandDetail preset={preset} dy={dy} mottle={grain} idp={id} />
+        </svg>
+      </div>
 
       {/* Optional decor (sun, palms, clouds…) above the sand, behind the greenery. */}
-      <SceneDecor preset={preset} id={id} noSky={noSky} />
+      <svg aria-hidden="true" className={svg} viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+        <SceneDecor preset={preset} id={id} noSky={noSky} />
+      </svg>
 
       {preset.veg && !noVeg && (
-        <>
-          <path d={vegD(dy)} fill={`url(#${id("veg")})`} opacity="0.92" />
-          <g fill="#3f6b2c" opacity="0.85">
-            {Array.from({ length: 28 }).map((_, i) => {
-              const x = 30 + i * 57 + (i % 3) * 11;
-              const y = 790 + dy + ((i * 13) % 70);
-              const r = 12 + ((i * 5) % 9);
-              return <circle key={i} cx={x} cy={y} r={r} />;
-            })}
-          </g>
-          <g fill="#65a04a" opacity="0.7">
-            {Array.from({ length: 22 }).map((_, i) => {
-              const x = 60 + i * 71 + (i % 4) * 9;
-              const y = 810 + dy + ((i * 17) % 60);
-              const r = 8 + ((i * 3) % 6);
-              return <circle key={i} cx={x} cy={y} r={r} />;
-            })}
-          </g>
-        </>
+        <div ref={green} className="absolute inset-0">
+          <svg aria-hidden="true" className={svg} viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" overflow="visible">
+            <defs>
+              <linearGradient id={id("veg")} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor={preset.veg[0]} />
+                <stop offset="100%" stopColor={preset.veg[1]} />
+              </linearGradient>
+            </defs>
+            <Greenery preset={preset} dy={dy} fill={`url(#${id("veg")})`} />
+          </svg>
+        </div>
       )}
 
       {/* Soft top vignette so the topbar/chrome reads over the scene. */}
-      <rect width="1600" height="160" fill={`url(#${id("vignette")})`} />
-    </svg>
+      <svg aria-hidden="true" className={svg} viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <linearGradient id={id("vignette")} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="rgba(11, 37, 69, 0.35)" />
+            <stop offset="100%" stopColor="rgba(11, 37, 69, 0)" />
+          </linearGradient>
+        </defs>
+        <rect width="1600" height="160" fill={`url(#${id("vignette")})`} />
+      </svg>
+    </>
   );
+}
+
+/** How far below the scene (scene units) the land runs, so sliding it up never shows a gap. */
+const SKIRT = 700;
+
+/* The vegetation belt and its tree dots, on its own skirt. */
+function Greenery({ preset, dy, fill }: { preset: BeachPreset; dy: number; fill: string }) {
+  return (
+    <>
+      <path d={vegD(dy)} fill={fill} opacity="0.92" />
+      <rect x="-20" y="899" width="1640" height={SKIRT} fill={preset.veg?.[1] ?? "#3f6b2c"} opacity="0.92" />
+      <g fill="#3f6b2c" opacity="0.85">
+        {Array.from({ length: 28 }).map((_, i) => {
+          const x = 30 + i * 57 + (i % 3) * 11;
+          const y = 790 + dy + ((i * 13) % 70);
+          const r = 12 + ((i * 5) % 9);
+          return <circle key={i} cx={x} cy={y} r={r} />;
+        })}
+      </g>
+      <g fill="#65a04a" opacity="0.7">
+        {Array.from({ length: 22 }).map((_, i) => {
+          const x = 60 + i * 71 + (i % 4) * 9;
+          const y = 810 + dy + ((i * 17) % 60);
+          const r = 8 + ((i * 3) % 6);
+          return <circle key={i} cx={x} cy={y} r={r} />;
+        })}
+      </g>
+    </>
+  );
+}
+
+/* The shoreline moving (Home ↔ Plan, AENR-823): the scene is drawn once at the new shoreline
+   and its land layers slide there from the old one — a GSAP transform the compositor runs,
+   instead of re-rendering and repainting the whole scene on each of ~45 frames. Interrupted
+   mid-slide, the next slide starts from where the land is. Reduced motion: it simply jumps. */
+function useShoreSlide(dy: number, refs: ReadonlyArray<RefObject<HTMLElement>>) {
+  const prev = useRef(dy);
+  const rest = useRef(0); // scene units still to travel when a slide was cut short
+  useLayoutEffect(() => {
+    const from = prev.current;
+    prev.current = dy;
+    const els = refs.map((r) => r.current).filter((e): e is HTMLElement => !!e);
+    if (from === dy || !els.length || prefersReducedMotion()) return;
+    const w = els[0].offsetWidth;
+    const h = els[0].offsetHeight;
+    const k = Math.max(w / 1600, h / 900) || 1; // px per scene unit (the SVG's "slice" fit)
+    const start = from - dy + rest.current;
+    rest.current = 0;
+    const tw = gsap.fromTo(els, { y: start * k }, { y: 0, duration: DUR.shore, ease: "power3.out", force3D: true, overwrite: true, clearProps: "transform" });
+    return () => {
+      rest.current = Number(gsap.getProperty(els[0], "y")) / k;
+      tw.kill();
+      gsap.set(els, { clearProps: "transform" });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- refs are stable
+  }, [dy]);
 }
 
 /* The animated WebGL water (three.js) is lazy-loaded so its chunk is only
@@ -419,14 +512,20 @@ const liveSeaOK = () =>
    animated water (LiveSeaCanvas). The SVG sea stays rendered beneath it as the
    loading state and the fallback: if WebGL is missing, software-rendered or the
    context dies, the canvas reverts to it without a flash. */
-function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea }: { preset: BeachPreset; shoreline?: number; noVeg?: boolean; seaEnv?: SeaEnv; sea: SeaFx }) {
+function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea, seaStyle = "classic" }: { preset: BeachPreset; shoreline?: number; noVeg?: boolean; seaEnv?: SeaEnv; sea: SeaFx; seaStyle?: SeaStyle }) {
   const rid = useId().replace(/:/g, "");
   const id = (k: string) => `${k}-${rid}`;
   const dy = shorelineShift(shoreline);
   const cloudVis = seaEnv?.clouds ?? 0;
   const cloudSpeed = seaEnv?.cloudSpeed ?? 0;
   const [liveOK, setLiveSea] = useState(liveSeaOK);
-  const liveSea = liveOK && sea.live;
+  // A swapped-in sea (Coastal / Video, AENR-813) replaces the Classic live water; if it fails, Classic returns.
+  const [altFailed, setAltFailed] = useState(false);
+  const style = altFailed ? "classic" : seaStyle;
+  const liveSea = liveOK && sea.live && style === "classic";
+  const land = useRef<HTMLDivElement>(null);
+  const green = useRef<HTMLDivElement>(null);
+  useShoreSlide(dy, [land, green]);
   // Depth off (AENR-810): the planes stay stacked and still, and no birds fly.
   const k = sea.depth ? 1 : 0;
   const far = useParallax<HTMLDivElement>(-0.018 * k, 24);
@@ -518,9 +617,14 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea }: { 
               ))}
             </g>
           )}
-          {sea.detail && <SeaWavelets dy={dy} />}
+          {sea.detail && style === "classic" && <SeaWavelets dy={dy} />}
+          {/* Sunrise, sunset and night on the still sea; the live water draws its own light. */}
+          {seaEnv && style === "classic" && !liveSea && <SeaLightGroup light={seaEnv.light} dy={dy} twinkle />}
           <rect width="1600" height="160" fill={`url(#${id("vignette")})`} />
         </svg>
+        {style !== "classic" && seaEnv && (
+          <SeaLayer style={style} preset={preset} dy={dy} env={seaEnv} tier="desktop" onFail={() => setAltFailed(true)} />
+        )}
         {liveSea && (
           <Suspense fallback={null}>
             <LiveSeaCanvas preset={preset} dy={dy} env={seaEnv} onFail={() => setLiveSea(false)} />
@@ -528,7 +632,7 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea }: { 
         )}
         {/* The opaque canvas covers the SVG's vignette, so re-draw it on top —
             same viewBox + slice fitting keeps it pixel-identical. */}
-        {liveSea && (
+        {(liveSea || style !== "classic") && (
           <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
             <defs>
               <linearGradient id={id("vignette-live")} x1="0" y1="0" x2="0" y2="1">
@@ -542,7 +646,9 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea }: { 
       </div>
       {/* Mid plane — shoreline foam, sand, its grain + wet-sand shading, and decor. */}
       <div ref={mid} className={plane} style={overscan}>
-        <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+        {/* The land slides with the shoreline (AENR-823); the decor above it stays put. */}
+        <div ref={land} className="absolute inset-0">
+        <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" overflow="visible">
           <defs>
             <linearGradient id={id("sand")} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor={preset.sand[0]} />
@@ -563,39 +669,29 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea }: { 
           </defs>
           <path d={foamD(dy)} fill={`url(#${id("foam")})`} />
           <path d={sandD(dy)} fill={`url(#${id("sand")})`} />
+          <rect x="-20" y="899" width="1640" height={SKIRT} fill={preset.sand[2]} />
           {preset.grain && <path d={sandD(dy)} filter={`url(#${id("grain")})`} opacity="0.5" />}
           <SandDetail preset={preset} dy={dy} mottle={preset.grain} idp={id} />
+        </svg>
+        </div>
+        <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
           <SceneDecor preset={preset} id={id} liveClouds />
         </svg>
       </div>
       {/* Near plane — the vegetation belt and tree dots (moves the most). */}
       {preset.veg && !noVeg && (
         <div ref={near} className={plane} style={overscan}>
-          <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-            <defs>
-              <linearGradient id={id("veg")} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor={preset.veg[0]} />
-                <stop offset="100%" stopColor={preset.veg[1]} />
-              </linearGradient>
-            </defs>
-            <path d={vegD(dy)} fill={`url(#${id("veg")})`} opacity="0.92" />
-            <g fill="#3f6b2c" opacity="0.85">
-              {Array.from({ length: 28 }).map((_, i) => {
-                const x = 30 + i * 57 + (i % 3) * 11;
-                const y = 790 + dy + ((i * 13) % 70);
-                const r = 12 + ((i * 5) % 9);
-                return <circle key={i} cx={x} cy={y} r={r} />;
-              })}
-            </g>
-            <g fill="#65a04a" opacity="0.7">
-              {Array.from({ length: 22 }).map((_, i) => {
-                const x = 60 + i * 71 + (i % 4) * 9;
-                const y = 810 + dy + ((i * 17) % 60);
-                const r = 8 + ((i * 3) % 6);
-                return <circle key={i} cx={x} cy={y} r={r} />;
-              })}
-            </g>
-          </svg>
+          <div ref={green} className="absolute inset-0">
+            <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" overflow="visible">
+              <defs>
+                <linearGradient id={id("veg")} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={preset.veg[0]} />
+                  <stop offset="100%" stopColor={preset.veg[1]} />
+                </linearGradient>
+              </defs>
+              <Greenery preset={preset} dy={dy} fill={`url(#${id("veg")})`} />
+            </svg>
+          </div>
         </div>
       )}
     </>
