@@ -101,8 +101,8 @@ export function PassCard({ kind, holder, number = "NO. 0042", subtitle, validUnt
           <text x="556" y="263" textAnchor="end" fontFamily="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" fontSize="19" fontWeight="600" fill={c.ink.number} style={{ letterSpacing: "1.5px" }}>{number}</text>
         </g>
       </svg>
-      {/* Foil shimmer (AENR-792): a light band across the art that follows the phone's tilt
-          (the cursor on desktop) through --tilt-x / --tilt-y. */}
+      {/* Foil shimmer (AENR-792): a light band across the art that follows the cursor on computers
+          (lib/foilPointer.ts, --pointer-x / --pointer-y); still on phones. */}
       <span aria-hidden="true" className="foil" />
     </div>
   );

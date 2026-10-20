@@ -462,22 +462,14 @@ Four pages with distinct names (AENR-642); old `invoicing` and `commission` link
   the centred zone is announced, tapping it opens its sets, tapping another walks to it. Phones and
   desktop (beside the booking panel). Off: the zone cards (phones) and the zones on the sand (desktop).
   Reduced motion: the same walk in steps, no momentum or parallax.
-- **Tilt the phone** (AENR-792, `src/lib/tilt.ts`): on phones and tablets the beach behind the guest pages
-  shifts up to ~7 px against the phone's tilt (scaled 4 % so no edge shows), the compact beach logo up to
-  3 px the other way, and the VIP / Season cards lean up to 4° with a foil shimmer that follows the tilt.
-  The tilt is measured from how the phone was held at the start and slowly re-centres; iOS asks for motion
-  access once, on the guest's first tap (declined = still). The beach holds still inside the booking
-  wizard so sets stay on the sand. Desktop: only the cards' foil follows the pointer (the backdrop keeps
-  its own pointer parallax). CSS custom properties, no React re-render; nothing under reduced motion.
-  **Fast on phones** (AENR-847, owner: "slow even at the default sea, the others unusable"): the two
-  tilt properties are registered as not inherited (`@property`) and written only on the elements that
-  move (`.tilt-sea`, `.tilt-logo`, `.tilt-card`, `.foil`) — written on `<html>`, every sensor reading
-  (≈ 60 a second whenever the phone is held) restyled the whole page. Measured on a production build,
-  390 px at 3× density, CPU slowed 4×, phone tilting: style recalculation 3.75 s → 0.34 s in a 4 s
-  window, dropped frames ≈ 180 → 0 (Classic, Coastal, Video and Blender alike), long tasks during four
-  taps 70–84 → 9–11, taps 280–504 ms → 96–224 ms (tab changes ≈ 100 ms; opening Plan a visit
-  ≈ 200 ms). Turning the frosted-glass blur off would save only ≈ 12–15 % of the graphics work, so the
-  glass stays.
+- **No phone tilt** (AENR-848, owner decision): the tilt effect (AENR-792 — the beach, the compact logo
+  and the VIP / Season cards moving with the phone) is removed: it served no purpose and cost the phone
+  work on every sensor reading (its worst cost, restyling the whole page each reading, was measured and
+  fixed first in AENR-847: 3.75 s of style recalculation per 4 s while the phone moved, taps 280–504 ms →
+  96–224 ms at 4× CPU). There is no orientation listener and no iPhone motion-permission prompt; the
+  beach is no longer scaled up to hide moving edges. On computers the pass cards' foil shimmer still
+  follows the mouse pointer (`src/lib/foilPointer.ts`, `--pointer-x / --pointer-y`, written on `.foil`
+  only, not inherited); still on phones and under reduced motion.
 - **Bottom tab bar** on phones (guest and staff) on a near-solid material (`.tabbar-material`, AENR-753) with
   a 20 px fade above it, so content dissolves before reaching the bar instead of reading through it; with a **More** sheet when a persona has more than 5 destinations. In
   the booking wizard it slides away and the step's own action bar (total + Back/Continue) is the only

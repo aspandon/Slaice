@@ -374,11 +374,10 @@ html[data-persona="customer"]::-webkit-scrollbar {
     background: radial-gradient(circle 240px at var(--gx, 50%) var(--gy, 50%), rgba(255, 255, 255, 0.34), transparent 62%);
   }
 
-  /* ---- Tilt the phone (AENR-792) ----
-     useTilt (src/lib/tilt.ts) writes --tilt-x / --tilt-y (−1..1) on each element below; these
-     rules turn them into transforms. Coarse pointers only for the sea, the logo
-     and the card lean (desktop has its own pointer parallax and useCardTilt);
-     the foil reads the cursor on desktop. Nothing moves under reduced motion. */
+  /* ---- The pass card foil (AENR-792) ----
+     useFoilPointer (src/lib/foilPointer.ts) writes --pointer-x / --pointer-y (−1..1) on .foil on
+     computers, and the bands slide with the cursor. Still on phones (the phone tilt was removed,
+     AENR-848) and under reduced motion. */
   .foil {
     position: absolute;
     inset: 0;
@@ -406,33 +405,10 @@ html[data-persona="customer"]::-webkit-scrollbar {
   }
   @media (prefers-reduced-motion: no-preference) {
     .foil {
-      --foil-x: calc(-3% + var(--tilt-x, 0) * 14%);
-      --foil-y: calc(-3% + var(--tilt-y, 0) * 8%);
+      --foil-x: calc(-3% + var(--pointer-x, 0) * 14%);
+      --foil-y: calc(-3% + var(--pointer-y, 0) * 8%);
     }
   }
-  @media (pointer: coarse) and (prefers-reduced-motion: no-preference) {
-    /* The scene drifts with the phone; scaled a touch so its edges never show.
-       In the wizard --sea-k eases to 0 (data-still) and the beach stands still. */
-    .tilt-sea {
-      transform: translate3d(calc(var(--tilt-x, 0) * var(--sea-k, 1) * -7px), calc(var(--tilt-y, 0) * var(--sea-k, 1) * -6px), 0) scale(calc(1 + var(--sea-k, 1) * 0.04));
-      transition: --sea-k 0.7s cubic-bezier(0.4, 0, 0.2, 1);
-      will-change: transform;
-    }
-    .tilt-sea[data-still] {
-      --sea-k: 0;
-    }
-    /* The pass card leans with the phone (≤ 4°), its foil sliding over it. */
-    .tilt-card {
-      transform: perspective(900px) rotateX(calc(var(--tilt-y, 0) * -3deg)) rotateY(calc(var(--tilt-x, 0) * 4deg));
-    }
-  }
-  @media (pointer: coarse) and (max-width: 767px) and (prefers-reduced-motion: no-preference) {
-    /* The compact logo sits "nearer" than the sea, so it shifts the other way, less. */
-    .tilt-logo {
-      transform: translate3d(calc(var(--tilt-x, 0) * 3px), calc(var(--tilt-y, 0) * 2px), 0);
-    }
-  }
-
   /* Kinetic gradient text — a gold glint periodically sweeps across the teal
      phrase (the hero's "in 60 seconds"). Static teal under reduced motion via
      the global animation kill. */
@@ -590,21 +566,14 @@ html[data-persona="customer"]::-webkit-scrollbar {
   background: linear-gradient(to top, #f6f8fb calc(100% - 1rem), rgba(246, 248, 251, 0));
 }
 
-/* The sea's tilt strength (AENR-792): registered so it can ease to 0 in the wizard. */
-@property --sea-k {
-  syntax: "<number>";
-  inherits: false;
-  initial-value: 1;
-}
-/* The phone's tilt (AENR-792), written by useTilt on the few elements that move with it — never on
-   <html>, and not inherited: a reading then restyles those elements alone. Written on the root, every
-   reading restyled the whole page (≈ 60 ms a frame on a mid-range phone, AENR-847). */
-@property --tilt-x {
+/* The cursor across the window for the pass card foil (lib/foilPointer.ts), written on .foil only
+   and not inherited, so a move restyles the foil alone (AENR-847, AENR-848). */
+@property --pointer-x {
   syntax: "<number>";
   inherits: false;
   initial-value: 0;
 }
-@property --tilt-y {
+@property --pointer-y {
   syntax: "<number>";
   inherits: false;
   initial-value: 0;

@@ -589,8 +589,7 @@ function RewardsStrip({ rewards, ready }: { rewards: ReturnType<typeof activeRew
 
 /* VIP credit tile — the tenant membership card art + a buy/top-up footer.
    Tilts in 3D toward the cursor with a light sweep across the card art
-   (useCardTilt owns the transform, so hover lift is shadow-only here).
-   On phones .tilt-card leans it with the phone instead (AENR-792). */
+   (useCardTilt owns the transform, so hover lift is shadow-only here). */
 export function VipTile() {
   const money = useMoney();
   const { go, passes, passPricing, clearPass } = useApp();
@@ -601,7 +600,7 @@ export function VipTile() {
   const from = Math.min(...passPricing.vipTiers);
   const disc = Math.round(passPricing.vipDiscount * 100);
   return (
-    <div ref={tilt} className={`${CARD} tilt-card flex flex-col w-full transition-shadow duration-300 hover:shadow-lift`} data-home-card>
+    <div ref={tilt} className={`${CARD} flex flex-col w-full transition-shadow duration-300 hover:shadow-lift`} data-home-card>
       <span aria-hidden="true" className="sheen-card" />
       <button onClick={() => go("customer", "vip")} aria-label={`${vip ? t("Top up VIP credit") : t("Get VIP Pass")} · ${t("FUTURE")}`} className="block w-full group">
         <PassCard kind="vip" holder={me.cardName} subtitle={vip ? `€${vip.balance.toLocaleString("en-GB")} CREDIT` : `MEMBER · ${disc}% OFF`} validUntil={SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
@@ -630,7 +629,7 @@ export function SeasonTile() {
   const season = passes.season;
   const from = Math.min(passPricing.seasonMonthly, passPricing.seasonSummer);
   return (
-    <div ref={tilt} className={`${CARD} tilt-card flex flex-col w-full transition-shadow duration-300 hover:shadow-lift`} data-home-card>
+    <div ref={tilt} className={`${CARD} flex flex-col w-full transition-shadow duration-300 hover:shadow-lift`} data-home-card>
       <span aria-hidden="true" className="sheen-card" />
       <button onClick={() => go("customer", "season")} aria-label={`${season ? t("Manage Season pass") : t("Get Season Pass")} · ${t("FUTURE")}`} className="block w-full group">
         <PassCard kind="season" holder={me.cardName} subtitle={season && season.plan === "monthly" ? "MONTHLY 2026" : "SUMMER 2026"} validUntil={season ? dateOf(season.validUntil) : SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />

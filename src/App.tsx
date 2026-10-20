@@ -10,7 +10,7 @@ import { ConsentBanner } from "./components/ConsentBanner";
 import { CustomerBackdrop } from "./components/CustomerBackdrop";
 import { WeatherUi } from "./components/WeatherUi";
 import { GlideLogo } from "./components/GlideLogo";
-import { useTilt } from "./lib/tilt";
+import { useFoilPointer } from "./lib/foilPointer";
 import { useMediaQuery } from "./lib/useMediaQuery";
 import { prefetchPage, prefetchPersona, routeFor } from "./routes";
 import { PageGate } from "./components/Shell/PageGate";
@@ -600,8 +600,8 @@ export default function App() {
   const immersive = persona === "customer" && page === "plan";
   // Desktop wizard layout (panel on the right, sea down to the middle) — picks which beach logo is in the DOM.
   const wide = useMediaQuery("(min-width: 1024px)");
-  // The sea, the logo and the pass cards follow the phone's tilt (AENR-792).
-  useTilt(signedIn && persona === "customer");
+  // On computers the pass cards' foil follows the pointer (the phone tilt was removed, AENR-848).
+  useFoilPointer(signedIn && persona === "customer");
 
   // Page transitions on the customer surface (AENR-750): a tab change slides the
   // new page in from the side of the tab you chose (Home → Account from the
@@ -708,7 +708,7 @@ export default function App() {
               // Phones: a compact logo beside the icon bar, so content starts high (AENR-649);
               // desktop keeps the large logo on Home only. Tablets in the wizard: sized by the
               // sea left above the sheet, so a short (landscape) screen gets a smaller logo.
-              className={`tilt-logo flex max-md:justify-start md:justify-center items-center max-md:-mt-[54px] max-md:h-12 relative z-10 md:pt-1 md:pb-1 mb-2 sm:mb-4 w-fit md:w-full max-md:mr-auto group hover:opacity-90 active:opacity-75 transition-opacity disabled:pointer-events-none`}
+              className={`flex max-md:justify-start md:justify-center items-center max-md:-mt-[54px] max-md:h-12 relative z-10 md:pt-1 md:pb-1 mb-2 sm:mb-4 w-fit md:w-full max-md:mr-auto group hover:opacity-90 active:opacity-75 transition-opacity disabled:pointer-events-none`}
             >
               <GlideLogo spot="home" className={`w-auto max-md:h-9 ${immersive ? "md:h-[min(4rem,12vh)]" : page === "home" ? "md:h-[100px]" : "md:h-16"}`} />
             </button>

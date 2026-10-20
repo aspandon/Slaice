@@ -161,11 +161,7 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
         className="absolute"
         style={cameraOn ? { left: `${-MARGIN_X * 100}%`, right: `${-MARGIN_X * 100}%`, top: `${-MARGIN_Y * 100}%`, bottom: `${-MARGIN_Y * 100}%` } : { inset: 0 }}
       >
-        {/* Tilt the phone (AENR-792): the scene drifts a few px with the phone — inside the
-            camera, so the two transforms never fight; still in the wizard, where sets stand on the sand. */}
-        <div className="tilt-sea absolute inset-0" data-still={immersive ? "" : undefined}>
-          <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax={!stat} shoreline={drawShore} noVeg={immersive} seaEnv={seaEnv} sea={sea} seaStyle={seaStyle} />
-        </div>
+        <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax={!stat} shoreline={drawShore} noVeg={immersive} seaEnv={seaEnv} sea={sea} seaStyle={seaStyle} />
       </div>
 
       {/* Cloud cover for overcast/rainy — drifting banks of soft grey blobs. */}
