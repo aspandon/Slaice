@@ -792,6 +792,19 @@ back; forward only via Continue). Footer: live **Total €** (animated) + **Back
      changes into the open dome with a small overshoot; deselecting half-folds it and springs it open
      again — it turns about its pole, in the glyph's own units, and leaves no transform behind, AENR-817),
      the sand ripples and a price chip flies into the total, which pulses.
+   - **The set, redrawn** (AENR-829–832): the canopy is a lit, top-down parasol — a soft dome lighter on the
+     sun's side, hairline seams between the alternating gores, a fine rim highlight and a small pole cap. Every
+     set's shadow falls on the sand away from the sun, from the scene's light (`useSunCast`, `lib/useSeaLight.ts`):
+     to the right in the morning, to the left in the evening, short at noon, longer and softer toward sunrise
+     and sunset, a soft patch under cloud, a faint moon shadow at night; the staff and booking canvas draws the
+     same shadow. Picking a set unrolls a **towel in the zone's colour** along each lounger (≈350 ms, the second a
+     moment later; two white bands near the foot) and rolls it back up when let go — on phone tiles a striped
+     strip along the foot. On a mouse or trackpad a free set's canopy **leans a few degrees toward the pointer**
+     and settles back (no tilt on touch, keyboard focus or reduced motion). A **matching icon family**
+     (`components/productIcons.tsx`: sunbed set, cabana / VIP bed, day locker, parking spot, entry ticket — the
+     parasol's scalloped hem as the shared motif, the app's line weight, one accent surface each, legible from 16
+     to 48 px) is used across the wizard, Home, Wallet, the guest pass and My bookings. States still read by shape
+     and colour.
    - Summary chip: "N umbrella sets · CE-01, CE-04 · €X × D days" + **Clear**.
    - **Back** (or the menu) returns to the zones overview (reverse zoom). Changing zone replaces the
      picked sets with that zone's suggestion (several zones on: adds to them).
