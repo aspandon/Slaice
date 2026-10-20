@@ -11,6 +11,7 @@ import { CustomerBackdrop } from "./components/CustomerBackdrop";
 import { WeatherUi } from "./components/WeatherUi";
 import { GlideLogo } from "./components/GlideLogo";
 import { useTilt } from "./lib/tilt";
+import { useMediaQuery } from "./lib/useMediaQuery";
 import { prefetchPersona, routeFor } from "./routes";
 import { PageGate } from "./components/Shell/PageGate";
 import { parseHash, buildHash, hashPath, isValidPage, resolvePage } from "./app/router";
@@ -512,6 +513,8 @@ export default function App() {
   // tappable surface, so the standing chrome (tenant logo, bottom tab bar) steps
   // aside and the backdrop lifts its shoreline.
   const immersive = persona === "customer" && page === "plan";
+  // Desktop wizard layout (panel on the right, sea down to the middle) — picks which beach logo is in the DOM.
+  const wide = useMediaQuery("(min-width: 1024px)");
   // The sea, the logo and the pass cards follow the phone's tilt (AENR-792).
   useTilt(signedIn && persona === "customer");
 
@@ -567,22 +570,32 @@ export default function App() {
         <div className="w-full px-3 sm:px-5 pt-4 relative min-h-dvh flex flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-1">
           {persona === "customer" && <CustomerBackdrop immersive={immersive} page={page} />}
           {persona === "customer" && <WeatherUi />}
-          {persona === "customer" && !immersive && (
+          {/* The beach logo stays in the sea on every guest screen (AENR-783). Below 1024px it is
+              the same element in the wizard as on the tabs — it doesn't remount, so it never
+              moves or blinks: the wizard's sheet stops at 78vh, leaving the top-bar row
+              (and the sea band above the raised shoreline) free. Inside the wizard it is
+              decorative, so a stray tap can't throw away a half-made booking ("Leave" is
+              the way out); the wizard's own layer (z-20) stays above it either way. */}
+          {persona === "customer" && (!immersive || !wide) && (
             <button
               onClick={() => go("customer", "home")}
               aria-label="Go to home"
+              disabled={immersive}
+              aria-hidden={immersive || undefined}
               // Phones: a compact logo beside the icon bar, so content starts high (AENR-649);
-              // desktop keeps the large logo on Home only.
-              className={`tilt-logo flex max-md:justify-start md:justify-center items-center max-md:-mt-[54px] max-md:h-12 relative z-10 md:pt-1 md:pb-1 mb-2 sm:mb-4 w-fit md:w-full max-md:mr-auto group hover:opacity-90 active:opacity-75 transition-opacity`}
+              // desktop keeps the large logo on Home only. Tablets in the wizard: sized by the
+              // sea left above the sheet, so a short (landscape) screen gets a smaller logo.
+              className={`tilt-logo flex max-md:justify-start md:justify-center items-center max-md:-mt-[54px] max-md:h-12 relative z-10 md:pt-1 md:pb-1 mb-2 sm:mb-4 w-fit md:w-full max-md:mr-auto group hover:opacity-90 active:opacity-75 transition-opacity disabled:pointer-events-none`}
             >
-              <GlideLogo spot="home" className={`w-auto max-md:h-9 ${page === "home" ? "md:h-[100px]" : "md:h-16"}`} />
+              <GlideLogo spot="home" className={`w-auto max-md:h-9 ${immersive ? "md:h-[min(4rem,12vh)]" : page === "home" ? "md:h-[100px]" : "md:h-16"}`} />
             </button>
           )}
-          {/* Booking wizard on desktop: the beach logo floats over the open sea, as on Home (AENR-671). */}
-          {persona === "customer" && immersive && (
-            <div className="hidden lg:flex fixed z-[15] top-[13vh] left-0 right-[min(460px,36vw)] justify-center pointer-events-none">
+          {/* Booking wizard on desktop: the beach logo floats over the open sea, as on Home (AENR-671),
+              scaled to the screen's height so it stays well above the shoreline (AENR-783). */}
+          {persona === "customer" && immersive && wide && (
+            <div className="flex fixed z-[15] top-[13vh] left-0 right-[min(460px,36vw)] justify-center pointer-events-none">
               <button onClick={() => go("customer", "home")} aria-label="Go to home" className="pointer-events-auto rounded-2xl hover:opacity-90 active:opacity-75 transition-opacity focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white">
-                <GlideLogo spot="wizard" className="h-[110px] w-auto drop-shadow-[0_2px_10px_rgba(0,40,80,0.25)]" />
+                <GlideLogo spot="wizard" className="h-[clamp(56px,13vh,110px)] w-auto drop-shadow-[0_2px_10px_rgba(0,40,80,0.25)]" />
               </button>
             </div>
           )}

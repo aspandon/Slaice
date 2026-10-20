@@ -211,7 +211,7 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
         immersive
           ? wide
             ? "top-[40%] left-[6%]"
-            : "hidden sm:block top-[7%] left-[8%]"
+            : "hidden md:block top-[7%] left-[8%]"
           : "hidden min-[1360px]:block top-[72%] left-[calc((100vw-72rem)/2-84px)]"
       }`}
     />}
