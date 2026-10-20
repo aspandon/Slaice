@@ -205,10 +205,14 @@ export const TENANT_FEATURES: readonly TenantFeatureDef[] = [
    (AENR-827). Missing = Classic, so nothing changes until Slaice picks. */
 export type SeaStyle = "classic" | "coastal" | "video" | "blender";
 export type SeaDevice = "desktop" | "mobile";
-/** How sharp the Blender beach plays, per device (AENR-844). Standard is the first render. */
-export type BlenderRes = "standard" | "high" | "fullhd";
+/** How sharp a filmed or rendered sea plays, per device: the Blender beach (AENR-844, 4K since
+ *  AENR-856) and the Video sea (AENR-859). Standard is each one's first file. */
+export type SeaRes = "standard" | "high" | "fullhd" | "4k";
+export type BlenderRes = SeaRes;
+export type VideoRes = Exclude<SeaRes, "high">;
 export type TenantSea = Partial<Record<SeaDevice, SeaStyle>> & {
   blenderRes?: Partial<Record<SeaDevice, BlenderRes>>;
+  videoRes?: Partial<Record<SeaDevice, VideoRes>>;
 };
 export const SEA_STYLES: readonly { id: SeaStyle; label: string; description: string }[] = [
   {
@@ -242,25 +246,60 @@ export const SEA_DEVICES: readonly { id: SeaDevice; label: string }[] = [
 export const seaStyleOf = (t: { sea?: TenantSea } | undefined, d: SeaDevice): SeaStyle =>
   t?.sea?.[d] ?? "classic";
 
-/* The Blender beach's resolutions (AENR-844): the same render at three sizes, for the tenant to
-   weigh sharpness against each guest's download. Computers play the whole frame, phones and
-   tablets a portrait cut of its middle. Sizes are the files' (WebM / MP4 for computers, MP4 /
-   WebM for phones — whichever the browser plays). */
-export const BLENDER_RES: readonly {
-  id: BlenderRes;
+/** One resolution a sea can play at: its frame sizes and download weights per device. */
+export interface SeaResTier<R extends SeaRes = SeaRes> {
+  id: R;
   label: string;
-  /** Its files are published (false while the render is still running — offered, not pickable). */
+  /** Its files are published (false while a render or an encode is still running — offered, not pickable). */
   ready: boolean;
   desktop: { px: string; mb: string };
   mobile: { px: string; mb: string };
-}[] = [
+  /** Asks a lot of the device's video decoder — said next to it (4K). */
+  heavy?: boolean;
+}
+
+/* The Blender beach's resolutions (AENR-844, AENR-856): the same beach at four sizes, for the tenant
+   to weigh sharpness against each guest's download. Computers play the whole frame, phones and
+   tablets a portrait cut of its middle. Sizes are the files' (WebM / MP4 for computers, MP4 /
+   WebM for phones — whichever the browser plays). */
+export const BLENDER_RES: readonly SeaResTier<BlenderRes>[] = [
   { id: "standard", label: "Standard", ready: true, desktop: { px: "1280 × 1200", mb: "2.5–2.9 MB" }, mobile: { px: "648 × 1200", mb: "0.9–1.1 MB" } },
   { id: "high", label: "High", ready: true, desktop: { px: "1600 × 1500", mb: "5.2–6.5 MB" }, mobile: { px: "810 × 1500", mb: "2.6–3.3 MB" } },
   { id: "fullhd", label: "Full HD", ready: true, desktop: { px: "1920 × 1800", mb: "7.5–9.3 MB" }, mobile: { px: "972 × 1800", mb: "3.8–4.7 MB" } },
+  { id: "4k", label: "4K", ready: false, heavy: true, desktop: { px: "3840 × 3600", mb: "TBD" }, mobile: { px: "1944 × 3600", mb: "TBD" } },
 ];
-export const blenderResOf = (t: { sea?: TenantSea } | undefined, d: SeaDevice): BlenderRes => {
-  const r = t?.sea?.blenderRes?.[d] ?? "standard";
-  return BLENDER_RES.find((x) => x.id === r)?.ready ? r : "standard";
+/* The Video sea's resolutions (AENR-859). Standard is the first clip (1080p on computers, 720p on
+   phones); Full HD and 4K come from a 4K master, and phones and tablets held upright get a
+   portrait cut of its middle — the whole 16:9 frame on a tall screen is mostly cropped away, so
+   a landscape file plays three times enlarged there. */
+export const VIDEO_RES: readonly SeaResTier<VideoRes>[] = [
+  { id: "standard", label: "Standard", ready: true, desktop: { px: "1920 × 1080", mb: "3.7–4.6 MB" }, mobile: { px: "1280 × 720", mb: "2.3 MB" } },
+  { id: "fullhd", label: "Full HD", ready: false, desktop: { px: "1920 × 1080", mb: "TBD" }, mobile: { px: "1080 × 1920", mb: "TBD" } },
+  { id: "4k", label: "4K", ready: false, heavy: true, desktop: { px: "3840 × 2160", mb: "TBD" }, mobile: { px: "1216 × 2160", mb: "TBD" } },
+];
+/** The seas that offer a resolution, and where the tenant's choice is kept. */
+export const SEA_RES = {
+  blender: { key: "blenderRes", tiers: BLENDER_RES },
+  video: { key: "videoRes", tiers: VIDEO_RES },
+} as const satisfies Partial<Record<SeaStyle, { key: "blenderRes" | "videoRes"; tiers: readonly SeaResTier[] }>>;
+export type SeaWithRes = keyof typeof SEA_RES;
+export const hasRes = (s: SeaStyle): s is SeaWithRes => s in SEA_RES;
+/** The published tiers of a sea, lowest first. */
+export const readyRes = (s: SeaWithRes): readonly SeaResTier[] => SEA_RES[s].tiers.filter((r) => r.ready);
+/** The tenant's resolution for a sea on a device — Standard when unset or not published yet. */
+export const seaResOf = (t: { sea?: TenantSea } | undefined, s: SeaWithRes, d: SeaDevice): SeaRes => {
+  const r = t?.sea?.[SEA_RES[s].key]?.[d] ?? "standard";
+  return readyRes(s).some((x) => x.id === r) ? r : "standard";
+};
+export const blenderResOf = (t: { sea?: TenantSea } | undefined, d: SeaDevice): BlenderRes => seaResOf(t, "blender", d);
+export const videoResOf = (t: { sea?: TenantSea } | undefined, d: SeaDevice): VideoRes => {
+  const r = seaResOf(t, "video", d);
+  return r === "high" ? "standard" : r;
+};
+/** The tenant's sea with one device's resolution changed (Platform › Guest sea, the Demo menu). */
+export const withSeaRes = (sea: TenantSea | undefined, s: SeaWithRes, d: SeaDevice, r: SeaRes): TenantSea => {
+  const key = SEA_RES[s].key;
+  return { ...sea, [key]: { ...sea?.[key], [d]: r } };
 };
 
 export const TENANT_FEATURE_GROUPS: readonly TenantFeatureGroup[] = ["Guest site", "Refunds", "Cashier till"];

@@ -6,6 +6,7 @@
 #   tools/blender/render.sh            Standard: 1280 x 1200, 4 spp + OpenImageDenoise, 192 frames (~1.5 h)
 #   tools/blender/render.sh fullhd     Full HD: 1920 x 1800, 0.05 m mesh (~4 h), encoded as Full HD and as High
 #                                      (1600 x 1500, scaled down from it) — AENR-844
+#   tools/blender/render.sh 4k         4K: 3840 x 3600, 0.025 m mesh (~12 h on 4 CPUs), encoded as 4K — AENR-856
 #   tools/blender/render.sh preview    one 640 x 600 frame, to check a look quickly
 # An interrupted render resumes: frames already written are skipped.
 set -eu
@@ -17,6 +18,7 @@ BIN="${BLENDER_BIN:-$CACHE/blender-5.2.2-linux-x64/blender}"
 TIER="${1:-standard}"
 WORK="$HERE/frames"  # git-ignored
 [ "$TIER" = fullhd ] && WORK="$HERE/frames-fullhd"
+[ "$TIER" = 4k ] && WORK="$HERE/frames-4k"
 mkdir -p "$WORK" "$HERE/assets"
 
 # The sky (Poly Haven, CC0) — kept out of git.
@@ -32,7 +34,11 @@ if [ "${1:-}" = "preview" ]; then
   exit 0
 fi
 export SKIP_EXISTING=1
-if [ "$TIER" = fullhd ]; then
+if [ "$TIER" = 4k ]; then
+  # Twice as fine again (0.025 m), for the same mesh-to-pixel ratio as Full HD at twice the size.
+  GRID=0.025 "$BIN" -b --factory-startup -P "$HERE/beach.py" -- 3840 3600 4 "$WORK/f_%03d.png" "${START:-0}" "${END:-192}"
+  sh "$HERE/encode.sh" "$WORK" "$ROOT/public/sea/blender" 4k
+elif [ "$TIER" = fullhd ]; then
   # A finer surface mesh (0.05 m): the foam, the wet sand and the swell shading are worked out per
   # vertex, and at 0.1 m they would be coarser than the Full HD pixels.
   GRID=0.05 "$BIN" -b --factory-startup -P "$HERE/beach.py" -- 1920 1800 4 "$WORK/f_%03d.png" 0 192
@@ -42,4 +48,4 @@ else
   "$BIN" -b --factory-startup -P "$HERE/beach.py" -- 1280 1200 4 "$WORK/f_%03d.png" 0 192
   sh "$HERE/encode.sh" "$WORK" "$ROOT/public/sea/blender" standard
 fi
-echo "Done. Delete $WORK when happy (≈370 MB of PNG frames; ≈830 MB at Full HD)."
+echo "Done. Delete $WORK when happy (≈370 MB of PNG frames; ≈830 MB at Full HD; ≈2.7 GB at 4K)."

@@ -5,7 +5,7 @@ import { useApp, useT } from "../app/store";
 import { NotMvpBadge } from "./ui";
 import { useGuestScene } from "../lib/useGuestScene";
 import { useTenantFeatures } from "../lib/useFeatures";
-import { BLENDER_RES, blenderResOf, SEA_DEVICES, SEA_STYLES, seaStyleOf, type SeaDevice } from "../domain/features";
+import { hasRes, readyRes, SEA_DEVICES, SEA_STYLES, seaResOf, seaStyleOf, withSeaRes, type SeaDevice } from "../domain/features";
 
 /* ============================================================================
    Scene demo controls — the bottom-left counterpart to the persona switcher's
@@ -195,10 +195,8 @@ export function DemoSceneSliders() {
 
 /* ---------- Guest sea sliders (AENR-855) ----------
    The Platform › tenant › Guest sea choice, at the end of the guest Demo menu: a slider per
-   device through the four seas, and under a Blender sea a slider through its published
-   resolutions. They write the site tenant's own setting, so the Platform page always agrees. */
-const RES_READY = BLENDER_RES.filter((r) => r.ready);
-
+   device through the four seas, and under a Blender or Video sea a slider through its published
+   resolutions (AENR-859). They write the site tenant's own setting, so the Platform page always agrees. */
 export function DemoSeaSliders() {
   const { setPlatform } = useApp();
   const { tenant } = useTenantFeatures();
@@ -213,8 +211,9 @@ export function DemoSeaSliders() {
       {SEA_DEVICES.map((d) => {
         const style = seaStyleOf(tenant, d.id);
         const si = Math.max(0, SEA_STYLES.findIndex((x) => x.id === style));
-        const res = blenderResOf(tenant, d.id);
-        const ri = Math.max(0, RES_READY.findIndex((x) => x.id === res));
+        const tiers = hasRes(style) ? readyRes(style) : [];
+        const res = hasRes(style) ? seaResOf(tenant, style, d.id) : "standard";
+        const ri = Math.max(0, tiers.findIndex((x) => x.id === res));
         const sea = SEA_STYLES[si];
         const id = `demo-sea-${d.id}`;
         return (
@@ -246,33 +245,33 @@ export function DemoSeaSliders() {
                 <span key={x.id}>{t(x.label)}</span>
               ))}
             </div>
-            {style === "blender" && RES_READY.length > 1 && (
+            {hasRes(style) && tiers.length > 1 && (
               <div className="mt-2 rounded-lg bg-slate-50 px-2 py-1.5 ring-1 ring-slate-200">
                 <div className="mb-1 flex items-center justify-between gap-2">
                   <label htmlFor={`${id}-res`} className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-500">
                     {t("Resolution")}
                   </label>
                   <span className="text-[11.5px] font-bold text-navy-900 tnum">
-                    {t(RES_READY[ri].label)} · {RES_READY[ri][d.id].px}
+                    {t(tiers[ri].label)} · {tiers[ri][d.id].px}
                   </span>
                 </div>
                 <input
                   id={`${id}-res`}
                   type="range"
                   min={0}
-                  max={RES_READY.length - 1}
+                  max={tiers.length - 1}
                   step={1}
                   value={ri}
                   onChange={(e) => {
-                    const next = RES_READY[Number(e.target.value)].id;
-                    edit((s) => ({ ...s, blenderRes: { ...s.blenderRes, [d.id]: next } }));
+                    const next = tiers[Number(e.target.value)].id;
+                    if (hasRes(style)) edit((s) => withSeaRes(s, style, d.id, next));
                   }}
                   onKeyDown={keep}
-                  aria-valuetext={`${t(RES_READY[ri].label)}, ${RES_READY[ri][d.id].px} px, ${RES_READY[ri][d.id].mb}`}
+                  aria-valuetext={`${t(tiers[ri].label)}, ${tiers[ri][d.id].px} px, ${tiers[ri][d.id].mb}`}
                   className="demo-range demo-range-plain w-full"
                 />
                 <div aria-hidden className="mt-0.5 flex justify-between text-[9.5px] text-slate-500">
-                  {RES_READY.map((r) => (
+                  {tiers.map((r) => (
                     <span key={r.id}>{t(r.label)}</span>
                   ))}
                 </div>

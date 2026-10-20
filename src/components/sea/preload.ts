@@ -1,4 +1,4 @@
-import { blenderResOf, type SeaStyle, type TenantSea } from "../../domain/features";
+import { blenderResOf, videoResOf, type SeaStyle, type TenantSea } from "../../domain/features";
 import { LITE_SCENE_QUERY, prefersReducedMotion } from "../../lib/motion";
 
 /* ============ Fetch the tenant's sea first (AENR-838) ============
@@ -43,7 +43,10 @@ export function preloadSavedSea() {
     const link = document.createElement("link");
     link.rel = "preload";
     link.as = "image";
-    link.href = `${BASE}sea/sea-poster.webp`;
+    // At the tenant's resolution for this device (AENR-859); upright phones get the portrait cut's.
+    const r = videoResOf(tenant, lite ? "mobile" : "desktop");
+    const upright = lite && window.innerHeight > window.innerWidth;
+    link.href = `${BASE}sea/${r === "standard" ? "sea" : upright ? `sea-portrait-${r}` : `sea-${r}`}-poster.webp`;
     document.head.appendChild(link);
     void import("./VideoSea").catch(quiet);
   } else if (style === "blender") {

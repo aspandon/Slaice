@@ -19,6 +19,7 @@ tools/orbit/state.json
 .blender-cache/
 tools/blender/frames/
 tools/blender/frames-fullhd/
+tools/blender/frames-4k/
 tools/blender/assets/
 tools/blender/caus/
 *.blend1

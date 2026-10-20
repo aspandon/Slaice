@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef, useState } from "react";
-import { blenderResOf, type BlenderRes } from "../../domain/features";
+import { blenderResOf, readyRes, type BlenderRes } from "../../domain/features";
 import { prefersReducedMotion } from "../../lib/motion";
 import { useTenantFeatures } from "../../lib/useFeatures";
 import { seaAbove } from "../../lib/seaShore";
@@ -38,14 +38,16 @@ const PERIOD = 8;
 const FRAME_TOP = -250;
 const FRAME_H = 1500;
 // Each with its codec in the type, so a browser without H.264 (or VP9) skips to the next file. The
-// H.264 level follows the frame size (the larger frames need a higher level).
-const WEBM = 'video/webm; codecs="vp9"';
+// levels follow the frame size (the larger frames need a higher level; 4K's wide frame, 3840 × 3600,
+// is past what level 5 decoders take — H.264 6.0, VP9 6.0).
+const vp9 = (level = "") => (level ? `video/webm; codecs="vp09.00.${level}.08"` : 'video/webm; codecs="vp9"');
 const mp4 = (level: string) => `video/mp4; codecs="avc1.6400${level}"`;
-/** The tenant's resolution for this device (AENR-844): the file suffix and each cut's H.264 level. */
-const RES: Record<BlenderRes, { suf: string; wide: string; tall: string }> = {
+/** Each resolution (AENR-844, AENR-856): the file suffix and each cut's H.264 (and VP9) level. */
+const RES: Record<BlenderRes, { suf: string; wide: string; tall: string; vWide?: string; vTall?: string }> = {
   standard: { suf: "", wide: "28", tall: "1f" },
   high: { suf: "-high", wide: "32", tall: "28" },
   fullhd: { suf: "-fullhd", wide: "32", tall: "2a" },
+  "4k": { suf: "-4k", wide: "3c", tall: "33", vWide: "60", vTall: "50" },
 };
 const cutsFor = (res: BlenderRes) => {
   const r = RES[res];
@@ -55,7 +57,7 @@ const cutsFor = (res: BlenderRes) => {
       w: 1600,
       poster: `beach${r.suf}-poster.webp`,
       files: [
-        { src: src(`beach${r.suf}.webm`), type: WEBM },
+        { src: src(`beach${r.suf}.webm`), type: vp9(r.vWide) },
         { src: src(`beach${r.suf}.mp4`), type: mp4(r.wide) },
       ],
     },
@@ -66,7 +68,7 @@ const cutsFor = (res: BlenderRes) => {
       poster: `beach-portrait${r.suf}-poster.webp`,
       files: [
         { src: src(`beach-portrait${r.suf}.mp4`), type: mp4(r.tall) },
-        { src: src(`beach-portrait${r.suf}.webm`), type: WEBM },
+        { src: src(`beach-portrait${r.suf}.webm`), type: vp9(r.vTall) },
       ],
     },
   };
@@ -102,7 +104,14 @@ export default function BlenderSea({
   useShoreSlide(dy, [slide]);
   // Standard, High or Full HD — the tenant's choice for this device (Platform › tenant › Guest sea).
   const { tenant } = useTenantFeatures();
-  const cuts = cutsFor(blenderResOf(tenant, tier));
+  // A device that can't play the chosen size (a 4K decoder it doesn't have) steps down one size at a
+  // time; only Standard failing hands the sea back to Classic.
+  const [down, setDown] = useState(0);
+  const tiers = readyRes("blender");
+  const want = tiers.findIndex((x) => x.id === blenderResOf(tenant, tier));
+  const at = Math.max(0, want - down);
+  const cuts = cutsFor(tiers[at].id);
+  const fail = at > 0 ? () => setDown((n) => n + 1) : onFail;
 
   const still = prefersReducedMotion() || saveData();
   const filter = grade(env);
@@ -140,7 +149,8 @@ export default function BlenderSea({
                 poster={src(cut.poster)}
                 rate={rate}
                 period={PERIOD}
-                onFail={onFail}
+                onFail={fail}
+                onSlow={at > 0 ? () => setDown((n) => n + 1) : undefined}
               />
             )}
           </div>

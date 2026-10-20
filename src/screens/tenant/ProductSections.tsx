@@ -13,14 +13,17 @@ import {
   featureSwitch,
   isLastOn,
   tenantHasModule,
-  BLENDER_RES,
   SEA_DEVICES,
+  SEA_RES,
   SEA_STYLES,
-  blenderResOf,
+  hasRes,
+  seaResOf,
   seaStyleOf,
+  withSeaRes,
   type SeaDevice,
-  type BlenderRes,
+  type SeaRes,
   type SeaStyle,
+  type SeaWithRes,
   type TenantFeatureId,
 } from "../../domain/features";
 import { KV, Part, SectionFrame, useTenantDraft, type SectionProps } from "./kit";
@@ -247,14 +250,15 @@ function GuestSea({ t }: SectionProps) {
     });
     toast(`${label}: ${name} sea for ${t.name}.`, { tone: "success" });
   };
-  // The Blender beach's resolution for one device (AENR-844).
-  const setRes = (d: SeaDevice, label: string, res: BlenderRes) => {
-    const name = BLENDER_RES.find((x) => x.id === res)?.label ?? res;
-    updateTenant(t.id, (x) => ({ ...x, sea: { ...x.sea, blenderRes: { ...x.sea?.blenderRes, [d]: res } } }), {
+  // A Blender or Video sea's resolution for one device (AENR-844, AENR-859).
+  const setRes = (d: SeaDevice, label: string, style: SeaWithRes, res: SeaRes) => {
+    const name = SEA_RES[style].tiers.find((x) => x.id === res)?.label ?? res;
+    const sea = SEA_STYLES.find((x) => x.id === style)?.label ?? style;
+    updateTenant(t.id, (x) => ({ ...x, sea: withSeaRes(x.sea, style, d, res) }), {
       section: "Features",
-      change: `Blender sea resolution (${label}): ${name}`,
+      change: `${sea} sea resolution (${label}): ${name}`,
     });
-    toast(`${label}: Blender beach in ${name} for ${t.name}.`, { tone: "success" });
+    toast(`${label}: ${sea} sea in ${name} for ${t.name}.`, { tone: "success" });
   };
   return (
     <Part
@@ -299,14 +303,14 @@ function GuestSea({ t }: SectionProps) {
                   );
                 })}
               </div>
-              {/* Only for the Blender beach: the same render at three sizes (AENR-844). */}
-              {on === "blender" && (
+              {/* Only for the Blender beach and the Video sea: the same sea at several sizes (AENR-844, AENR-859). */}
+              {hasRes(on) && (
                 <fieldset className="mt-3 rounded-xl bg-slate-50 p-3 ring-1 ring-slate-200">
-                  <legend className="sr-only">Blender beach resolution — {d.label}</legend>
+                  <legend className="sr-only">{on === "blender" ? "Blender beach" : "Video sea"} resolution — {d.label}</legend>
                   <div aria-hidden="true" className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-slate-500">Resolution</div>
-                  <div className="grid gap-2 sm:grid-cols-3">
-                    {BLENDER_RES.map((r) => {
-                      const picked = blenderResOf(t, d.id) === r.id;
+                  <div className={`grid gap-2 ${SEA_RES[on].tiers.length > 3 ? "sm:grid-cols-2 xl:grid-cols-4" : "sm:grid-cols-3"}`}>
+                    {SEA_RES[on].tiers.map((r) => {
+                      const picked = seaResOf(t, on, d.id) === r.id;
                       const spec = r[d.id];
                       return (
                         <label
@@ -319,7 +323,7 @@ function GuestSea({ t }: SectionProps) {
                             value={r.id}
                             checked={picked}
                             disabled={!r.ready}
-                            onChange={() => setRes(d.id, d.label, r.id)}
+                            onChange={() => setRes(d.id, d.label, on, r.id)}
                             className="mt-0.5 h-4 w-4 accent-teal-600"
                           />
                           <span className="min-w-0 font-semibold text-[13px] text-navy-900">
@@ -329,13 +333,16 @@ function GuestSea({ t }: SectionProps) {
                             <span className="block font-normal text-[12px] text-slate-500 tabular-nums">
                               {spec.px} px{r.ready ? ` · ${spec.mb}` : ""}
                             </span>
+                            {r.heavy && r.ready && (
+                              <span className="block font-normal text-[11.5px] text-amber-700">Needs a recent computer or phone — older ones step down to Full HD.</span>
+                            )}
                           </span>
                         </label>
                       );
                     })}
                   </div>
                   <p className="mt-2 text-[12px] leading-snug text-slate-500">
-                    The same beach, only sharper. Higher resolutions download more — on phones every guest pays for it in data.
+                    {on === "blender" ? "The same beach, only sharper." : "The same water, only sharper — Full HD and 4K from a 4K master, a portrait cut on phones held upright."} Higher resolutions download more — on phones every guest pays for it in data.
                   </p>
                 </fieldset>
               )}

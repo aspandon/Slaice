@@ -21,6 +21,7 @@ export function LoopVideo({
   rate,
   period,
   onFail,
+  onSlow,
 }: {
   className: string;
   style: CSSProperties;
@@ -31,6 +32,9 @@ export function LoopVideo({
   /** The loop's period (s) when the clip is exactly periodic and runs a tail of 1 s past it. */
   period?: number;
   onFail: () => void;
+  /** The device decodes it too slowly (over a fifth of the frames dropped) — a 4K file on a
+   *  decoder that can't keep up (AENR-856): the host steps down to a smaller file. */
+  onSlow?: () => void;
 }) {
   const a = useRef<HTMLVideoElement>(null);
   const b = useRef<HTMLVideoElement>(null);
@@ -80,12 +84,21 @@ export function LoopVideo({
       else void front.play().catch(() => undefined);
     };
     document.addEventListener("visibilitychange", onVis);
+    // Measured on the playing player, from its own counts since it started.
+    const slow = onSlow
+      ? window.setInterval(() => {
+          const q = front.getVideoPlaybackQuality?.();
+          if (q && q.totalVideoFrames > 72 && q.droppedVideoFrames / q.totalVideoFrames > 0.2) onSlow();
+        }, 3000)
+      : 0;
     return () => {
+      window.clearInterval(slow);
       window.clearTimeout(timer);
       va.removeEventListener("timeupdate", tick);
       vb.removeEventListener("timeupdate", tick);
       document.removeEventListener("visibilitychange", onVis);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onSlow is read when it fires
   }, [rate, period]);
   const list = (
     <>
