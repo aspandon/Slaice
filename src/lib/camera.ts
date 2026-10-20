@@ -69,11 +69,9 @@ export interface Shot {
   pan: number;
   /** Zoom, ≥ 1. */
   zoom: number;
-  /** Where to zoom toward, as viewport fractions (0–1): a point on the shoreline stays put. */
+  /** Where to zoom toward, as viewport fractions (0–1): that point stays put. */
   focusX: number;
   focusY: number;
-  /** Show the guest's spot glowing on the sand. */
-  pin: boolean;
 }
 
 /** Walk along the shore with the tab order (pages slide in from the same side). */
@@ -90,28 +88,30 @@ export function shotFor(
   zoneX: number | null,
   wide: boolean,
 ): Shot {
-  const centre = { pan: 0, zoom: 1, focusX: 0.5, focusY: shore, pin: false };
+  const centre = { pan: 0, zoom: 1, focusX: 0.5, focusY: shore };
   if (page === "plan") {
+    // In the wizard the camera zooms about a point down on the sand, not on the waterline: the
+    // shoreline is curved, and pivoting on it let one end sink into the first rows of sets.
+    // Pivoting below it lifts the whole waterline as the camera closes in.
+    const sand = { ...centre, focusY: Math.min(0.95, shore + 0.15) };
     // Until the wizard reports in (its code loads on demand), frame the first step.
     const w = wiz ?? { step: "when", phase: "zones", zoneId: "" };
     const zx = worldToScreenX(zoneX ?? 0.5);
-    // Zoom toward the zone's flag and bring it toward the middle of the free beach — on desktop
-    // the booking panel takes the right third, so that middle is at a third of the width.
+    // Zoom toward the zone's place along the beach and bring it toward the middle of the free
+    // beach — on desktop the booking panel takes the right third, so that middle is at a third.
     const toward = (k: number) => ({ focusX: zx, pan: ((wide ? 0.34 : 0.5) - zx) * k });
     switch (w.step) {
       case "when":
-        return { ...centre, zoom: 1.08 }; // dive down to the shore
+        return { ...sand, zoom: 1.08 }; // dive down to the shore
       case "beach":
-        return w.phase === "sets"
-          ? { ...centre, zoom: 1.3, ...toward(0.7) }
-          : { ...centre, zoom: 1.12 };
+        return w.phase === "sets" ? { ...sand, zoom: 1.3, ...toward(0.7) } : { ...sand, zoom: 1.12 };
       case "people":
-        return { ...centre, zoom: 1.18, ...toward(0.45) };
+        return { ...sand, zoom: 1.18, ...toward(0.45) };
       default:
-        return { ...centre, zoom: 1, pin: zoneX !== null }; // Pay: pull back, your spot glows
+        return centre; // Pay: pull back to the wide shot
     }
   }
-  if (page === "checkout") return { ...centre, zoom: 1, pin: zoneX !== null };
+  if (page === "checkout") return centre;
   if (page in ALONG) return { ...centre, pan: ALONG[page] };
   return { ...centre, zoom: 1.05 }; // a page deeper in (a pass, a document): a step closer
 }

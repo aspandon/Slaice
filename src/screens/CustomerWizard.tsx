@@ -660,7 +660,7 @@ function WizardInner() {
            clusters get more room to spread. */}
       {/* Desktop (≥1024px): a sticky column on the right, the beach fills the rest.
           Smaller screens: a bottom sheet the guest raises or lowers (AENR-660). */}
-      <div className="absolute z-10 inset-x-0 bottom-0 lg:inset-x-auto lg:right-0 lg:top-[68px] lg:bottom-0 lg:w-[min(460px,36vw)] lg:px-4 lg:pb-4 flex items-end lg:items-start justify-center">
+      <div className="absolute z-10 inset-x-0 bottom-0 lg:inset-x-auto lg:right-0 lg:top-[68px] lg:bottom-0 lg:w-[min(460px,36vw)] lg:px-4 lg:pb-4 flex items-end lg:flex-col lg:items-stretch lg:justify-start justify-center">
         <div className="pointer-events-auto w-full max-w-2xl glass-card rounded-t-3xl lg:rounded-3xl shadow-float flex flex-col max-h-[78vh] lg:max-h-full overflow-hidden animate-fade-down pb-safe lg:pb-0" data-flip-id="checkout-panel">
           {/* Sheet handle (phones/tablets): tap or swipe to raise / lower. */}
           <button
@@ -884,6 +884,24 @@ function WizardInner() {
             </div>
           </div>
         </div>
+        {/* The sets legend sits at the foot of the panel column (owner, AENR-784 review) — off the
+            sand, so the sets get the room under the waterline. */}
+        {showSets && (
+          <div className="hidden lg:flex mt-auto pt-3 pointer-events-auto">
+            <div className="w-full rounded-2xl glass-card px-4 py-3 text-guest-caption text-slate-700 space-y-2">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                <span className="flex items-center gap-1"><Sunbed state="a" size={14} readOnly />{tr("Available")}</span>
+                <span className="flex items-center gap-1"><Sunbed state="h" size={14} readOnly />{tr("On hold")}</span>
+                <span className="flex items-center gap-1"><Sunbed state="u" size={14} readOnly />{tr("Taken")}</span>
+                <span className="flex items-center gap-1"><Sunbed state="a" sel size={14} readOnly />{tr("Yours")}</span>
+              </div>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                {TIERS.map((ti) => <span key={ti.key} className="flex items-center gap-1"><span className="rounded px-1 text-guest-caption font-bold text-white" style={{ background: ti.color }}>{ti.letter}</span>{tr(ti.name)}</span>)}
+              </div>
+              <div className="text-slate-600">{tr("Tap a set to see its view and price.")}</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ============ The beach itself — fills the space below the menu so every
@@ -929,7 +947,7 @@ function WizardInner() {
       )}
       {/* ============ Bottom bar — guidance + always-on Slaice credit ============ */}
       <div className={`shrink-0 px-3 pb-1.5 pt-1 pointer-events-none max-lg:hidden ${showZones ? "" : "lg:mr-[min(460px,36vw)]"}`}>
-        {(showZones || showSets || showScene) && (
+        {(showZones || showScene) && (
           <div className="max-w-3xl mx-auto pointer-events-auto">
             {showZones && (
               <div className="rounded-2xl glass px-4 py-1.5 text-center">
@@ -941,18 +959,6 @@ function WizardInner() {
             {showScene && (
               <div className="rounded-2xl glass px-4 py-1.5 text-center">
                 <span className="text-guest-meta text-navy-900"><b>{pickZones.length > 1 ? pickZones.map((z) => `${ZONES.find((x) => x.id === z)?.name} ×${pickedByZone[z]}`).join(" · ") : sceneZone.name}</b> · {bedSel.length} {bedSel.length !== 1 ? tr("umbrella sets") : tr("umbrella set")} — {tr("your picks stay on the sand while you finish up.")}</span>
-              </div>
-            )}
-            {showSets && (
-              <div className="rounded-2xl glass px-4 py-2 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-guest-caption text-slate-700">
-                <span className="flex items-center gap-1"><Sunbed state="a" size={14} readOnly />{tr("Available")}</span>
-                <span className="flex items-center gap-1"><Sunbed state="h" size={14} readOnly />{tr("On hold")}</span>
-                <span className="flex items-center gap-1"><Sunbed state="u" size={14} readOnly />{tr("Taken")}</span>
-                <span className="flex items-center gap-1"><Sunbed state="a" sel size={14} readOnly />{tr("Yours")}</span>
-                <span className="text-slate-500">·</span>
-                {TIERS.map((ti) => <span key={ti.key} className="flex items-center gap-1"><span className="rounded px-1 text-guest-caption font-bold text-white" style={{ background: ti.color }}>{ti.letter}</span>{tr(ti.name)}</span>)}
-                <span className="text-slate-500">·</span>
-                <span className="text-slate-600">{tr("Tap a set to see its view and price.")}</span>
               </div>
             )}
           </div>

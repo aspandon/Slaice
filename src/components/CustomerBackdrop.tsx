@@ -6,7 +6,6 @@ import { prefersReducedMotion, staticBackdrop, useLiteScene } from "../lib/motio
 import { dayLight, WEATHER_DEMO } from "../data/beach";
 import type { SeaEnv } from "./LiveSeaCanvas";
 import { WeatherFxCanvas } from "./WeatherFx";
-import { BeachWorld } from "./BeachWorld";
 import { useGuestScene } from "../lib/useGuestScene";
 import { useApp } from "../app/store";
 import { DUR } from "../lib/fx";
@@ -86,8 +85,8 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
   // margins and no transform: the backdrop exactly as before.
   const cameraOn = useCameraOn();
   const wiz = useWizardShot();
-  const { zoneMap, cart, background } = useApp();
-  const zoneId = (page === "plan" ? wiz?.zoneId : cart.find((i) => i.kind === "sunbed" && i.zoneId)?.zoneId) ?? null;
+  const { zoneMap } = useApp();
+  const zoneId = (page === "plan" ? wiz?.zoneId : null) ?? null;
   const zx = zoneId ? zoneMap.find((z) => z.id === zoneId)?.x : undefined;
   const zoneX = zx == null ? null : zoneWorldX(zx);
   const shot = cameraOn ? shotFor(page, page === "plan" ? wiz : null, target, zoneX, wide) : null;
@@ -157,19 +156,6 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
         style={cameraOn ? { left: `${-MARGIN_X * 100}%`, right: `${-MARGIN_X * 100}%`, top: `${-MARGIN_Y * 100}%`, bottom: `${-MARGIN_Y * 100}%` } : { inset: 0 }}
       >
         <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax={!stat} shoreline={drawShore} noVeg={immersive} seaEnv={seaEnv} />
-        {/* The one beach's landmarks and zone flags (AENR-784); the stock scenes only — an
-            uploaded photo has no shoreline to stand them on. */}
-        {cameraOn && background.kind !== "custom" && (
-          <BeachWorld
-            shoreline={drawShore}
-            zones={zoneMap.map((z) => ({ id: z.id, name: z.name, color: z.color, x: zoneWorldX(z.x) }))}
-            flags={page !== "plan" || wiz?.step === "review"}
-            labels={wide || page === "checkout" || (page === "plan" && wiz?.step === "review")}
-            pin={shot?.pin ? zoneId : null}
-            pan={shot?.pan ?? 0}
-            onSand={!(immersive && wide)}
-          />
-        )}
       </div>
       {/* The life-buoy bobs in the water, always in a slot content never uses
           (AENR-744): while browsing, in the left margin beside the 72rem content
