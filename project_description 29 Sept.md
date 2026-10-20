@@ -402,7 +402,7 @@ Four pages with distinct names (AENR-642); old `invoicing` and `commission` link
     the glowing spot) were removed at the owner's review.
   - **Cost:** transforms only; the live WebGL sea renders at a correspondingly lower pixel ratio in the
     larger layer, so tap latency matches the camera-off backdrop (UX-18 budget).
-  - **Switch, per tenant** (AENR-785): Platform › tenant › **Features** › Guest site › **One-beach camera**
+  - **Switch, per tenant** (AENR-785): Platform › tenant › **Modules & features** › Features › Guest site › **One-beach camera**
     (on by default, audited like the other switches); the guest site follows its tenant's setting, and the
     customer Demo menu shows and changes the same setting for the beach being previewed. Off, or reduced
     motion, gives the previous still backdrop exactly. Code: `src/lib/camera.ts` (shots) and
@@ -413,8 +413,8 @@ Four pages with distinct names (AENR-642); old `invoicing` and `commission` link
   digits, no layout shift; once on arrival, then on every change); "Enjoy your day" and My bookings'
   season headline rise line by line from behind a mask (SplitText); the confirmation's booking reference
   decodes into place (ScrambleText). Screen readers get the final text at once; reduced motion: static.
-- **Walk along the shore** (AENR-788, `src/screens/customer/ShoreWalk.tsx`; tenant switch Platform › tenant ›
-  Guest site › **Walk along the shore**, on by default): in Plan › Where the zones stand along a beach
+- **Walk along the shore** (AENR-788, `src/screens/customer/ShoreWalk.tsx`; tenant switch Platform › tenant › Modules &
+  features › Guest site › **Walk along the shore**, on by default): in Plan › Where the zones stand along a beach
   panorama the guest drags sideways with momentum (GSAP Draggable + Inertia); it settles with one zone in
   the middle — larger, its sets map, free count and price — while the far sea, the foam line and the near
   sand move at their own speeds (parallax). ← / → buttons and the arrow keys walk one zone (focus follows),
@@ -2249,17 +2249,28 @@ For a guest who isn't at the beach yet — Support Agent, Call Center and Admin 
   environment tag (Sandbox / Demo — excluded from portfolio MRR unless switched on), data region, account
   manager; **⋯** menu — View as tenant user, Preview customer site, Send onboarding / remediation link, Copy ID,
   Export data, Suspend / Reactivate.
-- **Sections** come from a registry (id, label, icon, group, edit permission, badge): _Account_ — Overview
-  (Actions required ordered by severity with Send link / Tenant completed it, KPIs, health, activity), Profile
-  (+ contacts by role, ownership transfer), Contract & account, Subscription & billing, Usage & limits;
-  _Product_ — Modules, Locations & capacity, Branding & domain (DNS verify), Localisation (the Release channel section was removed in AENR-690);
-  _Money_ — Payments (Stripe flags and requirements, fees & POS terminals, payout schedule), Invoicing & tax;
-  _Access & trust_ — Users & roles (+ Slaice access, support grant, View-as history), Security, Compliance,
-  Integrations; _Support_ — Support (tickets, internal notes, one timeline), Health score (transparent 0–100
-  with weights), Audit log (actor type, filters, CSV), Data export (Queued → Preparing → Ready, 7-day links),
-  Danger zone. Every section has loading, error (demo switch in ⋯), read-only (Slaice role Viewer / Support)
-  states; edits are a draft with Save, sensitive fields ask for a reason and go to the Audit log with old → new;
-  leaving a dirty section asks first.
+- **Sections** come from a registry (id, label, icon, group, edit permission, badge), consolidated at the
+  owner's request (AENR-796–800) — each former page is now a headed **part** of one page (`Part` in `kit.tsx`:
+  h3 + description + its own actions + anchor `part-<id>`, "On this page" links under the title, one sticky
+  Unsaved-changes bar per part naming it, parts can be stricter than their page and show "Read-only"):
+  _Account_ — **Overview** (Actions required ordered by severity with Send link / Tenant completed it, KPIs,
+  health, activity, and the **usage meters and limits** at its foot — AENR-798), **Profile** (AENR-796: Identity
+  & contacts — contacts by role, ownership transfer; Contract & account, Admin-only; Locations & capacity with
+  "Open the tenant's map"; Localisation — language, timezone, currency), Subscription & billing;
+  _Product_ — **Modules & features** (AENR-797: Modules, Features — every tenant switch incl. Guest site › Live
+  weather, One-beach camera and Walk along the shore — and Integrations), Entry tickets, Branding & domain
+  (DNS verify); _Money_ — **Commercial terms** (AENR-799: Commission, fees & subscription; Payments — Stripe
+  flags and requirements, payout schedule, terminals & e-invoicing, onboarding link; Invoicing & tax — myDATA,
+  series, VAT, accountant, provider); _Access & trust_ — **Users & roles** (AENR-800: Users with Add user, Staff
+  roles — Admin-only, Slaice access — assigned team, support grant, View-as sessions), Security, Compliance;
+  _Support_ — Support (tickets, internal notes, one timeline), Health score (transparent 0–100 with weights),
+  Audit log (actor type, filters, CSV), Data export (Queued → Preparing → Ready, 7-day links), Danger zone.
+  **Old links** keep working (`SECTION_ALIASES`): contract / locations / localisation → profile, features /
+  integrations → modules, usage → overview, payments / invoicing → terms, users → roles — the URL becomes
+  `…/<section>?at=<old id>` and the page scrolls to and focuses that part. Every section has loading, error
+  (demo switch in ⋯), read-only (Slaice role Viewer / Support) states; edits are a draft with Save, sensitive
+  fields ask for a reason and go to the Audit log with old → new (under the old section names); leaving with
+  any part unsaved asks first.
 - **Plans** (Super Admin › Plans): Starter / Pro / Resort Group with price, modules, limits (hard / soft) and
   commission; editing creates a new version and tenants stay on theirs until _Migrate_. **Change plan** on a
   tenant previews gained / lost modules, limits that would be exceeded (hard limits block) and the prorated
@@ -2497,7 +2508,7 @@ Events, Retail, Compliant: Stripe + MyDATA).
 
 **Entry tickets per tenant** (AENR-711): Platform › tenant › Product › **Entry tickets** — Slaice sets which ticket categories a beach sells: name, short label, short description (shown to guests), price, on sale, order (↑/↓) and remove; add new categories (e.g. Student). At least one category stays on sale; removed or switched-off categories disappear for guests and staff, past sales keep their label. For the demo beach this is the same list (and editor, `TicketCategoryEditor`) its manager edits in Products › Entry tickets, so a change is live at once in the booking wizard, the till's Quick keys and the walk-in sale; other tenants keep theirs on the tenant record (`ticketCats`). Prices by period and weekday / weekend stay with the beach (Products › Entry tickets).
 
-**Roles per tenant** (AENR-716): Platform › tenant › Access & trust › **Roles** lists the six staff roles with how many people hold each and which pages each opens. Slaice turns Call Center, Cashier, Controller, Support Agent and Accountant on or off per tenant; Manager / Admin is always on (every beach needs someone who owns configuration, staff and refunds). Turning off a role people hold asks for confirmation, names them and flags anyone left with no other role. A role that is off disappears for that tenant — not offered in the Team & roles or Platform Users & roles pickers, not in Your roles or View as, and its pages show a calm "<Role> isn't used at <beach>" card; people keep the role as a dashed "disabled for this beach" chip, so turning it back on restores access. The Demo persona switcher still reaches every persona but shows a disabled one greyed "Disabled for <beach>". Changes are written to the tenant's Audit log. (Single source: `tenant.roles`, read through `useTenantFeatures().role`.)
+**Roles per tenant** (AENR-716): Platform › tenant › Access & trust › **Users & roles** › Staff roles lists the six staff roles with how many people hold each and which pages each opens. Slaice turns Call Center, Cashier, Controller, Support Agent and Accountant on or off per tenant; Manager / Admin is always on (every beach needs someone who owns configuration, staff and refunds). Turning off a role people hold asks for confirmation, names them and flags anyone left with no other role. A role that is off disappears for that tenant — not offered in the Team & roles or Platform Users & roles pickers, not in Your roles or View as, and its pages show a calm "<Role> isn't used at <beach>" card; people keep the role as a dashed "disabled for this beach" chip, so turning it back on restores access. The Demo persona switcher still reaches every persona but shows a disabled one greyed "Disabled for <beach>". Changes are written to the tenant's Audit log. (Single source: `tenant.roles`, read through `useTenantFeatures().role`.)
 
 **Invite users with 2-step sign-in** (AENR-718): Team & roles and Platform › tenant › Users & roles share one directory. Add user needs full name, a valid unique e-mail, a mobile in international format (Greek: +30 and 10 digits starting 69) and at least one role the beach uses (plus an optional till PIN for till roles). Saving creates an **Invited** user and shows the simulated invitation e-mail from Slaice (username, sign-in address, **Set your password**, valid 72 h); the table shows "Invited · sent N min ago" with Resend, Revoke (Undo) and E-mail, and expired / revoked states with Resend / Re-invite. The link opens the first sign-in: a password against visible rules (10+ characters, upper and lower case, a number, a symbol, not the name or username) with a strength meter and confirmation; then a 2-step method — SMS to the masked mobile, e-mail code or authenticator app (QR + manual key); then a 6-digit code (5 tries, resend) → **Active** with the method shown. Admins can also reset 2-step, suspend, reactivate and delete. Demo: nothing is sent — the code appears in a notification and 123456 always works.
 
