@@ -201,8 +201,9 @@ export const TENANT_FEATURES: readonly TenantFeatureDef[] = [
    Which sea a tenant's guests see — one choice for desktop (1024 px and up), one for
    phones and tablets. Classic is today's sea (its three switches above still apply);
    Coastal the lightweight realistic shader (AENR-811); Video a looping aerial video of
-   real water (AENR-814). Missing = Classic, so nothing changes until Slaice picks. */
-export type SeaStyle = "classic" | "coastal" | "video";
+   real water (AENR-814); Blender a rendered loop of the whole beach, sea and sand
+   (AENR-827). Missing = Classic, so nothing changes until Slaice picks. */
+export type SeaStyle = "classic" | "coastal" | "video" | "blender";
 export type SeaDevice = "desktop" | "mobile";
 export type TenantSea = Partial<Record<SeaDevice, SeaStyle>>;
 export const SEA_STYLES: readonly { id: SeaStyle; label: string; description: string }[] = [
@@ -222,6 +223,12 @@ export const SEA_STYLES: readonly { id: SeaStyle; label: string; description: st
     label: "Video",
     description:
       "A looping aerial video of real water under the drawn sand — the lightest to play, graded for the weather and the time of day.",
+  },
+  {
+    id: "blender",
+    label: "Blender",
+    description:
+      "A rendered beach and sea made in Blender — realistic water over Greek sand, graded for the weather and the time of day.",
   },
 ];
 export const SEA_DEVICES: readonly { id: SeaDevice; label: string }[] = [

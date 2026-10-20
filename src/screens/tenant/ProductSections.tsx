@@ -231,7 +231,7 @@ function Features({ t }: SectionProps) {
 
 /* ---------- Guest sea (AENR-813) — a part of Modules & features ----------
    Which sea the tenant's guests see, chosen separately for desktop and for phones and
-   tablets: Classic (today's), Coastal or Video. Every sea follows the weather and the
+   tablets: Classic (today's), Coastal, Video or Blender. Every sea follows the weather and the
    time of day (AENR-815); Classic's own switches (live sea, depth, wave lines) are in
    Features above. A radio group per device; changes reach the guest site at once. */
 function GuestSea({ t }: SectionProps) {
@@ -262,7 +262,7 @@ function GuestSea({ t }: SectionProps) {
                 {d.label}
                 <span className="font-normal text-slate-500">{d.id === "desktop" ? "1024 px and wider" : "under 1024 px"}</span>
               </legend>
-              <div className="grid gap-2 sm:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                 {SEA_STYLES.map((o) => {
                   const picked = on === o.id;
                   return (

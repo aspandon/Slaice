@@ -18,4 +18,6 @@ tools/orbit/state.json
 # Blender (AENR-827) — the portable build, its cache and render frames never go in the repo
 .blender-cache/
 tools/blender/frames/
+tools/blender/assets/
+tools/blender/caus/
 *.blend1

@@ -3,7 +3,7 @@ import { LITE_SCENE_QUERY, prefersReducedMotion } from "../../lib/motion";
 
 /* ============ Fetch the tenant's sea first (AENR-838) ============
    The sea is the first thing a guest sees, and each sea is its own lazy chunk (three.js for the
-   Classic live water, the Coastal shader, the Video player and its poster). Without help the chunk
+   Classic live water, the Coastal shader, the Video player and its poster, the Blender beach). Without help the chunk
    is only asked for once React has rendered the beach. This starts it as the app boots — in
    parallel with the language file — for the sea this tenant shows on this device, read from the
    saved demo state. Back-office roles skip it (they never see the beach); so do Save-Data,
@@ -46,6 +46,14 @@ export function preloadSavedSea() {
     link.href = `${BASE}sea/sea-poster.webp`;
     document.head.appendChild(link);
     void import("./VideoSea").catch(quiet);
+  } else if (style === "blender") {
+    // The rendered beach (AENR-827): its player, and the poster of the cut this screen uses.
+    const link = document.createElement("link");
+    link.rel = "preload";
+    link.as = "image";
+    link.href = `${BASE}sea/blender/${lite && window.innerHeight > window.innerWidth ? "beach-portrait-poster.webp" : "beach-poster.webp"}`;
+    document.head.appendChild(link);
+    void import("./BlenderSea").catch(quiet);
   } else if (style === "coastal") {
     void import("./CoastalSea").catch(quiet);
   } else if (!lite && typeof WebGL2RenderingContext !== "undefined") {

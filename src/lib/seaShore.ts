@@ -51,3 +51,12 @@ export function buildShore() {
   });
   return { data, off, scale };
 }
+
+/** The sand-top curve as an SVG path (scene units), shifted by the wizard's `dy` and `off` further down
+ *  the beach, closed over the sea above it — the water's clip for a light layer drawn over a sea that
+ *  carries its own sand (the Blender sea, AENR-827). Same bezier as Beach.tsx's `sandD`. */
+export function seaAbove(dy = 0, off = 0, top = -2000) {
+  const [a, b] = SAND_SEGS;
+  const p = (pt: Pt) => `${pt[0]} ${pt[1] + dy + off}`;
+  return `M ${p(a[0])} C ${p(a[1])} ${p(a[2])} ${p(a[3])} C ${p(b[1])} ${p(b[2])} ${p(b[3])} L 1620 ${top} L -20 ${top} Z`;
+}

@@ -242,6 +242,7 @@ export function SeaLightSvg({
   twinkle,
   tint,
   wind,
+  clip,
   className = "",
 }: {
   light: SeaLight;
@@ -249,10 +250,13 @@ export function SeaLightSvg({
   twinkle?: boolean;
   tint?: "full" | "soft" | false;
   wind?: number;
+  /** Keep the light on the water (a scene-space path, its edge feathered) — over a sea that draws its own sand (Blender, AENR-827). */
+  clip?: string;
   className?: string;
 }) {
   const ref = useRef<SVGSVGElement>(null);
   const view = useSceneView(ref);
+  const cid = `sea-clip-${useId().replace(/:/g, "")}`;
   const layer = (child: ReactNode, extra = "", r?: RefObject<SVGSVGElement>) => (
     <svg
       ref={r}
@@ -261,7 +265,20 @@ export function SeaLightSvg({
       viewBox="0 0 1600 900"
       preserveAspectRatio="xMidYMid slice"
     >
-      {child}
+      {clip ? (
+        <>
+          {/* A feathered edge: the light fades out across the swash instead of stopping on a line. */}
+          <filter id={`${cid}-f`} x="-5%" y="-5%" width="110%" height="110%">
+            <feGaussianBlur stdDeviation="12" />
+          </filter>
+          <mask id={cid} maskUnits="userSpaceOnUse" x="-200" y="-2200" width="2000" height="4000">
+            <path d={clip} fill="#fff" filter={`url(#${cid}-f)`} />
+          </mask>
+          <g mask={`url(#${cid})`}>{child}</g>
+        </>
+      ) : (
+        child
+      )}
     </svg>
   );
   const group = (glints: "all" | "none" | 0 | 1) => (

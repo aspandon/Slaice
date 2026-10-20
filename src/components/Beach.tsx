@@ -1,7 +1,8 @@
-import { lazy, Suspense, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
-import type { ReactNode, RefObject } from "react";
+import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { liteScene, prefersReducedMotion, useParallax } from "../lib/motion";
-import { DUR, gsap, motionOK } from "../lib/fx";
+import { gsap, motionOK } from "../lib/fx";
+import { useShoreSlide } from "../lib/useShoreSlide";
 import { useApp } from "../app/store";
 import { presetById } from "../data/backgrounds";
 import type { BeachPreset } from "../data/backgrounds";
@@ -159,7 +160,9 @@ function SeaWavelets({ dy = 0 }: { dy?: number }) {
 
    Drawn as stacked layers of one 1600×900 scene: the sea (and its light, AENR-815),
    the sea a tenant may swap in (Coastal / Video, AENR-813), the land (wavelets,
-   foam, sand), the decor, the greenery and the top vignette. The land and the
+   foam, sand), the decor, the greenery and the top vignette. The Blender sea
+   (AENR-827) carries its own beach, so it draws over the land instead (which
+   stays as its loading state), and the decor and greenery stay out. The land and the
    greenery slide when the shoreline moves (Home ↔ Plan) — a transform, not a
    redraw (AENR-823) — so their paths run below the scene (a skirt) to never
    show a gap while they travel. */
@@ -189,6 +192,8 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky =
   // The video sea plays in its own screen-sized layer behind the scene (CustomerBackdrop, AENR-835):
   // here the water is left open, so it shows through.
   const open = style === "video";
+  // The Blender sea is a whole rendered beach — sea and sand (AENR-827).
+  const ownBeach = style === "blender";
   const light = seaEnv?.light;
   const seaSvg = useRef<SVGSVGElement>(null);
   const view = useSceneView(seaSvg);
@@ -223,7 +228,7 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky =
         )}
         {light && style === "classic" && <SeaLightGroup light={light} dy={dy} view={view} wind={seaEnv?.wind} />}
       </svg>
-      {style !== "classic" && !open && seaEnv && (
+      {style !== "classic" && !open && !ownBeach && seaEnv && (
         <SeaLayer style={style} preset={preset} dy={dy} env={seaEnv} tier={liteScene() ? "mobile" : "desktop"} onFail={() => setFailed(true)} />
       )}
 
@@ -261,13 +266,18 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky =
         </svg>
       </div>
 
+      {/* The Blender sea and beach (AENR-827), over the drawn land. */}
+      {ownBeach && seaEnv && (
+        <SeaLayer style={style} preset={preset} dy={dy} env={seaEnv} tier={liteScene() ? "mobile" : "desktop"} onFail={() => setFailed(true)} />
+      )}
+
       {/* Optional decor (sun, palms, clouds…) above the sand, behind the greenery. */}
       <svg aria-hidden="true" className={svg} viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
         {/* Cartoon clouds and birds only over the painted sea — over real water they read as blobs (AENR-814). */}
-        <SceneDecor preset={preset} id={id} noSky={noSky || style !== "classic"} />
+        {!ownBeach && <SceneDecor preset={preset} id={id} noSky={noSky || style !== "classic"} />}
       </svg>
 
-      {preset.veg && !noVeg && (
+      {preset.veg && !noVeg && !ownBeach && (
         <div ref={green} className="absolute inset-0">
           <svg aria-hidden="true" className={svg} viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" overflow="visible">
             <defs>
@@ -324,33 +334,6 @@ function Greenery({ preset, dy, fill }: { preset: BeachPreset; dy: number; fill:
   );
 }
 
-/* The shoreline moving (Home ↔ Plan, AENR-823): the scene is drawn once at the new shoreline
-   and its land layers slide there from the old one — a GSAP transform the compositor runs,
-   instead of re-rendering and repainting the whole scene on each of ~45 frames. Interrupted
-   mid-slide, the next slide starts from where the land is. Reduced motion: it simply jumps. */
-function useShoreSlide(dy: number, refs: ReadonlyArray<RefObject<HTMLElement>>) {
-  const prev = useRef(dy);
-  const rest = useRef(0); // scene units still to travel when a slide was cut short
-  useLayoutEffect(() => {
-    const from = prev.current;
-    prev.current = dy;
-    const els = refs.map((r) => r.current).filter((e): e is HTMLElement => !!e);
-    if (from === dy || !els.length || prefersReducedMotion()) return;
-    const w = els[0].offsetWidth;
-    const h = els[0].offsetHeight;
-    const k = Math.max(w / 1600, h / 900) || 1; // px per scene unit (the SVG's "slice" fit)
-    const start = from - dy + rest.current;
-    rest.current = 0;
-    const tw = gsap.fromTo(els, { y: start * k }, { y: 0, duration: DUR.shore, ease: "power3.out", force3D: true, overwrite: true, clearProps: "transform" });
-    return () => {
-      rest.current = Number(gsap.getProperty(els[0], "y")) / k;
-      tw.kill();
-      gsap.set(els, { clearProps: "transform" });
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- refs are stable
-  }, [dy]);
-}
-
 /* The animated WebGL water (three.js) is lazy-loaded so its chunk is only
    fetched on WebGL2-capable devices (desktop and modern phones alike) —
    reduced-motion users and old engines render the layered scene's static SVG
@@ -387,6 +370,8 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea, seaS
   const [altFailed, setAltFailed] = useState(false);
   const style = altFailed ? "classic" : seaStyle;
   const open = style === "video"; // played behind the scene by CustomerBackdrop (AENR-835)
+  // The Blender sea is a whole rendered beach (AENR-827): drawn over the land, in the land's plane.
+  const ownBeach = style === "blender";
   const liveSea = liveOK && sea.live && style === "classic";
   const land = useRef<HTMLDivElement>(null);
   const green = useRef<HTMLDivElement>(null);
@@ -489,7 +474,7 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea, seaS
           {seaEnv && style === "classic" && !liveSea && <SeaLightGroup light={seaEnv.light} dy={dy} view={view} wind={seaEnv.wind} />}
           <rect width="1600" height="160" fill={`url(#${id("vignette")})`} />
         </svg>
-        {style !== "classic" && !open && seaEnv && (
+        {style !== "classic" && !open && !ownBeach && seaEnv && (
           <SeaLayer style={style} preset={preset} dy={dy} env={seaEnv} tier="desktop" onFail={() => setAltFailed(true)} />
         )}
         {liveSea && (
@@ -499,7 +484,7 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea, seaS
         )}
         {/* The opaque canvas covers the SVG's vignette, so re-draw it on top —
             same viewBox + slice fitting keeps it pixel-identical. */}
-        {(liveSea || style !== "classic") && (
+        {(liveSea || (style !== "classic" && !ownBeach)) && (
           <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
             <defs>
               <linearGradient id={id("vignette-live")} x1="0" y1="0" x2="0" y2="1">
@@ -541,12 +526,28 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea, seaS
           <SandDetail preset={preset} dy={dy} mottle={preset.grain} idp={id} />
         </svg>
         </div>
-        <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
-          <SceneDecor preset={preset} id={id} liveClouds noSky={style !== "classic"} />
-        </svg>
+        {ownBeach && seaEnv ? (
+          <>
+            <SeaLayer style={style} preset={preset} dy={dy} env={seaEnv} tier="desktop" onFail={() => setAltFailed(true)} />
+            {/* It covers the far plane's top vignette: re-draw it over the rendered beach. */}
+            <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+              <defs>
+                <linearGradient id={id("vignette-own")} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="rgba(11, 37, 69, 0.35)" />
+                  <stop offset="100%" stopColor="rgba(11, 37, 69, 0)" />
+                </linearGradient>
+              </defs>
+              <rect width="1600" height="160" fill={`url(#${id("vignette-own")})`} />
+            </svg>
+          </>
+        ) : (
+          <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+            <SceneDecor preset={preset} id={id} liveClouds noSky={style !== "classic"} />
+          </svg>
+        )}
       </div>
       {/* Near plane — the vegetation belt and tree dots (moves the most). */}
-      {preset.veg && !noVeg && (
+      {preset.veg && !noVeg && !ownBeach && (
         <div ref={near} className={plane} style={overscan}>
           <div ref={green} className="absolute inset-0">
             <svg aria-hidden="true" className="absolute inset-0 w-full h-full" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" overflow="visible">
