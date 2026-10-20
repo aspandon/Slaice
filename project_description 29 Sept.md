@@ -3464,6 +3464,14 @@ src/
   so the demo clock glides. The low sun's disc stands on the horizon at sunrise and sunset; the full moon has a
   bright disc, a halo and a silver path. Cloud keeps the sea teal and clear, muted toward slate (cloudy
   sunsets keep their orange); wind adds whitecaps — curled crests, more and longer the stronger it blows.
+- **Sky at the horizon** (AENR-828, `components/sea/SkyBand.tsx`; tenant switch Platform › tenant › Modules &
+  features › Guest site › **Sky at the horizon**, on by default): once the zone and the sets are chosen — Who,
+  Pay, Checkout and the confirmation — a strip of sky slides down over the top of the sea (0.9 s, a transform;
+  reduced motion: it appears), in the hour's colours from the same photographs (`skyAt` in `lib/seaLight.ts`:
+  Greek blue by day, peach sunrise, amber golden hour, a burning sunset under a violet sky, rose dusk, night
+  with stars). The sun stands on the horizon at sunrise and sunset and climbs with the day; at night the moon
+  and its halo; clouds drift across when it's cloudy, greyed toward slate (sunsets keep their glow). Earlier
+  steps slide it away again.
 - **Demo sliders** (AENR-825): the guest Demo menu has **Weather** (Sunny · Windy · Overcast · Rainy) and
   **Time of day** sliders on every screen size; they drive the same scene state as Beach › Atmosphere, so the
   sea, the light and the weather layer follow at once. Hidden when the tenant pins the scene (AENR-737).

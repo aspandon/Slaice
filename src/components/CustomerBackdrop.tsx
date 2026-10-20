@@ -11,6 +11,7 @@ import { useGuestScene } from "../lib/useGuestScene";
 import { useApp } from "../app/store";
 import { useTenantFeatures } from "../lib/useFeatures";
 import { seaStyleOf } from "../domain/features";
+import { SkyBand } from "./sea/SkyBand";
 import { DUR } from "../lib/fx";
 import { MARGIN_X, MARGIN_Y, cameraTransform, layerShoreline, setCameraLayer, shotFor, useCameraOn, useWizardShot, zoneWorldX } from "../lib/camera";
 
@@ -71,6 +72,10 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
   // Which sea this device shows — the tenant's choice per device (AENR-813).
   const seaStyle = seaStyleOf(tenant, lite ? "mobile" : "desktop");
   const wiz = useWizardShot();
+  // The sky comes into view once the zone and the sets are chosen (AENR-828).
+  const skyStep = (page === "plan" && (wiz?.step === "people" || wiz?.step === "review")) || page === "checkout" || page === "confirm";
+  const sky = feature("guest.sky") && skyStep;
+
   const { zoneMap } = useApp();
   const zoneId = (page === "plan" ? wiz?.zoneId : null) ?? null;
   const zx = zoneId ? zoneMap.find((z) => z.id === zoneId)?.x : undefined;
@@ -150,6 +155,9 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
           <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax={!stat} shoreline={drawShore} noVeg={immersive} seaEnv={seaEnv} sea={sea} seaStyle={seaStyle} />
         </div>
       </div>
+      {/* The sky at the horizon in the later booking steps (AENR-828) — above the sea, under the grading. */}
+      {feature("guest.sky") && <SkyBand show={sky} light={light} hour={hour} />}
+
       {/* Cloud cover for overcast/rainy — drifting banks of soft grey blobs. */}
       <div className="absolute inset-0 overflow-hidden transition-opacity duration-1000" style={{ opacity: clouds }}>
         <div className="cloud-bank" />

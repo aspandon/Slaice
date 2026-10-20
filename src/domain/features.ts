@@ -77,7 +77,8 @@ export type TenantFeatureId =
   | "guest.shoreWalk"
   | "guest.liveSea"
   | "guest.seaDepth"
-  | "guest.seaDetail";
+  | "guest.seaDetail"
+  | "guest.sky";
 export type TenantFeatureGroup = "Guest site" | "Refunds" | "Cashier till";
 export interface TenantFeatureDef {
   key: TenantFeatureId;
@@ -136,6 +137,14 @@ export const TENANT_FEATURES: readonly TenantFeatureDef[] = [
     label: "Wave lines on the water",
     description:
       "Crest lines and small wavelets drawn on the open water. Off: a clean gradient sea.",
+    group: "Guest site",
+    default: true,
+  },
+  {
+    key: "guest.sky",
+    label: "Sky at the horizon",
+    description:
+      "Once a guest has chosen their zone and sets (Who, Pay, the confirmation) the view lifts to the horizon: a strip of sky in the hour's colours with the sun, or the moon and stars, and clouds when it's cloudy. Off: the sea runs to the top of the screen (AENR-828).",
     group: "Guest site",
     default: true,
   },

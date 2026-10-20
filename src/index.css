@@ -781,3 +781,28 @@ table .text-slate-400 {
 .sea-twinkle-b {
   mix-blend-mode: screen;
 }
+
+/* The sky at the horizon (AENR-828, SkyBand.tsx): slides down over the top of the sea in the later
+   booking steps — a transform, so only the compositor works. */
+.sky-band {
+  height: clamp(84px, 17vh, 170px);
+  transform: translate3d(0, -101%, 0);
+  transition: transform 900ms cubic-bezier(0.22, 0.8, 0.2, 1);
+}
+.sky-band[data-show] {
+  transform: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sky-cloud {
+    animation: sky-drift 70s linear infinite alternate;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sky-band {
+    transition: none;
+  }
+}
+@keyframes sky-drift {
+  from { transform: translate3d(-8vw, 0, 0); }
+  to { transform: translate3d(8vw, 0, 0); }
+}
