@@ -9,7 +9,7 @@ import { RoleBadges } from "../team/RoleBadges";
 import { StaffStatusCell, staffActions } from "../team/StaffCells";
 import { useStaffDirectory } from "../team/useStaffDirectory";
 import { FinanceSettingsModal } from "../PlatformFinance";
-import { KV, SectionFrame, useTenantDraft, type SectionProps } from "./kit";
+import { KV, Part, SectionFrame, useTenantDraft, type SectionProps } from "./kit";
 
 const Flag = ({ on, label }: { on: boolean; label: string }) => (
   <span
@@ -19,21 +19,24 @@ const Flag = ({ on, label }: { on: boolean; label: string }) => (
   </span>
 );
 
-/* ---------- Payments ---------- */
+/* ---------- Payments — a part of Commercial terms (AENR-799) ---------- */
 export function Payments({ t }: SectionProps) {
   const { updateTenant, toast } = usePlatform();
   const [fees, setFees] = useState(false);
   const d = useTenantDraft(t, ["stripe"] as const, "Payments", ["stripe"]);
   return (
-    <SectionFrame
+    <Part
+      id="payments"
+      icon={Icon.card}
       title="Payments"
-      sub="Stripe Connect account, terminals and payout schedule. Commission and fees: Commercial terms."
+      sub="Stripe Connect account, terminals and payout schedule."
       actions={
         <>
-          <Btn variant="outline" icon={Icon.cash} onClick={() => setFees(true)}>
+          <Btn size="sm" variant="outline" icon={Icon.cash} onClick={() => setFees(true)}>
             Terminals & e-invoicing
           </Btn>
           <Btn
+            size="sm"
             variant="indigo"
             icon={Icon.stripe}
             onClick={() => toast(`Demo — Stripe onboarding link sent to ${t.contacts[0].email}.`)}
@@ -108,17 +111,19 @@ export function Payments({ t }: SectionProps) {
           onClose={() => setFees(false)}
         />
       )}
-    </SectionFrame>
+    </Part>
   );
 }
 
-/* ---------- Invoicing & tax ---------- */
+/* ---------- Invoicing & tax — a part of Commercial terms (AENR-799) ---------- */
 export function Invoicing({ t }: SectionProps) {
   const { updateTenant, toast } = usePlatform();
   const d = useTenantDraft(t, ["invoicing"] as const, "Invoicing & tax");
   const inv = d.draft.invoicing;
   return (
-    <SectionFrame
+    <Part
+      id="invoicing"
+      icon={Icon.receipt}
       title="Invoicing & tax"
       sub="myDATA / AADE, document series, VAT and the tenant's accountant."
     >
@@ -176,7 +181,7 @@ export function Invoicing({ t }: SectionProps) {
         </div>
       </Card>
       {d.bar}
-    </SectionFrame>
+    </Part>
   );
 }
 

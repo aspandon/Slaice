@@ -13,7 +13,7 @@ import { SectionCtx, confirmLeave, type SectionProps } from "./kit";
 import { Billing, Overview, Profile } from "./AccountSections";
 import { Branding, Modules } from "./ProductSections";
 import { EntryTickets } from "./TicketSection";
-import { Compliance, Invoicing, Payments, Security, Users } from "./AccessSections";
+import { Compliance, Security, Users } from "./AccessSections";
 import { Audit, DataExport, Health, Support } from "./SupportSections";
 import { Roles } from "./RolesSection";
 import { CommercialTerms } from "./CommercialTerms";
@@ -35,6 +35,8 @@ export const SECTION_ALIASES: Record<string, string> = {
   features: "modules",
   integrations: "modules",
   usage: "overview",
+  payments: "terms",
+  invoicing: "terms",
 };
 /** The path segment (+ part anchor) for a section id, old or current. */
 export const sectionPath = (s: string) =>
@@ -109,29 +111,14 @@ export const SECTIONS: SectionDef[] = [
     render: (p) => <Branding {...p} />,
   },
   {
-    // Commission, guest fees, VAT, corporate tax, support and subscription (AENR-725 / 689).
+    // Commission, guest fees, VAT, corporate tax, support and subscription (AENR-725 / 689),
+    // plus Payments and Invoicing & tax as parts (AENR-799).
     id: "terms",
     label: "Commercial terms",
     icon: Icon.tag,
     group: "Money",
     edit: "admin",
     render: (p) => <CommercialTerms {...p} />,
-  },
-  {
-    id: "payments",
-    label: "Payments",
-    icon: Icon.card,
-    group: "Money",
-    edit: "admin",
-    render: (p) => <Payments {...p} />,
-  },
-  {
-    id: "invoicing",
-    label: "Invoicing & tax",
-    icon: Icon.receipt,
-    group: "Money",
-    edit: "admin",
-    render: (p) => <Invoicing {...p} />,
   },
   {
     // Which staff roles the tenant uses (AENR-716).
