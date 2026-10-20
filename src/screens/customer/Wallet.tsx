@@ -1,5 +1,5 @@
-import { useLayoutEffect, useState } from "react";
-import type { CSSProperties, ReactNode } from "react";
+import { useState } from "react";
+import type { ReactNode } from "react";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
 import { Badge, Btn, EmptyState, ErrorState, NotMvpBadge, Skeleton } from "../../components/ui";
@@ -27,39 +27,36 @@ import { useTenantFeatures } from "../../lib/useFeatures";
         with their name and a QR),
      4. rewards, then badges (roadmap features, marked FUTURE).
    Every section is one translucent panel with the same heading (WalletSection), on one
-   rhythm: 24px between panels, 16px / 24px inside, 16px under the heading. On a computer
-   the hero keeps the menu bar's width and everything under it shares one wider column —
-   two passes side by side, credit beside the offers, rewards in two columns — so it never
-   reads as a stretched phone column. With previews off only entries and credit remain, so
-   credit lines up with the hero instead. A first-time guest gets each section's guided
+   rhythm: 24px between panels, 16px / 24px inside, 16px under the heading. Every panel,
+   the entries tile included, spans the same column (owner: AENR-812, replacing AENR-794's
+   menu-bar width) — on a computer two passes side by side, credit beside the offers,
+   rewards in two columns, so it never reads as a stretched phone column; the ticket stays
+   centred at its own width inside its tile. A first-time guest gets each section's guided
    empty state; passes they don't own collapse into the offers. */
 
 /** Entries shown on the Wallet; the rest live in My bookings. */
 const ENTRY_LIMIT = 4;
 
 /* One section of the Wallet: a translucent panel with the Wallet's one heading style
-   (icon + title, then any count / FUTURE badges). `style` narrows it to the hero width. */
+   (icon + title, then any count / FUTURE badges). */
 function WalletSection({
   id,
   icon: I,
   title,
   children,
   busy,
-  style,
 }: {
   id: string;
   icon: IconRenderer;
   title: ReactNode;
   children: ReactNode;
   busy?: boolean;
-  style?: CSSProperties;
 }) {
   return (
     <section
       aria-labelledby={id}
       aria-busy={busy}
       className="glass-flat rounded-3xl p-4 sm:p-6 mx-auto w-full"
-      style={style}
     >
       <h2 id={id} className="mb-4 flex flex-wrap items-center gap-2 font-display font-bold text-navy-900">
         <I size={17} className="text-teal-700" /> {title}
@@ -83,14 +80,11 @@ export function CustomerWallet() {
   const showRewards = allows({ future: true, module: "Loyalty" });
   const owned = roadmap ? [passes.vip && "vip", passes.season && "season"].filter(Boolean) : [];
   const offers = roadmap && owned.length < 2;
-  // The hero width: as wide as the menu bar above (owner, AENR-794); the full column on phones.
-  const nav = useMainNavWidth();
-  const hero = nav ? { maxWidth: nav } : undefined;
   return (
     <div className="animate-fade-up w-full max-w-4xl mx-auto space-y-6">
       <h1 className="sr-only">{t("Wallet")}</h1>
 
-      <UpcomingEntries style={hero} />
+      <UpcomingEntries />
 
       {owned.length > 0 && (
         <WalletSection
@@ -113,7 +107,7 @@ export function CustomerWallet() {
 
       {/* Money: the credit they hold, and beside it on a computer the passes they could buy. */}
       <div className={offers ? "grid gap-6 md:grid-cols-2" : ""}>
-        <BeachCredit style={roadmap ? undefined : hero} wide={roadmap && !offers} />
+        <BeachCredit wide={roadmap && !offers} />
         {offers && (
           <WalletSection id="wallet-offers" icon={Icon.sparkles} title={t("Passes you can get")}>
             <div className="grid gap-3">
@@ -209,13 +203,13 @@ export function CustomerWallet() {
 /* Beach credit: the balance (used at checkout by itself) and its latest movements. With
    nothing yet the panel keeps its shape — the €0.00 balance, and where credit comes from.
    `wide` (the full column to itself): the balance beside the movements from tablet up. */
-function BeachCredit({ style, wide = false }: { style?: CSSProperties; wide?: boolean }) {
+function BeachCredit({ wide = false }: { wide?: boolean }) {
   const money = useMoney();
   const { account } = useApp();
   const t = useT();
   const log = account.credit.log;
   return (
-    <WalletSection id="wallet-credit" icon={Icon.cash} title={t("Beach credit")} style={style}>
+    <WalletSection id="wallet-credit" icon={Icon.cash} title={t("Beach credit")}>
       <div className={wide ? "md:flex md:items-start md:gap-6" : ""}>
         <div
           className={`flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 ${wide ? "md:block md:w-56 md:shrink-0" : ""}`}
@@ -258,21 +252,20 @@ function BeachCredit({ style, wide = false }: { style?: CSSProperties; wide?: bo
 /* Upcoming entries (AENR-686): every visit still ahead (today included, cancelled ones
    left out) as a ticket with its gate QR — tap to enlarge (modal on desktop, white full
    screen on phones, the same VisitQR as Home). */
-function UpcomingEntries({ style }: { style?: CSSProperties }) {
+function UpcomingEntries() {
   const { go } = useApp();
   const t = useT();
   const { status, refetch, visits } = useVisits();
   const [open, setOpen] = useState<Visit | null>(null);
   const ahead = visits.filter((v) => v.status === "today" || v.status === "upcoming");
   const shown = ahead.slice(0, ENTRY_LIMIT);
-  // One translucent tile, as wide as the menu bar above it (owner, AENR-794); managing a visit
+  // One translucent tile, as wide as the sections below it (owner, AENR-812); managing a visit
   // stays in My bookings, a tab away — so no separate link here.
   return (
     <WalletSection
       id="wallet-entries"
       icon={Icon.ticket}
       busy={status === "loading"}
-      style={style}
       title={
         <>
           {t("Upcoming entries")}
@@ -307,19 +300,6 @@ function UpcomingEntries({ style }: { style?: CSSProperties }) {
       {open && <VisitQR v={open} onClose={() => setOpen(null)} />}
     </WalletSection>
   );
-}
-
-/** The width of the guest menu bar (desktop) — sections that line up with it use it as their max width. */
-function useMainNavWidth() {
-  const [w, setW] = useState<number | null>(null);
-  useLayoutEffect(() => {
-    const el = document.querySelector<HTMLElement>("[data-main-nav]");
-    if (!el) return;
-    const ro = new ResizeObserver(() => setW(el.offsetWidth || null));
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-  return w;
 }
 
 /* ============ Pass stack (AENR-759) ============
