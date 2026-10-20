@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import gsap from "gsap";
 import { BeachBackdrop } from "./Beach";
-import { LifeRing } from "./LifeRing";
+import { HelpRing } from "./NeedAHand";
 import { prefersReducedMotion, staticBackdrop, useLiteScene } from "../lib/motion";
 import { dayLight, WEATHER_DEMO } from "../data/beach";
 import type { SeaEnv } from "./LiveSeaCanvas";
@@ -35,7 +35,7 @@ const wideNow = () => typeof window !== "undefined" && window.matchMedia("(min-w
    share identical conditions. */
 export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
   immersive: boolean;
-  /** The decorative life-ring (off on sign-in, AENR-757). */
+  /** The life-ring "Need a hand?" button (off on sign-in, AENR-757 / 781). */
   ring?: boolean;
   /** The guest page — chooses the camera's shot (AENR-784). */
   page?: string;
@@ -152,6 +152,7 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
   const clouds = sceneFx.weather && (weather === "overcast" || weather === "rainy") ? (weather === "rainy" ? 0.7 : 0.58) : 0;
 
   return (
+    <>
     <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
       <div
         ref={camRef}
@@ -165,21 +166,6 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
           <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax={!stat} shoreline={drawShore} noVeg={immersive} seaEnv={seaEnv} sea={sea} />
         </div>
       </div>
-      {/* The life-buoy bobs in the water, always in a slot content never uses
-          (AENR-744): while browsing, in the left margin beside the 72rem content
-          column — only on screens wide enough to have one; in the desktop
-          booking flow, in the surf just off the raised shoreline; on tablets in
-          the flow, top-left, clear of the menu and the tappable sand. */}
-      {ring && <LifeRing
-        className={`absolute w-[60px] h-[60px] transition-[top,left] duration-slow ease-ios ${
-          immersive
-            ? wide
-              ? "top-[40%] left-[6%]"
-              : "hidden sm:block top-[7%] left-[8%]"
-            : "hidden min-[1360px]:block top-[72%] left-[calc((100vw-72rem)/2-84px)]"
-        }`}
-      />}
-
       {/* Cloud cover for overcast/rainy — drifting banks of soft grey blobs. */}
       <div className="absolute inset-0 overflow-hidden transition-opacity duration-1000" style={{ opacity: clouds }}>
         <div className="cloud-bank" />
@@ -211,5 +197,24 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
       />
       {particles && !lite && <WeatherFxCanvas key={`${raining}-${wd.wind}`} rain={raining} wind={wd.wind} />}
     </div>
+    {/* The life-buoy bobs in the water, always in a slot content never uses
+        (AENR-744): while browsing, in the left margin beside the 72rem content
+        column — only on screens wide enough to have one; in the desktop
+        booking flow, in the surf just off the raised shoreline; on tablets in
+        the flow, top-left, clear of the menu and the tappable sand. Phones have
+        no such slot, so it stays off there. It is the "Need a hand?" button
+        (AENR-781), so it lives outside the aria-hidden, click-through scene
+        (portalled to <body>) — same viewport coordinates, above the scene and
+        under the booking flow's layer (z-20, click-through where empty). */}
+    {ring && <HelpRing
+      className={`fixed z-10 w-[60px] h-[60px] transition-[top,left] duration-slow ease-ios ${
+        immersive
+          ? wide
+            ? "top-[40%] left-[6%]"
+            : "hidden sm:block top-[7%] left-[8%]"
+          : "hidden min-[1360px]:block top-[72%] left-[calc((100vw-72rem)/2-84px)]"
+      }`}
+    />}
+    </>
   );
 }
