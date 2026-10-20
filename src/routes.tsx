@@ -187,3 +187,28 @@ const PERSONA_MODULES: Record<PersonaId, (keyof typeof LOADERS)[]> = {
 export function prefetchPersona(persona: PersonaId) {
   for (const k of PERSONA_MODULES[persona] ?? []) void LOADERS[k]().catch(() => undefined);
 }
+
+/** The guest pages' own chunks — what a tap on that tab is about to need (AENR-837). */
+const CUSTOMER_PAGE: Record<string, keyof typeof LOADERS> = {
+  home: "customer",
+  mybookings: "customer",
+  wallet: "customer",
+  account: "customer",
+  plan: "CustomerWizard",
+  checkout: "Checkout",
+  confirm: "Checkout",
+  vip: "PassPurchase",
+  season: "PassPurchase",
+};
+const warmed = new Set<string>();
+/** Preload on intent (AENR-837): a pointer resting on, pressing or focusing a nav item starts that
+ *  page's download before the click lands. A guest page fetches just its own chunk; a back-office
+ *  role warms its screens (they are few and small next to the guest's sea). Once per page. */
+export function prefetchPage(persona: PersonaId, page: string) {
+  const key = `${persona}.${page}`;
+  if (warmed.has(key)) return;
+  warmed.add(key);
+  const k = persona === "customer" ? CUSTOMER_PAGE[page] : undefined;
+  if (k) void LOADERS[k]().catch(() => warmed.delete(key));
+  else prefetchPersona(persona);
+}

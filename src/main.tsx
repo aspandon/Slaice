@@ -12,6 +12,7 @@ import "@fontsource/ibm-plex-mono/600.css";
 import "./index.css";
 import { reloadOnceForStaleChunk } from "./lib/staleChunk";
 import { deviceLang, loadLang, normalizeLang } from "./app/i18n";
+import { preloadSavedSea } from "./components/sea/preload";
 
 // A tab opened before a deploy can fail to preload a renamed chunk. Vite fires
 // this event; recover by reloading once into the fresh build.
@@ -34,6 +35,9 @@ const savedLang = (() => {
   }
 })();
 const startLang = savedLang ? normalizeLang(savedLang) : deviceLang();
+
+// The tenant's sea starts downloading now, alongside the language (AENR-838).
+preloadSavedSea();
 
 loadLang(startLang).finally(() =>
   createRoot(root).render(

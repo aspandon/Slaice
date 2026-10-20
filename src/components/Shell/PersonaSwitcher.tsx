@@ -33,6 +33,7 @@ export function PersonaSwitcher({
 }) {
   const t = useT();
   const [newGuest, setNewGuest] = useDemoFlag("newGuest");
+  const [perf, setPerf] = useDemoFlag("perf");
   // The beach's own One-beach camera switch (Platform › tenant › Modules & features, AENR-784), reachable here too.
   const { feature: tenantFeature } = useTenantFeatures();
   const camera = tenantFeature("guest.camera");
@@ -170,6 +171,21 @@ export function PersonaSwitcher({
               </span>
             </DropdownMenu.CheckboxItem>
           )}
+          {/* A live readout of frames, tap times and long tasks (AENR-842) — on any role's screens. */}
+          <DropdownMenu.CheckboxItem
+            checked={perf}
+            onCheckedChange={(v) => setPerf(v === true)}
+            onSelect={(e) => e.preventDefault()}
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"
+          >
+            <span className="flex-1 min-w-0">
+              <span className="block font-semibold">{t("Performance overlay")}</span>
+              <span className="block text-[11px] text-slate-500 leading-tight">{t("Frames per second, tap times and long tasks, live in the corner.")}</span>
+            </span>
+            <span aria-hidden className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${perf ? "bg-teal-600" : "bg-slate-300"}`}>
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${perf ? "left-[18px]" : "left-0.5"}`} />
+            </span>
+          </DropdownMenu.CheckboxItem>
           {/* Reset (AENR-778): the simulated guest forgets their bookings, passes and basket. */}
           {persona === "customer" && newGuest && (
             <DropdownMenu.Item

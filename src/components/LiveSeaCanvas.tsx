@@ -22,6 +22,7 @@ import {
 } from "three";
 import type { IUniform } from "three";
 import type { BeachPreset } from "../data/backgrounds";
+import { isBusy } from "../lib/busy";
 
 /* ============================================================================
    Live WebGL sea — the animated water plane behind the customer surface.
@@ -510,7 +511,8 @@ export default function LiveSeaCanvas({ preset, dy, env = DEFAULT_SEA_ENV, onFai
       const g = glideRef.current;
       const gp = Math.min(1, Math.max(0, (now - g.t0) / SHORE_MS));
       const gliding = gp < 1;
-      if (!gliding && now < yieldUntil) { last = -1; return; }
+      // A page change (AENR-836) holds the water too, unless the sand is sliding.
+      if (!gliding && (now < yieldUntil || isBusy(now))) { last = -1; return; }
       // 30 fps cap: the water is slow, so every other display frame is free GPU
       // time for the page (scroll, taps, the camera) on weak machines.
       if (!gliding && last >= 0 && now - last < FRAME_MS) return;

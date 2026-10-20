@@ -15,6 +15,7 @@ import { SkyBand } from "./sea/SkyBand";
 import { SeaLayer } from "./sea/SeaLayer";
 import { presetById } from "../data/backgrounds";
 import { DUR } from "../lib/fx";
+import { markBusy } from "../lib/busy";
 import { MARGIN_X, MARGIN_Y, cameraTransform, layerShoreline, setCameraLayer, shotFor, useCameraOn, useWizardShot, zoneWorldX } from "../lib/camera";
 
 /* Sand-top fraction (0–1). Higher = thinner sand strip / ocean vista; lower lifts
@@ -104,7 +105,11 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
     // force3D "auto": composited while moving, re-rasterised crisp once the camera settles.
     // power2.inOut (AENR-819): it gets going at once with the page rather than lagging behind it.
     if (first.current) gsap.set(el, to);
-    else gsap.to(el, { ...to, duration: DUR.camera, ease: "power2.inOut", overwrite: "auto", force3D: "auto" });
+    else {
+      // The live sea holds still while the camera flies (AENR-836).
+      markBusy(DUR.camera * 1000 + 100);
+      gsap.to(el, { ...to, duration: DUR.camera, ease: "power2.inOut", overwrite: "auto", force3D: "auto" });
+    }
     first.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- shotKey captures the shot
   }, [shotKey]);

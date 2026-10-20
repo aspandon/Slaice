@@ -5,6 +5,7 @@ import { seaPixelScale } from "../../lib/camera";
 import { prefersReducedMotion } from "../../lib/motion";
 import { buildShore } from "../../lib/seaShore";
 import { NOON_LIGHT, type Rgb, type SeaLight } from "../../lib/seaLight";
+import { isBusy } from "../../lib/busy";
 import { COASTAL_FRAG, COASTAL_VERT, TEX, cellTexture, rippleTexture } from "./coastalShader";
 
 /* ============================================================================
@@ -424,7 +425,8 @@ export default function CoastalSea({
       dyNow = sliding ? dyFrom + (dyTo - dyFrom) * power3Out(Math.max(0, shoreP)) : dyTo;
       // While the sand slides the water must keep up with it, every display frame:
       // no tap-yield and no frame cap for those 780 ms.
-      if (now < yieldUntil && !sliding) {
+      // A page change holds it the same way (AENR-836).
+      if ((now < yieldUntil || isBusy(now)) && !sliding) {
         lastTick = -1;
         return wake();
       }

@@ -1,4 +1,5 @@
-import { Suspense, useState, useCallback, useEffect, useMemo, useRef } from "react";
+import { Suspense, useState, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { flushSync } from "react-dom";
 import type { ReactNode } from "react";
 import { AppCtx, DEFAULT_CRM, useT } from "./app/store";
 import type { AppContextValue, SpotlightHint, ToastOptions } from "./app/store";
@@ -12,8 +13,12 @@ import { WeatherUi } from "./components/WeatherUi";
 import { GlideLogo } from "./components/GlideLogo";
 import { useTilt } from "./lib/tilt";
 import { useMediaQuery } from "./lib/useMediaQuery";
-import { prefetchPersona, routeFor } from "./routes";
+import { prefetchPage, prefetchPersona, routeFor } from "./routes";
 import { PageGate } from "./components/Shell/PageGate";
+import { Freeze } from "./components/Shell/KeepAlive";
+import { markBusy } from "./lib/busy";
+import { prefersReducedMotion } from "./lib/motion";
+import { DISTANCE, DURATION, EASING } from "./lib/motionTokens";
 import { parseHash, buildHash, hashPath, isValidPage, resolvePage } from "./app/router";
 import { HTML_LANG, deviceLang, isLangLoaded, loadLang, normalizeLang } from "./app/i18n";
 import { DEFAULT_BACKGROUND } from "./data/backgrounds";
@@ -143,10 +148,22 @@ const CommsJanitor = lazyWithReload(() => import("./screens/communicate/Janitor"
 const OfflineBanner = lazyWithReload(() => import("./screens/cashier/TillStatus").then((m) => ({ default: m.OfflineBanner })));
 const ShiftSwitch = lazyWithReload(() => import("./screens/cashier/TillStatus").then((m) => ({ default: m.ShiftSwitch })));
 const CommandPalette = lazyWithReload(() => import("./components/CommandPalette").then((m) => ({ default: m.CommandPalette })));
+// Demo › Performance overlay (AENR-842): its own chunk, fetched only when switched on.
+const PerfOverlay = lazyWithReload(() => import("./components/PerfOverlay"));
 const GuestPass = lazyWithReload(() => import("./screens/customer/GuestPass").then((m) => ({ default: m.GuestPass })));
 
 /** The customer's tabs in navigation order — sets the direction of page transitions (AENR-750). */
 const CUSTOMER_TABS = ["home", "plan", "mybookings", "wallet", "account"];
+/** Which way a guest page change travels: toward a later tab or deeper (1), or back (-1). */
+const travel = (from: string, to: string): 1 | -1 => {
+  const a = CUSTOMER_TABS.indexOf(from);
+  const b = CUSTOMER_TABS.indexOf(to);
+  return b < 0 ? 1 : a < 0 ? -1 : b > a ? 1 : -1;
+};
+/** Guest tabs kept mounted (frozen) once visited (AENR-841). The booking wizard always starts
+ *  fresh, and Checkout / Confirmation / passes belong to one purchase, so they are not kept. */
+const KEPT_PAGES = new Set(["home", "mybookings", "wallet", "account"]);
+type VTDocument = Document & { startViewTransition?: (update: () => void) => { finished: Promise<void> } };
 
 export default function App() {
   const [persona, setPersona] = useState<PersonaId>(initialRoute.persona || saved.persona || "customer");
@@ -258,6 +275,7 @@ export default function App() {
   // Demo › first-time guest (AENR-778): swap the guest's own account and passes for an empty one
   // while the switch is on, and back when it is off — also on load, for a switch turned on earlier.
   const [newGuest] = useDemoFlag("newGuest");
+  const [perfOn] = useDemoFlag("perf");
   const applyGuest = (g: GuestSnapshot) => {
     setAccountState(g.account);
     setPasses(g.passes);
@@ -318,10 +336,35 @@ export default function App() {
   const shared = { beachLayout, zoneLogos, zoneMap, priceRules, till, finance, beachPricing, closedStores, calendar, inventory, sunbedOps, bookingOps, payLinks, weather, display, layouts, extras, account, platform, comms, privacy, incidents };
   const sharedRef = useRef(shared);
   useEffect(() => { sharedRef.current = shared; });
-  // Warm the current role's screens once the first page is up (AENR-730), so the next tap is instant.
+  // Warm the current role's screens once the first page is up (AENR-730), so the next tap is instant —
+  // quietly, when the browser is idle (AENR-837), and not at all on Save-Data (the taps below still
+  // fetch on intent).
   useEffect(() => {
-    const id = window.setTimeout(() => prefetchPersona(persona), 1500);
-    return () => window.clearTimeout(id);
+    if ((navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData) return;
+    const ric = window.requestIdleCallback;
+    if (!ric) {
+      const id = window.setTimeout(() => prefetchPersona(persona), 1500);
+      return () => window.clearTimeout(id);
+    }
+    const id = ric(() => prefetchPersona(persona), { timeout: 4000 });
+    return () => window.cancelIdleCallback(id);
+  }, [persona]);
+  // Preload on intent (AENR-837): a pointer over, a press on or focus on any nav item (data-page)
+  // starts that page's download ~100–300 ms before the click lands.
+  useEffect(() => {
+    const onIntent = (e: Event) => {
+      const el = e.target instanceof Element ? e.target.closest<HTMLElement>("[data-page]") : null;
+      if (el?.dataset.page) prefetchPage(persona, el.dataset.page);
+    };
+    const opts = { passive: true, capture: true } as const;
+    document.addEventListener("pointerover", onIntent, opts);
+    document.addEventListener("pointerdown", onIntent, opts);
+    document.addEventListener("focusin", onIntent, opts);
+    return () => {
+      document.removeEventListener("pointerover", onIntent, opts);
+      document.removeEventListener("pointerdown", onIntent, opts);
+      document.removeEventListener("focusin", onIntent, opts);
+    };
   }, [persona]);
   useEffect(() => {
     const setters: Record<keyof typeof shared, (v: never) => void> = {
@@ -389,7 +432,41 @@ export default function App() {
   }, []);
 
   const page = pageByPersona[persona];
-  const setPage = useCallback((k: string) => setPageByPersona((s) => ({ ...s, [persona]: k })), [persona]);
+  // ---- Page changes on the guest site (AENR-840) ----
+  // Where a browser has View Transitions, the page being left is captured and fades out over the
+  // new one while the new one slides in (before, the old page simply vanished). Only the old page
+  // is named for the transition: the new page stays part of the live document, so its frosted
+  // glass keeps blurring the sea behind it and the camera keeps flying (a named element would be
+  // its own isolated layer). The wizard has its own choreography and is left out; reduced motion,
+  // staff screens and older browsers change in place (with the slide-in below).
+  const mainRef = useRef<HTMLElement>(null);
+  const cur = useRef({ persona, page });
+  cur.current = { persona, page };
+  const vtRan = useRef(false);
+  const transitionTo = useCallback((toPersona: PersonaId, toPage: string | undefined, update: () => void) => {
+    const from = cur.current;
+    const main = mainRef.current;
+    const doc = document as VTDocument;
+    const guest = from.persona === "customer" && toPersona === "customer";
+    if (!guest || !toPage || toPage === from.page || from.page === "plan" || toPage === "plan" || !main || !doc.startViewTransition || prefersReducedMotion()) {
+      update();
+      return;
+    }
+    const root = document.documentElement;
+    root.dataset.pageDir = travel(from.page, toPage) > 0 ? "fwd" : "back";
+    main.style.setProperty("view-transition-name", "guest-page");
+    const vt = doc.startViewTransition(() => {
+      flushSync(update);
+      // The new page isn't captured — see above.
+      main.style.removeProperty("view-transition-name");
+    });
+    vtRan.current = true;
+    void vt.finished.finally(() => {
+      delete root.dataset.pageDir;
+      main.style.removeProperty("view-transition-name");
+    });
+  }, []);
+  const setPage = useCallback((k: string) => transitionTo(persona, k, () => setPageByPersona((s) => ({ ...s, [persona]: k }))), [persona, transitionTo]);
 
   // ---- URL routing: mirror persona+page into the location hash. ----
   const firstRoute = useRef(true);
@@ -411,8 +488,11 @@ export default function App() {
     const onPop = () => {
       const r = parseHash();
       if (!r.persona) return;
-      setPersona(r.persona);
-      if (r.page) setPageByPersona((s) => ({ ...s, [r.persona as PersonaId]: r.page as string }));
+      const to = r.persona;
+      transitionTo(to, r.page, () => {
+        setPersona(to);
+        if (r.page) setPageByPersona((s) => ({ ...s, [to]: r.page as string }));
+      });
     };
     window.addEventListener("popstate", onPop);
     window.addEventListener("hashchange", onPop);
@@ -420,7 +500,7 @@ export default function App() {
       window.removeEventListener("popstate", onPop);
       window.removeEventListener("hashchange", onPop);
     };
-  }, []);
+  }, [transitionTo]);
 
   const dismissToast = useCallback((id: number) => setToasts((t) => t.filter((x) => x.id !== id)), []);
 
@@ -434,13 +514,15 @@ export default function App() {
   const [hint, setHint] = useState<SpotlightHint | null>(null);
   const clearHint = useCallback(() => setHint(null), []);
   const go = useCallback((p: PersonaId, k?: string, h?: Partial<SpotlightHint> | null) => {
-    setPersona(p);
     // Retired page keys still work (AENR-558/559): resolve them like a hash link.
     const page = k && resolvePage(p, k);
-    if (page) setPageByPersona((s) => ({ ...s, [p]: page }));
-    setHint(h ? { ...h, persona: p, page, ts: Date.now() } : null);
+    transitionTo(p, page || undefined, () => {
+      setPersona(p);
+      if (page) setPageByPersona((s) => ({ ...s, [p]: page }));
+      setHint(h ? { ...h, persona: p, page, ts: Date.now() } : null);
+    });
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
+  }, [transitionTo]);
   // Cinematic entry into the booking wizard. The "reveal" is now the page
   // background itself: entering the "plan" page lifts the shoreline so the sand
   // sweeps up into view (see CustomerBackdrop) and the immersive flow mounts on
@@ -527,14 +609,50 @@ export default function App() {
   const [shownPage, setShownPage] = useState(page);
   const [pageDir, setPageDir] = useState<1 | -1>(1);
   if (page !== shownPage) {
-    const from = CUSTOMER_TABS.indexOf(shownPage);
-    const to = CUSTOMER_TABS.indexOf(page);
-    setPageDir(to < 0 ? 1 : from < 0 ? -1 : to > from ? 1 : -1);
+    setPageDir(travel(shownPage, page));
     setShownPage(page);
   }
+  // Keep visited guest tabs ready (AENR-841): derived while rendering, like the direction above.
+  // Leaving the guest site, or previewing a staff user, lets them go.
+  const keepOn = persona === "customer" && !viewAs;
+  const [kept, setKept] = useState<string[]>([]);
+  if (!keepOn && kept.length) setKept([]);
+  else if (keepOn && KEPT_PAGES.has(page) && !kept.includes(page)) setKept([...kept, page]);
+  // Each kept tab comes back where the guest left it; a first visit opens at the top.
+  const scrollOf = useRef<Record<string, number>>({});
+  const scrollPage = useRef(page);
+  useEffect(() => {
+    const onScroll = () => {
+      scrollOf.current[scrollPage.current] = window.scrollY;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+  const shownAt = useRef(`${persona}/${page}`);
+  useLayoutEffect(() => {
+    scrollPage.current = page;
+    const at = `${persona}/${page}`;
+    if (shownAt.current === at) return; // first load (and StrictMode's re-run)
+    shownAt.current = at;
+    // The live sea yields the frames of a page change to the page (AENR-836).
+    markBusy(DURATION.page + 160);
+    if (persona !== "customer") return;
+    if (KEPT_PAGES.has(page)) window.scrollTo({ top: scrollOf.current[page] ?? 0, behavior: "instant" });
+    // The new page slides in from the side of travel (AENR-750) — unless reduced motion, or the wizard.
+    if (page === "plan" || prefersReducedMotion()) return;
+    const pane = mainRef.current?.querySelector<HTMLElement>(`:scope > [data-pane="${page}"]`);
+    pane?.animate(
+      [
+        { opacity: 0, transform: `translateX(${pageDir * DISTANCE.page}px)` },
+        { opacity: 1, transform: "none" },
+      ],
+      // After a View Transition the old page is still fading out on top: arrive a touch later.
+      { duration: DURATION.page, delay: vtRan.current ? 40 : 0, easing: EASING.out.css, fill: "backwards" },
+    );
+    vtRan.current = false;
+  }, [persona, page, pageDir]);
   // Move focus to the new page so keyboard and screen-reader users start there
   // (not on first load, and not into the immersive wizard, which manages its own).
-  const mainRef = useRef<HTMLElement>(null);
   const focusedFor = useRef(`${persona}/${page}`);
   useEffect(() => {
     const at = `${persona}/${page}`;
@@ -629,9 +747,25 @@ export default function App() {
             // instead of floating up under short pages.
             <div className="flex-1">
               <main ref={mainRef} tabIndex={-1} className="min-w-0 outline-none">
-                <div key={page} className={immersive ? undefined : pageDir > 0 ? "animate-page-fwd" : "animate-page-back"}>
-                  {viewAs ? <AccessDenied user={viewAs} onHome={() => go(viewAsHome, DEFAULT_PAGE[viewAsHome])} /> : <PageGate persona={persona} page={page}><Suspense fallback={<RouteLoading guest />}>{routeFor(persona, page)}</Suspense></PageGate>}
-                </div>
+                {viewAs ? (
+                  <AccessDenied user={viewAs} onHome={() => go(viewAsHome, DEFAULT_PAGE[viewAsHome])} />
+                ) : (
+                  <>
+                    {/* Visited tabs stay mounted, frozen while hidden (AENR-841); other pages mount fresh. */}
+                    {kept.map((k) => (
+                      <Freeze key={k} freeze={k !== page}>
+                        <div data-pane={k}>
+                          <PageGate persona="customer" page={k}><Suspense fallback={<RouteLoading guest />}>{routeFor("customer", k)}</Suspense></PageGate>
+                        </div>
+                      </Freeze>
+                    ))}
+                    {!kept.includes(page) && (
+                      <div key={page} data-pane={page}>
+                        <PageGate persona={persona} page={page}><Suspense fallback={<RouteLoading guest />}>{routeFor(persona, page)}</Suspense></PageGate>
+                      </div>
+                    )}
+                  </>
+                )}
               </main>
             </div>
           ) : (
@@ -663,6 +797,7 @@ export default function App() {
       )}
       <ConsentBanner />
       <Toasts items={toasts} onDismiss={dismissToast} />
+      {perfOn && <Suspense fallback={null}><PerfOverlay /></Suspense>}
     </AppCtx.Provider>
   );
 }

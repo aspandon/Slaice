@@ -814,3 +814,28 @@ table .text-slate-400 {
 .sky-band[data-show] .sky-haze {
   opacity: 1;
 }
+
+/* ---- Guest page changes as View Transitions (AENR-840) ----
+   Only the page being left is captured (App.tsx › transitionTo): it fades out and drifts away from
+   the side the new page arrives from, above the live document. The rest of the screen — the sea,
+   the nav, the new page sliding in — is never a snapshot, so the root does not animate. Short
+   (the `fast` duration) so a tap is never held up; reduced motion never starts one. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+::view-transition-group(guest-page) {
+  animation: none;
+}
+::view-transition-old(guest-page) {
+  animation: guest-page-out 180ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+:root[data-page-dir="back"]::view-transition-old(guest-page) {
+  animation-name: guest-page-out-back;
+}
+@keyframes guest-page-out {
+  to { opacity: 0; transform: translateX(-14px); }
+}
+@keyframes guest-page-out-back {
+  to { opacity: 0; transform: translateX(14px); }
+}

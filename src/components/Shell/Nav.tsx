@@ -25,7 +25,7 @@ export function NavSheet({ open, onClose, persona, page, setPage }: NavProps & {
     const IconC = Icon[it.icon];
     const active = page === it.k;
     return (
-      <button key={it.k} onClick={() => { setPage(it.k); onClose(); }}
+      <button key={it.k} data-page={it.k} onClick={() => { setPage(it.k); onClose(); }}
         className={`flex items-center gap-3 px-3 min-h-[52px] rounded-xl text-[15px] font-semibold transition ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-700 hover:bg-slate-100"}`}>
         {IconC && <IconC size={19} className={active ? "" : "text-slate-500"} />}
         <span className="flex-1 text-left">{t(it.label)}</span>
@@ -78,7 +78,7 @@ export function Sidebar({ persona, page, setPage }: NavProps) {
           return (
             <Fragment key={it.k}>
             {it.group && it.group !== items[i - 1]?.group && <div className={`px-4 pt-3 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 ${rail ? "hidden xl:block" : ""}`}>{t(it.group)}</div>}
-            <button onClick={() => setPage(it.k)} title={rail ? t(it.label) : undefined} aria-current={active ? "page" : undefined}
+            <button data-page={it.k} onClick={() => setPage(it.k)} title={rail ? t(it.label) : undefined} aria-current={active ? "page" : undefined}
               className={`group relative w-full flex items-center gap-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${rail ? "justify-center min-h-[52px] xl:min-h-0 xl:justify-start xl:pl-4 xl:pr-3 xl:py-2" : "pl-4 pr-3 py-2"} ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-600 hover:bg-slate-100 hover:text-navy-900"}`}>
               <span className={`absolute left-1.5 top-2 bottom-2 w-1 rounded-full transition-all duration-200 ${active ? "bg-teal-400 opacity-100" : "bg-transparent opacity-0 group-hover:bg-teal-300 group-hover:opacity-100"}`} />
               {IconC && <IconC size={rail ? 19 : 17} className={`${active ? "" : "text-slate-500 group-hover:text-teal-600 transition-colors"} ${rail ? "xl:w-[17px] xl:h-[17px]" : ""}`} />}
@@ -110,7 +110,7 @@ export function PageTopNav({ persona, page, setPage }: NavProps) {
         const IconC = Icon[it.icon];
         const active = page === it.k;
         return (
-          <button key={it.k} onClick={() => setPage(it.k)}
+          <button key={it.k} data-page={it.k} onClick={() => setPage(it.k)}
             className={`group flex items-center gap-2 h-10 px-3 rounded-xl text-sm font-semibold whitespace-nowrap transition-all duration-150 ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-700 hover:bg-white/70 hover:text-navy-900"}`}>
             {IconC && <IconC size={16} className={active ? "" : "text-slate-500 group-hover:text-teal-600 transition-colors"} />}
             <span>{t(it.label)}</span>
@@ -134,7 +134,7 @@ export function CustomerNav({ page, setPage }: Pick<NavProps, "page" | "setPage"
           const IconC = Icon[it.icon];
           const active = page === it.k;
           return (
-            <button key={it.k} type="button" onClick={() => setPage(it.k)} aria-current={active ? "page" : undefined}
+            <button key={it.k} data-page={it.k} type="button" onClick={() => setPage(it.k)} aria-current={active ? "page" : undefined}
               className={`flex items-center gap-2 h-10 px-3.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-700 hover:bg-white/80 hover:text-navy-900"}`}>
               {IconC && <IconC size={16} className={active ? "" : "text-slate-500"} />}
               {t(it.label)}
@@ -150,10 +150,10 @@ export function CustomerNav({ page, setPage }: Pick<NavProps, "page" | "setPage"
    was a new component type on every render, so each page change remounted the
    buttons and dropped keyboard focus. `current` marks a page tab (aria-current)
    — "More" only looks active; `line` draws the static top marker. */
-function TabButton({ icon, label, active, current = false, line, onClick, badge }: { icon: string | IconRenderer; label: ReactNode; active: boolean; current?: boolean; line: boolean; onClick: () => void; badge?: string }) {
+function TabButton({ icon, label, active, current = false, line, onClick, badge, page }: { page?: string; icon: string | IconRenderer; label: ReactNode; active: boolean; current?: boolean; line: boolean; onClick: () => void; badge?: string }) {
   const IconC = typeof icon === "string" ? Icon[icon] : icon;
   return (
-    <button type="button" onClick={onClick} aria-current={current && active ? "page" : undefined} data-tab-on={active || undefined}
+    <button type="button" data-page={page} onClick={onClick} aria-current={current && active ? "page" : undefined} data-tab-on={active || undefined}
       className={`relative flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 h-14 px-1 rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500 ${active ? "text-teal-700" : "text-slate-600"}`}>
       {active && line && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-teal-500" />}
       {IconC && <IconC size={21} />}
@@ -203,7 +203,7 @@ export function BottomTabBar({ persona, page, setPage, away = false }: NavProps 
             </>
           )}
           {primary.map((it) => (
-            <TabButton key={it.k} icon={it.icon} label={t(it.short || it.label.split(" ")[0])} badge={it.badge} active={page === it.k} current line={!water} onClick={() => setPage(it.k)} />
+            <TabButton key={it.k} page={it.k} icon={it.icon} label={t(it.short || it.label.split(" ")[0])} badge={it.badge} active={page === it.k} current line={!water} onClick={() => setPage(it.k)} />
           ))}
           {hasMore && <TabButton icon={Icon.layers} label={t("More")} active={moreActive} line={!water} onClick={() => setMoreOpen(true)} />}
         </div>
@@ -226,7 +226,7 @@ export function TillTabs({ persona, page, setPage }: NavProps) {
         const IconC = Icon[it.icon];
         const on = it.k === page;
         return (
-          <button key={it.k} type="button" aria-current={on ? "page" : undefined} onClick={() => setPage(it.k)}
+          <button key={it.k} data-page={it.k} type="button" aria-current={on ? "page" : undefined} onClick={() => setPage(it.k)}
             className={`min-h-[44px] rounded-xl inline-flex items-center justify-center gap-2 text-[14px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${on ? "bg-navy-900 text-white shadow-sm" : "text-slate-600 hover:bg-white/70 hover:text-navy-900"}`}>
             {IconC && <IconC size={16} />} {t(it.short ?? it.label)}
           </button>
