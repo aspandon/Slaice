@@ -9,6 +9,7 @@ import { AuthGate } from "./screens/auth";
 import { ConsentBanner } from "./components/ConsentBanner";
 import { CustomerBackdrop } from "./components/CustomerBackdrop";
 import { GlideLogo } from "./components/GlideLogo";
+import { useTilt } from "./lib/tilt";
 import { prefetchPersona, routeFor } from "./routes";
 import { PageGate } from "./components/Shell/PageGate";
 import { parseHash, buildHash, hashPath, isValidPage, resolvePage } from "./app/router";
@@ -510,6 +511,8 @@ export default function App() {
   // tappable surface, so the standing chrome (tenant logo, bottom tab bar) steps
   // aside and the backdrop lifts its shoreline.
   const immersive = persona === "customer" && page === "plan";
+  // The sea, the logo and the pass cards follow the phone's tilt (AENR-792).
+  useTilt(signedIn && persona === "customer");
 
   // Page transitions on the customer surface (AENR-750): a tab change slides the
   // new page in from the side of the tab you chose (Home → Account from the
@@ -568,7 +571,7 @@ export default function App() {
               aria-label="Go to home"
               // Phones: a compact logo beside the icon bar, so content starts high (AENR-649);
               // desktop keeps the large logo on Home only.
-              className={`flex max-md:justify-start md:justify-center items-center max-md:-mt-[54px] max-md:h-12 relative z-10 md:pt-1 md:pb-1 mb-2 sm:mb-4 w-fit md:w-full max-md:mr-auto group hover:opacity-90 active:opacity-75 transition-opacity`}
+              className={`tilt-logo flex max-md:justify-start md:justify-center items-center max-md:-mt-[54px] max-md:h-12 relative z-10 md:pt-1 md:pb-1 mb-2 sm:mb-4 w-fit md:w-full max-md:mr-auto group hover:opacity-90 active:opacity-75 transition-opacity`}
             >
               <GlideLogo spot="home" className={`w-auto max-md:h-9 ${page === "home" ? "md:h-[100px]" : "md:h-16"}`} />
             </button>

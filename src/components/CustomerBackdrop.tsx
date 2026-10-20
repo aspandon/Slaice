@@ -155,7 +155,11 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
         className="absolute"
         style={cameraOn ? { left: `${-MARGIN_X * 100}%`, right: `${-MARGIN_X * 100}%`, top: `${-MARGIN_Y * 100}%`, bottom: `${-MARGIN_Y * 100}%` } : { inset: 0 }}
       >
-        <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax={!stat} shoreline={drawShore} noVeg={immersive} seaEnv={seaEnv} />
+        {/* Tilt the phone (AENR-792): the scene drifts a few px with the phone — inside the
+            camera, so the two transforms never fight; still in the wizard, where sets stand on the sand. */}
+        <div className="tilt-sea absolute inset-0" data-still={immersive ? "" : undefined}>
+          <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax={!stat} shoreline={drawShore} noVeg={immersive} seaEnv={seaEnv} />
+        </div>
       </div>
       {/* The life-buoy bobs in the water, always in a slot content never uses
           (AENR-744): while browsing, in the left margin beside the 72rem content
