@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Icon } from "../../lib/icons";
 import { QR } from "../../components/charts";
 import { useApp } from "../../app/store";
 import { readHashQuery } from "../../app/router";
 import { TENANT, WEATHER_DEMO, ZONES, todayISO } from "../../data/beach";
-import { DISPLAY_TEXT, displayLangs, type DisplayText, PAIR_CODE_TTL, newPairCode, readPending, writePending, type PendingCode, availLevel, effectiveTheme, type AvailLevel, type DisplayTheme } from "../../domain/display";
+import { DISPLAY_TEXT, displayLangs, type DisplayText, PAIR_CODE_TTL, newPairCode, readPending, writePending, type PendingCode, availLevel, effectiveTheme, overviewLayout, type AvailLevel, type DisplayTheme } from "../../domain/display";
 import type { SunbedSlot, Zone } from "../../domain/types";
 import { useClosure, useLiveSlots, useNow } from "../../lib/useLiveSlots";
 
@@ -341,6 +341,10 @@ function Overview({
   T: Txt;
   title: string;
 }) {
+  // Cards along the beach in order, never overlapping (AENR-801).
+  const slots = overviewLayout(
+    stats.map((s, i) => zoneMap.find((z) => z.id === s.zone.id) ?? { id: s.zone.id, x: 6 + (i % 3) * 32 + 14, y: 30 + Math.floor(i / 3) * 30 }),
+  );
   return (
     <div
       className={`relative h-full rounded-[2vmin] overflow-hidden ${th.beach}`}
@@ -349,16 +353,14 @@ function Overview({
     >
       <div className={`absolute inset-x-0 top-0 h-[12%] ${th.sea}`} aria-hidden />
       <div className="landscape:contents portrait:grid portrait:grid-cols-2 portrait:gap-[1.6vmin] portrait:p-[2vmin] portrait:pt-[8vmin]">
-        {stats.map((s, i) => {
-          const pos = zoneMap.find((z) => z.id === s.zone.id) ?? {
-            x: 6 + (i % 3) * 32,
-            y: 30 + Math.floor(i / 3) * 30,
-          };
+        {stats.map((s) => {
+          const pos = slots.find((x) => x.id === s.zone.id);
           return (
             <div
               key={s.zone.id}
-              className={`landscape:absolute landscape:w-[28%] rounded-[1.6vmin] p-[1.6vmin] ${th.card}`}
-              style={{ left: `${pos.x}%`, top: `${Math.min(72, 15 + (pos.y - 30) * 1.3)}%` }}
+              className={`landscape:absolute landscape:left-[var(--l)] landscape:top-[var(--t)] landscape:w-[var(--w)] rounded-[1.6vmin] p-[1.6vmin] ${th.card}`}
+              // Portrait is a plain grid; the positions only apply to the landscape beach.
+              style={pos ? ({ "--l": `${pos.left}%`, "--t": `${pos.top}%`, "--w": `${pos.width}%` } as CSSProperties) : undefined}
             >
               <div className="flex items-center gap-[1vmin]">
                 {logos[s.zone.id] ? (
