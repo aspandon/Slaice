@@ -387,7 +387,8 @@ Four pages with distinct names (AENR-642); old `invoicing` and `commission` link
   motion: an instant change. CSS animations rather than the View Transitions API, which Safari 14 (in
   the support matrix) lacks.
 - **One beach, one camera** (AENR-784, owner request — reversible): every guest screen is a shot of one
-  beach and changing screen moves the camera (GSAP, `camera` 1100 ms, power3.inOut; backdrop only, never
+  beach and changing screen moves the camera (GSAP, `camera` 900 ms, power2.inOut since AENR-819 — it was 1100 ms
+  power3.inOut, which lagged behind the page and settled late; backdrop only, never
   blocks a tap). The scene sits in a layer 14 % wider and 6 % taller than the screen on each side; a shot
   is a pan plus a zoom about a point.
   - **Shots:** Home — the view from the sea; My bookings, Wallet, Account — the camera walks along the
@@ -413,6 +414,7 @@ Four pages with distinct names (AENR-642); old `invoicing` and `commission` link
   digits, no layout shift; once on arrival, then on every change); "Enjoy your day" and My bookings'
   season headline rise line by line from behind a mask (SplitText); the confirmation's booking reference
   decodes into place (ScrambleText). Screen readers get the final text at once; reduced motion: static.
+  Once a roll lands the number shows as plain text, so every digit sits on the baseline (AENR-822).
 - **Water-drop tab bar** (AENR-806, `src/components/Shell/useWaterDrop.ts`): on phones the guest's tab bar
   marks the active tab with a small teal drop at its top edge. Changing tab, the drop flows there like
   liquid — it stretches toward the new tab (the front races ahead, the tail clings to the old one), lands
@@ -424,7 +426,7 @@ Four pages with distinct names (AENR-642); old `invoicing` and `commission` link
   Wind: every umbrella on the beach map and on the set tiles sways in irregular gusts (stronger and
   quicker when Windy, a breeze in the rain; each a moment apart). Overcast and rain: soft cloud shadows
   drift slowly across the screen, over the glass panels. Rain: drops cling to the booking panel's glass and
-  a few run down it. CSS transforms only; off under reduced motion, with the manager's weather switch and
+  seven run down it, each with a bright head and a trail (made clearly visible in AENR-816). CSS transforms only; off under reduced motion, with the manager's weather switch and
   with the tenant's "Live weather and time of day" switch.
 - **The pass tears out — drag it into your wallet** (AENR-791, `src/lib/pocketDrag.ts`): after payment the
   confirmation's pass prints out of a dark slot in four short pushes (~0.9 s), with a dashed perforation
@@ -788,7 +790,8 @@ back; forward only via Continue). Footer: live **Total €** (animated) + **Back
      sand each gore grows from a folded spike by the pole into its full wedge, one after another round
      the canopy as it turns, and a soft shadow spreads under it; on a phone tile the furled umbrella
      changes into the open dome with a small overshoot; deselecting half-folds it and springs it open
-     again), the sand ripples and a price chip flies into the total, which pulses.
+     again — it turns about its pole, in the glyph's own units, and leaves no transform behind, AENR-817),
+     the sand ripples and a price chip flies into the total, which pulses.
    - Summary chip: "N umbrella sets · CE-01, CE-04 · €X × D days" + **Clear**.
    - **Back** (or the menu) returns to the zones overview (reverse zoom). Changing zone replaces the
      picked sets with that zone's suggestion (several zones on: adds to them).
@@ -3415,10 +3418,40 @@ src/
   custom photo; a **floating life-ring** that only ever sits where content doesn't (left margin beside the 72rem column on screens ≥ 1360 px, the surf line in the desktop booking flow, top-left in the tablet flow from 768 px, hidden on phones — AENR-744). It is the **"Need a hand?"** button (AENR-781, `NeedAHand.tsx`): a labelled button with a focus ring and a 60 px target that keeps its ripples and bob (paused under reduced motion) and opens a help sheet — call, message or e-mail the beach (the site tenant's contacts; the demo beach's public help line), today's hours from Locations & hours with an open-now / closed-now chip, where the lifeguard station is (the beach layout's landmark, e.g. "by the Macaw zone") with a link to Plan a visit's zones step, and three quick answers (getting in, moving or cancelling, lost property) with a link to My bookings. Inside the booking flow the sheet drops its page links, so the flow's "Leave?" check is never skipped. Phones reach the same sheet from Account › **Need a hand?**; parallax.
 - **Live sea:** a WebGL2 three.js shader (lazy, DPR-capped, phones included) that reacts to wind,
   sun glint, dusk warmth, night and clouds; falls back to SVG if WebGL2 is missing or motion is reduced.
+- **Three seas, chosen per tenant and per device** (AENR-813; Platform › tenant › Modules & features ›
+  **Guest sea**: Desktop — 1024 px and wider — and Phones and tablets, each **Classic**, **Coastal** or
+  **Video**; Classic by default, audited). Classic is today's sea (live WebGL on computers, the still
+  painted sea on phones; its Features switches — live sea, depth, wave lines — still apply). **Coastal**
+  (AENR-811) is a lightweight realistic shader in raw WebGL2 — no three.js. **Video** (AENR-814) is a
+  seamless 9.6 s loop of real water filmed straight down (`public/sea/`, Coverr licence — see
+  `CREDITS.md`; 720p WebM/MP4 ≈ 2 MB on computers, 480p MP4 ≈ 0.8 MB on phones) under the drawn sand and
+  foam, colour-graded for the light, its playback speed set by the wind; reduced motion or Save-Data get its
+  still poster with no video download, and it pauses when the tab is hidden. A swapped-in sea draws over the
+  painted sea, which stays as the loading state; if it can't run (no WebGL2, a video that won't play) the
+  guest gets Classic. Each loads in its own chunk, only for the tenants and devices that use it
+  (`components/sea/SeaLayer.tsx`).
+- **The light on the water** (AENR-815, `lib/seaLight.ts` — one model for all three seas): from the hour
+  and the weather it gives the sun's height and place (it rises on the left and sets on the right over
+  the water, July in Athens: ≈ 06:15 / 20:50), the moon, the water's colour and the reflection path. At
+  sunrise and sunset the water turns orange toward the horizon and a long, narrow column of orange glints
+  runs under the low sun, with its glow on the horizon; at night the water is deep navy with the moon (right
+  of centre, clear of the logo) and its silver path; at noon a broad shimmer of glints. Clouds and rain dim
+  the glints, the glow and the moon. The Classic WebGL sea draws it in its shader (30 fps cap; the path a
+  screen-blended sparkle column swayed by the swell); the still sea and the video get a light layer
+  (`components/sea/SeaLightSvg.tsx`, over the video as a soft glow rather than a sepia cast). Positions are
+  measured in the part of the scene the guest actually sees (the scene is cover-fitted, overscanned and moved
+  by the camera — on a portrait phone only its middle third shows), so the sun and the moon hold still on
+  screen while the camera pans. The page's golden-hour grading reads the same model.
 - **Weather** (demo): sunny / windy / overcast / rainy — sea agitation, backdrop dim, sun glint,
   clouds drifting right-to-left at per-weather speed, rain and wind-gust particles.
 - **Time of day:** dawn half-light, daylight, golden-hour warmth (muted by cloud cover), blue dusk.
-- **Shoreline animation:** the sand rises from 20% to 60% of the view when entering the wizard.
+- **Shoreline animation:** the sand rises from 20% to 60% of the view when entering the wizard. Since
+  AENR-823 the scene is drawn once at the new shoreline and its land layers (sand, foam, greenery) slide
+  there with a GSAP transform (0.78 s, power3.out) instead of the whole scene re-rendering on each of ~45
+  frames; the land runs below the scene so no gap shows while it travels, and the live water's foam edge
+  glides with it. Interrupted mid-slide, the next one starts from where the sand is.
+- **First paint** (AENR-820): before the app loads, an inline script marks the guest persona from the saved
+  demo state and the page paints in the sea's colours, so the guest site never flashes white or near-white.
 - One scene resolution for all customer pages, so Home, wizard and checkout always match.
 
 ### 20.7 Accessibility
