@@ -6,7 +6,8 @@
 #   high      1600 x 1500 desktop, 810 x 1500 phone cut  — beach-high.*,   beach-portrait-high.*
 #   fullhd    1920 x 1800 desktop, 972 x 1800 phone cut  — beach-fullhd.*, beach-portrait-fullhd.*
 # The frames may be larger than the tier (High is cut from the Full HD render): they are scaled
-# down, never up. Bitrates grow with the pixel count, so every tier looks equally clean.
+# down, never up. Standard keeps its first encode's rates; High and Full HD get ~0.10 bit per pixel
+# (H.264) / 0.08 (VP9) — moving water and foam are fine detail that a lean encode smears.
 set -eu
 FR="$(cd "$1" && pwd)"; OUT="$2"; TIER="${3:-standard}"; NF="${4:-192}"; TAIL="${5:-24}"
 case "$TIER" in
@@ -31,9 +32,13 @@ else
   DESK="scale=$W:$H:flags=lanczos"
   CROP="crop=$SPW:$SH:$SX:0,scale=$PW:$H:flags=lanczos"
 fi
-# Bitrates (kbit/s), scaled from the Standard tier's by the pixel count.
-k() { echo $(($1 * W * W / 1280 / 1280)); }
-B264=$(k 2600); BVP9=$(k 2200); P264=$(k 950); PVP9=$(k 800)
+# Bitrates (kbit/s): bits per pixel (in thousandths) x pixels x 24 fps.
+r() { echo $(($1 * $2 * H * 24 / 1000 / 1000)); }
+if [ "$TIER" = standard ]; then
+  B264=2600; BVP9=2200; P264=950; PVP9=800
+else
+  B264=$(r 100 "$W"); BVP9=$(r 80 "$W"); P264=$(r 100 "$PW"); PVP9=$(r 80 "$PW")
+fi
 
 SEQ="$FR/seq"
 rm -rf "$SEQ"; mkdir -p "$SEQ" "$OUT"

@@ -4,7 +4,7 @@
 # numpy + Pillow (for the caustics) and ffmpeg (libx264, libvpx-vp9, libwebp). About 2 h on 4 CPUs.
 #
 #   tools/blender/render.sh            Standard: 1280 x 1200, 4 spp + OpenImageDenoise, 192 frames (~1.5 h)
-#   tools/blender/render.sh fullhd     Full HD: 1920 x 1800 (~4 h), encoded as Full HD and as High
+#   tools/blender/render.sh fullhd     Full HD: 1920 x 1800, 0.05 m mesh (~4 h), encoded as Full HD and as High
 #                                      (1600 x 1500, scaled down from it) — AENR-844
 #   tools/blender/render.sh preview    one 640 x 600 frame, to check a look quickly
 # An interrupted render resumes: frames already written are skipped.
@@ -33,7 +33,9 @@ if [ "${1:-}" = "preview" ]; then
 fi
 export SKIP_EXISTING=1
 if [ "$TIER" = fullhd ]; then
-  "$BIN" -b --factory-startup -P "$HERE/beach.py" -- 1920 1800 4 "$WORK/f_%03d.png" 0 192
+  # A finer surface mesh (0.05 m): the foam, the wet sand and the swell shading are worked out per
+  # vertex, and at 0.1 m they would be coarser than the Full HD pixels.
+  GRID=0.05 "$BIN" -b --factory-startup -P "$HERE/beach.py" -- 1920 1800 4 "$WORK/f_%03d.png" 0 192
   sh "$HERE/encode.sh" "$WORK" "$ROOT/public/sea/blender" fullhd
   sh "$HERE/encode.sh" "$WORK" "$ROOT/public/sea/blender" high
 else

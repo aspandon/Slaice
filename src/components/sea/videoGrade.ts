@@ -7,6 +7,8 @@ export function grade(env: SeaEnv) {
   const { night: n, warm: w, cloud: c } = env.light;
   const brightness = 1 - 0.38 * n - 0.1 * c + 0.04 * w;
   const saturate = Math.max(0.4, 1 - 0.4 * c - 0.25 * n);
+  // A clear midday needs no grade: "none" spares the browser a render surface for the video (AENR-844).
+  if (Math.abs(brightness - 1) < 0.005 && Math.abs(saturate - 1) < 0.005) return "none";
   return `brightness(${brightness.toFixed(3)}) saturate(${saturate.toFixed(3)})`;
 }
 
