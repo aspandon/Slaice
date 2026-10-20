@@ -1,4 +1,4 @@
-import { rgbCss, skyAt, type SeaLight } from "../../lib/seaLight";
+import { mix, rgbCss, skyAt, type SeaLight } from "../../lib/seaLight";
 
 /* ============ A strip of sky at the horizon (AENR-828) ============
    Once the guest has chosen their zone and their sets (Who, Pay, the confirmation) the view lifts
@@ -38,80 +38,94 @@ export function SkyBand({ show, light, hour }: { show: boolean; light: SeaLight;
   const warm = light.warm;
   const sunColor = warm > 0.15 ? "#ffd27a" : "#fffbe8";
   const cloudy = light.cloud > 0.15;
+  // Aerial haze (owner, AENR-828): far away the sky turns pale and the sea loses its contrast,
+  // so the two meet in a soft bright band, never a hard line — milky by day, a warm glow at
+  // sunrise and sunset, only a faint lift at night.
+  const haze = mix(horizon, [1, 1, 1], 0.38 * (1 - night) * (1 - 0.4 * warm));
+  const hazeA = 0.85 - 0.45 * night;
   return (
     <div
       aria-hidden="true"
-      className="sky-band absolute inset-x-0 top-0 overflow-hidden"
+      className="sky-band absolute inset-x-0 top-0"
       data-show={show ? "" : undefined}
-      style={{ background: `linear-gradient(${rgbCss(zenith)}, ${rgbCss(horizon)})` }}
     >
-      {/* Stars at night, fading out at dawn. */}
-      {night > 0.3 &&
-        STARS.map(([x, y, sz], i) => (
-          <span
-            key={i}
-            className="absolute rounded-full bg-white"
-            style={{
-              left: `${x}%`,
-              top: `${y}%`,
-              width: sz,
-              height: sz,
-              opacity: (night - 0.3) * (0.5 + (i % 3) * 0.2),
-            }}
-          />
-        ))}
-      {/* The sun, with its glow — through the cloud only faintly. */}
-      {sunUp && (
-        <span
-          className="absolute -translate-x-1/2 translate-y-1/2 rounded-full"
-          style={{
-            left: `${light.sunX * 100}%`,
-            bottom: `${sunY}%`,
-            width: 30,
-            height: 30,
-            background: sunColor,
-            boxShadow: `0 0 28px 12px ${rgbCss(light.glitter.color, 0.55)}, 0 0 90px 40px ${rgbCss(light.glitter.color, 0.25)}`,
-            opacity: 1 - light.cloud * 0.75,
-          }}
-        />
-      )}
-      {/* The moon and its halo. */}
-      {light.moon.strength > 0.05 && (
-        <span
-          className="absolute -translate-x-1/2 translate-y-1/2 rounded-full"
-          style={{
-            left: `${light.moon.x * 100}%`,
-            bottom: "52%",
-            width: 26,
-            height: 26,
-            background: "radial-gradient(circle at 40% 38%, #ffffff, #e6eaf6 60%, #cfd6ea)",
-            boxShadow: "0 0 26px 10px rgba(220,230,255,0.35), 0 0 80px 36px rgba(200,215,255,0.16)",
-            opacity: Math.min(1, light.moon.strength * 1.5),
-          }}
-        />
-      )}
-      {/* Clouds drifting with the wind. */}
-      {cloudy &&
-        CLOUDS.map(([x, y, w, d], i) => (
-          <span
-            key={i}
-            className="sky-cloud absolute rounded-full"
-            style={{
-              left: `${x}%`,
-              top: `${y}%`,
-              width: `${w}%`,
-              height: "38%",
-              animationDelay: `${d}s`,
-              background: `radial-gradient(closest-side, ${rgbCss(night > 0.5 ? [0.35, 0.4, 0.5] : warm > 0.3 ? [0.55, 0.42, 0.5] : [0.92, 0.94, 0.96], 0.85)}, transparent)`,
-              opacity: Math.min(1, light.cloud * 1.1),
-            }}
-          />
-        ))}
-      {/* The horizon: a soft haze where the sky meets the sea. */}
+      {/* The haze carries on below the horizon, over the far sea, fading out toward the shore. */}
       <span
-        className="absolute inset-x-0 bottom-0 h-3"
-        style={{ background: `linear-gradient(transparent, ${rgbCss(horizon, 0.9)})` }}
+        className="sky-haze absolute inset-x-0 top-full h-[clamp(48px,11vh,110px)]"
+        style={{
+          background: `linear-gradient(${rgbCss(haze, hazeA)}, ${rgbCss(haze, hazeA * 0.42)} 28%, ${rgbCss(haze, hazeA * 0.12)} 62%, ${rgbCss(haze, 0)})`,
+        }}
       />
+      <div
+        className="absolute inset-0 overflow-hidden"
+        style={{
+          background: `linear-gradient(${rgbCss(zenith)}, ${rgbCss(horizon)} 72%, ${rgbCss(haze)})`,
+        }}
+      >
+        {/* Stars at night, fading out at dawn. */}
+        {night > 0.3 &&
+          STARS.map(([x, y, sz], i) => (
+            <span
+              key={i}
+              className="absolute rounded-full bg-white"
+              style={{
+                left: `${x}%`,
+                top: `${y}%`,
+                width: sz,
+                height: sz,
+                opacity: (night - 0.3) * (0.5 + (i % 3) * 0.2),
+              }}
+            />
+          ))}
+        {/* The sun, with its glow — through the cloud only faintly. */}
+        {sunUp && (
+          <span
+            className="absolute -translate-x-1/2 translate-y-1/2 rounded-full"
+            style={{
+              left: `${light.sunX * 100}%`,
+              bottom: `${sunY}%`,
+              width: 30,
+              height: 30,
+              background: sunColor,
+              boxShadow: `0 0 28px 12px ${rgbCss(light.glitter.color, 0.55)}, 0 0 90px 40px ${rgbCss(light.glitter.color, 0.25)}`,
+              opacity: 1 - light.cloud * 0.75,
+            }}
+          />
+        )}
+        {/* The moon and its halo. */}
+        {light.moon.strength > 0.05 && (
+          <span
+            className="absolute -translate-x-1/2 translate-y-1/2 rounded-full"
+            style={{
+              left: `${light.moon.x * 100}%`,
+              bottom: "52%",
+              width: 26,
+              height: 26,
+              background: "radial-gradient(circle at 40% 38%, #ffffff, #e6eaf6 60%, #cfd6ea)",
+              boxShadow:
+                "0 0 26px 10px rgba(220,230,255,0.35), 0 0 80px 36px rgba(200,215,255,0.16)",
+              opacity: Math.min(1, light.moon.strength * 1.5),
+            }}
+          />
+        )}
+        {/* Clouds drifting with the wind. */}
+        {cloudy &&
+          CLOUDS.map(([x, y, w, d], i) => (
+            <span
+              key={i}
+              className="sky-cloud absolute rounded-full"
+              style={{
+                left: `${x}%`,
+                top: `${y}%`,
+                width: `${w}%`,
+                height: "38%",
+                animationDelay: `${d}s`,
+                background: `radial-gradient(closest-side, ${rgbCss(night > 0.5 ? [0.35, 0.4, 0.5] : warm > 0.3 ? [0.55, 0.42, 0.5] : [0.92, 0.94, 0.96], 0.85)}, transparent)`,
+                opacity: Math.min(1, light.cloud * 1.1),
+              }}
+            />
+          ))}
+      </div>
     </div>
   );
 }

@@ -806,3 +806,11 @@ table .text-slate-400 {
   from { transform: translate3d(-8vw, 0, 0); }
   to { transform: translate3d(8vw, 0, 0); }
 }
+/* The haze below the horizon fades with the sky (it hangs below the band, so it would show when hidden). */
+.sky-haze {
+  opacity: 0;
+  transition: opacity 700ms ease;
+}
+.sky-band[data-show] .sky-haze {
+  opacity: 1;
+}

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import gsap from "gsap";
-import { BeachBackdrop } from "./Beach";
+import { BeachBackdrop, shorelineShift } from "./Beach";
 import { HelpRing } from "./NeedAHand";
 import { staticBackdrop, useLiteScene } from "../lib/motion";
 import { WEATHER_DEMO } from "../data/beach";
@@ -12,6 +12,8 @@ import { useApp } from "../app/store";
 import { useTenantFeatures } from "../lib/useFeatures";
 import { seaStyleOf } from "../domain/features";
 import { SkyBand } from "./sea/SkyBand";
+import { SeaLayer } from "./sea/SeaLayer";
+import { presetById } from "../data/backgrounds";
 import { DUR } from "../lib/fx";
 import { MARGIN_X, MARGIN_Y, cameraTransform, layerShoreline, setCameraLayer, shotFor, useCameraOn, useWizardShot, zoneWorldX } from "../lib/camera";
 
@@ -70,13 +72,16 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
   const { feature, tenant } = useTenantFeatures();
   const sea = { live: feature("guest.liveSea"), depth: feature("guest.seaDepth"), detail: feature("guest.seaDetail") };
   // Which sea this device shows — the tenant's choice per device (AENR-813).
-  const seaStyle = seaStyleOf(tenant, lite ? "mobile" : "desktop");
+  // A video that can't play hands the beach back to Classic.
+  const [videoFailed, setVideoFailed] = useState(false);
+  const chosen = seaStyleOf(tenant, lite ? "mobile" : "desktop");
+  const seaStyle = chosen === "video" && videoFailed ? "classic" : chosen;
   const wiz = useWizardShot();
   // The sky comes into view once the zone and the sets are chosen (AENR-828).
   const skyStep = (page === "plan" && (wiz?.step === "people" || wiz?.step === "review")) || page === "checkout" || page === "confirm";
   const sky = feature("guest.sky") && skyStep;
 
-  const { zoneMap } = useApp();
+  const { zoneMap, background } = useApp();
   const zoneId = (page === "plan" ? wiz?.zoneId : null) ?? null;
   const zx = zoneId ? zoneMap.find((z) => z.id === zoneId)?.x : undefined;
   const zoneX = zx == null ? null : zoneWorldX(zx);
@@ -143,6 +148,12 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
   return (
     <>
     <div aria-hidden="true" className="fixed inset-0 -z-10 pointer-events-none">
+      {/* The video sea, behind the scene and outside the camera (AENR-835): at screen size the water
+          keeps its filmed scale and sharpness; the scene above leaves its water open. The far water
+          doesn't follow the camera's pans — at a distance it wouldn't visibly move. */}
+      {seaStyle === "video" && (
+        <SeaLayer style="video" preset={presetById(background.kind === "preset" ? background.id : "akti")} dy={shorelineShift(shoreline)} env={seaEnv} tier={lite ? "mobile" : "desktop"} onFail={() => setVideoFailed(true)} />
+      )}
       <div
         ref={camRef}
         data-camera=""
@@ -187,7 +198,11 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
         className="absolute inset-0 transition-opacity duration-700"
         style={{ opacity: wd.dim, mixBlendMode: "multiply", background: "#42566e" }}
       />
-      {particles && !lite && <WeatherFxCanvas key={`${raining}-${wd.wind}`} rain={raining} wind={wd.wind} />}
+      {/* Over a real-water sea (Video, Blender) only the rain falls — the drawn wind streaks read as
+          scratches over footage (owner, AENR-834). */}
+      {particles && !lite && (seaStyle === "classic" || seaStyle === "coastal" || raining) && (
+        <WeatherFxCanvas key={`${raining}-${wd.wind}`} rain={raining} wind={seaStyle === "classic" || seaStyle === "coastal" ? wd.wind : 0} />
+      )}
     </div>
     {/* The life-buoy bobs in the water, always in a slot content never uses
         (AENR-744): while browsing, in the left margin beside the 72rem content

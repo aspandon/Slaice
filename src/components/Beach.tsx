@@ -216,7 +216,7 @@ export function BeachBackdrop({ children, className = "", pos = "relative", para
    backdrop). At a low shoreline the vegetation belt slides off-canvas, leaving
    clean sand. */
 const SAND_TOP = 500;
-const shorelineShift = (shoreline?: number) => (shoreline == null ? 0 : Math.round(shoreline * 900 - SAND_TOP));
+export const shorelineShift = (shoreline?: number) => (shoreline == null ? 0 : Math.round(shoreline * 900 - SAND_TOP));
 const sandD = (dy = 0) => `M -20 ${500 + dy} C 220 ${460 + dy} 440 ${555 + dy} 740 ${510 + dy} S 1200 ${450 + dy} 1620 ${510 + dy} L 1620 900 L -20 900 Z`;
 const foamD = (dy = 0) => `M -20 ${470 + dy} C 200 ${430 + dy} 420 ${520 + dy} 720 ${480 + dy} S 1180 ${420 + dy} 1620 ${480 + dy} L 1620 ${540 + dy} L -20 ${540 + dy} Z`;
 /* Open parallel of the sand-top curve, `off` px further down the beach. The
@@ -328,6 +328,9 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky =
   useShoreSlide(dy, [land, green]);
   const [failed, setFailed] = useState(false);
   const style = failed ? "classic" : seaStyle;
+  // The video sea plays in its own screen-sized layer behind the scene (CustomerBackdrop, AENR-835):
+  // here the water is left open, so it shows through.
+  const open = style === "video";
   const light = seaEnv?.light;
   const seaSvg = useRef<SVGSVGElement>(null);
   const view = useSceneView(seaSvg);
@@ -350,10 +353,10 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky =
             </radialGradient>
           )}
         </defs>
-        <rect width="1600" height="900" fill={`url(#${id("sea")})`} />
+        {!open && <rect width="1600" height="900" fill={`url(#${id("sea")})`} />}
         {/* The noon sheen fades with the light: no white glare at night or under cloud. */}
-        {preset.glint && <rect width="1600" height="900" fill={`url(#${id("glint")})`} opacity={light ? (1 - light.night) * (1 - 0.8 * light.cloud) * (1 - 0.6 * light.warm) : 1} />}
-        {detail && preset.waves > 0 && (
+        {!open && preset.glint && <rect width="1600" height="900" fill={`url(#${id("glint")})`} opacity={light ? (1 - light.night) * (1 - 0.8 * light.cloud) * (1 - 0.6 * light.warm) : 1} />}
+        {!open && detail && preset.waves > 0 && (
           <g opacity="0.35" stroke="white" fill="none" strokeLinecap="round">
             {WAVES.slice(0, preset.waves).map((wv, i) => (
               <path key={i} d={wv.d} strokeWidth={wv.sw} opacity={wv.o} />
@@ -362,7 +365,7 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky =
         )}
         {light && style === "classic" && <SeaLightGroup light={light} dy={dy} view={view} wind={seaEnv?.wind} />}
       </svg>
-      {style !== "classic" && seaEnv && (
+      {style !== "classic" && !open && seaEnv && (
         <SeaLayer style={style} preset={preset} dy={dy} env={seaEnv} tier={liteScene() ? "mobile" : "desktop"} onFail={() => setFailed(true)} />
       )}
 
@@ -525,6 +528,7 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea, seaS
   // A swapped-in sea (Coastal / Video, AENR-813) replaces the Classic live water; if it fails, Classic returns.
   const [altFailed, setAltFailed] = useState(false);
   const style = altFailed ? "classic" : seaStyle;
+  const open = style === "video"; // played behind the scene by CustomerBackdrop (AENR-835)
   const liveSea = liveOK && sea.live && style === "classic";
   const land = useRef<HTMLDivElement>(null);
   const green = useRef<HTMLDivElement>(null);
@@ -613,9 +617,9 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea, seaS
               <stop offset="100%" stopColor="rgba(11, 37, 69, 0)" />
             </linearGradient>
           </defs>
-          <rect width="1600" height="900" fill={`url(#${id("sea")})`} />
-          {preset.glint && <rect width="1600" height="900" fill={`url(#${id("glint")})`} />}
-          {sea.detail && preset.waves > 0 && (
+          {!open && <rect width="1600" height="900" fill={`url(#${id("sea")})`} />}
+          {!open && preset.glint && <rect width="1600" height="900" fill={`url(#${id("glint")})`} />}
+          {!open && sea.detail && preset.waves > 0 && (
             <g opacity="0.35" stroke="white" fill="none" strokeLinecap="round">
               {WAVES.slice(0, preset.waves).map((wv, i) => (
                 <path key={i} d={wv.d} strokeWidth={wv.sw} opacity={wv.o} />
@@ -627,7 +631,7 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea, seaS
           {seaEnv && style === "classic" && !liveSea && <SeaLightGroup light={seaEnv.light} dy={dy} view={view} wind={seaEnv.wind} />}
           <rect width="1600" height="160" fill={`url(#${id("vignette")})`} />
         </svg>
-        {style !== "classic" && seaEnv && (
+        {style !== "classic" && !open && seaEnv && (
           <SeaLayer style={style} preset={preset} dy={dy} env={seaEnv} tier="desktop" onFail={() => setAltFailed(true)} />
         )}
         {liveSea && (

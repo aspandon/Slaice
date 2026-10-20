@@ -171,7 +171,9 @@ function WizardInner() {
   // Lockers / parking only when the beach has the module (AENR-696) — the Pay row, the usual and the basket.
   const { module, feature } = useTenantFeatures();
   // Walk along the shore to choose a zone (AENR-788) — the tenant's switch.
-  const shoreWalk = feature("guest.shoreWalk");
+  // Walk along the shore is the phone's zone picker (AENR-788); on desktop the zones stand on the
+  // sand as a panorama of the whole beach (owner, AENR-833).
+  const shoreWalkOn = feature("guest.shoreWalk");
   const zoneOrder = useZoneOrder();
   const canLocker = module("Day Locker");
   const canParking = module("Parking");
@@ -258,6 +260,7 @@ function WizardInner() {
   const [phase, setPhase] = useState<BeachPhase>(plan ? "sets" : "zones");
   // Desktop overview = clusters on open sand (FLIP-zoomable); phones = cards.
   const richOverview = useMediaQuery("(min-width: 768px) and (min-height: 560px)");
+  const shoreWalk = shoreWalkOn && !richOverview;
   // Camera-zoom plumbing: the captured FLIP state riding across the phase
   // switch, whether the next zones-mount should enter via FLIP (vs the usual
   // stagger), and a guard against re-entrant taps mid-transition.
