@@ -467,9 +467,12 @@ Four pages with distinct names (AENR-642); old `invoicing` and `commission` link
   work on every sensor reading (its worst cost, restyling the whole page each reading, was measured and
   fixed first in AENR-847: 3.75 s of style recalculation per 4 s while the phone moved, taps 280–504 ms →
   96–224 ms at 4× CPU). There is no orientation listener and no iPhone motion-permission prompt; the
-  beach is no longer scaled up to hide moving edges. On computers the pass cards' foil shimmer still
-  follows the mouse pointer (`src/lib/foilPointer.ts`, `--pointer-x / --pointer-y`, written on `.foil`
-  only, not inherited); still on phones and under reduced motion.
+  beach is no longer scaled up to hide moving edges. **No pointer tilt either** (AENR-850, owner: it
+  consumes resources and adds nothing significant): on computers the Home VIP / Season tiles no longer
+  lean in 3D toward the cursor with a light sweep (`useCardTilt` removed), the pass cards' foil is a still
+  highlight instead of following the mouse, and a free set's canopy on the pick map no longer leans toward
+  the pointer (AENR-832). Hover feedback stays: the tiles' shadow lift, a set's lift and drop shadow, the
+  umbrella opening on pick.
 - **Bottom tab bar** on phones (guest and staff) on a near-solid material (`.tabbar-material`, AENR-753) with
   a 20 px fade above it, so content dissolves before reaching the bar instead of reading through it; with a **More** sheet when a persona has more than 5 destinations. In
   the booking wizard it slides away and the step's own action bar (total + Back/Continue) is the only
@@ -815,8 +818,7 @@ back; forward only via Continue). Footer: live **Total €** (animated) + **Back
      and sunset, a soft patch under cloud, a faint moon shadow at night; the staff and booking canvas draws the
      same shadow. Picking a set unrolls a **towel in the zone's colour** along each lounger (≈350 ms, the second a
      moment later; two white bands near the foot) and rolls it back up when let go — on phone tiles a striped
-     strip along the foot. On a mouse or trackpad a free set's canopy **leans a few degrees toward the pointer**
-     and settles back (no tilt on touch, keyboard focus or reduced motion). A **matching icon family**
+     strip along the foot. (The canopy's lean toward the pointer was removed, AENR-850.) A **matching icon family**
      (`components/productIcons.tsx`: sunbed set, cabana / VIP bed, day locker, parking spot, entry ticket — the
      parasol's scalloped hem as the shared motif, the app's line weight, one accent surface each, legible from 16
      to 48 px) is used across the wizard, Home, Wallet, the guest pass and My bookings. States still read by shape

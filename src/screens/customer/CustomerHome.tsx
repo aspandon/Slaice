@@ -5,7 +5,7 @@ import { SunbedSetIcon } from "../../components/productIcons";
 import type { IconRenderer } from "../../lib/icons";
 import { Badge, Btn, NotMvpBadge } from "../../components/ui";
 import { PassCard } from "../../components/PassCard";
-import { gsap, motionOK, DUR, EASE, useMagnetic, useCardTilt } from "../../lib/fx";
+import { gsap, motionOK, DUR, EASE, useMagnetic } from "../../lib/fx";
 import { ZONES, zoneLayout, WEATHER_DEMO, TENANT, forecastFor, todayISO, chipLabel } from "../../data/beach";
 import { QR } from "../../components/charts";
 import { qrCode } from "../../domain/entry";
@@ -587,21 +587,18 @@ function RewardsStrip({ rewards, ready }: { rewards: ReturnType<typeof activeRew
   );
 }
 
-/* VIP credit tile — the tenant membership card art + a buy/top-up footer.
-   Tilts in 3D toward the cursor with a light sweep across the card art
-   (useCardTilt owns the transform, so hover lift is shadow-only here). */
+/* VIP credit tile — the tenant membership card art + a buy/top-up footer. It lifts its shadow on
+   hover; no tilt toward the cursor (removed, AENR-850). */
 export function VipTile() {
   const money = useMoney();
   const { go, passes, passPricing, clearPass } = useApp();
   const me = useGuestRecord();
   const t = useT();
-  const tilt = useCardTilt<HTMLDivElement>(6);
   const vip = passes.vip;
   const from = Math.min(...passPricing.vipTiers);
   const disc = Math.round(passPricing.vipDiscount * 100);
   return (
-    <div ref={tilt} className={`${CARD} flex flex-col w-full transition-shadow duration-300 hover:shadow-lift`} data-home-card>
-      <span aria-hidden="true" className="sheen-card" />
+    <div className={`${CARD} flex flex-col w-full transition-shadow duration-300 hover:shadow-lift`} data-home-card>
       <button onClick={() => go("customer", "vip")} aria-label={`${vip ? t("Top up VIP credit") : t("Get VIP Pass")} · ${t("FUTURE")}`} className="block w-full group">
         <PassCard kind="vip" holder={me.cardName} subtitle={vip ? `€${vip.balance.toLocaleString("en-GB")} CREDIT` : `MEMBER · ${disc}% OFF`} validUntil={SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
       </button>
@@ -619,18 +616,16 @@ export function VipTile() {
 }
 
 /* Season pass tile — the tenant membership card art + a buy/manage footer.
-   Same 3D tilt + light sweep as the VIP tile. */
+   Lifts its shadow on hover, like the VIP tile. */
 export function SeasonTile() {
   const money = useMoney();
   const { go, passes, passPricing, clearPass } = useApp();
   const me = useGuestRecord();
   const t = useT();
-  const tilt = useCardTilt<HTMLDivElement>(6);
   const season = passes.season;
   const from = Math.min(passPricing.seasonMonthly, passPricing.seasonSummer);
   return (
-    <div ref={tilt} className={`${CARD} flex flex-col w-full transition-shadow duration-300 hover:shadow-lift`} data-home-card>
-      <span aria-hidden="true" className="sheen-card" />
+    <div className={`${CARD} flex flex-col w-full transition-shadow duration-300 hover:shadow-lift`} data-home-card>
       <button onClick={() => go("customer", "season")} aria-label={`${season ? t("Manage Season pass") : t("Get Season Pass")} · ${t("FUTURE")}`} className="block w-full group">
         <PassCard kind="season" holder={me.cardName} subtitle={season && season.plan === "monthly" ? "MONTHLY 2026" : "SUMMER 2026"} validUntil={season ? dateOf(season.validUntil) : SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
       </button>

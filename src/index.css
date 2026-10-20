@@ -360,24 +360,10 @@ html[data-persona="customer"]::-webkit-scrollbar {
       radial-gradient(circle 420px at var(--gx, 50%) var(--gy, 50%), rgba(45, 212, 191, 0.15), transparent 65%);
   }
 
-  /* Sheen that paints OVER the content — for image/SVG cards (the pass-card
-     art) where a glare across the artwork is the point. Driven by the same
-     --gx/--gy/--ga variables (useCardTilt writes them). */
-  .sheen-card {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    border-radius: inherit;
-    pointer-events: none;
-    opacity: var(--ga, 0);
-    transition: opacity 0.35s ease;
-    background: radial-gradient(circle 240px at var(--gx, 50%) var(--gy, 50%), rgba(255, 255, 255, 0.34), transparent 62%);
-  }
 
   /* ---- The pass card foil (AENR-792) ----
-     useFoilPointer (src/lib/foilPointer.ts) writes --pointer-x / --pointer-y (−1..1) on .foil on
-     computers, and the bands slide with the cursor. Still on phones (the phone tilt was removed,
-     AENR-848) and under reduced motion. */
+     A still glare and iridescent edge across the card art. It no longer moves — neither with the
+     phone (AENR-848) nor with the pointer (AENR-850). */
   .foil {
     position: absolute;
     inset: 0;
@@ -392,7 +378,7 @@ html[data-persona="customer"]::-webkit-scrollbar {
     content: "";
     position: absolute;
     inset: -60%;
-    transform: translate3d(var(--foil-x, -3%), var(--foil-y, -3%), 0);
+    transform: translate3d(-3%, -3%, 0);
   }
   .foil::before {
     mix-blend-mode: overlay;
@@ -402,12 +388,6 @@ html[data-persona="customer"]::-webkit-scrollbar {
     mix-blend-mode: soft-light;
     opacity: 0.55;
     background: linear-gradient(115deg, transparent 44%, rgba(255, 140, 205, 0.8) 52%, rgba(130, 220, 255, 0.8) 57%, rgba(255, 240, 160, 0.8) 62%, transparent 69%);
-  }
-  @media (prefers-reduced-motion: no-preference) {
-    .foil {
-      --foil-x: calc(-3% + var(--pointer-x, 0) * 14%);
-      --foil-y: calc(-3% + var(--pointer-y, 0) * 8%);
-    }
   }
   /* Kinetic gradient text — a gold glint periodically sweeps across the teal
      phrase (the hero's "in 60 seconds"). Static teal under reduced motion via
@@ -564,19 +544,6 @@ html[data-persona="customer"]::-webkit-scrollbar {
 }
 .scrim-bottom {
   background: linear-gradient(to top, #f6f8fb calc(100% - 1rem), rgba(246, 248, 251, 0));
-}
-
-/* The cursor across the window for the pass card foil (lib/foilPointer.ts), written on .foil only
-   and not inherited, so a move restyles the foil alone (AENR-847, AENR-848). */
-@property --pointer-x {
-  syntax: "<number>";
-  inherits: false;
-  initial-value: 0;
-}
-@property --pointer-y {
-  syntax: "<number>";
-  inherits: false;
-  initial-value: 0;
 }
 
 /* Respect users who prefer reduced motion (WCAG 2.3.3). */

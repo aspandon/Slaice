@@ -1,6 +1,6 @@
-import { useEffect, useId, useLayoutEffect, useRef } from "react";
+import { useId, useLayoutEffect, useRef } from "react";
 import type { CSSProperties } from "react";
-import { EASE, FINE_POINTER, gsap, motionOK } from "../lib/fx";
+import { EASE, gsap, motionOK } from "../lib/fx";
 import { MorphSVGPlugin } from "gsap/MorphSVGPlugin";
 import { useMoney, useT } from "../app/store";
 import type { SunbedState } from "../domain/types";
@@ -28,10 +28,8 @@ const hashOf = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0))
 
    `towel` (AENR-830): when the set is yours, a towel in the zone's colour lies on each lounger —
    it unrolls from under the canopy to the foot as you pick it, and rolls back up when let go.
-
-   `tilt` (AENR-832): on a mouse or trackpad, the canopy leans a few degrees toward the pointer
-   while it hovers the set and settles back on leave. */
-export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, className = "", towel, tilt = false }: {
+   (The canopy no longer leans toward the pointer — AENR-832's tilt was removed, AENR-850.) */
+export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, className = "", towel }: {
   state?: SunbedState;
   sel?: boolean;
   size?: number;
@@ -39,8 +37,6 @@ export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, 
   className?: string;
   /** The zone's colour — your set's towels. Omit for no towels (previews, legends). */
   towel?: string;
-  /** Lean toward the pointer on hover — free sets on the pick map only. */
-  tilt?: boolean;
 }) {
   const p = sunbedPalette(state, sel);
   const cast = useSunCast();
@@ -52,7 +48,6 @@ export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, 
   const skin = useRef<SVGGElement>(null);
   const shade = useRef<SVGGElement>(null);
   const towels = useRef<SVGGElement>(null);
-  const lean = useRef<SVGGElement>(null);
   const was = useRef(sel);
   const rawId = useId();
   const uid = `sb${rawId.replace(/[^\w-]/g, "")}`;
@@ -123,50 +118,6 @@ export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, 
       settle();
     };
   }, [sel]);
-  // Tilt toward the pointer (AENR-832): a 2D stand-in for a few degrees of rotateX/Y — the canopy
-  // drifts toward the pointer and foreshortens along that line. Its own wrapper group, so it never
-  // fights the wind sway outside it or the pick turn inside it. Fine pointers only, never on touch,
-  // taps or focus, nothing under reduced motion; quickTo keeps it on the compositor's beat.
-  useEffect(() => {
-    const g = lean.current;
-    const svg = g?.ownerSVGElement;
-    if (!tilt || !g || !svg || !motionOK() || !window.matchMedia(FINE_POINTER).matches) return;
-    // Foreshorten about the canopy's own centre (the pole): measured once, on the open canopy.
-    gsap.set(g, { transformOrigin: "50% 50%" });
-    const to = (prop: "x" | "y" | "scaleX" | "scaleY") => gsap.quickTo(g, prop, { duration: 0.35, ease: "power3.out" });
-    const qx = to("x");
-    const qy = to("y");
-    const sx = to("scaleX");
-    const sy = to("scaleY");
-    const clamp1 = (v: number) => Math.max(-1, Math.min(1, v));
-    // Where the pole stands on screen: the glyph is drawn loungers-up, so the canopy sits low in the box.
-    const poleY = (2 * GLYPH_CONTENT.cy - CANOPY.cy) / GLYPH_BOX;
-    const move = (e: PointerEvent) => {
-      if (e.pointerType !== "mouse") return;
-      const b = svg.getBoundingClientRect();
-      const nx = clamp1((e.clientX - (b.left + b.width / 2)) / (b.width / 2));
-      const ny = clamp1((e.clientY - (b.top + b.height * poleY)) / (b.height / 2));
-      // Canonical units are mirrored vertically, so screen-down is −y here.
-      qx(nx * TILT.shift);
-      qy(-ny * TILT.shift);
-      sx(1 - Math.abs(nx) * TILT.squash);
-      sy(1 - Math.abs(ny) * TILT.squash);
-    };
-    const settle = () => {
-      qx(0);
-      qy(0);
-      sx(1);
-      sy(1);
-    };
-    svg.addEventListener("pointermove", move);
-    svg.addEventListener("pointerleave", settle);
-    return () => {
-      svg.removeEventListener("pointermove", move);
-      svg.removeEventListener("pointerleave", settle);
-      gsap.killTweensOf(g);
-      gsap.to(g, { x: 0, y: 0, scaleX: 1, scaleY: 1, duration: 0.25, ease: EASE.out, onComplete: () => { gsap.set(g, { clearProps: "transform" }); } });
-    };
-  }, [tilt]);
   const { cx, cy, r } = CANOPY;
   // Light on the dome: the highlight sits toward the sun, the far rim shades off.
   const hx = cx + cast.lx * 5;
@@ -226,7 +177,6 @@ export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, 
         {/* Pinwheel parasol — state-hue gores alternating with white. The outer group sways in the
             wind (AENR-807, CSS), the inner one opens on pick (GSAP) — two transforms that never fight. */}
         <g data-canopy="" style={{ "--gust-delay": gustDelay } as CSSProperties}>
-        <g ref={lean} data-tilt="">
         <g ref={canopy}>
           {CANOPY_WEDGES.map((wdg, i) => (
             <path key={`w${i}`} data-gore="" d={wdg.d} fill={wdg.lite ? p.lite : p.c} stroke={SEAM} strokeWidth={0.45} strokeLinejoin="round" />
@@ -242,14 +192,10 @@ export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, 
           <circle cx={FIN.cx + cast.lx * 0.7} cy={FIN.cy + cast.ly * 0.7} r={0.75} fill="#ffffff" fillOpacity={0.35 + 0.5 * cast.lit} />
         </g>
         </g>
-        </g>
       </g>
     </svg>
   );
 }
-
-/** How far the canopy leans toward the pointer (AENR-832): drift in glyph units, foreshortening. */
-const TILT = { shift: 3.2, squash: 0.07 } as const;
 
 /** Hairline seams between the gores, and the deepest shade the dome takes on its far side. */
 const SEAM = "rgba(11,37,69,0.2)";
@@ -303,7 +249,7 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
       className={`group relative ${block || fill ? "w-full h-full grid place-items-center" : ""} ${interactive ? "cursor-pointer hover:-translate-y-1.5 hover:scale-[1.18] hover:z-20" : (dim || held) && !readOnly ? "cursor-not-allowed" : "cursor-default"} transition-transform duration-200 ease-spring`}
       style={{ lineHeight: 0, willChange: "transform", ...lift }}
     >
-      <SunbedMark state={state} sel={sel} size={size} fill={fill} towel={towel} tilt={interactive && state === "a" && !sel} className="transition-[filter] duration-200 group-hover:drop-shadow-[var(--lift-x)_var(--lift-y)_10px_rgba(60,42,20,0.45)]" />
+      <SunbedMark state={state} sel={sel} size={size} fill={fill} towel={towel} className="transition-[filter] duration-200 group-hover:drop-shadow-[var(--lift-x)_var(--lift-y)_10px_rgba(60,42,20,0.45)]" />
       {!dim && label && (
         <span className="opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-30 px-3 py-2 rounded-xl bg-navy-900/95 text-white whitespace-nowrap shadow-float ring-1 ring-white/10 transition-opacity duration-150">
           <span className="block font-bold text-[12.5px] leading-none tnum">{label}</span>

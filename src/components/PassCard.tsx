@@ -6,7 +6,7 @@ import { SEASON_END_LABEL } from "../data/passes";
    Responsive (scales to its container via the viewBox) with dynamic holder /
    number / subtitle / valid-until. A black QR sits top-right (where the sun was).
    IDs are per-instance so several can render at once. A foil shimmer rides
-   over the art, moved by the tilt (src/lib/tilt.ts). */
+   over the art (still since AENR-850). */
 
 type PassKind = "vip" | "season";
 
@@ -101,8 +101,7 @@ export function PassCard({ kind, holder, number = "NO. 0042", subtitle, validUnt
           <text x="556" y="263" textAnchor="end" fontFamily="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" fontSize="19" fontWeight="600" fill={c.ink.number} style={{ letterSpacing: "1.5px" }}>{number}</text>
         </g>
       </svg>
-      {/* Foil shimmer (AENR-792): a light band across the art that follows the cursor on computers
-          (lib/foilPointer.ts, --pointer-x / --pointer-y); still on phones. */}
+      {/* Foil (AENR-792): a still light band across the art — it no longer moves (AENR-848, 850). */}
       <span aria-hidden="true" className="foil" />
     </div>
   );

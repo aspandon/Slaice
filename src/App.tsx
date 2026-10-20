@@ -10,7 +10,6 @@ import { ConsentBanner } from "./components/ConsentBanner";
 import { CustomerBackdrop } from "./components/CustomerBackdrop";
 import { WeatherUi } from "./components/WeatherUi";
 import { GlideLogo } from "./components/GlideLogo";
-import { useFoilPointer } from "./lib/foilPointer";
 import { useMediaQuery } from "./lib/useMediaQuery";
 import { prefetchPage, prefetchPersona, routeFor } from "./routes";
 import { PageGate } from "./components/Shell/PageGate";
@@ -600,8 +599,6 @@ export default function App() {
   const immersive = persona === "customer" && page === "plan";
   // Desktop wizard layout (panel on the right, sea down to the middle) — picks which beach logo is in the DOM.
   const wide = useMediaQuery("(min-width: 1024px)");
-  // On computers the pass cards' foil follows the pointer (the phone tilt was removed, AENR-848).
-  useFoilPointer(signedIn && persona === "customer");
 
   // Page transitions on the customer surface (AENR-750): a tab change slides the
   // new page in from the side of the tab you chose (Home → Account from the

@@ -71,39 +71,3 @@ export function useMagnetic<T extends HTMLElement = HTMLElement>(strength = 0.25
   return ref;
 }
 
-/* useCardTilt — Apple-Wallet-style 3D tilt: the card leans toward the cursor
-   (max `maxDeg`) with a light sweep driven through the same --gx/--gy/--ga
-   custom properties the .sheen overlays read. Pointer-fine only; the card
-   renders flat for everyone else. Owns the element's transform. */
-export function useCardTilt<T extends HTMLElement = HTMLElement>(maxDeg = 7) {
-  const ref = useRef<T>(null);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || !motionOK() || !window.matchMedia(FINE_POINTER).matches) return;
-    gsap.set(el, { transformPerspective: 750 });
-    const toRX = gsap.quickTo(el, "rotationX", { duration: 0.45, ease: "power2.out" });
-    const toRY = gsap.quickTo(el, "rotationY", { duration: 0.45, ease: "power2.out" });
-    const onMove = (e: PointerEvent) => {
-      const r = el.getBoundingClientRect();
-      const px = (e.clientX - r.left) / r.width;
-      const py = (e.clientY - r.top) / r.height;
-      toRY((px - 0.5) * 2 * maxDeg);
-      toRX(-(py - 0.5) * 2 * maxDeg);
-      el.style.setProperty("--gx", `${e.clientX - r.left}px`);
-      el.style.setProperty("--gy", `${e.clientY - r.top}px`);
-      el.style.setProperty("--ga", "1");
-    };
-    const onLeave = () => {
-      gsap.to(el, { rotationX: 0, rotationY: 0, duration: 0.7, ease: "elastic.out(1, 0.5)" });
-      el.style.setProperty("--ga", "0");
-    };
-    el.addEventListener("pointermove", onMove);
-    el.addEventListener("pointerleave", onLeave);
-    return () => {
-      el.removeEventListener("pointermove", onMove);
-      el.removeEventListener("pointerleave", onLeave);
-      gsap.killTweensOf(el);
-    };
-  }, [maxDeg]);
-  return ref;
-}
