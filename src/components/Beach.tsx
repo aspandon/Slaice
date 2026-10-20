@@ -624,7 +624,7 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea, seaS
           )}
           {sea.detail && style === "classic" && <SeaWavelets dy={dy} />}
           {/* Sunrise, sunset and night on the still sea; the live water draws its own light. */}
-          {seaEnv && style === "classic" && !liveSea && <SeaLightGroup light={seaEnv.light} dy={dy} twinkle view={view} wind={seaEnv.wind} />}
+          {seaEnv && style === "classic" && !liveSea && <SeaLightGroup light={seaEnv.light} dy={dy} view={view} wind={seaEnv.wind} />}
           <rect width="1600" height="160" fill={`url(#${id("vignette")})`} />
         </svg>
         {style !== "classic" && seaEnv && (

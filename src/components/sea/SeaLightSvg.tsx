@@ -1,4 +1,12 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { DUR } from "../../lib/fx";
 import { rgbCss, type SeaLight } from "../../lib/seaLight";
 
@@ -12,8 +20,10 @@ import { rgbCss, type SeaLight } from "../../lib/seaLight";
    - the glow of the low sun, or the moon, at the horizon (the top edge);
    - the reflection path: a broad sheen at noon, a long narrow column of orange
      glints under a low sun, the moon's silver path at night (SeaLight.glitter).
-   `twinkle` sets the glints shimmering (CSS, off under reduced motion) — only where
-   it's cheap: a full-screen SVG repaints on every frame of it, so phones keep it still. */
+   `twinkle` (SeaLightSvg only) sets the glints shimmering the cheap way (AENR-819): the glints are
+   split across two extra layers whose opacity pulses in turn — the compositor alone runs it, the SVG
+   never repaints. Nothing inside the scene's own SVG animates (that repainted the whole scene, and
+   every blurred glass panel over it, on every frame). Off under reduced motion. */
 
 /** The part of the 1600×900 scene the guest actually sees (scene units): the scene is cover-fitted
  *  ("slice"), overscanned for parallax and moved by the camera, so on a portrait phone only its
@@ -91,7 +101,7 @@ const CAPS: ReadonlyArray<readonly [number, number, number]> = Array.from(
 export function SeaLightGroup({
   light,
   dy = 0,
-  twinkle = false,
+  glints = "all",
   tint = "full",
   view = FULL_VIEW,
   wind = 0,
@@ -102,7 +112,8 @@ export function SeaLightGroup({
   /** 0 … 1 wind — whitecaps and foam streaks from a fresh breeze up (AENR-824). */
   wind?: number;
   dy?: number;
-  twinkle?: boolean;
+  /** Which glints to draw: all, none (another layer has them), or one of the two twinkle subsets. */
+  glints?: "all" | "none" | 0 | 1;
   /** Colour the water: "full" for a painted sea; "soft" over real footage (a glow that keeps its
    *  detail, a lighter navy at night); false where the sea colours itself. */
   tint?: "full" | "soft" | false;
@@ -239,11 +250,7 @@ export function SeaLightGroup({
       {/* Whitecaps (the owner's windy photos): white crests breaking across the water, more and
           longer the stronger the wind, smaller toward the horizon; slanted with the wind. */}
       {wind > 0.45 && (
-        <g
-          fill="#ffffff"
-          opacity={Math.min(1, (wind - 0.45) / 0.45) * (1 - night * 0.6)}
-          className={twinkle ? "sea-caps" : undefined}
-        >
+        <g fill="#ffffff" opacity={Math.min(1, (wind - 0.45) / 0.45) * (1 - night * 0.6)}>
           {CAPS.map(([u, t, k], i) => {
             // A short curled crest, drawn as a stroke — longer and thicker toward the shore.
             const y = top + 20 + t * (shore - top - 30);
@@ -258,7 +265,6 @@ export function SeaLightGroup({
                 strokeWidth={(0.9 + 2.1 * t) * (0.7 + 0.5 * k)}
                 strokeLinecap="round"
                 opacity={0.4 + 0.5 * k}
-                style={twinkle ? { animationDelay: `${-((i * 0.53) % 3.2)}s` } : undefined}
               />
             );
           })}
@@ -274,8 +280,9 @@ export function SeaLightGroup({
             // Only a low sun or the moon draws a column; the noon sheen is the glints alone.
             opacity={0.85 * Math.min(1, Math.max(0, (0.3 - g.width) / 0.2))}
           />
-          <g fill={rgbCss(g.color)} className={twinkle ? "sea-glints" : undefined}>
+          <g fill={rgbCss(g.color)}>
             {GLINTS.map(([t, s, k], i) => {
+              if (glints === "none" || (glints !== "all" && i % 2 !== glints)) return null;
               const y = top + 8 + t * (shore - top - 18);
               const spread = view.w * g.width * (0.16 + 0.42 * t);
               // Glints sized to the visible view, so a phone's narrow strip isn't a stack of bars.
@@ -290,7 +297,6 @@ export function SeaLightGroup({
                   rx={w / 2}
                   ry={h / 2}
                   opacity={0.35 + 0.65 * k * (1 - Math.abs(s) * 0.6)}
-                  style={twinkle ? { animationDelay: `${-((i * 0.37) % 2.4)}s` } : undefined}
                 />
               );
             })}
@@ -319,15 +325,34 @@ export function SeaLightSvg({
 }) {
   const ref = useRef<SVGSVGElement>(null);
   const view = useSceneView(ref);
-  return (
+  const layer = (child: ReactNode, extra = "", r?: RefObject<SVGSVGElement>) => (
     <svg
-      ref={ref}
+      ref={r}
       aria-hidden="true"
-      className={`absolute inset-0 w-full h-full ${className}`}
+      className={`absolute inset-0 w-full h-full ${className} ${extra}`}
       viewBox="0 0 1600 900"
       preserveAspectRatio="xMidYMid slice"
     >
-      <SeaLightGroup light={light} dy={dy} twinkle={twinkle} tint={tint} view={view} wind={wind} />
+      {child}
     </svg>
+  );
+  const group = (glints: "all" | "none" | 0 | 1) => (
+    <SeaLightGroup
+      light={light}
+      dy={dy}
+      glints={glints}
+      tint={glints === 0 || glints === 1 ? false : tint}
+      view={view}
+      wind={glints === 0 || glints === 1 ? 0 : wind}
+    />
+  );
+  if (!twinkle) return layer(group("all"), "", ref);
+  // Two glint subsets on their own layers, pulsing in turn (compositor-only), over the rest.
+  return (
+    <>
+      {layer(group("none"), "", ref)}
+      {layer(group(0), "sea-twinkle-a")}
+      {layer(group(1), "sea-twinkle-b")}
+    </>
   );
 }

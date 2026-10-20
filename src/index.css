@@ -760,21 +760,24 @@ table .text-slate-400 {
   100% { transform: translate3d(-1px, 120vh, 0); opacity: 0.9; }
 }
 
-/* The glints on the reflection path shimmer (AENR-815, SeaLightSvg) — desktop only, still under reduced motion. */
+/* The glints on the reflection path shimmer (AENR-815 / 819, SeaLightSvg): two glint layers pulse in
+   turn — opacity on whole layers, so only the compositor works. Still under reduced motion. */
 @media (prefers-reduced-motion: no-preference) {
-  .sea-glints > ellipse {
-    animation: sea-glint 2.4s ease-in-out infinite;
+  .sea-twinkle-a {
+    animation: sea-twinkle 2.6s ease-in-out infinite;
+    will-change: opacity;
   }
-  .sea-caps > path {
-    animation: sea-cap 3.2s ease-in-out infinite;
+  .sea-twinkle-b {
+    animation: sea-twinkle 2.6s ease-in-out infinite -1.3s;
+    will-change: opacity;
   }
 }
-@keyframes sea-cap {
-  0%, 100% { opacity: 0; }
-  20% { opacity: 0.85; }
-  55% { opacity: 0.25; }
+@keyframes sea-twinkle {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
 }
-@keyframes sea-glint {
-  0%, 100% { opacity: 0.15; }
-  45% { opacity: 1; }
+/* The glint layers lighten what is under them, like the glints drawn in the scene. */
+.sea-twinkle-a,
+.sea-twinkle-b {
+  mix-blend-mode: screen;
 }
