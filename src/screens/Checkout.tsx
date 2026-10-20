@@ -11,7 +11,7 @@ import { Card, Btn, EmptyState, NotMvpBadge, SwipeRow, Toggle } from "../compone
 import { QR } from "../components/charts";
 import { qrCode } from "../domain/entry";
 import { TenantLogo } from "../components/Brand";
-import { AppleLogo, WalletOptions, WalletPocket, WalletSheetFor, deviceWallets } from "../components/WalletPass";
+import { AppleLogo, WalletPocket, WalletSheetFor, deviceWallets } from "../components/WalletPass";
 import { ShareSheet } from "./customer/ShareBooking";
 import { useEntry } from "../lib/useEntry";
 import { OPERATOR, TENANT, ZONES, todayISO } from "../data/beach";
@@ -535,6 +535,8 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
   const [live] = useState(motionOK);
   const drag = useRef<PocketDrag | null>(null);
   const [dropped, setDropped] = useState<WalletKind | null>(null);
+  // A pocket tapped instead (AENR-805): the same sheet, with no pass to lift back out.
+  const [tapped, setTapped] = useState<WalletKind | null>(null);
   // The success message is shown by the payment moment (AENR-734); here the pass feeds out of a slot
   // like a receipt, its QR lands, and the actions follow. Elements render in their final state.
   useLayoutEffect(() => {
@@ -650,17 +652,14 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
       </div>
       </div>
 
-      {/* The wallets as pockets to drop the pass into (AENR-791) — the device's own, or both on a computer. */}
-      {live && (
-        <div className="mt-5 data-[docked]:sticky data-[docked]:z-20 data-[docked]:bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:data-[docked]:bottom-4" data-confirm-item data-pocket-dock>
-          <p aria-hidden data-pocket-hint className="mx-auto mb-2 flex w-max items-center gap-1.5 rounded-full glass-card-solid px-3 py-1 text-guest-meta font-semibold text-slate-700">
-            <Icon.wallet size={15} className="text-teal-700" /> {inWallet ? t("Your pass is in your wallet") : t("Drag your pass into your wallet")}
-          </p>
-          <div className="flex gap-3">{deviceWallets().map((k) => <WalletPocket key={k} kind={k} added={inWallet === k} />)}</div>
-        </div>
-      )}
-      {/* Keep it (wallet, calendar) and send it to the group (AENR-715); the wallet badge fits the device. */}
-      <div data-confirm-item><WalletOptions pass={pass} className={live ? "mt-4" : "mt-5"} /></div>
+      {/* The wallets as pockets (AENR-791 / 805) — the device's own, or both on a computer. Drag the pass
+          into one, or tap it: each opens that wallet's add sheet. They are the page's only wallet buttons. */}
+      <div className={`mt-5 ${live ? "data-[docked]:sticky data-[docked]:z-20 data-[docked]:bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:data-[docked]:bottom-4" : ""}`} data-confirm-item data-pocket-dock>
+        <p data-pocket-hint className="mx-auto mb-2 flex w-max max-w-full items-center gap-1.5 rounded-full glass-card-solid px-3 py-1 text-guest-meta font-semibold text-slate-700">
+          <Icon.wallet size={15} aria-hidden className="text-teal-700 shrink-0" /> {inWallet ? t("Your pass is in your wallet") : live ? t("Drag your pass into a wallet, or tap one") : t("Add your pass to your wallet")}
+        </p>
+        <div className="flex gap-3">{deviceWallets().map((k) => <WalletPocket key={k} kind={k} added={inWallet === k} drag={live} onPick={() => setTapped(k)} />)}</div>
+      </div>
       <div className="mt-4 space-y-2" data-confirm-item>
         {visit && <Btn variant="teal" size="lg" full icon={Icon.send} onClick={() => setShare(true)}>{t("Share with your group")}</Btn>}
         <div className="grid grid-cols-3 gap-2">
@@ -673,6 +672,7 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
       {full && <FullscreenQR code={ref} caption={caption} onClose={() => setFull(false)} />}
       {/* Dropped into a pocket: that wallet's add sheet, as its badge opens it; closing it lifts the pass back out. */}
       {dropped && <WalletSheetFor pass={pass} kind={dropped} onClose={() => { setDropped(null); drag.current?.putBack(); }} />}
+      {tapped && <WalletSheetFor pass={pass} kind={tapped} onClose={() => setTapped(null)} />}
     </div>
   );
 }

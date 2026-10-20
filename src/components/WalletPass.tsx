@@ -122,36 +122,45 @@ export function deviceWallets(): WalletKind[] {
   return p === "ios" ? ["apple"] : p === "android" ? ["google"] : ["apple", "google"];
 }
 
-/* A wallet drawn as a pocket the confirmation's pass is dragged into (AENR-791). Decorative —
-   the badges in WalletOptions stay the keyboard / screen-reader path. Three layers: the passes
-   already inside (back), the slot the pass slides into, and the front that covers it; the dragged
-   pass sits between back and front (z-10) while it goes in. `data-over` lights it up under the pass. */
-export function WalletPocket({ kind, added = false }: { kind: WalletKind; added?: boolean }) {
+/* A wallet drawn as a pocket (AENR-791): the confirmation's pass is dragged into it, or the pocket is
+   tapped (AENR-805) — either opens that wallet's add sheet, so the pockets are the confirmation's only
+   wallet buttons. Three layers: the passes already inside (back), the slot the pass slides into, and
+   the front that covers it; the dragged pass sits between back and front (z-10) while it goes in.
+   `data-over` lights it up under the pass. `drag` false (reduced motion): a plain tap target. */
+export function WalletPocket({ kind, added = false, drag = true, onPick }: { kind: WalletKind; added?: boolean; drag?: boolean; onPick: () => void }) {
   const t = useT();
   const apple = kind === "apple";
   // Card edges peeking out of the pocket, in the wallet's own palette.
   const edges = apple ? ["bg-sky-500", "bg-amber-400", "bg-emerald-500"] : ["bg-[#4285F4]", "bg-[#EA4335]", "bg-[#FBBC05]"];
+  const hint = added ? t("Your pass is in here") : drag ? t("Tap, or drag your pass here") : t("Tap to add your pass");
   return (
-    <div aria-hidden data-pocket={kind} className="group relative h-24 min-w-0 flex-1 rounded-2xl">
-      <div className="absolute inset-x-3 top-0 h-10">
+    <button
+      type="button"
+      onClick={onPick}
+      data-pocket={kind}
+      aria-label={added ? `${t("In")} ${WALLET_NAME[kind]}` : `${t("Add to")} ${WALLET_NAME[kind]}`}
+      className="group relative block h-24 min-w-0 flex-1 rounded-2xl text-left focus-visible:outline-none"
+    >
+      <span aria-hidden className="absolute inset-x-3 top-0 h-10">
         {edges.map((c, i) => (
-          <span key={c} className={`absolute h-8 rounded-t-xl ${c} transition-transform duration-fast ease-ios group-data-[over]:-translate-y-1`} style={{ top: i * 6, left: (2 - i) * 6, right: (2 - i) * 6 }} />
+          <span key={c} className={`absolute h-8 rounded-t-xl ${c} transition-transform duration-fast ease-ios group-hover:-translate-y-1 group-data-[over]:-translate-y-1`} style={{ top: i * 6, left: (2 - i) * 6, right: (2 - i) * 6 }} />
         ))}
-      </div>
-      <div
+      </span>
+      <span
         data-pocket-front
-        className={`absolute inset-x-0 bottom-0 top-6 z-30 flex items-center gap-3 rounded-2xl px-4 shadow-lift transition-shadow duration-fast group-data-[over]:ring-4 group-data-[over]:ring-teal-400/70 ${apple ? "bg-neutral-900 text-white ring-1 ring-white/10" : "bg-white text-navy-900 ring-1 ring-slate-200"}`}
+        className={`absolute inset-x-0 bottom-0 top-6 z-30 flex items-center gap-2.5 sm:gap-3 rounded-2xl px-3 sm:px-4 shadow-lift transition duration-fast group-active:scale-[.98] group-focus-visible:ring-2 group-focus-visible:ring-teal-500 group-focus-visible:ring-offset-2 group-data-[over]:ring-4 group-data-[over]:ring-teal-400/70 ${apple ? "bg-neutral-900 text-white ring-1 ring-white/10 group-hover:bg-neutral-800" : "bg-white text-navy-900 ring-1 ring-slate-200 group-hover:ring-teal-400"}`}
       >
         {/* The pocket's stitched lip. */}
-        <span className={`absolute inset-x-4 top-1.5 border-t border-dashed ${apple ? "border-white/25" : "border-slate-300"}`} />
-        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${apple ? "bg-white/10" : "bg-slate-50 ring-1 ring-slate-200"}`}>{apple ? <AppleLogo size={18} /> : <GoogleG size={18} />}</span>
-        <span className="min-w-0 leading-tight">
-          <span className="block truncate text-[15px] font-semibold">{WALLET_NAME[kind]}</span>
-          <span className={`block truncate text-guest-caption ${apple ? "text-white/65" : "text-slate-500"}`}>{added ? t("Your pass is in here") : t("Drop your pass here")}</span>
+        <span aria-hidden className={`absolute inset-x-4 top-1.5 border-t border-dashed ${apple ? "border-white/25" : "border-slate-300"}`} />
+        <span aria-hidden className={`grid h-8 w-8 sm:h-9 sm:w-9 shrink-0 place-items-center rounded-xl ${apple ? "bg-white/10" : "bg-slate-50 ring-1 ring-slate-200"}`}>{apple ? <AppleLogo size={18} /> : <GoogleG size={18} />}</span>
+        <span aria-hidden className="min-w-0 leading-tight">
+          <span className="block whitespace-nowrap text-[14px] sm:text-[15px] font-semibold">{WALLET_NAME[kind]}</span>
+          {/* Two lines on a phone rather than a clipped instruction. */}
+          <span className={`mt-0.5 line-clamp-2 text-guest-caption leading-snug ${apple ? "text-white/65" : "text-slate-500"}`}>{hint}</span>
         </span>
-        {added && <Icon.checkCircle size={18} className="ml-auto shrink-0 text-emerald-500" />}
-      </div>
-    </div>
+        {added && <Icon.checkCircle size={18} aria-hidden className="ml-auto shrink-0 text-emerald-500" />}
+      </span>
+    </button>
   );
 }
 
