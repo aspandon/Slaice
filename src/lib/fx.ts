@@ -37,7 +37,8 @@ export const EASE = {
 } as const;
 export { DISTANCE };
 
-const FINE_POINTER = "(hover: hover) and (pointer: fine)";
+/** A mouse or trackpad that can hover — the only pointers hover effects run for. */
+export const FINE_POINTER = "(hover: hover) and (pointer: fine)";
 
 /* useMagnetic — the element leans toward the cursor while hovered and springs
    back on leave. Pointer-fine only; a no-op on touch and under reduced motion.
