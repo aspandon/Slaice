@@ -661,6 +661,9 @@ def update(frame):
 def render_frames(frames, pattern):
     sc = bpy.context.scene
     for f in frames:
+        # Resumable: a long render (Full HD is ~4 h) picks up after the last frame written.
+        if os.environ.get("SKIP_EXISTING") and os.path.exists(pattern % f):
+            continue
         s = time.time()
         update(f)
         sc.render.filepath = pattern % f
