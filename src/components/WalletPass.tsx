@@ -116,6 +116,45 @@ export function otherWallets(): WalletKind[] {
   const p = detectWalletPlatform();
   return p === "ios" ? ["google"] : p === "android" ? ["apple"] : ["apple", "google"];
 }
+/** The wallets this device keeps passes in (AENR-791): iPhone → Apple, Android → Google, a computer → both. */
+export function deviceWallets(): WalletKind[] {
+  const p = detectWalletPlatform();
+  return p === "ios" ? ["apple"] : p === "android" ? ["google"] : ["apple", "google"];
+}
+
+/* A wallet drawn as a pocket the confirmation's pass is dragged into (AENR-791). Decorative —
+   the badges in WalletOptions stay the keyboard / screen-reader path. Three layers: the passes
+   already inside (back), the slot the pass slides into, and the front that covers it; the dragged
+   pass sits between back and front (z-10) while it goes in. `data-over` lights it up under the pass. */
+export function WalletPocket({ kind, added = false }: { kind: WalletKind; added?: boolean }) {
+  const t = useT();
+  const apple = kind === "apple";
+  // Card edges peeking out of the pocket, in the wallet's own palette.
+  const edges = apple ? ["bg-sky-500", "bg-amber-400", "bg-emerald-500"] : ["bg-[#4285F4]", "bg-[#EA4335]", "bg-[#FBBC05]"];
+  return (
+    <div aria-hidden data-pocket={kind} className="group relative h-24 min-w-0 flex-1 rounded-2xl">
+      <div className="absolute inset-x-3 top-0 h-10">
+        {edges.map((c, i) => (
+          <span key={c} className={`absolute h-8 rounded-t-xl ${c} transition-transform duration-fast ease-ios group-data-[over]:-translate-y-1`} style={{ top: i * 6, left: (2 - i) * 6, right: (2 - i) * 6 }} />
+        ))}
+      </div>
+      <div
+        data-pocket-front
+        className={`absolute inset-x-0 bottom-0 top-6 z-30 flex items-center gap-3 rounded-2xl px-4 shadow-lift transition-shadow duration-fast group-data-[over]:ring-4 group-data-[over]:ring-teal-400/70 ${apple ? "bg-neutral-900 text-white ring-1 ring-white/10" : "bg-white text-navy-900 ring-1 ring-slate-200"}`}
+      >
+        {/* The pocket's stitched lip. */}
+        <span className={`absolute inset-x-4 top-1.5 border-t border-dashed ${apple ? "border-white/25" : "border-slate-300"}`} />
+        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${apple ? "bg-white/10" : "bg-slate-50 ring-1 ring-slate-200"}`}>{apple ? <AppleLogo size={18} /> : <GoogleG size={18} />}</span>
+        <span className="min-w-0 leading-tight">
+          <span className="block truncate text-[15px] font-semibold">{WALLET_NAME[kind]}</span>
+          <span className={`block truncate text-guest-caption ${apple ? "text-white/65" : "text-slate-500"}`}>{added ? t("Your pass is in here") : t("Drop your pass here")}</span>
+        </span>
+        {added && <Icon.checkCircle size={18} className="ml-auto shrink-0 text-emerald-500" />}
+      </div>
+    </div>
+  );
+}
+
 /** Opens one wallet's sheet from a menu. */
 export function WalletSheetFor({ pass, kind, onClose }: { pass: WalletPassData; kind: WalletKind; onClose: () => void }) {
   return <WalletSheet open onClose={onClose} pass={pass} kind={kind} platform={detectWalletPlatform()} />;

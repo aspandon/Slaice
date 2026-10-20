@@ -5,19 +5,20 @@ import { AgeCheck } from "../components/AgeCheck";
 import { PaymentProgress } from "../components/PaymentProgress";
 import { QuickSignIn } from "../components/QuickSignIn";
 import type { IconRenderer } from "../lib/icons";
-import { gsap, motionOK, takeFlip, Flip, EASE } from "../lib/fx";
+import { gsap, motionOK, takeFlip, Flip, EASE, DUR } from "../lib/fx";
+import { pocketDrag, type PocketDrag } from "../lib/pocketDrag";
 import { Card, Btn, EmptyState, NotMvpBadge, SwipeRow, Toggle } from "../components/ui";
 import { QR } from "../components/charts";
 import { qrCode } from "../domain/entry";
 import { TenantLogo } from "../components/Brand";
-import { AppleLogo, WalletOptions } from "../components/WalletPass";
+import { AppleLogo, WalletOptions, WalletPocket, WalletSheetFor, deviceWallets } from "../components/WalletPass";
 import { ShareSheet } from "./customer/ShareBooking";
 import { useEntry } from "../lib/useEntry";
 import { OPERATOR, TENANT, ZONES, todayISO } from "../data/beach";
 import { round2 } from "../data/passes";
 import { useApp, useMoney, useT } from "../app/store";
 import type { CartItem } from "../domain/types";
-import { PROFILE, allCards, cardBrand, cardKey, cartKey, serviceFees, settleCheckout, withCard, type InvoiceRequest, type PlacedBooking, type SavedCard } from "../domain/account";
+import { PROFILE, allCards, cardBrand, cardKey, cartKey, serviceFees, settleCheckout, withCard, type InvoiceRequest, type PlacedBooking, type SavedCard, type WalletKind } from "../domain/account";
 import { emptyInvoice, invoiceAddress, invoiceErrors, normalVatNo, type InvoiceDetails } from "../domain/invoiceDetails";
 import { InvoiceFields } from "./customer/InvoiceFields";
 import { SERVICE_NOUN, vatRates } from "../domain/economics";
@@ -529,20 +530,53 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
   const ob = booking ? entry.find(booking.ref) : undefined;
   const group = ob && visit ? entry.stateOf(ob, visit.date) : null;
 
-  // The success message is shown by the payment moment (AENR-734); here the pass rises in and the
-  // actions follow. Elements render in their final state — under reduced motion none of this runs.
+  // The pass prints out and can be dragged into a wallet (AENR-791) — only with motion. Under reduced
+  // motion the pass renders as it always has and the wallet badges below do the job.
+  const [live] = useState(motionOK);
+  const drag = useRef<PocketDrag | null>(null);
+  const [dropped, setDropped] = useState<WalletKind | null>(null);
+  // The success message is shown by the payment moment (AENR-734); here the pass feeds out of a slot
+  // like a receipt, its QR lands, and the actions follow. Elements render in their final state.
   useLayoutEffect(() => {
-    if (!motionOK()) return;
+    const root = scope.current;
+    const ticket = root?.querySelector<HTMLElement>("[data-confirm-qr]");
+    const grip = root?.querySelector<HTMLElement>("[data-pass-grip]");
+    if (!live || !root || !ticket || !grip) return;
+    // A mouse drags the whole pass; a finger drags its header strip, so the rest of the page still scrolls.
+    const fine = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    const d = pocketDrag({
+      pass: ticket,
+      trigger: fine ? ticket : grip,
+      area: root,
+      onDrop: (p) => { const k = p.dataset.pocket; if (k === "apple" || k === "google") setDropped(k); },
+    });
+    drag.current = d;
     const ctx = gsap.context(() => {
-      gsap.timeline({ defaults: { ease: EASE.out } })
+      gsap.timeline({ defaults: { ease: EASE.out }, onComplete: d.enable })
         .from("[data-confirm-head]", { y: 10, opacity: 0, duration: 0.35 })
-        .fromTo("[data-confirm-qr]",
-          { transformPerspective: 900, rotationY: 95, opacity: 0 },
-          { rotationY: 0, opacity: 1, duration: 0.85, clearProps: "transform" }, "-=0.2")
-        .from("[data-confirm-item]", { y: 14, opacity: 0, stagger: 0.08, duration: 0.45 }, "-=0.45");
-    }, scope);
-    return () => ctx.revert();
-  }, []);
+        .from("[data-pass-slot]", { scaleX: 0.4, opacity: 0, duration: DUR.sm }, "-=0.2")
+        // Fed out in four short pushes with a hair of side-to-side, like a receipt printer.
+        .fromTo(ticket, { yPercent: -100 }, {
+          keyframes: [
+            { yPercent: -73, x: 0.8, duration: 0.15, ease: "power3.out" },
+            { yPercent: -47, x: -0.8, duration: 0.15, delay: 0.06, ease: "power3.out" },
+            { yPercent: -21, x: 0.5, duration: 0.15, delay: 0.06, ease: "power3.out" },
+            { yPercent: 0, x: 0, duration: 0.2, delay: 0.06, ease: "back.out(1.6)" },
+          ],
+          clearProps: "transform",
+        }, "-=0.05")
+        // Torn off: the slot fades, the pass is free to move, the QR lands.
+        .set("[data-pass-feed]", { overflow: "visible" })
+        .to("[data-pass-slot]", { opacity: 0, duration: DUR.sm })
+        .from("[data-pass-qr]", { scale: 0.85, autoAlpha: 0, duration: 0.4 }, "<")
+        .from("[data-confirm-item]", { y: 14, opacity: 0, stagger: 0.08, duration: 0.45, clearProps: "transform,opacity" }, "-=0.25");
+    }, root);
+    return () => {
+      d.kill();
+      drag.current = null;
+      ctx.revert();
+    };
+  }, [live]);
   const date = visit?.date ?? todayISO();
   const caption = `${fmtWeekday(date)} ${fmtDay(date)}${visit?.sets.length ? ` · ${visit.sets.join(", ")}` : ""}`;
   const pass = {
@@ -556,21 +590,31 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
     // Remembered as "In Wallet" on My bookings and Home too (AENR-620).
     visitKey: visit?.key,
   };
+  const inWallet = visit ? account.wallet?.[visit.key] : undefined;
+  // The ref decodes once the pass has printed (AENR-791).
+  const decodeAt = live ? 1.3 : undefined;
   const onSite = booking?.deposit != null ? round2(booking.total - booking.deposit) : 0;
+  // Fade in only (AENR-791): a transform on this column (fade-up) trapped the full-screen QR inside it.
   return (
-    <div ref={scope} className="animate-fade-up max-w-xl mx-auto" data-inline={inline ? "" : undefined}>
+    <div ref={scope} className="animate-fade-in max-w-xl mx-auto" data-inline={inline ? "" : undefined}>
       {/* A quiet confirmation line above the pass (AENR-734) — the big success moment came with the payment. */}
       <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl glass-card-solid px-4 py-2.5" data-confirm-head>
         <h1 className="flex items-center gap-2 text-guest-body font-semibold text-navy-900">
           <span aria-hidden className="w-5 h-5 rounded-full bg-teal-600 text-white grid place-items-center"><Icon.check size={12} /></span>
           {t("Booking confirmed")}
         </h1>
-        <Decode text={ref} className="font-mono text-guest-meta text-slate-600" />
+        <Decode text={ref} delay={decodeAt} className="font-mono text-guest-meta text-slate-600" />
       </div>
 
-      {/* The ticket — what the guest shows at the gate */}
-      <article aria-label={t("Your beach-day ticket")} className="rounded-[28px] bg-white shadow-lift ring-1 ring-slate-200 overflow-hidden" data-confirm-qr>
-        <div className="grad-sea text-white px-6 py-5">
+      {/* The ticket — what the guest shows at the gate. With motion it feeds out of a printer slot
+          (clipped by the feed until it's out) and can then be dragged into a wallet (AENR-791). */}
+      <div className="relative">
+      {live && <span aria-hidden data-pass-slot className="absolute -left-1 -right-1 top-0 z-10 h-2.5 rounded-full bg-navy-950 shadow-[inset_0_1px_3px_rgba(0,0,0,.6)]" />}
+      <div data-pass-feed className={live ? "-mx-3 -mb-4 overflow-hidden px-3 pb-4 pt-1" : undefined}>
+      <article aria-label={t("Your beach-day ticket")} className="relative rounded-[28px] bg-white shadow-lift ring-1 ring-slate-200 overflow-hidden" data-confirm-qr>
+        <div className="relative grad-sea text-white px-6 py-5" data-pass-grip>
+          {/* The grip — this strip is where a finger picks the pass up. */}
+          {live && <span aria-hidden className="absolute left-1/2 top-2 h-1 w-10 -translate-x-1/2 rounded-full bg-white/45" />}
           <div className="text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-100">{TENANT.name}</div>
           <div className="mt-1 font-display font-bold text-guest-title leading-tight">{fmtWeekday(date)} {fmtDay(date)}</div>
           {/* Each set with its own zone, so a booking across zones reads right (AENR-715). */}
@@ -579,10 +623,12 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
         <div className="relative px-6 py-5 text-center">
           <span aria-hidden className="absolute -top-3 -left-3 w-6 h-6 rounded-full bg-slate-100" />
           <span aria-hidden className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-slate-100" />
-          <button type="button" onClick={() => setFull(true)} className="mx-auto grid place-items-center rounded-2xl p-2 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500" aria-label={t("Show the QR full screen")}>
+          {/* The perforation between the stub and the QR part (AENR-791). */}
+          <span aria-hidden className="absolute left-5 right-5 top-0 border-t-2 border-dashed border-slate-200" />
+          <button type="button" onClick={() => setFull(true)} className="mx-auto grid place-items-center rounded-2xl p-2 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500" aria-label={t("Show the QR full screen")} data-pass-qr>
             <QR size={208} seed={qrCode(ref)} />
           </button>
-          <div className="mt-1 font-mono text-guest-body font-bold text-navy-900"><Decode text={ref} /></div>
+          <div className="mt-1 font-mono text-guest-body font-bold text-navy-900"><Decode text={ref} delay={decodeAt} /></div>
           <div className="text-guest-meta text-slate-500">{t("Tap the code to show it full screen at the gate.")}</div>
           <dl className="mt-4 grid grid-cols-2 gap-3 text-left text-guest-meta">
             <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-slate-500 text-guest-caption">{t("Arrive")}</dt><dd className="font-semibold text-navy-900">{ARRIVAL_WINDOW}</dd></div>
@@ -601,9 +647,20 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
           <p className="mt-3 text-guest-caption text-slate-600">{cancelTerms(date, guestNow(), extras.policy, t).text} · {booking?.invoiceTo ? `${t("invoice to")} ${booking.invoiceTo.company} (${booking.invoiceTo.vatNo}) ${t("e-mailed to")} ${booking.invoiceTo.email}` : t("receipt e-mailed")}</p>
         </div>
       </article>
+      </div>
+      </div>
 
+      {/* The wallets as pockets to drop the pass into (AENR-791) — the device's own, or both on a computer. */}
+      {live && (
+        <div className="mt-5 data-[docked]:sticky data-[docked]:z-20 data-[docked]:bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:data-[docked]:bottom-4" data-confirm-item data-pocket-dock>
+          <p aria-hidden data-pocket-hint className="mx-auto mb-2 flex w-max items-center gap-1.5 rounded-full glass-card-solid px-3 py-1 text-guest-meta font-semibold text-slate-700">
+            <Icon.wallet size={15} className="text-teal-700" /> {inWallet ? t("Your pass is in your wallet") : t("Drag your pass into your wallet")}
+          </p>
+          <div className="flex gap-3">{deviceWallets().map((k) => <WalletPocket key={k} kind={k} added={inWallet === k} />)}</div>
+        </div>
+      )}
       {/* Keep it (wallet, calendar) and send it to the group (AENR-715); the wallet badge fits the device. */}
-      <div data-confirm-item><WalletOptions pass={pass} className="mt-5" /></div>
+      <div data-confirm-item><WalletOptions pass={pass} className={live ? "mt-4" : "mt-5"} /></div>
       <div className="mt-4 space-y-2" data-confirm-item>
         {visit && <Btn variant="teal" size="lg" full icon={Icon.send} onClick={() => setShare(true)}>{t("Share with your group")}</Btn>}
         <div className="grid grid-cols-3 gap-2">
@@ -614,6 +671,8 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
       </div>
       {share && visit && <ShareSheet v={visit} onClose={() => setShare(false)} />}
       {full && <FullscreenQR code={ref} caption={caption} onClose={() => setFull(false)} />}
+      {/* Dropped into a pocket: that wallet's add sheet, as its badge opens it; closing it lifts the pass back out. */}
+      {dropped && <WalletSheetFor pass={pass} kind={dropped} onClose={() => { setDropped(null); drag.current?.putBack(); }} />}
     </div>
   );
 }

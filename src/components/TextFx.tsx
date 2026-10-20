@@ -96,8 +96,17 @@ export function RevealLines({
   );
 }
 
-/** A code (booking reference) that decodes into place on mount. */
-export function Decode({ text, className = "" }: { text: string; className?: string }) {
+/** A code (booking reference) that decodes into place on mount — after `delay` seconds, so a
+ *  choreography can decode it once its card has landed (AENR-791). */
+export function Decode({
+  text,
+  className = "",
+  delay = 0.25,
+}: {
+  text: string;
+  className?: string;
+  delay?: number;
+}) {
   const ref = useRef<HTMLSpanElement>(null);
   useLayoutEffect(() => {
     const el = ref.current;
@@ -107,7 +116,7 @@ export function Decode({ text, className = "" }: { text: string; className?: str
       { scrambleText: { text: text.replace(/[A-Z0-9]/g, "·"), chars: "upperCase" } },
       {
         duration: 1,
-        delay: 0.25,
+        delay,
         ease: "none",
         scrambleText: {
           text,
@@ -121,7 +130,7 @@ export function Decode({ text, className = "" }: { text: string; className?: str
       tween.kill();
       el.textContent = text;
     };
-  }, [text]);
+  }, [text, delay]);
   return (
     <span className={className}>
       <span className="sr-only">{text}</span>
