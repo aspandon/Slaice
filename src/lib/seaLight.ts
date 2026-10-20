@@ -170,41 +170,6 @@ export function seaLight(hour: number, weather: Pick<WeatherDemo, "glint" | "dim
   };
 }
 
-/* ---- The sky over the horizon (AENR-828) ----
-   Zenith → horizon colours per hour, from the same photographs: deep night with stars, a violet
-   blue hour, a peach sunrise, Greek blue by day, an amber golden hour, a burning sunset under a
-   violet sky, rose dusk. Cloud greys it toward slate (but sunsets keep their glow). */
-const SKY_KEYS: readonly { h: number; sky: readonly [string, string] }[] = [
-  { h: 0, sky: ["#030817", "#0e1d3f"] },
-  { h: 5.3, sky: ["#030817", "#0e1d3f"] },
-  { h: 5.9, sky: ["#2a2c5c", "#9a7c9c"] },
-  { h: 6.45, sky: ["#6e8fc8", "#ffc48a"] },
-  { h: 7.6, sky: ["#4f93dc", "#cfe6f5"] },
-  { h: 9.5, sky: ["#2f7fd6", "#bfe3f7"] },
-  { h: 17.2, sky: ["#2f7fd6", "#bfe3f7"] },
-  { h: 18.6, sky: ["#4a86cf", "#f3e2c0"] },
-  { h: 19.7, sky: ["#6a7fb8", "#ffcf7a"] },
-  { h: 20.6, sky: ["#6b4a8a", "#ff8a2a"] },
-  { h: 21.05, sky: ["#2b2f62", "#c0627a"] },
-  { h: 21.6, sky: ["#030817", "#0e1d3f"] },
-  { h: 24, sky: ["#030817", "#0e1d3f"] },
-];
-const CLOUD_SKY: readonly [Rgb, Rgb] = [hex("#6f7d8c"), hex("#c9d2da")];
-
-/** The sky at `hour`: zenith and horizon colours, greyed by cloud (0–1) — sunsets keep their glow. */
-export function skyAt(hour: number, cloud: number): readonly [Rgb, Rgb] {
-  const h = ((hour % 24) + 24) % 24;
-  let i = 0;
-  while (i < SKY_KEYS.length - 2 && SKY_KEYS[i + 1].h <= h) i++;
-  const a = SKY_KEYS[i];
-  const b = SKY_KEYS[i + 1];
-  const t = smooth(0, 1, (h - a.h) / Math.max(0.001, b.h - a.h));
-  const glow = keyAt(hour).amount; // the hour's colour strength: high at sunrise, sunset and night
-  return [0, 1].map((k) =>
-    mix(mix(hex(a.sky[k]), hex(b.sky[k]), t), CLOUD_SKY[k], cloud * 0.75 * (1 - 0.5 * glow)),
-  ) as unknown as readonly [Rgb, Rgb];
-}
-
 /** A clear noon — the light when the tenant pins the scene or the demo clock is off. */
 export const NOON_LIGHT: SeaLight = seaLight(13.5, { glint: 1, dim: 0 });
 

@@ -3502,14 +3502,13 @@ src/
   so the demo clock glides. The low sun's disc stands on the horizon at sunrise and sunset; the full moon has a
   bright disc, a halo and a silver path. Cloud keeps the sea teal and clear, muted toward slate (cloudy
   sunsets keep their orange); wind adds whitecaps — curled crests, more and longer the stronger it blows.
-- **Sky at the horizon** (AENR-828, `components/sea/SkyBand.tsx`; tenant switch Platform › tenant › Modules &
-  features › Guest site › **Sky at the horizon**, on by default): once the zone and the sets are chosen — Who,
-  Pay, Checkout and the confirmation — a strip of sky slides down over the top of the sea (0.9 s, a transform;
-  reduced motion: it appears), in the hour's colours from the same photographs (`skyAt` in `lib/seaLight.ts`:
-  Greek blue by day, peach sunrise, amber golden hour, a burning sunset under a violet sky, rose dusk, night
-  with stars). The sun stands on the horizon at sunrise and sunset and climbs with the day; at night the moon
-  and its halo; clouds drift across when it's cloudy, greyed toward slate (sunsets keep their glow). Earlier
-  steps slide it away again. **Aerial haze**: the sky pales toward the horizon and a fading band runs over the far sea (milky by day, a warm glow at sunrise and sunset, a faint lift at night), so sky and sea meet softly, never in a hard line. **No sun or moon disc on the water** (AENR-834): the glints carry the light; the sky band shows the sun and the moon.
+- **No horizon** (AENR-843, owner decision after review): the guest always looks straight down at the
+  water and the beach, whichever sea the tenant shows (Classic, Coastal, Video or Blender) — the sea runs to
+  the top of the screen on every page and step. The strip of sky that used to slide down over the sea from
+  Who onward (AENR-828: the hour's sky with the sun, moon, stars and clouds, and the aerial haze below it)
+  is removed, with its tenant switch (Guest site › Sky at the horizon) and its code. The sea's own light
+  stays: the glints, the colour of the hour, and the low sun's or the moon's glow on the water. **No sun or
+  moon disc on the water** (AENR-834): the glints carry the light.
 - **Rain on the glass** (AENR-826, `components/RainGlass.tsx`; tenant switch Platform › tenant › Modules &
   features › Guest site › **Rain on the glass**, on by default): when it rains the guest sees the site as if
   through a window pane — drops land, sit as beads, grow and merge, now and then one runs down as a teardrop
