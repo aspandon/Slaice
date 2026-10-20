@@ -695,21 +695,33 @@ table .text-slate-400 {
   }
   .rain-run {
     position: absolute;
-    top: -12%;
-    width: 3px;
-    height: 34px;
+    top: -14%;
+    width: 4px;
+    height: 46px;
     border-radius: 999px;
-    background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.55) 70%, rgba(186, 214, 236, 0.75));
-    box-shadow: 0 1px 1px rgba(11, 37, 69, 0.12);
+    /* The trail a drop leaves on the glass, ending in its head. */
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.5) 60%, rgba(214, 232, 246, 0.85));
     animation: rain-run 3.6s cubic-bezier(0.55, 0, 0.75, 0.6) infinite;
   }
+  .rain-run-head {
+    position: absolute;
+    left: 50%;
+    bottom: -3px;
+    width: 9px;
+    height: 10px;
+    transform: translateX(-50%);
+    border-radius: 50% 50% 48% 48%;
+    background: radial-gradient(circle at 35% 30%, #fff, rgba(205, 226, 243, 0.75) 50%, rgba(11, 37, 69, 0.3));
+    box-shadow: 0 1px 2px rgba(11, 37, 69, 0.3);
+  }
 }
+/* A bead of water resting on the glass: a bright highlight, a clear body and a darker
+   rim with a small shadow under it, so it reads as a drop on any panel colour. */
 .rain-bead {
   position: absolute;
-  border-radius: 50% 50% 48% 48%;
-  background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.9), rgba(214, 232, 245, 0.35) 55%, rgba(11, 37, 69, 0.12));
-  box-shadow: 0 1px 1px rgba(11, 37, 69, 0.14);
-  opacity: 0.75;
+  border-radius: 50% 50% 46% 46%;
+  background: radial-gradient(circle at 34% 30%, #fff 0 14%, rgba(222, 238, 250, 0.55) 30%, rgba(176, 205, 228, 0.35) 62%, rgba(11, 37, 69, 0.35) 100%);
+  box-shadow: 0 1.5px 2px rgba(11, 37, 69, 0.28), inset 0 -1px 1px rgba(255, 255, 255, 0.6);
 }
 @keyframes canopy-gust {
   0%, 100% { transform: rotate(0deg) translate(0, 0); }

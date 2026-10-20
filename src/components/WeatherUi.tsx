@@ -41,12 +41,13 @@ export function WeatherUi() {
 
 // Fixed positions so the drops never jump between renders: [left %, top %, size px].
 const BEADS: ReadonlyArray<readonly [number, number, number]> = [
-  [6, 8, 5], [14, 31, 3], [22, 12, 4], [31, 54, 6], [38, 22, 3], [47, 70, 4], [55, 9, 5], [63, 41, 3],
-  [71, 18, 6], [79, 63, 4], [88, 27, 3], [94, 49, 5], [9, 77, 4], [27, 88, 3], [52, 92, 5], [84, 85, 4],
+  [5, 7, 7], [12, 26, 4], [19, 11, 9], [27, 48, 5], [33, 19, 6], [41, 66, 8], [47, 31, 4], [53, 8, 7],
+  [60, 44, 5], [66, 17, 9], [72, 58, 6], [79, 29, 4], [85, 9, 8], [91, 47, 5], [96, 24, 6], [8, 79, 6],
+  [23, 89, 8], [37, 82, 4], [50, 93, 7], [62, 77, 5], [75, 88, 8], [88, 74, 5], [15, 57, 5], [44, 4, 5],
 ];
 // The drops that run: [left %, delay s, duration s].
 const RUNNERS: ReadonlyArray<readonly [number, number, number]> = [
-  [11, 0, 3.4], [29, 1.6, 4.1], [46, 0.8, 3.1], [67, 2.4, 3.8], [86, 1.1, 4.4],
+  [9, 0, 3.2], [24, 1.4, 4.1], [38, 0.6, 2.9], [57, 2.2, 3.7], [70, 0.9, 3.3], [84, 1.8, 4.4], [93, 0.3, 3.6],
 ];
 
 /** Rain on the booking panel's glass — rendered inside the panel, over its content but faint. */
@@ -59,7 +60,9 @@ export function RainOnGlass() {
         <span key={`${x}-${y}`} className="rain-bead" style={{ left: `${x}%`, top: `${y}%`, width: s, height: s * 1.15 }} />
       ))}
       {RUNNERS.map(([x, d, t]) => (
-        <span key={x} className="rain-run" style={{ left: `${x}%`, animationDelay: `${d}s`, animationDuration: `${t}s` }} />
+        <span key={x} className="rain-run" style={{ left: `${x}%`, animationDelay: `${d}s`, animationDuration: `${t}s` }}>
+          <span className="rain-run-head" />
+        </span>
       ))}
     </div>
   );
