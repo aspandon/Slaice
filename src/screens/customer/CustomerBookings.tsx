@@ -25,6 +25,7 @@ import { useLiveSlots } from "../../lib/useLiveSlots";
 import { ReceiptModal } from "./CustomerDocs";
 import { FullscreenQR, downloadVisitIcs, invoiceForVisit, receiptForVisit, visitPass } from "./VisitTicket";
 import { ShareSheet } from "./ShareBooking";
+import { RevealLines } from "../../components/TextFx";
 
 /* ============ MY BOOKINGS (AENR-572) ============
    One card per visit — date, zone, sets, tickets, parking, locker, total —
@@ -79,7 +80,7 @@ export function CustomerBookings() {
             <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.sparkles size={18} /></span>
             <div className="min-w-0">
               <div className="text-guest-over font-semibold uppercase tracking-wider text-teal-700">{t("Your season in review")}</div>
-              <div className="mt-0.5 font-display font-bold text-guest-head text-navy-900">{t("You've had a sunny summer, Elena ☀️")}</div>
+              <RevealLines className="mt-0.5 font-display font-bold text-guest-head text-navy-900">{t("You've had a sunny summer, Elena ☀️")}</RevealLines>
               <div className="text-guest-meta text-slate-600 mt-0.5">{used.length} {t("visits")} · {t("favourite zone")} <b className="text-navy-900">{fav}</b></div>
             </div>
           </div>

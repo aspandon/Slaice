@@ -33,6 +33,7 @@ import { FIRST_TIME_LOYALTY, activeRewards } from "./customer/CustomerHome";
 import { useDemoFlag } from "../lib/useDemoFlag";
 import { useTenantFeatures } from "../lib/useFeatures";
 import { ActionsMenu } from "../components/ui/ActionsMenu";
+import { Decode } from "../components/TextFx";
 
 // Online booking refs follow the account's bookings (BK-30001, BK-30002…) so they
 // never collide with sample or staff bookings, and survive a reload (AENR-597).
@@ -564,7 +565,7 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
           <span aria-hidden className="w-5 h-5 rounded-full bg-teal-600 text-white grid place-items-center"><Icon.check size={12} /></span>
           {t("Booking confirmed")}
         </h1>
-        <span className="font-mono text-guest-meta text-slate-600">{ref}</span>
+        <Decode text={ref} className="font-mono text-guest-meta text-slate-600" />
       </div>
 
       {/* The ticket — what the guest shows at the gate */}
@@ -581,7 +582,7 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
           <button type="button" onClick={() => setFull(true)} className="mx-auto grid place-items-center rounded-2xl p-2 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500" aria-label={t("Show the QR full screen")}>
             <QR size={208} seed={qrCode(ref)} />
           </button>
-          <div className="mt-1 font-mono text-guest-body font-bold text-navy-900">{ref}</div>
+          <div className="mt-1 font-mono text-guest-body font-bold text-navy-900"><Decode text={ref} /></div>
           <div className="text-guest-meta text-slate-500">{t("Tap the code to show it full screen at the gate.")}</div>
           <dl className="mt-4 grid grid-cols-2 gap-3 text-left text-guest-meta">
             <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-slate-500 text-guest-caption">{t("Arrive")}</dt><dd className="font-semibold text-navy-900">{ARRIVAL_WINDOW}</dd></div>

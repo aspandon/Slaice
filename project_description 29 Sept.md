@@ -408,6 +408,11 @@ Four pages with distinct names (AENR-642); old `invoicing` and `commission` link
     motion, gives the previous still backdrop exactly. Code: `src/lib/camera.ts` (shots) and
     the camera layer in `CustomerBackdrop.tsx`; the wizard
     reports its step and zone with `setWizardShot`. Removing it = reverting the AENR-784 and AENR-785 commits.
+- **Rolling numbers and type** (AENR-793, `src/components/TextFx.tsx`): Home's "N sunbeds free today", the
+  wizard's zone free counts and its running total roll like an odometer (each digit a 0–9 strip; tabular
+  digits, no layout shift; once on arrival, then on every change); "Enjoy your day" and My bookings'
+  season headline rise line by line from behind a mask (SplitText); the confirmation's booking reference
+  decodes into place (ScrambleText). Screen readers get the final text at once; reduced motion: static.
 - **Bottom tab bar** on phones (guest and staff) on a near-solid material (`.tabbar-material`, AENR-753) with
   a 20 px fade above it, so content dissolves before reaching the bar instead of reading through it; with a **More** sheet when a persona has more than 5 destinations. In
   the booking wizard it slides away and the step's own action bar (total + Back/Continue) is the only

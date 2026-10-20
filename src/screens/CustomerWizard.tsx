@@ -8,6 +8,7 @@ import type { IconRenderer } from "../lib/icons";
 import { Btn, Badge, Stepper, Input, DatePickerRow, Toggle, Modal, Sheet, type DayInfo } from "../components/ui";
 import { plateGaps, plateOk } from "../domain/validate";
 import { setWizardShot } from "../lib/camera";
+import { Rolling } from "../components/TextFx";
 import { prefersReducedMotion } from "../lib/motion";
 import { gsap, Flip, motionOK, stashFlip, EASE, DUR } from "../lib/fx";
 import { DURATION, EASING } from "../lib/motionTokens";
@@ -131,30 +132,6 @@ function cloneFadeClusters(pickedId: string) {
   gsap.delayedCall(0.6, () => layer.remove());
 }
 
-/* Smoothly tween a numeric value whenever it changes — used by the live total so
-   the user sees the balance move when toggling a service. */
-function useAnimatedNumber(value: number, duration = 480) {
-  const [display, setDisplay] = useState(value);
-  const prev = useRef(value);
-  useEffect(() => {
-    if (prefersReducedMotion()) { setDisplay(value); prev.current = value; return; }
-    const from = prev.current;
-    const to = value;
-    if (from === to) return;
-    const t0 = performance.now();
-    let raf = 0;
-    const tick = (t: number) => {
-      const p = Math.min(1, (t - t0) / duration);
-      const eased = 1 - Math.pow(1 - p, 3);
-      setDisplay(from + (to - from) * eased);
-      if (p < 1) raf = requestAnimationFrame(tick);
-      else { setDisplay(to); prev.current = to; }
-    };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, [value, duration]);
-  return display;
-}
 
 /* ============================================================================
    Immersive booking wizard.
@@ -1342,7 +1319,6 @@ function ZoneStripTile({ zone, slots, onPick }: { zone: WizardZone; slots: Sunbe
   const money = useMoney();
   const tr = useT();
   const freeSlots = slots.filter((s) => s.state === "a");
-  const free = useAnimatedNumber(freeSlots.length, DURATION.slow);
   const from = freeSlots.length ? Math.min(...freeSlots.map((s) => s.price)) : null;
   const full = freeSlots.length === 0;
   return (
@@ -1359,7 +1335,7 @@ function ZoneStripTile({ zone, slots, onPick }: { zone: WizardZone; slots: Sunbe
         ))}
       </span>
       <span className="mt-1.5 block text-guest-caption leading-tight">
-        <b className="tnum text-navy-900">{full ? tr("Full") : `${Math.round(free)} ${tr("free")}`}</b>
+        <b className="tnum text-navy-900">{full ? tr("Full") : <><Rolling value={freeSlots.length} /> {tr("free")}</>}</b>
         {from !== null && <span className="block text-slate-600 tnum">{tr("from")} {money(from)}</span>}
       </span>
     </button>
@@ -2285,8 +2261,7 @@ function humanPeople(p: People, tr: (s: string) => string = (s) => s) {
 /* Renders an integer euro amount, smoothly tweened on change. */
 function LiveEuro({ value }: { value: number }) {
   const money = useMoney();
-  const display = useAnimatedNumber(value);
-  // Cents when the total has them, so it reads exactly like checkout (AENR-569).
+  // Cents when the total has them, so it reads exactly like checkout (AENR-569). The digits roll (AENR-793).
   const cents = Math.round(value * 100) % 100 !== 0;
-  return <span className="tnum">{money(cents ? display : Math.round(display), cents)}</span>;
+  return <Rolling value={money(value, cents)} />;
 }

@@ -5,7 +5,6 @@ import type { IconRenderer } from "../../lib/icons";
 import { Badge, Btn, NotMvpBadge } from "../../components/ui";
 import { PassCard } from "../../components/PassCard";
 import { gsap, motionOK, DUR, EASE, useMagnetic, useCardTilt } from "../../lib/fx";
-import { useCountUp } from "../../lib/motion";
 import { ZONES, zoneLayout, WEATHER_DEMO, TENANT, forecastFor, todayISO, chipLabel } from "../../data/beach";
 import { QR } from "../../components/charts";
 import { qrCode } from "../../domain/entry";
@@ -33,6 +32,7 @@ import { useApp, useMoney, useT } from "../../app/store";
 import { useTenantFeatures } from "../../lib/useFeatures";
 import { useGuestScene } from "../../lib/useGuestScene";
 import { ADD_EXTRAS_LABEL, extrasPhrase } from "../../domain/features";
+import { RevealLines, Rolling } from "../../components/TextFx";
 
 // Bare date from a validity label (e.g. "End of season · 30 Sep 2026").
 const dateOf = (s: string) => s.split(/·|to/).pop()?.trim() ?? s;
@@ -86,7 +86,6 @@ export function CustomerHome() {
     [beachLayout],
   );
   const fromPrice = useMemo(() => Math.min(...ZONES.map((z) => z.from)), []);
-  const { display: freeDisplay } = useCountUp(freeToday, { duration: 1100 });
 
   // Entrance choreography. Elements render in their final state; GSAP only adds
   // the motion, so reduced-motion users get the static layout untouched.
@@ -160,7 +159,7 @@ export function CustomerHome() {
             </div>
             <div className="mt-4 flex items-center gap-2.5 text-guest-meta font-semibold text-navy-900" data-hero-live>
               <span aria-hidden="true" className="live-dot relative w-2 h-2 rounded-full bg-teal-500 text-teal-500 shrink-0" />
-              <span><b className="tnum">{freeDisplay}</b> {t("sunbeds free today")} · {t("from")} {money(fromPrice)}</span>
+              <span><b><Rolling value={freeToday} /></b> {t("sunbeds free today")} · {t("from")} {money(fromPrice)}</span>
             </div>
             {/* The button stays untransformed so its ::after spans the card; the magnetic pull moves the pill inside. */}
             <button type="button" onClick={() => dive()} className="mt-5 inline-flex rounded-[14px] after:absolute after:inset-0 after:content-[''] focus-visible:outline-none" data-hero-cta>
@@ -196,7 +195,7 @@ export function CustomerHome() {
               <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
               <div className="min-w-0">
                 <h2 id="first-visit" className="font-semibold text-navy-900 text-guest-body leading-tight">{t("Plan another visit")}</h2>
-                <p className="text-guest-meta text-slate-600 mt-0.5 leading-snug">{`${freeDisplay} ${t("sunbeds free today")} · ${t("from")} ${money(fromPrice)}`}</p>
+                <p className="text-guest-meta text-slate-600 mt-0.5 leading-snug">{`${freeToday} ${t("sunbeds free today")} · ${t("from")} ${money(fromPrice)}`}</p>
               </div>
             </div>
             {/* Only the CTA is a button; its ::after covers the card (AENR-770). */}
@@ -373,7 +372,7 @@ function AtBeachCard({ v }: { v: Visit }) {
       <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
         <div className="min-w-0 flex-1">
           <div className="inline-flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-700"><Icon.umbrella size={13} /> {t("You're at the beach")}{v.zone ? ` · ${v.zone}` : ""}</div>
-          <h2 id="at-beach" className="mt-1.5 font-display font-bold text-guest-title leading-tight text-navy-900">{t("Enjoy your day")}</h2>
+          <RevealLines as="h2" id="at-beach" className="mt-1.5 font-display font-bold text-guest-title leading-tight text-navy-900">{t("Enjoy your day")}</RevealLines>
           <p className="mt-1 text-guest-body text-slate-700">
             {v.sets.length ? `${t("Sunbeds")} ${v.sets.join(", ")}` : t("Entry tickets")}{has.length ? ` · ${has.join(" · ")}` : ""}
           </p>
