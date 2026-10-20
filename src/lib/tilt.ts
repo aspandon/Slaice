@@ -2,9 +2,12 @@ import { useEffect } from "react";
 import { gsap, motionOK } from "./fx";
 
 /* ---------- Tilt the phone (AENR-792) ----------
-   One listener for the customer surface writes two custom properties on <html>:
-   --tilt-x / --tilt-y, each −1..1. CSS does the rest (index.css: .tilt-sea,
-   .tilt-logo, .tilt-card, .foil), so a tilt never re-renders React.
+   One listener for the customer surface writes two custom properties — --tilt-x / --tilt-y,
+   each −1..1 — on the elements that move with it (TARGETS). CSS does the rest (index.css:
+   .tilt-sea, .tilt-logo, .tilt-card, .foil), so a tilt never re-renders React. The properties
+   are registered as not inherited and never set on <html> (AENR-847): set there, each reading
+   restyled the whole page — about 60 ms a frame on a mid-range phone, so the guest site
+   crawled whenever the phone moved.
 
    - Phones / coarse pointers: the device orientation, relative to how the guest
      held the phone when it started (beta/gamma, ±RANGE° = full scale).
@@ -21,6 +24,9 @@ const RANGE = 22;
 /** Share of the gap the resting pose closes per reading: a new grip re-centres over ~8 s. */
 const DRIFT = 0.002;
 const clamp = gsap.utils.clamp(-1, 1);
+/** Everything that reads the tilt (index.css). Looked up on each write — cheap, and a pass card
+ *  that mounts later picks the tilt up on the next reading. */
+const TARGETS = ".tilt-sea, .tilt-logo, .tilt-card, .foil";
 
 type OrientationCtor = typeof DeviceOrientationEvent & {
   requestPermission?: () => Promise<PermissionState | "granted" | "denied">;
@@ -31,12 +37,15 @@ let permission: "unknown" | "asking" | "granted" | "denied" = "unknown";
 export function useTilt(enabled: boolean) {
   useEffect(() => {
     if (!enabled || !motionOK()) return;
-    const root = document.documentElement;
     const fine = window.matchMedia(FINE).matches;
     const v = { x: 0, y: 0 };
     const write = () => {
-      root.style.setProperty("--tilt-x", v.x.toFixed(3));
-      root.style.setProperty("--tilt-y", v.y.toFixed(3));
+      const x = v.x.toFixed(3);
+      const y = v.y.toFixed(3);
+      for (const el of document.querySelectorAll<HTMLElement>(TARGETS)) {
+        el.style.setProperty("--tilt-x", x);
+        el.style.setProperty("--tilt-y", y);
+      }
     };
     const ease = { duration: fine ? 0.6 : 0.4, ease: "power3.out", onUpdate: write };
     const toX = gsap.quickTo(v, "x", ease);
@@ -125,8 +134,10 @@ export function useTilt(enabled: boolean) {
     return () => {
       offs.forEach((off) => off());
       gsap.killTweensOf(v);
-      root.style.removeProperty("--tilt-x");
-      root.style.removeProperty("--tilt-y");
+      for (const el of document.querySelectorAll<HTMLElement>(TARGETS)) {
+        el.style.removeProperty("--tilt-x");
+        el.style.removeProperty("--tilt-y");
+      }
     };
   }, [enabled]);
 }

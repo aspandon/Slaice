@@ -375,7 +375,7 @@ html[data-persona="customer"]::-webkit-scrollbar {
   }
 
   /* ---- Tilt the phone (AENR-792) ----
-     useTilt (src/lib/tilt.ts) writes --tilt-x / --tilt-y (−1..1) on <html>; these
+     useTilt (src/lib/tilt.ts) writes --tilt-x / --tilt-y (−1..1) on each element below; these
      rules turn them into transforms. Coarse pointers only for the sea, the logo
      and the card lean (desktop has its own pointer parallax and useCardTilt);
      the foil reads the cursor on desktop. Nothing moves under reduced motion. */
@@ -595,6 +595,19 @@ html[data-persona="customer"]::-webkit-scrollbar {
   syntax: "<number>";
   inherits: false;
   initial-value: 1;
+}
+/* The phone's tilt (AENR-792), written by useTilt on the few elements that move with it — never on
+   <html>, and not inherited: a reading then restyles those elements alone. Written on the root, every
+   reading restyled the whole page (≈ 60 ms a frame on a mid-range phone, AENR-847). */
+@property --tilt-x {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+@property --tilt-y {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
 }
 
 /* Respect users who prefer reduced motion (WCAG 2.3.3). */

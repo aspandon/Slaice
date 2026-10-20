@@ -469,6 +469,15 @@ Four pages with distinct names (AENR-642); old `invoicing` and `commission` link
   access once, on the guest's first tap (declined = still). The beach holds still inside the booking
   wizard so sets stay on the sand. Desktop: only the cards' foil follows the pointer (the backdrop keeps
   its own pointer parallax). CSS custom properties, no React re-render; nothing under reduced motion.
+  **Fast on phones** (AENR-847, owner: "slow even at the default sea, the others unusable"): the two
+  tilt properties are registered as not inherited (`@property`) and written only on the elements that
+  move (`.tilt-sea`, `.tilt-logo`, `.tilt-card`, `.foil`) — written on `<html>`, every sensor reading
+  (≈ 60 a second whenever the phone is held) restyled the whole page. Measured on a production build,
+  390 px at 3× density, CPU slowed 4×, phone tilting: style recalculation 3.75 s → 0.34 s in a 4 s
+  window, dropped frames ≈ 180 → 0 (Classic, Coastal, Video and Blender alike), long tasks during four
+  taps 70–84 → 9–11, taps 280–504 ms → 96–224 ms (tab changes ≈ 100 ms; opening Plan a visit
+  ≈ 200 ms). Turning the frosted-glass blur off would save only ≈ 12–15 % of the graphics work, so the
+  glass stays.
 - **Bottom tab bar** on phones (guest and staff) on a near-solid material (`.tabbar-material`, AENR-753) with
   a 20 px fade above it, so content dissolves before reaching the bar instead of reading through it; with a **More** sheet when a persona has more than 5 destinations. In
   the booking wizard it slides away and the step's own action bar (total + Back/Continue) is the only
