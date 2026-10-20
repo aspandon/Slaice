@@ -70,6 +70,30 @@ const bedAt = (dx: number): BedShape => ({
 });
 export const BEDS: ReadonlyArray<BedShape> = [bedAt(0), bedAt(20)];
 
+/* ----- Towels (AENR-830): your set's loungers get a towel in the zone's colour, laid from the
+   head end (under the canopy) to the foot, with two white bands near the foot. `roll` is the
+   rolled-up end that travels down the lounger as it unrolls. ----- */
+export interface TowelShape {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  r: number;
+  /** Two white bands near the foot, as one path. */
+  bands: string;
+  /** Height of the rolled-up end. */
+  roll: number;
+}
+const towelAt = ({ frame }: BedShape): TowelShape => {
+  const x = frame.x + 1.6;
+  const w = frame.w - 3.2;
+  const y = frame.y + 2.5;
+  const h = frame.h - 5;
+  const foot = y + h;
+  return { x, y, w, h, r: 2.2, bands: `M${x} ${foot - 5.5} H${x + w} M${x} ${foot - 3.4} H${x + w}`, roll: 3.4 };
+};
+export const TOWELS: ReadonlyArray<TowelShape> = BEDS.map(towelAt);
+
 /* ----- Palette ----- */
 const BED_BASE = "#cdd4dc";
 /** One base hue per state; a selected bed ("sel") overrides its underlying state. */
@@ -82,6 +106,9 @@ function darken(hex: string, w: number): string {
   const v = (1 << 24) | (ch(16) << 16) | (ch(8) << 8) | ch(0);
   return `#${v.toString(16).slice(1)}`;
 }
+
+/** The rolled-up end of a towel: its own colour in shade. */
+export const towelShade = (hex: string) => (/^#[0-9a-f]{6}$/i.test(hex) ? darken(hex, 0.74) : hex);
 
 export interface SunbedPalette {
   /** Canopy gore + fin: the state hue. */

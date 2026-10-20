@@ -876,7 +876,7 @@ function WizardInner() {
                 <span className="flex items-center gap-1"><Sunbed state="a" size={14} readOnly />{tr("Available")}</span>
                 <span className="flex items-center gap-1"><Sunbed state="h" size={14} readOnly />{tr("On hold")}</span>
                 <span className="flex items-center gap-1"><Sunbed state="u" size={14} readOnly />{tr("Taken")}</span>
-                <span className="flex items-center gap-1"><Sunbed state="a" sel size={14} readOnly />{tr("Yours")}</span>
+                <span className="flex items-center gap-1"><Sunbed state="a" sel size={14} readOnly towel={zone.color} />{tr("Yours")}</span>
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
                 {TIERS.map((ti) => <span key={ti.key} className="flex items-center gap-1"><span className="rounded px-1 text-guest-caption font-bold text-white" style={{ background: ti.color }}>{ti.letter}</span>{tr(ti.name)}</span>)}
@@ -903,24 +903,24 @@ function WizardInner() {
           {step.id === "when" && !richOverview && <ZoneStrip days={selDates} onPick={(id) => { setStepIdx(BEACH_IDX); pickZone(id); }} />}
           {step.id === "beach" && phase === "zones" && !richOverview && !shoreWalk && <ZonePanorama days={selDates} selectedId={zoneId} picked={pickedByZone} onPick={pickZone} />}
           {showSets && (richOverview ? (
-            <SandSunbeds slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} />
+            <SandSunbeds slots={slots} selected={selectedIds} towel={zone.color} onToggle={(slot, el) => setInspect({ slot, el })} />
           ) : (
             // Phones: set tiles fitted to the width (AENR-749) — a legend and one
             // zoom toggle sit above the map, never on the sets; pinch still zooms.
             <ZoomBox className="h-full pointer-events-auto" hint={null} minWidth={0} aspect={(w) => tileGeometry(slots, w).height} controls="none"
               toolbar={(z) => <TileMapBar {...z} />}
               focus={(() => { const f = slots.find((x) => selectedIds.has(x.id)) ?? slots.find((x) => x.state === "a"); return f ? { x: f.x, y: f.y } : undefined; })()}>
-              <SandSunbeds tiles slots={slots} selected={selectedIds} onToggle={(slot, el) => setInspect({ slot, el })} />
+              <SandSunbeds tiles slots={slots} selected={selectedIds} towel={zone.color} onToggle={(slot, el) => setInspect({ slot, el })} />
             </ZoomBox>
           ))}
           {/* Who and Pay keep your zone on the sand (AENR-670): the last zone you picked
               sets from, read-only, your sets highlighted — no extra vignettes. */}
           {showScene && (richOverview ? (
-            <SandSunbeds readOnly slots={sceneSlots} selected={sceneIds} />
+            <SandSunbeds readOnly slots={sceneSlots} selected={sceneIds} towel={sceneZone.color} />
           ) : (
             <ZoomBox className="h-full pointer-events-auto" hint={null} minWidth={0} aspect={(w) => tileGeometry(sceneSlots, w).height} controls="none"
               focus={(() => { const f = sceneSlots.find((x) => sceneIds.has(x.id)); return f ? { x: f.x, y: f.y } : undefined; })()}>
-              <SandSunbeds tiles readOnly slots={sceneSlots} selected={sceneIds} />
+              <SandSunbeds tiles readOnly slots={sceneSlots} selected={sceneIds} towel={sceneZone.color} />
             </ZoomBox>
           ))}
         </div>
@@ -1674,8 +1674,10 @@ function SpotSheet({ zoneName, slot, info, selected, priceText, onClose, onSelec
   );
 }
 
-function SandSunbeds({ slots, selected, onToggle, readOnly = false, tiles = false }: {
+function SandSunbeds({ slots, selected, onToggle, readOnly = false, tiles = false, towel }: {
   slots: SunbedSlot[];
+  /** The zone's colour — the towels laid on your sets (AENR-830). */
+  towel?: string;
   selected: Set<string>;
   onToggle?: (s: SunbedSlot, el: HTMLElement | null) => void;
   readOnly?: boolean;
@@ -1726,7 +1728,7 @@ function SandSunbeds({ slots, selected, onToggle, readOnly = false, tiles = fals
               className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
               style={{ left: at.left, top: at.top, width: geo.w, height: geo.h }}
             >
-              <SetTile state={s.state} sel={selected.has(s.id)} price={s.price} readOnly={readOnly}
+              <SetTile state={s.state} sel={selected.has(s.id)} price={s.price} readOnly={readOnly} towel={towel}
                 label={`${s.id}, ${tierOf(s).tier.name}${s.access ? " (step-free)" : ""}${s.inv ? ` — ${s.inv}` : ""}`}
                 onClick={readOnly ? undefined : () => onToggle?.(s, cells.current.get(s.id) ?? null)} />
               {s.inv && <span aria-hidden title={s.inv} className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-navy-900 text-white text-[9px] grid place-items-center ring-2 ring-white pointer-events-none">🔒</span>}
@@ -1748,7 +1750,7 @@ function SandSunbeds({ slots, selected, onToggle, readOnly = false, tiles = fals
           className="absolute -translate-x-1/2 -translate-y-1/2 pointer-events-auto"
           style={{ left: `${s.x}%`, top: `${s.y}%`, width: size, height: size }}
         >
-          <Sunbed state={s.state} sel={selected.has(s.id)} price={s.price} label={`${s.id}, ${tierOf(s).tier.name}${s.access ? " (step-free)" : ""}${s.inv ? ` — ${s.inv}` : ""}`} fill readOnly={readOnly} onClick={readOnly ? undefined : () => onToggle?.(s, cells.current.get(s.id) ?? null)} />
+          <Sunbed state={s.state} sel={selected.has(s.id)} price={s.price} towel={towel} label={`${s.id}, ${tierOf(s).tier.name}${s.access ? " (step-free)" : ""}${s.inv ? ` — ${s.inv}` : ""}`} fill readOnly={readOnly} onClick={readOnly ? undefined : () => onToggle?.(s, cells.current.get(s.id) ?? null)} />
           {!readOnly && s.state === "a" && size >= 30 && (
             <span aria-hidden className="absolute left-1/2 -translate-x-1/2 -bottom-2 rounded px-1 text-guest-caption font-bold leading-[13px] text-white whitespace-nowrap pointer-events-none shadow-sm" style={{ background: tierOf(s).tier.color }}>
               {tierOf(s).tier.letter} {money(s.price)}

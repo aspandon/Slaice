@@ -10,7 +10,7 @@ import type { BeachBackground, SunbedState } from "../domain/types";
 import type { SeaStyle } from "../domain/features";
 import { SeaLightGroup, useSceneView } from "./sea/SeaLightSvg";
 import { SeaLayer } from "./sea/SeaLayer";
-import { BEDS, CANOPY, CANOPY_FOLDED, CANOPY_WEDGES, FIN, GLYPH_BOX, GLYPH_CONTENT, SHADOW_INK, sunbedPalette } from "./sunbedGlyph";
+import { BEDS, CANOPY, CANOPY_FOLDED, CANOPY_WEDGES, FIN, GLYPH_BOX, GLYPH_CONTENT, SHADOW_INK, sunbedPalette, TOWELS, towelShade } from "./sunbedGlyph";
 import { useSunCast } from "../lib/useSeaLight";
 gsap.registerPlugin(MorphSVGPlugin);
 // Type-only: erased at build time, so three.js stays in the lazy sea chunk.
@@ -27,13 +27,18 @@ const hashOf = (s: string) => [...s].reduce((h, c) => (h * 31 + c.charCodeAt(0))
    The canopy is lit by the scene's sun (AENR-829, `sunCast`): a soft dome — lighter on the
    sun side, shading off toward the far rim — with hairline seams between the gores, a fine rim
    highlight and a small pole cap; its shadow lies on the sand away from the sun, longer and
-   softer toward sunrise and sunset, faint under cloud and at night. */
-export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, className = "" }: {
+   softer toward sunrise and sunset, faint under cloud and at night.
+
+   `towel` (AENR-830): when the set is yours, a towel in the zone's colour lies on each lounger —
+   it unrolls from under the canopy to the foot as you pick it, and rolls back up when let go. */
+export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, className = "", towel }: {
   state?: SunbedState;
   sel?: boolean;
   size?: number;
   fill?: boolean;
   className?: string;
+  /** The zone's colour — your set's towels. Omit for no towels (previews, legends). */
+  towel?: string;
 }) {
   const p = sunbedPalette(state, sel);
   const cast = useSunCast();
@@ -44,6 +49,7 @@ export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, 
   const canopy = useRef<SVGGElement>(null);
   const skin = useRef<SVGGElement>(null);
   const shade = useRef<SVGGElement>(null);
+  const towels = useRef<SVGGElement>(null);
   const was = useRef(sel);
   const rawId = useId();
   const uid = `sb${rawId.replace(/[^\w-]/g, "")}`;
@@ -61,12 +67,16 @@ export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, 
     const sh = shade.current;
     const at = `${castRef.current.x} ${castRef.current.y}`;
     const gores = Array.from(cn.querySelectorAll<SVGPathElement>("[data-gore]"));
+    const tw = towels.current;
+    const clips = tw ? Array.from(tw.querySelectorAll<SVGRectElement>("[data-towel-clip]")) : [];
+    const rolls = tw ? Array.from(tw.querySelectorAll<SVGRectElement>("[data-towel-roll]")) : [];
     // Settle back to the plain glyph: no transform left on the canopy or its shadow, every gore whole.
     // (AENR-817: a box-relative origin measured mid-morph left the canopy off its pole.)
     const settle = () => {
       gsap.set([cn, sh], { clearProps: "transform" });
       gsap.set([sk, sh], { clearProps: "opacity" });
       gores.forEach((g, i) => g.setAttribute("d", CANOPY_WEDGES[i].d));
+      if (tw) gsap.set([...clips, ...rolls, tw], { clearProps: "all" });
     };
     const tl = gsap.timeline({ defaults: { overwrite: "auto" }, onComplete: settle });
     if (sel) {
@@ -76,13 +86,34 @@ export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, 
         // The dome's shading and rim only make sense on the open canopy — they fade in as it fills out.
         .fromTo(sk, { opacity: 0 }, { opacity: 1, duration: 0.24, ease: EASE.out }, 0.2);
       gores.forEach((g, i) => tl.fromTo(g, { morphSVG: CANOPY_FOLDED[i] }, { morphSVG: CANOPY_WEDGES[i].d, duration: 0.42, ease: "back.out(1.5)" }, i * 0.014));
+      // The towels unroll from the head end, under the canopy, to the foot — the second a beat later.
+      TOWELS.forEach((t, i) => {
+        if (!clips[i] || !rolls[i]) return;
+        const at0 = 0.16 + i * 0.07;
+        tl.fromTo(clips[i], { scaleY: 0, svgOrigin: `${t.x} ${t.y}` }, { scaleY: 1, duration: 0.35, ease: "power2.out" }, at0)
+          .to(rolls[i], { opacity: 1, duration: 0.04 }, at0)
+          .fromTo(rolls[i], { y: 0 }, { y: t.h - t.roll, duration: 0.35, ease: "power2.out" }, at0)
+          .to(rolls[i], { opacity: 0, duration: 0.08 }, at0 + 0.3);
+      });
     } else {
-      tl.to(sk, { opacity: 0.25, duration: 0.12, ease: EASE.in }, 0)
+      tl.to(sk, { opacity: 0, duration: 0.12, ease: EASE.in }, 0)
         .to(sk, { opacity: 1, duration: 0.24, ease: EASE.out }, 0.16)
         .fromTo(sh, { scale: 0.82, svgOrigin: at }, { scale: 1, duration: 0.4, ease: "back.out(1.3)" }, 0.1);
       gores.forEach((g, i) =>
         tl.to(g, { morphSVG: CANOPY_FOLDED[i], duration: 0.14, ease: EASE.in }, 0).to(g, { morphSVG: CANOPY_WEDGES[i].d, duration: 0.3, ease: "back.out(1.3)" }, 0.14),
       );
+      // Let go: the towels roll back up to the head end (shown for the roll, then hidden again).
+      if (tw) {
+        gsap.set(tw, { visibility: "visible" });
+        TOWELS.forEach((t, i) => {
+          if (!clips[i] || !rolls[i]) return;
+          const at0 = i * 0.06;
+          tl.fromTo(clips[i], { scaleY: 1, svgOrigin: `${t.x} ${t.y}` }, { scaleY: 0, duration: 0.3, ease: "power2.in" }, at0)
+            .fromTo(rolls[i], { y: t.h - t.roll }, { y: 0, duration: 0.3, ease: "power2.in" }, at0)
+            .to(rolls[i], { opacity: 1, duration: 0.04 }, at0)
+            .to(rolls[i], { opacity: 0, duration: 0.06 }, at0 + 0.28);
+        });
+      }
     }
     return () => {
       tl.kill();
@@ -123,6 +154,24 @@ export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, 
             <path d={bed.slats} fill="none" stroke={p.slat} strokeWidth={1} strokeLinecap="round" />
           </g>
         ))}
+        {/* Your towels (AENR-830): each clipped by a rect that GSAP scales open from the head end,
+            with the rolled-up end riding the edge. Hidden unless the set is yours. */}
+        {towel && (
+          <g ref={towels} visibility={sel ? "visible" : "hidden"}>
+            {TOWELS.map((t, i) => (
+              <g key={i}>
+                <clipPath id={`${uid}-tw${i}`}>
+                  <rect data-towel-clip="" x={t.x - 1} y={t.y} width={t.w + 2} height={t.h} />
+                </clipPath>
+                <g clipPath={`url(#${uid}-tw${i})`}>
+                  <rect x={t.x} y={t.y} width={t.w} height={t.h} rx={t.r} fill={towel} />
+                  <path d={t.bands} fill="none" stroke="#ffffff" strokeOpacity={0.8} strokeWidth={0.9} />
+                </g>
+                <rect data-towel-roll="" x={t.x - 0.5} y={t.y} width={t.w + 1} height={t.roll} rx={t.roll / 2} fill={towelShade(towel)} opacity={0} />
+              </g>
+            ))}
+          </g>
+        )}
         {/* The canopy's shadow on the sand — and on the loungers under it (AENR-829). */}
         <g ref={shade}>
           <ellipse cx={cast.x} cy={cast.y} rx={(r + 0.5) * cast.stretch} ry={r + 0.5} transform={`rotate(${cast.rot.toFixed(1)} ${cast.x.toFixed(2)} ${cast.y.toFixed(2)})`} fill={`url(#${uid}-sh)`} />
@@ -158,7 +207,7 @@ const DOME_INK = "#0b2545";
    A parasol over twin loungers. state: "a" available · "h" on hold · "u"
    unavailable · sel = selected. The interactive button wrapper around SunbedMark
    used by the legend + the booking grid. */
-export function Sunbed({ state = "a", sel = false, onClick, label, price, size = 20, block = false, fill = false, readOnly = false }: {
+export function Sunbed({ state = "a", sel = false, onClick, label, price, size = 20, block = false, fill = false, readOnly = false, towel }: {
   state?: SunbedState;
   sel?: boolean;
   onClick?: () => void;
@@ -170,6 +219,8 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
   /** Lock the glyph for display only — no hover lift, no click (used by the
    *  later booking steps, where the chosen beach is shown but not editable). */
   readOnly?: boolean;
+  /** The zone's colour, for your set's towels (AENR-830). */
+  towel?: string;
 }) {
   const t = useT();
   const money = useMoney();
@@ -200,7 +251,7 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
       className={`group relative ${block || fill ? "w-full h-full grid place-items-center" : ""} ${interactive ? "cursor-pointer hover:-translate-y-1.5 hover:scale-[1.18] hover:z-20" : (dim || held) && !readOnly ? "cursor-not-allowed" : "cursor-default"} transition-transform duration-200 ease-spring`}
       style={{ lineHeight: 0, willChange: "transform", ...lift }}
     >
-      <SunbedMark state={state} sel={sel} size={size} fill={fill} className="transition-[filter] duration-200 group-hover:drop-shadow-[var(--lift-x)_var(--lift-y)_10px_rgba(60,42,20,0.45)]" />
+      <SunbedMark state={state} sel={sel} size={size} fill={fill} towel={towel} className="transition-[filter] duration-200 group-hover:drop-shadow-[var(--lift-x)_var(--lift-y)_10px_rgba(60,42,20,0.45)]" />
       {!dim && label && (
         <span className="opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-2 z-30 px-3 py-2 rounded-xl bg-navy-900/95 text-white whitespace-nowrap shadow-float ring-1 ring-white/10 transition-opacity duration-150">
           <span className="block font-bold text-[12.5px] leading-none tnum">{label}</span>

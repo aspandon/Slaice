@@ -84,6 +84,7 @@ export function SetTile({
   label,
   readOnly = false,
   onClick,
+  towel,
 }: {
   state: SunbedState;
   sel: boolean;
@@ -92,6 +93,8 @@ export function SetTile({
   label: string;
   readOnly?: boolean;
   onClick?: () => void;
+  /** The zone's colour: your set's towel (AENR-830). */
+  towel?: string;
 }) {
   const tr = useT();
   const money = useMoney();
@@ -123,6 +126,7 @@ export function SetTile({
       {(t === "free" || t === "yours") && (
         <span className="text-[12px] font-bold leading-none tnum">{money(price)}</span>
       )}
+      {towel && <TowelStrip on={t === "yours"} color={towel} />}
       {t === "yours" && (
         <span
           aria-hidden
@@ -157,6 +161,34 @@ function Parasol({ open, className }: { open: boolean; className?: string }) {
       <path ref={canopy} d={DOME} />
       <path d="M12 3v1M12 12v7a2 2 0 0 0 4 0" />
     </svg>
+  );
+}
+
+/* Your towel (AENR-830): the tile's simplified take on the towels the map glyph lays on its
+   loungers — a short striped strip in the zone's colour along the tile's foot that unrolls from
+   the left when the set becomes yours and rolls back up when let go. Static under reduced motion. */
+function TowelStrip({ on, color }: { on: boolean; color: string }) {
+  const strip = useRef<HTMLSpanElement>(null);
+  const was = useRef(on);
+  useLayoutEffect(() => {
+    if (was.current === on) return;
+    was.current = on;
+    const el = strip.current;
+    if (!motionOK() || !el) return;
+    const clear = () => { gsap.set(el, { clearProps: "transform,visibility" }); };
+    gsap.set(el, { visibility: "visible", transformOrigin: "0% 50%" });
+    const tw = on
+      ? gsap.fromTo(el, { scaleX: 0 }, { scaleX: 1, duration: 0.35, delay: 0.1, ease: "power2.out", onComplete: clear })
+      : gsap.fromTo(el, { scaleX: 1 }, { scaleX: 0, duration: 0.28, ease: "power2.in", onComplete: clear });
+    return () => { tw.kill(); clear(); };
+  }, [on]);
+  return (
+    <span
+      ref={strip}
+      aria-hidden
+      className={`absolute left-[26%] right-[26%] bottom-[4px] h-1 rounded-[2px] ring-1 ring-white/85 pointer-events-none ${on ? "" : "invisible"}`}
+      style={{ background: `linear-gradient(90deg, ${color} 0 68%, #fff 68% 74%, ${color} 74% 82%, #fff 82% 88%, ${color} 88%)` }}
+    />
   );
 }
 
