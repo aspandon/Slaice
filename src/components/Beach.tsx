@@ -2,11 +2,13 @@ import { lazy, Suspense, useEffect, useId, useLayoutEffect, useRef, useState } f
 import type { ReactNode } from "react";
 import { liteScene, prefersReducedMotion, useParallax } from "../lib/motion";
 import { EASE, gsap, motionOK } from "../lib/fx";
+import { MorphSVGPlugin } from "gsap/MorphSVGPlugin";
 import { useApp, useMoney, useT } from "../app/store";
 import { presetById } from "../data/backgrounds";
 import type { BeachPreset } from "../data/backgrounds";
 import type { BeachBackground, SunbedState } from "../domain/types";
-import { BEDS, CANOPY, CANOPY_WEDGES, FIN, GLYPH_BOX, GLYPH_CONTENT, sunbedPalette } from "./sunbedGlyph";
+import { BEDS, CANOPY, CANOPY_FOLDED, CANOPY_WEDGES, FIN, GLYPH_BOX, GLYPH_CONTENT, sunbedPalette } from "./sunbedGlyph";
+gsap.registerPlugin(MorphSVGPlugin);
 // Type-only: erased at build time, so three.js stays in the lazy sea chunk.
 import type { SeaEnv } from "./LiveSeaCanvas";
 
@@ -24,7 +26,9 @@ export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, 
 }) {
   const p = sunbedPalette(state, sel);
   // The umbrella opens when the set becomes yours and folds when it stops being yours (AENR-790):
-  // the gores spin out from a tight bundle while a soft shadow spreads on the sand. Not on mount.
+  // each gore changes shape (MorphSVG, AENR-808) from a folded spike by the pole out to its full
+  // wedge, one after another round the canopy as it turns, while a soft shadow spreads on the sand.
+  // Let go, it half-folds and springs open again in the plain colour. Not on mount.
   const canopy = useRef<SVGGElement>(null);
   const shade = useRef<SVGCircleElement>(null);
   const was = useRef(sel);
@@ -32,12 +36,17 @@ export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, 
     if (was.current === sel) return;
     was.current = sel;
     if (!motionOK() || !canopy.current || !shade.current) return;
+    const gores = Array.from(canopy.current.querySelectorAll<SVGPathElement>("[data-gore]"));
     const tl = gsap.timeline({ defaults: { overwrite: "auto" } });
     if (sel) {
-      tl.fromTo(canopy.current, { scale: 0.22, rotation: -120, transformOrigin: "50% 50%" }, { scale: 1, rotation: 0, duration: 0.5, ease: EASE.spring })
+      tl.set(canopy.current, { transformOrigin: "50% 50%" })
+        .fromTo(canopy.current, { rotation: -70 }, { rotation: 0, duration: 0.55, ease: EASE.out }, 0)
         .fromTo(shade.current, { scale: 0.2, opacity: 0, transformOrigin: "50% 50%" }, { scale: 1, opacity: 1, duration: 0.45, ease: EASE.out }, 0.05);
+      gores.forEach((g, i) => tl.fromTo(g, { morphSVG: CANOPY_FOLDED[i] }, { morphSVG: CANOPY_WEDGES[i].d, duration: 0.42, ease: "back.out(1.5)" }, i * 0.014));
     } else {
-      tl.fromTo(canopy.current, { scale: 0.45, rotation: 60, transformOrigin: "50% 50%" }, { scale: 1, rotation: 0, duration: 0.35, ease: EASE.out });
+      gores.forEach((g, i) =>
+        tl.to(g, { morphSVG: CANOPY_FOLDED[i], duration: 0.14, ease: EASE.in }, 0).to(g, { morphSVG: CANOPY_WEDGES[i].d, duration: 0.3, ease: "back.out(1.3)" }, 0.14),
+      );
     }
     return () => { tl.kill(); };
   }, [sel]);
@@ -59,7 +68,7 @@ export function SunbedMark({ state = "a", sel = false, size = 20, fill = false, 
         {/* Pinwheel parasol — state-hue gores alternating with white. */}
         <g ref={canopy}>
           {CANOPY_WEDGES.map((wdg, i) => (
-            <path key={`w${i}`} d={wdg.d} fill={wdg.lite ? p.lite : p.c} />
+            <path key={`w${i}`} data-gore="" d={wdg.d} fill={wdg.lite ? p.lite : p.c} />
           ))}
           <circle cx={CANOPY.cx} cy={CANOPY.cy} r={CANOPY.r} fill="none" stroke={p.edge} strokeWidth={1} />
           <circle cx={FIN.cx} cy={FIN.cy} r={FIN.r} fill={p.fin} />
@@ -129,7 +138,16 @@ export function Sunbed({ state = "a", sel = false, onClick, label, price, size =
    renders it behind `children`. Pass an explicit `background` to preview a
    specific scene (the picker does this); otherwise it reads the zone, so the
    choice flows to the booking map and the customer surface automatically. */
-export function BeachBackdrop({ children, className = "", pos = "relative", parallax = false, background, preview = false, shoreline, noVeg = false, seaEnv }: {
+/** The sea's effects a tenant can switch (AENR-810): the live WebGL water, the depth planes + birds,
+ *  and the wave lines. Omitted = all on (admin previews, the guest pass). */
+export interface SeaFx {
+  live: boolean;
+  depth: boolean;
+  detail: boolean;
+}
+const ALL_SEA: SeaFx = { live: true, depth: true, detail: true };
+
+export function BeachBackdrop({ children, className = "", pos = "relative", parallax = false, background, preview = false, shoreline, noVeg = false, seaEnv, sea = ALL_SEA }: {
   children?: ReactNode;
   className?: string;
   pos?: string;
@@ -146,6 +164,7 @@ export function BeachBackdrop({ children, className = "", pos = "relative", para
   /** Weather / daylight targets for the live water + ambient decor (layered
    *  scene only). Omitted = calm sunny noon. */
   seaEnv?: SeaEnv;
+  sea?: SeaFx;
 }) {
   const ctx = useApp();
   const bg = background ?? ctx.background;
@@ -153,9 +172,9 @@ export function BeachBackdrop({ children, className = "", pos = "relative", para
     bg.kind === "custom" ? (
       <CustomBeach src={bg.src} parallax={parallax} />
     ) : parallax ? (
-      <BeachSceneLayered preset={presetById(bg.id)} shoreline={shoreline} noVeg={noVeg} seaEnv={seaEnv} />
+      <BeachSceneLayered preset={presetById(bg.id)} shoreline={shoreline} noVeg={noVeg} seaEnv={seaEnv} sea={sea} />
     ) : (
-      <BeachScene preset={presetById(bg.id)} preview={preview} shoreline={shoreline} noVeg={noVeg} noSky={!preview && shoreline !== undefined && !seaEnv?.clouds} />
+      <BeachScene preset={presetById(bg.id)} preview={preview} shoreline={shoreline} noVeg={noVeg} noSky={!preview && shoreline !== undefined && !seaEnv?.clouds} detail={sea.detail} />
     );
   return (
     <div className={`${pos} overflow-hidden rounded-2xl ${className}`}>
@@ -255,7 +274,7 @@ function SeaWavelets({ dy = 0 }: { dy?: number }) {
 
 /* Flat beach scene — drives every gradient and decor layer from `preset`. Used
    by the booking map, the auth panel, the map editor canvas and the picker. */
-function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky = false }: { preset: BeachPreset; preview?: boolean; shoreline?: number; noVeg?: boolean; /** Drop clouds and birds — the still phone backdrop (AENR-730), where the shoreline moves and they'd sit on the sand. */ noSky?: boolean }) {
+function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky = false, detail = true }: { preset: BeachPreset; preview?: boolean; shoreline?: number; noVeg?: boolean; /** Drop clouds and birds — the still phone backdrop (AENR-730), where the shoreline moves and they'd sit on the sand. */ noSky?: boolean; /** Wave lines on the water (AENR-810). */ detail?: boolean }) {
   const rid = useId().replace(/:/g, "");
   const id = (k: string) => `${k}-${rid}`;
   const grain = preset.grain && !preview;
@@ -307,7 +326,7 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky =
       <rect width="1600" height="900" fill={`url(#${id("sea")})`} />
       {preset.glint && <rect width="1600" height="900" fill={`url(#${id("glint")})`} />}
 
-      {preset.waves > 0 && (
+      {detail && preset.waves > 0 && (
         <g opacity="0.35" stroke="white" fill="none" strokeLinecap="round">
           {WAVES.slice(0, preset.waves).map((wv, i) => (
             <path key={i} d={wv.d} strokeWidth={wv.sw} opacity={wv.o} />
@@ -316,7 +335,7 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky =
       )}
 
       {/* Static surface texture in the open-water band. */}
-      <SeaWavelets dy={dy} />
+      {detail && <SeaWavelets dy={dy} />}
 
       {/* Curved shoreline foam band */}
       <path d={foamD(dy)} fill={`url(#${id("foam")})`} />
@@ -382,16 +401,19 @@ const liveSeaOK = () =>
    animated water (LiveSeaCanvas). The SVG sea stays rendered beneath it as the
    loading state and the fallback: if WebGL is missing, software-rendered or the
    context dies, the canvas reverts to it without a flash. */
-function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv }: { preset: BeachPreset; shoreline?: number; noVeg?: boolean; seaEnv?: SeaEnv }) {
+function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea }: { preset: BeachPreset; shoreline?: number; noVeg?: boolean; seaEnv?: SeaEnv; sea: SeaFx }) {
   const rid = useId().replace(/:/g, "");
   const id = (k: string) => `${k}-${rid}`;
   const dy = shorelineShift(shoreline);
   const cloudVis = seaEnv?.clouds ?? 0;
   const cloudSpeed = seaEnv?.cloudSpeed ?? 0;
-  const [liveSea, setLiveSea] = useState(liveSeaOK);
-  const far = useParallax<HTMLDivElement>(-0.018, 24);
-  const mid = useParallax<HTMLDivElement>(-0.04, 44);
-  const near = useParallax<HTMLDivElement>(-0.065, 60);
+  const [liveOK, setLiveSea] = useState(liveSeaOK);
+  const liveSea = liveOK && sea.live;
+  // Depth off (AENR-810): the planes stay stacked and still, and no birds fly.
+  const k = sea.depth ? 1 : 0;
+  const far = useParallax<HTMLDivElement>(-0.018 * k, 24);
+  const mid = useParallax<HTMLDivElement>(-0.04 * k, 44);
+  const near = useParallax<HTMLDivElement>(-0.065 * k, 60);
   const plane = "absolute pointer-events-none";
   const overscan = { inset: "-12%", willChange: "transform" } as const;
   // First ambient run snaps cloud visibility instead of fading it in, so a
@@ -422,7 +444,7 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv }: { prese
         }));
       }
     });
-    const birds = root.querySelector('[data-amb="birds"]');
+    const birds = sea.depth ? root.querySelector('[data-amb="birds"]') : null;
     let flight: gsap.core.Timeline | null = null;
     let alive = true;
     if (birds) {
@@ -445,7 +467,7 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv }: { prese
       if (birds) gsap.set(birds, { clearProps: "all" });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mid is a stable ref
-  }, [preset.id, cloudVis, cloudSpeed]);
+  }, [preset.id, cloudVis, cloudSpeed, sea.depth]);
   return (
     <>
       {/* Far plane — sea, glint, wave bands and the top vignette. */}
@@ -471,14 +493,14 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv }: { prese
           </defs>
           <rect width="1600" height="900" fill={`url(#${id("sea")})`} />
           {preset.glint && <rect width="1600" height="900" fill={`url(#${id("glint")})`} />}
-          {preset.waves > 0 && (
+          {sea.detail && preset.waves > 0 && (
             <g opacity="0.35" stroke="white" fill="none" strokeLinecap="round">
               {WAVES.slice(0, preset.waves).map((wv, i) => (
                 <path key={i} d={wv.d} strokeWidth={wv.sw} opacity={wv.o} />
               ))}
             </g>
           )}
-          <SeaWavelets dy={dy} />
+          {sea.detail && <SeaWavelets dy={dy} />}
           <rect width="1600" height="160" fill={`url(#${id("vignette")})`} />
         </svg>
         {liveSea && (

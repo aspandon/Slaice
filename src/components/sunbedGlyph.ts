@@ -36,6 +36,16 @@ export const CANOPY_WEDGES: ReadonlyArray<{ lite: boolean; d: string }> = [
   { lite: false, d: "M36 31 L18.88 25.44 A 18 18 0 0 1 25.42 16.44 Z" },
   { lite: true, d: "M36 31 L25.42 16.44 A 18 18 0 0 1 36.00 13.00 Z" },
 ];
+/* Each gore folded shut (AENR-808): a closed parasol seen from above is a tight star — every gore a
+   thin spike along its own middle, close to the pole. The open gore above is what it morphs to. */
+const goreAt = (deg: number, r: number) => {
+  const a = ((deg - 90) * Math.PI) / 180;
+  return `${(36 + r * Math.cos(a)).toFixed(2)} ${(31 + r * Math.sin(a)).toFixed(2)}`;
+};
+export const CANOPY_FOLDED: ReadonlyArray<string> = CANOPY_WEDGES.map((_, i) => {
+  const mid = i * 36 + 18;
+  return `M36 31 L${goreAt(mid - 9, 3.2)} L${goreAt(mid, 10)} L${goreAt(mid + 9, 3.2)} Z`;
+});
 /** The gores pre-merged by colour into one path each — handy for Konva, where a
  *  single <Path> per fill is far lighter than ten across a full grid of sets. */
 export const CANOPY_PATH = CANOPY_WEDGES.filter((w) => !w.lite).map((w) => w.d).join(" ");

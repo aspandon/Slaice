@@ -74,7 +74,10 @@ export type TenantFeatureId =
   | "till.parking"
   | "guest.liveScene"
   | "guest.camera"
-  | "guest.shoreWalk";
+  | "guest.shoreWalk"
+  | "guest.liveSea"
+  | "guest.seaDepth"
+  | "guest.seaDetail";
 export type TenantFeatureGroup = "Guest site" | "Refunds" | "Cashier till";
 export interface TenantFeatureDef {
   key: TenantFeatureId;
@@ -108,6 +111,31 @@ export const TENANT_FEATURES: readonly TenantFeatureDef[] = [
     label: "Walk along the shore",
     description:
       "Guests choose a zone by dragging along a beach panorama — momentum, depth and one zone at a time in the middle with its free sets and price. Off: the zone cards (AENR-788).",
+    group: "Guest site",
+    default: true,
+  },
+  // The sea's effects (AENR-810), each its own switch so the Super Admin can tune the guest beach per tenant.
+  {
+    key: "guest.liveSea",
+    label: "Live animated sea",
+    description:
+      "On computers the sea moves: a slow swell, shimmering filaments, the sun's glint and a breathing foam edge (WebGL). Off: the still painted sea. Phones and reduced motion always get the still sea.",
+    group: "Guest site",
+    default: true,
+  },
+  {
+    key: "guest.seaDepth",
+    label: "Sea depth and ambient life",
+    description:
+      "The sea, the sand and the greenery drift at different speeds as the guest scrolls, and a flock of birds crosses now and then. Off: one flat, still scene.",
+    group: "Guest site",
+    default: true,
+  },
+  {
+    key: "guest.seaDetail",
+    label: "Wave lines on the water",
+    description:
+      "Crest lines and small wavelets drawn on the open water. Off: a clean gradient sea.",
     group: "Guest site",
     default: true,
   },

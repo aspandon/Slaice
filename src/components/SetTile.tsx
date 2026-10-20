@@ -1,5 +1,8 @@
 import { useLayoutEffect, useRef, type ReactNode } from "react";
 import { EASE, gsap, motionOK } from "../lib/fx";
+import { MorphSVGPlugin } from "gsap/MorphSVGPlugin";
+
+gsap.registerPlugin(MorphSVGPlugin);
 import { Icon } from "../lib/icons";
 import { useMoney, useT } from "../app/store";
 import type { SunbedSlot, SunbedState } from "../domain/types";
@@ -132,8 +135,11 @@ export function SetTile({
   );
 }
 
-/* The tile's umbrella (AENR-790): when the set becomes yours its canopy opens out from the
-   tip — folded to a sliver, then spread — and folds back when you let it go. Not on mount. */
+/* The tile's umbrella (AENR-790): when the set becomes yours its canopy changes shape (MorphSVG,
+   AENR-808) from a furled umbrella — a slim spindle down the pole — to the open dome, with a small
+   overshoot; let go, it furls part-way and springs back. Not on mount. */
+const DOME = "M12 3a9 9 0 0 1 9 9H3a9 9 0 0 1 9-9Z";
+const FURLED = "M12 3c1.2 2.6 1.6 6 1.2 9h-2.4C10.4 9 10.8 5.6 12 3Z";
 function Parasol({ open, className }: { open: boolean; className?: string }) {
   const canopy = useRef<SVGPathElement>(null);
   const was = useRef(open);
@@ -142,13 +148,13 @@ function Parasol({ open, className }: { open: boolean; className?: string }) {
     was.current = open;
     if (!motionOK() || !canopy.current) return;
     const tw = open
-      ? gsap.fromTo(canopy.current, { scaleX: 0.12, transformOrigin: "50% 0%" }, { scaleX: 1, duration: 0.45, ease: EASE.spring })
-      : gsap.fromTo(canopy.current, { scaleX: 0.4, transformOrigin: "50% 0%" }, { scaleX: 1, duration: 0.3, ease: EASE.out });
+      ? gsap.fromTo(canopy.current, { morphSVG: FURLED }, { morphSVG: DOME, duration: 0.45, ease: "back.out(1.6)" })
+      : gsap.timeline().to(canopy.current, { morphSVG: FURLED, duration: 0.14, ease: EASE.in }).to(canopy.current, { morphSVG: DOME, duration: 0.3, ease: "back.out(1.3)" });
     return () => { tw.kill(); };
   }, [open]);
   return (
     <svg width={15} height={15} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden className={className}>
-      <path ref={canopy} d="M12 3a9 9 0 0 1 9 9H3a9 9 0 0 1 9-9Z" />
+      <path ref={canopy} d={DOME} />
       <path d="M12 3v1M12 12v7a2 2 0 0 0 4 0" />
     </svg>
   );

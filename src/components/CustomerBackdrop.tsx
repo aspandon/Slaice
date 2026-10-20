@@ -8,6 +8,7 @@ import type { SeaEnv } from "./LiveSeaCanvas";
 import { WeatherFxCanvas } from "./WeatherFx";
 import { useGuestScene } from "../lib/useGuestScene";
 import { useApp } from "../app/store";
+import { useTenantFeatures } from "../lib/useFeatures";
 import { DUR } from "../lib/fx";
 import { MARGIN_X, MARGIN_Y, cameraTransform, layerShoreline, setCameraLayer, shotFor, useCameraOn, useWizardShot, zoneWorldX } from "../lib/camera";
 
@@ -84,6 +85,9 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
   // change tweens the layer (transform only). Off (Demo switch, reduced motion) = no layer
   // margins and no transform: the backdrop exactly as before.
   const cameraOn = useCameraOn();
+  // The sea's effects, switched per tenant (AENR-810).
+  const { feature } = useTenantFeatures();
+  const sea = { live: feature("guest.liveSea"), depth: feature("guest.seaDepth"), detail: feature("guest.seaDetail") };
   const wiz = useWizardShot();
   const { zoneMap } = useApp();
   const zoneId = (page === "plan" ? wiz?.zoneId : null) ?? null;
@@ -158,7 +162,7 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
         {/* Tilt the phone (AENR-792): the scene drifts a few px with the phone — inside the
             camera, so the two transforms never fight; still in the wizard, where sets stand on the sand. */}
         <div className="tilt-sea absolute inset-0" data-still={immersive ? "" : undefined}>
-          <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax={!stat} shoreline={drawShore} noVeg={immersive} seaEnv={seaEnv} />
+          <BeachBackdrop pos="absolute" className="inset-0 rounded-none" parallax={!stat} shoreline={drawShore} noVeg={immersive} seaEnv={seaEnv} sea={sea} />
         </div>
       </div>
       {/* The life-buoy bobs in the water, always in a slot content never uses
