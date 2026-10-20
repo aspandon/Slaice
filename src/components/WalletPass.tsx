@@ -164,6 +164,49 @@ export function WalletPocket({ kind, added = false, drag = true, onPick }: { kin
   );
 }
 
+/* A visit's wallet row on a dark pass card (Wallet › Upcoming entries, AENR-779): the wallets this
+   device keeps passes in (a computer offers both), as quiet translucent buttons so the card stays the
+   hero; once added it is one "In … Wallet ✓" button that reopens that wallet's sheet (to remove it).
+   Same sheet, pass preview and remembered state (account.wallet) as My bookings and Home. */
+export function WalletRow({ pass, className = "" }: { pass: WalletPassData; className?: string }) {
+  const t = useT();
+  const { account } = useApp();
+  const [kind, setKind] = useState<WalletKind | null>(null);
+  const added = pass.visitKey ? account.wallet?.[pass.visitKey] : undefined;
+  if (pass.voided && !added) return null;
+  const kinds = added ? [added] : deviceWallets();
+  const logo = (k: WalletKind) =>
+    k === "apple" ? <AppleLogo size={17} /> : <span className="grid place-items-center rounded-full bg-white p-0.5"><GoogleG size={14} /></span>;
+  return (
+    <div className={`grid gap-2 ${kinds.length > 1 ? "grid-cols-2" : ""} ${className}`} data-card-wallet>
+      {kinds.map((k) => (
+        <button
+          key={k}
+          type="button"
+          onClick={() => setKind(k)}
+          aria-label={added ? undefined : `${t("Add to")} ${WALLET_NAME[k]}`}
+          className="inline-flex min-h-[44px] min-w-0 items-center justify-center gap-2.5 rounded-xl bg-white/10 px-3 py-1.5 text-white ring-1 ring-white/15 transition hover:bg-white/15 active:scale-[.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+        >
+          {logo(k)}
+          {added ? (
+            <span className="inline-flex items-center gap-1.5 text-guest-meta font-semibold">
+              {pass.voided ? t("Pass voided") : `${t("In")} ${WALLET_NAME[k]}`}
+              {!pass.voided && <Icon.checkCircle size={14} className="text-emerald-400" />}
+            </span>
+          ) : (
+            // Two lines like the official badges, so both fit side by side on a phone.
+            <span aria-hidden className="min-w-0 text-left leading-none">
+              <span className="block text-guest-over text-white/65">{t("Add to")}</span>
+              <span className="mt-0.5 block whitespace-nowrap text-guest-meta font-semibold">{WALLET_NAME[k]}</span>
+            </span>
+          )}
+        </button>
+      ))}
+      {kind && <WalletSheetFor pass={pass} kind={kind} onClose={() => setKind(null)} />}
+    </div>
+  );
+}
+
 /** Opens one wallet's sheet from a menu. */
 export function WalletSheetFor({ pass, kind, onClose }: { pass: WalletPassData; kind: WalletKind; onClose: () => void }) {
   return <WalletSheet open onClose={onClose} pass={pass} kind={kind} platform={detectWalletPlatform()} />;

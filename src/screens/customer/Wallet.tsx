@@ -15,7 +15,8 @@ import { ARRIVAL_WINDOW, fmtDeadline, releaseDeadline, type Visit } from "../../
 import { guestNow, useVisits } from "../../lib/useVisits";
 import { useDemoFlag } from "../../lib/useDemoFlag";
 import { BadgesTile, FIRST_TIME_LOYALTY, RewardRow, SeasonTile, VipTile, activeRewards } from "./CustomerHome";
-import { VisitQR } from "./VisitTicket";
+import { VisitQR, visitPass } from "./VisitTicket";
+import { WalletRow } from "../../components/WalletPass";
 import { useTenantFeatures } from "../../lib/useFeatures";
 
 /* ============ Wallet (AENR-577 / 578, order AENR-686) ============
@@ -282,8 +283,9 @@ function useMainNavWidth() {
    is open with its gate QR; later ones show only their top strip, tucked under
    the card above. Tapping a strip opens that pass and tucks the other away.
    It's a list of disclosure buttons, so keyboard and screen readers get the
-   same: each strip says which visit it is and whether it is open. Managing a
-   visit (move, extras, cancel, receipts) stays in My bookings. */
+   same: each strip says which visit it is and whether it is open. The open pass
+   can go into Apple / Google Wallet from its footer (AENR-779); managing a visit
+   (move, extras, cancel, receipts) stays in My bookings. */
 function PassStack({ visits, onShow }: { visits: Visit[]; onShow: (v: Visit) => void }) {
   const [openKey, setOpenKey] = useState(visits[0]?.key);
   const open = visits.some((v) => v.key === openKey) ? openKey : visits[0]?.key;
@@ -352,6 +354,8 @@ function PassCard({ v, open, onToggle, onShow }: { v: Visit; open: boolean; onTo
                 <Icon.qr size={12} /> {t("Tap to enlarge")}
               </span>
             </button>
+            {/* Add this visit's pass to the phone's wallet (AENR-779): a quiet footer under the QR. */}
+            <WalletRow pass={visitPass(v)} className="border-t border-white/10 pt-4" />
             <button
               type="button"
               onClick={() => go("customer", "mybookings")}
