@@ -29,7 +29,8 @@ import {
   type Contact,
   type TenantRecord,
 } from "../../domain/tenants";
-import { KV, ReasonModal, SectionFrame, useTenantDraft, type SectionProps } from "./kit";
+import { KV, Part, ReasonModal, SectionFrame, useTenantDraft, type SectionProps } from "./kit";
+import { Localisation, Locations } from "./ProductSections";
 import { eur as eurFull, rateLabel, subscriptionLabel, termsOf } from "../../domain/economics";
 import { seasonToDate } from "../../data/economics";
 import { useStatementOpts } from "../../lib/useEconomics";
@@ -209,7 +210,12 @@ export function Overview({ t, go }: SectionProps) {
   );
 }
 
-/* ---------- Profile & contacts ---------- */
+/* ---------- Profile (AENR-796) ----------
+   One page for who the tenant is: identity and contacts, the contract, its
+   locations and its localisation. Each part keeps its own draft, Save bar and
+   Audit-log section, so saving one never touches another; Contract & account
+   stays Admin-only. Old links (…/contract, /locations, /localisation) land on
+   their part. */
 const ROLE_LABEL: Record<Contact["role"], string> = {
   owner: "Account owner (signatory)",
   billing: "Billing",
@@ -217,20 +223,32 @@ const ROLE_LABEL: Record<Contact["role"], string> = {
   technical: "Technical",
   dpo: "DPO",
 };
-export function Profile({ t }: SectionProps) {
+const PROFILE_PARTS = [
+  { id: "identity", label: "Identity & contacts" },
+  { id: "contract", label: "Contract & account" },
+  { id: "locations", label: "Locations & capacity" },
+  { id: "localisation", label: "Localisation" },
+] as const;
+export function Profile(p: SectionProps) {
+  return (
+    <SectionFrame
+      title="Profile"
+      sub="Who the tenant is — legal identity, contacts, contract, locations and languages. Each part saves on its own."
+      parts={PROFILE_PARTS}
+    >
+      <Identity {...p} />
+      <Contract {...p} />
+      <Locations {...p} />
+      <Localisation {...p} />
+    </SectionFrame>
+  );
+}
+
+function Identity({ t }: SectionProps) {
+  // Language, timezone and currency live in Localisation only — one draft per field.
   const d = useTenantDraft(
     t,
-    [
-      "name",
-      "legalName",
-      "vatNo",
-      "address",
-      "country",
-      "language",
-      "timezone",
-      "currency",
-      "contacts",
-    ] as const,
+    ["name", "legalName", "vatNo", "address", "country", "contacts"] as const,
     "Profile",
     ["vatNo", "legalName"],
     (x) => tenantVatProblem(x.vatNo, x.country),
@@ -244,7 +262,12 @@ export function Profile({ t }: SectionProps) {
       d.draft.contacts.map((c, j) => (j === i ? { ...c, ...p } : c)),
     );
   return (
-    <SectionFrame title="Profile" sub="Legal identity, locale and the people to contact.">
+    <Part
+      id="identity"
+      icon={Icon.building}
+      title="Identity & contacts"
+      sub="The legal entity on contracts and invoices, and who to call for what."
+    >
       <Card className="p-4 grid sm:grid-cols-2 gap-3">
         <Field label="Trading name">
           <Input value={d.draft.name} onChange={(e) => d.set("name", e.target.value)} />
@@ -255,9 +278,6 @@ export function Profile({ t }: SectionProps) {
         <Field label="ΑΦΜ / VAT no." error={vatErr}>
           <Input value={d.draft.vatNo} onChange={(e) => d.set("vatNo", e.target.value)} aria-invalid={!!vatErr} />
         </Field>
-        <Field label="Address">
-          <Input value={d.draft.address} onChange={(e) => d.set("address", e.target.value)} />
-        </Field>
         <Field label="Country">
           <Select
             value={d.draft.country}
@@ -265,30 +285,14 @@ export function Profile({ t }: SectionProps) {
             options={["Greece", "Cyprus"]}
           />
         </Field>
-        <Field label="Default language">
-          <Select
-            value={d.draft.language}
-            onChange={(e) => d.set("language", e.target.value)}
-            options={["Greek", "English"]}
-          />
-        </Field>
-        <Field label="Timezone">
-          <Select
-            value={d.draft.timezone}
-            onChange={(e) => d.set("timezone", e.target.value)}
-            options={["Europe/Athens", "Asia/Nicosia"]}
-          />
-        </Field>
-        <Field label="Currency">
-          <Select
-            value={d.draft.currency}
-            onChange={(e) => d.set("currency", e.target.value)}
-            options={["EUR"]}
-          />
-        </Field>
+        <div className="sm:col-span-2">
+          <Field label="Address">
+            <Input value={d.draft.address} onChange={(e) => d.set("address", e.target.value)} />
+          </Field>
+        </div>
       </Card>
       <Card className="p-4">
-        <h3 className="font-semibold text-navy-900 mb-2">Contacts by role</h3>
+        <h4 className="font-semibold text-navy-900 mb-2">Contacts by role</h4>
         <ul className="space-y-2">
           {d.draft.contacts.map((c, i) => (
             <li
@@ -372,12 +376,12 @@ export function Profile({ t }: SectionProps) {
           }}
         />
       )}
-    </SectionFrame>
+    </Part>
   );
 }
 
-/* ---------- Contract & account ---------- */
-export function Contract({ t, go }: SectionProps) {
+/* Contract & account — Admin-only part of Profile (AENR-796). */
+function Contract({ t, go }: SectionProps) {
   const { plan, planName } = usePlatform();
   const d = useTenantDraft(t, ["renewal", "accountManager"] as const, "Contract & account", [
     "renewal",
@@ -385,9 +389,12 @@ export function Contract({ t, go }: SectionProps) {
   const pv = plan(t);
   const terms = termsOf(t);
   return (
-    <SectionFrame
+    <Part
+      id="contract"
+      icon={Icon.doc}
       title="Contract & account"
       sub="Dates, tier, commission and who looks after the account."
+      edit="admin"
     >
       <Card className="p-4 grid sm:grid-cols-2 gap-x-6">
         <div>
@@ -409,7 +416,7 @@ export function Contract({ t, go }: SectionProps) {
         <div className="space-y-2 pt-2 sm:pt-0">
           <Field label="Renewal date">
             <DateInput
-              
+
               value={d.draft.renewal}
               onChange={(v) => d.set("renewal", v)}
             />
@@ -427,7 +434,7 @@ export function Contract({ t, go }: SectionProps) {
         </div>
       </Card>
       <Card className="p-4">
-        <h3 className="font-semibold text-navy-900 mb-1">Signed documents</h3>
+        <h4 className="font-semibold text-navy-900 mb-1">Signed documents</h4>
         <ul className="text-[13px] space-y-1">
           <li className="flex items-center gap-2">
             <Icon.doc size={14} /> Master services agreement · signed{" "}
@@ -441,7 +448,7 @@ export function Contract({ t, go }: SectionProps) {
       </Card>
       {d.bar}
       {d.reasonModal}
-    </SectionFrame>
+    </Part>
   );
 }
 

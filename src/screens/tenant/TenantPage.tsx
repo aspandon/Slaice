@@ -10,8 +10,8 @@ import {
   type TenantRecord,
 } from "../../domain/tenants";
 import { SectionCtx, confirmLeave, type SectionProps } from "./kit";
-import { Billing, Contract, Overview, Profile, Usage } from "./AccountSections";
-import { Branding, Features, Localisation, Locations, Modules } from "./ProductSections";
+import { Billing, Overview, Profile, Usage } from "./AccountSections";
+import { Branding, Features, Modules } from "./ProductSections";
 import { EntryTickets } from "./TicketSection";
 import { Compliance, Integrations, Invoicing, Payments, Security, Users } from "./AccessSections";
 import { Audit, DataExport, Health, Support } from "./SupportSections";
@@ -25,6 +25,17 @@ import { ViewAsDialog } from "./ViewAs";
    settings. Sections come from a registry (id, label, icon, group, required
    permission, badge) so new ones are one entry; a grouped left rail on
    desktop, a select on phones. */
+
+/** Sections merged into another (AENR-796…800): old links open the surviving section and
+ *  scroll to the part that replaced the old page (`?at=<old id>`). */
+export const SECTION_ALIASES: Record<string, string> = {
+  contract: "profile",
+  locations: "profile",
+  localisation: "profile",
+};
+/** The path segment (+ part anchor) for a section id, old or current. */
+export const sectionPath = (s: string) =>
+  SECTION_ALIASES[s] ? `${SECTION_ALIASES[s]}?at=${s}` : s;
 
 type Group = "Account" | "Product" | "Money" | "Access & trust" | "Support";
 interface SectionDef {
@@ -48,20 +59,14 @@ export const SECTIONS: SectionDef[] = [
     render: (p) => <Overview {...p} />,
   },
   {
+    // Identity, contacts, contract, locations and localisation on one page (AENR-796);
+    // Contract & account stays Admin-only inside it.
     id: "profile",
     label: "Profile",
     icon: Icon.building,
     group: "Account",
     edit: "support",
     render: (p) => <Profile {...p} />,
-  },
-  {
-    id: "contract",
-    label: "Contract & account",
-    icon: Icon.doc,
-    group: "Account",
-    edit: "admin",
-    render: (p) => <Contract {...p} />,
   },
   {
     id: "billing",
@@ -107,28 +112,12 @@ export const SECTIONS: SectionDef[] = [
     render: (p) => <Features {...p} />,
   },
   {
-    id: "locations",
-    label: "Locations & capacity",
-    icon: Icon.map,
-    group: "Product",
-    edit: "support",
-    render: (p) => <Locations {...p} />,
-  },
-  {
     id: "branding",
     label: "Branding & domain",
     icon: Icon.sparkles,
     group: "Product",
     edit: "support",
     render: (p) => <Branding {...p} />,
-  },
-  {
-    id: "localisation",
-    label: "Localisation",
-    icon: Icon.globe,
-    group: "Product",
-    edit: "support",
-    render: (p) => <Localisation {...p} />,
   },
   {
     // Commission, guest fees, VAT, corporate tax, support and subscription (AENR-725 / 689).
@@ -244,7 +233,12 @@ export function TenantPage() {
   const { id, section, go } = useTenantRoute();
   const { platform, setPlatform, today, planName, toast } = usePlatform();
   const t = platform.tenants.find((x) => x.id === id);
-  const def = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0];
+  const merged = SECTION_ALIASES[section];
+  const def = SECTIONS.find((s) => s.id === (merged ?? section)) ?? SECTIONS[0];
+  // An old link to a merged section: rewrite it to the surviving one + its part (AENR-796…800).
+  useEffect(() => {
+    if (id && merged) window.location.replace(`#/platform/tenant/${id}/${merged}?at=${section}`);
+  }, [id, merged, section]);
   const [viewAs, setViewAs] = useState(false);
   const [demoError, setDemoError] = useState(false);
   const menuBtn = useRef<HTMLButtonElement>(null);
@@ -324,10 +318,11 @@ export function TenantPage() {
       </Card>
     );
   const nav = (s: string) => {
-    if (confirmLeave()) go(t.id, s);
+    if (confirmLeave()) go(t.id, sectionPath(s));
   };
-  const canEdit =
-    platform.role === "admin" || (platform.role === "support" && def.edit === "support");
+  const can = (edit: SectionDef["edit"]) =>
+    platform.role === "admin" || (platform.role === "support" && edit === "support");
+  const canEdit = can(def.edit);
   const last = t.history[t.history.length - 1];
   const owner = t.contacts.find((c) => c.role === "owner");
   return (
@@ -501,7 +496,7 @@ export function TenantPage() {
           ))}
         </nav>
         <div key={`${t.id}-${def.id}-${demoError}`} className="min-w-0">
-          <SectionCtx.Provider value={{ canEdit, demoError }}>
+          <SectionCtx.Provider value={{ canEdit, can, demoError }}>
             {def.render({ t, canEdit, go: nav })}
           </SectionCtx.Provider>
         </div>

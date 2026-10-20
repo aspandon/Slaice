@@ -15,7 +15,7 @@ import {
   tenantHasModule,
   type TenantFeatureId,
 } from "../../domain/features";
-import { SectionFrame, useTenantDraft, type SectionProps } from "./kit";
+import { Part, SectionFrame, useTenantDraft, type SectionProps } from "./kit";
 
 const SOURCE: Record<ModuleSource, { l: string; tone: string }> = {
   plan: { l: "Included in plan", tone: "green" },
@@ -252,7 +252,7 @@ export function OverrideModal({
   );
 }
 
-/* ---------- Locations & capacity ---------- */
+/* ---------- Locations & capacity — a part of Profile (AENR-796) ---------- */
 export function Locations({ t }: SectionProps) {
   const { go } = useApp();
   const { setPlatform } = usePlatform();
@@ -261,11 +261,14 @@ export function Locations({ t }: SectionProps) {
   const set = (k: keyof typeof l, v: string) =>
     d.set("locations", { ...l, [k]: typeof l[k] === "number" ? Number(v) : v });
   return (
-    <SectionFrame
+    <Part
+      id="locations"
+      icon={Icon.map}
       title="Locations & capacity"
       sub="Sites, zones and what can be sold."
       actions={
         <Btn
+          size="sm"
           variant="outline"
           icon={Icon.map}
           onClick={() => {
@@ -277,7 +280,7 @@ export function Locations({ t }: SectionProps) {
         </Btn>
       }
     >
-      <Card className="p-4 grid sm:grid-cols-3 gap-3">
+      <Card className="p-4 grid grid-cols-2 sm:grid-cols-3 gap-3">
         {(["sites", "zones", "sets", "lockers", "parking"] as const).map((k) => (
           <Field key={k} label={k[0].toUpperCase() + k.slice(1)}>
             <Input type="number" min={0} value={l[k]} onChange={(e) => set(k, e.target.value)} />
@@ -286,12 +289,14 @@ export function Locations({ t }: SectionProps) {
         <Field label="Season">
           <Input value={l.season} onChange={(e) => set("season", e.target.value)} />
         </Field>
-        <Field label="Opening hours">
-          <Input value={l.hours} onChange={(e) => set("hours", e.target.value)} />
-        </Field>
+        <div className="col-span-2 sm:col-span-1">
+          <Field label="Opening hours">
+            <Input value={l.hours} onChange={(e) => set("hours", e.target.value)} />
+          </Field>
+        </div>
       </Card>
       {d.bar}
-    </SectionFrame>
+    </Part>
   );
 }
 
@@ -402,7 +407,9 @@ export function Branding({ t }: SectionProps) {
   );
 }
 
-/* ---------- Localisation ---------- */
+/* ---------- Localisation — a part of Profile (AENR-796) ----------
+   The tenant's one home for language, timezone and currency (Identity no longer
+   repeats them, so two drafts never hold the same field). */
 const LANGS = [
   ["el", "Greek"],
   ["en", "English"],
@@ -412,9 +419,18 @@ const LANGS = [
   ["es", "Spanish"],
 ];
 export function Localisation({ t }: SectionProps) {
-  const d = useTenantDraft(t, ["languages", "language", "currency"] as const, "Localisation");
+  const d = useTenantDraft(
+    t,
+    ["languages", "language", "timezone", "currency"] as const,
+    "Localisation",
+  );
   return (
-    <SectionFrame title="Localisation" sub="Customer languages, default language and formats.">
+    <Part
+      id="localisation"
+      icon={Icon.globe}
+      title="Localisation"
+      sub="Customer languages, default language, timezone and formats."
+    >
       <Card className="p-4 space-y-3">
         <fieldset>
           <legend className="text-[12px] font-semibold text-slate-700 mb-1">
@@ -444,12 +460,19 @@ export function Localisation({ t }: SectionProps) {
             ))}
           </div>
         </fieldset>
-        <div className="grid sm:grid-cols-3 gap-3">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Field label="Default language">
             <Select
               value={d.draft.language}
               onChange={(e) => d.set("language", e.target.value)}
               options={["Greek", "English"]}
+            />
+          </Field>
+          <Field label="Timezone">
+            <Select
+              value={d.draft.timezone}
+              onChange={(e) => d.set("timezone", e.target.value)}
+              options={["Europe/Athens", "Asia/Nicosia"]}
             />
           </Field>
           <Field label="Currency">
@@ -472,7 +495,6 @@ export function Localisation({ t }: SectionProps) {
         </div>
       </Card>
       {d.bar}
-    </SectionFrame>
+    </Part>
   );
 }
-

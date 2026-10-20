@@ -1,4 +1,4 @@
-import { useContext, useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { useContext, useId, useMemo, useState, type ReactNode } from "react";
 import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, DateInput, Input, Toggle } from "../../components/ui";
 import { usePlatform } from "../../lib/usePlatform";
@@ -25,7 +25,7 @@ import {
   type SupportItem,
 } from "../../domain/economics";
 import type { AuditEntry } from "../../domain/tenants";
-import { SectionCtx, SectionFrame, navGuard, type SectionProps } from "./kit";
+import { SectionCtx, SectionFrame, useLeaveGuard, type SectionProps } from "./kit";
 import { Choice, Num } from "./TermsFields";
 import { ExampleBooking } from "./ExampleBooking";
 
@@ -61,12 +61,7 @@ export function CommercialTerms({ t }: SectionProps) {
   const errors = useMemo(() => (draft ? termsErrors(draft) : {}), [draft]);
   const errCount = Object.keys(errors).length;
   const changes = useMemo(() => (draft ? termsChanges(saved, draft) : []), [draft, saved]);
-  useEffect(() => {
-    navGuard.dirty = changes.length > 0;
-    return () => {
-      navGuard.dirty = false;
-    };
-  }, [changes.length]);
+  useLeaveGuard(changes.length > 0);
   const patch = (f: (d: Terms) => Terms) => setDraft((d) => (d ? f(d) : d));
   const start = () => {
     setDraft(cloneTerms(saved));
