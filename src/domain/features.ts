@@ -188,6 +188,40 @@ export const TENANT_FEATURES: readonly TenantFeatureDef[] = [
     module: "Parking",
   },
 ];
+/* ---------- The guest sea, per device (AENR-813) ----------
+   Which sea a tenant's guests see — one choice for desktop (1024 px and up), one for
+   phones and tablets. Classic is today's sea (its three switches above still apply);
+   Coastal the lightweight realistic shader (AENR-811); Video a looping aerial video of
+   real water (AENR-814). Missing = Classic, so nothing changes until Slaice picks. */
+export type SeaStyle = "classic" | "coastal" | "video";
+export type SeaDevice = "desktop" | "mobile";
+export type TenantSea = Partial<Record<SeaDevice, SeaStyle>>;
+export const SEA_STYLES: readonly { id: SeaStyle; label: string; description: string }[] = [
+  {
+    id: "classic",
+    label: "Classic",
+    description: "Today's painted sea — live WebGL water on computers, the still sea on phones.",
+  },
+  {
+    id: "coastal",
+    label: "Coastal",
+    description:
+      "Lightweight realistic water: turquoise shallows over the sand, light patterns on the seabed, sun glints and waves running up the beach.",
+  },
+  {
+    id: "video",
+    label: "Video",
+    description:
+      "A looping aerial video of real water under the drawn sand — the lightest to play, graded for the weather and the time of day.",
+  },
+];
+export const SEA_DEVICES: readonly { id: SeaDevice; label: string }[] = [
+  { id: "desktop", label: "Desktop" },
+  { id: "mobile", label: "Phones and tablets" },
+];
+export const seaStyleOf = (t: { sea?: TenantSea } | undefined, d: SeaDevice): SeaStyle =>
+  t?.sea?.[d] ?? "classic";
+
 export const TENANT_FEATURE_GROUPS: readonly TenantFeatureGroup[] = ["Guest site", "Refunds", "Cashier till"];
 /** The group a switch belongs to must keep at least one switch on (e.g. the till needs one tab). */
 export const KEEP_ONE_ON: readonly TenantFeatureGroup[] = ["Cashier till"];

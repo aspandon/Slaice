@@ -4,7 +4,7 @@
 // screens derive from it (allowed transitions, actions required, health score).
 
 import type { ModuleOverride, LimitId } from "./plans";
-import type { TenantFeatureId } from "./features";
+import type { TenantFeatureId, TenantSea } from "./features";
 import type { StaffRole, StaffUser } from "./types";
 import type { TicketCat } from "./extras";
 import type { CommercialTerms, MonthStatement } from "./economics";
@@ -162,6 +162,8 @@ export interface TenantRecord {
   beta: string[];
   /** Per-tenant feature switches (Platform › tenant › Modules & features, AENR-677 / 721); missing = the feature's default. */
   features?: Partial<Record<TenantFeatureId, boolean>>;
+  /** The guest sea per device (Platform › tenant › Modules & features › Sea, AENR-813); missing = Classic. */
+  sea?: TenantSea;
   /** Staff roles the tenant uses (Platform › tenant › Users & roles, AENR-716); missing = on. Manager / Admin is always on. */
   roles?: Partial<Record<StaffRole, boolean>>;
   /** Staff accounts of a tenant other than the demo beach (Platform › tenant › Users & roles, AENR-718).

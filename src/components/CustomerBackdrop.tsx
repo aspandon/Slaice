@@ -3,7 +3,8 @@ import gsap from "gsap";
 import { BeachBackdrop } from "./Beach";
 import { HelpRing } from "./NeedAHand";
 import { prefersReducedMotion, staticBackdrop, useLiteScene } from "../lib/motion";
-import { dayLight, WEATHER_DEMO } from "../data/beach";
+import { WEATHER_DEMO } from "../data/beach";
+import { NOON_LIGHT, seaLight } from "../lib/seaLight";
 import type { SeaEnv } from "./LiveSeaCanvas";
 import { WeatherFxCanvas } from "./WeatherFx";
 import { useGuestScene } from "../lib/useGuestScene";
@@ -129,10 +130,10 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
   // sunny scene, so the admin switches cleanly restore the original look.
   const wd = sceneFx.weather ? WEATHER_DEMO[weather] : WEATHER_DEMO.sunny;
   const hour = sceneFx.daytime ? dayTime : 12;
-  // Golden-hour warmth is muted by cloud cover — no amber glow through an
-  // overcast or rainy sky.
-  const light = sceneFx.daytime ? dayLight(hour) : { warm: 0, night: 0 };
-  const warm = light.warm * (0.2 + 0.8 * wd.glint);
+  // One light for the whole scene (AENR-815): the grading overlays below and every sea read it.
+  // Golden-hour warmth is muted by cloud cover — no amber glow through an overcast or rainy sky.
+  const light = sceneFx.daytime ? seaLight(hour, wd) : NOON_LIGHT;
+  const warm = light.warm;
   const night = light.night;
   const seaEnv: SeaEnv = {
     wind: wd.wind,
@@ -144,6 +145,7 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
     // wind, crawling under flat overcast).
     clouds: sceneFx.weather && weather !== "sunny" ? 1 : 0,
     cloudSpeed: sceneFx.weather ? wd.cloudSpeed : 0,
+    light,
   };
   const raining = sceneFx.weather && weather === "rainy";
   // The particle layer runs for rain and for strong wind (gust streaks).
