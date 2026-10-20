@@ -1,4 +1,4 @@
-import { lazy, type ReactElement } from "react";
+import { createElement, lazy, useState, type ComponentType, type ReactElement } from "react";
 import type { PersonaId } from "./domain/types";
 
 /* Every screen loads on demand (AENR-730): a phone opening the guest pages
@@ -41,52 +41,84 @@ const LOADERS = {
   users_AdminUsers: () => import("./screens/users/AdminUsers"),
 } as const;
 
-const A_AdminBookings = lazy(() => LOADERS.admin().then((m) => ({ default: m.AdminBookings })));
-const A_AdminGamification = lazy(() => LOADERS.admin().then((m) => ({ default: m.AdminGamification })));
-const A_AdminLoyalty = lazy(() => LOADERS.admin().then((m) => ({ default: m.AdminLoyalty })));
-const A_AdminPasses = lazy(() => LOADERS.admin().then((m) => ({ default: m.AdminPasses })));
-const A_AdminRefunds = lazy(() => LOADERS.admin().then((m) => ({ default: m.AdminRefunds })));
-const A_AdminReporting = lazy(() => LOADERS.admin().then((m) => ({ default: m.AdminReporting })));
-const AccountantPayments = lazy(() => LOADERS.accountant_Payments().then((m) => ({ default: m.AccountantPayments })));
-const AccountantReports = lazy(() => LOADERS.reporting_FinanceTabs().then((m) => ({ default: m.AccountantReports })));
-const AdminBeachLayout = lazy(() => LOADERS.beach_BeachAdmin().then((m) => ({ default: m.AdminBeachLayout })));
-const AdminBilling = lazy(() => LOADERS.AdminBilling().then((m) => ({ default: m.AdminBilling })));
-const AdminCommunicate = lazy(() => LOADERS.communicate_Communicate().then((m) => ({ default: m.AdminCommunicate })));
-const AdminDisplay = lazy(() => LOADERS.display_AdminDisplay().then((m) => ({ default: m.AdminDisplay })));
-const AdminLiveBeach = lazy(() => LOADERS.beach_LiveBeach().then((m) => ({ default: m.AdminLiveBeach })));
-const AdminPricing = lazy(() => LOADERS.beach_BeachAdmin().then((m) => ({ default: m.AdminPricing })));
-const AdminPrivacy = lazy(() => LOADERS.privacy_AdminPrivacy().then((m) => ({ default: m.AdminPrivacy })));
-const AdminProducts = lazy(() => LOADERS.beach_BeachAdmin().then((m) => ({ default: m.AdminProducts })));
-const AdminRbac = lazy(() => LOADERS.AdminRbac().then((m) => ({ default: m.AdminRbac })));
-const AdminToday = lazy(() => LOADERS.today_Today().then((m) => ({ default: m.AdminToday })));
-const AdminUsers = lazy(() => LOADERS.users_AdminUsers().then((m) => ({ default: m.AdminUsers })));
-const CA_CashierIssue = lazy(() => LOADERS.cashier().then((m) => ({ default: m.CashierIssue })));
-const CA_CashierRegister = lazy(() => LOADERS.cashier().then((m) => ({ default: m.CashierRegister })));
-const CA_CashierTransactions = lazy(() => LOADERS.cashier().then((m) => ({ default: m.CashierTransactions })));
-const CO_Checkout = lazy(() => LOADERS.Checkout().then((m) => ({ default: m.Checkout })));
-const CO_Confirmation = lazy(() => LOADERS.Checkout().then((m) => ({ default: m.Confirmation })));
-const CT_ControllerScan = lazy(() => LOADERS.controller().then((m) => ({ default: m.ControllerScan })));
-const CW_CustomerWizard = lazy(() => LOADERS.CustomerWizard().then((m) => ({ default: m.CustomerWizard })));
-const C_CustomerAccount = lazy(() => LOADERS.customer().then((m) => ({ default: m.CustomerAccount })));
-const C_CustomerBookings = lazy(() => LOADERS.customer().then((m) => ({ default: m.CustomerBookings })));
-const C_CustomerHome = lazy(() => LOADERS.customer_CustomerHome().then((m) => ({ default: m.CustomerHome })));
-const C_CustomerWallet = lazy(() => LOADERS.customer().then((m) => ({ default: m.CustomerWallet })));
-const CallCenterIncidents = lazy(() => LOADERS.incidents_CallCenterIncidents().then((m) => ({ default: m.CallCenterIncidents })));
-const CallCenterRefunds = lazy(() => LOADERS.bookings_CallCenterRefunds().then((m) => ({ default: m.CallCenterRefunds })));
-const ControllerBeach = lazy(() => LOADERS.ControllerBeach().then((m) => ({ default: m.ControllerBeach })));
-const DocsPayments = lazy(() => LOADERS.accountant_DocsPayments().then((m) => ({ default: m.DocsPayments })));
-const MonthEnd = lazy(() => LOADERS.accountant_MonthEnd().then((m) => ({ default: m.MonthEnd })));
-const NewBooking = lazy(() => LOADERS.bookings_NewBooking().then((m) => ({ default: m.NewBooking })));
-const PO_PlatformOnboarding = lazy(() => LOADERS.tenant_PlatformOverviews().then((m) => ({ default: m.PlatformOnboarding })));
-const PO_PlatformSuperAdmin = lazy(() => LOADERS.tenant_PlatformOverviews().then((m) => ({ default: m.PlatformSuperAdmin })));
-const PO_PlatformTenants = lazy(() => LOADERS.tenant_PlatformOverviews().then((m) => ({ default: m.PlatformTenants })));
-const PP_PassPurchase = lazy(() => LOADERS.PassPurchase().then((m) => ({ default: m.PassPurchase })));
-const P_PlatformCompliance = lazy(() => LOADERS.platform().then((m) => ({ default: m.PlatformCompliance })));
-const P_PlatformLanding = lazy(() => LOADERS.platform().then((m) => ({ default: m.PlatformLanding })));
-const P_PlatformVerticals = lazy(() => LOADERS.platform().then((m) => ({ default: m.PlatformVerticals })));
-const PlatformIncidents = lazy(() => LOADERS.incidents_PlatformIncidents().then((m) => ({ default: m.PlatformIncidents })));
-const PlatformRevenue = lazy(() => LOADERS.tenant_PlatformRevenue().then((m) => ({ default: m.PlatformRevenue })));
-const TenantPage = lazy(() => LOADERS.tenant_TenantPage().then((m) => ({ default: m.TenantPage })));
+type Loaders = typeof LOADERS;
+type ScreenKey = keyof Loaders;
+type ScreenModule<K extends ScreenKey> = Awaited<ReturnType<Loaders[K]>>;
+/** Screen modules already downloaded and run (by a prefetch or an earlier visit). */
+const loaded: Partial<Record<ScreenKey, unknown>> = {};
+/** Loads a screen module and remembers it once it has arrived. */
+function load<K extends ScreenKey>(k: K): Promise<ScreenModule<K>> {
+  return (LOADERS[k]() as Promise<ScreenModule<K>>).then((m) => {
+    loaded[k] = m;
+    return m;
+  });
+}
+
+/* A screen that renders at once when its code is already here (AENR-851). React.lazy suspends on
+   its first render even when the module was prefetched — it only starts its own load then — so
+   the first visit to a screen flashed the loading skeleton and React held the real screen back
+   (its reveal throttle): opening Plan a visit the first time took ≈ 600 ms on a slowed phone
+   against ≈ 250 ms the second. Here a screen whose module has loaded renders directly; only a
+   screen that really isn't here yet suspends. Decided once per mount, so a screen never swaps
+   between the two (that would remount it and lose its state). */
+function screen<K extends ScreenKey, C extends ComponentType<never>>(k: K, pick: (m: ScreenModule<K>) => C): C {
+  // Inside, props only pass through; the screen keeps its own props type at the boundary (`C`).
+  type Props = Record<string, unknown>;
+  const as = (c: C) => c as unknown as ComponentType<Props>;
+  const Lazy = lazy(() => load(k).then((m) => ({ default: as(pick(m)) })));
+  function Screen(props: Props) {
+    const [ready] = useState(() => (loaded[k] ? as(pick(loaded[k] as ScreenModule<K>)) : null));
+    return createElement(ready ?? Lazy, props);
+  }
+  return Screen as unknown as C;
+}
+
+const A_AdminBookings = screen("admin", (m) => m.AdminBookings);
+const A_AdminGamification = screen("admin", (m) => m.AdminGamification);
+const A_AdminLoyalty = screen("admin", (m) => m.AdminLoyalty);
+const A_AdminPasses = screen("admin", (m) => m.AdminPasses);
+const A_AdminRefunds = screen("admin", (m) => m.AdminRefunds);
+const A_AdminReporting = screen("admin", (m) => m.AdminReporting);
+const AccountantPayments = screen("accountant_Payments", (m) => m.AccountantPayments);
+const AccountantReports = screen("reporting_FinanceTabs", (m) => m.AccountantReports);
+const AdminBeachLayout = screen("beach_BeachAdmin", (m) => m.AdminBeachLayout);
+const AdminBilling = screen("AdminBilling", (m) => m.AdminBilling);
+const AdminCommunicate = screen("communicate_Communicate", (m) => m.AdminCommunicate);
+const AdminDisplay = screen("display_AdminDisplay", (m) => m.AdminDisplay);
+const AdminLiveBeach = screen("beach_LiveBeach", (m) => m.AdminLiveBeach);
+const AdminPricing = screen("beach_BeachAdmin", (m) => m.AdminPricing);
+const AdminPrivacy = screen("privacy_AdminPrivacy", (m) => m.AdminPrivacy);
+const AdminProducts = screen("beach_BeachAdmin", (m) => m.AdminProducts);
+const AdminRbac = screen("AdminRbac", (m) => m.AdminRbac);
+const AdminToday = screen("today_Today", (m) => m.AdminToday);
+const AdminUsers = screen("users_AdminUsers", (m) => m.AdminUsers);
+const CA_CashierIssue = screen("cashier", (m) => m.CashierIssue);
+const CA_CashierRegister = screen("cashier", (m) => m.CashierRegister);
+const CA_CashierTransactions = screen("cashier", (m) => m.CashierTransactions);
+const CO_Checkout = screen("Checkout", (m) => m.Checkout);
+const CO_Confirmation = screen("Checkout", (m) => m.Confirmation);
+const CT_ControllerScan = screen("controller", (m) => m.ControllerScan);
+const CW_CustomerWizard = screen("CustomerWizard", (m) => m.CustomerWizard);
+const C_CustomerAccount = screen("customer", (m) => m.CustomerAccount);
+const C_CustomerBookings = screen("customer", (m) => m.CustomerBookings);
+const C_CustomerHome = screen("customer_CustomerHome", (m) => m.CustomerHome);
+const C_CustomerWallet = screen("customer", (m) => m.CustomerWallet);
+const CallCenterIncidents = screen("incidents_CallCenterIncidents", (m) => m.CallCenterIncidents);
+const CallCenterRefunds = screen("bookings_CallCenterRefunds", (m) => m.CallCenterRefunds);
+const ControllerBeach = screen("ControllerBeach", (m) => m.ControllerBeach);
+const DocsPayments = screen("accountant_DocsPayments", (m) => m.DocsPayments);
+const MonthEnd = screen("accountant_MonthEnd", (m) => m.MonthEnd);
+const NewBooking = screen("bookings_NewBooking", (m) => m.NewBooking);
+const PO_PlatformOnboarding = screen("tenant_PlatformOverviews", (m) => m.PlatformOnboarding);
+const PO_PlatformSuperAdmin = screen("tenant_PlatformOverviews", (m) => m.PlatformSuperAdmin);
+const PO_PlatformTenants = screen("tenant_PlatformOverviews", (m) => m.PlatformTenants);
+const PP_PassPurchase = screen("PassPurchase", (m) => m.PassPurchase);
+const P_PlatformCompliance = screen("platform", (m) => m.PlatformCompliance);
+const P_PlatformLanding = screen("platform", (m) => m.PlatformLanding);
+const P_PlatformVerticals = screen("platform", (m) => m.PlatformVerticals);
+const PlatformIncidents = screen("incidents_PlatformIncidents", (m) => m.PlatformIncidents);
+const PlatformRevenue = screen("tenant_PlatformRevenue", (m) => m.PlatformRevenue);
+const TenantPage = screen("tenant_TenantPage", (m) => m.TenantPage);
 
 const MAP: Record<string, () => ReactElement> = {
   // customer — all booking now flows through the "Plan my visit" wizard.
@@ -188,7 +220,7 @@ const PERSONA_MODULES: Record<PersonaId, (keyof typeof LOADERS)[]> = {
   platform: ["incidents_PlatformIncidents", "platform", "tenant_PlatformOverviews", "tenant_PlatformRevenue", "tenant_TenantPage"],
 };
 export function prefetchPersona(persona: PersonaId) {
-  for (const k of PERSONA_MODULES[persona] ?? []) void LOADERS[k]().catch(() => undefined);
+  for (const k of PERSONA_MODULES[persona] ?? []) void load(k).catch(() => undefined);
 }
 
 /** The guest pages' own chunks — what a tap on that tab is about to need (AENR-837). */
@@ -212,6 +244,6 @@ export function prefetchPage(persona: PersonaId, page: string) {
   if (warmed.has(key)) return;
   warmed.add(key);
   const k = persona === "customer" ? CUSTOMER_PAGE[page] : undefined;
-  if (k) void LOADERS[k]().catch(() => warmed.delete(key));
+  if (k) void load(k).catch(() => warmed.delete(key));
   else prefetchPersona(persona);
 }

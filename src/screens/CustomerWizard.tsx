@@ -324,16 +324,32 @@ function WizardInner() {
 
   // Each day before choosing it (AENR-570): weather, price level and spots left —
   // for the chosen zone once inside it, for the whole beach on the zone overview.
-  const scopeZones = phase === "sets" ? [zone] : ZONES;
   const minBase = useMemo(() => Math.min(...ZONES.map((z) => z.from)), []);
-  const dayInfo = (iso: string): DayInfo => {
-    const free = scopeZones.flatMap((z) => liveSlots(z, [iso]).filter((x) => x.state === "a").map((x) => ({ x, z })));
-    const prices = free.map(({ x, z }) => resolvePrice(x, z.id, iso, beachPricing, priceRules).price);
-    const price = prices.length ? Math.min(...prices) : undefined;
-    const fc = forecastFor(iso, todayISO(), weather, sceneLive);
+  // Worked out once per day until what it depends on changes (AENR-851): it ran on every render —
+  // every free set of every zone, priced, for each of the week's days (≈ 1,000 prices a render,
+  // ≈ 100 ms on a slowed phone, again after every tap). liveSlots already prices each set for that
+  // day, so its price is used as it is.
+  const dayInfo = useMemo(() => {
+    const scopeZones = phase === "sets" ? [zone] : ZONES;
     const ref = phase === "sets" ? zone.from : minBase;
-    return { icon: WEATHER_DEMO[fc.kind].icon, temp: fc.tempC, price, level: price == null ? undefined : price <= ref ? "low" : price >= ref * 1.25 ? "high" : "mid", left: free.length };
-  };
+    const cache = new Map<string, DayInfo>();
+    return (iso: string): DayInfo => {
+      const hit = cache.get(iso);
+      if (hit) return hit;
+      let left = 0;
+      let price: number | undefined;
+      for (const z of scopeZones)
+        for (const x of liveSlots(z, [iso]))
+          if (x.state === "a") {
+            left++;
+            if (price == null || x.price < price) price = x.price;
+          }
+      const fc = forecastFor(iso, todayISO(), weather, sceneLive);
+      const info: DayInfo = { icon: WEATHER_DEMO[fc.kind].icon, temp: fc.tempC, price, level: price == null ? undefined : price <= ref ? "low" : price >= ref * 1.25 ? "high" : "mid", left };
+      cache.set(iso, info);
+      return info;
+    };
+  }, [phase, zone, minBase, liveSlots, weather, sceneLive]);
   // A full day never ends the journey: nearest days with room, other zones that day, or a notification.
   const fullDay = !multiDate && selDates.length === 1 && dayInfo(selDates[0]).left === 0 ? selDates[0] : null;
 
