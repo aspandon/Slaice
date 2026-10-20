@@ -105,17 +105,18 @@ export function SeaLightGroup({
   return (
     <g aria-hidden="true" style={{ pointerEvents: "none" }}>
       <defs>
+        {/* The hour's water, horizon → shore (SeaLight.palette, AENR-824). */}
         <linearGradient
-          id={id("warm")}
+          id={id("water")}
           x1="0"
-          y1="0"
+          y1={top}
           x2="0"
-          y2={shore}
+          y2={shore + 60}
           gradientUnits="userSpaceOnUse"
         >
-          <stop offset="0%" stopColor={rgbCss(light.tint.top)} stopOpacity={0.75} />
-          <stop offset="55%" stopColor={rgbCss(light.tint.top)} stopOpacity={0.4} />
-          <stop offset="100%" stopColor={rgbCss(light.tint.deep)} stopOpacity={0.22} />
+          {light.palette.map((c, i) => (
+            <stop key={i} offset={`${(i / 3) * 100}%`} stopColor={rgbCss(c)} />
+          ))}
         </linearGradient>
         <linearGradient
           id={id("night")}
@@ -128,13 +129,19 @@ export function SeaLightGroup({
           <stop offset="0%" stopColor="#1a2a4f" />
           <stop offset="100%" stopColor="#0a1530" />
         </linearGradient>
+        <radialGradient id={id("disc")} cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#fff6dc" />
+          <stop offset="45%" stopColor={rgbCss(light.glitter.color)} />
+          <stop offset="100%" stopColor={rgbCss(light.glitter.color, 0)} />
+        </radialGradient>
         <radialGradient id={id("sun")} cx="50%" cy="0%" r="50%">
           <stop offset="0%" stopColor={rgbCss(light.glitter.color, 0.95)} />
           <stop offset="35%" stopColor={rgbCss(light.tint.top, 0.55)} />
           <stop offset="100%" stopColor={rgbCss(light.tint.top, 0)} />
         </radialGradient>
         <radialGradient id={id("moon")} cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor={rgbCss(light.moon.color, 0.45)} />
+          <stop offset="0%" stopColor={rgbCss(light.moon.color, 0.6)} />
+          <stop offset="30%" stopColor={rgbCss(light.moon.color, 0.18)} />
           <stop offset="100%" stopColor={rgbCss(light.moon.color, 0)} />
         </radialGradient>
         {/* The path's soft column: bright in the middle, gone at its sides. */}
@@ -152,14 +159,17 @@ export function SeaLightGroup({
         </linearGradient>
       </defs>
 
-      {/* The water's colour. Night darkens by multiplying, so the drawn wave lines still read. */}
-      {tint && warm > 0.01 && (
+      {/* The water's colour for the hour: painted over a drawn sea; over real footage only its hue
+          ("color" blend — the footage keeps its own light and texture). Night also darkens by
+          multiplying, so the wave lines and ripples still read. */}
+      {tint && light.tint.amount > 0.01 && (
         <rect
+          y={top}
           width="1600"
-          height={shore + 60}
-          fill={`url(#${id("warm")})`}
-          opacity={warm}
-          style={tint === "soft" ? { mixBlendMode: "soft-light" } : undefined}
+          height={shore + 60 - top}
+          fill={`url(#${id("water")})`}
+          opacity={light.tint.amount * (tint === "soft" ? 0.85 : 1 - night * 0.45)}
+          style={tint === "soft" ? { mixBlendMode: "color" } : undefined}
         />
       )}
       {tint && night > 0.01 && (
@@ -167,7 +177,7 @@ export function SeaLightGroup({
           width="1600"
           height={shore + 60}
           fill={`url(#${id("night")})`}
-          opacity={night * (tint === "soft" ? 0.6 : 0.78)}
+          opacity={night * (tint === "soft" ? 0.55 : 0.6)}
           style={{ mixBlendMode: "multiply" }}
         />
       )}
@@ -183,10 +193,30 @@ export function SeaLightGroup({
           opacity={warm}
         />
       )}
+      {/* The sun's disc on the horizon while it is low (sunrise, sunset), glowing through the haze. */}
+      {sunGlow && light.sunElev > -0.06 && light.sunElev < 0.32 && (
+        <g opacity={Math.min(1, warm * 1.4) * (1 - light.cloud * 0.85)}>
+          <circle
+            cx={X(light.sunX)}
+            cy={top + 34 + 90 * Math.max(0, light.sunElev)}
+            r={90}
+            fill={`url(#${id("disc")})`}
+          />
+          <circle
+            cx={X(light.sunX)}
+            cy={top + 34 + 90 * Math.max(0, light.sunElev)}
+            r={22}
+            fill="#fff4d6"
+          />
+        </g>
+      )}
       {moon && (
         <g opacity={light.moon.strength}>
-          <circle cx={X(light.moon.x)} cy={top + 105} r={150} fill={`url(#${id("moon")})`} />
-          <circle cx={X(light.moon.x)} cy={top + 105} r={19} fill={rgbCss(light.moon.color)} />
+          <circle cx={X(light.moon.x)} cy={top + 105} r={190} fill={`url(#${id("moon")})`} />
+          <circle cx={X(light.moon.x)} cy={top + 105} r={21} fill="#f4f6ff" />
+          {/* A hint of the moon's seas. */}
+          <circle cx={X(light.moon.x) - 6} cy={top + 100} r={6} fill="#dfe3f2" />
+          <circle cx={X(light.moon.x) + 7} cy={top + 111} r={4} fill="#e2e6f4" />
         </g>
       )}
 
@@ -197,7 +227,7 @@ export function SeaLightGroup({
             d={`M ${gx - view.w * g.width * 0.18} ${top} L ${gx + view.w * g.width * 0.18} ${top} L ${gx + view.w * g.width * 0.55} ${shore} L ${gx - view.w * g.width * 0.55} ${shore} Z`}
             fill={`url(#${id("path")})`}
             // Only a low sun or the moon draws a column; the noon sheen is the glints alone.
-            opacity={0.6 * Math.min(1, Math.max(0, (0.3 - g.width) / 0.2))}
+            opacity={0.85 * Math.min(1, Math.max(0, (0.3 - g.width) / 0.2))}
           />
           <g fill={rgbCss(g.color)} className={twinkle ? "sea-glints" : undefined}>
             {GLINTS.map(([t, s, k], i) => {

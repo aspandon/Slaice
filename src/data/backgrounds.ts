@@ -106,8 +106,9 @@ const ELABORATE: BeachPreset[] = [
     name: "Akti tou Iliou",
     tier: "elaborate",
     blurb: "The signature house scene",
-    // Exact palette of the original beach illustration — the default.
-    sea: ["#0c4a6e", "#0e7490", "#22d3ee", "#a5f3fc"],
+    // The default. Its sea is the Greek-beach blues of the owner's photographs (AENR-824): deep
+    // azure out to sea, turquoise in the shallows (was the illustration's darker teal).
+    sea: ["#1565c8", "#1a8fdc", "#1fc4e2", "#6fe3ec"],
     sand: ["#fde8c8", "#f5d3a3", "#e9bd86"],
     veg: ["#86b85a", "#4f7a3a"],
     foam: "rgba(255,255,255,0.85)",

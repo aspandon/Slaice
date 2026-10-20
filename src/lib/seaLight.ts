@@ -31,6 +31,8 @@ export interface SeaLight {
   moon: { strength: number; x: number; color: Rgb };
   /** What the water is graded toward (multiplied in by `amount`). */
   tint: { top: Rgb; deep: Rgb; amount: number };
+  /** The water at this hour, horizon → shore (AENR-824) — what `tint` blends toward. */
+  palette: readonly [Rgb, Rgb, Rgb, Rgb];
   /** 0 … 1 cloud cover — dims the glitter, the moon and the warm light. */
   cloud: number;
 }
@@ -49,9 +51,67 @@ const mix = (a: Rgb, b: Rgb, t: number): Rgb => [
   a[2] + (b[2] - a[2]) * t,
 ];
 
-const NOON_GLITTER: Rgb = [1, 0.98, 0.9];
-const LOW_GLITTER: Rgb = [1, 0.58, 0.22];
-const DAWN_GLITTER: Rgb = [1, 0.66, 0.4];
+/* ---- The day in colour (AENR-824) ----
+   Keyframes taken from the owner's photographs of Greek beaches: the water horizon →
+   shore, the colour of the light on it, and how strongly the hour overrides the beach's
+   own sea preset (none at midday — the tenant's colours, Greek azure-to-turquoise by
+   default — most at sunset and at night). Between keyframes everything blends smoothly,
+   so moving the demo clock glides from one light to the next. */
+const hex = (h: string): Rgb => {
+  const n = parseInt(h.slice(1), 16);
+  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+};
+interface Key {
+  h: number;
+  water: readonly [string, string, string, string];
+  light: string;
+  amount: number;
+}
+const NIGHT_KEY = {
+  water: ["#0a1838", "#0c2148", "#0f2c58", "#183a66"],
+  light: "#e6eeff",
+  amount: 0.86,
+} as const;
+const KEYS: readonly Key[] = [
+  { h: 0, ...NIGHT_KEY },
+  { h: 5.3, ...NIGHT_KEY },
+  // Blue hour before sunrise: the navy lifts to slate violet.
+  { h: 5.9, water: ["#3d3f70", "#4b4d7c", "#4d6688", "#4f7c94"], light: "#f3c9b0", amount: 0.8 },
+  // Sunrise: peach-orange toward the horizon, still cool by the shore.
+  { h: 6.45, water: ["#f6a35c", "#e88b5e", "#a99c9a", "#5fb5c4"], light: "#ffc27a", amount: 0.78 },
+  // Morning: the blues come in.
+  { h: 7.6, water: ["#6fa9d6", "#3797d6", "#2bbad8", "#5fd4e0"], light: "#fff2d6", amount: 0.3 },
+  // The Greek day: deep azure out to sea, turquoise in the shallows.
+  { h: 9.5, water: ["#1565c8", "#1a8fdc", "#1fc4e2", "#6fe3ec"], light: "#ffffff", amount: 0 },
+  { h: 17.2, water: ["#1565c8", "#1a8fdc", "#1fc4e2", "#6fe3ec"], light: "#ffffff", amount: 0 },
+  // Late afternoon: a little softer and warmer.
+  { h: 18.6, water: ["#3a7fc4", "#2a98cf", "#31bad0", "#7ad6da"], light: "#fff0c8", amount: 0.12 },
+  // Golden hour: amber water, the turquoise only at the shore.
+  { h: 19.7, water: ["#f2b04a", "#e8913c", "#9aa58a", "#63b2b6"], light: "#ffd27a", amount: 0.58 },
+  // Sunset: the sea burns orange.
+  { h: 20.6, water: ["#ff8a2a", "#f06a2e", "#c4573e", "#6c5767"], light: "#ffb347", amount: 0.84 },
+  // Dusk: rose and violet over a darkening sea.
+  { h: 21.05, water: ["#c0627a", "#7a4f86", "#3b3f72", "#24365e"], light: "#ff9f6e", amount: 0.86 },
+  { h: 21.6, ...NIGHT_KEY },
+  { h: 24, ...NIGHT_KEY },
+];
+function keyAt(hour: number) {
+  const h = ((hour % 24) + 24) % 24;
+  let i = 0;
+  while (i < KEYS.length - 2 && KEYS[i + 1].h <= h) i++;
+  const a = KEYS[i];
+  const b = KEYS[i + 1];
+  const t = smooth(0, 1, (h - a.h) / Math.max(0.001, b.h - a.h));
+  const water = [0, 1, 2, 3].map((k) =>
+    mix(hex(a.water[k]), hex(b.water[k]), t),
+  ) as unknown as readonly [Rgb, Rgb, Rgb, Rgb];
+  return {
+    water,
+    light: mix(hex(a.light), hex(b.light), t),
+    amount: a.amount + (b.amount - a.amount) * t,
+  };
+}
+
 const TWILIGHT_GLITTER: Rgb = [0.98, 0.42, 0.32];
 const MOON: Rgb = [0.86, 0.9, 1];
 
@@ -73,11 +133,9 @@ export function seaLight(hour: number, weather: Pick<WeatherDemo, "glint" | "dim
   // Glitter: a broad sheen at noon narrowing to a long column as the sun gets low.
   const low = smooth(0.45, 0.05, sunElev);
   const below = smooth(0, -0.25, sunElev);
-  const sunColor = mix(
-    mix(NOON_GLITTER, dawn ? DAWN_GLITTER : LOW_GLITTER, low),
-    TWILIGHT_GLITTER,
-    below,
-  );
+  const key = keyAt(hour);
+  // The light's colour follows the hour's keyframe; below the horizon it reddens to the afterglow.
+  const sunColor = mix(key.light, TWILIGHT_GLITTER, below * 0.6);
   const sunGlitter =
     (sunElev > -0.25 ? 0.55 + 0.45 * low : 0) * (1 - below * 0.8) * (1 - 0.85 * cloud);
   const moonStrength = night * (1 - 0.75 * cloud);
@@ -85,15 +143,15 @@ export function seaLight(hour: number, weather: Pick<WeatherDemo, "glint" | "dim
   const glitter = atNight
     ? { color: MOON, strength: moonStrength * 0.8, width: 0.06, x: 0.66 }
     : { color: sunColor, strength: sunGlitter, width: 0.45 - 0.37 * low, x: sunX };
-  // Water: orange-pink at the horizon in golden light, deep navy at night.
-  // Both ends of the day burn orange; dawn is a touch lighter and rosier at the shore.
-  const warmTop: Rgb = dawn ? [1, 0.64, 0.4] : [1, 0.58, 0.32];
-  const warmDeep: Rgb = dawn ? [0.86, 0.56, 0.48] : [0.78, 0.45, 0.42];
-  const nightTop: Rgb = [0.16, 0.22, 0.38];
-  const nightDeep: Rgb = [0.05, 0.08, 0.18];
-  const tintTop = night > 0 ? mix(warmTop, nightTop, night) : warmTop;
-  const tintDeep = night > 0 ? mix(warmDeep, nightDeep, night) : warmDeep;
-  const amount = clamp01(Math.max(warm * 0.6, night * 0.85) * (1 - weather.dim * 0.4));
+  // Water: the hour's keyframe. Under cloud it greys toward slate and the hour's colour weakens.
+  const grey: Rgb = [0.42, 0.5, 0.56];
+  const palette = key.water.map((c) => mix(c, grey, cloud * 0.45)) as unknown as readonly [
+    Rgb,
+    Rgb,
+    Rgb,
+    Rgb,
+  ];
+  const amount = clamp01(key.amount * (1 - 0.35 * cloud) * (1 - weather.dim * 0.3));
   return {
     sunElev,
     sunX,
@@ -102,7 +160,8 @@ export function seaLight(hour: number, weather: Pick<WeatherDemo, "glint" | "dim
     dawn,
     glitter,
     moon: { strength: moonStrength, x: 0.66, color: MOON },
-    tint: { top: tintTop, deep: tintDeep, amount },
+    tint: { top: palette[0], deep: palette[3], amount },
+    palette,
     cloud,
   };
 }

@@ -132,7 +132,7 @@ html[data-persona="customer"] {
 /* Until the beach backdrop paints (and under it, while it fades in), the guest page is the sea —
    never the staff canvas's near-white (AENR-820). The default preset's water, top to bottom. */
 html[data-persona="customer"] body {
-  background: linear-gradient(#1b6fa6, #2a92cf 45%, #5ec3f2 80%, #bfe8fb);
+  background: linear-gradient(#1565c8, #1a8fdc 45%, #1fc4e2 80%, #6fe3ec);
 }
 html[data-persona="customer"] body::before {
   display: none;

@@ -22,12 +22,11 @@ const src = (f: string) => `${BASE}sea/${f}`;
 /** The colour grade for the light: a CSS filter string. */
 function grade(env: SeaEnv) {
   const { night: n, warm: w, cloud: c } = env.light;
-  // A light hand: the glow and the night come from the light layer on top (no muddy sepia).
-  const brightness = 1.06 - 0.3 * n - 0.12 * c + 0.05 * w;
-  const saturate = Math.max(0.35, 1.12 + 0.2 * w - 0.45 * c - 0.35 * n);
-  const sepia = 0.12 * w * (1 - n);
-  const hue = -8 * w;
-  return `brightness(${brightness.toFixed(3)}) saturate(${saturate.toFixed(3)}) sepia(${sepia.toFixed(3)}) hue-rotate(${hue.toFixed(1)}deg) contrast(${(1 + 0.06 * w).toFixed(3)})`;
+  // The footage carries the Greek day's colour itself (graded at encode, AENR-824); the hour's colour comes
+  // from the light layer on top, so the filter only dims for night and cloud.
+  const brightness = 1 - 0.38 * n - 0.1 * c + 0.04 * w;
+  const saturate = Math.max(0.4, 1 - 0.4 * c - 0.25 * n);
+  return `brightness(${brightness.toFixed(3)}) saturate(${saturate.toFixed(3)})`;
 }
 
 const saveData = () =>
