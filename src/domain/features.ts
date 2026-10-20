@@ -78,7 +78,8 @@ export type TenantFeatureId =
   | "guest.liveSea"
   | "guest.seaDepth"
   | "guest.seaDetail"
-  | "guest.sky";
+  | "guest.sky"
+  | "guest.rainGlass";
 export type TenantFeatureGroup = "Guest site" | "Refunds" | "Cashier till";
 export interface TenantFeatureDef {
   key: TenantFeatureId;
@@ -145,6 +146,14 @@ export const TENANT_FEATURES: readonly TenantFeatureDef[] = [
     label: "Sky at the horizon",
     description:
       "Once a guest has chosen their zone and sets (Who, Pay, the confirmation) the view lifts to the horizon: a strip of sky in the hour's colours with the sun, or the moon and stars, and clouds when it's cloudy. Off: the sea runs to the top of the screen (AENR-828).",
+    group: "Guest site",
+    default: true,
+  },
+  {
+    key: "guest.rainGlass",
+    label: "Rain on the glass",
+    description:
+      "When it rains on the beach, guests see rain drops landing on their screen, gathering into beads and running down it, as if looking through a window (AENR-826). Off: the rain stays in the scene only.",
     group: "Guest site",
     default: true,
   },
