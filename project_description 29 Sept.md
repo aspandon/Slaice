@@ -439,7 +439,7 @@ Four pages with distinct names (AENR-642); old `invoicing` and `commission` link
   drag your pass here" — and that wallet's Add sheet opens; the separate Apple / Google Wallet buttons under
   them are gone. They are real, labelled buttons for keyboard and screen readers; reduced motion: the pass
   stays put and the pockets read "Tap to add your pass". The full-screen QR now covers the whole screen (AENR-803).
-- **Walk along the shore** (AENR-788, `src/screens/customer/ShoreWalk.tsx`; tenant switch Platform › tenant › Modules &
+- **Walk along the shore** (phones and small tablets only since AENR-833 — on desktop the zones stand on the sand as before; AENR-788, `src/screens/customer/ShoreWalk.tsx`; tenant switch Platform › tenant › Modules &
   features › Guest site › **Walk along the shore**, on by default): in Plan › Where the zones stand along a beach
   panorama the guest drags sideways with momentum (GSAP Draggable + Inertia); it settles with one zone in
   the middle — larger, its sets map, free count and price — while the far sea, the foam line and the near
@@ -3444,6 +3444,11 @@ src/
     second, and two players take turns — half a second before the end the other starts from the top and they
     crossfade — so the restart is never seen (only one decodes outside that handover). Over real water the
     scene's cartoon clouds and birds are left out; cloud reads as the cloud shadows and the muted colours.
+    **True scale** (AENR-835): the video plays in its own screen-sized layer behind the scene — 1080p on
+    computers (MP4 ≈4.6 MB / WebM ≈3.7 MB), 720p on phones (≈2.3 MB) — instead of being stretched ~1.6×
+    inside the camera's oversized layer, so the water is sharp and at its filmed scale; the scene leaves its
+    water open over it, and the far water doesn't follow the camera's pans. Over the video no drawn
+    whitecaps or wind streaks (AENR-834); the rain still falls.
 - **The light on the water** (AENR-815, `lib/seaLight.ts` — one model for all three seas): from the hour
   and the weather it gives the sun's height and place (it rises on the left and sets on the right over
   the water, July in Athens: ≈ 06:15 / 20:50), the moon, the water's colour and the reflection path. At
@@ -3471,7 +3476,17 @@ src/
   Greek blue by day, peach sunrise, amber golden hour, a burning sunset under a violet sky, rose dusk, night
   with stars). The sun stands on the horizon at sunrise and sunset and climbs with the day; at night the moon
   and its halo; clouds drift across when it's cloudy, greyed toward slate (sunsets keep their glow). Earlier
-  steps slide it away again.
+  steps slide it away again. **Aerial haze**: the sky pales toward the horizon and a fading band runs over the far sea (milky by day, a warm glow at sunrise and sunset, a faint lift at night), so sky and sea meet softly, never in a hard line. **No sun or moon disc on the water** (AENR-834): the glints carry the light; the sky band shows the sun and the moon.
+- **Rain on the glass** (AENR-826, `components/RainGlass.tsx`; tenant switch Platform › tenant › Modules &
+  features › Guest site › **Rain on the glass**, on by default): when it rains the guest sees the site as if
+  through a window pane — drops land, sit as beads, grow and merge, now and then one runs down as a teardrop
+  leaving a trail of tiny beads and a wet streak, a fine mist settles between them and runners wipe it away.
+  The drops are small, mostly clear lenses (dark rim, bright lower crescent, a glint), so text stays
+  readable; they never block taps or selection, sit over the page and the booking panel but under the bars,
+  menus, sheets and modals, fade in and out with the weather (~1 s) and dim at night. Raw WebGL2, a lazy
+  chunk loaded only when it first rains; 30 fps while a drop runs (24 on phones, 12 when only beads land), at
+  reduced resolution; pauses in hidden tabs and after taps; sheds drops, then resolution, then freezes on
+  slow devices. Reduced motion: one still frame. Off, or without WebGL: the panel's small CSS drops.
 - **Demo sliders** (AENR-825): the guest Demo menu has **Weather** (Sunny · Windy · Overcast · Rainy) and
   **Time of day** sliders on every screen size; they drive the same scene state as Beach › Atmosphere, so the
   sea, the light and the weather layer follow at once. Hidden when the tenant pins the scene (AENR-737).
