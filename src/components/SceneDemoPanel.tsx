@@ -4,6 +4,8 @@ import { DAY_MAX, DAY_MIN, fmtHour, WEATHER_DEMO, WEATHER_KINDS } from "../data/
 import { useApp, useT } from "../app/store";
 import { NotMvpBadge } from "./ui";
 import { useGuestScene } from "../lib/useGuestScene";
+import { useTenantFeatures } from "../lib/useFeatures";
+import { BLENDER_RES, blenderResOf, SEA_DEVICES, SEA_STYLES, seaStyleOf, type SeaDevice } from "../domain/features";
 
 /* ============================================================================
    Scene demo controls — the bottom-left counterpart to the persona switcher's
@@ -187,6 +189,98 @@ export function DemoSceneSliders() {
           <span className="tnum">{fmtHour(DAY_MAX)}</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ---------- Guest sea sliders (AENR-855) ----------
+   The Platform › tenant › Guest sea choice, at the end of the guest Demo menu: a slider per
+   device through the four seas, and under a Blender sea a slider through its published
+   resolutions. They write the site tenant's own setting, so the Platform page always agrees. */
+const RES_READY = BLENDER_RES.filter((r) => r.ready);
+
+export function DemoSeaSliders() {
+  const { setPlatform } = useApp();
+  const { tenant } = useTenantFeatures();
+  const t = useT();
+  const keep = (e: KeyboardEvent) => e.stopPropagation();
+  // The device this screen is (the guest backdrop's own line, 1024 px).
+  const here: SeaDevice = window.matchMedia("(min-width: 1024px)").matches ? "desktop" : "mobile";
+  const edit = (fn: (sea: NonNullable<NonNullable<typeof tenant>["sea"]>) => NonNullable<typeof tenant>["sea"]) =>
+    setPlatform((p) => ({ ...p, tenants: p.tenants.map((x) => (x.id === p.siteTenant ? { ...x, sea: fn(x.sea ?? {}) } : x)) }));
+  return (
+    <div className="space-y-3">
+      {SEA_DEVICES.map((d) => {
+        const style = seaStyleOf(tenant, d.id);
+        const si = Math.max(0, SEA_STYLES.findIndex((x) => x.id === style));
+        const res = blenderResOf(tenant, d.id);
+        const ri = Math.max(0, RES_READY.findIndex((x) => x.id === res));
+        const sea = SEA_STYLES[si];
+        const id = `demo-sea-${d.id}`;
+        return (
+          <div key={d.id}>
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <label htmlFor={id} className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                {d.id === "desktop" ? <Icon.monitor size={12} aria-hidden /> : <Icon.phone size={12} aria-hidden />} {t(d.label)}
+                {d.id === here && <span className="whitespace-nowrap rounded bg-teal-50 px-1 py-px text-[9.5px] normal-case tracking-normal text-teal-700">{t("this screen")}</span>}
+              </label>
+              <span className="text-[12px] font-bold text-navy-900">{t(sea.label)}</span>
+            </div>
+            <input
+              id={id}
+              type="range"
+              min={0}
+              max={SEA_STYLES.length - 1}
+              step={1}
+              value={si}
+              onChange={(e) => {
+                const next = SEA_STYLES[Number(e.target.value)].id;
+                edit((s) => ({ ...s, [d.id]: next }));
+              }}
+              onKeyDown={keep}
+              aria-valuetext={t(sea.label)}
+              className="demo-range demo-range-plain w-full"
+            />
+            <div aria-hidden className="mt-0.5 flex justify-between text-[9.5px] text-slate-500">
+              {SEA_STYLES.map((x) => (
+                <span key={x.id}>{t(x.label)}</span>
+              ))}
+            </div>
+            {style === "blender" && RES_READY.length > 1 && (
+              <div className="mt-2 rounded-lg bg-slate-50 px-2 py-1.5 ring-1 ring-slate-200">
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <label htmlFor={`${id}-res`} className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-500">
+                    {t("Resolution")}
+                  </label>
+                  <span className="text-[11.5px] font-bold text-navy-900 tnum">
+                    {t(RES_READY[ri].label)} · {RES_READY[ri][d.id].px}
+                  </span>
+                </div>
+                <input
+                  id={`${id}-res`}
+                  type="range"
+                  min={0}
+                  max={RES_READY.length - 1}
+                  step={1}
+                  value={ri}
+                  onChange={(e) => {
+                    const next = RES_READY[Number(e.target.value)].id;
+                    edit((s) => ({ ...s, blenderRes: { ...s.blenderRes, [d.id]: next } }));
+                  }}
+                  onKeyDown={keep}
+                  aria-valuetext={`${t(RES_READY[ri].label)}, ${RES_READY[ri][d.id].px} px, ${RES_READY[ri][d.id].mb}`}
+                  className="demo-range demo-range-plain w-full"
+                />
+                <div aria-hidden className="mt-0.5 flex justify-between text-[9.5px] text-slate-500">
+                  {RES_READY.map((r) => (
+                    <span key={r.id}>{t(r.label)}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

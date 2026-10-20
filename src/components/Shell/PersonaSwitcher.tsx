@@ -13,6 +13,7 @@ import { useGuestScene } from "../../lib/useGuestScene";
 
 // The scene sliders show only in the guest demo menu; staff never load them (AENR-839).
 const DemoSceneSliders = lazyWithReload(() => import("../SceneDemoPanel").then((m) => ({ default: m.DemoSceneSliders })));
+const DemoSeaSliders = lazyWithReload(() => import("../SceneDemoPanel").then((m) => ({ default: m.DemoSeaSliders })));
 
 /* ---------- Persona switcher ----------
    The "view as another persona" control, shared by two surfaces:
@@ -253,6 +254,18 @@ export function PersonaSwitcher({
                   <DropdownMenu.Item onSelect={(e) => { e.preventDefault(); setInventory((i) => ({ ...i, clockOffset: 0 })); }}
                     className="rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold text-slate-600 cursor-pointer outline-none data-[highlighted]:bg-slate-100">{t("Reset")}</DropdownMenu.Item>
                 )}
+              </div>
+            </>
+          )}
+          {/* Guest sea per device, and the Blender beach's resolution (AENR-855) — the last group. */}
+          {persona === "customer" && (
+            <>
+              <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
+              <DropdownMenu.Label className="px-2.5 pt-1 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">{t("Guest sea")}</DropdownMenu.Label>
+              <div className="px-2.5 pt-1 pb-2">
+                <Suspense fallback={null}>
+                  <DemoSeaSliders />
+                </Suspense>
               </div>
             </>
           )}

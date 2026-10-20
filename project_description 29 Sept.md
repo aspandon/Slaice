@@ -3563,6 +3563,14 @@ src/
 - **Demo sliders** (AENR-825): the guest Demo menu has **Weather** (Sunny · Windy · Overcast · Rainy) and
   **Time of day** sliders on every screen size; they drive the same scene state as Beach › Atmosphere, so the
   sea, the light and the weather layer follow at once. Hidden when the tenant pins the scene (AENR-737).
+- **Guest sea sliders** (AENR-855): the last group of the guest Demo menu. A slider per device —
+  **Desktop** and **Phones and tablets**, each Classic · Coastal · Video · Blender, the one this screen uses
+  tagged "this screen" — and under a Blender sea a **Resolution** slider (Standard · High · Full HD, only
+  resolutions whose files are published) showing the size in pixels. They write the site tenant's own
+  setting (Platform › tenant › Modules & features › Guest sea), so the two always agree and the sea
+  behind the page changes at once. Real range inputs with labels and value text (the resolution's with
+  its download weight); arrow keys move them without the menu's typeahead; plain tracks, since they
+  choose between options rather than run along a scale.
 - **Weather** (demo): sunny / windy / overcast / rainy — sea agitation, backdrop dim, sun glint,
   clouds drifting right-to-left at per-weather speed, rain and wind-gust particles.
 - **Time of day:** dawn half-light, daylight, golden-hour warmth (muted by cloud cover), blue dusk.

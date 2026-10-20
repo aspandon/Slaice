@@ -432,6 +432,10 @@ html[data-persona="customer"]::-webkit-scrollbar {
     outline-offset: 4px;
     cursor: pointer;
   }
+  /* A choice between options, not a scale (the Guest sea sliders, AENR-855): a plain track. */
+  .demo-range.demo-range-plain {
+    background: theme("colors.slate.300");
+  }
   .demo-range::-webkit-slider-thumb {
     appearance: none;
     -webkit-appearance: none;
