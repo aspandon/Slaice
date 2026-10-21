@@ -114,9 +114,11 @@ export default {
         "mask-rise": `maskRise ${ms("slow")} ${E.out.css} both`,
         "step-fwd": `stepFwd ${ms("page")} ${E.out.css} both`,
         "step-back": `stepBack ${ms("page")} ${E.out.css} both`,
-        floaty: "floaty 5s ease-in-out infinite",
-        ripple: "ripple 4s ease-out infinite",
-        "sea-tilt": "seaTilt 4.5s ease-in-out infinite",
+        // Ambient bobbing settles after three swells (~15 s) instead of running forever (AENR-867);
+        // `both` holds the end frame so nothing snaps when it stops.
+        floaty: "floaty 5s ease-in-out 3 both",
+        ripple: "ripple 4s ease-out 3 both",
+        "sea-tilt": "seaTilt 4.5s ease-in-out 3 both",
         shimmer: "shimmer 1.6s infinite",
         dive: `dive ${D.slower + 150}ms ${E.standard.css} both`,
       },

@@ -3419,7 +3419,12 @@ src/
   scale or parallax: content changes in place (a cross-fade of `fast` at most).
 - **Animations:** fade-up/down/in, pop, scale-in, slide-in-right, slide-up (sheets), shimmer
   (skeletons), floaty, ripple, sea-tilt, dive — all built from the tokens and disabled under reduced
-  motion.
+  motion. **Nothing loops forever on an idle guest page** (AENR-867): the life ring bobs and ripples
+  for three swells (~15 s) and rides again when it moves or the guest points at or tabs to it; the
+  hero's "in 60 seconds" glint sweeps twice, the Start button breathes three times, the live dot
+  pings three times; the cloud cover's drift pauses while the sky is clear (sunny, windy) and picks up
+  where it was when clouds return. Measured after 20 s on Home, Plan and My bookings, sunny: 8–10
+  running infinite animations on a computer and 2–5 on a phone before, none after.
 - **Materials:** `.glass` (translucent + blur, for chrome), `.glass-flat` (frosted look without
   backdrop-filter, for customer cards), `.glass-card`, `.glass-input`, `.glass-dark`, with opaque
   fallbacks where `backdrop-filter` is unsupported. Over a filmed or rendered sea (`data-sea="film"`,

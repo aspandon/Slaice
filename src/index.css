@@ -399,7 +399,7 @@ html[data-persona="customer"]::-webkit-scrollbar {
     background-clip: text;
     color: #0a8276; /* fallback + reduced-motion colour */
     -webkit-text-fill-color: transparent;
-    animation: shimmerText 5.5s ease-in-out infinite;
+    animation: shimmerText 5.5s ease-in-out 2 forwards; /* twice as the hero lands, then plain teal (AENR-867) */
   }
   @keyframes shimmerText {
     0%, 45% { background-position: 115% 0; }
@@ -415,7 +415,7 @@ html[data-persona="customer"]::-webkit-scrollbar {
     inset: -1px;
     border-radius: 9999px;
     background: currentColor;
-    animation: livePing 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+    animation: livePing 2.4s cubic-bezier(0, 0, 0.2, 1) 3 forwards; /* a few pings; the text carries the meaning (AENR-867) */
   }
   @keyframes livePing {
     0% { transform: scale(1); opacity: 0.55; }
@@ -476,6 +476,12 @@ html[data-persona="customer"]::-webkit-scrollbar {
     animation-duration: 200s;
     animation-direction: alternate-reverse;
   }
+  /* Sunny or windy: the cover is invisible, so its drift pauses (AENR-867) and picks up from the same
+     spot when the clouds return. */
+  .clouds-clear > .cloud-bank,
+  .clouds-clear > .cloud-bank-b {
+    animation-play-state: paused;
+  }
   @keyframes cloudDrift {
     from { transform: translateX(-3.5%); }
     to { transform: translateX(3.5%); }
@@ -484,7 +490,7 @@ html[data-persona="customer"]::-webkit-scrollbar {
   /* Breathing glow for the primary hero CTA — shadow-only (no transform, so it
      can't fight the magnetic-hover tween that owns the element's transform). */
   .cta-breathe {
-    animation: ctaBreathe 3.4s ease-in-out infinite;
+    animation: ctaBreathe 3.4s ease-in-out 3; /* three breaths, then rest — the end frame is shadow-btn-primary (AENR-867) */
   }
   @keyframes ctaBreathe {
     0%, 100% { box-shadow: 0 1px 2px rgba(11, 37, 69, 0.24), 0 10px 22px -12px rgba(11, 37, 69, 0.45); }

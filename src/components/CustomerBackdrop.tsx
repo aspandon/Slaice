@@ -214,7 +214,7 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
       </div>
 
       {/* Cloud cover for overcast/rainy — drifting banks of soft grey blobs. */}
-      <div className="absolute inset-0 overflow-hidden transition-opacity duration-1000" style={{ opacity: clouds }}>
+      <div className={`absolute inset-0 overflow-hidden transition-opacity duration-1000 ${clouds ? "" : "clouds-clear"}`} style={{ opacity: clouds }}>
         <div className="cloud-bank" />
         <div className="cloud-bank-b" />
       </div>

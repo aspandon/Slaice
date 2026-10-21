@@ -1,25 +1,59 @@
+import { useEffect, useRef, useState } from "react";
+
 /* ---------- Floating life-ring ----------
    The red life-buoy bobbing in the sea band of the customer beach backdrop —
    and the guest's "Need a hand?" button (AENR-781). The whole buoy rises/falls
    (animate-floaty) and rocks gently (sea-tilt) as if riding a swell; expanding
    ripples + a couple of wavelets read as "sea movement" around it. A real
    <button>: the artwork is aria-hidden, the name comes from `label`, and the
-   focus ring rides on the bobbing buoy. All motion is paused under
-   prefers-reduced-motion. The caller positions it (`className`). */
+   focus ring rides on the bobbing buoy. All motion is off under
+   prefers-reduced-motion. The caller positions it (`className`).
+
+   The swell is finite (AENR-867): the buoy bobs for ~15 s when it appears, then floats still, so an
+   idle page runs no endless loops. It rides the swell again when it moves (the booking flow lifts the
+   shoreline and the caller transitions its position), and when the guest points at it or tabs to it. */
+const SWELL = new Set(["floaty", "ripple", "seaTilt"]);
+
 export function LifeRing({ className = "", label, onClick }: { className?: string; label: string; onClick: () => void }) {
+  const root = useRef<HTMLButtonElement>(null);
+  const [swell, setSwell] = useState(0);
+  const ride = () => {
+    const el = root.current;
+    // Already bobbing → let the current swell run on instead of restarting it. (Only the swell's own
+    // animations count: the hover lift is a transition that starts with this very event.)
+    const bobbing = (a: Animation) => a instanceof CSSAnimation && SWELL.has(a.animationName) && a.playState === "running";
+    if (el && !el.getAnimations({ subtree: true }).some(bobbing)) setSwell((n) => n + 1);
+  };
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    const moved = (e: TransitionEvent) => e.target === el && ride();
+    el.addEventListener("transitionrun", moved);
+    return () => el.removeEventListener("transitionrun", moved);
+  }, []);
   return (
-    <button type="button" onClick={onClick} aria-label={label} aria-haspopup="dialog" className={`group rounded-full focus-visible:outline-none ${className}`}>
+    <button
+      ref={root}
+      type="button"
+      onClick={onClick}
+      onPointerEnter={ride}
+      onFocus={ride}
+      aria-label={label}
+      aria-haspopup="dialog"
+      className={`group rounded-full focus-visible:outline-none ${className}`}
+    >
       {/* A little lift on hover, a press on tap — outside the bob so the two transforms never fight. */}
       <span aria-hidden="true" className="block w-full h-full transition-transform duration-150 ease-spring group-hover:scale-[1.07] group-active:scale-95">
-        <span className="relative block w-full h-full rounded-full animate-floaty group-focus-visible:ring-[3px] group-focus-visible:ring-white group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-navy-900">
+        {/* Re-keying the swell restarts its CSS animations from the first frame. */}
+        <span key={swell} className="relative block w-full h-full rounded-full animate-floaty motion-reduce:animate-none group-focus-visible:ring-[3px] group-focus-visible:ring-white group-focus-visible:ring-offset-2 group-focus-visible:ring-offset-navy-900">
           {/* Ripples expanding outward from the buoy */}
-          <span className="absolute inset-0 rounded-full border-[3px] border-white/70 animate-ripple" />
-          <span className="absolute inset-0 rounded-full border-[3px] border-white/60 animate-ripple [animation-delay:0.9s]" />
-          <span className="absolute inset-0 rounded-full border-[3px] border-white/50 animate-ripple [animation-delay:1.8s]" />
-          <span className="absolute inset-0 rounded-full border-2 border-white/40 animate-ripple [animation-delay:2.7s]" />
+          <span className="absolute inset-0 rounded-full border-[3px] border-white/70 animate-ripple motion-reduce:animate-none" />
+          <span className="absolute inset-0 rounded-full border-[3px] border-white/60 animate-ripple motion-reduce:animate-none [animation-delay:0.9s]" />
+          <span className="absolute inset-0 rounded-full border-[3px] border-white/50 animate-ripple motion-reduce:animate-none [animation-delay:1.8s]" />
+          <span className="absolute inset-0 rounded-full border-2 border-white/40 animate-ripple motion-reduce:animate-none [animation-delay:2.7s]" />
 
           {/* The buoy, rocking on the swell */}
-          <svg viewBox="0 0 100 100" className="relative w-full h-full origin-center animate-sea-tilt drop-shadow-[0_10px_14px_rgba(11,37,69,0.35)]">
+          <svg viewBox="0 0 100 100" className="relative w-full h-full origin-center animate-sea-tilt motion-reduce:animate-none drop-shadow-[0_10px_14px_rgba(11,37,69,0.35)]">
             <defs>
               <radialGradient id="lr-red" cx="42%" cy="38%" r="65%">
                 <stop offset="0%" stopColor="#fb6a4a" />
