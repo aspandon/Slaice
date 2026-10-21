@@ -159,6 +159,65 @@ for n in range(3, 17):
         amp = 0.0042 * lam ** 0.92 * rng.uniform(0.5, 1.2)
         CHOP.append((om, k, math.cos(ang), math.sin(ang), amp, rng.uniform(0, 2 * math.pi)))
 
+# ---- a natural deep sea (AENR 5A), behind DEEP=2; DEEP=0 (default) renders the AENR-856 frames ----
+# Seen from straight above, open water is short-crested chop from many directions, small sharp
+# wavelets, sun glitter, a deep blue and irregular smoother patches (wind slicks) — not the long,
+# shore-parallel ridges that suit the shallows. Every change is weighted by deep_of(d): exactly 0
+# up to DEEP_D0 metres seaward of the mean waterline, rising to 1 at DEEP_D1, so the shallows, the
+# shore and the sand render bit for bit as before and only the deep part needs re-rendering
+# (deep_region.sh composites it onto the existing frames across a band shoreward of DEEP_D0).
+DEEP = int(os.environ.get("DEEP", "0"))
+DEEP_D0 = float(os.environ.get("DEEP_D0", "8.0"))
+DEEP_D1 = float(os.environ.get("DEEP_D1", "14.0"))
+
+
+def deep_of(d):
+    s = np.clip((np.asarray(d, dtype=np.float64) - DEEP_D0) / (DEEP_D1 - DEEP_D0), 0, 1)
+    return s * s * (3 - 2 * s)
+
+
+# The deep chop: more trains, spread over +-75 deg around the wind (stratified, so every frequency
+# has crests from many directions: short crests), a few cross-swell trains, the long ridges lowered,
+# and shorter waves (to 0.2 m) than the shore chop. Still an integer number of cycles per loop.
+rng_d = np.random.default_rng(5)
+CHOP_DEEP = []
+for n in range(3, 23):
+    om = 2 * math.pi * n / T
+    k = om * om / G
+    lam = 2 * math.pi / k
+    m = 12
+    base = -math.pi / 2 + rng_d.uniform(-0.15, 0.15)
+    for j in range(m):
+        dth = math.radians(-75 + 150 * (j + rng_d.uniform(0.15, 0.85)) / m)
+        w = math.cos(dth) ** 2 * 0.8 + 0.2
+        long_cut = 1.0 / (1.0 + (lam / 2.5) ** 2)  # the long ridges, lowered
+        amp = float(os.environ.get("DEEP_AMP", "0.0030")) * lam ** 0.95 * w * (0.35 + 0.65 * long_cut) * rng_d.uniform(0.6, 1.2)
+        ang = base + dth
+        CHOP_DEEP.append((om, k, math.cos(ang), math.sin(ang), amp, rng_d.uniform(0, 2 * math.pi)))
+    if n >= 8:  # cross-sea: a little energy from any direction breaks the last regularity
+        for j in range(2):
+            ang = rng_d.uniform(0, 2 * math.pi)
+            CHOP_DEEP.append((om, k, math.cos(ang), math.sin(ang), 0.0018 * lam ** 0.95, rng_d.uniform(0, 2 * math.pi)))
+DEEP_CHOPPY = float(os.environ.get("DEEP_CHOPPY", "0.6"))  # horizontal (Gerstner) shift: sharper crests
+
+
+def deep_chop(X, Y, t, step):
+    """Height and horizontal shift of the deep chop at (X, Y), time t; waves the mesh can't resolve fade out."""
+    z = np.zeros_like(X)
+    dx = np.zeros_like(X)
+    dy = np.zeros_like(X)
+    for om, k, cx, cy, amp, ph in CHOP_DEEP:
+        lam = 2 * math.pi / k
+        a = amp * min(max((lam / step - 5.0) / 3.0, 0.0), 1.0)
+        if a == 0.0:
+            continue
+        p = k * (cx * X + cy * Y) - om * t + ph
+        z += a * np.cos(p)
+        s = DEEP_CHOPPY * a * np.sin(p)
+        dx -= cx * s
+        dy -= cy * s
+    return z, dx, dy
+
 
 class Grid:
     def __init__(self, nx, ny, x0, x1, y0, y1):
@@ -169,6 +228,9 @@ class Grid:
         self.Y = self.Y.ravel()
         self.nx, self.ny = nx, ny
         self.d = self.Y - (shore_Y(self.X) + MEAN_OFF)  # metres seaward of the mean waterline
+        self.step = (x1 - x0) / max(nx - 1, 1)
+        self.deep = deep_of(self.d) if DEEP else np.zeros_like(self.d)
+        self.dm = np.nonzero(self.deep > 0)[0]  # the vertices the deep sea changes
 
 
 def sand_z(g):
@@ -199,6 +261,13 @@ def water_state(g, t, zs):
     for om, k, cx, cy, amp, ph in CHOP:
         chop += amp * np.cos(k * (cx * X + cy * g.Y) - om * t + ph)
     chop *= np.clip(rel / 2.5, 0, 1) ** 1.5 * (0.55 + 0.45 * np.clip(d / 8, 0, 1))
+    g.shift = None
+    if DEEP and g.dm.size:  # the deep sea (AENR 5A): only where deep_of(d) > 0
+        i = g.dm
+        cz, sx, sy = deep_chop(X[i], g.Y[i], t, g.step)
+        wd = g.deep[i]
+        chop[i] = chop[i] + wd * (cz - chop[i])
+        g.shift = (i, wd * sx, wd * sy)
     # the thin swash sheet near the moving edge: z_sand at the edge, nearly flat seaward
     z_edge = -depth_of(-u)
     sheet = z_edge - 0.012 * rel
@@ -469,6 +538,18 @@ def sand_material():
     bump.inputs["Distance"].default_value = 0.03
     link(nt, hr, bump.inputs["Height"])
     link(nt, bump.outputs[0], bsdf.inputs["Normal"])
+    if DEEP:
+        # The deep sea (AENR 5A): the colour seen over deep water is mostly the water's own
+        # in-scatter, which this surface stands in for — it must not carry the seabed's ripples,
+        # lit by the low sun (that relief, refracted by the chop, read as a washboard). Fade the
+        # ripple bump out with the "deep" attribute (factor 0: exactly the bumped normal).
+        dsand = node(nt, "ShaderNodeAttribute", (1000, 1000), attribute_name="deep").outputs["Factor"]
+        geo_n = node(nt, "ShaderNodeNewGeometry", (1000, 1150))
+        nm = node(nt, "ShaderNodeMix", (1200, 900), data_type="VECTOR")
+        link(nt, math_node(nt, "MULTIPLY", dsand, float(os.environ.get("DEEP_BED_FLAT", "1.0")), (1100, 1000)), nm.inputs[0])
+        link(nt, bump.outputs[0], nm.inputs[4])
+        link(nt, geo_n.outputs["Normal"], nm.inputs[5])
+        link(nt, nm.outputs[1], bsdf.inputs["Normal"])
     return m
 
 
@@ -529,6 +610,101 @@ def water_material():
     link(nt, rn.outputs["Factor"], bump.inputs["Height"])
     link(nt, bump.outputs[0], glass.inputs["Normal"])
     link(nt, bump.outputs[0], foam_b.inputs["Normal"])
+    if not DEEP:
+        return m
+
+    # ---- the deep sea (AENR 5A): wavelets, slicks, a deeper blue and the sun's glitter. Every
+    # term is mixed in by the "deep" attribute, so where it is 0 the shader returns exactly the
+    # values above (a mix with factor 0 returns its first input bit for bit).
+    deep = node(nt, "ShaderNodeAttribute", (-1200, 1000), attribute_name="deep").outputs["Factor"]
+    dtop = node(nt, "ShaderNodeAttribute", (-1200, 900), attribute_name="deeptop").outputs["Factor"]
+    # wind slicks: large, slowly changing patches of smoother water (looping 4D noise)
+    sv, sw = loop_coords(nt, 1.0, 4.0, "s", (-700, 1300))
+    sn = node(nt, "ShaderNodeTexNoise", (-450, 1300), noise_dimensions="4D")
+    sn.inputs["Scale"].default_value = 0.055
+    sn.inputs["Detail"].default_value = 2
+    sn.inputs["Roughness"].default_value = 0.5
+    link(nt, sv, sn.inputs["Vector"])
+    link(nt, sw, sn.inputs["W"])
+    slk = node(nt, "ShaderNodeMapRange", (-250, 1300))
+    slk.inputs["From Min"].default_value = 0.52
+    slk.inputs["From Max"].default_value = 0.64
+    link(nt, sn.outputs["Factor"], slk.inputs["Value"])
+    slick = math_node(nt, "MULTIPLY", slk.outputs[0], float(os.environ.get("DEEP_SLICK", "0.75")), (-100, 1300))
+    rough = math_node(nt, "SUBTRACT", 1.0, slick, (0, 1300))  # 1 = rough water, 0.25 = slick
+    # wavelets: short, slightly wind-stretched ripples (looping 4D noise, two scales) as a bump on
+    # top of the geometry and the capillary bump
+    wv, ww = loop_coords(nt, 1.0, 1.1, "w", (-700, 1700))
+    stretch = node(nt, "ShaderNodeMapping", (-450, 1850))
+    stretch.inputs["Scale"].default_value = (0.7, 1.0, 1.0)
+    link(nt, wv, stretch.inputs[0])
+    wn1 = node(nt, "ShaderNodeTexNoise", (-250, 1700), noise_dimensions="4D")
+    wn1.inputs["Scale"].default_value = float(os.environ.get("DEEP_WSCALE", "9.0"))
+    wn1.inputs["Detail"].default_value = 3
+    wn1.inputs["Roughness"].default_value = 0.5
+    link(nt, stretch.outputs[0], wn1.inputs["Vector"])
+    link(nt, ww, wn1.inputs["W"])
+    wbump = node(nt, "ShaderNodeBump", (200, 1700))
+    link(nt, math_node(nt, "MULTIPLY", rough, float(os.environ.get("DEEP_WAVELETS", "0.35")), (50, 1600)), wbump.inputs["Strength"])
+    wbump.inputs["Distance"].default_value = 0.01
+    link(nt, wn1.outputs["Factor"], wbump.inputs["Height"])
+    link(nt, bump.outputs[0], wbump.inputs["Normal"])
+    nmix = node(nt, "ShaderNodeMix", (400, 1500), data_type="VECTOR")
+    link(nt, deep, nmix.inputs[0])
+    link(nt, bump.outputs[0], nmix.inputs[4])
+    link(nt, wbump.outputs[0], nmix.inputs[5])
+    nrm = nmix.outputs[1]
+    link(nt, nrm, glass.inputs["Normal"])
+    # a deeper blue: the light coming up through the water, tinted, more toward the top
+    tint = srgb(os.environ.get("DEEP_TINT", "#8fa6d2"))
+    tint_top = srgb(os.environ.get("DEEP_TINT_TOP", "#6a86c2"))
+    tcol = mix_rgb(nt, dtop, tint, tint_top, (400, 1100))
+    tcol = mix_rgb(nt, math_node(nt, "MULTIPLY", slick, 0.12, (300, 950)), tcol, (0.9, 0.93, 1.0, 1.0), (500, 1000), blend="MULTIPLY")
+    # sun glitter: the sun's reflection in facets tilted toward it, worked out in the shader (no
+    # sampling noise at 4 spp): R = reflect(view, N), glint = (R . sun)^k, camera rays only
+    geo = node(nt, "ShaderNodeNewGeometry", (300, 2200))
+    neg = node(nt, "ShaderNodeVectorMath", (450, 2200), operation="SCALE")
+    link(nt, geo.outputs["Incoming"], neg.inputs[0])
+    neg.inputs["Scale"].default_value = -1.0
+    refl = node(nt, "ShaderNodeVectorMath", (600, 2200), operation="REFLECT")
+    link(nt, neg.outputs[0], refl.inputs[0])
+    link(nt, nrm, refl.inputs[1])
+    az, el = (math.radians(float(v)) for v in os.environ.get("GLINT_SUN", "-71,58").split(","))
+    # the sky in the facets: seen from above, open water shows its waves mostly by the sky they
+    # reflect — facets turned toward the sun's side of the sky are lighter, those facing the dark
+    # zenith or away from the sun darker, steeper ones lighter (Fresnel). This sky's real contrast
+    # is too faint against the water's own colour, so it is drawn into the transmitted colour:
+    # shade = 1 + a (R . sun_horizontal) + b (1 - R_z), R the reflected view ray.
+    sxy = node(nt, "ShaderNodeVectorMath", (750, 2000), operation="DOT_PRODUCT")
+    link(nt, refl.outputs[0], sxy.inputs[0])
+    sxy.inputs[1].default_value = (math.cos(az), math.sin(az), 0.0)
+    rz = node(nt, "ShaderNodeSeparateXYZ", (750, 1850))
+    link(nt, refl.outputs[0], rz.inputs[0])
+    shade = math_node(nt, "MULTIPLY", sxy.outputs["Value"], float(os.environ.get("DEEP_SHADE", "1.6")), (900, 2000))
+    steep = math_node(nt, "MULTIPLY", math_node(nt, "SUBTRACT", 1.0, rz.outputs[2], (900, 1850)), float(os.environ.get("DEEP_FRES", "4.0")), (1000, 1850))
+    shade = math_node(nt, "ADD", math_node(nt, "ADD", shade, steep, (1100, 1950)), 1.0, (1200, 1950))
+    shade = math_node(nt, "MINIMUM", math_node(nt, "MAXIMUM", shade, 0.45, (1300, 1950)), 1.45, (1400, 1950))
+    shaded = mix_rgb(nt, 1.0, tcol, math_node(nt, "MULTIPLY", shade, 1.0, (1450, 1850)), (1500, 1700), blend="MULTIPLY")
+    link(nt, mix_rgb(nt, deep, (1.0, 1.0, 1.0, 1.0), shaded, (1600, 1300)), glass.inputs["Base Color"])
+    dot = node(nt, "ShaderNodeVectorMath", (750, 2200), operation="DOT_PRODUCT")
+    link(nt, refl.outputs[0], dot.inputs[0])
+    dot.inputs[1].default_value = (math.cos(el) * math.cos(az), math.cos(el) * math.sin(az), math.sin(el))
+    gl = math_node(nt, "POWER", math_node(nt, "MAXIMUM", dot.outputs["Value"], 0.0, (900, 2200)), float(os.environ.get("GLINT_K", "1500")), (1000, 2200))
+    lp = node(nt, "ShaderNodeLightPath", (900, 2400))
+    gl = math_node(nt, "MULTIPLY", gl, lp.outputs["Is Camera Ray"], (1100, 2300))
+    gl = math_node(nt, "MULTIPLY", gl, math_node(nt, "MULTIPLY", deep, rough, (1000, 2050)), (1200, 2200))
+    gl = math_node(nt, "MULTIPLY", gl, float(os.environ.get("GLINT", "2.5")), (1300, 2200), clamp=True)
+    em = node(nt, "ShaderNodeEmission", (1300, 1900))
+    em.inputs["Color"].default_value = (1.0, 0.97, 0.9, 1.0)
+    em.inputs["Strength"].default_value = float(os.environ.get("GLINT_STRENGTH", "3.0"))
+    gmix = node(nt, "ShaderNodeMixShader", (1500, 0))
+    link(nt, gl, gmix.inputs[0])
+    link(nt, mix.outputs[0], gmix.inputs[1])
+    link(nt, em.outputs[0], gmix.inputs[2])
+    link(nt, gmix.outputs[0], out.inputs[0])
+    out.location = (1700, 0)
+    # the glitter is a highlight, not a lamp: keep the water out of the light list
+    m.cycles.emission_sampling = "NONE"
     return m
 
 
@@ -556,8 +732,13 @@ def build(res=(1280, 1200), spp=16, engine="CYCLES", grid_step=0.1):
     STATE["extra"] = extra_depth(g.d)
     wet = np.clip((g.d + R_UP * runup_scale(g.X) + 0.9 + 0.3 * (vnoise(g.X / 1.3, g.Y / 1.3, 3) - 0.5)) / 0.9, 0, 1)
     set_attr(sand.data, "wet", wet)
+    if DEEP:
+        set_attr(sand.data, "deep", g.deep)
     water = make_grid_mesh("water", g, np.zeros_like(zs))
     water.data.materials.append(water_material())
+    if DEEP:
+        set_attr(water.data, "deep", g.deep)
+        set_attr(water.data, "deeptop", np.clip((g.d - DEEP_D1) / (29.0 - DEEP_D1), 0, 1) ** 1.2)  # 0 -> 1 at the top edge
     water.visible_shadow = False
     water.visible_diffuse = False
     STATE.update(g=g, zs=zs, sand=sand, water=water)
@@ -633,7 +814,12 @@ def update(frame):
     t = (frame % NF) / FPS
     zw, foam, u, rel, behind, th_e = water_state(g, t, zs)
     wme = STATE["water"].data
-    co = np.stack([g.X, g.Y, zw], axis=1).astype(np.float32)
+    co = np.stack([g.X, g.Y, zw], axis=1)
+    if g.shift is not None:  # the deep chop's sharper crests
+        i, sx, sy = g.shift
+        co[i, 0] += sx
+        co[i, 1] += sy
+    co = co.astype(np.float32)
     wme.vertices.foreach_set("co", co.ravel())
     set_attr(wme, "foam", foam)
     set_attr(wme, "fuv", np.stack([g.X, rel, behind / 3.0], axis=1), "FLOAT_VECTOR")
