@@ -33,7 +33,7 @@ export function BeachBackdrop({ children, className = "", pos = "relative", para
   pos?: string;
   parallax?: boolean;
   background?: BeachBackground;
-  /** Skip the grain filter — used for the many small picker thumbnails. */
+  /** Skip the sand texture — used for the many small picker thumbnails. */
   preview?: boolean;
   /** Sand-top fraction (0–1): higher pushes the shoreline down for an ocean-vista
    *  look (thin sand strip). Omit for the default balanced beach. */
@@ -86,32 +86,48 @@ const sandTopD = (dy = 0, off = 0) =>
 const sandBandD = (dy = 0, o1 = 0, o2 = 0) =>
   `${sandTopD(dy, o1)} L 1620 ${510 + o2 + dy} C 1200 ${450 + o2 + dy} 1040 ${465 + o2 + dy} 740 ${510 + o2 + dy} C 440 ${555 + o2 + dy} 220 ${460 + o2 + dy} -20 ${500 + o2 + dy} Z`;
 
-/* Darken a hex colour (f < 1) → 0–1 floats for feColorMatrix. */
-const shadeRgb = (hex: string, f: number): [number, number, number] => {
-  const n = parseInt(hex.slice(1), 16);
-  return [(((n >> 16) & 255) / 255) * f, (((n >> 8) & 255) / 255) * f, ((n & 255) / 255) * f];
-};
-
-/* ---------- Sand detail ----------
-   Subtle realism layered over the flat sand fill — and deliberately free of
-   hard horizontal edges, which read as stripes across the beach. The wet zone
-   under the foam is a gradient band that dissolves into dry sand, topped by a
-   soft reflective sheen; grainy presets add large-scale mottling that reads as
-   damp patches. Tints derive from the preset's own sand palette. */
-function SandDetail({ preset, dy = 0, mottle, idp }: { preset: BeachPreset; dy?: number; mottle: boolean; idp: (k: string) => string }) {
-  const dark = shadeRgb(preset.sand[2], 0.55);
+/* ---------- Sand texture ----------
+   Grainy presets get a fine grain plus large-scale mottling that reads as damp
+   patches, tinted from the preset's own sand palette. Both used to be live
+   feTurbulence filters, which the browser recomputes on the CPU, pixel by
+   pixel, whenever the sand re-rasterises (the Plan slide and zoom do). They're
+   now baked once into images (tools/textures/sand-tiles.mjs) and drawn clipped
+   to the sand: plain image draws, no filters, masks or patterns (an SVG pattern
+   re-renders its tile per raster tile and measured as slow as the filter). The
+   grain is a seamless tile laid as a grid; the mottle is one image over the
+   scene, baked per preset. Both sit at the scene origin as the turbulence did,
+   and draw unsmoothed: the grain point-samples as the live filter did (keeping
+   its contrast when scaled down), and the smooth mottle shows no steps. */
+const TEXTURES = `${import.meta.env.BASE_URL}textures/`;
+const GRAIN_SRC = `${TEXTURES}sand-grain.webp`;
+const GRAIN_TILE = 120; // scene units
+const GRAIN_CELLS = Array.from({ length: Math.ceil(900 / GRAIN_TILE) }).flatMap((_, row) =>
+  Array.from({ length: Math.ceil(1600 / GRAIN_TILE) }).map((_, col) => [col * GRAIN_TILE, row * GRAIN_TILE] as const),
+);
+function SandTexture({ preset, dy, clipId }: { preset: BeachPreset; dy: number; clipId: string }) {
   return (
     <>
-      {mottle && (
-        <>
-          <filter id={idp("mottle")} x="0" y="0" width="100%" height="100%">
-            <feTurbulence type="fractalNoise" baseFrequency="0.011 0.02" numOctaves="2" seed="11" />
-            <feColorMatrix values={`0 0 0 0 ${dark[0].toFixed(3)}  0 0 0 0 ${dark[1].toFixed(3)}  0 0 0 0 ${dark[2].toFixed(3)}  0 0 0 0.12 0`} />
-            <feComposite in2="SourceGraphic" operator="in" />
-          </filter>
-          <path d={sandD(dy)} filter={`url(#${idp("mottle")})`} opacity="0.5" />
-        </>
-      )}
+      <clipPath id={clipId}>
+        <path d={sandD(dy)} />
+      </clipPath>
+      <g clipPath={`url(#${clipId})`} style={{ imageRendering: "pixelated" }}>
+        {GRAIN_CELLS.map(([x, y]) => (
+          <image key={`${x}-${y}`} href={GRAIN_SRC} x={x} y={y} width={GRAIN_TILE} height={GRAIN_TILE} />
+        ))}
+        <image href={`${TEXTURES}sand-mottle-${preset.id}.webp`} width="1600" height="900" />
+      </g>
+    </>
+  );
+}
+
+/* ---------- Sand detail ----------
+   Subtle realism layered over the flat sand fill (and its texture) — and
+   deliberately free of hard horizontal edges, which read as stripes across the
+   beach. The wet zone under the foam is a gradient band that dissolves into dry
+   sand, topped by a soft reflective sheen. */
+function SandDetail({ dy = 0, idp }: { dy?: number; idp: (k: string) => string }) {
+  return (
+    <>
       <linearGradient id={idp("wet")} x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stopColor="rgba(190, 140, 80, 0.26)" />
         <stop offset="100%" stopColor="rgba(190, 140, 80, 0)" />
@@ -245,13 +261,6 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky =
               <stop offset="0%" stopColor={preset.foam} />
               <stop offset="100%" stopColor="rgba(255,255,255,0)" />
             </linearGradient>
-            {grain && (
-              <filter id={id("grain")} x="0" y="0" width="100%" height="100%">
-                <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" />
-                <feColorMatrix values="0 0 0 0 0.62  0 0 0 0 0.48  0 0 0 0 0.32  0 0 0 0.18 0" />
-                <feComposite in2="SourceGraphic" operator="in" />
-              </filter>
-            )}
           </defs>
           {/* Static surface texture in the open-water band. */}
           {detail && style === "classic" && <SeaWavelets dy={dy} />}
@@ -260,9 +269,9 @@ function BeachScene({ preset, preview = false, shoreline, noVeg = false, noSky =
           {/* Sand + texture overlay, and the skirt below the scene that a slide may show. */}
           <path d={sandD(dy)} fill={`url(#${id("sand")})`} />
           <rect x="-20" y="899" width="1640" height={SKIRT} fill={preset.sand[2]} />
-          {grain && <path d={sandD(dy)} filter={`url(#${id("grain")})`} opacity="0.5" />}
-          {/* Wet shading + sheen (both gradient bands — no hard seams), mottling. */}
-          <SandDetail preset={preset} dy={dy} mottle={grain} idp={id} />
+          {grain && <SandTexture preset={preset} dy={dy} clipId={id("sand-clip")} />}
+          {/* Wet shading + sheen (both gradient bands — no hard seams). */}
+          <SandDetail dy={dy} idp={id} />
         </svg>
       </div>
 
@@ -491,19 +500,12 @@ function BeachSceneLayered({ preset, shoreline, noVeg = false, seaEnv, sea, seaS
               <stop offset="0%" stopColor={preset.foam} />
               <stop offset="100%" stopColor="rgba(255,255,255,0)" />
             </linearGradient>
-            {preset.grain && (
-              <filter id={id("grain")} x="0" y="0" width="100%" height="100%">
-                <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" />
-                <feColorMatrix values="0 0 0 0 0.62  0 0 0 0 0.48  0 0 0 0 0.32  0 0 0 0.18 0" />
-                <feComposite in2="SourceGraphic" operator="in" />
-              </filter>
-            )}
           </defs>
           <path d={foamD(dy)} fill={`url(#${id("foam")})`} />
           <path d={sandD(dy)} fill={`url(#${id("sand")})`} />
           <rect x="-20" y="899" width="1640" height={SKIRT} fill={preset.sand[2]} />
-          {preset.grain && <path d={sandD(dy)} filter={`url(#${id("grain")})`} opacity="0.5" />}
-          <SandDetail preset={preset} dy={dy} mottle={preset.grain} idp={id} />
+          {preset.grain && <SandTexture preset={preset} dy={dy} clipId={id("sand-clip")} />}
+          <SandDetail dy={dy} idp={id} />
         </svg>
         </div>
         {ownBeach && seaEnv ? (
