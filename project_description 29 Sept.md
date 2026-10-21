@@ -3502,7 +3502,7 @@ src/
     every video frame. Classic and Coastal keep the frosted glass. Over real water the
     scene's cartoon clouds are left out (and there are no gulls anywhere since AENR-858); cloud reads as the cloud shadows and the muted colours.
     **True scale** (AENR-835): the video plays in its own screen-sized layer behind the scene — 1080p on
-    computers (MP4 ≈4.6 MB / WebM ≈3.7 MB), 720p on phones (≈2.3 MB) — instead of being stretched ~1.6×
+    computers (MP4 ≈3.0 MB / WebM ≈2.3 MB since AENR-861), 720p on phones (≈1.3 / 1.0 MB) — instead of being stretched ~1.6×
     inside the camera's oversized layer, so the water is sharp and at its filmed scale; the scene leaves its
     water open over it, and the far water doesn't follow the camera's pans. Over the video no drawn
     whitecaps or wind streaks (AENR-834); the rain still falls.
@@ -3512,14 +3512,16 @@ src/
     sparkling turquoise sea", Pexels License — `public/sea/CREDITS.md`; the Coverr clip's 4K original
     is only for signed-in users), graded to the same Greek turquoise with a measured colour transfer
     baked into a 3D LUT and made into the same kind of seamless 9.6 s loop (`tools/video/`). Computers:
-    1920 × 1080 (7.2–9.6 MB) or 3840 × 2160 (24–34 MB). Phones and tablets held upright get a 9:16 cut
+    1920 × 1080 (4.1–5.4 MB) or 3840 × 2160 (10.8–14.6 MB). Phones and tablets held upright get a 9:16 cut
     of the middle — the 16:9 frame on a tall screen is mostly cropped away, so a landscape file plays
-    about 3× enlarged there (why Standard looks soft on a phone): 1080 × 1920 (7.2–9.6 MB) or
-    1216 × 2160 (9–12 MB), the most a 4K landscape source gives upright. Each file's codec and level is
-    in its type (VP9; H.264 5.0 / 5.1). **Stepping down** (both Video and Blender): a size the device
-    can't decode, or decodes too slowly (two 3 s windows in a row with over a quarter of the frames
-    dropped, page changes aside), steps down one size at a time; only Standard failing hands the sea
-    back to Classic. 4K is labelled "Needs a recent computer or phone".
+    about 3× enlarged there (why Standard looks soft on a phone): 1080 × 1920 (4.1–5.5 MB) or
+    1216 × 2160 (4.9–6.7 MB), the most a 4K landscape source gives upright. Each file's codec and level
+    is in its type. **Lighter files** (AENR-861, after the reference sites — aktitouiliou.gr ships 1080p
+    at 2.3 Mbit/s and 720p at 1.1): H.264 first on every device (the hardware-decoded path in Safari and
+    Chrome), VP9 as the fallback, a keyframe every 2 s, and modest rates — Standard 2.5 / 1.1 Mbit/s, Full
+    HD 4.5, 4K 12 (SSIM 0.956 against the 4K master). **Stepping down** (both Video and Blender): a size
+    the device can't decode, or keeps up with poorly in its first 4 s, steps down one size; only Standard
+    failing hands the sea back to Classic. 4K is labelled "Needs a recent computer or phone".
   - **Blender** (`components/sea/BlenderSea.tsx`, AENR-827): a beach rendered in Blender 5.2 (Cycles) and
     played as video — `public/sea/blender/`, `CREDITS.md` there, sources in `tools/blender/`. Seen straight
     down: open azure sea at the top deepening from turquoise shallows over sloping sand, real refracted-sun
@@ -3548,10 +3550,12 @@ src/
     layer, the vignette, the weather grading and the glass off changed sharpness by under 1% — but the mesh,
     a lean encode and the stretch (a desktop shot shows ≈ 500 of the frame's 1200 rows, ≈ 1.8× per video
     pixel through the cover fit, the camera margin and the parallax overscan; ≈ 4× on a 3× phone). The
-    player, the posters and the boot preload follow the choice. All three are published: High 5.2–6.5 MB
-    on computers, 2.6–3.3 MB on phones; Full HD 7.5–9.3 MB / 3.8–4.7 MB (Standard 2.5–2.9 / 0.9–1.1 MB) —
-    each file's H.264 level is in its type (5.0 for the wide High and Full HD cuts, 4.0 / 4.2 for their
-    phone cuts), so a device that can't decode it moves to the next file. A resolution whose files aren't
+    player, the posters and the boot preload follow the choice. Since AENR-861 the files are exactly one
+    8 s period (192 frames, for the one player's native loop) at modest rates, H.264 first: Standard
+    1.5–2.0 MB on computers, 0.7–0.9 MB on phones; High 2.6–3.5 / 1.1–1.5 MB; Full HD 3.4–4.5 / 1.6–2.2 MB
+    — each file's H.264 level is in its type (5.0 for the wide High and Full HD cuts, 4.0 / 4.2 for their
+    phone cuts), so a device that can't decode it moves to the next file. (These are trimmed re-encodes
+    of the first renders; the deep-water re-render, AENR-868, replaces them and adds 4K.) A resolution whose files aren't
     published is shown as Rendering and can't be picked (and a saved choice of it plays Standard). A clear
     midday grade is `filter: none`.
 - **The light on the water** (AENR-815, `lib/seaLight.ts` — one model for every sea): from the hour
@@ -3616,6 +3620,12 @@ src/
   can't stall the move. **No repaint on landing** (AENR-865): the camera layer stays on the GPU (a pan
   never redraws the scene); after a zoom it is redrawn sharp once, when the browser is idle; the sliding
   land layers leave the GPU in idle time too.
+- **Sand texture** (AENR-863): the drawn sand's grain and large-scale mottle are images rendered once
+  from the original turbulence (`tools/textures/sand-tiles.mjs`: a seamless 120-unit grain tile and one
+  mottle image per grainy preset, `public/textures/`), drawn under the sand's clip — no longer two live
+  SVG fractal-noise filters, which the browser recomputed on the CPU whenever the sand was redrawn (twice
+  on Plan a visit). Raster time on the Plan tap: ~520 → ~180 ms on a 4×-slowed phone, ~910 → ~235 ms on
+  a desktop; the sand matches within half a colour level.
 - **First paint** (AENR-820): before the app loads, an inline script marks the guest persona from the saved
   demo state and the page paints in the sea's colours, so the guest site never flashes white or near-white.
 - One scene resolution for all customer pages, so Home, wizard and checkout always match.

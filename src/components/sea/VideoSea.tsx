@@ -37,7 +37,7 @@ const mp4 = (level: string) => `video/mp4; codecs="avc1.6400${level}"`;
 /** Each resolution's files: computers, and phones and tablets (landscape, and held upright). */
 const FILES: Record<VideoRes, { wide: Cut; phone: Cut; tall?: Cut }> = {
   standard: {
-    wide: { poster: "sea-poster.webp", files: [{ src: "sea-loop-1080.mp4", type: mp4("28") }, { src: "sea-loop-1080.webm", type: vp9("40") }] },
+    wide: { poster: "sea-poster.webp", files: [{ src: "sea-loop-1080.mp4", type: mp4("32") }, { src: "sea-loop-1080.webm", type: vp9("40") }] },
     phone: { poster: "sea-poster.webp", files: [{ src: "sea-loop.mp4", type: mp4("1f") }, { src: "sea-loop.webm", type: vp9("31") }] },
   },
   fullhd: {

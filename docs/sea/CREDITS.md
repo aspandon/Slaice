@@ -1,14 +1,14 @@
 # Sea background video — credits
 
-| Field       | Value                                                                                          |
-| ----------- | ---------------------------------------------------------------------------------------------- |
-| Title       | Clear ocean water ("Drone shot of crystal clear water in the ocean.")                          |
-| Source page | <https://coverr.co/videos/clear-ocean-water-zu1hathkpo>                                       |
+| Field       | Value                                                                                                            |
+| ----------- | ---------------------------------------------------------------------------------------------------------------- |
+| Title       | Clear ocean water ("Drone shot of crystal clear water in the ocean.")                                            |
+| Source page | <https://coverr.co/videos/clear-ocean-water-zu1hathkpo>                                                          |
 | Source file | `https://cdn.coverr.co/videos/coverr-clear-ocean-water-5446/1080p.mp4` (1920×1080, 23.976 fps, 15.9 s, no audio) |
-| Author      | Coverr (in-house clip; no individual contributor is listed — `contributor: null`)             |
-| Published   | 2021-11-04 on Coverr (free tier, `isPremium: false`, `isAiGenerated: false`)                   |
-| Licence     | Coverr License — <https://coverr.co/license>                                                   |
-| Downloaded  | 2026-10-20                                                                                     |
+| Author      | Coverr (in-house clip; no individual contributor is listed — `contributor: null`)                                |
+| Published   | 2021-11-04 on Coverr (free tier, `isPremium: false`, `isAiGenerated: false`)                                     |
+| Licence     | Coverr License — <https://coverr.co/license>                                                                     |
+| Downloaded  | 2026-10-20                                                                                                       |
 
 ## Licence summary (from <https://coverr.co/license>, read 2026-10-20)
 
@@ -32,25 +32,26 @@ records it anyway.
 3. **Scale** — 1920×1080 → 1280×720 (Lanczos). No crop needed (already 16:9). No colour grading.
 4. **Re-encode** (no audio track):
    - (AENR-835) rebuilt from the 1080p source with the same loop: `sea-loop-1080.mp4` (H.264, 1920×1080, two-pass ≈3.8 Mbps), `sea-loop-1080.webm` (VP9 ≈3 Mbps), `sea-loop.mp4` (H.264, 1280×720 for phones, ≈1.9 Mbps); graded to Greek turquoise (gradient map); the 480p and 720p WebM files are retired.
-  - `sea-loop.mp4` (earlier) — H.264 High, yuv420p, `+faststart`, 1280×720, two-pass about 1.85 Mbps.
-   - `sea-loop.webm` — VP9 profile 0, 1280×720, two-pass about 1.55 Mbps.
-   - `sea-loop-480.mp4` — H.264 High, yuv420p, `+faststart`, 854×480, two-pass about 0.71 Mbps.
-   - `sea-poster.webp` — first frame of the loop, 1280×720, WebP quality 82.
+
+- `sea-loop.mp4` (earlier) — H.264 High, yuv420p, `+faststart`, 1280×720, two-pass about 1.85 Mbps.
+- `sea-loop.webm` — VP9 profile 0, 1280×720, two-pass about 1.55 Mbps.
+- `sea-loop-480.mp4` — H.264 High, yuv420p, `+faststart`, 854×480, two-pass about 0.71 Mbps.
+- `sea-poster.webp` — first frame of the loop, 1280×720, WebP quality 82.
 
 ## Full HD and 4K (AENR-859)
 
 The Video sea's **Full HD** and **4K** resolutions come from a second clip, filmed in 4K; **Standard**
 stays the Coverr clip above (its 4K original is only offered to signed-in Coverr users).
 
-| Field       | Value                                                                                           |
-| ----------- | ----------------------------------------------------------------------------------------------- |
-| Title       | "Aerial view of sparkling turquoise sea"                                                        |
-| Source page | <https://www.pexels.com/video/aerial-view-of-sparkling-turquoise-sea-38223113/>                |
-| Source file | `https://videos.pexels.com/video-files/38223113/16227812_3840_2160_60fps.mp4` (3840×2160, 59.94 fps, 16.2 s, H.264, no audio) |
-| Author      | Efrem Efre (Pexels)                                                                             |
+| Field       | Value                                                                                                                                                                 |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Title       | "Aerial view of sparkling turquoise sea"                                                                                                                              |
+| Source page | <https://www.pexels.com/video/aerial-view-of-sparkling-turquoise-sea-38223113/>                                                                                       |
+| Source file | `https://videos.pexels.com/video-files/38223113/16227812_3840_2160_60fps.mp4` (3840×2160, 59.94 fps, 16.2 s, H.264, no audio)                                         |
+| Author      | Efrem Efre (Pexels)                                                                                                                                                   |
 | Licence     | Pexels License — <https://www.pexels.com/license/> (free to use, commercial included; attribution not required; not to be resold unaltered or redistributed as stock) |
-| Downloaded  | 2026-10-20                                                                                      |
-| Credit      | "Video by Efrem Efre from Pexels" (optional; given here)                                        |
+| Downloaded  | 2026-10-20                                                                                                                                                            |
+| Credit      | "Video by Efrem Efre from Pexels" (optional; given here)                                                                                                              |
 
 What was changed (`tools/video/make-master.sh`, `tools/video/encode-sea.sh`):
 
@@ -63,3 +64,21 @@ What was changed (`tools/video/make-master.sh`, `tools/video/encode-sea.sh`):
 3. **Cuts and encodes** (two-pass, no audio): 3840×2160 and 1920×1080 for computers; for phones and
    tablets held upright, a 9:16 cut of the middle (x 1312–2528) at 1216×2160 and 1080×1920. H.264
    High (`+faststart`) and VP9, at about 0.10–0.16 bit per pixel; WebP posters (the first frame).
+
+## Lighter files, one player (AENR-860, AENR-861)
+
+All the Video sea's files were re-encoded for the single native-loop player and modest, hardware-
+friendly rates (after aktitouiliou.gr, which ships 1080p at 2.3 Mbit/s and 720p at 1.1): H.264 High
+first, VP9 as the fallback, a keyframe every 2 s, two-pass, no audio (`tools/video/encode-sea.sh MASTER
+OUT STANDARD_SRC`).
+
+| Files                                       | Size        | Rate (H.264 / VP9) | Size (MP4 / WebM) |
+| ------------------------------------------- | ----------- | ------------------ | ----------------- |
+| `sea-loop-1080.mp4` / `.webm` (Standard)    | 1920 × 1080 | 2.5 / 1.9 Mbit/s   | 3.0 / 2.3 MB      |
+| `sea-loop.mp4` / `.webm` (Standard, phones) | 1280 × 720  | 1.1 / 0.8 Mbit/s   | 1.3 / 1.0 MB      |
+| `sea-fullhd.*`                              | 1920 × 1080 | 4.5 / 3.4 Mbit/s   | 5.4 / 4.1 MB      |
+| `sea-portrait-fullhd.*`                     | 1080 × 1920 | 4.5 / 3.4 Mbit/s   | 5.5 / 4.1 MB      |
+| `sea-4k.*`                                  | 3840 × 2160 | 12 / 9 Mbit/s      | 14.6 / 10.8 MB    |
+| `sea-portrait-4k.*`                         | 1216 × 2160 | 5.5 / 4.1 Mbit/s   | 6.7 / 4.9 MB      |
+
+The Standard files are re-encoded from the earlier 1080p loop (the same Coverr clip and loop as above).

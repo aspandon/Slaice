@@ -263,9 +263,9 @@ export interface SeaResTier<R extends SeaRes = SeaRes> {
    tablets a portrait cut of its middle. Sizes are the files' (WebM / MP4 for computers, MP4 /
    WebM for phones — whichever the browser plays). */
 export const BLENDER_RES: readonly SeaResTier<BlenderRes>[] = [
-  { id: "standard", label: "Standard", ready: true, desktop: { px: "1280 × 1200", mb: "2.5–2.9 MB" }, mobile: { px: "648 × 1200", mb: "0.9–1.1 MB" } },
-  { id: "high", label: "High", ready: true, desktop: { px: "1600 × 1500", mb: "5.2–6.5 MB" }, mobile: { px: "810 × 1500", mb: "2.6–3.3 MB" } },
-  { id: "fullhd", label: "Full HD", ready: true, desktop: { px: "1920 × 1800", mb: "7.5–9.3 MB" }, mobile: { px: "972 × 1800", mb: "3.8–4.7 MB" } },
+  { id: "standard", label: "Standard", ready: true, desktop: { px: "1280 × 1200", mb: "1.5–2.0 MB" }, mobile: { px: "648 × 1200", mb: "0.7–0.9 MB" } },
+  { id: "high", label: "High", ready: true, desktop: { px: "1600 × 1500", mb: "2.6–3.5 MB" }, mobile: { px: "810 × 1500", mb: "1.1–1.5 MB" } },
+  { id: "fullhd", label: "Full HD", ready: true, desktop: { px: "1920 × 1800", mb: "3.4–4.5 MB" }, mobile: { px: "972 × 1800", mb: "1.6–2.2 MB" } },
   { id: "4k", label: "4K", ready: false, heavy: true, desktop: { px: "3840 × 3600", mb: "TBD" }, mobile: { px: "1944 × 3600", mb: "TBD" } },
 ];
 /* The Video sea's resolutions (AENR-859). Standard is the first clip (1080p on computers, 720p on
@@ -273,9 +273,9 @@ export const BLENDER_RES: readonly SeaResTier<BlenderRes>[] = [
    portrait cut of its middle — the whole 16:9 frame on a tall screen is mostly cropped away, so
    a landscape file plays three times enlarged there. */
 export const VIDEO_RES: readonly SeaResTier<VideoRes>[] = [
-  { id: "standard", label: "Standard", ready: true, desktop: { px: "1920 × 1080", mb: "3.7–4.6 MB" }, mobile: { px: "1280 × 720", mb: "2.3 MB" } },
-  { id: "fullhd", label: "Full HD", ready: true, desktop: { px: "1920 × 1080", mb: "7.2–9.6 MB" }, mobile: { px: "1080 × 1920", mb: "7.2–9.6 MB" } },
-  { id: "4k", label: "4K", ready: true, heavy: true, desktop: { px: "3840 × 2160", mb: "24–34 MB" }, mobile: { px: "1216 × 2160", mb: "9.0–12 MB" } },
+  { id: "standard", label: "Standard", ready: true, desktop: { px: "1920 × 1080", mb: "2.3–3.0 MB" }, mobile: { px: "1280 × 720", mb: "1.0–1.3 MB" } },
+  { id: "fullhd", label: "Full HD", ready: true, desktop: { px: "1920 × 1080", mb: "4.1–5.4 MB" }, mobile: { px: "1080 × 1920", mb: "4.1–5.5 MB" } },
+  { id: "4k", label: "4K", ready: true, heavy: true, desktop: { px: "3840 × 2160", mb: "10.8–14.6 MB" }, mobile: { px: "1216 × 2160", mb: "4.9–6.7 MB" } },
 ];
 /** The seas that offer a resolution, and where the tenant's choice is kept. */
 export const SEA_RES = {

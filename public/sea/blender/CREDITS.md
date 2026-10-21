@@ -79,3 +79,12 @@ the light layer on top); High is that render scaled down. Encoded at ≈ 0.10 bi
 
 Re-render: `tools/blender/render.sh` (or `render.sh preview` for one quick frame; `render.sh fullhd` for
 the Full HD frames, then the High and Full HD encodes).
+
+### One period, lighter files (AENR-860, AENR-861)
+
+The player is now one `<video loop>` (no two-player handover), so every file is exactly one 8 s period
+(192 frames, no tail) — `encode.sh` defaults to `TAIL=0` — at modest, hardware-friendly rates: H.264
+first, VP9 fallback, a keyframe every 2 s. Standard 2.0 / 0.9 Mbit/s (desktop / phone cut, H.264), High
+3.5 / 1.5, Full HD 4.5 / 2.2, 4K 14 / 7. The files now published (Standard 2.0 / 0.9 MB, High 3.5 /
+1.5 MB, Full HD 4.5 / 2.2 MB as MP4) are the first renders trimmed to one period and re-encoded; the
+deep-water re-render (AENR-868) replaces them and adds the 4K files.
