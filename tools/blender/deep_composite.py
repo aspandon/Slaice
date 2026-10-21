@@ -11,13 +11,15 @@ The blend mask follows the shore, not the pixel rows: for every pixel, d = metre
 mean waterline (beach.py's own shoreline, so the band runs parallel to the waves' fronts). The new
 render is weighted by smoothstep((d - BAND_D0) / (BAND_D1 - BAND_D0)): 0 (the old pixels, copied
 bit for bit) up to BAND_D0 = 5 m, 1 (the new pixels) from BAND_D1 = 7 m. In between, old and new
-agree to 1/255 (the scene is identical there: beach.py changes nothing up to DEEP_D0 = 8 m; the
-only differences are the denoiser's reach and rare light paths that wander into the deep). At 4K
+agree to denoiser noise: the scene is identical there (beach.py changes nothing up to DEEP_D0 =
+8 m), but OpenImageDenoise sees a different (cropped) image in the border render, so pixels differ
+by +-1/255, rarely 2-4, with no bias (frame 100: mean -0.05..0.02, sd 0.67, max 4) — invisible
+across a 120 px smooth blend. At 4K
 the band covers rows 1237-1481 (it follows the curved shore), ends 1 m (60 px) shoreward of the
 first changed pixel, and its lowest pixel sits ~200 px above the border's edge (row 1680), clear
 of the denoiser's edge effects there. Each frame's agreement in the band is
-printed (max and 99.9th percentile of |new - old|); a value above 3 means something changed in the
-shallows and is flagged.
+printed (max, 99.9th percentile and mean of new - old); a max above 6 or a mean beyond +-0.5
+means something changed in the shallows and is flagged.
 """
 import os, sys
 import numpy as np
@@ -67,11 +69,12 @@ def main():
         out = old.copy()
         out[:rows] = np.where(wmask[..., None] > 0, np.rint(mix), old[:rows]).astype(np.uint8)
         Image.fromarray(out).save(os.path.join(out_dir, "f_%03d.png" % f), compress_level=6)
-        diff = np.abs(new.astype(int) - old[:rows].astype(int)).max(axis=2)[band]
-        mx, p999 = int(diff.max()), float(np.percentile(diff, 99.9))
+        sd = (new.astype(int) - old[:rows].astype(int))[band]
+        diff = np.abs(sd).max(axis=1)
+        mx, p999, bias = int(diff.max()), float(np.percentile(diff, 99.9)), float(sd.mean())
         worst = max(worst, mx)
-        flag = "  <-- CHECK" if mx > 3 else ""
-        print(f"f_{f:03d}: band |new-old| max {mx}, 99.9% {p999:.0f}{flag}", flush=True)
+        flag = "  <-- CHECK" if mx > 6 or abs(bias) > 0.5 else ""
+        print(f"f_{f:03d}: band |new-old| max {mx}, 99.9% {p999:.0f}, mean {bias:+.3f}{flag}", flush=True)
     print(f"done, worst band difference {worst}/255")
 
 

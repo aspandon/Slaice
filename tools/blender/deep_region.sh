@@ -10,9 +10,11 @@
 #                              the shore (deep_composite.py documents the mask)
 #
 # beach.py changes nothing up to 8 m (deep_of), so old and new agree across the 5–7 m band; each
-# frame's agreement there is printed and anything above 3/255 is flagged. Resumable (frames
+# frame's agreement there is printed (denoiser noise: +-1/255, max ~4, no bias; a max above 6 or a
+# mean beyond +-0.5 is flagged). Resumable (frames
 # already rendered are skipped). Needs ~10 GB of memory, like the 4K render: run it alone.
-# Measured: ~2.4 min a frame on 4 CPUs (see the AENR 5A notes) — 192 frames ≈ 8 h.
+# Measured (frame 100, alone on 4 CPUs): 184 s a frame plus ~25 s to build once — 192 frames ≈ 10 h
+# (the border is 47 % of the frame but the deep water is its most expensive part).
 # Then encode the result as before: sh encode.sh tools/blender/frames-4k-deep public/sea/blender 4k
 set -eu
 HERE="$(cd "$(dirname "$0")" && pwd)"
