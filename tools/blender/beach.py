@@ -17,7 +17,9 @@ camera looks straight down -Z, so scene units map to pixels exactly (0.8 px per 
 Light: the Poly Haven sky (CC0), rotated so its sun stands ~62 deg high over the sea.
 
 Background: blender -b --factory-startup -P beach.py -- W H SPP OUT_PATTERN START END [STEP]
-(see render.sh). Through the Blender MCP: import this file, build(), then update(f) + render.
+(see render.sh). DEEP=2 turns on the natural deep sea (AENR 5A: deep_of / CHOP_DEEP and the "deep"
+attribute in the shaders), changing nothing up to 8 m seaward of the waterline; BORDER_ROWS renders
+only the top rows (deep_region.sh re-renders the deep part and blends it onto the 4K frames). Through the Blender MCP: import this file, build(), then update(f) + render.
 """
 import math, os, sys, time
 import numpy as np
@@ -631,9 +633,9 @@ def water_material():
     slk.inputs["From Max"].default_value = 0.615
     link(nt, sn.outputs["Factor"], slk.inputs["Value"])
     slick = math_node(nt, "MULTIPLY", slk.outputs[0], float(os.environ.get("DEEP_SLICK", "0.8")), (-100, 1300))
-    rough = math_node(nt, "SUBTRACT", 1.0, slick, (0, 1300))  # 1 = rough water, 0.25 = slick
-    # wavelets: short, slightly wind-stretched ripples (looping 4D noise, two scales) as a bump on
-    # top of the geometry and the capillary bump
+    rough = math_node(nt, "SUBTRACT", 1.0, slick, (0, 1300))  # 1 = rough water, 0.2 = slick
+    # wavelets: short, slightly wind-stretched ripples (looping 4D noise, ~10 cm and finer) as a
+    # bump on top of the geometry and the capillary bump, calmer in the slicks
     wv, ww = loop_coords(nt, 1.0, 1.1, "w", (-700, 1700))
     stretch = node(nt, "ShaderNodeMapping", (-450, 1850))
     stretch.inputs["Scale"].default_value = (0.7, 1.0, 1.0)
@@ -669,6 +671,9 @@ def water_material():
     refl = node(nt, "ShaderNodeVectorMath", (600, 2200), operation="REFLECT")
     link(nt, neg.outputs[0], refl.inputs[0])
     link(nt, nrm, refl.inputs[1])
+    # The HDRI's sun stands at azimuth -71 deg (toward the beach) but only ~24 deg high (measured:
+    # a pole's shadow), so in a straight-down view only facets tilted 33 deg would mirror it — next
+    # to none. The glitter takes the sun's azimuth at a midday height (GLINT_SUN = "az,elevation").
     az, el = (math.radians(float(v)) for v in os.environ.get("GLINT_SUN", "-71,58").split(","))
     # the sky in the facets: seen from above, open water shows its waves mostly by the sky they
     # reflect — facets turned toward the sun's side of the sky are lighter, those facing the dark
@@ -686,7 +691,7 @@ def water_material():
     shade = math_node(nt, "MULTIPLY", shade, math_node(nt, "ADD", math_node(nt, "MULTIPLY", rough, 0.6, (1000, 2100)), 0.4, (1100, 2100)), (1150, 2000))  # slicks: calmer
     shade = math_node(nt, "ADD", shade, 1.0, (1200, 1950))
     shade = math_node(nt, "MINIMUM", math_node(nt, "MAXIMUM", shade, 0.45, (1300, 1950)), 1.45, (1400, 1950))
-    shaded = mix_rgb(nt, 1.0, tcol, math_node(nt, "MULTIPLY", shade, 1.0, (1450, 1850)), (1500, 1700), blend="MULTIPLY")
+    shaded = mix_rgb(nt, 1.0, tcol, shade, (1500, 1700), blend="MULTIPLY")
     link(nt, mix_rgb(nt, deep, (1.0, 1.0, 1.0, 1.0), shaded, (1600, 1300)), glass.inputs["Base Color"])
     dot = node(nt, "ShaderNodeVectorMath", (750, 2200), operation="DOT_PRODUCT")
     link(nt, refl.outputs[0], dot.inputs[0])
