@@ -88,3 +88,19 @@ first, VP9 fallback, a keyframe every 2 s. Standard 2.0 / 0.9 Mbit/s (desktop / 
 3.5 / 1.5, Full HD 4.5 / 2.2, 4K 14 / 7. The files now published (Standard 2.0 / 0.9 MB, High 3.5 /
 1.5 MB, Full HD 4.5 / 2.2 MB as MP4) are the first renders trimmed to one period and re-encoded; the
 deep-water re-render (AENR-868) replaces them and adds the 4K files.
+
+### 4K and the natural deep sea (AENR-856, AENR-868)
+
+Every Blender file now comes from one 4K render (3840 × 3600, `GRID=0.025`, `render.sh 4k`) whose deep
+water was re-rendered after the owner's review: `beach.py` with `DEEP=2` (270 short-crested wave trains,
+wavelets, wind slicks, sky in the facets, a deeper blue, shader sun glitter — each weighted to nothing
+within 8 m of the waterline), rendered for the top 1680 rows only and blended onto the shore frames by
+`deep_composite.py` (`deep_region.sh`; worst difference across the blend band 5/255). Encoded with
+`encode.sh … 4k | fullhd | high | standard` (scaled down from the 4K frames):
+
+| Files                                | Size                      | Size (MP4 / WebM)            |
+| ------------------------------------ | ------------------------- | ---------------------------- |
+| `beach-4k.*` / `beach-portrait-4k.*` | 3840 × 3600 / 1944 × 3600 | 14.1 / 10.5 MB; 7.1 / 5.2 MB |
+| `beach-fullhd.*` / portrait          | 1920 × 1800 / 972 × 1800  | 4.5 / 3.4 MB; 2.2 / 1.6 MB   |
+| `beach-high.*` / portrait            | 1600 × 1500 / 810 × 1500  | 3.5 / 2.6 MB; 1.5 / 1.1 MB   |
+| `beach.*` / `beach-portrait.*`       | 1280 × 1200 / 648 × 1200  | 2.0 / 1.5 MB; 0.9 / 0.7 MB   |

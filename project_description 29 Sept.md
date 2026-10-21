@@ -3554,8 +3554,17 @@ src/
     8 s period (192 frames, for the one player's native loop) at modest rates, H.264 first: Standard
     1.5–2.0 MB on computers, 0.7–0.9 MB on phones; High 2.6–3.5 / 1.1–1.5 MB; Full HD 3.4–4.5 / 1.6–2.2 MB
     — each file's H.264 level is in its type (5.0 for the wide High and Full HD cuts, 4.0 / 4.2 for their
-    phone cuts), so a device that can't decode it moves to the next file. (These are trimmed re-encodes
-    of the first renders; the deep-water re-render, AENR-868, replaces them and adds 4K.) A resolution whose files aren't
+    phone cuts), so a device that can't decode it moves to the next file. **4K and a natural deep sea** (AENR-856, AENR-868): one 4K render (3840 × 3600, 0.025 m mesh) is the
+    source of every resolution, scaled down — Standard 1.5–2.0 / 0.7–0.9 MB, High 2.6–3.5 / 1.1–1.5 MB,
+    Full HD 3.4–4.5 / 1.6–2.2 MB, **4K** 10.5–14.1 MB on computers (H.264 6.0) and 5.2–7.1 MB as the
+    1944 × 3600 phone cut (H.264 5.1); a device that can't decode 4K steps down to Full HD. Its deep water
+    was re-rendered after the owner's review (the washboard of long parallel ridges came mostly from the
+    seabed's sand-ripple bump showing through the deep water): 270 short-crested wave trains over ±75° of
+    the wind, fine wavelets, faint wind slicks, sky in the wave facets, a deeper blue toward the top and
+    sun glitter computed in the shader (crisp at 4 spp). Every change is weighted to nothing within 8 m
+    of the waterline, so only the top of the frame was re-rendered (`tools/blender/deep_region.sh`,
+    `DEEP=2`, 192 frames ≈ 10 h) and blended onto the shore frames across a band where old and new agree
+    (worst difference 5/255); the shallows, foam and sand are the approved render, pixel for pixel. A resolution whose files aren't
     published is shown as Rendering and can't be picked (and a saved choice of it plays Standard). A clear
     midday grade is `filter: none`.
 - **The light on the water** (AENR-815, `lib/seaLight.ts` — one model for every sea): from the hour

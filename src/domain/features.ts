@@ -266,7 +266,7 @@ export const BLENDER_RES: readonly SeaResTier<BlenderRes>[] = [
   { id: "standard", label: "Standard", ready: true, desktop: { px: "1280 × 1200", mb: "1.5–2.0 MB" }, mobile: { px: "648 × 1200", mb: "0.7–0.9 MB" } },
   { id: "high", label: "High", ready: true, desktop: { px: "1600 × 1500", mb: "2.6–3.5 MB" }, mobile: { px: "810 × 1500", mb: "1.1–1.5 MB" } },
   { id: "fullhd", label: "Full HD", ready: true, desktop: { px: "1920 × 1800", mb: "3.4–4.5 MB" }, mobile: { px: "972 × 1800", mb: "1.6–2.2 MB" } },
-  { id: "4k", label: "4K", ready: false, heavy: true, desktop: { px: "3840 × 3600", mb: "TBD" }, mobile: { px: "1944 × 3600", mb: "TBD" } },
+  { id: "4k", label: "4K", ready: true, heavy: true, desktop: { px: "3840 × 3600", mb: "10.5–14.1 MB" }, mobile: { px: "1944 × 3600", mb: "5.2–7.1 MB" } },
 ];
 /* The Video sea's resolutions (AENR-859). Standard is the first clip (1080p on computers, 720p on
    phones); Full HD and 4K come from a 4K master, and phones and tablets held upright get a
