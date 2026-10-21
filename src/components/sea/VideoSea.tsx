@@ -5,7 +5,7 @@ import { useTenantFeatures } from "../../lib/useFeatures";
 import type { SeaEnv } from "../LiveSeaCanvas";
 import { SeaLightSvg } from "./SeaLightSvg";
 import { LoopVideo } from "./LoopVideo";
-import { grade, saveData, windRate } from "./videoGrade";
+import { gradeTint, saveData, windRate } from "./videoGrade";
 
 /* ============ Video sea (AENR-814) ============
    A short seamless loop of real water filmed straight down (Coverr, free licence —
@@ -29,6 +29,7 @@ import { grade, saveData, windRate } from "./videoGrade";
    too slowly, steps down one size at a time. */
 
 const BASE = import.meta.env.BASE_URL;
+const NO_STYLE = {};
 const src = (f: string) => `${BASE}sea/${f}`;
 const vp9 = (level: string) => `video/webm; codecs="vp09.00.${level}.08"`;
 const mp4 = (level: string) => `video/mp4; codecs="avc1.6400${level}"`;
@@ -36,16 +37,16 @@ const mp4 = (level: string) => `video/mp4; codecs="avc1.6400${level}"`;
 /** Each resolution's files: computers, and phones and tablets (landscape, and held upright). */
 const FILES: Record<VideoRes, { wide: Cut; phone: Cut; tall?: Cut }> = {
   standard: {
-    wide: { poster: "sea-poster.webp", files: [{ src: "sea-loop-1080.webm", type: "video/webm" }, { src: "sea-loop-1080.mp4", type: "video/mp4" }] },
-    phone: { poster: "sea-poster.webp", files: [{ src: "sea-loop.mp4", type: "video/mp4" }] },
+    wide: { poster: "sea-poster.webp", files: [{ src: "sea-loop-1080.mp4", type: mp4("28") }, { src: "sea-loop-1080.webm", type: vp9("40") }] },
+    phone: { poster: "sea-poster.webp", files: [{ src: "sea-loop.mp4", type: mp4("1f") }, { src: "sea-loop.webm", type: vp9("31") }] },
   },
   fullhd: {
-    wide: { poster: "sea-fullhd-poster.webp", files: [{ src: "sea-fullhd.webm", type: vp9("40") }, { src: "sea-fullhd.mp4", type: mp4("32") }] },
+    wide: { poster: "sea-fullhd-poster.webp", files: [{ src: "sea-fullhd.mp4", type: mp4("32") }, { src: "sea-fullhd.webm", type: vp9("40") }] },
     phone: { poster: "sea-fullhd-poster.webp", files: [{ src: "sea-fullhd.mp4", type: mp4("32") }, { src: "sea-fullhd.webm", type: vp9("40") }] },
     tall: { poster: "sea-portrait-fullhd-poster.webp", files: [{ src: "sea-portrait-fullhd.mp4", type: mp4("32") }, { src: "sea-portrait-fullhd.webm", type: vp9("40") }] },
   },
   "4k": {
-    wide: { poster: "sea-4k-poster.webp", files: [{ src: "sea-4k.webm", type: vp9("50") }, { src: "sea-4k.mp4", type: mp4("33") }] },
+    wide: { poster: "sea-4k-poster.webp", files: [{ src: "sea-4k.mp4", type: mp4("33") }, { src: "sea-4k.webm", type: vp9("50") }] },
     phone: { poster: "sea-4k-poster.webp", files: [{ src: "sea-4k.mp4", type: mp4("33") }, { src: "sea-4k.webm", type: vp9("50") }] },
     tall: { poster: "sea-portrait-4k-poster.webp", files: [{ src: "sea-portrait-4k.mp4", type: mp4("32") }, { src: "sea-portrait-4k.webm", type: vp9("50") }] },
   },
@@ -76,7 +77,7 @@ export default function VideoSea({
   onFail: () => void;
 }) {
   const still = prefersReducedMotion() || saveData();
-  const filter = grade(env);
+  const tint = gradeTint(env);
   const rate = windRate(env.wind);
   const { tenant } = useTenantFeatures();
   const tall = useSyncExternalStore(onTurn, upright, () => false);
@@ -90,17 +91,17 @@ export default function VideoSea({
   const cut = tier === "desktop" ? set.wide : tall && set.tall ? set.tall : set.phone;
   const stepDown = at > 0 ? () => setDown((n) => n + 1) : undefined;
 
-  const media = "absolute inset-0 w-full h-full object-cover transition-[filter] duration-1000";
+  const media = "absolute inset-0 w-full h-full object-cover";
   return (
     <div aria-hidden="true" className="absolute inset-0 overflow-hidden pointer-events-none">
       {still ? (
-        <img src={src(cut.poster)} alt="" className={media} style={{ filter }} />
+        <img src={src(cut.poster)} alt="" className={media} />
       ) : (
         <LoopVideo
-          // A new size or cut (a new tenant setting, the device turned) is a new pair of players.
+          // A new size or cut (a new tenant setting, the device turned) is a new player.
           key={cut.files[0].src}
           className={media}
-          style={{ filter }}
+          style={NO_STYLE}
           sources={cut.files.map((f) => ({ src: src(f.src), type: f.type }))}
           poster={src(cut.poster)}
           rate={rate}
@@ -108,14 +109,17 @@ export default function VideoSea({
           onSlow={stepDown}
         />
       )}
-      {/* The light the video can't film: the path under the sun or the moon, the horizon glow. */}
+      {/* The grade for night and cloud: a plain layer over the video (AENR-862). */}
+      {tint && <div className="absolute inset-0 transition-opacity duration-1000" style={tint} />}
+      {/* The light the video can't film: the path under the sun or the moon, the horizon glow. Flat
+          (no blend modes) and still (no twinkle) — nothing live over a video (AENR-862). */}
       <SeaLightSvg
         light={env.light}
         dy={dy}
         tint="soft"
+        flat
         // No drawn whitecaps over real water (owner): the footage moves by itself.
         wind={0}
-        twinkle={tier === "desktop" && !still}
       />
     </div>
   );

@@ -1,16 +1,17 @@
 #!/bin/sh
 # encode.sh FRAMES_DIR OUT_DIR [TIER] [NF] [TAIL]
-# The loop's frames 0..NF-1 plus a TAIL of its first frames (the LoopVideo handover), at 24 fps,
+# The loop's frames 0..NF-1 — exactly one period, so the player's native loop is seamless (AENR-860;
+# TAIL, the extra first frames the old two-player handover needed, now defaults to 0) — at 24 fps,
 # encoded for one resolution tier (AENR-844):
 #   standard  1280 x 1200 desktop, 648 x 1200 phone cut  — beach.*,        beach-portrait.*
 #   high      1600 x 1500 desktop, 810 x 1500 phone cut  — beach-high.*,   beach-portrait-high.*
 #   fullhd    1920 x 1800 desktop, 972 x 1800 phone cut  — beach-fullhd.*, beach-portrait-fullhd.*
 #   4k        3840 x 3600 desktop, 1944 x 3600 phone cut — beach-4k.*,     beach-portrait-4k.*  (AENR-856)
 # The frames may be larger than the tier (High is cut from the Full HD render): they are scaled
-# down, never up. Standard keeps its first encode's rates; High and Full HD get ~0.10 bit per pixel
-# (H.264) / 0.08 (VP9) — moving water and foam are fine detail that a lean encode smears.
+# down, never up. Rates (AENR-861) follow sites that play smooth background video: modest, hardware-
+# friendly H.264 (a keyframe every 2 s, the player's first choice everywhere) with VP9 as the fallback.
 set -eu
-FR="$(cd "$1" && pwd)"; OUT="$2"; TIER="${3:-standard}"; NF="${4:-192}"; TAIL="${5:-24}"
+FR="$(cd "$1" && pwd)"; OUT="$2"; TIER="${3:-standard}"; NF="${4:-192}"; TAIL="${5:-0}"
 case "$TIER" in
   standard) W=1280; SUF="" ;;
   high) W=1600; SUF="-high" ;;
@@ -34,14 +35,13 @@ else
   DESK="scale=$W:$H:flags=lanczos"
   CROP="crop=$SPW:$SH:$SX:0,scale=$PW:$H:flags=lanczos"
 fi
-# Bitrates (kbit/s): bits per pixel (in thousandths) x pixels x 24 fps.
-r() { echo $(($1 * $2 * H * 24 / 1000 / 1000)); }
-if [ "$TIER" = standard ]; then
-  B264=2600; BVP9=2200; P264=950; PVP9=800
-else
-  B264=$(r 100 "$W"); BVP9=$(r 80 "$W"); P264=$(r 100 "$PW"); PVP9=$(r 80 "$PW")
-fi
-
+# Bitrates (kbit/s): desktop H.264, desktop VP9, phone-cut H.264, phone-cut VP9 (AENR-861).
+case "$TIER" in
+  standard) B264=2000; BVP9=1500; P264=900; PVP9=700 ;;
+  high) B264=3500; BVP9=2600; P264=1500; PVP9=1100 ;;
+  fullhd) B264=4500; BVP9=3400; P264=2200; PVP9=1600 ;;
+  4k) B264=14000; BVP9=10500; P264=7000; PVP9=5200 ;;
+esac
 SEQ="$FR/seq"
 rm -rf "$SEQ"; mkdir -p "$SEQ" "$OUT"
 i=0
@@ -52,8 +52,8 @@ while [ "$i" -lt $((NF + TAIL)) ]; do
 done
 IN="-framerate 24 -i $SEQ/s_%03d.png"
 P="$FR/ff2pass$SUF"
-X264="-c:v libx264 -profile:v high -pix_fmt yuv420p -preset slow"
-VP9="-c:v libvpx-vp9 -pix_fmt yuv420p -row-mt 1 -deadline good"
+X264="-c:v libx264 -profile:v high -pix_fmt yuv420p -preset slow -g 48 -keyint_min 48"
+VP9="-c:v libvpx-vp9 -pix_fmt yuv420p -row-mt 1 -deadline good -g 48"
 # 4K: tile columns for the decoders (and the encoder) to work in parallel; the second pass at
 # cpu-used 2, as cpu-used 1 at 13.8 Mpx a frame takes most of a day on 4 CPUs.
 VP9_P2=1

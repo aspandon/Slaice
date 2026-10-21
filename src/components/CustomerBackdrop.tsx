@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import gsap from "gsap";
 import { BeachBackdrop, shorelineShift } from "./Beach";
 import { HelpRing } from "./NeedAHand";
 import { staticBackdrop, useLiteScene } from "../lib/motion";
@@ -14,8 +13,9 @@ import { seaStyleOf } from "../domain/features";
 import { SeaLayer } from "./sea/SeaLayer";
 import { presetById } from "../data/backgrounds";
 import { DUR } from "../lib/fx";
+import { EASING } from "../lib/motionTokens";
 import { markBusy } from "../lib/busy";
-import { MARGIN_X, MARGIN_Y, cameraTransform, layerShoreline, setCameraLayer, shotFor, useCameraOn, useWizardShot, zoneWorldX } from "../lib/camera";
+import { MARGIN_X, MARGIN_Y, cameraCss, cameraTransform, layerShoreline, setCameraLayer, shotFor, useCameraOn, useWizardShot, zoneWorldX } from "../lib/camera";
 
 /* Sand-top fraction (0–1). Higher = thinner sand strip / ocean vista; lower lifts
    the shoreline so the sand fills the view. */
@@ -25,6 +25,13 @@ const IMMERSIVE = 0.2; // inside the booking wizard on phones — a sand-heavy b
 // zones stand in one front row along the water (AENR-668).
 const IMMERSIVE_WIDE = 0.5;
 const wideNow = () => typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
+
+/** Runs `fn` when the browser has a moment (requestIdleCallback; a short timeout where there is none). */
+const whenIdle = (fn: () => void) => {
+  // Safari had no requestIdleCallback until recently.
+  if (typeof window.requestIdleCallback === "function") window.requestIdleCallback(fn, { timeout: 1500 });
+  else setTimeout(fn, 200);
+};
 
 /* ---------- Customer page backdrop ----------
    The beach scene behind the whole customer surface. Entering the guided-booking
@@ -76,6 +83,17 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
   const [videoFailed, setVideoFailed] = useState(false);
   const chosen = seaStyleOf(tenant, lite ? "mobile" : "desktop");
   const seaStyle = chosen === "video" && videoFailed ? "classic" : chosen;
+  // A filmed or rendered sea (Video, Blender) is a new picture every frame: nothing live may sit on
+  // it (AENR-862) — the page drops its backdrop blur and the grading below uses plain alpha.
+  const film = seaStyle === "video" || seaStyle === "blender";
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    if (film) root.dataset.sea = "film";
+    else delete root.dataset.sea;
+    return () => {
+      delete root.dataset.sea;
+    };
+  }, [film]);
   const wiz = useWizardShot();
 
   const { zoneMap, background } = useApp();
@@ -88,31 +106,62 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
   useLayoutEffect(() => setCameraLayer(cameraOn), [cameraOn]);
   const shotKey = shot ? `${shot.pan}|${shot.zoom}|${shot.focusX}|${shot.focusY}` : "off";
   const first = useRef(true);
+  const flight = useRef<Animation | null>(null);
+  const rasterZoom = useRef(1);
   useLayoutEffect(() => {
     const el = camRef.current;
     if (!el) return;
     if (!shot) {
-      gsap.killTweensOf(el);
-      gsap.set(el, { clearProps: "transform" });
+      flight.current?.cancel();
+      el.style.transform = el.style.willChange = "";
       return;
     }
     const to = cameraTransform(shot, window.innerWidth, window.innerHeight);
+    const end = cameraCss(to);
+    // On the GPU for good (AENR-865): a pan never redraws the scene, and nothing redraws when the
+    // camera lands — that full repaint used to land in the last frame of every move.
+    el.style.willChange = "transform";
     // The first shot is set, not flown to — the camera only moves when the guest moves.
-    // force3D "auto": composited while moving, re-rasterised crisp once the camera settles.
-    // power2.inOut (AENR-819): it gets going at once with the page rather than lagging behind it.
-    if (first.current) gsap.set(el, to);
-    else {
-      // The live sea holds still while the camera flies (AENR-836).
-      markBusy(DUR.camera * 1000 + 100);
-      gsap.to(el, { ...to, duration: DUR.camera, ease: "power2.inOut", overwrite: "auto", force3D: "auto" });
+    if (first.current) {
+      el.style.transform = end;
+      rasterZoom.current = to.scale;
+      first.current = false;
+      return;
     }
-    first.current = false;
+    // The live sea holds still while the camera flies (AENR-836); a video sea pauses (AENR-866).
+    markBusy(DUR.camera * 1000 + 100, true);
+    // A Web Animation on transform (AENR-864): the browser's compositor runs it, so it keeps
+    // flying while the page is being built. Interrupted mid-flight, it carries on from where it is.
+    const from = getComputedStyle(el).transform;
+    flight.current?.cancel();
+    el.style.transform = end;
+    const a = el.animate([{ transform: from === "none" ? "translate3d(0,0,0) scale(1)" : from }, { transform: end }], {
+      duration: DUR.camera * 1000,
+      easing: EASING.standard.css,
+    });
+    flight.current = a;
+    // A new zoom level: drawn sharp at it once, when the browser is idle (a layer kept on the GPU
+    // otherwise keeps the scale it was drawn at).
+    if (Math.abs(to.scale - rasterZoom.current) > 0.001) {
+      rasterZoom.current = to.scale;
+      a.finished
+        .then(() =>
+          whenIdle(() => {
+            if (flight.current !== a) return;
+            el.style.willChange = "auto";
+            requestAnimationFrame(() => requestAnimationFrame(() => (el.style.willChange = "transform")));
+          }),
+        )
+        .catch(() => undefined);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- shotKey captures the shot
   }, [shotKey]);
   // Pixel offsets depend on the viewport: re-place the camera (no tween) after a resize.
   useEffect(() => {
     if (!shot) return;
-    const onResize = () => camRef.current && gsap.set(camRef.current, cameraTransform(shot, window.innerWidth, window.innerHeight));
+    const onResize = () => {
+      if (camRef.current) camRef.current.style.transform = cameraCss(cameraTransform(shot, window.innerWidth, window.innerHeight));
+    };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- shotKey captures the shot
@@ -177,22 +226,33 @@ export function CustomerBackdrop({ immersive, ring = true, page = "" }: {
           WebGL sea alike, so phones get the same mood. The daylight overlays
           glide slowly (1.6s) so scrubbing the scene clock reads as the day
           actually turning. */}
-      <div
-        className="absolute inset-0 transition-opacity"
-        style={{ transitionDuration: "1600ms", opacity: warm, mixBlendMode: "soft-light", background: "linear-gradient(to top, rgba(255,118,40,0.85), rgba(255,104,72,0.45) 45%, rgba(255,150,80,0.3))" }}
-      />
-      <div
-        className="absolute inset-0 transition-opacity"
-        style={{ transitionDuration: "1600ms", opacity: warm * 0.8, mixBlendMode: "screen", background: "radial-gradient(58% 42% at 68% 6%, rgba(255,168,76,0.5), rgba(255,168,76,0) 70%)" }}
-      />
-      <div
-        className="absolute inset-0 transition-opacity"
-        style={{ transitionDuration: "1600ms", opacity: night * 0.55, mixBlendMode: "multiply", background: "#1d2f55" }}
-      />
-      <div
-        className="absolute inset-0 transition-opacity duration-700"
-        style={{ opacity: wd.dim, mixBlendMode: "multiply", background: "#42566e" }}
-      />
+      {/* Over a filmed or rendered sea the same grading in plain alpha (AENR-862): a blend mode over
+          video makes the browser read back and re-blend the whole screen on every video frame. Each
+          layer is left out while it shows nothing. */}
+      {warm > 0.001 && (
+        <div
+          className="absolute inset-0 transition-opacity"
+          style={{ transitionDuration: "1600ms", opacity: film ? warm * 0.32 : warm, mixBlendMode: film ? undefined : "soft-light", background: "linear-gradient(to top, rgba(255,118,40,0.85), rgba(255,104,72,0.45) 45%, rgba(255,150,80,0.3))" }}
+        />
+      )}
+      {warm > 0.001 && (
+        <div
+          className="absolute inset-0 transition-opacity"
+          style={{ transitionDuration: "1600ms", opacity: film ? warm * 0.45 : warm * 0.8, mixBlendMode: film ? undefined : "screen", background: "radial-gradient(58% 42% at 68% 6%, rgba(255,168,76,0.5), rgba(255,168,76,0) 70%)" }}
+        />
+      )}
+      {night > 0.001 && (
+        <div
+          className="absolute inset-0 transition-opacity"
+          style={{ transitionDuration: "1600ms", opacity: night * (film ? 0.42 : 0.55), mixBlendMode: film ? undefined : "multiply", background: film ? "#0b1630" : "#1d2f55" }}
+        />
+      )}
+      {wd.dim > 0.001 && (
+        <div
+          className="absolute inset-0 transition-opacity duration-700"
+          style={{ opacity: film ? wd.dim * 0.5 : wd.dim, mixBlendMode: film ? undefined : "multiply", background: "#42566e" }}
+        />
+      )}
       {/* Over a real-water sea (Video, Blender) only the rain falls — the drawn wind streaks read as
           scratches over footage (owner, AENR-834). */}
       {particles && !lite && (seaStyle === "classic" || seaStyle === "coastal" || raining) && (

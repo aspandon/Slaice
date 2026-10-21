@@ -105,8 +105,12 @@ export function SeaLightGroup({
   tint = "full",
   view = FULL_VIEW,
   wind = 0,
+  flat = false,
 }: {
   light: SeaLight;
+  /** No blend modes (AENR-862): over a video, a blended layer is re-blended on every video frame;
+   *  the same light in plain alpha, toned to read the same over the footage. */
+  flat?: boolean;
   /** The visible part of the scene — where the horizon, the sun and the moon are. */
   view?: SceneView;
   /** 0 … 1 wind — whitecaps and foam streaks from a fresh breeze up (AENR-824). */
@@ -164,8 +168,8 @@ export function SeaLightGroup({
           width="1600"
           height={shore + 60 - top}
           fill={`url(#${id("water")})`}
-          opacity={light.tint.amount * (tint === "soft" ? 0.85 : 1 - night * 0.45)}
-          style={tint === "soft" ? { mixBlendMode: "color" } : undefined}
+          opacity={light.tint.amount * (tint === "soft" ? (flat ? 0.3 : 0.85) : 1 - night * 0.45)}
+          style={tint === "soft" && !flat ? { mixBlendMode: "color" } : undefined}
         />
       )}
       {tint && night > 0.01 && (
@@ -173,8 +177,8 @@ export function SeaLightGroup({
           width="1600"
           height={shore + 60}
           fill={`url(#${id("night")})`}
-          opacity={night * (tint === "soft" ? 0.55 : 0.6)}
-          style={{ mixBlendMode: "multiply" }}
+          opacity={night * (tint === "soft" ? (flat ? 0.4 : 0.55) : 0.6)}
+          style={flat ? undefined : { mixBlendMode: "multiply" }}
         />
       )}
 
@@ -207,7 +211,7 @@ export function SeaLightGroup({
 
       {/* The reflection path: glints broken by the swell, gathering under a low sun or the moon. */}
       {g.strength > 0.02 && (
-        <g opacity={Math.min(1, g.strength)} style={{ mixBlendMode: "screen" }}>
+        <g opacity={Math.min(1, g.strength) * (flat ? 0.8 : 1)} style={flat ? undefined : { mixBlendMode: "screen" }}>
           <g fill={rgbCss(g.color)}>
             {GLINTS.map(([t, s, k], i) => {
               if (glints === "none" || (glints !== "all" && i % 2 !== glints)) return null;
@@ -243,11 +247,14 @@ export function SeaLightSvg({
   tint,
   wind,
   clip,
+  flat = false,
   className = "",
 }: {
   light: SeaLight;
   dy?: number;
   twinkle?: boolean;
+  /** No blend modes and no filters — over a filmed or rendered sea (AENR-862). */
+  flat?: boolean;
   tint?: "full" | "soft" | false;
   wind?: number;
   /** Keep the light on the water (a scene-space path, its edge feathered) — over a sea that draws its own sand (Blender, AENR-827). */
@@ -267,12 +274,25 @@ export function SeaLightSvg({
     >
       {clip ? (
         <>
-          {/* A feathered edge: the light fades out across the swash instead of stopping on a line. */}
-          <filter id={`${cid}-f`} x="-5%" y="-5%" width="110%" height="110%">
-            <feGaussianBlur stdDeviation="12" />
-          </filter>
+          {/* A feathered edge: the light fades out across the swash instead of stopping on a line —
+              a blur filter, or (flat) the same edge stepped down by wide translucent strokes, which
+              costs no filter pass when the layer is redrawn. */}
+          {!flat && (
+            <filter id={`${cid}-f`} x="-5%" y="-5%" width="110%" height="110%">
+              <feGaussianBlur stdDeviation="12" />
+            </filter>
+          )}
           <mask id={cid} maskUnits="userSpaceOnUse" x="-200" y="-2200" width="2000" height="4000">
-            <path d={clip} fill="#fff" filter={`url(#${cid}-f)`} />
+            {flat ? (
+              <g fill="#fff" stroke="#000">
+                <path d={clip} />
+                <path d={clip} fill="none" strokeWidth="36" strokeOpacity="0.35" />
+                <path d={clip} fill="none" strokeWidth="20" strokeOpacity="0.45" />
+                <path d={clip} fill="none" strokeWidth="8" strokeOpacity="0.55" />
+              </g>
+            ) : (
+              <path d={clip} fill="#fff" filter={`url(#${cid}-f)`} />
+            )}
           </mask>
           <g mask={`url(#${cid})`}>{child}</g>
         </>
@@ -289,6 +309,7 @@ export function SeaLightSvg({
       tint={glints === 0 || glints === 1 ? false : tint}
       view={view}
       wind={glints === 0 || glints === 1 ? 0 : wind}
+      flat={flat}
     />
   );
   if (!twinkle) return layer(group("all"), "", ref);

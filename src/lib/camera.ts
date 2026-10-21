@@ -120,6 +120,10 @@ export function shotFor(
  * The layer transform for a shot: zooming about the focus point is a scale about the layer's
  * centre plus the translation that keeps the focus still, clamped so no edge ever shows.
  */
+/** The layer transform as CSS — the camera flies as a Web Animation between two of these (AENR-864). */
+export const cameraCss = (t: { x: number; y: number; scale: number }) =>
+  `translate3d(${t.x.toFixed(1)}px, ${t.y.toFixed(1)}px, 0) scale(${t.scale})`;
+
 export function cameraTransform(s: Shot, vw: number, vh: number) {
   const tx = (1 - s.zoom) * (s.focusX - 0.5) * vw + s.pan * vw;
   const ty = (1 - s.zoom) * (s.focusY - 0.5) * vh;

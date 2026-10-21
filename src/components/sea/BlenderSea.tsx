@@ -7,7 +7,7 @@ import { useShoreSlide } from "../../lib/useShoreSlide";
 import type { SeaEnv } from "../LiveSeaCanvas";
 import { LoopVideo } from "./LoopVideo";
 import { SeaLightSvg } from "./SeaLightSvg";
-import { grade, saveData, windRate } from "./videoGrade";
+import { gradeTint, saveData, windRate } from "./videoGrade";
 
 /* ============ The Blender sea and beach (AENR-827) ============
    A seamless loop of a whole Greek beach rendered in Blender (public/sea/blender/CREDITS.md):
@@ -30,14 +30,16 @@ import { grade, saveData, windRate } from "./videoGrade";
    that can't play hands back to Classic. */
 
 const BASE = import.meta.env.BASE_URL;
+const NO_STYLE = {};
 const src = (f: string) => `${BASE}sea/blender/${f}`;
 
-/** The loop: 8 s, exactly periodic; the files run a 1 s tail past it for the handover (LoopVideo). */
-const PERIOD = 8;
+// The loop: 8 s, exactly periodic — the files are exactly one period (AENR-860 1A), so the
+// browser's own loop is seamless.
 /** The rendered frame in scene units (beach.py: 1280 × 1200 px — or 1600 × 1500, 1920 × 1800 — for 1600 × 1500 units). */
 const FRAME_TOP = -250;
 const FRAME_H = 1500;
-// Each with its codec in the type, so a browser without H.264 (or VP9) skips to the next file. The
+// H.264 first everywhere (AENR-861: the hardware-decoded path in Safari and Chrome), VP9 where there
+// is no H.264. Each with its codec in the type, so a browser skips a file it can't play. The
 // levels follow the frame size (the larger frames need a higher level; 4K's wide frame, 3840 × 3600,
 // is past what level 5 decoders take — H.264 6.0, VP9 6.0).
 const vp9 = (level = "") => (level ? `video/webm; codecs="vp09.00.${level}.08"` : 'video/webm; codecs="vp9"');
@@ -57,11 +59,10 @@ const cutsFor = (res: BlenderRes) => {
       w: 1600,
       poster: `beach${r.suf}-poster.webp`,
       files: [
-        { src: src(`beach${r.suf}.webm`), type: vp9(r.vWide) },
         { src: src(`beach${r.suf}.mp4`), type: mp4(r.wide) },
+        { src: src(`beach${r.suf}.webm`), type: vp9(r.vWide) },
       ],
     },
-    // H.264 first on phones (the lightest to decode), VP9 where there is no H.264.
     tall: {
       x: 395,
       w: 810,
@@ -114,7 +115,7 @@ export default function BlenderSea({
   const fail = at > 0 ? () => setDown((n) => n + 1) : onFail;
 
   const still = prefersReducedMotion() || saveData();
-  const filter = grade(env);
+  const tint = gradeTint(env);
   const rate = windRate(env.wind);
   // Place the frame in scene space, the way the SVG scene is cover-fitted ("slice").
   const k = size ? Math.max(size.w / 1600, size.h / 900) : 0;
@@ -126,7 +127,7 @@ export default function BlenderSea({
     width: cut.w * k,
     height: FRAME_H * k,
   };
-  const media = "absolute inset-0 w-full h-full object-fill transition-[filter] duration-1000";
+  const media = "absolute inset-0 w-full h-full object-fill";
   return (
     <div
       ref={host}
@@ -137,22 +138,23 @@ export default function BlenderSea({
         {box && (
           <div className="absolute" style={box}>
             {still ? (
-              <img src={src(cut.poster)} alt="" className={media} style={{ filter }} />
+              <img src={src(cut.poster)} alt="" className={media} />
             ) : (
               <LoopVideo
                 // A new cut or resolution (a resize across the phone / tablet line, a new tenant setting)
-                // is a new pair of players.
+                // is a new player.
                 key={cut.poster}
                 className={media}
-                style={{ filter }}
+                style={NO_STYLE}
                 sources={cut.files}
                 poster={src(cut.poster)}
                 rate={rate}
-                period={PERIOD}
                 onFail={fail}
                 onSlow={at > 0 ? () => setDown((n) => n + 1) : undefined}
               />
             )}
+            {/* The grade for night and cloud: a plain layer over the video (AENR-862). */}
+            {tint && <div className="absolute inset-0 transition-opacity duration-1000" style={tint} />}
           </div>
         )}
         {/* The light the render can't know: the hour's colour on the water, the sun's or the moon's path.
@@ -161,10 +163,10 @@ export default function BlenderSea({
           light={env.light}
           dy={dy}
           tint="soft"
+          flat
           // No drawn whitecaps over a rendered sea (owner, as for the Video sea): the render has its own surf.
           wind={0}
           clip={seaAbove(dy, -8)}
-          twinkle={tier === "desktop" && !still}
         />
       </div>
     </div>

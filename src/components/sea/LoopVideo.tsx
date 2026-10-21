@@ -1,13 +1,23 @@
 import { useEffect, useRef, type CSSProperties, type SyntheticEvent } from "react";
-import { isBusy } from "../../lib/busy";
+import { isBusy, isMoving, onMove } from "../../lib/busy";
 
-/* ---- A loop nobody can see (AENR-814) ----
-   Shared by the Video sea and the Blender sea (AENR-827). Two players take turns: shortly before
-   the playing one ends, the other starts from the top and the two crossfade, so the guest never sees
-   the browser jump back to the start (some browsers hitch for a frame on a plain `loop`). Only one
-   decodes outside the half-second handover. Paused while the tab is hidden. A clip that is exactly
-   periodic (`period`) hands over at the period instead, into the same moment of the loop. */
-const HANDOVER = 0.5; // s
+/* ---- A loop nobody can see (AENR-814, one player since AENR-860 1A) ----
+   Shared by the Video sea and the Blender sea (AENR-827). One <video autoplay muted loop playsinline>
+   and the browser's own loop, as sites that play smooth background video do (aktitouiliou.gr, Six
+   Senses): the files are exact loops (the Video sea's crossfade is baked into the file, the Blender
+   files are exactly one 8 s period), so the loop point can't be seen. It replaced two players that
+   handed over with a crossfade — that blended two moments of the water for half a second at every
+   loop, and kept two decoders busy.
+
+   It keeps playing by itself: a watchdog restarts it when it stops showing new frames while the
+   page is visible (a browser pausing a muted video on its own, a stall), and it resumes on
+   visibilitychange, pageshow and focus. It holds still while the camera moves (AENR-866): a
+   paused video is a picture the compositor moves for free. A file the device can't decode reports
+   onFail; one it decodes too slowly in its first seconds reports onSlow, so the host can step down
+   a size before the guest settles in — never mid-play. */
+const WATCH_MS = 1000;
+const STALL_MS = 1500;
+const START_CHECK_S = 4;
 
 export interface LoopSource {
   src: string;
@@ -20,7 +30,6 @@ export function LoopVideo({
   sources,
   poster,
   rate,
-  period,
   onFail,
   onSlow,
 }: {
@@ -30,135 +39,106 @@ export function LoopVideo({
   sources: readonly LoopSource[];
   poster: string;
   rate: number;
-  /** The loop's period (s) when the clip is exactly periodic and runs a tail of 1 s past it. */
-  period?: number;
   onFail: () => void;
-  /** The device decodes it too slowly — a 4K file on a
-   *  decoder that can't keep up (AENR-856): the host steps down to a smaller file. Two 3 s
-   *  windows in a row with over a quarter dropped, page changes aside. */
+  /** The device can't keep up with this file in its first seconds (over a quarter of the frames
+   *  dropped, page changes aside): the host steps down a size. */
   onSlow?: () => void;
 }) {
-  const a = useRef<HTMLVideoElement>(null);
-  const b = useRef<HTMLVideoElement>(null);
+  const ref = useRef<HTMLVideoElement>(null);
+  const slowCb = useRef(onSlow);
+  slowCb.current = onSlow;
+
+  // Muted must be on the element before it loads, or iOS won't autoplay it (React sets only the property).
   useEffect(() => {
-    const va = a.current;
-    const vb = b.current;
-    if (!va || !vb) return;
-    // A re-run (the wind changed the speed) keeps whichever player is showing in front.
-    let front = vb.style.opacity === "1" ? vb : va;
-    let back = front === va ? vb : va;
-    let handing = false;
-    let timer = 0;
-    [va, vb].forEach((v) => (v.playbackRate = rate));
-    if (!va.style.opacity) {
-      va.style.opacity = "1";
-      vb.style.opacity = "0";
-    }
-    void front.play().catch(() => undefined);
-    const tick = () => {
-      const d = front.duration;
-      // A periodic clip (the Blender sea): it runs one tail past its period, and the other player
-      // takes over at the same moment of the loop — so the two crossfade over identical frames.
-      const at = period ? Math.min(period, d - HANDOVER * rate) : d - HANDOVER * rate;
-      if (!handing && d && front.currentTime >= at) {
-        handing = true;
-        back.currentTime = period ? Math.max(0, front.currentTime - period) : 0;
-        back.playbackRate = rate;
-        void back.play().catch(() => undefined);
-        back.style.opacity = "1";
-        front.style.opacity = "0";
-        const done = front;
-        timer = window.setTimeout(
-          () => {
-            done.pause();
-            done.currentTime = 0;
-            [front, back] = [back, front];
-            handing = false;
-          },
-          HANDOVER * 1000 + 60,
-        );
-      }
+    const v = ref.current;
+    if (!v) return;
+    v.defaultMuted = true;
+    v.muted = true;
+    v.setAttribute("muted", "");
+  }, []);
+
+  useEffect(() => {
+    const v = ref.current;
+    if (v) v.playbackRate = v.defaultPlaybackRate = rate;
+  }, [rate]);
+
+  useEffect(() => {
+    const v = ref.current;
+    if (!v) return;
+    let lastFrame = performance.now();
+    let frameCb = 0;
+    // Each frame shown where the browser can say so (all current engines), else each time update.
+    const rvfc = typeof v.requestVideoFrameCallback === "function";
+    const seen = () => {
+      lastFrame = performance.now();
+      if (rvfc) frameCb = v.requestVideoFrameCallback(seen);
     };
-    va.addEventListener("timeupdate", tick);
-    vb.addEventListener("timeupdate", tick);
-    const onVis = () => {
-      if (document.hidden) [va, vb].forEach((v) => v.pause());
-      else void front.play().catch(() => undefined);
+    if (rvfc) frameCb = v.requestVideoFrameCallback(seen);
+    else v.addEventListener("timeupdate", seen);
+
+    const wanted = () => !document.hidden && !isMoving();
+    const play = () => {
+      if (!wanted()) return;
+      lastFrame = performance.now();
+      void v.play().catch(() => undefined);
     };
+    // The browser may pause a muted video by itself (a hidden or covered window, power saving) and
+    // not always resume it: whenever the page can be seen, it must be playing and showing new frames.
+    const watch = window.setInterval(() => {
+      if (!wanted()) return;
+      if (v.paused || (v.readyState >= 2 && performance.now() - lastFrame > STALL_MS)) play();
+    }, WATCH_MS);
+    const onVis = () => (document.hidden ? v.pause() : play());
     document.addEventListener("visibilitychange", onVis);
-    // Measured on the playing player in 3 s windows: two windows running with over a quarter of
-    // their frames dropped, outside a page change (a page being built drops frames on any device).
-    let seen = { v: front, total: 0, dropped: 0 };
-    let strikes = 0;
-    const slow = onSlow
-      ? window.setInterval(() => {
-          const q = front.getVideoPlaybackQuality?.();
-          if (!q || document.hidden) return;
-          if (seen.v !== front) seen = { v: front, total: q.totalVideoFrames, dropped: q.droppedVideoFrames };
-          const total = q.totalVideoFrames - seen.total;
-          const dropped = q.droppedVideoFrames - seen.dropped;
-          seen = { v: front, total: q.totalVideoFrames, dropped: q.droppedVideoFrames };
-          if (isBusy() || total < 36) return;
-          strikes = dropped / total > 0.25 ? strikes + 1 : 0;
-          if (strikes >= 2) onSlow();
-        }, 3000)
-      : 0;
-    return () => {
-      window.clearInterval(slow);
-      window.clearTimeout(timer);
-      va.removeEventListener("timeupdate", tick);
-      vb.removeEventListener("timeupdate", tick);
-      document.removeEventListener("visibilitychange", onVis);
+    window.addEventListener("pageshow", play);
+    window.addEventListener("focus", play);
+    const stopMove = onMove((moving) => (moving ? v.pause() : play()));
+
+    // Only in its first seconds of playing: can this device keep up with this file?
+    let checked = false;
+    const startCheck = () => {
+      if (checked || v.currentTime < START_CHECK_S) return;
+      checked = true;
+      v.removeEventListener("timeupdate", startCheck);
+      const q = v.getVideoPlaybackQuality?.();
+      if (q && !isBusy() && q.totalVideoFrames > 48 && q.droppedVideoFrames / q.totalVideoFrames > 0.25) slowCb.current?.();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- onSlow is read when it fires
-  }, [rate, period]);
-  const list = (
-    <>
-      {sources.map((s, i) => (
-        <source
-          key={s.src}
-          src={s.src}
-          type={s.type}
-          onError={i === sources.length - 1 ? onFail : undefined}
-        />
-      ))}
-    </>
-  );
+    v.addEventListener("timeupdate", startCheck);
+    play();
+    return () => {
+      window.clearInterval(watch);
+      if (frameCb) v.cancelVideoFrameCallback(frameCb);
+      v.removeEventListener("timeupdate", seen);
+      v.removeEventListener("timeupdate", startCheck);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("pageshow", play);
+      window.removeEventListener("focus", play);
+      stopMove();
+    };
+  }, []);
+
   // The player's own error (a file that won't decode). React hands a <source>'s error to the
   // <video> too: a browser skipping a file it can't play is not a failure, the last source says so.
   const own = (e: SyntheticEvent<HTMLVideoElement>) => {
     if (e.target === e.currentTarget) onFail();
   };
-  // Opacity is owned by the handover (set on the elements, never by a re-render); the filter keeps its glide.
-  const fade = { transition: `opacity ${HANDOVER}s linear, filter 1s` };
   return (
-    <>
-      <video
-        ref={a}
-        className={className}
-        style={{ ...style, ...fade }}
-        poster={poster}
-        autoPlay
-        muted
-        playsInline
-        preload="auto"
-        disablePictureInPicture
-        onError={own}
-      >
-        {list}
-      </video>
-      <video
-        ref={b}
-        className={className}
-        style={{ ...style, ...fade }}
-        muted
-        playsInline
-        preload="auto"
-        disablePictureInPicture
-        onError={own}
-      >
-        {list}
-      </video>
-    </>
+    <video
+      ref={ref}
+      className={className}
+      style={style}
+      poster={poster}
+      autoPlay
+      muted
+      loop
+      playsInline
+      preload="auto"
+      disablePictureInPicture
+      onError={own}
+    >
+      {sources.map((s, i) => (
+        <source key={s.src} src={s.src} type={s.type} onError={i === sources.length - 1 ? onFail : undefined} />
+      ))}
+    </video>
   );
 }

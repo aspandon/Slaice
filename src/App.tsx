@@ -445,11 +445,26 @@ export default function App() {
   const cur = useRef({ persona, page });
   cur.current = { persona, page };
   const vtRan = useRef(false);
+  // Into and out of the wizard the scene leads (AENR-864): the backdrop gets the new shot and
+  // shoreline first, the browser starts the camera and the sand moving on its compositor, and only
+  // then is the wizard (or the page it returns to) built — its build can no longer stall the move.
+  const [sceneLead, setSceneLead] = useState<string | null>(null);
   const transitionTo = useCallback((toPersona: PersonaId, toPage: string | undefined, update: () => void) => {
     const from = cur.current;
     const main = mainRef.current;
     const doc = document as VTDocument;
     const guest = from.persona === "customer" && toPersona === "customer";
+    if (guest && toPage && toPage !== from.page && (toPage === "plan" || from.page === "plan") && !prefersReducedMotion()) {
+      flushSync(() => setSceneLead(toPage));
+      // One frame for the move to start on the compositor, then the page.
+      requestAnimationFrame(() =>
+        setTimeout(() => {
+          update();
+          setSceneLead(null);
+        }),
+      );
+      return;
+    }
     if (!guest || !toPage || toPage === from.page || from.page === "plan" || toPage === "plan" || !main || !doc.startViewTransition || prefersReducedMotion()) {
       update();
       return;
@@ -688,7 +703,7 @@ export default function App() {
         </Suspense>
       ) : (
         <div className="w-full px-3 sm:px-5 pt-4 relative min-h-dvh flex flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-1">
-          {persona === "customer" && <CustomerBackdrop immersive={immersive} page={page} />}
+          {persona === "customer" && <CustomerBackdrop immersive={(sceneLead ?? page) === "plan"} page={sceneLead ?? page} />}
           {persona === "customer" && <WeatherUi />}
           {/* The beach logo stays in the sea on every guest screen (AENR-783). Below 1024px it is
               the same element in the wizard as on the tabs — it doesn't remount, so it never

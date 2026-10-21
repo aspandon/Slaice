@@ -541,6 +541,29 @@ html[data-persona="customer"]::-webkit-scrollbar {
   }
 }
 
+/* ===== Over a filmed or rendered sea: tinted glass, no live blur (AENR-862) =====
+   <html data-sea="film"> is set by CustomerBackdrop while the Video or Blender sea is on screen. A
+   backdrop blur over a video is re-computed on every video frame (on the Plan screen of a phone
+   that was two-thirds of the screen); the reference sites keep nothing live over their video. So
+   every glass surface becomes a slightly denser tint instead — the same material without the live
+   blur; Classic and Coastal keep the frosted glass. */
+[data-sea="film"] *,
+[data-sea="film"] *::before,
+[data-sea="film"] *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+[data-sea="film"] .glass,
+[data-sea="film"][data-persona="customer"] .glass-card {
+  background: rgba(255, 255, 255, 0.84);
+}
+[data-sea="film"] .glass-input {
+  background: rgba(255, 255, 255, 0.9);
+}
+[data-sea="film"] .glass-dark {
+  background: linear-gradient(135deg, rgba(11, 37, 69, 0.9), rgba(19, 49, 92, 0.84));
+}
+
 /* Scrims behind sticky staff bars (AENR-738): the canvas colour, fading out on the
    side that faces the page, so content scrolling under a bar never shows around it. */
 .scrim-top {
