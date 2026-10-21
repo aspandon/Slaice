@@ -190,8 +190,8 @@ for n in range(3, 23):
     for j in range(m):
         dth = math.radians(-75 + 150 * (j + rng_d.uniform(0.15, 0.85)) / m)
         w = math.cos(dth) ** 2 * 0.8 + 0.2
-        long_cut = 1.0 / (1.0 + (lam / 2.5) ** 2)  # the long ridges, lowered
-        amp = float(os.environ.get("DEEP_AMP", "0.0030")) * lam ** 0.95 * w * (0.35 + 0.65 * long_cut) * rng_d.uniform(0.6, 1.2)
+        long_cut = 1.0 / (1.0 + (lam / 5.0) ** 2)  # the long ridges, lowered
+        amp = float(os.environ.get("DEEP_AMP", "0.0045")) * lam ** 0.95 * w * (0.35 + 0.65 * long_cut) * rng_d.uniform(0.6, 1.2)
         ang = base + dth
         CHOP_DEEP.append((om, k, math.cos(ang), math.sin(ang), amp, rng_d.uniform(0, 2 * math.pi)))
     if n >= 8:  # cross-sea: a little energy from any direction breaks the last regularity
@@ -619,18 +619,18 @@ def water_material():
     deep = node(nt, "ShaderNodeAttribute", (-1200, 1000), attribute_name="deep").outputs["Factor"]
     dtop = node(nt, "ShaderNodeAttribute", (-1200, 900), attribute_name="deeptop").outputs["Factor"]
     # wind slicks: large, slowly changing patches of smoother water (looping 4D noise)
-    sv, sw = loop_coords(nt, 1.0, 4.0, "s", (-700, 1300))
+    sv, sw = loop_coords(nt, 1.0, 1.5, "s", (-700, 1300))
     sn = node(nt, "ShaderNodeTexNoise", (-450, 1300), noise_dimensions="4D")
     sn.inputs["Scale"].default_value = 0.055
-    sn.inputs["Detail"].default_value = 2
+    sn.inputs["Detail"].default_value = 1
     sn.inputs["Roughness"].default_value = 0.5
     link(nt, sv, sn.inputs["Vector"])
     link(nt, sw, sn.inputs["W"])
     slk = node(nt, "ShaderNodeMapRange", (-250, 1300))
-    slk.inputs["From Min"].default_value = 0.52
-    slk.inputs["From Max"].default_value = 0.64
+    slk.inputs["From Min"].default_value = 0.555
+    slk.inputs["From Max"].default_value = 0.615
     link(nt, sn.outputs["Factor"], slk.inputs["Value"])
-    slick = math_node(nt, "MULTIPLY", slk.outputs[0], float(os.environ.get("DEEP_SLICK", "0.75")), (-100, 1300))
+    slick = math_node(nt, "MULTIPLY", slk.outputs[0], float(os.environ.get("DEEP_SLICK", "0.8")), (-100, 1300))
     rough = math_node(nt, "SUBTRACT", 1.0, slick, (0, 1300))  # 1 = rough water, 0.25 = slick
     # wavelets: short, slightly wind-stretched ripples (looping 4D noise, two scales) as a bump on
     # top of the geometry and the capillary bump
@@ -645,7 +645,7 @@ def water_material():
     link(nt, stretch.outputs[0], wn1.inputs["Vector"])
     link(nt, ww, wn1.inputs["W"])
     wbump = node(nt, "ShaderNodeBump", (200, 1700))
-    link(nt, math_node(nt, "MULTIPLY", rough, float(os.environ.get("DEEP_WAVELETS", "0.35")), (50, 1600)), wbump.inputs["Strength"])
+    link(nt, math_node(nt, "MULTIPLY", rough, float(os.environ.get("DEEP_WAVELETS", "0.7")), (50, 1600)), wbump.inputs["Strength"])
     wbump.inputs["Distance"].default_value = 0.01
     link(nt, wn1.outputs["Factor"], wbump.inputs["Height"])
     link(nt, bump.outputs[0], wbump.inputs["Normal"])
@@ -659,7 +659,7 @@ def water_material():
     tint = srgb(os.environ.get("DEEP_TINT", "#8fa6d2"))
     tint_top = srgb(os.environ.get("DEEP_TINT_TOP", "#6a86c2"))
     tcol = mix_rgb(nt, dtop, tint, tint_top, (400, 1100))
-    tcol = mix_rgb(nt, math_node(nt, "MULTIPLY", slick, 0.12, (300, 950)), tcol, (0.9, 0.93, 1.0, 1.0), (500, 1000), blend="MULTIPLY")
+    tcol = mix_rgb(nt, math_node(nt, "MULTIPLY", slick, 0.35, (300, 950)), tcol, (0.86, 0.9, 0.97, 1.0), (500, 1000), blend="MULTIPLY")
     # sun glitter: the sun's reflection in facets tilted toward it, worked out in the shader (no
     # sampling noise at 4 spp): R = reflect(view, N), glint = (R . sun)^k, camera rays only
     geo = node(nt, "ShaderNodeNewGeometry", (300, 2200))
@@ -682,21 +682,23 @@ def water_material():
     link(nt, refl.outputs[0], rz.inputs[0])
     shade = math_node(nt, "MULTIPLY", sxy.outputs["Value"], float(os.environ.get("DEEP_SHADE", "1.6")), (900, 2000))
     steep = math_node(nt, "MULTIPLY", math_node(nt, "SUBTRACT", 1.0, rz.outputs[2], (900, 1850)), float(os.environ.get("DEEP_FRES", "4.0")), (1000, 1850))
-    shade = math_node(nt, "ADD", math_node(nt, "ADD", shade, steep, (1100, 1950)), 1.0, (1200, 1950))
+    shade = math_node(nt, "ADD", shade, steep, (1100, 1950))
+    shade = math_node(nt, "MULTIPLY", shade, math_node(nt, "ADD", math_node(nt, "MULTIPLY", rough, 0.6, (1000, 2100)), 0.4, (1100, 2100)), (1150, 2000))  # slicks: calmer
+    shade = math_node(nt, "ADD", shade, 1.0, (1200, 1950))
     shade = math_node(nt, "MINIMUM", math_node(nt, "MAXIMUM", shade, 0.45, (1300, 1950)), 1.45, (1400, 1950))
     shaded = mix_rgb(nt, 1.0, tcol, math_node(nt, "MULTIPLY", shade, 1.0, (1450, 1850)), (1500, 1700), blend="MULTIPLY")
     link(nt, mix_rgb(nt, deep, (1.0, 1.0, 1.0, 1.0), shaded, (1600, 1300)), glass.inputs["Base Color"])
     dot = node(nt, "ShaderNodeVectorMath", (750, 2200), operation="DOT_PRODUCT")
     link(nt, refl.outputs[0], dot.inputs[0])
     dot.inputs[1].default_value = (math.cos(el) * math.cos(az), math.cos(el) * math.sin(az), math.sin(el))
-    gl = math_node(nt, "POWER", math_node(nt, "MAXIMUM", dot.outputs["Value"], 0.0, (900, 2200)), float(os.environ.get("GLINT_K", "1500")), (1000, 2200))
+    gl = math_node(nt, "POWER", math_node(nt, "MAXIMUM", dot.outputs["Value"], 0.0, (900, 2200)), float(os.environ.get("GLINT_K", "4000")), (1000, 2200))
     lp = node(nt, "ShaderNodeLightPath", (900, 2400))
     gl = math_node(nt, "MULTIPLY", gl, lp.outputs["Is Camera Ray"], (1100, 2300))
     gl = math_node(nt, "MULTIPLY", gl, math_node(nt, "MULTIPLY", deep, rough, (1000, 2050)), (1200, 2200))
-    gl = math_node(nt, "MULTIPLY", gl, float(os.environ.get("GLINT", "2.5")), (1300, 2200), clamp=True)
+    gl = math_node(nt, "MULTIPLY", gl, float(os.environ.get("GLINT", "3.0")), (1300, 2200), clamp=True)
     em = node(nt, "ShaderNodeEmission", (1300, 1900))
-    em.inputs["Color"].default_value = (1.0, 0.97, 0.9, 1.0)
-    em.inputs["Strength"].default_value = float(os.environ.get("GLINT_STRENGTH", "3.0"))
+    em.inputs["Color"].default_value = (1.0, 1.0, 0.97, 1.0)
+    em.inputs["Strength"].default_value = float(os.environ.get("GLINT_STRENGTH", "4.0"))
     gmix = node(nt, "ShaderNodeMixShader", (1500, 0))
     link(nt, gl, gmix.inputs[0])
     link(nt, mix.outputs[0], gmix.inputs[1])
@@ -804,6 +806,13 @@ def build(res=(1280, 1200), spp=16, engine="CYCLES", grid_step=0.1):
     except Exception as e:
         print("view transform:", e)
     sc.view_settings.exposure = float(os.environ.get("EXPOSURE", "0.0"))
+    # Render only the top BORDER_ROWS pixel rows (the deep sea, AENR 5A — deep_region.sh), cropped.
+    rows = int(os.environ.get("BORDER_ROWS", "0"))
+    if rows:
+        sc.render.use_border = True
+        sc.render.use_crop_to_border = True
+        sc.render.border_min_x, sc.render.border_max_x = 0.0, 1.0
+        sc.render.border_min_y, sc.render.border_max_y = 1.0 - rows / res[1], 1.0
     sc.render.image_settings.file_format = "PNG"
     sc.render.image_settings.color_mode = "RGB"
     return g
