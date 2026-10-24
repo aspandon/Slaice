@@ -35,14 +35,27 @@ export const LANGUAGES: Language[] = [
   { code: "it", label: "Italian", native: "Italiano", html: "it", mvp: false },
 ];
 
-// Bundle every generated dictionary at build time. Missing files (e.g. a language
-// added to LANGUAGES before the script has run) simply leave that language
-// falling back to English.
-const files = import.meta.glob<{ default: Record<string, string> }>("../locales/*.json", { eager: true });
+// Each generated dictionary is its own chunk, loaded on demand (AENR-751): a
+// visitor downloads only the language they read — main.tsx loads it before the
+// first render, and a later switch loads the new one before the UI changes
+// language. Missing files (a language added to LANGUAGES before the script has
+// run) simply leave that language falling back to English.
+const loaders = import.meta.glob<{ default: Record<string, string> }>("../locales/*.json");
 const DICTS: Record<string, Record<string, string>> = {};
-for (const path in files) {
-  const m = /([a-z-]+)\.json$/.exec(path);
-  if (m) DICTS[m[1]] = files[path].default;
+
+/** True once `lang`'s dictionary is in memory (English needs none). */
+export function isLangLoaded(lang: LangCode): boolean {
+  return lang === "en" || !!DICTS[lang] || !loaders[`../locales/${lang}.json`];
+}
+
+/** Load `lang`'s dictionary; resolves at once when it is already loaded. */
+export async function loadLang(lang: LangCode): Promise<void> {
+  if (isLangLoaded(lang)) return;
+  try {
+    DICTS[lang] = (await loaders[`../locales/${lang}.json`]()).default;
+  } catch {
+    DICTS[lang] = {}; // offline / stale chunk: show English rather than nothing
+  }
 }
 
 export const HTML_LANG: Record<string, string> = Object.fromEntries(LANGUAGES.map((l) => [l.code, l.html]));
@@ -77,4 +90,19 @@ export function translate(lang: LangCode, text: string): string {
 const INTL_LOCALES: Record<string, string> = { en: "en-GB" };
 export function localeFor(lang: LangCode): string {
   return INTL_LOCALES[lang] || lang;
+}
+
+// Euro amounts in the guest's language: "€31.50" in English, "31,50 €" in
+// Greek, German, French… (AENR-768). Whole amounts drop the cents ("€30")
+// unless `cents` asks for them (totals and refunds always show two places).
+const MONEY = new Map<string, Intl.NumberFormat>();
+export function fmtMoney(n: number, lang: LangCode, cents = false): string {
+  const fraction = cents || Math.round(n * 100) % 100 !== 0 ? 2 : 0;
+  const key = `${lang}:${fraction}`;
+  let f = MONEY.get(key);
+  if (!f) {
+    f = new Intl.NumberFormat(localeFor(lang), { style: "currency", currency: "EUR", minimumFractionDigits: fraction, maximumFractionDigits: fraction });
+    MONEY.set(key, f);
+  }
+  return f.format(n);
 }

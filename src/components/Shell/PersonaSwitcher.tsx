@@ -1,13 +1,19 @@
+import { Suspense } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon } from "../../lib/icons";
 import { PERSONAS } from "../../data/personas";
 import { useApp, useT } from "../../app/store";
 import type { PersonaId } from "../../domain/types";
-import { SceneControls } from "../SceneDemoPanel";
+import { lazyWithReload } from "../../lib/staleChunk";
 import { readHashQuery } from "../../app/router";
 import { useDemoFlag } from "../../lib/useDemoFlag";
+import { FIRST_TIME_RESET } from "../../lib/firstTimeGuest";
 import { useTenantFeatures } from "../../lib/useFeatures";
 import { useGuestScene } from "../../lib/useGuestScene";
+
+// The scene sliders show only in the guest demo menu; staff never load them (AENR-839).
+const DemoSceneSliders = lazyWithReload(() => import("../SceneDemoPanel").then((m) => ({ default: m.DemoSceneSliders })));
+const DemoSeaSliders = lazyWithReload(() => import("../SceneDemoPanel").then((m) => ({ default: m.DemoSeaSliders })));
 
 /* ---------- Persona switcher ----------
    The "view as another persona" control, shared by two surfaces:
@@ -32,7 +38,13 @@ export function PersonaSwitcher({
 }) {
   const t = useT();
   const [newGuest, setNewGuest] = useDemoFlag("newGuest");
-  const { inventory, setInventory, sceneFx, showPreviews, setShowPreviews, till } = useApp();
+  const [perf, setPerf] = useDemoFlag("perf");
+  // The beach's own One-beach camera switch (Platform › tenant › Modules & features, AENR-784), reachable here too.
+  const { feature: tenantFeature } = useTenantFeatures();
+  const camera = tenantFeature("guest.camera");
+  const setCamera = (on: boolean) =>
+    setPlatform((p) => ({ ...p, tenants: p.tenants.map((x) => (x.id === p.siteTenant ? { ...x, features: { ...x.features, "guest.camera": on } } : x)) }));
+  const { inventory, setInventory, sceneFx, showPreviews, setShowPreviews, till, go, toast, setPlatform } = useApp();
   const { role: roleOn, tenant } = useTenantFeatures();
   const { live: sceneLive } = useGuestScene(); // AENR-737
   const cur = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[0];
@@ -61,13 +73,15 @@ export function PersonaSwitcher({
               {(() => { const I = Icon[cur.icon]; return I ? <I size={13} /> : null; })()}
             </span>
             <span className="hidden md:inline text-navy-900">{t(cur.label)}</span>
-            <Icon.chevD size={14} className="text-slate-400 hidden sm:block" />
+            <Icon.chevD size={14} className="text-slate-500 hidden sm:block" />
           </button>
         )}
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
-        <DropdownMenu.Content side={side} align="end" sideOffset={8} className={`glass w-72 text-ink rounded-xl p-1.5 z-[60] shadow-float ${origin} data-[state=open]:animate-scale-in`}>
-          <DropdownMenu.Label className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{t("View as persona")}</DropdownMenu.Label>
+        {/* Never taller than the room on screen: on a phone the long Demo menu scrolls inside itself
+            (AENR-846) — Radix gives the available height; overscroll stops the page behind moving. */}
+        <DropdownMenu.Content side={side} align="end" sideOffset={8} collisionPadding={8} className={`glass w-72 max-w-[calc(100vw-16px)] max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto overscroll-contain text-ink rounded-xl p-1.5 z-[60] shadow-float ${origin} data-[state=open]:animate-scale-in`}>
+          <DropdownMenu.Label className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">{t("View as persona")}</DropdownMenu.Label>
           {PERSONAS.map((p) => {
             // A role the demo beach doesn't use (AENR-716) stays reachable, greyed, and opens an explanation.
             const off = !roleOn(p.id);
@@ -91,31 +105,30 @@ export function PersonaSwitcher({
               </DropdownMenu.Item>
             );
           })}
-          {/* Roadmap previews (AENR-618): off by default so the menus show only what works today. */}
-          {persona !== "customer" && (
-            <>
-              <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
-              <DropdownMenu.CheckboxItem
-                checked={showPreviews}
-                onCheckedChange={(v) => setShowPreviews(v === true)}
-                onSelect={(e) => e.preventDefault()}
-                className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"
-              >
-                <span className="flex-1 min-w-0">
-                  <span className="block font-semibold">{t("Show roadmap previews")}</span>
-                  <span className="block text-[11px] text-slate-500 leading-tight">{t("Future pages appear under “Coming next” in the menu.")}</span>
-                </span>
-                <span aria-hidden className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${showPreviews ? "bg-teal-600" : "bg-slate-300"}`}>
-                  <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${showPreviews ? "left-[18px]" : "left-0.5"}`} />
-                </span>
-              </DropdownMenu.CheckboxItem>
-            </>
-          )}
+          {/* Roadmap previews (AENR-618): off by default so the menus show only what works today.
+              In every role's Demo menu, the guest site's too (AENR-857). */}
+          <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
+          <DropdownMenu.CheckboxItem
+            checked={showPreviews}
+            onCheckedChange={(v) => setShowPreviews(v === true)}
+            onSelect={(e) => e.preventDefault()}
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"
+          >
+            <span className="flex-1 min-w-0">
+              <span className="block font-semibold">{t("Show roadmap previews")}</span>
+              <span className="block text-[11px] text-slate-500 leading-tight">
+                {persona === "customer" ? t("Features still to come show too, marked Future — rewards, more ways to pay, more languages.") : t("Future pages appear under “Coming next” in the menu.")}
+              </span>
+            </span>
+            <span aria-hidden className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${showPreviews ? "bg-teal-600" : "bg-slate-300"}`}>
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${showPreviews ? "left-[18px]" : "left-0.5"}`} />
+            </span>
+          </DropdownMenu.CheckboxItem>
           {/* Demo: preview Home at each moment of a beach day (AENR-610); Live follows the clock. */}
           {persona === "customer" && (
             <>
               <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
-              <DropdownMenu.Label className="px-2.5 pt-1 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">{t("Preview Home")}</DropdownMenu.Label>
+              <DropdownMenu.Label className="px-2.5 pt-1 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">{t("Preview Home")}</DropdownMenu.Label>
               <DropdownMenu.RadioGroup value={momentPreview} onValueChange={(m) => { window.location.hash = `#/customer/home${m ? `?moment=${m}` : ""}`; }}>
                 {([["", "Live (by the clock)"], ["morning", "Morning of a visit"], ["during", "At the beach"], ["after", "After the visit"], ["offseason", "Off-season"]] as const).map(([k, l]) => (
                   <DropdownMenu.RadioItem key={k || "live"} value={k} className="w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100">
@@ -140,12 +153,57 @@ export function PersonaSwitcher({
             >
               <span className="flex-1 min-w-0">
                 <span className="block font-semibold">{t("Simulate a first-time guest")}</span>
-                <span className="block text-[11px] text-slate-500 leading-tight">{t("No previous bookings — see the app as a new guest does.")}</span>
+                <span className="block text-[11px] text-slate-500 leading-tight">{t("Starts with no bookings or passes — what you do is kept until Reset.")}</span>
               </span>
               <span aria-hidden className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${newGuest ? "bg-teal-600" : "bg-slate-300"}`}>
                 <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${newGuest ? "left-[18px]" : "left-0.5"}`} />
               </span>
             </DropdownMenu.CheckboxItem>
+          )}
+          {/* One beach, one camera (AENR-784) — this beach's setting; off restores the still backdrop. */}
+          {persona === "customer" && (
+            <DropdownMenu.CheckboxItem
+              checked={camera}
+              onCheckedChange={(v) => setCamera(v === true)}
+              onSelect={(e) => e.preventDefault()}
+              className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"
+            >
+              <span className="flex-1 min-w-0">
+                <span className="block font-semibold">{t("One-beach camera")}</span>
+                <span className="block text-[11px] text-slate-500 leading-tight">{t("This beach's setting — also in Platform › tenant › Modules & features.")}</span>
+              </span>
+              <span aria-hidden className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${camera ? "bg-teal-600" : "bg-slate-300"}`}>
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${camera ? "left-[18px]" : "left-0.5"}`} />
+              </span>
+            </DropdownMenu.CheckboxItem>
+          )}
+          {/* A live readout of frames, tap times and long tasks (AENR-842) — on any role's screens. */}
+          <DropdownMenu.CheckboxItem
+            checked={perf}
+            onCheckedChange={(v) => setPerf(v === true)}
+            onSelect={(e) => e.preventDefault()}
+            className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none hover:bg-slate-100 data-[highlighted]:bg-slate-100"
+          >
+            <span className="flex-1 min-w-0">
+              <span className="block font-semibold">{t("Performance overlay")}</span>
+              <span className="block text-[11px] text-slate-500 leading-tight">{t("Frames per second, tap times and long tasks, live in the corner.")}</span>
+            </span>
+            <span aria-hidden className={`relative w-9 h-5 rounded-full shrink-0 transition-colors ${perf ? "bg-teal-600" : "bg-slate-300"}`}>
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${perf ? "left-[18px]" : "left-0.5"}`} />
+            </span>
+          </DropdownMenu.CheckboxItem>
+          {/* Reset (AENR-778): the simulated guest forgets their bookings, passes and basket. */}
+          {persona === "customer" && newGuest && (
+            <DropdownMenu.Item
+              onSelect={() => {
+                window.dispatchEvent(new Event(FIRST_TIME_RESET));
+                go("customer", "home");
+                toast(t("Reset — you're a first-time guest again."), { tone: "success" });
+              }}
+              className="w-full flex items-center gap-2.5 pl-2.5 pr-2.5 py-2 rounded-lg text-sm cursor-pointer select-none outline-none text-teal-800 font-semibold hover:bg-slate-100 data-[highlighted]:bg-slate-100"
+            >
+              <Icon.refresh size={14} aria-hidden /> {t("Reset first-time guest")}
+            </DropdownMenu.Item>
           )}
           {/* Demo: the till losing its connection (AENR-607). It raises the browser's own offline /
               online events, so the till reacts exactly as to a real drop: queue, then sync on return. */}
@@ -165,17 +223,25 @@ export function PersonaSwitcher({
               </span>
             </DropdownMenu.CheckboxItem>
           )}
-          {/* Phones: the scene demo controls live here instead of floating over content (AENR-575). */}
-          {compact && persona === "customer" && sceneLive && showPreviews && (sceneFx.weather || sceneFx.daytime) && (
-            <div className="border-t border-slate-200 mt-1 px-2.5 pt-2 pb-1.5">
-              <SceneControls />
-            </div>
+          {/* Demo sliders for the weather and the time of day (AENR-825), on every screen size — they
+              drive the same scene state as Beach › Atmosphere. Hidden when the tenant pins the scene
+              (live weather and time of day off, AENR-737) or the manager switched both effects off. */}
+          {persona === "customer" && sceneLive && (sceneFx.weather || sceneFx.daytime) && (
+            <>
+              <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
+              <DropdownMenu.Label className="px-2.5 pt-1 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">{t("Beach scene")}</DropdownMenu.Label>
+              <div className="px-2.5 pt-1 pb-2">
+                <Suspense fallback={null}>
+                  <DemoSceneSliders />
+                </Suspense>
+              </div>
+            </>
           )}
           {/* Demo clock for holds / allocation releases (AENR-561 — moved out of the Beach pages). */}
           {persona === "admin" && (
             <>
               <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
-              <DropdownMenu.Label className="px-2.5 pt-1 text-[11px] uppercase tracking-wide text-slate-400 font-semibold">
+              <DropdownMenu.Label className="px-2.5 pt-1 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">
                 {t("Demo clock")} · {new Date(Date.now() + inventory.clockOffset * 60000).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}{inventory.clockOffset ? ` (+${Math.round(inventory.clockOffset / 60)}h)` : ""}
               </DropdownMenu.Label>
               <div className="flex gap-1.5 px-2 pb-1.5">
@@ -187,6 +253,18 @@ export function PersonaSwitcher({
                   <DropdownMenu.Item onSelect={(e) => { e.preventDefault(); setInventory((i) => ({ ...i, clockOffset: 0 })); }}
                     className="rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold text-slate-600 cursor-pointer outline-none data-[highlighted]:bg-slate-100">{t("Reset")}</DropdownMenu.Item>
                 )}
+              </div>
+            </>
+          )}
+          {/* Guest sea per device, and the Blender beach's resolution (AENR-855) — the last group. */}
+          {persona === "customer" && (
+            <>
+              <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
+              <DropdownMenu.Label className="px-2.5 pt-1 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">{t("Guest sea")}</DropdownMenu.Label>
+              <div className="px-2.5 pt-1 pb-2">
+                <Suspense fallback={null}>
+                  <DemoSeaSliders />
+                </Suspense>
               </div>
             </>
           )}

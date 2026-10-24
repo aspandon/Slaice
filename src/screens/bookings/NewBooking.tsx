@@ -25,6 +25,7 @@ import {
 import { useDemoNow, useLiveSlots } from "../../lib/useLiveSlots";
 import { CardPayModal } from "./CardPayModal";
 import { useSiteTerms } from "../../lib/useEconomics";
+import { emailOk as isEmail, phoneOk as isPhone } from "../../domain/validate";
 
 /* ============ New booking (AENR-559) ============
    One flow for every booking staff take — by phone, at the call center or for
@@ -101,6 +102,8 @@ export function NewBooking() {
   const [mode, setMode] = useState<StaffPayMode>(prefs.mode ?? "link");
   const [deadline, setDeadline] = useState(prefs.deadline ?? 30);
   const [via, setVia] = useState(prefs.via ?? { sms: true, email: false });
+  // Inline checks show once the field is left (AENR-772).
+  const [left, setLeft] = useState({ phone: false, email: false });
   useEffect(() => {
     try {
       localStorage.setItem(PREFS_KEY, JSON.stringify({ zoneId, mode, via, deadline }));
@@ -146,8 +149,10 @@ export function NewBooking() {
     : 0;
   const lines: PayLinkLine[] = fee > 0 ? [...goods, { label: "Service fee", qty: 1, unit: fee, fee: true }] : goods;
   const total = lines.reduce((a, l) => a + l.qty * l.unit, 0);
-  const phoneOk = /^\+?[\d\s]{8,}$/.test(guest.phone.trim());
-  const emailOk = /^\S+@\S+\.\S+$/.test(guest.email.trim());
+  const phoneOk = isPhone(guest.phone);
+  const emailOk = isEmail(guest.email);
+  const phoneErr = left.phone && guest.phone.trim() && !phoneOk ? "Check the number — 8 to 15 digits, with + and the country code for abroad." : undefined;
+  const emailErr = left.email && guest.email.trim() && !emailOk ? "Check the e-mail — it needs a name, @ and a domain, e.g. name@example.com." : undefined;
   const problem =
     sets.length === 0
       ? "Pick one or more free sets on the map."
@@ -327,6 +332,7 @@ export function NewBooking() {
             <div className="grid sm:grid-cols-2 gap-3 items-start">
             <Field
               label="Caller’s mobile"
+              error={phoneErr}
               hint={
                 known ? (
                   <span className="text-emerald-700 font-semibold">Known guest · {known.first} {known.last} — details filled in</span>
@@ -337,7 +343,7 @@ export function NewBooking() {
                 )
               }
             >
-              <Input type="tel" inputMode="tel" value={guest.phone} onChange={(e) => onPhone(e.target.value)} aria-invalid={via.sms && !!guest.phone && !phoneOk} autoComplete="off" />
+              <Input type="tel" inputMode="tel" value={guest.phone} onChange={(e) => onPhone(e.target.value)} onBlur={() => setLeft((l) => ({ ...l, phone: true }))} aria-invalid={!!phoneErr} autoComplete="off" />
             </Field>
             <Field label="Guest name" hint={known ? undefined : "Or type a name to pick an existing guest."}>
               <Input
@@ -355,12 +361,13 @@ export function NewBooking() {
               ))}
             </datalist>
             <div>
-              <Field label={via.email ? "E-mail" : "E-mail (optional)"}>
+              <Field label={via.email ? "E-mail" : "E-mail (optional)"} error={emailErr}>
                 <Input
                   type="email"
                   value={guest.email}
                   onChange={(e) => setGuest((g) => ({ ...g, email: e.target.value }))}
-                  aria-invalid={via.email && !!guest.email && !emailOk}
+                  onBlur={() => setLeft((l) => ({ ...l, email: true }))}
+                  aria-invalid={!!emailErr}
                 />
               </Field>
             </div>

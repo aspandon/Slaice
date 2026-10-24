@@ -1,7 +1,9 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { Icon } from "../../lib/icons";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { Icon, type IconRenderer } from "../../lib/icons";
 import { Btn, Card, ErrorState, Input, Modal, Skeleton } from "../../components/ui";
 import { usePlatform } from "../../lib/usePlatform";
+import { hashPath, readHashQuery } from "../../app/router";
+import { prefersReducedMotion } from "../../lib/motion";
 import type { TenantRecord } from "../../domain/tenants";
 
 /* Building blocks for the tenant page sections (AENR-500): a section frame
@@ -9,15 +11,40 @@ import type { TenantRecord } from "../../domain/tenants";
    a reason for sensitive fields (written to the Audit log), and the global
    unsaved-changes guard used when navigating between sections or tenants. */
 
-/** Module-level unsaved-changes flag; navigation asks before leaving a dirty section. */
-export const navGuard = { dirty: false };
+/** Unsaved-changes guard; navigation asks before leaving a dirty section. A merged
+ *  section has several drafts (AENR-796), so it tracks each owner, not one flag. */
+const dirtyOwners = new Set<object>();
+export const navGuard = {
+  get dirty() {
+    return dirtyOwners.size > 0;
+  },
+};
 export const confirmLeave = () =>
   !navGuard.dirty ||
   window.confirm("You have unsaved changes on this section. Leave without saving?");
+/** Register a draft with the guard while it has unsaved changes. */
+export function useLeaveGuard(dirty: boolean) {
+  const owner = useRef({});
+  useEffect(() => {
+    const o = owner.current;
+    if (dirty) dirtyOwners.add(o);
+    else dirtyOwners.delete(o);
+    return () => {
+      dirtyOwners.delete(o);
+    };
+  }, [dirty]);
+}
 
-/** Per-section edit right (from the registry + Slaice role) and the demo error mode. */
-export const SectionCtx = createContext<{ canEdit: boolean; demoError: boolean }>({
+type EditRight = "admin" | "support";
+/** Per-section edit right (from the registry + Slaice role), the role check for a stricter
+ *  part (AENR-796) and the demo error mode. */
+export const SectionCtx = createContext<{
+  canEdit: boolean;
+  can: (edit: EditRight) => boolean;
+  demoError: boolean;
+}>({
   canEdit: true,
+  can: () => true,
   demoError: false,
 });
 
@@ -32,11 +59,14 @@ export function SectionFrame({
   sub,
   children,
   actions,
+  parts,
 }: {
   title: string;
   sub?: ReactNode;
   children: ReactNode;
   actions?: ReactNode;
+  /** The parts of a merged page, for its "On this page" links (AENR-796). */
+  parts?: readonly { id: string; label: string }[];
 }) {
   const { canEdit, demoError } = useContext(SectionCtx);
   const [loading, setLoading] = useState(true);
@@ -45,6 +75,21 @@ export function SectionFrame({
     const id = window.setTimeout(() => setLoading(false), 350);
     return () => window.clearTimeout(id);
   }, []);
+  // `?at=<part>` scrolls to and focuses a part once it has rendered, so old links to the
+  // pages merged into this one land on their part (AENR-796…800).
+  useEffect(() => {
+    if (loading || failed) return;
+    const jump = () => {
+      const at = readHashQuery().get("at");
+      const el = at ? document.getElementById(`part-${at}`) : null;
+      if (!el) return;
+      el.scrollIntoView({ block: "start", behavior: prefersReducedMotion() ? "auto" : "smooth" });
+      el.focus({ preventScroll: true });
+    };
+    jump();
+    window.addEventListener("hashchange", jump);
+    return () => window.removeEventListener("hashchange", jump);
+  }, [loading, failed]);
   return (
     <section aria-labelledby="tenant-section-title" className="space-y-3">
       <div className="flex flex-wrap items-end justify-between gap-2">
@@ -52,10 +97,23 @@ export function SectionFrame({
           <h2 id="tenant-section-title" className="font-display text-xl font-bold text-navy-900">
             {title}
           </h2>
-          {sub && <p className="text-[13px] text-slate-600">{sub}</p>}
+          {sub && <p className="text-[13px] text-slate-600 max-w-3xl">{sub}</p>}
         </div>
         {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
       </div>
+      {parts && parts.length > 1 && (
+        <nav aria-label="On this page" className="flex flex-wrap items-center gap-1.5">
+          {parts.map((p) => (
+            <a
+              key={p.id}
+              href={`${hashPath()}?at=${p.id}`}
+              className="rounded-full bg-white/70 ring-1 ring-slate-200 px-3 py-1.5 text-[12.5px] font-medium text-slate-700 hover:bg-white hover:ring-slate-300 hover:text-navy-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+            >
+              {p.label}
+            </a>
+          ))}
+        </nav>
+      )}
       {!canEdit && (
         <div
           role="note"
@@ -89,6 +147,63 @@ export function SectionFrame({
   );
 }
 
+/** One former page inside a merged section (AENR-796…800): an h3, the anchor old links land
+ *  on (`?at=<id>`), its own actions, and its own edit right when that is stricter than the
+ *  page's (e.g. Contract & account stays Admin-only inside Profile). */
+export function Part({
+  id,
+  title,
+  sub,
+  icon: I,
+  actions,
+  edit,
+  children,
+}: {
+  id: string;
+  title: string;
+  sub?: ReactNode;
+  icon?: IconRenderer;
+  actions?: ReactNode;
+  edit?: EditRight;
+  children: ReactNode;
+}) {
+  const { canEdit, can } = useContext(SectionCtx);
+  const locked = canEdit && !!edit && !can(edit);
+  return (
+    <section
+      id={`part-${id}`}
+      aria-labelledby={`part-${id}-title`}
+      tabIndex={-1}
+      className="scroll-mt-24 space-y-3 outline-none [&:not(:first-child)]:border-t [&:not(:first-child)]:border-slate-200 [&:not(:first-child)]:pt-5"
+    >
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div className="min-w-0">
+          <h3
+            id={`part-${id}-title`}
+            className="font-display text-[16.5px] font-bold text-navy-900 flex items-center gap-2"
+          >
+            {I && <I size={16} className="text-teal-700 shrink-0" aria-hidden />}
+            {title}
+          </h3>
+          {sub && <p className="text-[12.5px] text-slate-600 leading-snug max-w-3xl">{sub}</p>}
+        </div>
+        {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+      </div>
+      {locked && (
+        <div
+          role="note"
+          className="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-2 text-[12.5px] text-slate-600 flex items-center gap-2"
+        >
+          <Icon.lock size={14} /> Read-only — only a Slaice Admin can change this part.
+        </div>
+      )}
+      <fieldset disabled={locked} className="min-w-0 space-y-3 disabled:opacity-90">
+        {children}
+      </fieldset>
+    </section>
+  );
+}
+
 export function KV({ k, children }: { k: ReactNode; children: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-3 py-1.5 text-[13px] border-b border-slate-100 last:border-0">
@@ -104,6 +219,8 @@ export function useTenantDraft<K extends keyof TenantRecord>(
   keys: readonly K[],
   section: string,
   sensitive: readonly K[] = [],
+  /** Why the draft can't be saved yet (e.g. an invalid ΑΦΜ), or ""; disables Save. */
+  validate?: (draft: Pick<TenantRecord, K>) => string,
 ) {
   const { updateTenant, toast } = usePlatform();
   const pick = () => Object.fromEntries(keys.map((k) => [k, t[k]])) as Pick<TenantRecord, K>;
@@ -114,12 +231,8 @@ export function useTenantDraft<K extends keyof TenantRecord>(
   }, [t.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const changed = keys.filter((k) => JSON.stringify(draft[k]) !== JSON.stringify(t[k]));
   const dirty = changed.length > 0;
-  useEffect(() => {
-    navGuard.dirty = dirty;
-    return () => {
-      navGuard.dirty = false;
-    };
-  }, [dirty]);
+  const problem = validate?.(draft) ?? "";
+  useLeaveGuard(dirty);
   const fmt = (v: unknown) => (typeof v === "object" ? JSON.stringify(v) : String(v ?? "—"));
   const commit = (reason?: string) => {
     changed.forEach((k, i) =>
@@ -141,12 +254,14 @@ export function useTenantDraft<K extends keyof TenantRecord>(
   const bar = dirty ? (
     <div
       role="status"
-      className="sticky bottom-2 z-10 flex flex-wrap items-center gap-3 rounded-2xl bg-navy-900 text-white px-4 py-2.5 shadow-float"
+      className="sticky bottom-[calc(4.5rem+env(safe-area-inset-bottom))] md:bottom-2 z-10 flex flex-wrap items-center gap-3 rounded-2xl bg-navy-900 text-white px-4 py-2.5 shadow-float"
     >
       <Icon.edit size={15} />
+      {/* Names its part: a merged page has one bar per part (AENR-796). Clears the phone tab bar. */}
       <span className="text-sm">
-        <b>Unsaved changes</b> · {changed.length} field{changed.length === 1 ? "" : "s"}
-        {changed.some((k) => sensitive.includes(k)) ? " · needs a reason" : ""}
+        <b>Unsaved changes</b> · {section} · {changed.length} field
+        {changed.length === 1 ? "" : "s"}
+        {problem ? ` · ${problem}` : changed.some((k) => sensitive.includes(k)) ? " · needs a reason" : ""}
       </span>
       <div className="ml-auto flex gap-2">
         <button
@@ -156,7 +271,7 @@ export function useTenantDraft<K extends keyof TenantRecord>(
         >
           Discard
         </button>
-        <Btn size="sm" variant="teal" icon={Icon.check} onClick={save}>
+        <Btn size="sm" variant="teal" icon={Icon.check} onClick={save} disabled={!!problem}>
           Save
         </Btn>
       </div>

@@ -11,8 +11,8 @@ export const prefersReducedMotion = (): boolean =>
    4×-throttled 390 px phone, the live WebGL sea alone took the customer pages
    from 60 to 9 fps; blur, blend overlays and CSS animation together cost
    nothing measurable. So below the desktop layout the backdrop is the still
-   SVG beach — no WebGL sea (and no three.js download), no ambient clouds and
-   birds, no rain particles, no parallax. Desktop keeps the live scene. */
+   SVG beach — no WebGL sea (and no three.js download), no ambient clouds,
+   no rain particles, no parallax. Desktop keeps the live scene. */
 export const LITE_SCENE_QUERY = "(max-width: 1023px)";
 export const liteScene = (): boolean =>
   typeof window !== "undefined" && !!window.matchMedia && window.matchMedia(LITE_SCENE_QUERY).matches;

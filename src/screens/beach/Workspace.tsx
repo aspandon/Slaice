@@ -431,7 +431,7 @@ export function SunbedWorkspace() {
                   <div className="flex items-center gap-2">
                     <div className="flex gap-1">{CATEGORY_COLORS.map((col) => <button key={col} type="button" aria-label={`Colour ${col}`} aria-pressed={c.color === col} onClick={() => patchCat(c.id, { color: col })} className={`w-4 h-4 rounded ${c.color === col ? "ring-2 ring-offset-1 ring-navy-900" : ""}`} style={{ background: col }} />)}</div>
                     <span className="ml-auto text-[11.5px] text-slate-500">{catCount(c.id)} sets</span>
-                    <button type="button" aria-label={`Remove ${c.name}`} onClick={() => removeCat(c.id)} className="text-slate-400 hover:text-rose-600"><Icon.trash size={13} /></button>
+                    <button type="button" aria-label={`Remove ${c.name}`} onClick={() => removeCat(c.id)} className="text-slate-500 hover:text-rose-600"><Icon.trash size={13} /></button>
                   </div>
                   <div className="grid grid-cols-[1fr_56px_70px] gap-1.5">
                     <Input aria-label="Category name" value={c.name} onChange={(e) => patchCat(c.id, { name: e.target.value })} />
@@ -488,7 +488,7 @@ export function SunbedWorkspace() {
                   <li key={o.id} className="flex items-center gap-2 rounded-lg ring-1 ring-slate-200 px-2.5 py-1.5">
                     <div className="min-w-0 flex-1"><b className="text-navy-900">€{o.price}</b> · {o.label}<div className="text-[11.5px] text-slate-500">{o.setIds.length} sets · {o.from} → {o.to} · {DAYS.find((d) => d.v === o.days)?.l}</div></div>
                     <button type="button" className="text-teal-700 font-semibold" onClick={() => setSel(new Set(o.setIds))}>Select</button>
-                    <button type="button" aria-label={`Remove override ${o.label}`} className="text-slate-400 hover:text-rose-600" onClick={() => setPricing((p) => ({ ...p, overrides: p.overrides.filter((x) => x.id !== o.id) }))}><Icon.trash size={13} /></button>
+                    <button type="button" aria-label={`Remove override ${o.label}`} className="text-slate-500 hover:text-rose-600" onClick={() => setPricing((p) => ({ ...p, overrides: p.overrides.filter((x) => x.id !== o.id) }))}><Icon.trash size={13} /></button>
                   </li>
                 ))}
               </ul>

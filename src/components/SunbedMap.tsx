@@ -1,6 +1,6 @@
 import { useLayoutEffect, useState, type ReactNode } from "react";
 import { ZoomBox } from "./ZoomBox";
-import { Sunbed } from "./Beach";
+import { Sunbed } from "./Sunbed";
 import { Icon } from "../lib/icons";
 import type { SunbedSlot } from "../domain/types";
 

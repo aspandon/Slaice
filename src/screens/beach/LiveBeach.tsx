@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { Flip, motionOK, EASE } from "../../lib/fx";
+import { motionOK, EASE } from "../../lib/fx";
+import { Flip } from "../../lib/fxFlip";
 import { useClosure } from "../../lib/useLiveSlots";
 import { ZoneChips } from "../../components/ZoneChips";
 import { prefersReducedMotion } from "../../lib/motion";

@@ -511,7 +511,7 @@ export function DocsPayments({ only, lead }: { only?: "documents" | "payments"; 
             right={[3, 4, 5]}
             rows={docRows.slice(safe * PAGE, safe * PAGE + PAGE).map((d) => [
               <span className="whitespace-nowrap">
-                {fmtDay(d.date)} <span className="text-slate-400">{d.time}</span>
+                {fmtDay(d.date)} <span className="text-slate-500">{d.time}</span>
               </span>,
               <span className="whitespace-nowrap">
                 <b className="text-navy-900">{d.type}</b> {docNo(d)}
@@ -601,7 +601,7 @@ export function DocsPayments({ only, lead }: { only?: "documents" | "payments"; 
             right={[5, 6, 7]}
             rows={(txRows.slice(safe * PAGE, safe * PAGE + PAGE) as Txn[]).map((t) => [
               <span className="whitespace-nowrap">
-                {fmtDay(t.date)} <span className="text-slate-400">{t.time}</span>
+                {fmtDay(t.date)} <span className="text-slate-500">{t.time}</span>
               </span>,
               <span className="font-mono text-[11.5px]">
                 {t.id}
@@ -657,7 +657,7 @@ export function DocsPayments({ only, lead }: { only?: "documents" | "payments"; 
                 what={docNo(view)}
                 onExport={(f) => {
                   downloadReport(docNo(view), {
-                    brand: "Akti tou Iliou AE · VAT EL123456789 · Leof. Poseidonos 1, 174 55 Alimos",
+                    brand: "Akti tou Iliou AE · VAT EL123456783 · Leof. Poseidonos 1, 174 55 Alimos",
                     title: `${view.type} ${docNo(view)}`,
                     subtitle: `${fmtDay(view.date)} ${view.time} · ${view.counterparty}${view.vatNo ? ` · VAT ${view.vatNo}` : ""}`,
                     meta: [`Payment: ${view.method} · Zone: ${sectionName(view.section)} · Channel: ${view.channel}`, `myDATA MARK: ${view.mark || "pending"} · invoiceType ${DOC_CODE[view.type]}${view.original ? ` · corrects ${view.original}` : ""}`],

@@ -520,7 +520,7 @@ export function CheckInSheet({
                   onClick={admit}
                   disabled={!!issue || !!guarded}
                   title={guarded || undefined}
-                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-[14px] min-h-[56px] px-5 text-[17px] font-semibold bg-teal-600 text-white hover:bg-teal-500 shadow-btn-teal active:scale-[.98] transition disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
+                  className="flex-1 inline-flex items-center justify-center gap-2 rounded-[14px] min-h-[56px] px-5 text-[17px] font-semibold bg-teal-600 text-white hover:bg-teal-700 shadow-btn-teal active:scale-[.98] transition disabled:bg-slate-100 disabled:text-slate-400 disabled:shadow-none disabled:active:scale-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2"
                 >
                   <Icon.check size={19} sw={2.5} /> Admit {people || ""}
                 </button>

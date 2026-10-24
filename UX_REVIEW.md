@@ -89,7 +89,7 @@ Numbers 1.1–7.4 are the original ones; 8.1–9.3 were numbered in this revisio
 | 4.3 | Steppers announced only "Decrease" / "Increase"                  | ✅ Resolved    | `Stepper` takes a `label`, so a button reads "Decrease Individual (13+)" (`src/components/ui/forms.tsx:49`); every call site passes one.                                                                                                                                                                                                                                                                                                                           |
 | 4.4 | Charts had no accessible representation                          | ✅ Resolved    | Bar, horizontal-bar, line and donut charts are `role="img"` with a generated data summary, and sparklines are `aria-hidden` (`src/components/charts.tsx`). One small gap: `StackedBar` exposes its split only through `title` tooltips (`charts.tsx:163`).                                                                                                                                                                                                         |
 | 4.5 | Small-text contrast                                              | 🔴 Open        | Measured: 9–11 px `text-slate-400` labels sit at ≈ 2.4–2.6:1. See [Open work](#45--small-text-contrast).                                                                                                                                                                                                                                                                                                                                                           |
-| 4.6 | A language switcher without translations                         | 🟡 Partly done | Six languages (English plus five machine-translated), `<html lang>` follows the choice, and the customer surface is translated. Still open: staff screens are mostly English; a few customer strings bypass `t()` (sunbed button names and tooltips, `src/components/Beach.tsx:74`, `:88`; the Review step's "2 adults, 1 child", `CustomerWizard.tsx:1297`; the stepper verbs); and no native speaker has reviewed the machine translations (Greek matters most). |
+| 4.6 | A language switcher without translations                         | ✅ Resolved (AENR-768) — native review open | Six languages (English plus five machine-translated), `<html lang>` follows the choice, and the customer surface is translated. Still open: staff screens are mostly English; a few customer strings bypass `t()` (sunbed button names and tooltips, `src/components/Sunbed.tsx`, `:88`; the Review step's "2 adults, 1 child", `CustomerWizard.tsx:1297`; the stepper verbs); and no native speaker has reviewed the machine translations (Greek matters most). |
 
 ### P2 — e-commerce / checkout (Baymard)
 
@@ -99,14 +99,14 @@ Numbers 1.1–7.4 are the original ones; 8.1–9.3 were numbered in this revisio
 | 5.2 | Hold timer for selected sunbeds | ⏪ Regressed | Shipped once; not in the code now. Other guests' holds show as "On hold", but the guest's own picks aren't held — and on-hold sets can be picked (N1).                                                                                 |
 | 5.3 | Stable confirmation reference   | ✅ Resolved  | Sequential `BK-10429`, `BK-10430`… (`Checkout.tsx:19`). The counter restarts on reload, which is fine for a mockup; production references come from the server.                                                                        |
 | 5.4 | Bundle / "save €X" pricing      | ⏪ Regressed | Shipped once; the wizard now prices every line flat. The Loyalty "Bundle perks" scheme is a separate Future feature, and the Home "20% off front-row" promo isn't applied either (spec §22, item 6).                                   |
-| 5.5 | Cart persistence is silent      | 🔴 Open      | The basket persists in `localStorage["slaice.v1"]` with no "saved" or expiry cue.                                                                                                                                                      |
+| 5.5 | Cart persistence is silent      | ✅ Resolved (AENR-773) | The basket persists in `localStorage["slaice.v1"]` with no "saved" or expiry cue.                                                                                                                                                      |
 
 ### P2 — forms, inputs, validation [demo-ok]
 
 | #   | Finding                                                | Status                   | Where it stands (29 Sep 2026)                                                                                                                                                                                                                                                                                                                                                 |
 | --- | ------------------------------------------------------ | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 6.1 | No inline validation                                   | 🟡 Partly done           | Zod-validated e-mail on the product sign-in and the site gate, and an inline e-mail check in Admin › Users › Edit (`src/screens/admin.tsx:1191`). Still unvalidated: the ΑΦΜ in tenant onboarding (`src/screens/platform.tsx:240`, which was validated once — this part regressed), e-mail and phone in Manual booking (`admin.tsx:1041`) and the plate format in the wizard. |
-| 6.2 | Vehicle plate optional though the gate camera needs it | ⏪ Regressed             | Optional again: a missing plate reads "plate pending" in Review and "—" in the basket, with no warning. See [Open work](#62--the-parking-plate-is-optional-again-regressed).                                                                                                                                                                                                  |
+| 6.1 | No inline validation                                   | ✅ Resolved (AENR-772)   | Zod-validated e-mail on the product sign-in and the site gate, and an inline e-mail check in Admin › Users › Edit (`src/screens/admin.tsx:1191`). Still unvalidated: the ΑΦΜ in tenant onboarding (`src/screens/platform.tsx:240`, which was validated once — this part regressed), e-mail and phone in Manual booking (`admin.tsx:1041`) and the plate format in the wizard. |
+| 6.2 | Vehicle plate optional though the gate camera needs it | ✅ Resolved (AENR-769)   | Optional again: a missing plate reads "plate pending" in Review and "—" in the basket, with no warning. See [Open work](#62--the-parking-plate-is-optional-again-regressed).                                                                                                                                                                                                  |
 | 6.3 | No calendar beyond the 7-day strip                     | ✅ Resolved              | `DatePickerRow` has a chip strip plus a calendar modal, single or multi-day, capped at 7 days in the wizard (`src/components/ui/forms.tsx:64`, `:165`).                                                                                                                                                                                                                       |
 | 6.4 | Use the `Btn` loading state on submits                 | 🟡 Partly done [demo-ok] | Used for change password, 2FA verification, data export and the site gate (`src/components/Security.tsx:89`, `:234`; `PrivacyCenter.tsx:77`; `src/screens/SiteGate.tsx:194`), but not on money actions (Pay, Reserve & send QR, Charge). Checkout's Pay switches straight to the redirect screen, so it can't double-submit.                                                  |
 
@@ -152,7 +152,7 @@ Details for the items that need action, most urgent first. N-numbers are new in 
   show On hold, and closed stores have no bookable sets.
 
 - **Evidence:** in the wizard only taken sets are disabled — `dim: state === "u" && !sel`
-  (`src/components/sunbedGlyph.ts:101`) drives `disabled` (`src/components/Beach.tsx:72`) — so an
+  (`src/components/sunbedGlyph.ts:101`) drives `disabled` (`src/components/Sunbed.tsx`) — so an
   on-hold set is a live button whose tooltip shows "On hold" next to its price. The spec says only
   available sets are selectable (C-03).
 - **Why it matters:** "On hold" means another guest is mid-checkout. Letting a second guest pick it
@@ -177,7 +177,11 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 - **Fix:** make a name mandatory on `Toggle` (`label` or `aria-labelledby` pointing at the row title),
   and render the always-on switch as `disabled`, with the reason in its name.
 
-#### 2.2 · Sunbed targets are 31 px on phones (regressed)
+#### 2.2 · Sunbed targets are 31 px on phones (regressed) — ✅ Resolved (19 Oct 2026, AENR-749)
+
+- **Resolution:** phones draw sets as tiles that fill the grid pitch (about 40 × 48 px at 390 px, fitted
+  to the width so no column is cut off); state shows by shape as well as colour, and the zoom control
+  moved above the map.
 
 - **Evidence:** measured at 390×844 on Central's default 8×6 layout: 48 buttons, each 31×31 px (49 px
   at 1440×900). Cell size is min(64 px, 8.5% of the sand width, 0.84 × the nearest-neighbour
@@ -189,7 +193,10 @@ Details for the items that need action, most urgent first. N-numbers are new in 
   here) with the glyph centred — and/or let phones pinch-zoom or scroll the sand. Freeing height from
   the menu (2.4) helps as well.
 
-#### N3 · The action cluster hides the wizard's step counter on phones
+#### N3 · The action cluster hides the wizard's step counter on phones — ✅ Resolved (verified 19 Oct 2026)
+
+- **Verified:** the wizard is now a bottom sheet (AENR-660) with "Step N of 4 · …" in the sheet header, far from the
+  top-right cluster; the rail has four short labels (When · Where · Who · Pay).
 
 - **Evidence:** the customer's floating basket / notifications / language / account cluster is
   `fixed top-3 right-3 z-40` (`src/components/Shell/TopBar.tsx:107`). At 390×844 it lands on the
@@ -199,14 +206,26 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 - **Fix:** on phones, reserve the cluster's width in the wizard header or move the cluster into the
   menu, and use a short "Parking" label in the rail.
 
-#### 2.4 · The wizard menu takes 44% of a phone screen (partly done)
+#### 2.4 · The wizard menu takes 44% of a phone screen — ✅ Resolved (verified 19 Oct 2026)
+
+- **Verified:** in the set phase the sheet starts lowered to one line plus the footer (AENR-660), and the tab bar
+  steps aside in the wizard (AENR-752), so the sand gets most of the screen.
 
 - **Evidence:** in the set-picking phase the glass menu is 373 px tall on an 844 px viewport; with the
   legend bar and the tab bar below, the sand gets well under half the screen for 48 sets.
 - **Fix:** in the set phase on phones, collapse the menu to a one-line summary (zone · picks · total ·
   Continue) that expands on tap.
 
-#### 4.5 · Small-text contrast
+#### 4.5 · Small-text contrast — ✅ Resolved (19 Oct 2026, AENR-755, AENR-765)
+
+- **Resolution:** every plain `text-slate-400` (117 uses in 55 files) moved to the secondary-text grey;
+  slate-400 stays only for placeholders, hover/disabled variants and the disabled button style.
+  axe reports no contrast failures on 36 customer and staff pages at 1440 and 390 px.
+
+- **Progress:** `slate-500` is darkened to `#5b6b82` (passes on tinted panels), the staff sidebar group
+  labels, till and month-end captions moved off `slate-400`, notification counts are navy on gold and trend
+  pills use the -700 shades; axe now reports no contrast failures on the main customer and staff pages.
+  The sweep of less-visited screens followed in AENR-765.
 
 - **Evidence:** `text-slate-400` (#94a3b8) is 2.56:1 on white and 2.41:1 on the `#f6f8fb` page, and
   lower on glass. It carries real text in the wizard's upcoming-step labels (10 px,
@@ -222,18 +241,23 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 
 #### Also open at P1
 
-- **4.2 · Calendar dialog focus:** render the date picker through `Modal`, or reuse its
+- ✅ **Resolved (AENR-767, 19 Oct 2026: focus moves in and is trapped, Escape closes and returns focus to the date field, the dialog is named by its title)** — **4.2 · Calendar dialog focus:** render the date picker through `Modal`, or reuse its
   `useDialogFocus`, and give the dialog its title as a name.
-- **4.6 · i18n:** route the remaining customer strings through `t()`, then have a native speaker review
-  the Greek.
-- **3.1 · ⌘K / staff search:** bring back a palette that navigates and searches bookings, users and
+- ✅ **Resolved (AENR-768, 19 Oct 2026: Privacy Center, Security, wallet pass, closed-beach notice, sunbed names and tooltips and the stepper now go through `t()`; guest prices follow the language — "31,50 €" in Greek)** — **4.6 · i18n:** route the remaining customer strings through `t()`, then have a native speaker review
+  the Greek. *Still open: the native-speaker review — machine translation gets some words wrong in context
+  (e.g. "Free" set → "Δωρεάν", i.e. free of charge; "Leave" → "Άδεια", i.e. time off).* *AENR-777: the owner's corrections (Διαθέσιμο Σετ, Αποχώρηση, Επεξεργασία, Κέρδησες) are applied through `src/locales/overrides/el.json`; a full native review is still open.*
+- ✅ **Resolved (AENR-553, verified 19 Oct 2026)** — **3.1 · ⌘K / staff search:** bring back a palette that navigates and searches bookings, users and
   documents — Admin now has 13 destinations.
-- **3.3 · Account in one tap:** add a customer **Bookings** tab on phones (the tab bar only has Home and
+- ✅ **Resolved (verified 19 Oct 2026: phones have Home · Plan · Bookings · Wallet · Account tabs)** — **3.3 · Account in one tap:** add a customer **Bookings** tab on phones (the tab bar only has Home and
   Plan, then More) and a visible link on desktop.
 
 ### P2
 
-#### 6.2 · The parking plate is optional again (regressed)
+#### 6.2 · The parking plate is optional again (regressed) — ✅ Resolved (AENR-769, 19 Oct 2026)
+
+- **Fixed:** while parking is on, each car's plate is required before Pay — the payment panel is replaced by
+  "Add your car's number plate to pay" with **Add plate** (opens the form, flags empty fields, focuses the
+  first) and **Remove parking**; every parking form explains the gate camera; Review reads "plate needed".
 
 - **Evidence:** a spot can be reserved without a plate. Review then reads "plate pending" and the
   basket line "—" (`src/screens/CustomerWizard.tsx:1251`, `:339`). Only the single-day, single-spot
@@ -242,7 +266,10 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 - **Fix:** require a plate before Confirm when parking is on, or flag the gap in Review ("Add a plate
   for automatic entry") with a link back to the step.
 
-#### N4 · Orders paid entirely by a pass confirm as "Payment successful · Stripe paid"
+#### N4 · Orders paid entirely by a pass confirm as "Payment successful · Stripe paid" — ✅ Resolved (verified 19 Oct 2026)
+
+- **Verified:** the payment moment (AENR-734) says "Payment complete" only when a card was charged, otherwise
+  "Booking confirmed"; the "Stripe paid" pill is gone.
 
 - **Evidence:** when VIP credit or a Season pass covers the whole order, Checkout says "Settled from
   your pass · no card charged", but `finish()` (`src/screens/Checkout.tsx:56`) lands on the same
@@ -250,7 +277,9 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 - **Fix:** pass the settlement method to `Confirmation` and adapt its title and pills (for example
   "Booked with your pass · no card charged").
 
-#### N5 · Checkout's "what happens next" is internal jargon
+#### N5 · Checkout's "what happens next" is internal jargon — ✅ Resolved (verified 19 Oct 2026)
+
+- **Verified:** no "webhook" or "ΑΠΥ → MyDATA" wording remains on Checkout or the guest screens.
 
 - **Evidence:** under the basket: _"On success: booking confirmed via webhook, QR e-mailed, and an ΑΠΥ
   auto-issued to MyDATA."_ (`src/screens/Checkout.tsx:138`). The Confirmation pill "ΑΠΥ → MyDATA ✓"
@@ -258,7 +287,10 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 - **Fix:** plain language for guests, such as "After payment we'll e-mail your QR and a tax receipt,
   also kept in My Documents". Keep the myDATA detail on staff screens.
 
-#### N6 · The Locker step promises a feature that doesn't exist
+#### N6 · The Locker step promises a feature that doesn't exist — ✅ Resolved (verified 19 Oct 2026; the sentence was still in the Pay step's locker form and was removed in AENR-769)
+
+- **Verified:** the Locker step was folded into Pay's "Add a locker or parking" (AENR-696); the sentence is gone
+  from the code (only stale dictionary entries remain).
 
 - **Evidence:** _"Pick exact lockers later from the My Bookings QR."_
   (`src/screens/CustomerWizard.tsx:1051`), but My Bookings has no locker picking. The sentence is also
@@ -266,7 +298,11 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 - **Fix:** build the picker or change the copy to what actually happens; translate the sentence as one
   string.
 
-#### N7 · Whole cards are single buttons
+#### N7 · Whole cards are single buttons — ✅ Resolved (AENR-770, 19 Oct 2026)
+
+- **Fixed:** the hero's `<h1>` and copy are content; only **Start guided booking** is a button, stretched over
+  the card, so the card still opens the wizard and shows one focus ring. The first-visit tile is built the
+  same way; the Rebook tile was already a section with a real button.
 
 - **Evidence:** the Home hero is one `<button>` wrapping the page's only `<h1>`, a paragraph, the live
   availability line and the CTA (`src/screens/customer/CustomerHome.tsx:92`–`:121`); _Rebook your
@@ -275,7 +311,10 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 - **Fix:** keep the heading and copy as plain content and make only the CTA a real button. If the
   whole card must stay clickable, stretch the CTA over it with a pseudo-element.
 
-#### N8 · Some state is visual only
+#### N8 · Some state is visual only — ✅ Resolved (AENR-771, 19 Oct 2026)
+
+- **Fixed:** Who quick picks and the locker / parking Yes / No cards carry `aria-pressed`; each badge shows its
+  progress ("8/10", "Earned") as text instead of a tooltip.
 
 - **Evidence:** the Guests quick picks (`src/screens/CustomerWizard.tsx:926`) and the Yes/No choice
   cards on the Locker and Parking steps (`:1210`) show selection by colour alone, with no
@@ -287,9 +326,9 @@ Details for the items that need action, most urgent first. N-numbers are new in 
 
 #### Also open at P2
 
-- **6.1 · Validation:** add an ΑΦΜ checksum in onboarding, e-mail and phone checks in Manual booking,
+- ✅ **Resolved (AENR-772, 19 Oct 2026: ΑΦΜ check digit in New tenant, onboarding step 1, tenant Profile and guest invoice details; inline e-mail and mobile errors in New booking; plate format in the wizard)** — **6.1 · Validation:** add an ΑΦΜ checksum in onboarding, e-mail and phone checks in Manual booking,
   and a plate format in the wizard.
-- **5.5 · Silent cart persistence:** add a quiet "Saved on this device" note in the basket, and an
+- ✅ **Resolved (AENR-773, 19 Oct 2026: "Saved on this device — it waits here until you pay or empty it." in the basket popover and on Checkout, with Empty basket beside it; the expiry waits for real holds)** — **5.5 · Silent cart persistence:** add a quiet "Saved on this device" note in the basket, and an
   expiry once holds exist.
 
 ### Low priority and deferred

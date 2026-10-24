@@ -228,3 +228,29 @@ export const displayUrl = () => `${window.location.pathname}#/display`;
 export function openDisplay(): void {
   window.open(displayUrl(), "slaice-display", "popup=yes,width=1280,height=720");
 }
+
+/* ---------- Overview layout (AENR-801) ----------
+   The landscape overview draws each zone as a card at its place along the beach. Zones
+   seeded in beach order sit side by side on one row (AENR-766), and cards wider than the
+   gap between them overlapped. This keeps the beach order and each card centred on its
+   zone where it can, pushes neighbours apart, and splits into two staggered rows (every
+   other zone up and down the sand) when one row can't hold them. Percentages of the box. */
+export interface OverviewSlot { id: string; left: number; top: number; width: number }
+export function overviewLayout(zones: readonly { id: string; x: number; y: number }[], width = 28, gap = 2): OverviewSlot[] {
+  const sorted = [...zones].sort((a, b) => a.x - b.x);
+  const rows = sorted.length * width + (sorted.length - 1) * gap > 100 ? 2 : 1;
+  const out: OverviewSlot[] = [];
+  for (let r = 0; r < rows; r++) {
+    const row = sorted.filter((_, i) => i % rows === r);
+    // Narrow the cards if even the row's share doesn't fit.
+    const w = Math.min(width, (100 - 2 - (row.length - 1) * gap) / Math.max(1, row.length));
+    let lefts = row.map((z) => z.x - w / 2);
+    // Left to right: no overlap; then right to left: nothing past the edge.
+    for (let i = 0; i < lefts.length; i++) lefts[i] = Math.max(lefts[i], i ? lefts[i - 1] + w + gap : 1);
+    for (let i = lefts.length - 1; i >= 0; i--) lefts[i] = Math.min(lefts[i], i < lefts.length - 1 ? lefts[i + 1] - w - gap : 99 - w);
+    lefts = lefts.map((l) => Math.max(1, l));
+    const top = rows === 1 ? 30 : r === 0 ? 15 : 52;
+    row.forEach((z, i) => out.push({ id: z.id, left: lefts[i], top, width: w }));
+  }
+  return out;
+}

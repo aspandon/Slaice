@@ -24,10 +24,18 @@ export default defineConfig({
           if (!id.includes("node_modules")) return undefined;
           // konva + react-konva ride along with the lazy BeachCanvas chunk, so
           // the ~290 kB canvas stack stays out of the eager vendor bundle.
-          if (id.includes("konva")) return undefined;
+          // Its React renderer (react-reconciler + its-fine) is react-konva's alone, so it goes too.
+          if (id.includes("konva") || id.includes("react-reconciler") || id.includes("its-fine")) return undefined;
           // three rides along with the lazy LiveSeaCanvas chunk — only WebGL2
           // desktops fetch it; phones / reduced-motion never do.
           if (id.includes("/three/")) return undefined;
+          // GSAP's core (gsap-core + CSSPlugin) is eager — the guest backdrop animates on load.
+          // Its plugins (MorphSVG, Flip, MotionPath, Draggable, SplitText…) ride with the lazy
+          // screens that use them, so Home never downloads the booking wizard's motion (AENR-839).
+          if (id.includes("/gsap/") && !/\/gsap\/(index|gsap-core|CSSPlugin)\.js$/.test(id)) return undefined;
+          // zod + react-hook-form + @hookform/resolvers back only the two sign-in forms, which
+          // load on demand; left to Rollup they share a small chunk with those forms.
+          if (id.includes("/zod/") || id.includes("react-hook-form") || id.includes("@hookform")) return undefined;
           if (id.includes("lucide-react")) return "icons";
           // Radix + its Floating UI positioning stack must be grouped *before*
           // the react rule below: `@floating-ui/react-dom` matches the
@@ -40,6 +48,8 @@ export default defineConfig({
       },
     },
   },
-  server: { host: true, port: 5173 },
+  // Agent worktrees and Playwright MCP output live inside the repo; the dev server must not
+  // watch them (their edits and builds would reload — and re-optimise — the main app).
+  server: { host: true, port: 5173, watch: { ignored: ["**/.claude/**", "**/.playwright-mcp/**", "**/dist/**"] } },
   preview: { host: true, port: 4173 },
 });

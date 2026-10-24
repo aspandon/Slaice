@@ -5,32 +5,36 @@ import { AgeCheck } from "../components/AgeCheck";
 import { PaymentProgress } from "../components/PaymentProgress";
 import { QuickSignIn } from "../components/QuickSignIn";
 import type { IconRenderer } from "../lib/icons";
-import { gsap, motionOK, takeFlip, Flip, EASE } from "../lib/fx";
+import { gsap, motionOK, EASE } from "../lib/fx";
+import { takeFlip, Flip } from "../lib/fxFlip";
 import { Card, Btn, EmptyState, NotMvpBadge, SwipeRow, Toggle } from "../components/ui";
 import { QR } from "../components/charts";
 import { qrCode } from "../domain/entry";
 import { TenantLogo } from "../components/Brand";
-import { AppleLogo, WalletOptions } from "../components/WalletPass";
+import { AppleLogo, WalletButtons } from "../components/WalletPass";
 import { ShareSheet } from "./customer/ShareBooking";
 import { useEntry } from "../lib/useEntry";
 import { OPERATOR, TENANT, ZONES, todayISO } from "../data/beach";
 import { round2 } from "../data/passes";
-import { useApp, useT } from "../app/store";
+import { useApp, useMoney, useT } from "../app/store";
 import type { CartItem } from "../domain/types";
 import { PROFILE, allCards, cardBrand, cardKey, cartKey, serviceFees, settleCheckout, withCard, type InvoiceRequest, type PlacedBooking, type SavedCard } from "../domain/account";
 import { emptyInvoice, invoiceAddress, invoiceErrors, normalVatNo, type InvoiceDetails } from "../domain/invoiceDetails";
 import { InvoiceFields } from "./customer/InvoiceFields";
 import { SERVICE_NOUN, vatRates } from "../domain/economics";
-import { ARRIVAL_WINDOW, cancelLine, placedVisits, usual } from "../domain/visits";
+import { ARRIVAL_WINDOW, cancelDeadline, fmtDeadline, placedVisits, usual } from "../domain/visits";
+import type { GuestPolicy } from "../domain/visits";
 import { fmtDay, fmtWeekday } from "../domain/period";
 import { FullscreenQR, downloadVisitIcs } from "./customer/VisitTicket";
 import { useVisits, guestNow } from "../lib/useVisits";
 import { useSiteTerms } from "../lib/useEconomics";
 import { useExtras } from "../lib/useExtras";
 import { bestReward, usableRewards } from "../domain/rewards";
-import { activeRewards } from "./customer/CustomerHome";
+import { FIRST_TIME_LOYALTY, activeRewards } from "./customer/CustomerHome";
+import { useDemoFlag } from "../lib/useDemoFlag";
 import { useTenantFeatures } from "../lib/useFeatures";
 import { ActionsMenu } from "../components/ui/ActionsMenu";
+import { Decode } from "../components/DecodeText";
 
 // Online booking refs follow the account's bookings (BK-30001, BK-30002…) so they
 // never collide with sample or staff bookings, and survive a reload (AENR-597).
@@ -40,6 +44,7 @@ const bookingRefFor = (n: number) => `BK-${30001 + n}`;
 /* `embedded` (AENR-640): the booking wizard's Pay step shows only the summary and the
    payment buttons, and a paid booking goes straight to the confirmation. */
 export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
+  const money = useMoney();
   const { cart, removeFromCart, addToCart, clearCart, go, toast, passes, spendVipCredit, passPricing, account, setAccount, loyalty } = useApp();
   const t = useT();
   const mine = usual(useVisits().visits);
@@ -74,7 +79,8 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
   // The best reward the guest has earned comes off by itself (AENR-619) — removable, nothing to claim.
   // Rewards, passes and wallet payments are roadmap features (AENR-691); rewards need Loyalty (AENR-696).
   const { roadmap, allows } = useTenantFeatures();
-  const best = allows({ future: true, module: "Loyalty" }) ? bestReward(usableRewards(activeRewards(loyalty), account.rewardsUsed ?? []), cart) : null;
+  const [firstTimer] = useDemoFlag("newGuest");
+  const best = allows({ future: true, module: "Loyalty" }) ? bestReward(usableRewards(activeRewards(loyalty, firstTimer ? FIRST_TIME_LOYALTY : undefined), account.rewardsUsed ?? []), cart) : null;
   const [skipReward, setSkipReward] = useState(false);
   const rewardOff = best && !skipReward ? Math.min(best.amount, total) : 0;
 
@@ -104,7 +110,8 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
   const passApplied = rewardOff > 0 || seasonCovered > 0 || vipCover > 0 || creditUsed > 0;
   // The exact free-cancellation line for the earliest day in the basket (AENR-569).
   const firstDay = cart.map((i) => i.date).filter(Boolean).sort()[0] ?? todayISO();
-  const cancelBy = t(cancelLine(firstDay, guestNow(), policy));
+  const cancel = cancelTerms(firstDay, guestNow(), policy, t);
+  const cancelBy = cancel.text;
 
   // Pay → the payment moment (AENR-734): the progress steps and the success message run first, and
   // the booking is settled when they finish, so the pass appears only once everything is confirmed.
@@ -242,7 +249,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
         <Card className="p-8 max-w-md w-full">
           <div className="w-12 h-12 rounded-xl bg-teal-600 text-white grid place-items-center"><Icon.lock size={22} /></div>
           <h2 className="mt-3 font-display font-bold text-guest-head text-navy-900">{t("Sign in to finish your booking")}</h2>
-          <p className="mt-1 text-guest-body text-slate-600">{t("Your basket is saved —")} {cart.length} {cart.length === 1 ? t("item") : t("items")} · €{total.toFixed(2)}. {t("We need an account to send your QR and receipt.")}</p>
+          <p className="mt-1 text-guest-body text-slate-600">{t("Your basket is saved —")} {cart.length} {cart.length === 1 ? t("item") : t("items")} · {money(total, true)}. {t("We need an account to send your QR and receipt.")}</p>
           <div className="mt-5 grid gap-2">
             <QuickSignIn onSignedIn={(how) => signIn(how === "passkey" ? t("passkey") : how)} />
             <Btn variant="ghost" full icon={Icon.mail} onClick={() => signIn(t("e-mail link"))}>{t("Use e-mail instead")}</Btn>
@@ -280,17 +287,17 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
                         <ul className="mt-1 space-y-0.5 text-guest-meta text-slate-600">
                           {v.items.map((it) => (
                             <li key={it.kind + it.id} className="flex items-center gap-1.5 min-w-0">
-                              <span className="text-slate-400 shrink-0">{kindIcon(it.kind)}</span>
+                              <span className="text-slate-500 shrink-0">{kindIcon(it.kind)}</span>
                               <span className="truncate">{it.label}{it.kind === "parking" ? ` · ${plateOf(it)}` : ""}</span>
-                              <span className="ml-auto pl-2 tnum shrink-0">€{it.price}</span>
+                              <span className="ml-auto pl-2 tnum shrink-0">{money(it.price)}</span>
                             </li>
                           ))}
                         </ul>
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <div className="font-semibold tnum text-navy-900">€{v.total.toFixed(2)}</div>
-                      {v.fees > 0 && <div className="text-guest-caption text-slate-500 tnum">+€{v.fees.toFixed(2)} {t("service fee")}</div>}
+                      <div className="font-semibold tnum text-navy-900">{money(v.total, true)}</div>
+                      {v.fees > 0 && <div className="text-guest-caption text-slate-500 tnum">+{money(v.fees, true)} {t("service fee")}</div>}
                     </div>
                   </div>
                   <div className="mt-2 flex justify-end gap-1">
@@ -302,6 +309,10 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
               </div>
             ))}
           </div>
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-3 pt-2 pb-1 border-t border-slate-100 text-guest-caption text-slate-600">
+            <span className="inline-flex items-center gap-1.5"><Icon.check size={13} className="text-teal-700" aria-hidden /> {t("Saved on this device — it waits here until you pay or empty it.")}</span>
+            <button type="button" onClick={emptyBasket} className="font-semibold text-slate-600 hover:text-rose-700 rounded px-1 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">{t("Empty basket")}</button>
+          </div>
         </Card>
         <div className="mt-3 inline-flex items-center gap-1.5 rounded-lg glass-card-solid px-2.5 py-1 text-guest-caption text-slate-700"><Icon.shield size={13} /> {t("Your ticket and receipt arrive by e-mail the moment you pay.")}</div>
       </div>}
@@ -310,29 +321,29 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
         <Card className={embedded ? "p-4" : "p-5"}>
           <div className="flex items-center gap-2 mb-3"><TenantLogo size={30} /><div className="text-guest-body font-semibold text-navy-900">{TENANT.name}</div></div>
           {/* Customer-facing summary: subtotal, any pass deductions, then what's due now. */}
-          {sunbedSub > 0 && <Row l={t("Sunbeds")} v={`€${sunbedSub.toFixed(2)}`} />}
-          {ticketSub > 0 && <Row l={t("Entry tickets")} v={`€${ticketSub.toFixed(2)}`} />}
-          {extrasSub > 0 && <Row l={t(extrasLabel)} v={`€${extrasSub.toFixed(2)}`} />}
-          {sf.total > 0 && <Row l={t("Service fee")} v={`€${sf.total.toFixed(2)}`} />}
+          {sunbedSub > 0 && <Row l={t("Sunbeds")} v={`${money(sunbedSub, true)}`} />}
+          {ticketSub > 0 && <Row l={t("Entry tickets")} v={`${money(ticketSub, true)}`} />}
+          {extrasSub > 0 && <Row l={t(extrasLabel)} v={`${money(extrasSub, true)}`} />}
+          {sf.total > 0 && <Row l={t("Service fee")} v={`${money(sf.total, true)}`} />}
           {best && (rewardOff > 0 ? (
             <div className="flex items-center justify-between gap-2 text-guest-body py-0.5 text-teal-700 font-medium">
               <span className="min-w-0"><Icon.gift size={13} className="inline align-[-2px] mr-1" />{t(best.reward.title)} · {best.reward.reward} <button type="button" aria-label={t("Remove reward")} onClick={() => setSkipReward(true)} className="ml-1 text-guest-caption font-semibold text-slate-500 underline-offset-2 hover:underline hover:text-navy-900 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">{t("Remove")}</button></span>
-              <span className="tnum shrink-0">−€{rewardOff.toFixed(2)}</span>
+              <span className="tnum shrink-0">−{money(rewardOff, true)}</span>
             </div>
           ) : (
             <button type="button" onClick={() => setSkipReward(false)} className="block text-left text-guest-meta font-semibold text-teal-700 hover:underline py-0.5 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
-              <Icon.gift size={13} className="inline align-[-2px] mr-1" />{t("Use your reward")} · {best.reward.reward} (−€{Math.min(best.amount, total).toFixed(2)})
+              <Icon.gift size={13} className="inline align-[-2px] mr-1" />{t("Use your reward")} · {best.reward.reward} (−{money(Math.min(best.amount, total), true)})
             </button>
           ))}
-          {seasonCovered > 0 && <Row l={`${t("Season pass")} · ${t("1 entry")}`} v={`−€${seasonCovered.toFixed(2)}`} discount />}
-          {vipCover > 0 && <Row l={t("Paid with VIP credit")} v={`−€${vipCover.toFixed(2)}`} discount />}
-          {creditUsed > 0 && <Row l={t("Beach credit")} v={`−€${creditUsed.toFixed(2)}`} discount />}
+          {seasonCovered > 0 && <Row l={`${t("Season pass")} · ${t("1 entry")}`} v={`−${money(seasonCovered, true)}`} discount />}
+          {vipCover > 0 && <Row l={t("Paid with VIP credit")} v={`−${money(vipCover, true)}`} discount />}
+          {creditUsed > 0 && <Row l={t("Beach credit")} v={`−${money(creditUsed, true)}`} discount />}
           <div className="h-px bg-slate-100 my-2" />
-          <Row l={passApplied ? t("To pay") : t("Total")} v={`€${fullDue.toFixed(2)}`} bold />
+          <Row l={passApplied ? t("To pay") : t("Total")} v={`${money(fullDue, true)}`} bold />
           <div className="text-guest-caption text-slate-500 mt-1" data-vat-note>{vatNote}</div>
           {vipCover > 0 && (
             <div className="mt-2 rounded-xl bg-sky-50 ring-1 ring-sky-600/15 px-3 py-2 text-guest-caption text-sky-800 leading-snug">
-              <Icon.sparkles size={12} className="inline align-[-1px] mr-1" />{t("VIP credit used")} €{vipDebit.toFixed(2)} · {t("you saved")} €{vipSaved.toFixed(2)} ({Math.round(disc * 100)}%). {t("Balance")} €{vipBalance.toFixed(2)} → €{round2(vipBalance - vipDebit).toFixed(2)}.
+              <Icon.sparkles size={12} className="inline align-[-1px] mr-1" />{t("VIP credit used")} {money(vipDebit, true)} · {t("you saved")} {money(vipSaved, true)} ({Math.round(disc * 100)}%). {t("Balance")} {money(vipBalance, true)} → {money(round2(vipBalance - vipDebit), true)}.
             </div>
           )}
 
@@ -344,7 +355,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
                     <div className="text-guest-meta font-semibold text-navy-900 flex items-center gap-1.5"><Icon.sparkles size={13} className="text-sky-700" /> {t("VIP credit")}</div>
-                    <div className="text-guest-caption text-slate-500 tnum">{t("Balance")} €{vipBalance.toFixed(2)} · {Math.round(disc * 100)}% {t("off")}</div>
+                    <div className="text-guest-caption text-slate-500 tnum">{t("Balance")} {money(vipBalance, true)} · {Math.round(disc * 100)}% {t("off")}</div>
                   </div>
                   <Toggle on={applyVip} onChange={setApplyVip} ariaLabel={t("VIP credit")} />
                 </div>
@@ -387,14 +398,14 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
             <div className="mt-4 space-y-2">
               {/* Card is the way to pay today; Apple Pay, Google Pay (AENR-683) and Klarna (AENR-684)
                   are roadmap — shown with the FUTURE badge. */}
-              <Btn variant="indigo" full size="lg" icon={Icon.card} onClick={pay}>{`${t("Pay by card")} · €${cashDue.toFixed(2)}`}</Btn>
+              <Btn variant="indigo" full size="lg" icon={Icon.card} onClick={pay}>{`${t("Pay by card")} · ${money(cashDue, true)}`}</Btn>
               {roadmap && <>
               <div className="flex items-center gap-2 text-guest-caption text-slate-500"><span className="h-px flex-1 bg-slate-200" />{t("or")}<span className="h-px flex-1 bg-slate-200" /></div>
-              <button type="button" onClick={() => walletPay("apple")} disabled={!!wallet} className="relative w-full min-h-[48px] rounded-[14px] bg-black text-white font-semibold text-guest-body inline-flex items-center justify-center gap-1.5 hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 disabled:opacity-70" aria-label={`${t("Pay with Apple Pay")} €${cashDue.toFixed(2)} · ${t("coming soon")}`}>
+              <button type="button" onClick={() => walletPay("apple")} disabled={!!wallet} className="relative w-full min-h-[48px] rounded-[14px] bg-black text-white font-semibold text-guest-body inline-flex items-center justify-center gap-1.5 hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 disabled:opacity-70" aria-label={`${t("Pay with Apple Pay")} ${money(cashDue, true)} · ${t("coming soon")}`}>
                 {wallet === "apple" ? t("Confirming…") : <><AppleLogo size={17} /> Pay</>}
                 <NotMvpBadge className="absolute right-2.5 top-1/2 -translate-y-1/2" />
               </button>
-              <button type="button" onClick={() => walletPay("google")} disabled={!!wallet} className="relative w-full min-h-[48px] rounded-[14px] bg-white ring-1 ring-slate-300 text-navy-900 font-semibold text-guest-body inline-flex items-center justify-center gap-1.5 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:opacity-70" aria-label={`${t("Pay with Google Pay")} €${cashDue.toFixed(2)} · ${t("coming soon")}`}>
+              <button type="button" onClick={() => walletPay("google")} disabled={!!wallet} className="relative w-full min-h-[48px] rounded-[14px] bg-white ring-1 ring-slate-300 text-navy-900 font-semibold text-guest-body inline-flex items-center justify-center gap-1.5 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:opacity-70" aria-label={`${t("Pay with Google Pay")} ${money(cashDue, true)} · ${t("coming soon")}`}>
                 {wallet === "google" ? t("Confirming…") : <><b className="text-[#4285F4]">G</b> Pay</>}
                 <NotMvpBadge className="absolute right-2.5 top-1/2 -translate-y-1/2" />
               </button>
@@ -416,7 +427,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
           </div>
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-start gap-2 text-guest-caption text-slate-500 leading-snug">
             <Icon.shield size={13} className="shrink-0 mt-0.5 text-teal-600" />
-            <span><b className="text-navy-900">{cancelBy}</b>{cancelBy.startsWith(t("Free")) ? ` — ${policy.refundPct}% ${t("back, from My bookings in two taps.")}` : "."} <button onClick={() => toast(t("Demo — terms of service."))} className="underline hover:text-navy-900">{t("Terms")}</button></span>
+            <span><b className="text-navy-900">{cancelBy}</b>{cancel.free ? ` — ${policy.refundPct}% ${t("back, from My bookings in two taps.")}` : "."} <button onClick={() => toast(t("Demo — terms of service."))} className="underline hover:text-navy-900">{t("Terms")}</button></span>
           </div>
           <div className="mt-2 text-guest-caption text-slate-500 leading-snug">
             {OPERATOR.legal} · {t("VAT")} {OPERATOR.vat} · {OPERATOR.address}<br />
@@ -435,6 +446,7 @@ export function Checkout({ embedded = false }: { embedded?: boolean } = {}) {
 /* The tenant's Stripe Checkout (simulated): saved card or a new one, with
    "save card for faster checkout"; Pay → processing → back to Slaice. */
 function StripeStep({ amount, cards, onBack, onPaid }: { amount: number; cards: SavedCard[]; onBack: () => void; onPaid: (card: { save: boolean; last4: string; brand?: string }) => void }) {
+  const money = useMoney();
   const t = useT();
   // Every saved card (AENR-736), the default first; or a new one.
   const [pick, setPick] = useState(cards.length ? 0 : -1);
@@ -457,7 +469,7 @@ function StripeStep({ amount, cards, onBack, onPaid }: { amount: number; cards: 
           <div className="text-guest-body font-semibold text-navy-900">{TENANT.name}</div>
         </div>
         <div className="mt-4 text-guest-caption text-slate-500">{t("Total")}</div>
-        <div className="font-display text-3xl font-bold text-navy-900 tnum">€{amount.toFixed(2)}</div>
+        <div className="font-display text-3xl font-bold text-navy-900 tnum">{money(amount, true)}</div>
         <form className="mt-4 space-y-3" onSubmit={(e) => { e.preventDefault(); if (valid && !busy) submit(); }}>
           {cards.length > 0 && (
             <fieldset className="space-y-1.5">
@@ -482,7 +494,7 @@ function StripeStep({ amount, cards, onBack, onPaid }: { amount: number; cards: 
               <label className="flex items-center gap-2 text-guest-meta text-slate-700 min-h-[40px]"><input type="checkbox" className="accent-[#635bff] w-4 h-4" checked={save} onChange={(e) => setSave(e.target.checked)} /> {t("Save card for faster checkout")}</label>
             </>
           )}
-          <Btn type="submit" variant="indigo" full size="lg" disabled={!valid} loading={busy}>{busy ? t("Processing…") : `${t("Pay")} €${amount.toFixed(2)}`}</Btn>
+          <Btn type="submit" variant="indigo" full size="lg" disabled={!valid} loading={busy}>{busy ? t("Processing…") : `${t("Pay")} ${money(amount, true)}`}</Btn>
         </form>
         <div className="mt-3 text-guest-caption text-slate-500 flex items-center gap-1.5"><Icon.lock size={12} /> {t("Demo — no real card is charged. Saved cards are stored by Stripe as a token; Slaice only keeps the last 4 digits.")}</div>
         <button type="button" onClick={onBack} disabled={busy} className="mt-3 text-guest-caption text-slate-600 hover:text-navy-900">← {t("Back to the basket")}</button>
@@ -502,6 +514,7 @@ function kindIcon(kind: string) {
 }
 
 export function Confirmation({ inline, booking: given }: { inline?: boolean; booking?: PlacedBooking | null }) {
+  const money = useMoney();
   const { clearCart, go, toast, extras, account } = useApp();
   // Opened directly (#/customer/confirm): the guest's latest booking.
   const booking = given ?? account.bookings[0] ?? null;
@@ -517,20 +530,28 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
   const ob = booking ? entry.find(booking.ref) : undefined;
   const group = ob && visit ? entry.stateOf(ob, visit.date) : null;
 
-  // The success message is shown by the payment moment (AENR-734); here the pass rises in and the
-  // actions follow. Elements render in their final state — under reduced motion none of this runs.
+  // The pass prints out of a slot like a receipt (AENR-791) — only with motion; under reduced motion it
+  // renders as it always has. One smooth feed (AENR-853: it was four pushes, and with the payment
+  // moment the pass took ≈ 6 s from Pay to settle). The pass is no longer dragged into a wallet
+  // (AENR-852): the wallet button sits under it.
+  const [live] = useState(motionOK);
   useLayoutEffect(() => {
-    if (!motionOK()) return;
+    const root = scope.current;
+    const ticket = root?.querySelector<HTMLElement>("[data-confirm-qr]");
+    if (!live || !root || !ticket) return;
     const ctx = gsap.context(() => {
       gsap.timeline({ defaults: { ease: EASE.out } })
-        .from("[data-confirm-head]", { y: 10, opacity: 0, duration: 0.35 })
-        .fromTo("[data-confirm-qr]",
-          { transformPerspective: 900, rotationY: 95, opacity: 0 },
-          { rotationY: 0, opacity: 1, duration: 0.85, clearProps: "transform" }, "-=0.2")
-        .from("[data-confirm-item]", { y: 14, opacity: 0, stagger: 0.08, duration: 0.45 }, "-=0.45");
-    }, scope);
+        .from("[data-confirm-head]", { y: 8, opacity: 0, duration: 0.25 })
+        .from("[data-pass-slot]", { scaleX: 0.4, opacity: 0, duration: 0.2 }, "-=0.15")
+        .fromTo(ticket, { yPercent: -100 }, { yPercent: 0, duration: 0.45, ease: "power3.out", clearProps: "transform" }, "-=0.05")
+        // Out of the slot: the slot fades, the pass's shadow shows, the QR lands.
+        .set("[data-pass-feed]", { overflow: "visible" })
+        .to("[data-pass-slot]", { opacity: 0, duration: 0.2 })
+        .from("[data-pass-qr]", { scale: 0.9, autoAlpha: 0, duration: 0.3 }, "<")
+        .from("[data-confirm-item]", { y: 10, opacity: 0, stagger: 0.06, duration: 0.3, clearProps: "transform,opacity" }, "-=0.2");
+    }, root);
     return () => ctx.revert();
-  }, []);
+  }, [live]);
   const date = visit?.date ?? todayISO();
   const caption = `${fmtWeekday(date)} ${fmtDay(date)}${visit?.sets.length ? ` · ${visit.sets.join(", ")}` : ""}`;
   const pass = {
@@ -540,25 +561,32 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
     date: fmtDay(date),
     seat: visit?.sets.join(", ") || "—",
     guests: group?.total || Math.max(1, (visit?.sets.length ?? 1) * 2),
-    total: `€${booking?.total ?? 0}`,
+    total: `${money(booking?.total ?? 0)}`,
     // Remembered as "In Wallet" on My bookings and Home too (AENR-620).
     visitKey: visit?.key,
   };
+  // The ref decodes once the pass has printed (AENR-791).
+  const decodeAt = live ? 0.6 : undefined;
   const onSite = booking?.deposit != null ? round2(booking.total - booking.deposit) : 0;
+  // Fade in only (AENR-791): a transform on this column (fade-up) trapped the full-screen QR inside it.
   return (
-    <div ref={scope} className="animate-fade-up max-w-xl mx-auto" data-inline={inline ? "" : undefined}>
+    <div ref={scope} className="animate-fade-in max-w-xl mx-auto" data-inline={inline ? "" : undefined}>
       {/* A quiet confirmation line above the pass (AENR-734) — the big success moment came with the payment. */}
       <div className="mb-3 flex items-center justify-between gap-3 rounded-2xl glass-card-solid px-4 py-2.5" data-confirm-head>
         <h1 className="flex items-center gap-2 text-guest-body font-semibold text-navy-900">
           <span aria-hidden className="w-5 h-5 rounded-full bg-teal-600 text-white grid place-items-center"><Icon.check size={12} /></span>
           {t("Booking confirmed")}
         </h1>
-        <span className="font-mono text-guest-meta text-slate-600">{ref}</span>
+        <Decode text={ref} delay={decodeAt} className="font-mono text-guest-meta text-slate-600" />
       </div>
 
-      {/* The ticket — what the guest shows at the gate */}
-      <article aria-label={t("Your beach-day ticket")} className="rounded-[28px] bg-white shadow-lift ring-1 ring-slate-200 overflow-hidden" data-confirm-qr>
-        <div className="grad-sea text-white px-6 py-5">
+      {/* The ticket — what the guest shows at the gate. With motion it feeds out of a printer slot
+          (clipped by the feed until it's out, AENR-791). */}
+      <div className="relative">
+      {live && <span aria-hidden data-pass-slot className="absolute -left-1 -right-1 top-0 z-10 h-2.5 rounded-full bg-navy-950 shadow-[inset_0_1px_3px_rgba(0,0,0,.6)]" />}
+      <div data-pass-feed className={live ? "-mx-3 -mb-4 overflow-hidden px-3 pb-4 pt-1" : undefined}>
+      <article aria-label={t("Your beach-day ticket")} className="relative rounded-[28px] bg-white shadow-lift ring-1 ring-slate-200 overflow-hidden" data-confirm-qr>
+        <div className="relative grad-sea text-white px-6 py-5">
           <div className="text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-100">{TENANT.name}</div>
           <div className="mt-1 font-display font-bold text-guest-title leading-tight">{fmtWeekday(date)} {fmtDay(date)}</div>
           {/* Each set with its own zone, so a booking across zones reads right (AENR-715). */}
@@ -567,15 +595,17 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
         <div className="relative px-6 py-5 text-center">
           <span aria-hidden className="absolute -top-3 -left-3 w-6 h-6 rounded-full bg-slate-100" />
           <span aria-hidden className="absolute -top-3 -right-3 w-6 h-6 rounded-full bg-slate-100" />
-          <button type="button" onClick={() => setFull(true)} className="mx-auto grid place-items-center rounded-2xl p-2 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500" aria-label={t("Show the QR full screen")}>
+          {/* The perforation between the stub and the QR part (AENR-791). */}
+          <span aria-hidden className="absolute left-5 right-5 top-0 border-t-2 border-dashed border-slate-200" />
+          <button type="button" onClick={() => setFull(true)} className="mx-auto grid place-items-center rounded-2xl p-2 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500" aria-label={t("Show the QR full screen")} data-pass-qr>
             <QR size={208} seed={qrCode(ref)} />
           </button>
-          <div className="mt-1 font-mono text-guest-body font-bold text-navy-900">{ref}</div>
+          <div className="mt-1 font-mono text-guest-body font-bold text-navy-900"><Decode text={ref} delay={decodeAt} /></div>
           <div className="text-guest-meta text-slate-500">{t("Tap the code to show it full screen at the gate.")}</div>
           <dl className="mt-4 grid grid-cols-2 gap-3 text-left text-guest-meta">
             <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-slate-500 text-guest-caption">{t("Arrive")}</dt><dd className="font-semibold text-navy-900">{ARRIVAL_WINDOW}</dd></div>
-            <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-slate-500 text-guest-caption">{t("Paid")}</dt><dd className="font-semibold text-navy-900">€{(booking?.deposit ?? booking?.total ?? 0).toFixed(2)}{booking?.card ? ` · ${booking.card}` : ""}</dd></div>
-            {onSite > 0 && <div className="rounded-xl bg-amber-50 px-3 py-2 col-span-2"><dt className="text-amber-800 text-guest-caption">{t("To pay on site")}</dt><dd className="font-semibold text-amber-900">€{onSite.toFixed(2)} · {t("cash or card at the gate")}</dd></div>}
+            <div className="rounded-xl bg-slate-50 px-3 py-2"><dt className="text-slate-500 text-guest-caption">{t("Paid")}</dt><dd className="font-semibold text-navy-900">{money((booking?.deposit ?? booking?.total ?? 0), true)}{booking?.card ? ` · ${booking.card}` : ""}</dd></div>
+            {onSite > 0 && <div className="rounded-xl bg-amber-50 px-3 py-2 col-span-2"><dt className="text-amber-800 text-guest-caption">{t("To pay on site")}</dt><dd className="font-semibold text-amber-900">{money(onSite, true)} · {t("cash or card at the gate")}</dd></div>}
             {group && group.total > 0 && (
               <div className="rounded-xl bg-teal-50 px-3 py-2 col-span-2 flex items-center gap-2.5">
                 <Icon.users size={16} className="text-teal-700 shrink-0" />
@@ -586,12 +616,15 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
             <div className="rounded-xl bg-slate-50 px-3 py-2 col-span-2"><dt className="text-slate-500 text-guest-caption">{t("Entrance")}</dt><dd className="font-semibold text-navy-900 flex items-center justify-between gap-2"><span>{t("Main gate")} · {OPERATOR.address}</span>
               <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${TENANT.name} ${TENANT.place}`)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-teal-700 hover:underline shrink-0"><Icon.map size={14} /> {t("Map")}<span className="sr-only"> ({t("opens in a new tab")})</span></a></dd></div>
           </dl>
-          <p className="mt-3 text-guest-caption text-slate-600">{t(cancelLine(date, guestNow(), extras.policy))} · {booking?.invoiceTo ? `${t("invoice to")} ${booking.invoiceTo.company} (${booking.invoiceTo.vatNo}) ${t("e-mailed to")} ${booking.invoiceTo.email}` : t("receipt e-mailed")}</p>
+          <p className="mt-3 text-guest-caption text-slate-600">{cancelTerms(date, guestNow(), extras.policy, t).text} · {booking?.invoiceTo ? `${t("invoice to")} ${booking.invoiceTo.company} (${booking.invoiceTo.vatNo}) ${t("e-mailed to")} ${booking.invoiceTo.email}` : t("receipt e-mailed")}</p>
         </div>
       </article>
+      </div>
+      </div>
 
-      {/* Keep it (wallet, calendar) and send it to the group (AENR-715); the wallet badge fits the device. */}
-      <div data-confirm-item><WalletOptions pass={pass} className="mt-5" /></div>
+      {/* Add the pass to the wallet — one button under the pass for the device's own wallet (both on a
+          computer); added, it reads "In Apple / Google Wallet" (AENR-852). */}
+      <WalletButtons pass={pass} everywhere heading={false} className="mt-4" />
       <div className="mt-4 space-y-2" data-confirm-item>
         {visit && <Btn variant="teal" size="lg" full icon={Icon.send} onClick={() => setShare(true)}>{t("Share with your group")}</Btn>}
         <div className="grid grid-cols-3 gap-2">
@@ -606,3 +639,10 @@ export function Confirmation({ inline, booking: given }: { inline?: boolean; boo
   );
 }
 
+/** The cancellation terms for a visit day, built from translated pieces (the deadline varies, so the
+ *  whole sentence can't be one dictionary key) — and whether it is still free to cancel. */
+function cancelTerms(visitIso: string, now: string, p: GuestPolicy, t: (s: string) => string) {
+  const d = cancelDeadline(visitIso, p);
+  if (now < d) return { free: true, text: `${t("Free cancellation until")} ${fmtDeadline(d)}` };
+  return { free: false, text: p.lateRefundPct > 0 ? `${p.lateRefundPct}% ${t("refund if you cancel")}` : t("This booking can’t be refunded") };
+}

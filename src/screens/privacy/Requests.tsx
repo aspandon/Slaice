@@ -471,7 +471,7 @@ function RequestDrawer({
                 {i > 0 && <Icon.chevR size={12} className="text-slate-300" />}
                 <span
                   aria-current={st === "now" ? "step" : undefined}
-                  className={`rounded-full px-2 py-0.5 ring-1 ${st === "now" ? "bg-navy-900 text-white ring-navy-900" : st === "done" ? "bg-teal-50 text-teal-800 ring-teal-200" : "bg-white text-slate-400 ring-slate-200"}`}
+                  className={`rounded-full px-2 py-0.5 ring-1 ${st === "now" ? "bg-navy-900 text-white ring-navy-900" : st === "done" ? "bg-teal-50 text-teal-800 ring-teal-200" : "bg-white text-slate-500 ring-slate-200"}`}
                 >
                   {s}
                 </span>

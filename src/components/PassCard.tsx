@@ -5,7 +5,8 @@ import { SEASON_END_LABEL } from "../data/passes";
 /* Tenant membership card art (VIP / Season pass), from the supplied designs.
    Responsive (scales to its container via the viewBox) with dynamic holder /
    number / subtitle / valid-until. A black QR sits top-right (where the sun was).
-   IDs are per-instance so several can render at once. */
+   IDs are per-instance so several can render at once. A foil shimmer rides
+   over the art (still since AENR-850). */
 
 type PassKind = "vip" | "season";
 
@@ -71,33 +72,37 @@ export function PassCard({ kind, holder, number = "NO. 0042", subtitle, validUnt
   const logoUrl = `${import.meta.env.BASE_URL}tenant-logo.png`;
   const cells = qrCells(`${kind}-${number}`);
   return (
-    <svg viewBox="0 0 600 378" className={`block w-full h-auto ${className}`} role="img" aria-label={`${c.titleText} card`}
-      fontFamily="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
-      <defs>
-        <linearGradient id={grad} x1="0" y1="0" x2="0.2" y2="1">
-          {c.stops.map(([off, col]) => <stop key={off} offset={off} stopColor={col} />)}
-        </linearGradient>
-      </defs>
-      <g>
-        <rect width="600" height="378" fill={`url(#${grad})`} />
-        {WAVES.map((d, i) => <path key={i} d={d} fill={c.waves[i]} />)}
+    <div className={`relative isolate overflow-hidden ${className}`}>
+      <svg viewBox="0 0 600 378" className="block w-full h-auto" role="img" aria-label={`${c.titleText} card`}
+        fontFamily="system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">
+        <defs>
+          <linearGradient id={grad} x1="0" y1="0" x2="0.2" y2="1">
+            {c.stops.map(([off, col]) => <stop key={off} offset={off} stopColor={col} />)}
+          </linearGradient>
+        </defs>
+        <g>
+          <rect width="600" height="378" fill={`url(#${grad})`} />
+          {WAVES.map((d, i) => <path key={i} d={d} fill={c.waves[i]} />)}
 
-        <image href={logoUrl} x="40" y="26" width="215" height="50" preserveAspectRatio="xMinYMid meet" />
+          <image href={logoUrl} x="40" y="26" width="215" height="50" preserveAspectRatio="xMinYMid meet" />
 
-        {/* QR (black) where the sun used to be. */}
-        <rect x={QX - 10} y={QY - 10} width={QS + 20} height={QS + 20} rx="14" fill="#ffffff" stroke="rgba(0,0,0,0.08)" />
-        <g transform={`translate(${QX} ${QY}) scale(${QS / QR_N})`}>
-          {cells.map(([x, y], i) => <rect key={i} x={x} y={y} width="1" height="1" fill="#000000" />)}
+          {/* QR (black) where the sun used to be. */}
+          <rect x={QX - 10} y={QY - 10} width={QS + 20} height={QS + 20} rx="14" fill="#ffffff" stroke="rgba(0,0,0,0.08)" />
+          <g transform={`translate(${QX} ${QY}) scale(${QS / QR_N})`}>
+            {cells.map(([x, y], i) => <rect key={i} x={x} y={y} width="1" height="1" fill="#000000" />)}
+          </g>
+
+          <text x="42" y={c.titleY} fontSize={c.titleSize} fontWeight="700" fill={c.ink.title} style={{ letterSpacing: c.titleLS }}>{c.titleText}</text>
+          <text x={c.subX} y={c.subY} fontSize="13" fontWeight="600" fill={c.ink.subtitle} style={{ letterSpacing: "3px" }}>{sub}</text>
+
+          <text x="44" y="236" fontSize="12.5" fontWeight="700" fill={c.ink.memberLabel} style={{ letterSpacing: "2px" }}>MEMBER</text>
+          <text x="44" y="263" fontSize="19" fontWeight="700" fill={c.ink.name} style={{ letterSpacing: "0.5px" }}>{name}</text>
+          <text x="44" y="285" fontSize="11" fontWeight="600" fill={c.ink.subtitle} style={{ letterSpacing: "1px" }}>VALID UNTIL {until}</text>
+          <text x="556" y="263" textAnchor="end" fontFamily="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" fontSize="19" fontWeight="600" fill={c.ink.number} style={{ letterSpacing: "1.5px" }}>{number}</text>
         </g>
-
-        <text x="42" y={c.titleY} fontSize={c.titleSize} fontWeight="700" fill={c.ink.title} style={{ letterSpacing: c.titleLS }}>{c.titleText}</text>
-        <text x={c.subX} y={c.subY} fontSize="13" fontWeight="600" fill={c.ink.subtitle} style={{ letterSpacing: "3px" }}>{sub}</text>
-
-        <text x="44" y="236" fontSize="12.5" fontWeight="700" fill={c.ink.memberLabel} style={{ letterSpacing: "2px" }}>MEMBER</text>
-        <text x="44" y="263" fontSize="19" fontWeight="700" fill={c.ink.name} style={{ letterSpacing: "0.5px" }}>{name}</text>
-        <text x="44" y="285" fontSize="11" fontWeight="600" fill={c.ink.subtitle} style={{ letterSpacing: "1px" }}>VALID UNTIL {until}</text>
-        <text x="556" y="263" textAnchor="end" fontFamily="ui-monospace, 'SF Mono', Menlo, Consolas, monospace" fontSize="19" fontWeight="600" fill={c.ink.number} style={{ letterSpacing: "1.5px" }}>{number}</text>
-      </g>
-    </svg>
+      </svg>
+      {/* Foil (AENR-792): a still light band across the art — it no longer moves (AENR-848, 850). */}
+      <span aria-hidden="true" className="foil" />
+    </div>
   );
 }

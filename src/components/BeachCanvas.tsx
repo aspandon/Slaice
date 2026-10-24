@@ -3,7 +3,8 @@ import type { KonvaEventObject } from "konva/lib/Node";
 import { Stage, Layer, Group, Rect, Path, Text, Line, Circle } from "react-konva";
 import type { Landmark, SunbedSlot, SunbedState } from "../domain/types";
 import { LANDMARK_LABEL } from "../data/pricing";
-import { BEDS, CANOPY, CANOPY_PATH, FIN, GLYPH_CONTENT, LITE_PATH, sunbedPalette } from "./sunbedGlyph";
+import { BEDS, CANOPY, CANOPY_PATH, FIN, GLYPH_CONTENT, LITE_PATH, SHADOW_INK, sunbedPalette } from "./sunbedGlyph";
+import { useSunCast } from "../lib/useSeaLight";
 
 /* ---------- Shared Konva beach renderer ----------
    Draws a zone's umbrella-set layout (the SunbedSlot[] the admin authors and the
@@ -15,6 +16,11 @@ import { BEDS, CANOPY, CANOPY_PATH, FIN, GLYPH_CONTENT, LITE_PATH, sunbedPalette
    The set glyph is the same one the SVG <Sunbed> draws (sunbedGlyph.ts),
    re-expressed as Konva nodes so the canvas and the rest of the app match. */
 
+/** #rrggbb at alpha `a`, for Konva gradient stops. */
+const rgba = (hex: string, a: number) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a.toFixed(3)})`;
+};
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 const isAdditive = (e: KonvaEventObject<MouseEvent | TouchEvent>) => {
   const ev = e.evt as MouseEvent;
@@ -75,6 +81,9 @@ export function BeachCanvas({
   selected, onToggle, editable = false, selectedIds, onSelect, onMove, snap = 0,
   catOf, priceOf, tagOf, landmarks, selectedLandmark, onLandmarkSelect, onLandmarkMove, onBoxSelect, paint = false, onPaint, onCanvasClick,
 }: BeachCanvasProps) {
+  // The scene's sun (AENR-829): every set's shadow falls away from it — one shape per set.
+  const cast = useSunCast();
+  const shadowStops = [0, rgba(SHADOW_INK, cast.alpha), 1 - cast.soft, rgba(SHADOW_INK, cast.alpha * 0.8), 1, rgba(SHADOW_INK, 0)];
   const [band, setBand] = useState<{ x0: number; y0: number; x1: number; y1: number; add: boolean } | null>(null);
   const painting = useRef(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -249,6 +258,10 @@ export function BeachCanvas({
                         <Path data={bed.slats} stroke={c.slat} strokeWidth={1.3} lineCap="round" />
                       </Group>
                     ))}
+                    {/* The canopy's shadow on the sand, away from the sun — a circle stretched along its
+                        line, so the radial fade stretches with it. */}
+                    <Circle x={cast.x} y={cast.y} radius={CANOPY.r + 0.5} scaleX={cast.stretch} rotation={cast.rot} listening={false}
+                      fillRadialGradientStartRadius={0} fillRadialGradientEndRadius={CANOPY.r + 0.5} fillRadialGradientColorStops={shadowStops} />
                     {/* Pinwheel parasol — gores merged by colour into one path each. */}
                     <Path data={CANOPY_PATH} fill={c.c} />
                     <Path data={LITE_PATH} fill={c.lite} />

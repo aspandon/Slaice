@@ -74,7 +74,7 @@ export function ExampleBooking({
   return (
     <Card className="p-4" surface="raised">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="font-semibold text-navy-900">Example booking</h3>
+        <h4 className="font-semibold text-navy-900">Example booking</h4>
         {editing && (
           <Badge tone={invalid ? "red" : "amber"}>
             {invalid ? `${invalid} to fix` : "Draft terms"}

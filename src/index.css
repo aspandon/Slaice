@@ -2,10 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* A local face sized to Inter's metrics (AENR-751): while the Inter web font
+   loads, text renders in Arial scaled to match, so the swap doesn't reflow the
+   page (it was Home's 0.11 layout shift). Apple devices use the system font and
+   never swap. Overrides as computed by next/font for Inter over Arial. */
+@font-face {
+  font-family: "Inter Fallback";
+  src: local("Arial"), local("ArialMT"), local("Liberation Sans"), local("Arimo");
+  ascent-override: 90.44%;
+  descent-override: 22.52%;
+  line-gap-override: 0%;
+  size-adjust: 107.12%;
+}
+
 :root {
   /* Apple-leaning system stack: real SF on Apple devices, Inter everywhere else. */
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
-  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", system-ui, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter Variable", "Inter", "Inter Fallback", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter Variable", "Inter", "Inter Fallback", system-ui, sans-serif;
 }
 
 html,
@@ -58,9 +71,14 @@ body::before {
 
 /* Accessible keyboard focus (WCAG 2.4.7) — visible only for keyboard users. */
 :focus-visible {
-  outline: 2px solid #0d9488;
+  outline: 2px solid #0a8276;
   outline-offset: 2px;
   border-radius: 8px;
+}
+/* Containers that receive focus programmatically (a new page, a dialog panel)
+   are landmarks, not controls — no ring around the whole region (AENR-750). */
+[tabindex="-1"]:focus-visible {
+  outline: none;
 }
 *:focus:not(:focus-visible) {
   outline: none;
@@ -111,6 +129,14 @@ textarea:focus-visible {
 html[data-persona="customer"] {
   scrollbar-width: none; /* Firefox */
 }
+/* Until the beach backdrop paints (and under it, while it fades in), the guest page is the sea —
+   never the staff canvas's near-white (AENR-820). The default preset's water, top to bottom. */
+html[data-persona="customer"] body {
+  background: linear-gradient(#1565c8, #1a8fdc 45%, #1fc4e2 80%, #6fe3ec);
+}
+html[data-persona="customer"] body::before {
+  display: none;
+}
 html[data-persona="customer"]::-webkit-scrollbar {
   width: 0;
   height: 0;
@@ -157,6 +183,25 @@ html[data-persona="customer"]::-webkit-scrollbar {
     -webkit-backdrop-filter: saturate(180%) blur(20px);
     border: 1px solid rgba(255, 255, 255, 0.55);
     box-shadow: 0 1px 1px rgba(15, 23, 42, 0.03), 0 12px 32px -16px rgba(15, 23, 42, 0.18);
+  }
+  /* Bottom tab bar material (AENR-753): near-solid so nothing reads through,
+     with a short fade above it so content dissolves before it meets the bar
+     instead of sliding legibly underneath. */
+  .tabbar-material {
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: saturate(160%) blur(20px);
+    -webkit-backdrop-filter: saturate(160%) blur(20px);
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+  }
+  .tabbar-material::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 100%;
+    height: 20px;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.85));
   }
   /* Frosted material WITHOUT backdrop-filter. Looks like .glass over a smooth
      gradient, but because it does no backdrop sampling it cannot produce the
@@ -220,6 +265,12 @@ html[data-persona="customer"]::-webkit-scrollbar {
     .glass-dark {
       background: linear-gradient(135deg, rgba(11, 37, 69, 0.95), rgba(19, 49, 92, 0.92));
     }
+  }
+
+  /* A taken set on the phone map (AENR-749): struck through, so "taken" never
+     depends on its grey alone. */
+  .set-tile-taken {
+    background-image: linear-gradient(135deg, transparent 46%, rgba(100, 116, 139, 0.55) 47%, rgba(100, 116, 139, 0.55) 53%, transparent 54%);
   }
 
   /* Safe-area helpers for notched / home-indicator devices (iOS, some Android).
@@ -309,20 +360,35 @@ html[data-persona="customer"]::-webkit-scrollbar {
       radial-gradient(circle 420px at var(--gx, 50%) var(--gy, 50%), rgba(45, 212, 191, 0.15), transparent 65%);
   }
 
-  /* Sheen that paints OVER the content — for image/SVG cards (the pass-card
-     art) where a glare across the artwork is the point. Driven by the same
-     --gx/--gy/--ga variables (useCardTilt writes them). */
-  .sheen-card {
+
+  /* ---- The pass card foil (AENR-792) ----
+     A still glare and iridescent edge across the card art. It no longer moves — neither with the
+     phone (AENR-848) nor with the pointer (AENR-850). */
+  .foil {
     position: absolute;
     inset: 0;
-    z-index: 1;
-    border-radius: inherit;
+    overflow: hidden;
     pointer-events: none;
-    opacity: var(--ga, 0);
-    transition: opacity 0.35s ease;
-    background: radial-gradient(circle 240px at var(--gx, 50%) var(--gy, 50%), rgba(255, 255, 255, 0.34), transparent 62%);
+    border-radius: inherit;
   }
-
+  /* Two oversized diagonal bands — a white glare and a faint iridescent edge —
+     that slide across the art; transforms only, blended into the card. */
+  .foil::before,
+  .foil::after {
+    content: "";
+    position: absolute;
+    inset: -60%;
+    transform: translate3d(-3%, -3%, 0);
+  }
+  .foil::before {
+    mix-blend-mode: overlay;
+    background: linear-gradient(115deg, transparent 38%, rgba(255, 255, 255, 0.28) 45%, rgba(255, 255, 255, 0.6) 50%, rgba(255, 255, 255, 0.28) 55%, transparent 62%);
+  }
+  .foil::after {
+    mix-blend-mode: soft-light;
+    opacity: 0.55;
+    background: linear-gradient(115deg, transparent 44%, rgba(255, 140, 205, 0.8) 52%, rgba(130, 220, 255, 0.8) 57%, rgba(255, 240, 160, 0.8) 62%, transparent 69%);
+  }
   /* Kinetic gradient text — a gold glint periodically sweeps across the teal
      phrase (the hero's "in 60 seconds"). Static teal under reduced motion via
      the global animation kill. */
@@ -331,9 +397,9 @@ html[data-persona="customer"]::-webkit-scrollbar {
     background-size: 220% 100%;
     -webkit-background-clip: text;
     background-clip: text;
-    color: #0d9488; /* fallback + reduced-motion colour */
+    color: #0a8276; /* fallback + reduced-motion colour */
     -webkit-text-fill-color: transparent;
-    animation: shimmerText 5.5s ease-in-out infinite;
+    animation: shimmerText 5.5s ease-in-out 2 forwards; /* twice as the hero lands, then plain teal (AENR-867) */
   }
   @keyframes shimmerText {
     0%, 45% { background-position: 115% 0; }
@@ -349,7 +415,7 @@ html[data-persona="customer"]::-webkit-scrollbar {
     inset: -1px;
     border-radius: 9999px;
     background: currentColor;
-    animation: livePing 2.4s cubic-bezier(0, 0, 0.2, 1) infinite;
+    animation: livePing 2.4s cubic-bezier(0, 0, 0.2, 1) 3 forwards; /* a few pings; the text carries the meaning (AENR-867) */
   }
   @keyframes livePing {
     0% { transform: scale(1); opacity: 0.55; }
@@ -365,6 +431,10 @@ html[data-persona="customer"]::-webkit-scrollbar {
     background: linear-gradient(90deg, #475e80 0%, #93c5fd 18%, #fde68a 45%, #fbbf24 62%, #fb923c 78%, #34406b 100%);
     outline-offset: 4px;
     cursor: pointer;
+  }
+  /* A choice between options, not a scale (the Guest sea sliders, AENR-855): a plain track. */
+  .demo-range.demo-range-plain {
+    background: theme("colors.slate.300");
   }
   .demo-range::-webkit-slider-thumb {
     appearance: none;
@@ -406,6 +476,12 @@ html[data-persona="customer"]::-webkit-scrollbar {
     animation-duration: 200s;
     animation-direction: alternate-reverse;
   }
+  /* Sunny or windy: the cover is invisible, so its drift pauses (AENR-867) and picks up from the same
+     spot when the clouds return. */
+  .clouds-clear > .cloud-bank,
+  .clouds-clear > .cloud-bank-b {
+    animation-play-state: paused;
+  }
   @keyframes cloudDrift {
     from { transform: translateX(-3.5%); }
     to { transform: translateX(3.5%); }
@@ -414,7 +490,7 @@ html[data-persona="customer"]::-webkit-scrollbar {
   /* Breathing glow for the primary hero CTA — shadow-only (no transform, so it
      can't fight the magnetic-hover tween that owns the element's transform). */
   .cta-breathe {
-    animation: ctaBreathe 3.4s ease-in-out infinite;
+    animation: ctaBreathe 3.4s ease-in-out 3; /* three breaths, then rest — the end frame is shadow-btn-primary (AENR-867) */
   }
   @keyframes ctaBreathe {
     0%, 100% { box-shadow: 0 1px 2px rgba(11, 37, 69, 0.24), 0 10px 22px -12px rgba(11, 37, 69, 0.45); }
@@ -469,6 +545,29 @@ html[data-persona="customer"]::-webkit-scrollbar {
   [data-persona="customer"] .glass-card {
     background: rgba(255, 255, 255, 0.94);
   }
+}
+
+/* ===== Over a filmed or rendered sea: tinted glass, no live blur (AENR-862) =====
+   <html data-sea="film"> is set by CustomerBackdrop while the Video or Blender sea is on screen. A
+   backdrop blur over a video is re-computed on every video frame (on the Plan screen of a phone
+   that was two-thirds of the screen); the reference sites keep nothing live over their video. So
+   every glass surface becomes a slightly denser tint instead — the same material without the live
+   blur; Classic and Coastal keep the frosted glass. */
+[data-sea="film"] *,
+[data-sea="film"] *::before,
+[data-sea="film"] *::after {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+[data-sea="film"] .glass,
+[data-sea="film"][data-persona="customer"] .glass-card {
+  background: rgba(255, 255, 255, 0.84);
+}
+[data-sea="film"] .glass-input {
+  background: rgba(255, 255, 255, 0.9);
+}
+[data-sea="film"] .glass-dark {
+  background: linear-gradient(135deg, rgba(11, 37, 69, 0.9), rgba(19, 49, 92, 0.84));
 }
 
 /* Scrims behind sticky staff bars (AENR-738): the canvas colour, fading out on the
@@ -550,4 +649,142 @@ table .text-slate-400 {
   font: 600 12px/1.6 ui-monospace, monospace;
   text-align: center;
   color: #0b2545;
+}
+
+/* ---------- Weather you can see (AENR-807, WeatherUi.tsx) ----------
+   Transform / opacity only, and nothing at all under reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  /* Umbrellas sway in irregular gusts — a wiggle that settles, then a stronger push. */
+  [data-gust] [data-canopy] {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: canopy-gust 3.4s ease-in-out infinite;
+    animation-delay: var(--gust-delay, 0s);
+  }
+  [data-gust="2"] [data-canopy] {
+    animation-name: canopy-gust-strong;
+    animation-duration: 2.3s;
+  }
+  .weather-shade > span {
+    position: absolute;
+    top: -20%;
+    width: 70vmax;
+    height: 50vmax;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgba(11, 37, 69, 0.11), rgba(11, 37, 69, 0));
+    will-change: transform;
+  }
+  .weather-shade-a {
+    left: -70vmax;
+    animation: cloud-shade 46s linear infinite;
+  }
+  .weather-shade-b {
+    left: -70vmax;
+    top: 35% !important;
+    animation: cloud-shade 63s linear infinite -24s;
+  }
+  .rain-run {
+    position: absolute;
+    top: -14%;
+    width: 4px;
+    height: 46px;
+    border-radius: 999px;
+    /* The trail a drop leaves on the glass, ending in its head. */
+    background: linear-gradient(to bottom, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.5) 60%, rgba(214, 232, 246, 0.85));
+    animation: rain-run 3.6s cubic-bezier(0.55, 0, 0.75, 0.6) infinite;
+  }
+  .rain-run-head {
+    position: absolute;
+    left: 50%;
+    bottom: -3px;
+    width: 9px;
+    height: 10px;
+    transform: translateX(-50%);
+    border-radius: 50% 50% 48% 48%;
+    background: radial-gradient(circle at 35% 30%, #fff, rgba(205, 226, 243, 0.75) 50%, rgba(11, 37, 69, 0.3));
+    box-shadow: 0 1px 2px rgba(11, 37, 69, 0.3);
+  }
+}
+/* A bead of water resting on the glass: a bright highlight, a clear body and a darker
+   rim with a small shadow under it, so it reads as a drop on any panel colour. */
+.rain-bead {
+  position: absolute;
+  border-radius: 50% 50% 46% 46%;
+  background: radial-gradient(circle at 34% 30%, #fff 0 14%, rgba(222, 238, 250, 0.55) 30%, rgba(176, 205, 228, 0.35) 62%, rgba(11, 37, 69, 0.35) 100%);
+  box-shadow: 0 1.5px 2px rgba(11, 37, 69, 0.28), inset 0 -1px 1px rgba(255, 255, 255, 0.6);
+}
+@keyframes canopy-gust {
+  0%, 100% { transform: rotate(0deg) translate(0, 0); }
+  18% { transform: rotate(-5deg) translate(0.4px, 0); }
+  30% { transform: rotate(3deg) translate(-0.3px, 0); }
+  42% { transform: rotate(-2deg); }
+  55% { transform: rotate(0.6deg); }
+  78% { transform: rotate(-1.4deg); }
+}
+@keyframes canopy-gust-strong {
+  0%, 100% { transform: rotate(0deg) translate(0, 0); }
+  14% { transform: rotate(-10deg) translate(0.9px, 0.2px); }
+  26% { transform: rotate(6deg) translate(-0.6px, 0); }
+  38% { transform: rotate(-5deg) translate(0.4px, 0); }
+  52% { transform: rotate(2.5deg); }
+  70% { transform: rotate(-3deg) translate(0.3px, 0); }
+  86% { transform: rotate(1deg); }
+}
+@keyframes cloud-shade {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(calc(100vw + 140vmax), 0, 0); }
+}
+@keyframes rain-run {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  12% { opacity: 1; }
+  40% { transform: translate3d(0, 40vh, 0); }
+  48% { transform: translate3d(1px, 44vh, 0); }
+  100% { transform: translate3d(-1px, 120vh, 0); opacity: 0.9; }
+}
+
+/* The glints on the reflection path shimmer (AENR-815 / 819, SeaLightSvg): two glint layers pulse in
+   turn — opacity on whole layers, so only the compositor works. Still under reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .sea-twinkle-a {
+    animation: sea-twinkle 2.6s ease-in-out infinite;
+    will-change: opacity;
+  }
+  .sea-twinkle-b {
+    animation: sea-twinkle 2.6s ease-in-out infinite -1.3s;
+    will-change: opacity;
+  }
+}
+@keyframes sea-twinkle {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+/* The glint layers lighten what is under them, like the glints drawn in the scene. */
+.sea-twinkle-a,
+.sea-twinkle-b {
+  mix-blend-mode: screen;
+}
+
+/* ---- Guest page changes as View Transitions (AENR-840) ----
+   Only the page being left is captured (App.tsx › transitionTo): it fades out and drifts away from
+   the side the new page arrives from, above the live document. The rest of the screen — the sea,
+   the nav, the new page sliding in — is never a snapshot, so the root does not animate. Short
+   (the `fast` duration) so a tap is never held up; reduced motion never starts one. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+::view-transition-group(guest-page) {
+  animation: none;
+}
+::view-transition-old(guest-page) {
+  animation: guest-page-out 180ms cubic-bezier(0.4, 0, 1, 1) both;
+}
+:root[data-page-dir="back"]::view-transition-old(guest-page) {
+  animation-name: guest-page-out-back;
+}
+@keyframes guest-page-out {
+  to { opacity: 0; transform: translateX(-14px); }
+}
+@keyframes guest-page-out-back {
+  to { opacity: 0; transform: translateX(14px); }
 }

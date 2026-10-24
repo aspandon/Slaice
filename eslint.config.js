@@ -9,7 +9,7 @@ import prettier from "eslint-config-prettier";
 // `.jsx` files are ignored until they are converted, so lint output stays
 // focused on code that has opted into the new toolchain.
 export default tseslint.config(
-  { ignores: ["dist", "node_modules", "**/*.jsx"] },
+  { ignores: ["dist", "docs", "node_modules", "**/*.jsx", ".claude/worktrees"] },
   {
     files: ["**/*.{ts,tsx}"],
     extends: [js.configs.recommended, ...tseslint.configs.recommended],

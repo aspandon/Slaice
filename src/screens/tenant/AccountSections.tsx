@@ -11,7 +11,6 @@ import {
   Select,
   Table,
   DateInput, ExportMenu } from "../../components/ui";
-import { Sparkline } from "../../components/charts";
 import { usePlatform } from "../../lib/usePlatform";
 import { addDays, fmtDay } from "../../domain/period";
 import {
@@ -25,14 +24,16 @@ import {
   LIFECYCLE_LABEL,
   SEVERITY_LABEL,
   actionsRequired,
-  healthScore,
   type Contact,
   type TenantRecord,
 } from "../../domain/tenants";
-import { KV, ReasonModal, SectionFrame, useTenantDraft, type SectionProps } from "./kit";
+import { KV, Part, ReasonModal, SectionFrame, useTenantDraft, type SectionProps } from "./kit";
+import { Localisation, Locations } from "./ProductSections";
+import { Health } from "./SupportSections";
 import { eur as eurFull, rateLabel, subscriptionLabel, termsOf } from "../../domain/economics";
 import { seasonToDate } from "../../data/economics";
 import { useStatementOpts } from "../../lib/useEconomics";
+import { tenantVatProblem } from "../../domain/validate";
 import { invoiceDownload } from "../reporting/Statement";
 
 const eur = (n: number) => `€${n.toLocaleString("en-GB")}`;
@@ -44,13 +45,18 @@ const SEV_ICON = {
   info: Icon.info,
 } as const;
 
-/* ---------- Overview ---------- */
-export function Overview({ t, go }: SectionProps) {
+/* ---------- Overview ----------
+   Actions required, the season KPIs and recent activity, then two parts: the
+   Health score (AENR-821) and Usage & limits (AENR-798). */
+const OVERVIEW_PARTS = [
+  { id: "health", label: "Health score" },
+  { id: "usage", label: "Usage & limits" },
+] as const;
+export function Overview({ t, canEdit, go }: SectionProps) {
   const { today, updateTenant, toast, mrr, planName } = usePlatform();
   const statementOpts = useStatementOpts(today);
   const slaice = useMemo(() => seasonToDate(t, statementOpts(t)), [t, statementOpts]);
   const actions = actionsRequired(t, today);
-  const h = healthScore(t, today);
   const resolve = (id: string, how: string) => {
     updateTenant(
       t.id,
@@ -87,6 +93,7 @@ export function Overview({ t, go }: SectionProps) {
     <SectionFrame
       title="Overview"
       sub={`${LIFECYCLE_LABEL[t.lifecycle]}${t.goLive ? ` since ${fmtDay(t.goLive)}` : ""} · ${t.subdomain} · ${planName(t)}`}
+      parts={OVERVIEW_PARTS}
     >
       {actions.length > 0 && (
         <Card className="p-4">
@@ -152,63 +159,40 @@ export function Overview({ t, go }: SectionProps) {
           </Card>
         ))}
       </div>
-      <div className="grid lg:grid-cols-2 gap-3">
-        <Card className="p-4">
-          <h3 className="font-semibold text-navy-900 mb-1">Health</h3>
-          <div className="flex items-center gap-3">
-            <span className="font-display text-3xl font-bold text-navy-900 tnum">{h.score}</span>
-            <Badge tone={h.label === "Healthy" ? "green" : h.label === "At risk" ? "amber" : "red"}>
-              {h.label === "Healthy" ? <Icon.checkCircle size={11} /> : <Icon.alert size={11} />}{" "}
-              {h.label}
-            </Badge>
-            <Sparkline data={t.health.trend} color="#0D9488" width={120} height={32} />
-            <Btn size="sm" variant="ghost" className="ml-auto" onClick={() => go("health")}>
-              Why?
-            </Btn>
-          </div>
-          <div className="mt-2 grid grid-cols-3 gap-2 text-[12px]">
-            {(
-              [
-                ["Stripe", t.stripe.charges && t.stripe.payouts],
-                ["myDATA", t.mydata === "connected"],
-                ["Webhooks", t.webhooks === "healthy"],
-              ] as [string, boolean][]
-            ).map(([l, ok]) => (
-              <span
-                key={l}
-                className={`rounded-lg px-2 py-1.5 ring-1 flex items-center gap-1.5 ${ok ? "bg-emerald-50 text-emerald-700 ring-emerald-600/15" : "bg-amber-50 text-amber-800 ring-amber-600/20"}`}
-              >
-                {ok ? <Icon.check size={12} /> : <Icon.alert size={12} />} {l} {ok ? "OK" : "issue"}
-              </span>
+      <Card className="p-4">
+        <h3 className="font-semibold text-navy-900 mb-1">Recent activity</h3>
+        {t.audit.length === 0 ? (
+          <p className="text-[13px] text-slate-500">No changes yet.</p>
+        ) : (
+          <ul className="text-[12.5px] space-y-1">
+            {t.audit.slice(0, 5).map((a) => (
+              <li key={a.id}>
+                <span className="text-slate-500">
+                  {new Date(a.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                </span>{" "}
+                · <b className="text-navy-900">{a.change}</b> · {a.actor}
+              </li>
             ))}
-          </div>
-        </Card>
-        <Card className="p-4">
-          <h3 className="font-semibold text-navy-900 mb-1">Recent activity</h3>
-          {t.audit.length === 0 ? (
-            <p className="text-[13px] text-slate-500">No changes yet.</p>
-          ) : (
-            <ul className="text-[12.5px] space-y-1">
-              {t.audit.slice(0, 5).map((a) => (
-                <li key={a.id}>
-                  <span className="text-slate-500">
-                    {new Date(a.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                  </span>{" "}
-                  · <b className="text-navy-900">{a.change}</b> · {a.actor}
-                </li>
-              ))}
-            </ul>
-          )}
-          <Btn size="sm" variant="ghost" className="mt-2" onClick={() => go("audit")}>
-            Audit log
-          </Btn>
-        </Card>
-      </div>
+          </ul>
+        )}
+        <Btn size="sm" variant="ghost" className="mt-2" onClick={() => go("audit")}>
+          Audit log
+        </Btn>
+      </Card>
+      {/* The Health score page (AENR-821), then the usage meters (AENR-798) — the two pages
+          folded into Overview, each a part old links land on. */}
+      <Health t={t} canEdit={canEdit} go={go} />
+      <Usage t={t} canEdit={canEdit} go={go} />
     </SectionFrame>
   );
 }
 
-/* ---------- Profile & contacts ---------- */
+/* ---------- Profile (AENR-796) ----------
+   One page for who the tenant is: identity and contacts, the contract, its
+   locations and its localisation. Each part keeps its own draft, Save bar and
+   Audit-log section, so saving one never touches another; Contract & account
+   stays Admin-only. Old links (…/contract, /locations, /localisation) land on
+   their part. */
 const ROLE_LABEL: Record<Contact["role"], string> = {
   owner: "Account owner (signatory)",
   billing: "Billing",
@@ -216,23 +200,37 @@ const ROLE_LABEL: Record<Contact["role"], string> = {
   technical: "Technical",
   dpo: "DPO",
 };
-export function Profile({ t }: SectionProps) {
+const PROFILE_PARTS = [
+  { id: "identity", label: "Identity & contacts" },
+  { id: "contract", label: "Contract & account" },
+  { id: "locations", label: "Locations & capacity" },
+  { id: "localisation", label: "Localisation" },
+] as const;
+export function Profile(p: SectionProps) {
+  return (
+    <SectionFrame
+      title="Profile"
+      sub="Who the tenant is — legal identity, contacts, contract, locations and languages. Each part saves on its own."
+      parts={PROFILE_PARTS}
+    >
+      <Identity {...p} />
+      <Contract {...p} />
+      <Locations {...p} />
+      <Localisation {...p} />
+    </SectionFrame>
+  );
+}
+
+function Identity({ t }: SectionProps) {
+  // Language, timezone and currency live in Localisation only — one draft per field.
   const d = useTenantDraft(
     t,
-    [
-      "name",
-      "legalName",
-      "vatNo",
-      "address",
-      "country",
-      "language",
-      "timezone",
-      "currency",
-      "contacts",
-    ] as const,
+    ["name", "legalName", "vatNo", "address", "country", "contacts"] as const,
     "Profile",
     ["vatNo", "legalName"],
+    (x) => tenantVatProblem(x.vatNo, x.country),
   );
+  const vatErr = tenantVatProblem(d.draft.vatNo, d.draft.country);
   const { updateTenant, toast } = usePlatform();
   const [transfer, setTransfer] = useState<Contact | null>(null);
   const setContact = (i: number, p: Partial<Contact>) =>
@@ -241,7 +239,12 @@ export function Profile({ t }: SectionProps) {
       d.draft.contacts.map((c, j) => (j === i ? { ...c, ...p } : c)),
     );
   return (
-    <SectionFrame title="Profile" sub="Legal identity, locale and the people to contact.">
+    <Part
+      id="identity"
+      icon={Icon.building}
+      title="Identity & contacts"
+      sub="The legal entity on contracts and invoices, and who to call for what."
+    >
       <Card className="p-4 grid sm:grid-cols-2 gap-3">
         <Field label="Trading name">
           <Input value={d.draft.name} onChange={(e) => d.set("name", e.target.value)} />
@@ -249,11 +252,8 @@ export function Profile({ t }: SectionProps) {
         <Field label="Legal name">
           <Input value={d.draft.legalName} onChange={(e) => d.set("legalName", e.target.value)} />
         </Field>
-        <Field label="ΑΦΜ / VAT no.">
-          <Input value={d.draft.vatNo} onChange={(e) => d.set("vatNo", e.target.value)} />
-        </Field>
-        <Field label="Address">
-          <Input value={d.draft.address} onChange={(e) => d.set("address", e.target.value)} />
+        <Field label="ΑΦΜ / VAT no." error={vatErr}>
+          <Input value={d.draft.vatNo} onChange={(e) => d.set("vatNo", e.target.value)} aria-invalid={!!vatErr} />
         </Field>
         <Field label="Country">
           <Select
@@ -262,30 +262,14 @@ export function Profile({ t }: SectionProps) {
             options={["Greece", "Cyprus"]}
           />
         </Field>
-        <Field label="Default language">
-          <Select
-            value={d.draft.language}
-            onChange={(e) => d.set("language", e.target.value)}
-            options={["Greek", "English"]}
-          />
-        </Field>
-        <Field label="Timezone">
-          <Select
-            value={d.draft.timezone}
-            onChange={(e) => d.set("timezone", e.target.value)}
-            options={["Europe/Athens", "Asia/Nicosia"]}
-          />
-        </Field>
-        <Field label="Currency">
-          <Select
-            value={d.draft.currency}
-            onChange={(e) => d.set("currency", e.target.value)}
-            options={["EUR"]}
-          />
-        </Field>
+        <div className="sm:col-span-2">
+          <Field label="Address">
+            <Input value={d.draft.address} onChange={(e) => d.set("address", e.target.value)} />
+          </Field>
+        </div>
       </Card>
       <Card className="p-4">
-        <h3 className="font-semibold text-navy-900 mb-2">Contacts by role</h3>
+        <h4 className="font-semibold text-navy-900 mb-2">Contacts by role</h4>
         <ul className="space-y-2">
           {d.draft.contacts.map((c, i) => (
             <li
@@ -369,12 +353,12 @@ export function Profile({ t }: SectionProps) {
           }}
         />
       )}
-    </SectionFrame>
+    </Part>
   );
 }
 
-/* ---------- Contract & account ---------- */
-export function Contract({ t, go }: SectionProps) {
+/* Contract & account — Admin-only part of Profile (AENR-796). */
+function Contract({ t, go }: SectionProps) {
   const { plan, planName } = usePlatform();
   const d = useTenantDraft(t, ["renewal", "accountManager"] as const, "Contract & account", [
     "renewal",
@@ -382,9 +366,12 @@ export function Contract({ t, go }: SectionProps) {
   const pv = plan(t);
   const terms = termsOf(t);
   return (
-    <SectionFrame
+    <Part
+      id="contract"
+      icon={Icon.doc}
       title="Contract & account"
       sub="Dates, tier, commission and who looks after the account."
+      edit="admin"
     >
       <Card className="p-4 grid sm:grid-cols-2 gap-x-6">
         <div>
@@ -406,7 +393,7 @@ export function Contract({ t, go }: SectionProps) {
         <div className="space-y-2 pt-2 sm:pt-0">
           <Field label="Renewal date">
             <DateInput
-              
+
               value={d.draft.renewal}
               onChange={(v) => d.set("renewal", v)}
             />
@@ -424,7 +411,7 @@ export function Contract({ t, go }: SectionProps) {
         </div>
       </Card>
       <Card className="p-4">
-        <h3 className="font-semibold text-navy-900 mb-1">Signed documents</h3>
+        <h4 className="font-semibold text-navy-900 mb-1">Signed documents</h4>
         <ul className="text-[13px] space-y-1">
           <li className="flex items-center gap-2">
             <Icon.doc size={14} /> Master services agreement · signed{" "}
@@ -438,7 +425,7 @@ export function Contract({ t, go }: SectionProps) {
       </Card>
       {d.bar}
       {d.reasonModal}
-    </SectionFrame>
+    </Part>
   );
 }
 
@@ -717,8 +704,8 @@ function PlanChangeModal({ t: tn, onClose }: { t: TenantRecord; onClose: () => v
   );
 }
 
-/* ---------- Usage & limits (AENR-517) ---------- */
-export function Usage({ t }: SectionProps) {
+/* ---------- Usage & limits (AENR-517) — a part of Overview (AENR-798) ---------- */
+function Usage({ t, go }: SectionProps) {
   const { plan, today } = usePlatform();
   const pv = plan(t);
   const reset = (() => {
@@ -729,11 +716,18 @@ export function Usage({ t }: SectionProps) {
     );
   })();
   return (
-    <SectionFrame
+    <Part
+      id="usage"
+      icon={Icon.trend}
       title="Usage & limits"
       sub={`Meters against ${pv ? "the plan" : "no plan"} · monthly limits reset on ${fmtDay(reset)}.`}
+      actions={
+        <Btn size="sm" variant="ghost" onClick={() => go("billing")}>
+          Plan & billing
+        </Btn>
+      }
     >
-      <Card className="p-4 space-y-3">
+      <Card className="p-4 grid lg:grid-cols-2 gap-x-8 gap-y-3">
         {(Object.keys(LIMIT_LABEL) as LimitId[]).map((k) => {
           const inc = pv?.limits[k].included ?? 0;
           const u = usageLevel(t.usage[k], inc);
@@ -774,6 +768,6 @@ export function Usage({ t }: SectionProps) {
           );
         })}
       </Card>
-    </SectionFrame>
+    </Part>
   );
 }

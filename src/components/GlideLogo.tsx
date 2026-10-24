@@ -2,10 +2,10 @@ import { useLayoutEffect, useRef } from "react";
 import { gsap, motionOK } from "../lib/fx";
 
 /* The beach logo glides between the Home header and its place over the sea in the
-   booking wizard (AENR-672), in step with the shoreline tween in CustomerBackdrop
+   booking wizard (AENR-672) — and from the sign-in screen into Home (AENR-757), in step with the shoreline tween in CustomerBackdrop
    (780 ms, ease-out cubic). The two logos are separate elements, so each one,
    when it leaves, notes where it was; the one that arrives plays from there. */
-type Spot = "home" | "wizard";
+type Spot = "home" | "wizard" | "auth";
 let leftAt: { spot: Spot; rect: DOMRect; at: number } | null = null;
 
 export function GlideLogo({ spot, className }: { spot: Spot; className: string }) {

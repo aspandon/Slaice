@@ -83,7 +83,7 @@ export function StatusTrack({ s, compact = false }: { s: IncidentStatus; compact
         <li key={k} className="flex items-center gap-1 min-w-0 flex-1 last:flex-none">
           <span
             aria-current={i === cur ? "step" : undefined}
-            className={`text-[10.5px] font-semibold whitespace-nowrap ${i <= cur ? "text-navy-900" : "text-slate-400"}`}
+            className={`text-[10.5px] font-semibold whitespace-nowrap ${i <= cur ? "text-navy-900" : "text-slate-500"}`}
           >
             <span
               aria-hidden

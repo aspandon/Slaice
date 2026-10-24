@@ -49,10 +49,12 @@ function unescape(s) {
 const DATA_SOURCES = [
   { file: "data/personas.ts", keys: ["label", "short", "blurb"] },
   { file: "domain/pricing.ts", keys: ["label", "sub"] },
-  { file: "data/gdpr.ts", keys: ["label", "desc", "title"] },
+  { file: "data/gdpr.ts", keys: ["label", "desc", "title", "purpose", "role", "location", "basis", "data"] },
   { file: "screens/CustomerWizard.tsx", keys: ["label", "sub"] }, // the STEPS array
   // Invoice field errors and country names (AENR-714): every sentence-like literal in the file.
   { file: "domain/invoiceDetails.ts", all: true },
+  // Shared field checks (AENR-772): the ΑΦΜ / VAT messages shown on the guest invoice form.
+  { file: "domain/validate.ts", all: true },
 ];
 
 function collectStrings() {
@@ -92,12 +94,14 @@ async function translateOne(text, target, attempt = 0) {
     if (!out) throw new Error("empty translation");
     return out;
   } catch (e) {
-    if (attempt < 3) {
-      await sleep(400 * (attempt + 1));
+    if (attempt < 4) {
+      // Rate limits (429) need a real back-off: 2 s, 4 s, 8 s, 16 s.
+      await sleep(/429/.test(e.message) ? 2000 * 2 ** attempt : 400 * (attempt + 1));
       return translateOne(text, target, attempt + 1);
     }
-    console.warn(`  ! ${target}: failed "${text.slice(0, 40)}" (${e.message}) — keeping English`);
-    return text;
+    // Not stored, so the next run retries it; t() shows English meanwhile.
+    console.warn(`  ! ${target}: failed "${text.slice(0, 40)}" (${e.message}) — will retry next run`);
+    return null;
   }
 }
 
@@ -108,12 +112,13 @@ async function translateList(list, target, onProgress) {
   const result = {};
   let i = 0;
   let done = 0;
-  const workers = Array.from({ length: 6 }, async () => {
+  const workers = Array.from({ length: 2 }, async () => {
     while (i < list.length) {
       const text = list[i++];
-      result[text] = await translateOne(text, target);
+      const out = await translateOne(text, target);
+      if (out !== null) result[text] = out;
       onProgress(++done, list.length);
-      await sleep(40);
+      await sleep(120);
     }
   });
   await Promise.all(workers);
@@ -135,7 +140,12 @@ for (const lang of langs) {
     ? await translateList(todo, lang, (d, total) => process.stdout.write(`\r[${lang}] translating ${d}/${total}   `))
     : {};
   const merged = {};
-  for (const s of strings) merged[s] = existing[s] ?? fresh[s] ?? s;
+  for (const s of strings) if (s in existing || s in fresh) merged[s] = existing[s] ?? fresh[s];
+  // Hand-written corrections (src/locales/overrides/<lang>.json) always win over the machine
+  // translation, so a rerun or --force never undoes them.
+  const ovFile = path.join(LOCALES, "overrides", `${lang}.json`);
+  const overrides = fs.existsSync(ovFile) ? JSON.parse(fs.readFileSync(ovFile, "utf8")) : {};
+  for (const [k, v] of Object.entries(overrides)) if (strings.includes(k)) merged[k] = v;
   fs.writeFileSync(file, JSON.stringify(merged, null, 2) + "\n");
   console.log(`\r[${lang}] wrote ${path.relative(ROOT, file)} (${strings.length} entries)        `);
 }

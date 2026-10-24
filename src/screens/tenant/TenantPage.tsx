@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactElement } from "react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Icon, type IconRenderer } from "../../lib/icons";
-import { Badge, Btn, Card, EmptyState, Select } from "../../components/ui";
+import { Badge, Btn, Card, EmptyState } from "../../components/ui";
 import { usePlatform, useTenantRoute } from "../../lib/usePlatform";
 import {
   LIFECYCLE_LABEL,
@@ -10,12 +10,12 @@ import {
   type TenantRecord,
 } from "../../domain/tenants";
 import { SectionCtx, confirmLeave, type SectionProps } from "./kit";
-import { Billing, Contract, Overview, Profile, Usage } from "./AccountSections";
-import { Branding, Features, Localisation, Locations, Modules } from "./ProductSections";
+import { Billing, Overview, Profile } from "./AccountSections";
+import { Branding, Modules } from "./ProductSections";
 import { EntryTickets } from "./TicketSection";
-import { Compliance, Integrations, Invoicing, Payments, Security, Users } from "./AccessSections";
-import { Audit, DataExport, Health, Support } from "./SupportSections";
-import { Roles } from "./RolesSection";
+import { SecurityAndCompliance } from "./AccessSections";
+import { Audit, DataExport, Support } from "./SupportSections";
+import { UsersAndRoles } from "./RolesSection";
 import { CommercialTerms } from "./CommercialTerms";
 import { DangerZone } from "./Lifecycle";
 import { ViewAsDialog } from "./ViewAs";
@@ -25,6 +25,25 @@ import { ViewAsDialog } from "./ViewAs";
    settings. Sections come from a registry (id, label, icon, group, required
    permission, badge) so new ones are one entry; a grouped left rail on
    desktop, a select on phones. */
+
+/** Sections merged into another (AENR-796…800, 818, 821): old links open the surviving section and
+ *  scroll to the part that replaced the old page (`?at=<old id>`). */
+export const SECTION_ALIASES: Record<string, string> = {
+  contract: "profile",
+  locations: "profile",
+  localisation: "profile",
+  features: "modules",
+  integrations: "modules",
+  usage: "overview",
+  payments: "terms",
+  invoicing: "terms",
+  users: "roles",
+  compliance: "security",
+  health: "overview",
+};
+/** The path segment (+ part anchor) for a section id, old or current. */
+export const sectionPath = (s: string) =>
+  SECTION_ALIASES[s] ? `${SECTION_ALIASES[s]}?at=${s}` : s;
 
 type Group = "Account" | "Product" | "Money" | "Access & trust" | "Support";
 interface SectionDef {
@@ -39,6 +58,7 @@ interface SectionDef {
 }
 export const SECTIONS: SectionDef[] = [
   {
+    // Includes the Health score (AENR-821) and the Usage & limits meters (AENR-798).
     id: "overview",
     label: "Overview",
     icon: Icon.chart,
@@ -48,20 +68,14 @@ export const SECTIONS: SectionDef[] = [
     render: (p) => <Overview {...p} />,
   },
   {
+    // Identity, contacts, contract, locations and localisation on one page (AENR-796);
+    // Contract & account stays Admin-only inside it.
     id: "profile",
     label: "Profile",
     icon: Icon.building,
     group: "Account",
     edit: "support",
     render: (p) => <Profile {...p} />,
-  },
-  {
-    id: "contract",
-    label: "Contract & account",
-    icon: Icon.doc,
-    group: "Account",
-    edit: "admin",
-    render: (p) => <Contract {...p} />,
   },
   {
     id: "billing",
@@ -73,19 +87,13 @@ export const SECTIONS: SectionDef[] = [
     render: (p) => <Billing {...p} />,
   },
   {
-    id: "usage",
-    label: "Usage & limits",
-    icon: Icon.trend,
-    group: "Account",
-    edit: "admin",
-    render: (p) => <Usage {...p} />,
-  },
-  {
+    // Modules, feature switches (AENR-677 / 721 — the permanent home for new ones) and
+    // integrations on one page (AENR-797); Modules and Features stay Admin-only inside it.
     id: "modules",
-    label: "Modules",
+    label: "Modules & features",
     icon: Icon.pkg,
     group: "Product",
-    edit: "admin",
+    edit: "support",
     render: (p) => <Modules {...p} />,
   },
   {
@@ -98,23 +106,6 @@ export const SECTIONS: SectionDef[] = [
     render: (p) => <EntryTickets {...p} />,
   },
   {
-    // Per-tenant feature switches (AENR-677 / 721) — the permanent home for new ones.
-    id: "features",
-    label: "Features",
-    icon: Icon.sliders,
-    group: "Product",
-    edit: "admin",
-    render: (p) => <Features {...p} />,
-  },
-  {
-    id: "locations",
-    label: "Locations & capacity",
-    icon: Icon.map,
-    group: "Product",
-    edit: "support",
-    render: (p) => <Locations {...p} />,
-  },
-  {
     id: "branding",
     label: "Branding & domain",
     icon: Icon.sparkles,
@@ -123,15 +114,8 @@ export const SECTIONS: SectionDef[] = [
     render: (p) => <Branding {...p} />,
   },
   {
-    id: "localisation",
-    label: "Localisation",
-    icon: Icon.globe,
-    group: "Product",
-    edit: "support",
-    render: (p) => <Localisation {...p} />,
-  },
-  {
-    // Commission, guest fees, VAT, corporate tax, support and subscription (AENR-725 / 689).
+    // Commission, guest fees, VAT, corporate tax, support and subscription (AENR-725 / 689),
+    // plus Payments and Invoicing & tax as parts (AENR-799).
     id: "terms",
     label: "Commercial terms",
     icon: Icon.tag,
@@ -140,62 +124,27 @@ export const SECTIONS: SectionDef[] = [
     render: (p) => <CommercialTerms {...p} />,
   },
   {
-    id: "payments",
-    label: "Payments",
-    icon: Icon.card,
-    group: "Money",
-    edit: "admin",
-    render: (p) => <Payments {...p} />,
-  },
-  {
-    id: "invoicing",
-    label: "Invoicing & tax",
-    icon: Icon.receipt,
-    group: "Money",
-    edit: "admin",
-    render: (p) => <Invoicing {...p} />,
-  },
-  {
-    // Which staff roles the tenant uses (AENR-716).
+    // Users, the staff roles the tenant uses (AENR-716) and Slaice access on one page
+    // (AENR-800). Kept the `roles` id the tenant app's "role off" page links to; Staff
+    // roles stay Admin-only inside it.
     id: "roles",
-    label: "Roles",
-    icon: Icon.group,
-    group: "Access & trust",
-    edit: "admin",
-    render: (p) => <Roles {...p} />,
-  },
-  {
-    id: "users",
     label: "Users & roles",
     icon: Icon.users,
     group: "Access & trust",
     edit: "support",
-    render: (p) => <Users {...p} />,
+    render: (p) => <UsersAndRoles {...p} />,
   },
   {
+    // Sign-in policies and security events, then DPA, DPO, region and sub-processors, on one
+    // page (AENR-818). Kept the `security` id; old …/compliance links land on its part, and the
+    // unsigned-DPA badge moved here with it.
     id: "security",
-    label: "Security",
-    icon: Icon.lock,
-    group: "Access & trust",
-    edit: "admin",
-    render: (p) => <Security {...p} />,
-  },
-  {
-    id: "compliance",
-    label: "Compliance",
+    label: "Security & compliance",
     icon: Icon.shieldCheck,
     group: "Access & trust",
     edit: "admin",
     badge: (t) => (t.dpa.status === "Signed" ? 0 : 1),
-    render: (p) => <Compliance {...p} />,
-  },
-  {
-    id: "integrations",
-    label: "Integrations",
-    icon: Icon.layers,
-    group: "Access & trust",
-    edit: "support",
-    render: (p) => <Integrations {...p} />,
+    render: (p) => <SecurityAndCompliance {...p} />,
   },
   {
     id: "support",
@@ -204,14 +153,6 @@ export const SECTIONS: SectionDef[] = [
     group: "Support",
     edit: "support",
     render: (p) => <Support {...p} />,
-  },
-  {
-    id: "health",
-    label: "Health score",
-    icon: Icon.checkCircle,
-    group: "Support",
-    edit: "support",
-    render: (p) => <Health {...p} />,
   },
   {
     id: "audit",
@@ -244,7 +185,12 @@ export function TenantPage() {
   const { id, section, go } = useTenantRoute();
   const { platform, setPlatform, today, planName, toast } = usePlatform();
   const t = platform.tenants.find((x) => x.id === id);
-  const def = SECTIONS.find((s) => s.id === section) ?? SECTIONS[0];
+  const merged = SECTION_ALIASES[section];
+  const def = SECTIONS.find((s) => s.id === (merged ?? section)) ?? SECTIONS[0];
+  // An old link to a merged section: rewrite it to the surviving one + its part (AENR-796…800).
+  useEffect(() => {
+    if (id && merged) window.location.replace(`#/platform/tenant/${id}/${merged}?at=${section}`);
+  }, [id, merged, section]);
   const [viewAs, setViewAs] = useState(false);
   const [demoError, setDemoError] = useState(false);
   const menuBtn = useRef<HTMLButtonElement>(null);
@@ -324,10 +270,11 @@ export function TenantPage() {
       </Card>
     );
   const nav = (s: string) => {
-    if (confirmLeave()) go(t.id, s);
+    if (confirmLeave()) go(t.id, sectionPath(s));
   };
-  const canEdit =
-    platform.role === "admin" || (platform.role === "support" && def.edit === "support");
+  const can = (edit: SectionDef["edit"]) =>
+    platform.role === "admin" || (platform.role === "support" && edit === "support");
+  const canEdit = can(def.edit);
   const last = t.history[t.history.length - 1];
   const owner = t.contacts.find((c) => c.role === "owner");
   return (
@@ -455,23 +402,22 @@ export function TenantPage() {
         </div>
       </Card>
 
-      <div className="grid lg:grid-cols-[220px_minmax(0,1fr)] gap-4 items-start">
-        {/* Section rail (desktop) / select (phones) */}
-        <div className="lg:hidden">
-          <Select
-            aria-label="Section"
-            value={def.id}
-            onChange={(e) => nav(e.target.value)}
-            options={SECTIONS.map((s) => ({ v: s.id, l: `${s.group} · ${s.label}` }))}
-          />
-        </div>
+      <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[220px_minmax(0,1fr)] gap-4 items-start">
+        {/* Section rail (desktop) / a row of section tabs (phones and tablets, AENR-845): every
+            section one tap away without a menu, grouped like the rail, sticky under the top bar. */}
+        <SectionStrip
+          label={`${t.name} sections`}
+          sections={SECTIONS.map((s) => ({ ...s, n: s.badge?.(t, today) ?? 0 }))}
+          active={def.id}
+          onPick={nav}
+        />
         <nav
           aria-label={`${t.name} sections`}
           className="hidden lg:block glass rounded-2xl p-2 sticky top-[86px]"
         >
           {GROUPS.map((g) => (
             <div key={g} className="mb-1.5">
-              <div className="px-2 pt-1.5 pb-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-slate-400">
+              <div className="px-2 pt-1.5 pb-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-slate-500">
                 {g}
               </div>
               {SECTIONS.filter((s) => s.group === g).map((s) => {
@@ -501,7 +447,7 @@ export function TenantPage() {
           ))}
         </nav>
         <div key={`${t.id}-${def.id}-${demoError}`} className="min-w-0">
-          <SectionCtx.Provider value={{ canEdit, demoError }}>
+          <SectionCtx.Provider value={{ canEdit, can, demoError }}>
             {def.render({ t, canEdit, go: nav })}
           </SectionCtx.Provider>
         </div>
@@ -519,3 +465,73 @@ export function TenantPage() {
   );
 }
 
+
+/* ---------- The sections as a row of tabs, below 1024 px (AENR-845) ----------
+   On a phone the desktop rail has no room, and a dropdown read as a form field: the owner couldn't
+   find a tenant's sub pages. A horizontally scrolling row instead — every section one tap away,
+   in the rail's groups (a small label opens each group), with the rail's red counts, the current
+   section filled and kept in view, sticky under the top bar while a long section scrolls. */
+function SectionStrip({
+  label,
+  sections,
+  active,
+  onPick,
+}: {
+  label: string;
+  sections: (SectionDef & { n: number })[];
+  active: string;
+  onPick: (id: string) => void;
+}) {
+  const row = useRef<HTMLDivElement>(null);
+  // Keep the current section in view (scroll the row only, never the page).
+  useEffect(() => {
+    const el = row.current;
+    const on = el?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!el || !on) return;
+    const left = on.offsetLeft - (el.clientWidth - on.offsetWidth) / 2;
+    el.scrollTo({ left: Math.max(0, left), behavior: "smooth" });
+  }, [active]);
+  return (
+    <nav aria-label={label} className="lg:hidden sticky top-[70px] z-20 -mx-3 min-w-0 sm:-mx-5">
+      <div
+        ref={row}
+        // The edges fade, so a cut-off tab reads as "the row scrolls".
+        className="glass flex items-center gap-1 overflow-x-auto overscroll-x-contain px-3 sm:px-5 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,transparent,#000_14px,#000_calc(100%-14px),transparent)]"
+      >
+        {sections.map((s, i) => {
+          const on = s.id === active;
+          const first = s.group !== sections[i - 1]?.group;
+          return (
+            <span key={s.id} className="flex shrink-0 items-center gap-1">
+              {first && (
+                <span
+                  aria-hidden="true"
+                  className={`pr-0.5 text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 ${i > 0 ? "ml-2 border-l border-slate-200 pl-2.5" : "pl-0.5"}`}
+                >
+                  {s.group}
+                </span>
+              )}
+              <button
+                type="button"
+                aria-current={on ? "page" : undefined}
+                onClick={() => onPick(s.id)}
+                className={`flex min-h-[44px] items-center gap-1.5 whitespace-nowrap rounded-xl px-3 text-[13px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${on ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-700 hover:bg-slate-100 active:bg-slate-200"}`}
+              >
+                <s.icon size={15} aria-hidden />
+                {s.label}
+                {s.n > 0 && (
+                  <span
+                    className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[10.5px] font-bold ${on ? "bg-white text-navy-900" : "bg-rose-600 text-white"}`}
+                    aria-label={`${s.n} open`}
+                  >
+                    {s.n}
+                  </span>
+                )}
+              </button>
+            </span>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}

@@ -14,7 +14,7 @@ import {
   UsersRound, ShieldCheck, ShieldAlert, FileDown, Database, SlidersHorizontal,
   Sparkles, CircleHelp, Wallet, LogOut, Moon, Armchair, Image as ImageIcon, Upload,
   Cloud, CloudRain, Link2, Send, Copy, Headset, Monitor, RefreshCw,
-  WifiOff, Archive, Pause,
+  WifiOff, Archive, Pause, LifeBuoy,
 } from "lucide-react";
 import type { LucideIcon, LucideProps } from "lucide-react";
 import type { ReactElement } from "react";
@@ -114,6 +114,7 @@ export const Icon: Record<string, IconRenderer> = {
   sliders: w(SlidersHorizontal),
   sparkles: w(Sparkles),
   help: w(CircleHelp),
+  lifebuoy: w(LifeBuoy),
   wallet: w(Wallet),
   logout: w(LogOut),
   moon: w(Moon),

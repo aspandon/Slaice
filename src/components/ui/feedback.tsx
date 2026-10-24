@@ -76,7 +76,7 @@ export function EmptyState({ icon: IconC = Icon.inbox, title, body, action, comp
 }) {
   return (
     <div className={`flex flex-col items-center justify-center text-center ${compact ? "py-7 px-4" : "py-12 px-6"} ${className}`}>
-      <span className={`${compact ? "w-11 h-11" : "w-14 h-14"} rounded-2xl bg-slate-100 text-slate-400 grid place-items-center mb-3`}>
+      <span className={`${compact ? "w-11 h-11" : "w-14 h-14"} rounded-2xl bg-slate-100 text-slate-500 grid place-items-center mb-3`}>
         <IconC size={compact ? 20 : 26} />
       </span>
       {title && <div className="font-semibold text-navy-900">{title}</div>}

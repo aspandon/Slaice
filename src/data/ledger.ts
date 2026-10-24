@@ -78,10 +78,10 @@ function rnd(key: string): number {
   return ((h >>> 0) % 10000) / 10000;
 }
 const COMPANIES = [
-  { n: "Aegean Events ΙΚΕ", v: "EL 801234901" },
-  { n: "Blue Coast Travel ΑΕ", v: "EL 094567812" },
-  { n: "Glyfada Sports Club", v: "EL 997012345" },
-  { n: "Saronic Hotels ΑΕ", v: "EL 800456123" },
+  { n: "Aegean Events ΙΚΕ", v: "EL 801234904" },
+  { n: "Blue Coast Travel ΑΕ", v: "EL 094567815" },
+  { n: "Glyfada Sports Club", v: "EL 997012347" },
+  { n: "Saronic Hotels ΑΕ", v: "EL 800456122" },
 ];
 const BRANDS = ["Visa", "Mastercard", "Visa", "Amex", "Visa", "Mastercard"];
 const hhmm = (k: string) =>

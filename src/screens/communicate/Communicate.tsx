@@ -58,7 +58,7 @@ export function AdminCommunicate() {
         <b className="text-navy-900 tnum" aria-live="polite">
           {fmtAt(comms.clock)}
         </b>
-        <span className="text-slate-400 hidden sm:inline">· Europe/Athens</span>
+        <span className="text-slate-500 hidden sm:inline">· Europe/Athens</span>
         <div className="flex flex-wrap gap-1.5 ml-auto">
           <Btn size="sm" variant="ghost" onClick={() => advance(60)}>
             +1 hour

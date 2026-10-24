@@ -9,7 +9,7 @@ import { RoleBadges } from "../team/RoleBadges";
 import { StaffStatusCell, staffActions } from "../team/StaffCells";
 import { useStaffDirectory } from "../team/useStaffDirectory";
 import { FinanceSettingsModal } from "../PlatformFinance";
-import { KV, SectionFrame, useTenantDraft, type SectionProps } from "./kit";
+import { KV, Part, SectionFrame, useTenantDraft, type SectionProps } from "./kit";
 
 const Flag = ({ on, label }: { on: boolean; label: string }) => (
   <span
@@ -19,21 +19,24 @@ const Flag = ({ on, label }: { on: boolean; label: string }) => (
   </span>
 );
 
-/* ---------- Payments ---------- */
+/* ---------- Payments — a part of Commercial terms (AENR-799) ---------- */
 export function Payments({ t }: SectionProps) {
   const { updateTenant, toast } = usePlatform();
   const [fees, setFees] = useState(false);
   const d = useTenantDraft(t, ["stripe"] as const, "Payments", ["stripe"]);
   return (
-    <SectionFrame
+    <Part
+      id="payments"
+      icon={Icon.card}
       title="Payments"
-      sub="Stripe Connect account, terminals and payout schedule. Commission and fees: Commercial terms."
+      sub="Stripe Connect account, terminals and payout schedule."
       actions={
         <>
-          <Btn variant="outline" icon={Icon.cash} onClick={() => setFees(true)}>
+          <Btn size="sm" variant="outline" icon={Icon.cash} onClick={() => setFees(true)}>
             Terminals & e-invoicing
           </Btn>
           <Btn
+            size="sm"
             variant="indigo"
             icon={Icon.stripe}
             onClick={() => toast(`Demo — Stripe onboarding link sent to ${t.contacts[0].email}.`)}
@@ -108,17 +111,19 @@ export function Payments({ t }: SectionProps) {
           onClose={() => setFees(false)}
         />
       )}
-    </SectionFrame>
+    </Part>
   );
 }
 
-/* ---------- Invoicing & tax ---------- */
+/* ---------- Invoicing & tax — a part of Commercial terms (AENR-799) ---------- */
 export function Invoicing({ t }: SectionProps) {
   const { updateTenant, toast } = usePlatform();
   const d = useTenantDraft(t, ["invoicing"] as const, "Invoicing & tax");
   const inv = d.draft.invoicing;
   return (
-    <SectionFrame
+    <Part
+      id="invoicing"
+      icon={Icon.receipt}
       title="Invoicing & tax"
       sub="myDATA / AADE, document series, VAT and the tenant's accountant."
     >
@@ -176,25 +181,26 @@ export function Invoicing({ t }: SectionProps) {
         </div>
       </Card>
       {d.bar}
-    </SectionFrame>
+    </Part>
   );
 }
 
-/* ---------- Users & roles (+ Slaice access, AENR-515) ---------- */
+/* ---------- Users — a part of Users & roles (AENR-718 / 800) ---------- */
 export function Users({ t }: SectionProps) {
-  const { platform, plan, updateTenant, today } = usePlatform();
+  const { plan } = usePlatform();
   // The same people, invitations and actions as the tenant's Team & roles (AENR-718).
   const dir = useStaffDirectory(t, "platform");
   const users = dir.users;
-  const sessions = platform.sessions.filter((s) => s.tenantId === t.id);
   const seats = plan(t)?.limits.seats.included ?? 0;
   const invited = users.filter((u) => u.status === "invited").length;
   return (
-    <SectionFrame
-      title="Users & roles"
-      sub={`Tenant staff · ${users.length} of ${seats} seats used${invited ? ` · ${invited} invited` : ""}. Which roles exist is set in Roles.`}
+    <Part
+      id="users"
+      icon={Icon.users}
+      title="Users"
+      sub={`Tenant staff · ${users.length} of ${seats} seats used${invited ? ` · ${invited} invited` : ""}. Which roles can be given is set in Staff roles below.`}
       actions={
-        <Btn variant="primary" icon={Icon.plus} onClick={dir.openAdd}>
+        <Btn size="sm" variant="primary" icon={Icon.plus} onClick={dir.openAdd}>
           Add user
         </Btn>
       }
@@ -218,8 +224,22 @@ export function Users({ t }: SectionProps) {
         />
       </Card>
       {dir.modals}
+    </Part>
+  );
+}
+
+/* ---------- Slaice access to the tenant (AENR-515) — a part of Users & roles (AENR-800) ---------- */
+export function SlaiceAccess({ t }: SectionProps) {
+  const { platform, updateTenant, today } = usePlatform();
+  const sessions = platform.sessions.filter((s) => s.tenantId === t.id);
+  return (
+    <Part
+      id="access"
+      icon={Icon.headset}
+      title="Slaice access"
+      sub="Who at Slaice looks after this tenant, the support access the tenant grants, and View-as sessions."
+    >
       <Card className="p-4 space-y-2">
-        <h3 className="font-semibold text-navy-900">Slaice access to this tenant</h3>
         <KV k="Assigned">
           {[t.accountManager + " (account manager)", ...t.slaiceTeam].join(" · ")}
         </KV>
@@ -282,16 +302,46 @@ export function Users({ t }: SectionProps) {
           </ul>
         )}
       </Card>
+    </Part>
+  );
+}
+
+/* ============ Platform › tenant › Security & compliance (AENR-818) ============
+   One page for how the tenant is protected: the sign-in policies Slaice
+   enforces and the security events they produce first (the controls an Admin
+   edits), then the data-protection position — DPA, DPO, data region and
+   sub-processors. Each part keeps its own save / simulate actions and its
+   Audit-log section ("Security", "Compliance"); old …/compliance links land
+   on the Compliance part. */
+
+const TRUST_PARTS = [
+  { id: "security", label: "Security" },
+  { id: "compliance", label: "Compliance" },
+] as const;
+export function SecurityAndCompliance(p: SectionProps) {
+  return (
+    <SectionFrame
+      title="Security & compliance"
+      sub={`How ${p.t.name}'s accounts and data are protected: sign-in policies and security events, then the DPA, data region and sub-processors.`}
+      parts={TRUST_PARTS}
+    >
+      <Security {...p} />
+      <Compliance {...p} />
     </SectionFrame>
   );
 }
 
-/* ---------- Security ---------- */
-export function Security({ t }: SectionProps) {
+/* ---------- Security — a part of Security & compliance (AENR-818) ---------- */
+function Security({ t }: SectionProps) {
   const d = useTenantDraft(t, ["security"] as const, "Security", ["security"]);
   const s = d.draft.security;
   return (
-    <SectionFrame title="Security" sub="Tenant-wide sign-in policies and recent security events.">
+    <Part
+      id="security"
+      icon={Icon.lock}
+      title="Security"
+      sub="Tenant-wide sign-in policies and recent security events."
+    >
       <Card className="p-4 space-y-3">
         <Toggle
           on={s.require2fa}
@@ -335,7 +385,7 @@ export function Security({ t }: SectionProps) {
         </fieldset>
       </Card>
       <Card className="p-4">
-        <h3 className="font-semibold text-navy-900 mb-1">Recent security events</h3>
+        <h4 className="font-semibold text-navy-900 mb-1">Recent security events</h4>
         <ul className="text-[13px] space-y-1">
           {t.security.events.map((e) => (
             <li key={e.at}>
@@ -352,18 +402,23 @@ export function Security({ t }: SectionProps) {
       </Card>
       {d.bar}
       {d.reasonModal}
-    </SectionFrame>
+    </Part>
   );
 }
 
-/* ---------- Compliance ---------- */
-export function Compliance({ t }: SectionProps) {
+/* ---------- Compliance — a part of Security & compliance (AENR-818) ---------- */
+function Compliance({ t }: SectionProps) {
   const { go, privacy } = useApp();
   const nonEu = privacy.subprocessors.filter((s) => !isEu(s));
   const incidents = privacy.breaches.filter((b) => !b.closedAt && b.tenantIds?.includes(t.id)).length;
   const { updateTenant, toast, today } = usePlatform();
   return (
-    <SectionFrame title="Compliance" sub="DPA, DPO, data region and sub-processors.">
+    <Part
+      id="compliance"
+      icon={Icon.shieldCheck}
+      title="Compliance"
+      sub="DPA, DPO, data region and sub-processors."
+    >
       <Card className="p-4 grid sm:grid-cols-2 gap-x-6">
         <div>
           <KV k="DPA">
@@ -405,9 +460,9 @@ export function Compliance({ t }: SectionProps) {
         </div>
       </Card>
       <Card className="p-4">
-        <h3 className="font-semibold text-navy-900 mb-1">
+        <h4 className="font-semibold text-navy-900 mb-1">
           Sub-processors that may process data outside the region
-        </h3>
+        </h4>
         {nonEu.length ? (
           <ul className="text-[13px] space-y-1">
             {nonEu.map((s) => (
@@ -427,58 +482,6 @@ export function Compliance({ t }: SectionProps) {
           </Btn>
         </div>
       </Card>
-    </SectionFrame>
-  );
-}
-
-/* ---------- Integrations ---------- */
-export function Integrations({ t }: SectionProps) {
-  const { updateTenant, toast } = usePlatform();
-  return (
-    <SectionFrame
-      title="Integrations"
-      sub="myDATA, messaging channels and webhooks for this tenant."
-    >
-      <Card className="p-4 space-y-2">
-        <KV k="myDATA / AADE">
-          <Badge tone={t.mydata === "connected" ? "green" : "amber"}>{t.mydata}</Badge>
-        </KV>
-        {(["email", "sms", "viber"] as const).map((c) => (
-          <KV key={c} k={c === "sms" ? "SMS" : c[0].toUpperCase() + c.slice(1)}>
-            <Badge tone={t.channels[c] ? "green" : "slate"}>
-              {t.channels[c] ? "Connected" : "Not set up"}
-            </Badge>
-          </KV>
-        ))}
-        <KV k="Stripe webhooks">
-          <span className="inline-flex items-center gap-2">
-            <Badge tone={t.webhooks === "healthy" ? "green" : "red"}>{t.webhooks}</Badge>
-            <Btn
-              size="sm"
-              variant="ghost"
-              onClick={() => {
-                updateTenant(
-                  t.id,
-                  (x) => ({ ...x, webhooks: x.webhooks === "healthy" ? "failing" : "healthy" }),
-                  {
-                    section: "Integrations",
-                    change: `Webhooks ${t.webhooks === "healthy" ? "failing" : "redelivered OK"}`,
-                    actorType: "System",
-                  },
-                );
-                toast(
-                  t.webhooks === "healthy"
-                    ? "Demo — webhook delivery failing."
-                    : "Redelivered — healthy.",
-                  { tone: t.webhooks === "healthy" ? "warn" : "success" },
-                );
-              }}
-            >
-              {t.webhooks === "healthy" ? "Simulate failure" : "Redeliver"}
-            </Btn>
-          </span>
-        </KV>
-      </Card>
-    </SectionFrame>
+    </Part>
   );
 }

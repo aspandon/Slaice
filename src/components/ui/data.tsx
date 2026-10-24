@@ -48,7 +48,7 @@ export function StatCard({ label, value, valueTitle, sub, tone = "navy", delta, 
       <div className="flex items-start justify-between gap-2">
         <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-600">{label}</div>
         {trend && (
-          <span className={`inline-flex items-center gap-0.5 text-[11px] font-bold tnum rounded-full px-1.5 py-0.5 ${trendUp ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}>
+          <span className={`inline-flex items-center gap-0.5 text-[11px] font-bold tnum rounded-full px-1.5 py-0.5 ${trendUp ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
             <Icon.trend size={11} className={trendUp ? "" : "-scale-y-100"} />{trend}{compare && <span className="sr-only"> {compare}</span>}
           </span>
         )}
@@ -211,7 +211,7 @@ export function SaveBar({ dirty, errors = [], onSave, onDiscard, note = "Unsaved
       <span className="text-sm">{errors.length ? <><b>Can’t save yet</b> — {errors[0]}</> : note}</span>
       <div className="ml-auto flex gap-2">
         <button type="button" onClick={onDiscard} className="rounded-[14px] px-3 py-1.5 text-[13px] font-semibold text-white ring-1 ring-white/40 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300">Discard</button>
-        <button type="button" onClick={onSave} disabled={errors.length > 0} className="inline-flex items-center gap-1.5 rounded-[14px] px-3.5 py-1.5 text-[13px] font-semibold bg-teal-600 text-white hover:bg-teal-500 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"><Icon.check size={14} /> Save</button>
+        <button type="button" onClick={onSave} disabled={errors.length > 0} className="inline-flex items-center gap-1.5 rounded-[14px] px-3.5 py-1.5 text-[13px] font-semibold bg-teal-600 text-white hover:bg-teal-700 disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300"><Icon.check size={14} /> Save</button>
       </div>
     </div>
   );

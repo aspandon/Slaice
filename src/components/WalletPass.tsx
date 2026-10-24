@@ -56,6 +56,7 @@ function GoogleG({ size = 18 }: { size?: number }) {
 
 // A black pill that mirrors the official "Add to … Wallet" badges (compact on visit cards).
 function WalletBadge({ onClick, logo, label, compact = false }: { onClick?: () => void; logo?: ReactNode; label?: ReactNode; compact?: boolean }) {
+  const t = useT();
   return (
     <button
       type="button"
@@ -63,7 +64,7 @@ function WalletBadge({ onClick, logo, label, compact = false }: { onClick?: () =
       className={`inline-flex items-center justify-center gap-2.5 rounded-xl bg-black text-white shadow-btn-primary hover:bg-neutral-800 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 ${compact ? "pl-2.5 pr-3 h-9" : "pl-3 pr-4 h-12 min-w-[180px]"}`}>
       {logo}
       <span className="text-left leading-none">
-        <span className="block text-[9px] text-white/70 -mb-0.5">Add to</span>
+        <span className="block text-[9px] text-white/70 -mb-0.5">{t("Add to")}</span>
         <span className={`block font-semibold ${compact ? "text-[12.5px]" : "text-[15px]"}`}>{label}</span>
       </span>
     </button>
@@ -74,7 +75,15 @@ function WalletBadge({ onClick, logo, label, compact = false }: { onClick?: () =
    The badge matching the device (iPhone → Apple, Android → Google; desktop shows
    both). A visit's pass is remembered (AENR-620): once added the badge becomes
    "In Apple Wallet ✓", a cancelled visit's pass shows as voided. */
-export function WalletButtons({ pass, className = "", compact = false }: { pass: WalletPassData; className?: string; compact?: boolean }) {
+export function WalletButtons({ pass, className = "", compact = false, everywhere = false, heading = true }: {
+  pass: WalletPassData;
+  className?: string;
+  compact?: boolean;
+  /** On a computer offer both wallets (where there is no "…" menu holding them — the confirmation, AENR-852). */
+  everywhere?: boolean;
+  /** The small "Add your pass to" heading — off where the button says it (over the beach it reads poorly). */
+  heading?: boolean;
+}) {
   const t = useT();
   const { account } = useApp();
   const [open, setOpen] = useState<WalletKind | null>(null);
@@ -86,7 +95,7 @@ export function WalletButtons({ pass, className = "", compact = false }: { pass:
   // One wallet that fits the device (AENR-662): iPhone / iPad / Mac Safari → Apple,
   // Android → Google, other computers → neither (the QR and e-mail are enough);
   // the other wallet stays in the visit's "…" menu.
-  const order = platform === "ios" ? [apple] : platform === "android" ? [google] : [];
+  const order = platform === "ios" ? [apple] : platform === "android" ? [google] : everywhere ? [apple, google] : [];
   return (
     <div className={className}>
       {added ? (
@@ -101,7 +110,7 @@ export function WalletButtons({ pass, className = "", compact = false }: { pass:
         </button>
       ) : order.length === 0 ? null : (
         <>
-          {!compact && <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">{t("Add your pass to")}</div>}
+          {!compact && heading && <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 mb-2">{t("Add your pass to")}</div>}
           <div className={`flex flex-wrap items-center gap-2 ${compact ? "" : "justify-center"}`}>{order}</div>
         </>
       )}
@@ -115,6 +124,56 @@ export function otherWallets(): WalletKind[] {
   const p = detectWalletPlatform();
   return p === "ios" ? ["google"] : p === "android" ? ["apple"] : ["apple", "google"];
 }
+/** The wallets this device keeps passes in (AENR-791): iPhone → Apple, Android → Google, a computer
+ *  → both (AENR-852: back to the device's own after AENR-849 showed both everywhere). */
+export function deviceWallets(): WalletKind[] {
+  const p = detectWalletPlatform();
+  return p === "ios" ? ["apple"] : p === "android" ? ["google"] : ["apple", "google"];
+}
+
+/* A visit's wallet row on a dark pass card (Wallet › Upcoming entries, AENR-779): the wallets this
+   device keeps passes in (a computer offers both), as quiet translucent buttons so the card stays the
+   hero; once added it is one "In … Wallet ✓" button that reopens that wallet's sheet (to remove it).
+   Same sheet, pass preview and remembered state (account.wallet) as My bookings and Home. */
+export function WalletRow({ pass, className = "" }: { pass: WalletPassData; className?: string }) {
+  const t = useT();
+  const { account } = useApp();
+  const [kind, setKind] = useState<WalletKind | null>(null);
+  const added = pass.visitKey ? account.wallet?.[pass.visitKey] : undefined;
+  if (pass.voided && !added) return null;
+  const kinds = added ? [added] : deviceWallets();
+  const logo = (k: WalletKind) =>
+    k === "apple" ? <AppleLogo size={17} /> : <span className="grid place-items-center rounded-full bg-white p-0.5"><GoogleG size={14} /></span>;
+  return (
+    <div className={`grid gap-2 ${kinds.length > 1 ? "grid-cols-2" : ""} ${className}`} data-card-wallet>
+      {kinds.map((k) => (
+        <button
+          key={k}
+          type="button"
+          onClick={() => setKind(k)}
+          aria-label={added ? undefined : `${t("Add to")} ${WALLET_NAME[k]}`}
+          className="inline-flex min-h-[44px] min-w-0 items-center justify-center gap-2.5 rounded-xl bg-white/10 px-3 py-1.5 text-white ring-1 ring-white/15 transition hover:bg-white/15 active:scale-[.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+        >
+          {logo(k)}
+          {added ? (
+            <span className="inline-flex items-center gap-1.5 text-guest-meta font-semibold">
+              {pass.voided ? t("Pass voided") : `${t("In")} ${WALLET_NAME[k]}`}
+              {!pass.voided && <Icon.checkCircle size={14} className="text-emerald-400" />}
+            </span>
+          ) : (
+            // Two lines like the official badges, so both fit side by side on a phone.
+            <span aria-hidden className="min-w-0 text-left leading-none">
+              <span className="block text-guest-over text-white/65">{t("Add to")}</span>
+              <span className="mt-0.5 block whitespace-nowrap text-guest-meta font-semibold">{WALLET_NAME[k]}</span>
+            </span>
+          )}
+        </button>
+      ))}
+      {kind && <WalletSheetFor pass={pass} kind={kind} onClose={() => setKind(null)} />}
+    </div>
+  );
+}
+
 /** Opens one wallet's sheet from a menu. */
 export function WalletSheetFor({ pass, kind, onClose }: { pass: WalletPassData; kind: WalletKind; onClose: () => void }) {
   return <WalletSheet open onClose={onClose} pass={pass} kind={kind} platform={detectWalletPlatform()} />;
@@ -162,6 +221,7 @@ export function WalletOptions({ pass, className = "" }: { pass: WalletPassData; 
 
 /* ---------- The pass preview (looks like a real wallet pass) ---------- */
 function PassPreview({ pass }: { pass: WalletPassData }) {
+  const t = useT();
   // VIP / Season passes render the tenant membership card art + a scan strip.
   if (pass.variant === "vip" || pass.variant === "season") {
     const no = "NO. " + (pass.ref.match(/\d+/)?.[0] ?? "0042");
@@ -171,7 +231,7 @@ function PassPreview({ pass }: { pass: WalletPassData }) {
         <div className="px-5 py-4 flex items-center gap-4">
           <div className="rounded-lg ring-1 ring-slate-200 p-1.5 shrink-0"><QR size={84} seed={pass.ref} /></div>
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">{pass.title || "Pass"}</div>
+            <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">{pass.title || "Pass"}</div>
             <div className="font-mono font-semibold text-navy-900 text-sm">#{pass.ref.replace(/^#/, "")}</div>
             <div className="mt-1.5 space-y-0.5">
               {(pass.fields || []).map((f, i) => (
@@ -187,7 +247,7 @@ function PassPreview({ pass }: { pass: WalletPassData }) {
     <div className="relative rounded-3xl overflow-hidden shadow-float ring-1 ring-black/5 max-w-[340px] mx-auto">
       {pass.voided && (
         <div className="absolute inset-0 z-[1] grid place-items-center bg-navy-950/70">
-          <span className="rounded-xl bg-white text-rose-700 font-bold px-4 py-2 text-[14px] ring-2 ring-rose-300">Cancelled — pass voided</span>
+          <span className="rounded-xl bg-white text-rose-700 font-bold px-4 py-2 text-[14px] ring-2 ring-rose-300">{t("Cancelled — pass voided")}</span>
         </div>
       )}
       <div className="grad-sea text-white p-5">
@@ -196,7 +256,7 @@ function PassPreview({ pass }: { pass: WalletPassData }) {
             <TenantLogo size={28} />
             <div className="leading-tight">
               <div className="font-display font-bold text-[15px]">{TENANT.name}</div>
-              <div className="text-[10px] uppercase tracking-wider text-teal-200">Beach entry pass</div>
+              <div className="text-[10px] uppercase tracking-wider text-teal-200">{t("Beach entry pass")}</div>
             </div>
           </div>
           <Icon.umbrella size={20} className="text-teal-200" />
@@ -214,10 +274,10 @@ function PassPreview({ pass }: { pass: WalletPassData }) {
       <div className="bg-white px-5 py-4 flex items-center gap-4">
         <div className="rounded-lg ring-1 ring-slate-200 p-1.5 shrink-0"><QR size={92} seed={qrCode(pass.ref)} /></div>
         <div className="min-w-0">
-          <div className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Booking</div>
+          <div className="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">{t("Booking")}</div>
           <div className="font-mono font-semibold text-navy-900 text-sm">#{pass.ref.replace(/^#/, "")}</div>
           {pass.total && <div className="text-[12px] text-slate-500 mt-1">{pass.total} · paid</div>}
-          <div className="text-[11px] text-slate-500 mt-1.5">Scan at the gate</div>
+          <div className="text-[11px] text-slate-500 mt-1.5">{t("Scan at the gate")}</div>
         </div>
       </div>
     </div>
@@ -287,7 +347,7 @@ function WalletSheet({ open, onClose, pass, kind, platform }: { open: boolean; o
         )}
 
         <div className="flex items-start gap-2 rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3 py-2.5 text-[11.5px] text-slate-500 leading-snug">
-          <Icon.info size={14} className="shrink-0 mt-0.5 text-slate-400" />
+          <Icon.info size={14} className="shrink-0 mt-0.5 text-slate-500" />
           <span>
             Demo — Apple downloads a real <b>.pkpass</b> and Google copies a <b>Save</b> link.
             In production the pass is signed server-side so your phone adds it in one tap

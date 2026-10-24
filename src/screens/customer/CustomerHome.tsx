@@ -1,24 +1,22 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useGuestRecord } from "../../lib/useGuestRecord";
 import { Icon } from "../../lib/icons";
+import { SunbedSetIcon } from "../../components/productIcons";
 import type { IconRenderer } from "../../lib/icons";
 import { Badge, Btn, NotMvpBadge } from "../../components/ui";
 import { PassCard } from "../../components/PassCard";
-import { gsap, motionOK, DUR, EASE, useMagnetic, useCardTilt } from "../../lib/fx";
-import { useCountUp } from "../../lib/motion";
+import { gsap, motionOK, DUR, EASE, useMagnetic } from "../../lib/fx";
 import { ZONES, zoneLayout, WEATHER_DEMO, TENANT, forecastFor, todayISO, chipLabel } from "../../data/beach";
 import { QR } from "../../components/charts";
 import { qrCode } from "../../domain/entry";
 import { useVisits } from "../../lib/useVisits";
+import { useDemoFlag } from "../../lib/useDemoFlag";
 import { ARRIVAL_ENDS, ARRIVAL_WINDOW, homeMoment, type MomentKind, type Visit } from "../../domain/visits";
 import { useRebook, type Rebook } from "../../lib/useRebook";
 import { partyLabel } from "../../domain/account";
 import { localeFor } from "../../app/i18n";
 import { fmtDay, fmtWeekday } from "../../domain/period";
 import { VisitQR, receiptForVisit, visitPass } from "./VisitTicket";
-import { ShareSheet } from "./ShareBooking";
-import { ExtrasDialog } from "./CustomerBookings";
-import { ReceiptModal } from "./CustomerDocs";
 import { useDemoNow } from "../../lib/useLiveSlots";
 import { appliesAtCheckout } from "../../domain/rewards";
 import { readHashQuery } from "../../app/router";
@@ -26,12 +24,20 @@ import { WalletButtons } from "../../components/WalletPass";
 import { SceneDemoPanel } from "../../components/SceneDemoPanel";
 import { SEASON_END_LABEL } from "../../data/passes";
 import { BUILTIN_SCHEMES, makeCustomScheme, schemeProgress, HOME_LOYALTY_STATS } from "../../data/loyalty";
-import type { RewardState, LoyaltyState } from "../../data/loyalty";
+import type { RewardState, LoyaltyState, LoyaltyStats } from "../../data/loyalty";
 import { BADGE_COLORS, statValue, metricFmt, HOME_GAME_STATS } from "../../data/gamification";
-import { useApp, useT } from "../../app/store";
+import { useApp, useMoney, useT } from "../../app/store";
 import { useTenantFeatures } from "../../lib/useFeatures";
 import { useGuestScene } from "../../lib/useGuestScene";
 import { ADD_EXTRAS_LABEL, extrasPhrase } from "../../domain/features";
+import { RevealLines, Rolling } from "../../components/TextFx";
+import { lazyWithReload } from "../../lib/staleChunk";
+
+// Dialogs Home opens on demand load on first use (AENR-839) — the extras dialog lives with My
+// bookings, the receipt with Documents; the customer screens warm them in the background.
+const ShareSheet = lazyWithReload(() => import("./ShareBooking").then((m) => ({ default: m.ShareSheet })));
+const ExtrasDialog = lazyWithReload(() => import("./CustomerBookings").then((m) => ({ default: m.ExtrasDialog })));
+const ReceiptModal = lazyWithReload(() => import("./CustomerDocs").then((m) => ({ default: m.ReceiptModal })));
 
 // Bare date from a validity label (e.g. "End of season · 30 Sep 2026").
 const dateOf = (s: string) => s.split(/·|to/).pop()?.trim() ?? s;
@@ -48,9 +54,15 @@ const CARD = "glass-flat rounded-3xl overflow-hidden relative";
 let homeIntroPlayed = false;
 
 export function CustomerHome() {
+  const money = useMoney();
   const { dive, loyalty, beachLayout } = useApp();
   const { weather, dayTime, sceneFx } = useGuestScene();
-  const { visits } = useVisits();
+  const { visits, status: visitsStatus } = useVisits();
+  // While the guest's bookings load, hold the visit card's place with its own
+  // shape (AENR-751) — the generic hero used to flash first and the taller visit
+  // card then pushed the page down (Home's 0.11 layout shift). First-time guests
+  // (demo flag) have no history to wait for.
+  const [firstTimer] = useDemoFlag("newGuest");
   const t = useT();
   // The hero chip mirrors the demo scene: weather icon/label/temp plus a
   // greeting that follows the scene clock (both fall back to a sunny noon
@@ -66,7 +78,7 @@ export function CustomerHome() {
   const showPromo = roadmap && !promoDismissed;
   const showRewards = allows({ future: true, module: "Loyalty" });
   const extrasLine = extrasPhrase(module("Day Locker"), module("Parking"));
-  const rewards = activeRewards(loyalty);
+  const rewards = activeRewards(loyalty, firstTimer ? FIRST_TIME_LOYALTY : undefined);
   const ready = rewards.filter((a) => a.state.kind === "claim").length;
   const scope = useRef<HTMLDivElement>(null);
   const cta = useMagnetic<HTMLSpanElement>(0.22, 6);
@@ -79,7 +91,6 @@ export function CustomerHome() {
     [beachLayout],
   );
   const fromPrice = useMemo(() => Math.min(...ZONES.map((z) => z.from)), []);
-  const { display: freeDisplay } = useCountUp(freeToday, { duration: 1100 });
 
   // Entrance choreography. Elements render in their final state; GSAP only adds
   // the motion, so reduced-motion users get the static layout untouched.
@@ -122,10 +133,15 @@ export function CustomerHome() {
   const moment = homeMoment(visits, todayISO(), clock, (force || undefined) as MomentKind | undefined);
   const next = moment.kind === "morning" || moment.kind === "upcoming" ? moment.v : null;
   const rebook = useRebook(visits, rewards);
+  // The rebook slot: the guest's usual, or "Plan another visit" beside an upcoming one. A guest with
+  // neither (a first visit) gets nothing here — the planning hero above already says it (AENR-787).
+  const rebookTile = moment.kind !== "after" && ((visitsStatus === "loading" && !firstTimer) || rebook.status !== "none" || !!next);
   const hero = (
-      <button onClick={() => dive()} className="text-left group block w-full" data-home-card>
-        <div className={`${CARD} p-6 sm:p-9 pressable cursor-pointer transition duration-300 ease-spring hover:-translate-y-1 hover:bg-white/80`}>
-          <div className="relative">
+      // The heading and copy stay content; only the CTA is a button, stretched over the
+      // card (its ::after) so the whole card still opens the guided booking (AENR-770).
+      <div className="group block w-full" data-home-card>
+        <div className={`${CARD} p-6 sm:p-9 pressable cursor-pointer transition duration-300 ease-spring hover:-translate-y-1 hover:bg-white/80 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-teal-500`}>
+          <div>
             <div className="inline-flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-700" data-hero-chip>
               <span className={`w-6 h-6 rounded-full grid place-items-center bg-gradient-to-br ${chipBubble} text-white shadow-sm`}>
                 <WIcon size={11} />
@@ -148,14 +164,17 @@ export function CustomerHome() {
             </div>
             <div className="mt-4 flex items-center gap-2.5 text-guest-meta font-semibold text-navy-900" data-hero-live>
               <span aria-hidden="true" className="live-dot relative w-2 h-2 rounded-full bg-teal-500 text-teal-500 shrink-0" />
-              <span><b className="tnum">{freeDisplay}</b> {t("sunbeds free today")} · {t("from")} €{fromPrice}</span>
+              <span><b><Rolling value={freeToday} /></b> {t("sunbeds free today")} · {t("from")} {money(fromPrice)}</span>
             </div>
-            <span ref={cta} className="cta-breathe mt-5 inline-flex items-center gap-2 rounded-[14px] px-5 py-2.5 text-guest-body font-semibold bg-navy-900 text-white shadow-btn-primary" data-hero-cta>
-              <Icon.sparkles size={16} /> {t("Start guided booking")} <Icon.arrowR size={16} />
-            </span>
+            {/* The button stays untransformed so its ::after spans the card; the magnetic pull moves the pill inside. */}
+            <button type="button" onClick={() => dive()} className="mt-5 inline-flex rounded-[14px] after:absolute after:inset-0 after:content-[''] focus-visible:outline-none" data-hero-cta>
+              <span ref={cta} className="cta-breathe inline-flex items-center gap-2 rounded-[14px] px-5 py-2.5 text-guest-body font-semibold bg-navy-900 text-white shadow-btn-primary">
+                <Icon.sparkles size={16} /> {t("Start guided booking")} <Icon.arrowR size={16} />
+              </span>
+            </button>
           </div>
         </div>
-      </button>
+      </div>
 
   );
 
@@ -166,25 +185,27 @@ export function CustomerHome() {
         : moment.kind === "during" ? <AtBeachCard v={moment.v} />
         : moment.kind === "after" ? <AfterVisitCard v={moment.v} rebook={rebook} />
         : moment.kind === "offseason" ? <OffSeasonCard opens={moment.opens} />
+        : visitsStatus === "loading" && !firstTimer ? <VisitCardSkeleton />
         : hero}
 
       {/* One column when only one tile is left (roadmap promo hidden / dismissed, AENR-691) — no half-empty row. */}
-      {(moment.kind !== "after" || showPromo) && (
-      <div className={`grid gap-4 items-stretch ${moment.kind !== "after" && showPromo ? "sm:grid-cols-2" : ""}`}>
+      {(rebookTile || showPromo) && (
+      <div className={`grid gap-4 items-stretch ${rebookTile && showPromo ? "sm:grid-cols-2" : ""}`}>
         {/* Rebook your usual — from the guest's own visits (the after-visit card already offers it) */}
-        {moment.kind !== "after" && <>
+        {rebookTile && <>
         {/* "Book again" opens Pay with exactly this proposal filled in (AENR-611 / 705); first-timers get the guided booking. */}
-        {rebook.status === "none" ? (
-          <button onClick={() => dive()} className={`${CARD} p-5 flex flex-col gap-2.5 text-left hover:bg-white/80 transition-colors group`} data-home-card>
+        {visitsStatus === "loading" && !firstTimer ? <RebookSkeleton /> : rebook.status === "none" ? (
+          <section aria-labelledby="first-visit" className={`${CARD} p-5 flex flex-col gap-2.5 hover:bg-white/80 transition-colors group cursor-pointer has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-teal-500`} data-home-card>
             <div className="flex items-center gap-3">
-              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
+              <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><SunbedSetIcon size={18} accent="rgba(255,255,255,0.3)" /></span>
               <div className="min-w-0">
-                <div className="font-semibold text-navy-900 text-guest-body leading-tight">{next ? t("Plan another visit") : t("Your first visit")}</div>
-                <div className="text-guest-meta text-slate-600 mt-0.5 leading-snug">{`${freeDisplay} ${t("sunbeds free today")} · ${t("from")} €${fromPrice}`}</div>
+                <h2 id="first-visit" className="font-semibold text-navy-900 text-guest-body leading-tight">{t("Plan another visit")}</h2>
+                <p className="text-guest-meta text-slate-600 mt-0.5 leading-snug">{`${freeToday} ${t("sunbeds free today")} · ${t("from")} ${money(fromPrice)}`}</p>
               </div>
             </div>
-            <div className="self-start flex items-center gap-1 text-teal-700 text-guest-meta font-semibold px-3 py-1.5 -ml-3">{t("Start guided booking")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" /></div>
-          </button>
+            {/* Only the CTA is a button; its ::after covers the card (AENR-770). */}
+            <button type="button" onClick={() => dive()} className="self-start flex items-center gap-1 text-teal-700 text-guest-meta font-semibold px-3 py-1.5 -ml-3 rounded-lg after:absolute after:inset-0 after:content-[''] focus-visible:outline-none">{t("Start guided booking")} <Icon.chevR size={14} className="group-hover:translate-x-0.5 transition" /></button>
+          </section>
         ) : (
           <RebookTile rebook={rebook} title={next ? t("Plan another visit") : t("Rebook your usual")} />
         )}
@@ -193,7 +214,7 @@ export function CustomerHome() {
         <div className="min-w-0">
           {(
             <div className={`${CARD} p-5 relative flex flex-col gap-2.5`} data-home-card>
-              <button aria-label={t("Dismiss offer")} onClick={() => setPromoDismissed(true)} className="absolute top-3 right-3 w-7 h-7 grid place-items-center rounded-lg text-slate-400 hover:text-navy-900 hover:bg-white/50 transition"><Icon.x size={14} /></button>
+              <button aria-label={t("Dismiss offer")} onClick={() => setPromoDismissed(true)} className="absolute top-3 right-3 w-7 h-7 grid place-items-center rounded-lg text-slate-500 hover:text-navy-900 hover:bg-white/50 transition"><Icon.x size={14} /></button>
               <div className="flex items-center gap-3 pr-7">
                 <span className="w-10 h-10 rounded-xl grid place-items-center bg-gradient-to-br from-gold-400 to-gold-600 text-white shrink-0 shadow-sm"><Icon.bolt size={18} /></span>
                 <div className="min-w-0 flex-1">
@@ -237,12 +258,22 @@ function NextVisitCard({ v, qrFirst = false }: { v: Visit; qrFirst?: boolean }) 
     <section aria-labelledby="next-visit" className={`${CARD} p-5 sm:p-7`} data-home-card>
       <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
         <div className="min-w-0 flex-1">
-          <div className="inline-flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-700">
-            <Icon.calendar size={13} /> {days <= 0 ? (qrFirst ? `${t("Today")} · ${t("arrive by")} ${ARRIVAL_ENDS}` : t("Today")) : days === 1 ? t("Tomorrow") : `${t("In")} ${days} ${t("days")}`}
+          {/* Phones lead with the visit (AENR-754): what and when first, the QR as a
+              thumbnail beside the title that opens the full-screen pass. */}
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="inline-flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-700">
+                <Icon.calendar size={13} /> {days <= 0 ? (qrFirst ? `${t("Today")} · ${t("arrive by")} ${ARRIVAL_ENDS}` : t("Today")) : days === 1 ? t("Tomorrow") : `${t("In")} ${days} ${t("days")}`}
+              </div>
+              <h2 id="next-visit" className="mt-1.5 font-display font-bold text-guest-title leading-tight text-navy-900">
+                {fmtWeekday(v.date)} {fmtDay(v.date)}{v.zone ? ` · ${v.zone}` : ""}
+              </h2>
+            </div>
+            <button type="button" onClick={() => setQr(true)} aria-label={`${t("Show QR")} ${v.refs[0]}`}
+              className="sm:hidden shrink-0 rounded-xl bg-white p-1.5 ring-1 ring-slate-200 shadow-soft active:scale-95 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+              <QR size={64} seed={qrCode(v.refs[0])} />
+            </button>
           </div>
-          <h2 id="next-visit" className="mt-1.5 font-display font-bold text-guest-title leading-tight text-navy-900">
-            {fmtWeekday(v.date)} {fmtDay(v.date)}{v.zone ? ` · ${v.zone}` : ""}
-          </h2>
           <p className="mt-1 text-guest-body text-slate-700">
             {v.sets.length ? `${t("Sunbeds")} ${v.sets.join(", ")}` : t("Entry tickets")}
             {extras.length ? ` · ${extras.join(" · ")}` : ""}
@@ -268,15 +299,65 @@ function NextVisitCard({ v, qrFirst = false }: { v: Visit; qrFirst?: boolean }) 
             <Btn variant="ghost" onClick={() => go("customer", "mybookings")}>{t("Manage booking")}</Btn>
           </div>
         </div>
-        {/* The morning of the visit the QR leads, also on phones. */}
-        <button type="button" onClick={() => setQr(true)} aria-label={`${t("Show QR")} ${v.refs[0]}`} className={`${qrFirst ? "order-first sm:order-none" : ""} self-center shrink-0 rounded-2xl bg-white p-2.5 ring-1 ring-slate-200 shadow-soft hover:shadow-lift transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500`}>
+        {/* Larger screens: the QR beside the visit, larger on the morning of it. */}
+        <button type="button" onClick={() => setQr(true)} aria-label={`${t("Show QR")} ${v.refs[0]}`} className={`hidden sm:block self-center shrink-0 rounded-2xl bg-white p-2.5 ring-1 ring-slate-200 shadow-soft hover:shadow-lift transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500`}>
           <QR size={qrFirst ? 168 : 132} seed={qrCode(v.refs[0])} />
           <span className="block mt-1 font-mono text-guest-caption font-semibold text-navy-900">{v.refs[0]}</span>
         </button>
       </div>
       {qr && <VisitQR v={v} onClose={() => setQr(false)} />}
-      {share && <ShareSheet v={v} onClose={() => setShare(false)} />}
+      {share && <Suspense fallback={null}><ShareSheet v={v} onClose={() => setShare(false)} /></Suspense>}
     </section>
+  );
+}
+
+/* The visit card's shape while bookings load (AENR-751): same card, paddings,
+   rows and QR block as NextVisitCard on the morning of a visit, so the real
+   card lands without moving anything below it. */
+function VisitCardSkeleton() {
+  const t = useT();
+  const bar = "skeleton rounded-lg";
+  return (
+    <section aria-busy="true" aria-label={t("Loading your next visit")} className={`${CARD} p-5 sm:p-7`}>
+      <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-3">
+            <div className="min-w-0 flex-1">
+              <div className={`${bar} h-[15px] w-40`} />
+              <div className={`${bar} mt-1.5 h-[30px] w-64 max-w-full`} />
+            </div>
+            <div className="sm:hidden skeleton rounded-xl w-[78px] h-[78px] shrink-0" />
+          </div>
+          <div className={`${bar} mt-1 h-[22px] w-full max-w-md`} />
+          <div className={`${bar} mt-1 h-[22px] w-40 sm:hidden`} />
+          <div className={`${bar} mt-3 h-[19px] w-56`} />
+          <div className="mt-4 flex flex-wrap gap-2">
+            {[112, 96, 124, 150].map((w) => <div key={w} className="skeleton rounded-[14px] h-11" style={{ width: w }} />)}
+          </div>
+        </div>
+        <div className="hidden sm:block self-center shrink-0 rounded-2xl bg-white/70 p-2.5 ring-1 ring-slate-200">
+          <div className="skeleton rounded-lg w-[168px] h-[168px]" />
+          <div className="skeleton rounded mt-1 h-4 w-20 mx-auto" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* The "Plan another visit" tile's shape while bookings load (AENR-751). */
+function RebookSkeleton() {
+  return (
+    <div aria-hidden className={`${CARD} p-5 flex flex-col gap-2.5`}>
+      <div className="flex items-center gap-3">
+        <div className="skeleton w-10 h-10 rounded-xl shrink-0" />
+        <div className="flex-1 min-w-0 grid gap-1.5">
+          <div className="skeleton rounded h-4 w-40" />
+          <div className="skeleton rounded h-3.5 w-56 max-w-full" />
+        </div>
+      </div>
+      <div className="skeleton rounded-2xl h-[88px]" />
+      <div className="skeleton rounded-[14px] h-11 w-32" />
+    </div>
   );
 }
 
@@ -295,8 +376,8 @@ function AtBeachCard({ v }: { v: Visit }) {
     <section aria-labelledby="at-beach" className={`${CARD} p-5 sm:p-7`} data-home-card>
       <div className="flex flex-col sm:flex-row gap-5 sm:items-center">
         <div className="min-w-0 flex-1">
-          <div className="inline-flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-700"><Icon.umbrella size={13} /> {t("You're at the beach")}{v.zone ? ` · ${v.zone}` : ""}</div>
-          <h2 id="at-beach" className="mt-1.5 font-display font-bold text-guest-title leading-tight text-navy-900">{t("Enjoy your day")}</h2>
+          <div className="inline-flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-700"><SunbedSetIcon size={13} /> {t("You're at the beach")}{v.zone ? ` · ${v.zone}` : ""}</div>
+          <RevealLines as="h2" id="at-beach" className="mt-1.5 font-display font-bold text-guest-title leading-tight text-navy-900">{t("Enjoy your day")}</RevealLines>
           <p className="mt-1 text-guest-body text-slate-700">
             {v.sets.length ? `${t("Sunbeds")} ${v.sets.join(", ")}` : t("Entry tickets")}{has.length ? ` · ${has.join(" · ")}` : ""}
           </p>
@@ -310,7 +391,7 @@ function AtBeachCard({ v }: { v: Visit }) {
         </div>
         <WeatherNow kind={weather} />
       </div>
-      {extras && <ExtrasDialog v={v} only="extras" onClose={() => setExtras(false)} />}
+      {extras && <Suspense fallback={null}><ExtrasDialog v={v} only="extras" onClose={() => setExtras(false)} /></Suspense>}
       {qr && <VisitQR v={v} onClose={() => setQr(false)} />}
     </section>
   );
@@ -354,7 +435,6 @@ function WeatherNow({ kind }: { kind: keyof typeof WEATHER_DEMO }) {
 /* "Rebook your usual" (AENR-705): exactly what "Book again" will book — the day, zone, sets, party and
    extras, checked free — and the all-in total Pay will show. When the day the guest would go doesn't
    work it says why and offers the next one; when nothing works soon it falls back to planning a visit. */
-const euro = (n: number) => `€${Math.round(n * 100) % 100 ? n.toFixed(2) : Math.round(n)}`;
 
 function useRebookText(rebook: Rebook) {
   const { lang } = useApp();
@@ -378,6 +458,7 @@ function useRebookText(rebook: Rebook) {
 }
 
 function RebookTile({ rebook, title }: { rebook: Exclude<Rebook, { status: "none" }>; title: string }) {
+  const money = useMoney();
   const { go, dive } = useApp();
   const t = useT();
   const { miss, ok: text } = useRebookText(rebook);
@@ -386,7 +467,7 @@ function RebookTile({ rebook, title }: { rebook: Exclude<Rebook, { status: "none
     return (
       <div className={`${CARD} p-5 flex flex-col gap-2.5`} data-home-card>
         <div className="flex items-center gap-3">
-          <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
+          <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><SunbedSetIcon size={18} accent="rgba(255,255,255,0.3)" /></span>
           <div className="min-w-0">
             <h2 className="font-semibold text-navy-900 text-guest-body leading-tight">{title}</h2>
             <p className="text-guest-meta text-slate-600 mt-0.5 leading-snug">
@@ -404,7 +485,7 @@ function RebookTile({ rebook, title }: { rebook: Exclude<Rebook, { status: "none
   return (
     <section aria-labelledby="rebook-usual" className={`${CARD} p-5 flex flex-col gap-3`} data-home-card>
       <div className="flex items-start gap-3">
-        <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><Icon.umbrella size={18} /></span>
+        <span className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white grid place-items-center shrink-0"><SunbedSetIcon size={18} accent="rgba(255,255,255,0.3)" /></span>
         <div className="min-w-0 flex-1">
           <h2 id="rebook-usual" className="font-semibold text-navy-900 text-guest-body leading-tight">{title}</h2>
           <p className="text-guest-meta text-slate-600 mt-0.5 leading-snug">{t("What you book most — checked free for you.")}</p>
@@ -423,8 +504,8 @@ function RebookTile({ rebook, title }: { rebook: Exclude<Rebook, { status: "none
           {swapped && <div className="text-guest-caption text-slate-600 mt-0.5">{t("Your usual set is taken that day — the next free one instead.")}</div>}
         </div>
         <div className="text-right shrink-0">
-          <div className="font-display text-xl font-bold text-navy-900 tnum leading-none">{euro(due.toPay)}</div>
-          <div className="text-guest-caption text-slate-600 mt-1">{due.deducted ? <>{t("to pay")} · <s className="tnum">{euro(quote.total)}</s></> : t("all-in")}</div>
+          <div className="font-display text-xl font-bold text-navy-900 tnum leading-none">{money(due.toPay)}</div>
+          <div className="text-guest-caption text-slate-600 mt-1">{due.deducted ? <>{t("to pay")} · <s className="tnum">{money(quote.total)}</s></> : t("all-in")}</div>
         </div>
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -437,6 +518,7 @@ function RebookTile({ rebook, title }: { rebook: Exclude<Rebook, { status: "none
 
 /* After the visit (AENR-610): the receipt and the same day again, one tap each. */
 function AfterVisitCard({ v, rebook }: { v: Visit; rebook: Rebook }) {
+  const money = useMoney();
   const { go, dive } = useApp();
   const t = useT();
   const [doc, setDoc] = useState(false);
@@ -447,16 +529,16 @@ function AfterVisitCard({ v, rebook }: { v: Visit; rebook: Rebook }) {
       <div className="inline-flex items-center gap-2 text-guest-over font-semibold uppercase tracking-[0.14em] text-teal-700"><Icon.checkCircle size={13} /> {t("Thanks for coming")}</div>
       <h2 id="after-visit" className="mt-1.5 font-display font-bold text-guest-title leading-tight text-navy-900">{today ? t("How was today?") : `${t("How was")} ${fmtWeekday(v.date)}?`}</h2>
       <p className="mt-1 text-guest-body text-slate-700">
-        {fmtWeekday(v.date)} {fmtDay(v.date)}{v.zone ? ` · ${v.zone}` : ""} · €{v.total} {t("paid")}
+        {fmtWeekday(v.date)} {fmtDay(v.date)}{v.zone ? ` · ${v.zone}` : ""} · {money(v.total)} {t("paid")}
       </p>
       <div className="mt-4 flex flex-wrap gap-2">
         <Btn variant="primary" icon={Icon.refresh} onClick={() => (rebook.status === "ok" ? go("customer", "plan", { rebook: rebook.hint }) : dive())}>{t("Book again")}</Btn>
         <Btn variant="outline" icon={Icon.receipt} onClick={() => setDoc(true)}>{t("Receipt")}</Btn>
       </div>
       {again && rebook.status === "ok" && (
-        <p className="mt-2 text-guest-meta text-slate-600">{t("Book again")}: {again.day} · {again.where} · {again.what} · <b className="text-navy-900 tnum">{euro(rebook.due.toPay)}</b> {rebook.due.deducted ? t("to pay") : t("all-in")}</p>
+        <p className="mt-2 text-guest-meta text-slate-600">{t("Book again")}: {again.day} · {again.where} · {again.what} · <b className="text-navy-900 tnum">{money(rebook.due.toPay)}</b> {rebook.due.deducted ? t("to pay") : t("all-in")}</p>
       )}
-      {doc && <ReceiptModal doc={receiptForVisit(v)} onClose={() => setDoc(false)} />}
+      {doc && <Suspense fallback={null}><ReceiptModal doc={receiptForVisit(v)} onClose={() => setDoc(false)} /></Suspense>}
     </section>
   );
 }
@@ -505,29 +587,27 @@ function RewardsStrip({ rewards, ready }: { rewards: ReturnType<typeof activeRew
   );
 }
 
-/* VIP credit tile — the tenant membership card art + a buy/top-up footer.
-   Tilts in 3D toward the cursor with a light sweep across the card art
-   (useCardTilt owns the transform, so hover lift is shadow-only here). */
+/* VIP credit tile — the tenant membership card art + a buy/top-up footer. It lifts its shadow on
+   hover; no tilt toward the cursor (removed, AENR-850). */
 export function VipTile() {
+  const money = useMoney();
   const { go, passes, passPricing, clearPass } = useApp();
   const me = useGuestRecord();
   const t = useT();
-  const tilt = useCardTilt<HTMLDivElement>(6);
   const vip = passes.vip;
   const from = Math.min(...passPricing.vipTiers);
   const disc = Math.round(passPricing.vipDiscount * 100);
   return (
-    <div ref={tilt} className={`${CARD} flex flex-col w-full transition-shadow duration-300 hover:shadow-lift`} data-home-card>
-      <span aria-hidden="true" className="sheen-card" />
+    <div className={`${CARD} flex flex-col w-full transition-shadow duration-300 hover:shadow-lift`} data-home-card>
       <button onClick={() => go("customer", "vip")} aria-label={`${vip ? t("Top up VIP credit") : t("Get VIP Pass")} · ${t("FUTURE")}`} className="block w-full group">
-        <PassCard kind="vip" holder={me.cardName} subtitle={vip ? `€${vip.balance.toLocaleString()} CREDIT` : `MEMBER · ${disc}% OFF`} validUntil={SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
+        <PassCard kind="vip" holder={me.cardName} subtitle={vip ? `€${vip.balance.toLocaleString("en-GB")} CREDIT` : `MEMBER · ${disc}% OFF`} validUntil={SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
       </button>
       <div className="mt-auto flex items-center justify-between gap-2 px-4 py-3">
         <button onClick={() => go("customer", "vip")} className="inline-flex items-center gap-1 text-sky-700 hover:text-sky-800 text-guest-meta font-semibold">
-          {t("Get VIP pass")} — {t("from")} €{from.toLocaleString()} <Icon.chevR size={14} />
+          {t("Get VIP pass")} — {t("from")} {money(from)} <Icon.chevR size={14} />
         </button>
         <div className="flex items-center gap-2 shrink-0">
-          {vip && <button onClick={() => clearPass("vip")} className="text-guest-caption text-slate-400 hover:text-rose-600">{t("Reset")}</button>}
+          {vip && <button onClick={() => clearPass("vip")} className="text-guest-caption text-slate-500 hover:text-rose-600">{t("Reset")}</button>}
           <NotMvpBadge />
         </div>
       </div>
@@ -536,26 +616,25 @@ export function VipTile() {
 }
 
 /* Season pass tile — the tenant membership card art + a buy/manage footer.
-   Same 3D tilt + light sweep as the VIP tile. */
+   Lifts its shadow on hover, like the VIP tile. */
 export function SeasonTile() {
+  const money = useMoney();
   const { go, passes, passPricing, clearPass } = useApp();
   const me = useGuestRecord();
   const t = useT();
-  const tilt = useCardTilt<HTMLDivElement>(6);
   const season = passes.season;
   const from = Math.min(passPricing.seasonMonthly, passPricing.seasonSummer);
   return (
-    <div ref={tilt} className={`${CARD} flex flex-col w-full transition-shadow duration-300 hover:shadow-lift`} data-home-card>
-      <span aria-hidden="true" className="sheen-card" />
+    <div className={`${CARD} flex flex-col w-full transition-shadow duration-300 hover:shadow-lift`} data-home-card>
       <button onClick={() => go("customer", "season")} aria-label={`${season ? t("Manage Season pass") : t("Get Season Pass")} · ${t("FUTURE")}`} className="block w-full group">
         <PassCard kind="season" holder={me.cardName} subtitle={season && season.plan === "monthly" ? "MONTHLY 2026" : "SUMMER 2026"} validUntil={season ? dateOf(season.validUntil) : SEASON_END_LABEL} className="group-hover:brightness-[1.02] transition" />
       </button>
       <div className="mt-auto flex items-center justify-between gap-2 px-4 py-3">
         <button onClick={() => go("customer", "season")} className="inline-flex items-center gap-1 text-teal-700 hover:text-teal-800 text-guest-meta font-semibold">
-          {season ? t("Manage pass") : `${t("Get Season pass")} — ${t("from")} €${from.toLocaleString()}`} <Icon.chevR size={14} />
+          {season ? t("Manage pass") : `${t("Get Season pass")} — ${t("from")} ${money(from)}`} <Icon.chevR size={14} />
         </button>
         <div className="flex items-center gap-2 shrink-0">
-          {season && <button onClick={() => clearPass("season")} className="text-guest-caption text-slate-400 hover:text-rose-600">{t("Reset")}</button>}
+          {season && <button onClick={() => clearPass("season")} className="text-guest-caption text-slate-500 hover:text-rose-600">{t("Reset")}</button>}
           <NotMvpBadge />
         </div>
       </div>
@@ -563,40 +642,44 @@ export function SeasonTile() {
   );
 }
 
-/* "Your badges" — gamification achievements; earned ones light up (summer
-   gradients), locked ones dim with progress. Sits exactly under Rebook, same size. */
-export function BadgesTile() {
+/** "Your badges" (gamification achievements, shown in the Wallet — AENR-780): the guest's badges
+ *  and how many are earned — null when gamification is off (a roadmap feature of the Loyalty
+ *  module, AENR-691 / 696) or there are none. */
+export function useBadges() {
   const { achievements } = useApp();
-  const t = useT();
-  // Gamification is a roadmap feature of the Loyalty module (AENR-691 / 696).
+  const [firstTimer] = useDemoFlag("newGuest");
   const { allows } = useTenantFeatures();
   if (achievements.length === 0 || !allows({ future: true, module: "Loyalty" })) return null;
-  const stats = HOME_GAME_STATS;
-  const earnedCount = achievements.filter((a) => statValue(stats, a.metric) >= a.threshold).length;
+  const stats = firstTimer ? { visits: 0, bookings: 0, spend: 0 } : HOME_GAME_STATS;
+  const earned = achievements.filter((a) => statValue(stats, a.metric) >= a.threshold).length;
+  return { achievements, stats, earned };
+}
+
+/** The badges themselves, without a frame (the Wallet section gives it one): earned ones light up
+ *  in summer gradients, locked ones dim with their progress. */
+export function BadgeGrid({ badges: { achievements, stats } }: { badges: NonNullable<ReturnType<typeof useBadges>> }) {
+  const t = useT();
   return (
-    <div className={`${CARD} p-5 flex flex-col gap-3`} data-home-card>
-      <div className="flex items-center gap-2.5">
-        <span className="w-9 h-9 rounded-xl grid place-items-center bg-gradient-to-br from-amber-300 to-amber-500 text-white shrink-0 shadow-sm"><Icon.star size={17} /></span>
-        <div className="font-semibold text-navy-900 text-guest-body flex-1 min-w-0">{t("Your badges")}</div>
-        <Badge tone="amber">{earnedCount}/{achievements.length}</Badge>
-        <NotMvpBadge />
-      </div>
-      <div className="flex flex-wrap gap-x-3 gap-y-2.5">
-        {achievements.map((a) => {
-          const Glyph = Icon[a.icon] || Icon.star;
-          const v = statValue(stats, a.metric);
-          const earned = v >= a.threshold;
-          return (
-            <div key={a.id} title={earned ? `${a.name} — ${t("earned!")}` : `${a.name} — ${metricFmt(a.metric, v)} / ${metricFmt(a.metric, a.threshold)}`} className="flex flex-col items-center gap-1 w-[3.4rem]">
-              <span className={`relative w-11 h-11 rounded-full grid place-items-center ring-2 ring-white shadow-sm transition ${earned ? `text-white bg-gradient-to-br ${BADGE_COLORS[a.color] || BADGE_COLORS.sun}` : "bg-slate-200/80 text-slate-400"}`}>
-                <Glyph size={18} />
-                {!earned && <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-white ring-1 ring-slate-200 grid place-items-center"><Icon.lock size={8} className="text-slate-400" /></span>}
-              </span>
-              <span className={`text-guest-caption text-center leading-tight w-full truncate ${earned ? "text-navy-900 font-semibold" : "text-slate-400"}`}>{a.name}</span>
-            </div>
-          );
-        })}
-      </div>
+    <div className="flex flex-wrap gap-x-3 gap-y-2.5">
+      {achievements.map((a) => {
+        const Glyph = Icon[a.icon] || Icon.star;
+        const v = statValue(stats, a.metric);
+        const earned = v >= a.threshold;
+        return (
+          // Progress is visible text, not a hover-only tooltip (AENR-771).
+          <div key={a.id} className="flex flex-col items-center gap-1 w-[3.4rem]">
+            <span aria-hidden className={`relative w-11 h-11 rounded-full grid place-items-center ring-2 ring-white shadow-sm transition ${earned ? `text-white bg-gradient-to-br ${BADGE_COLORS[a.color] || BADGE_COLORS.sun}` : "bg-slate-200/80 text-slate-500"}`}>
+              <Glyph size={18} />
+              {!earned && <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-white ring-1 ring-slate-200 grid place-items-center"><Icon.lock size={8} className="text-slate-500" /></span>}
+            </span>
+            <span className={`text-guest-caption text-center leading-tight w-full truncate ${earned ? "text-navy-900 font-semibold" : "text-slate-600"}`}>{a.name}</span>
+            <span className={`-mt-0.5 text-[10.5px] leading-none tnum text-center ${earned ? "text-teal-700 font-semibold" : "text-slate-600"}`}>
+              {earned ? t("Earned") : <>{metricFmt(a.metric, v)}/<wbr />{metricFmt(a.metric, a.threshold)}</>}
+              <span className="sr-only">{earned ? "" : ` ${t("progress")}`}</span>
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -621,13 +704,15 @@ function KineticWords({ text }: { text: string }) {
 /* Active loyalty schemes for the guest, sorted (claimable first). Schemes + config
    come from the app store (written by the admin Loyalty screen). */
 const REWARD_ORDER = { claim: 0, progress: 1, perk: 2 } as const;
-export function activeRewards(loyalty: LoyaltyState) {
+/** A first-time guest's loyalty stats (Demo, AENR-778): nothing earned yet. */
+export const FIRST_TIME_LOYALTY: LoyaltyStats = { visits: 0, referrals: 0, birthdayWeek: false };
+export function activeRewards(loyalty: LoyaltyState, stats: LoyaltyStats = HOME_LOYALTY_STATS) {
   return [...BUILTIN_SCHEMES, ...loyalty.customIds.map(makeCustomScheme)]
     .filter((s) => loyalty.config[s.id]?.enabled)
     .map((s) => {
       const values = loyalty.config[s.id]?.values ?? {};
       const title = s.custom ? String(values.title || s.title) : s.title;
-      return { id: s.id, icon: s.icon, title, state: schemeProgress(s, values, HOME_LOYALTY_STATS) };
+      return { id: s.id, icon: s.icon, title, state: schemeProgress(s, values, stats) };
     })
     .sort((a, b) => REWARD_ORDER[a.state.kind] - REWARD_ORDER[b.state.kind]);
 }

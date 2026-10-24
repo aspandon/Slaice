@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, Suspense, useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../../lib/icons";
 import type { IconRenderer } from "../../lib/icons";
@@ -8,7 +8,12 @@ import { useNav } from "../../lib/useNav";
 import type { NavItem } from "../../domain/types";
 import type { NavProps } from "./types";
 import { useT } from "../../app/store";
-import { TenantNav } from "../../screens/tenant/TenantNav";
+import { lazyWithReload } from "../../lib/staleChunk";
+import { useWaterDrop } from "./useWaterDrop";
+
+// The Platform console's tenant tree is the only staff nav part with its own screen kit; it loads
+// for the platform persona only (AENR-839).
+const TenantNav = lazyWithReload(() => import("../../screens/tenant/TenantNav").then((m) => ({ default: m.TenantNav })));
 
 /* ---------- Mobile page-nav sheet ----------
    The single source of truth for "where can I go" on a phone — opened from the
@@ -24,7 +29,7 @@ export function NavSheet({ open, onClose, persona, page, setPage }: NavProps & {
     const IconC = Icon[it.icon];
     const active = page === it.k;
     return (
-      <button key={it.k} onClick={() => { setPage(it.k); onClose(); }}
+      <button key={it.k} data-page={it.k} onClick={() => { setPage(it.k); onClose(); }}
         className={`flex items-center gap-3 px-3 min-h-[52px] rounded-xl text-[15px] font-semibold transition ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-700 hover:bg-slate-100"}`}>
         {IconC && <IconC size={19} className={active ? "" : "text-slate-500"} />}
         <span className="flex-1 text-left">{t(it.label)}</span>
@@ -38,14 +43,14 @@ export function NavSheet({ open, onClose, persona, page, setPage }: NavProps & {
       <div className="grid grid-cols-1 gap-1.5">
         {items.map((it, i) => (
           <Fragment key={it.k}>
-            {it.group && it.group !== items[i - 1]?.group && <div className="px-3 pt-2 pb-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t(it.group)}</div>}
+            {it.group && it.group !== items[i - 1]?.group && <div className="px-3 pt-2 pb-0.5 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t(it.group)}</div>}
             {Row(it)}
           </Fragment>
         ))}
-        {persona === "platform" && <TenantNav onNavigate={onClose} />}
+        {persona === "platform" && <Suspense fallback={null}><TenantNav onNavigate={onClose} /></Suspense>}
         {account.length > 0 && (
           <>
-            <div className="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">{t("Account")}</div>
+            <div className="px-3 pt-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-500">{t("Account")}</div>
             {account.map(Row)}
           </>
         )}
@@ -76,8 +81,8 @@ export function Sidebar({ persona, page, setPage }: NavProps) {
           const active = page === it.k;
           return (
             <Fragment key={it.k}>
-            {it.group && it.group !== items[i - 1]?.group && <div className={`px-4 pt-3 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-slate-400 ${rail ? "hidden xl:block" : ""}`}>{t(it.group)}</div>}
-            <button onClick={() => setPage(it.k)} title={rail ? t(it.label) : undefined} aria-current={active ? "page" : undefined}
+            {it.group && it.group !== items[i - 1]?.group && <div className={`px-4 pt-3 pb-1 text-[10.5px] font-semibold uppercase tracking-wider text-slate-500 ${rail ? "hidden xl:block" : ""}`}>{t(it.group)}</div>}
+            <button data-page={it.k} onClick={() => setPage(it.k)} title={rail ? t(it.label) : undefined} aria-current={active ? "page" : undefined}
               className={`group relative w-full flex items-center gap-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${rail ? "justify-center min-h-[52px] xl:min-h-0 xl:justify-start xl:pl-4 xl:pr-3 xl:py-2" : "pl-4 pr-3 py-2"} ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-600 hover:bg-slate-100 hover:text-navy-900"}`}>
               <span className={`absolute left-1.5 top-2 bottom-2 w-1 rounded-full transition-all duration-200 ${active ? "bg-teal-400 opacity-100" : "bg-transparent opacity-0 group-hover:bg-teal-300 group-hover:opacity-100"}`} />
               {IconC && <IconC size={rail ? 19 : 17} className={`${active ? "" : "text-slate-500 group-hover:text-teal-600 transition-colors"} ${rail ? "xl:w-[17px] xl:h-[17px]" : ""}`} />}
@@ -88,7 +93,7 @@ export function Sidebar({ persona, page, setPage }: NavProps) {
           );
         })}
       </nav>
-      {persona === "platform" && <TenantNav />}
+      {persona === "platform" && <Suspense fallback={null}><TenantNav /></Suspense>}
       <div className={`mt-3 px-2 py-2 rounded-xl bg-slate-50 ring-1 ring-slate-200 text-[11px] text-slate-500 leading-relaxed ${rail ? "hidden xl:block" : ""}`}>
         {t("Non-functional mockup. No payments or backend — actions show a demo note.")}
       </div>
@@ -109,7 +114,7 @@ export function PageTopNav({ persona, page, setPage }: NavProps) {
         const IconC = Icon[it.icon];
         const active = page === it.k;
         return (
-          <button key={it.k} onClick={() => setPage(it.k)}
+          <button key={it.k} data-page={it.k} onClick={() => setPage(it.k)}
             className={`group flex items-center gap-2 h-10 px-3 rounded-xl text-sm font-semibold whitespace-nowrap transition-all duration-150 ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-700 hover:bg-white/70 hover:text-navy-900"}`}>
             {IconC && <IconC size={16} className={active ? "" : "text-slate-500 group-hover:text-teal-600 transition-colors"} />}
             <span>{t(it.label)}</span>
@@ -128,12 +133,12 @@ export function CustomerNav({ page, setPage }: Pick<NavProps, "page" | "setPage"
   const t = useT();
   return (
     <nav aria-label={t("Main")} className="hidden md:flex justify-center -mt-1 mb-4">
-      <div className="glass-card-solid rounded-2xl p-1 flex gap-1 shadow-soft">
+      <div className="glass-card-solid rounded-2xl p-1 flex gap-1 shadow-soft" data-main-nav="">
         {NAV.customer.map((it) => {
           const IconC = Icon[it.icon];
           const active = page === it.k;
           return (
-            <button key={it.k} type="button" onClick={() => setPage(it.k)} aria-current={active ? "page" : undefined}
+            <button key={it.k} data-page={it.k} type="button" onClick={() => setPage(it.k)} aria-current={active ? "page" : undefined}
               className={`flex items-center gap-2 h-10 px-3.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${active ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-700 hover:bg-white/80 hover:text-navy-900"}`}>
               {IconC && <IconC size={16} className={active ? "" : "text-slate-500"} />}
               {t(it.label)}
@@ -145,15 +150,38 @@ export function CustomerNav({ page, setPage }: Pick<NavProps, "page" | "setPage"
   );
 }
 
+/* One tab of the phone bar. Lives at module level: declared inside the bar it
+   was a new component type on every render, so each page change remounted the
+   buttons and dropped keyboard focus. `current` marks a page tab (aria-current)
+   — "More" only looks active; `line` draws the static top marker. */
+function TabButton({ icon, label, active, current = false, line, onClick, badge, page }: { page?: string; icon: string | IconRenderer; label: ReactNode; active: boolean; current?: boolean; line: boolean; onClick: () => void; badge?: string }) {
+  const IconC = typeof icon === "string" ? Icon[icon] : icon;
+  return (
+    <button type="button" data-page={page} onClick={onClick} aria-current={current && active ? "page" : undefined} data-tab-on={active || undefined}
+      className={`relative flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 h-14 px-1 rounded-xl transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500 ${active ? "text-teal-700" : "text-slate-600"}`}>
+      {active && line && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-teal-500" />}
+      {IconC && <IconC size={21} />}
+      <span className="text-[11px] font-semibold leading-none truncate max-w-full">{label}</span>
+      {badge === "Future" && <span className="absolute top-1.5 right-1/2 translate-x-3 w-1.5 h-1.5 rounded-full bg-orange-400" />}
+    </button>
+  );
+}
+
 /* ---------- Bottom tab bar (mobile) ----------
    Replaces the two stacked horizontal scroll-strips (persona tabs + page
    pills). Shows the first few destinations for the active persona as fixed
    tabs and folds the rest behind "More" (the NavSheet). Fixed to the bottom
    with safe-area padding so it clears the iOS home indicator. md:hidden —
    desktop uses the sidebar / inline nav. */
-export function BottomTabBar({ persona, page, setPage }: NavProps) {
+/** `away`: the bar slides off screen and leaves the tab order — the customer
+ *  booking flow is a focused flow on phones (AENR-752). */
+export function BottomTabBar({ persona, page, setPage, away = false }: NavProps & { away?: boolean }) {
   const t = useT();
   const [moreOpen, setMoreOpen] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (navRef.current) navRef.current.inert = away;
+  }, [away]);
   const items = useNav(persona);
   // Account destinations always live behind "More" (the nav sheet), never as a
   // fixed tab. Primary tabs are drawn from the main destinations.
@@ -162,26 +190,26 @@ export function BottomTabBar({ persona, page, setPage }: NavProps) {
   const primary = mainItems.length > 5 ? mainItems.slice(0, 4) : mainItems.slice(0, 5);
   const hasMore = items.length > primary.length;
   const moreActive = !primary.some((it) => it.k === page);
-  const Tab = ({ icon, label, active, onClick, badge }: { icon: string | IconRenderer; label: ReactNode; active: boolean; onClick: () => void; badge?: string }) => {
-    const IconC = typeof icon === "string" ? Icon[icon] : icon;
-    return (
-      <button onClick={onClick}
-        className={`relative flex-1 min-w-0 flex flex-col items-center justify-center gap-0.5 h-14 px-1 transition ${active ? "text-teal-700" : "text-slate-600"}`}>
-        {active && <span className="absolute top-0 h-0.5 w-8 rounded-full bg-teal-500" />}
-        {IconC && <IconC size={21} />}
-        <span className="text-[11px] font-semibold leading-none truncate max-w-full">{label}</span>
-        {badge === "Future" && <span className="absolute top-1.5 right-1/2 translate-x-3 w-1.5 h-1.5 rounded-full bg-orange-400" />}
-      </button>
-    );
-  };
+  // The customer bar marks the active tab with the flowing water drop (AENR-TAB);
+  // the other personas keep the static top line.
+  const water = persona === "customer";
+  const activeKey = primary.some((it) => it.k === page) ? page : hasMore ? "more" : null;
+  const rowRef = useRef<HTMLDivElement>(null);
+  const { drop, trail } = useWaterDrop(rowRef, water ? activeKey : null);
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 glass border-t border-white/40 pb-safe shadow-[0_-8px_24px_-16px_rgba(15,23,42,0.35)]">
-        <div className="flex items-stretch px-1">
+      <nav ref={navRef} aria-hidden={away || undefined} className={`md:hidden fixed bottom-0 inset-x-0 z-40 tabbar-material pb-safe shadow-[0_-8px_24px_-16px_rgba(15,23,42,0.35)] transition-transform duration-base ${away ? "translate-y-full ease-exit" : "translate-y-0 ease-ios"}`}>
+        <div ref={rowRef} className="relative flex items-stretch px-1">
+          {water && (
+            <>
+              <span ref={trail} aria-hidden className="pointer-events-none absolute left-0 top-[3px] w-1.5 h-1.5 rounded-full bg-teal-500 opacity-0" />
+              <span ref={drop} aria-hidden className="pointer-events-none absolute left-0 top-[3px] w-7 h-1.5 rounded-full bg-teal-500 will-change-transform" />
+            </>
+          )}
           {primary.map((it) => (
-            <Tab key={it.k} icon={it.icon} label={t(it.short || it.label.split(" ")[0])} badge={it.badge} active={page === it.k} onClick={() => setPage(it.k)} />
+            <TabButton key={it.k} page={it.k} icon={it.icon} label={t(it.short || it.label.split(" ")[0])} badge={it.badge} active={page === it.k} current line={!water} onClick={() => setPage(it.k)} />
           ))}
-          {hasMore && <Tab icon={Icon.layers} label={t("More")} active={moreActive} onClick={() => setMoreOpen(true)} />}
+          {hasMore && <TabButton icon={Icon.layers} label={t("More")} active={moreActive} line={!water} onClick={() => setMoreOpen(true)} />}
         </div>
       </nav>
       <NavSheet open={moreOpen} onClose={() => setMoreOpen(false)} persona={persona} page={page} setPage={setPage} />
@@ -202,7 +230,7 @@ export function TillTabs({ persona, page, setPage }: NavProps) {
         const IconC = Icon[it.icon];
         const on = it.k === page;
         return (
-          <button key={it.k} type="button" aria-current={on ? "page" : undefined} onClick={() => setPage(it.k)}
+          <button key={it.k} data-page={it.k} type="button" aria-current={on ? "page" : undefined} onClick={() => setPage(it.k)}
             className={`min-h-[44px] rounded-xl inline-flex items-center justify-center gap-2 text-[14px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${on ? "bg-navy-900 text-white shadow-sm" : "text-slate-600 hover:bg-white/70 hover:text-navy-900"}`}>
             {IconC && <IconC size={16} />} {t(it.short ?? it.label)}
           </button>

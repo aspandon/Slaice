@@ -129,7 +129,7 @@ export function ChannelPreview({
               </div>
             )}
           </div>
-          <div className="px-3.5 py-2 bg-slate-50 text-[10px] text-slate-400 leading-snug">
+          <div className="px-3.5 py-2 bg-slate-50 text-[10px] text-slate-500 leading-snug">
             {v.footer}
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useContext, useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { useContext, useId, useMemo, useState, type ReactNode } from "react";
 import { Icon } from "../../lib/icons";
 import { Badge, Btn, Card, DateInput, Input, Toggle } from "../../components/ui";
 import { usePlatform } from "../../lib/usePlatform";
@@ -25,7 +25,8 @@ import {
   type SupportItem,
 } from "../../domain/economics";
 import type { AuditEntry } from "../../domain/tenants";
-import { SectionCtx, SectionFrame, navGuard, type SectionProps } from "./kit";
+import { Part, SectionCtx, SectionFrame, useLeaveGuard, type SectionProps } from "./kit";
+import { Invoicing, Payments } from "./AccessSections";
 import { Choice, Num } from "./TermsFields";
 import { ExampleBooking } from "./ExampleBooking";
 
@@ -49,7 +50,13 @@ interface CardProps {
   patch: (f: (d: Terms) => Terms) => void;
 }
 
-export function CommercialTerms({ t }: SectionProps) {
+const TERMS_PARTS = [
+  { id: "terms", label: "Commission, fees & subscription" },
+  { id: "payments", label: "Payments" },
+  { id: "invoicing", label: "Invoicing & tax" },
+] as const;
+
+export function CommercialTerms({ t, go }: SectionProps) {
   const { updateTenant, plan, planName } = usePlatform();
   const { canEdit } = useContext(SectionCtx);
   const undo = useUndoToast();
@@ -61,12 +68,7 @@ export function CommercialTerms({ t }: SectionProps) {
   const errors = useMemo(() => (draft ? termsErrors(draft) : {}), [draft]);
   const errCount = Object.keys(errors).length;
   const changes = useMemo(() => (draft ? termsChanges(saved, draft) : []), [draft, saved]);
-  useEffect(() => {
-    navGuard.dirty = changes.length > 0;
-    return () => {
-      navGuard.dirty = false;
-    };
-  }, [changes.length]);
+  useLeaveGuard(changes.length > 0);
   const patch = (f: (d: Terms) => Terms) => setDraft((d) => (d ? f(d) : d));
   const start = () => {
     setDraft(cloneTerms(saved));
@@ -113,40 +115,50 @@ export function CommercialTerms({ t }: SectionProps) {
   return (
     <SectionFrame
       title="Commercial terms"
-      sub="What Slaice earns from this tenant — commission per service with a minimum per booking, the guest's service fee, VAT per service, the corporate-tax rebill, support and subscription. Online and phone bookings carry commission and guest fees, as set below."
-      actions={
-        editing ? undefined : (
-          <Btn variant="outline" icon={Icon.edit} onClick={start} disabled={!canEdit}>
-            Edit
-          </Btn>
-        )
-      }
+      sub="What Slaice earns from this tenant and how the money moves — the commercial terms, the Stripe account and payouts, and invoicing & tax."
+      parts={TERMS_PARTS}
     >
-      {/* One grid: on phones the example sits right under the commission it illustrates; from xl it is
-          a sticky column beside every card. */}
-      <div className="grid xl:grid-cols-[minmax(0,1fr)_330px] gap-4 items-start">
-        <ServicesCard {...card} />
-        <div className="min-w-0 self-start xl:col-start-2 xl:row-start-1 xl:row-span-5 xl:sticky xl:top-[86px]">
-          <ExampleBooking terms={view} editing={editing} invalid={errCount} />
+      <Part
+        id="terms"
+        icon={Icon.tag}
+        title="Commission, fees & subscription"
+        sub="Commission per service with a minimum per booking, the guest's service fee, VAT per service, the corporate-tax rebill, support and subscription. Online and phone bookings carry commission and guest fees, as set below."
+        actions={
+          editing ? undefined : (
+            <Btn size="sm" variant="outline" icon={Icon.edit} onClick={start} disabled={!canEdit}>
+              Edit
+            </Btn>
+          )
+        }
+      >
+        {/* One grid: on phones the example sits right under the commission it illustrates; from xl it is
+            a sticky column beside every card. */}
+        <div className="grid xl:grid-cols-[minmax(0,1fr)_330px] gap-4 items-start">
+          <ServicesCard {...card} />
+          <div className="min-w-0 self-start xl:col-start-2 xl:row-start-1 xl:row-span-5 xl:sticky xl:top-[86px]">
+            <ExampleBooking terms={view} editing={editing} invalid={errCount} />
+          </div>
+          <CorporateTaxCard {...card} />
+          <SupportCard {...card} />
+          <SubscriptionCard {...card} planPrice={plan(t)?.price ?? 0} planLabel={planName(t)} />
+          <RecentChanges
+            history={t.audit.filter((a) => a.section === "Commercial terms").slice(0, 6)}
+          />
         </div>
-        <CorporateTaxCard {...card} />
-        <SupportCard {...card} />
-        <SubscriptionCard {...card} planPrice={plan(t)?.price ?? 0} planLabel={planName(t)} />
-        <RecentChanges
-          history={t.audit.filter((a) => a.section === "Commercial terms").slice(0, 6)}
-        />
-      </div>
-      {editing && (
-        <EditBar
-          changes={changes.length}
-          errCount={errCount}
-          why={why}
-          onWhy={setWhy}
-          blocker={blocker}
-          onCancel={stop}
-          onDone={done}
-        />
-      )}
+        {editing && (
+          <EditBar
+            changes={changes.length}
+            errCount={errCount}
+            why={why}
+            onWhy={setWhy}
+            blocker={blocker}
+            onCancel={stop}
+            onDone={done}
+          />
+        )}
+      </Part>
+      <Payments t={t} canEdit={canEdit} go={go} />
+      <Invoicing t={t} canEdit={canEdit} go={go} />
     </SectionFrame>
   );
 }
@@ -154,7 +166,7 @@ export function CommercialTerms({ t }: SectionProps) {
 const Head = ({ title, sub, right }: { title: string; sub?: ReactNode; right?: ReactNode }) => (
   <div className="flex flex-wrap items-start justify-between gap-2 mb-3">
     <div className="min-w-0">
-      <h3 className="font-semibold text-navy-900">{title}</h3>
+      <h4 className="font-semibold text-navy-900">{title}</h4>
       {sub && <p className="text-[12.5px] text-slate-500 leading-snug max-w-2xl">{sub}</p>}
     </div>
     {right}
@@ -451,7 +463,7 @@ function SupportCard({ view, editing, err, patch }: CardProps) {
                   type="button"
                   aria-label={`Remove ${it.label || "item"}`}
                   onClick={() => setItems((xs) => xs.filter((y) => y.id !== it.id))}
-                  className="mt-[22px] w-10 h-10 rounded-xl grid place-items-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
+                  className="mt-[22px] w-10 h-10 rounded-xl grid place-items-center text-slate-500 hover:text-rose-600 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
                 >
                   <Icon.trash size={15} />
                 </button>

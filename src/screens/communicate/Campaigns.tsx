@@ -294,7 +294,7 @@ function CalendarView({
           return (
             <div
               key={d}
-              className={`min-h-[78px] rounded-lg p-1 ring-1 ${d.slice(0, 7) === month ? "bg-white ring-slate-200" : "bg-slate-50/60 ring-slate-100 text-slate-400"} ${today ? "ring-2 ring-teal-500" : ""}`}
+              className={`min-h-[78px] rounded-lg p-1 ring-1 ${d.slice(0, 7) === month ? "bg-white ring-slate-200" : "bg-slate-50/60 ring-slate-100 text-slate-500"} ${today ? "ring-2 ring-teal-500" : ""}`}
             >
               <div className={`text-[11px] tnum ${today ? "font-bold text-teal-700" : ""}`}>
                 {Number(d.slice(8))}

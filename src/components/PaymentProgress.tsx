@@ -24,8 +24,11 @@ export interface PaymentMoment {
   reference: string;
 }
 
-const STEP_MS = [1100, 900, 800];
-const HOLD_MS = 1800;
+// The demo's simulated timings (AENR-853: were 1100 / 900 / 800 ms and an 1800 ms hold — with the
+// pass printing after, ≈ 6 s from Pay to a usable pass; now ≈ 2.5 s). Long enough to read each step;
+// the hold lets the drawn check finish (0.75 s, index.css .pp-check) before the pass opens.
+const STEP_MS = [450, 400, 350];
+const HOLD_MS = 1000;
 
 export function PaymentProgress({ moment, onDone }: { moment: PaymentMoment; onDone: () => void }) {
   const t = useT();
@@ -121,13 +124,13 @@ export function PaymentProgress({ moment, onDone }: { moment: PaymentMoment; onD
                     </span>
                     <span className="min-w-0">
                       <span
-                        className={`block text-guest-body font-semibold ${state === "next" ? "text-slate-400" : "text-navy-900"}`}
+                        className={`block text-guest-body font-semibold ${state === "next" ? "text-slate-500" : "text-navy-900"}`}
                       >
                         {s.label}
                       </span>
                       {s.sub && (
                         <span
-                          className={`block text-guest-caption ${state === "next" ? "text-slate-400" : "text-slate-500"}`}
+                          className={`block text-guest-caption ${state === "next" ? "text-slate-500" : "text-slate-500"}`}
                         >
                           {s.sub}
                         </span>

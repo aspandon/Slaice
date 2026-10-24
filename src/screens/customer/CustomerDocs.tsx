@@ -7,6 +7,7 @@ import { useAsync } from "../../lib/useAsync";
 import type { CustomerDocument } from "../../domain/types";
 import { useApp, useT } from "../../app/store";
 import { useVisits } from "../../lib/useVisits";
+import { useDemoFlag } from "../../lib/useDemoFlag";
 import { OPERATOR } from "../../data/beach";
 import { invoiceForVisit } from "./VisitTicket";
 import { customerDocBytes, docKind, downloadCustomerDoc } from "./receiptPdf";
@@ -28,7 +29,9 @@ export function CustomerDocs() {
     const v = visits.find((x) => x.key === r.visitKey);
     return v ? [invoiceForVisit(v, r)] : [];
   });
-  const docs = [...requested, ...(docsQ.status === "success" ? docsQ.data : [])];
+  // A first-time guest (Demo, AENR-778) has none of the sample receipts.
+  const [newGuest] = useDemoFlag("newGuest");
+  const docs = [...requested, ...(docsQ.status === "success" && !newGuest ? docsQ.data : [])];
   const [view, setView] = useState<CustomerDocument | null>(null);
   const [filter, setFilter] = useState("all");
   const filtered = docs.filter((d) => filter === "all" || docKind(d.id) === filter);

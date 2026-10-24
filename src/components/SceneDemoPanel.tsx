@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, type KeyboardEvent } from "react";
 import { Icon } from "../lib/icons";
 import { DAY_MAX, DAY_MIN, fmtHour, WEATHER_DEMO, WEATHER_KINDS } from "../data/beach";
 import { useApp, useT } from "../app/store";
 import { NotMvpBadge } from "./ui";
 import { useGuestScene } from "../lib/useGuestScene";
+import { useTenantFeatures } from "../lib/useFeatures";
+import { hasRes, readyRes, SEA_DEVICES, SEA_STYLES, seaResOf, seaStyleOf, withSeaRes, type SeaDevice } from "../domain/features";
 
 /* ============================================================================
    Scene demo controls — the bottom-left counterpart to the persona switcher's
@@ -47,8 +49,8 @@ export function SceneDemoPanel() {
       >
         <WIcon size={14} className="text-teal-700" />
         <span className="tnum">{sceneFx.daytime ? fmtHour(dayTime) : t(wd.label)}</span>
-        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{t("Demo")}</span>
-        <Icon.chevD size={13} className={`text-slate-400 transition-transform ${open ? "rotate-180" : ""}`} />
+        <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{t("Demo")}</span>
+        <Icon.chevD size={13} className={`text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
     </div>
   );
@@ -78,7 +80,7 @@ export function SceneControls() {
             aria-label={t("Time of day")}
             className="demo-range w-full"
           />
-          <div className="flex justify-between text-[9.5px] text-slate-400 mt-0.5">
+          <div className="flex justify-between text-[9.5px] text-slate-500 mt-0.5">
             <span className="tnum">{fmtHour(DAY_MIN)}</span>
             <span>{t("golden hour")} ≈ 19:30</span>
             <span className="tnum">{fmtHour(DAY_MAX)}</span>
@@ -118,6 +120,166 @@ export function SceneControls() {
       <div className="text-[10px] text-slate-500 leading-snug border-t border-slate-200/70 pt-2">
         {t("Demo only — drives the scene and hero, not a real forecast.")}
       </div>
+    </div>
+  );
+}
+
+/** Two demo sliders for the guest Demo menu (AENR-825): the weather and the time of day, so a
+ *  demonstration can walk the beach through a day — the sea, its light and the weather layer follow
+ *  at once (they glide). Keys stay with the sliders, not the menu's own arrow-key navigation. */
+export function DemoSceneSliders() {
+  const { weather, setWeather, dayTime, setDayTime } = useApp();
+  const t = useT();
+  const wi = Math.max(0, WEATHER_KINDS.indexOf(weather));
+  const W = WEATHER_DEMO[weather];
+  const WI = Icon[W.icon] || Icon.sun;
+  const keep = (e: KeyboardEvent) => e.stopPropagation();
+  return (
+    <div className="space-y-3">
+      <div>
+        <div className="mb-1.5 flex items-center justify-between">
+          <label htmlFor="demo-weather" className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <Icon.cloud size={12} aria-hidden /> {t("Weather")}
+          </label>
+          <span className="flex items-center gap-1 text-[12px] font-bold text-navy-900">
+            <WI size={13} aria-hidden className="text-teal-600" /> {t(W.label)}
+          </span>
+        </div>
+        <input
+          id="demo-weather"
+          type="range"
+          min={0}
+          max={WEATHER_KINDS.length - 1}
+          step={1}
+          value={wi}
+          onChange={(e) => setWeather(WEATHER_KINDS[Number(e.target.value)])}
+          onKeyDown={keep}
+          aria-valuetext={t(W.label)}
+          className="demo-range w-full"
+        />
+        <div aria-hidden className="mt-0.5 flex justify-between text-[9.5px] text-slate-500">
+          {WEATHER_KINDS.map((k) => (
+            <span key={k}>{t(WEATHER_DEMO[k].label)}</span>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div className="mb-1.5 flex items-center justify-between">
+          <label htmlFor="demo-daytime" className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+            <Icon.clock size={12} aria-hidden /> {t("Time of day")}
+          </label>
+          <span className="text-[12px] font-bold text-navy-900 tnum">{fmtHour(dayTime)}</span>
+        </div>
+        <input
+          id="demo-daytime"
+          type="range"
+          min={DAY_MIN}
+          max={DAY_MAX}
+          step={0.25}
+          value={dayTime}
+          onChange={(e) => setDayTime(parseFloat(e.target.value))}
+          onKeyDown={keep}
+          aria-valuetext={fmtHour(dayTime)}
+          className="demo-range w-full"
+        />
+        <div aria-hidden className="mt-0.5 flex justify-between text-[9.5px] text-slate-500">
+          <span className="tnum">{fmtHour(DAY_MIN)}</span>
+          <span>{t("sunrise")} ≈ 06:15</span>
+          <span>{t("sunset")} ≈ 20:50</span>
+          <span className="tnum">{fmtHour(DAY_MAX)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Guest sea sliders (AENR-855) ----------
+   The Platform › tenant › Guest sea choice, at the end of the guest Demo menu: a slider per
+   device through the four seas, and under a Blender or Video sea a slider through its published
+   resolutions (AENR-859). They write the site tenant's own setting, so the Platform page always agrees. */
+export function DemoSeaSliders() {
+  const { setPlatform } = useApp();
+  const { tenant } = useTenantFeatures();
+  const t = useT();
+  const keep = (e: KeyboardEvent) => e.stopPropagation();
+  // The device this screen is (the guest backdrop's own line, 1024 px).
+  const here: SeaDevice = window.matchMedia("(min-width: 1024px)").matches ? "desktop" : "mobile";
+  const edit = (fn: (sea: NonNullable<NonNullable<typeof tenant>["sea"]>) => NonNullable<typeof tenant>["sea"]) =>
+    setPlatform((p) => ({ ...p, tenants: p.tenants.map((x) => (x.id === p.siteTenant ? { ...x, sea: fn(x.sea ?? {}) } : x)) }));
+  return (
+    <div className="space-y-3">
+      {SEA_DEVICES.map((d) => {
+        const style = seaStyleOf(tenant, d.id);
+        const si = Math.max(0, SEA_STYLES.findIndex((x) => x.id === style));
+        const tiers = hasRes(style) ? readyRes(style) : [];
+        const res = hasRes(style) ? seaResOf(tenant, style, d.id) : "standard";
+        const ri = Math.max(0, tiers.findIndex((x) => x.id === res));
+        const sea = SEA_STYLES[si];
+        const id = `demo-sea-${d.id}`;
+        return (
+          <div key={d.id}>
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <label htmlFor={id} className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                {d.id === "desktop" ? <Icon.monitor size={12} aria-hidden /> : <Icon.phone size={12} aria-hidden />} {t(d.label)}
+                {d.id === here && <span className="whitespace-nowrap rounded bg-teal-50 px-1 py-px text-[9.5px] normal-case tracking-normal text-teal-700">{t("this screen")}</span>}
+              </label>
+              <span className="text-[12px] font-bold text-navy-900">{t(sea.label)}</span>
+            </div>
+            <input
+              id={id}
+              type="range"
+              min={0}
+              max={SEA_STYLES.length - 1}
+              step={1}
+              value={si}
+              onChange={(e) => {
+                const next = SEA_STYLES[Number(e.target.value)].id;
+                edit((s) => ({ ...s, [d.id]: next }));
+              }}
+              onKeyDown={keep}
+              aria-valuetext={t(sea.label)}
+              className="demo-range demo-range-plain w-full"
+            />
+            <div aria-hidden className="mt-0.5 flex justify-between text-[9.5px] text-slate-500">
+              {SEA_STYLES.map((x) => (
+                <span key={x.id}>{t(x.label)}</span>
+              ))}
+            </div>
+            {hasRes(style) && tiers.length > 1 && (
+              <div className="mt-2 rounded-lg bg-slate-50 px-2 py-1.5 ring-1 ring-slate-200">
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <label htmlFor={`${id}-res`} className="text-[10.5px] font-semibold uppercase tracking-wide text-slate-500">
+                    {t("Resolution")}
+                  </label>
+                  <span className="text-[11.5px] font-bold text-navy-900 tnum">
+                    {t(tiers[ri].label)} · {tiers[ri][d.id].px}
+                  </span>
+                </div>
+                <input
+                  id={`${id}-res`}
+                  type="range"
+                  min={0}
+                  max={tiers.length - 1}
+                  step={1}
+                  value={ri}
+                  onChange={(e) => {
+                    const next = tiers[Number(e.target.value)].id;
+                    if (hasRes(style)) edit((s) => withSeaRes(s, style, d.id, next));
+                  }}
+                  onKeyDown={keep}
+                  aria-valuetext={`${t(tiers[ri].label)}, ${tiers[ri][d.id].px} px, ${tiers[ri][d.id].mb}`}
+                  className="demo-range demo-range-plain w-full"
+                />
+                <div aria-hidden className="mt-0.5 flex justify-between text-[9.5px] text-slate-500">
+                  {tiers.map((r) => (
+                    <span key={r.id}>{t(r.label)}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

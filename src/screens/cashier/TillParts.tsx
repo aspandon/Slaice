@@ -61,7 +61,7 @@ export function ReceiptView({ sale, copy = false }: { sale: TillSale; copy?: boo
         <div className="text-center">
           <div className="font-bold text-[13px]">{TENANT.name}</div>
           <div>Beach services · {TENANT.place}</div>
-          <div>VAT no. EL 801234567 · Tax office Glyfadas</div>
+          <div>VAT no. EL 801234560 · Tax office Glyfadas</div>
         </div>
         <div className="border-t border-dashed border-slate-300 my-2" />
         <div className="flex justify-between"><span>{sale.apy}</span><span>{time(sale.at)}</span></div>

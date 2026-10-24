@@ -154,7 +154,7 @@ export function PlatformCompliance() {
                         {s.tia}
                       </button>
                     ) : isEu(s) ? (
-                      <span className="text-slate-400">Not needed</span>
+                      <span className="text-slate-500">Not needed</span>
                     ) : (
                       <Badge tone="red">Missing</Badge>
                     )}

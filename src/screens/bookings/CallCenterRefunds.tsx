@@ -144,7 +144,7 @@ export function CallCenterRefunds() {
                   <Icon.search
                     size={16}
                     aria-hidden
-                    className="pointer-events-none absolute z-10 left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                    className="pointer-events-none absolute z-10 left-3 top-1/2 -translate-y-1/2 text-slate-500"
                   />
                   <Input
                     type="search"
@@ -192,7 +192,7 @@ export function CallCenterRefunds() {
                               </div>
                             </div>
                             <StatusBadge status={b.status} />
-                            <Icon.chevR size={16} aria-hidden className="text-slate-400 shrink-0" />
+                            <Icon.chevR size={16} aria-hidden className="text-slate-500 shrink-0" />
                           </button>
                         </li>
                       );
@@ -207,7 +207,7 @@ export function CallCenterRefunds() {
         <Card className="p-4 sm:p-5">
           <div className="flex items-baseline justify-between gap-2 mb-3">
             <h2 className="font-display font-bold text-navy-900 text-lg">
-              My requests <span className="text-slate-400 tnum">{mine.length}</span>
+              My requests <span className="text-slate-500 tnum">{mine.length}</span>
             </h2>
             {mine.length > 0 && (
               <span className="text-[12px] text-slate-500 tnum">
@@ -481,7 +481,7 @@ function RequestForm({
             )}
           </div>
           <p className="text-[12px] text-slate-600 flex gap-1.5">
-            <Icon.info size={14} aria-hidden className="shrink-0 mt-0.5 text-slate-400" />
+            <Icon.info size={14} aria-hidden className="shrink-0 mt-0.5 text-slate-500" />
             {covered
               ? "The refund policy covers this one — it is approved as soon as you send it."
               : "A manager approves or declines it in Refunds; the guest is e-mailed either way."}

@@ -12,6 +12,7 @@ on:
       - main
       - claude/lucid-goodall-z4fbR
       - claude/pensive-bell-ydm3xm
+      - claude/kind-euler-t105hp
     paths-ignore:
       - "docs/**"
   workflow_dispatch:

@@ -9,7 +9,7 @@ import { useVisits } from "../lib/useVisits";
 import { vipSavings } from "../domain/visits";
 import { TENANT } from "../data/beach";
 import { seasonPlanLabel, seasonValidUntil, SEASON_END_LABEL, round2 } from "../data/passes";
-import { useApp, useT } from "../app/store";
+import { useApp, useMoney, useT } from "../app/store";
 import type { SeasonPlan } from "../domain/types";
 
 // Stable-ish pass reference sequence for the QR / wallet pass.
@@ -35,6 +35,7 @@ export function PassPurchase({ kind }: { kind: "vip" | "season" }) {
 }
 
 function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
+  const money = useMoney();
   const { go, toast, passPricing, passes, buyVipCredit, buySeasonPass } = useApp();
   const t = useT();
   const vip = kind === "vip";
@@ -78,7 +79,7 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
   if (phase === "done") {
     const fields = vip
       ? [
-          { label: t("Credit"), value: `€${(passes.vip?.balance ?? tier).toLocaleString()}` },
+          { label: t("Credit"), value: `${money((passes.vip?.balance ?? tier))}` },
           { label: t("Discount"), value: `${discPct}% ${t("off")}` },
           { label: t("Valid"), value: `→ ${SEASON_END_LABEL}` },
         ]
@@ -98,7 +99,7 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
               : `${t("You're now a Season-pass holder.")} ${t("Your entry is covered every visit.")}`}
           </p>
 
-          <div className="my-6"><WalletButtons pass={{ ref, variant: kind, holder: "Elena M.", title: vip ? t("VIP credit pass") : t("Season pass"), total: `€${price.toLocaleString()}`, validUntil: vip ? SEASON_END_LABEL : dateOf(passes.season?.validUntil ?? seasonValidUntil(plan)), fields }} className="" /></div>
+          <div className="my-6"><WalletButtons pass={{ ref, variant: kind, holder: "Elena M.", title: vip ? t("VIP credit pass") : t("Season pass"), total: `${money(price)}`, validUntil: vip ? SEASON_END_LABEL : dateOf(passes.season?.validUntil ?? seasonValidUntil(plan)), fields }} className="" /></div>
 
           <div className="grid sm:grid-cols-3 gap-2 text-guest-caption">
             <Pill icon={Icon.checkCircle} t={t("Stripe paid")} />
@@ -155,7 +156,7 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
             </label>
           </div>
           <div className="px-5 sm:px-6 py-4 border-t border-slate-200/70 flex items-center justify-between gap-3">
-            <div className="text-guest-caption text-slate-500">{t("Total")} · <b className="text-navy-900 tnum">€{price.toLocaleString()}</b></div>
+            <div className="text-guest-caption text-slate-500">{t("Total")} · <b className="text-navy-900 tnum">{money(price)}</b></div>
             <div className="flex items-center gap-2">
               <Btn variant="ghost" onClick={() => setPhase("select")}>{t("Back")}</Btn>
               <Btn variant="primary" icon={Icon.stripe} disabled={!agreed} onClick={() => setPhase("redirect")}>{t("Pay with Stripe")}</Btn>
@@ -194,7 +195,7 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
           {saved > 0 && (
             <div className="rounded-2xl bg-emerald-50 ring-1 ring-emerald-600/20 px-4 py-3 text-guest-meta text-emerald-900 flex items-start gap-2">
               <Icon.sparkles size={16} className="shrink-0 mt-0.5" />
-              <span>{vip ? t("With VIP this season you would have saved") : t("With a Season pass this season you would have saved")} <b>€{saved}</b> — {t("based on your")} {usedVisits} {usedVisits === 1 ? t("visit") : t("visits")}.</span>
+              <span>{vip ? t("With VIP this season you would have saved") : t("With a Season pass this season you would have saved")} <b>{money(saved)}</b> — {t("based on your")} {usedVisits} {usedVisits === 1 ? t("visit") : t("visits")}.</span>
             </div>
           )}
           <div className="text-guest-over font-semibold uppercase tracking-wide text-slate-500">{vip ? t("Choose a credit pack") : t("Choose a plan")}</div>
@@ -202,8 +203,8 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
             {vip
               ? passPricing.vipTiers.map((amt) => (
                   <SelectCard key={amt} on={tier === amt} onClick={() => setTier(amt)}
-                    title={`€${amt.toLocaleString()} ${t("credit")}`}
-                    sub={`${t("Spends like")} €${round2(amt / (1 - passPricing.vipDiscount)).toLocaleString()} · ${discPct}% ${t("off")}`}
+                    title={`${money(amt)} ${t("credit")}`}
+                    sub={`${t("Spends like")} ${money(round2(amt / (1 - passPricing.vipDiscount)))} · ${discPct}% ${t("off")}`}
                     foot={`${t("Valid to")} ${SEASON_END_LABEL}`} accent="gold" />
                 ))
               : ([
@@ -212,7 +213,7 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
                 ]).map((o) => (
                   <SelectCard key={o.p} on={plan === o.p} onClick={() => setPlan(o.p)}
                     title={t(seasonPlanLabel(o.p))}
-                    sub={`€${o.price.toLocaleString()} · ${t("covers your entry")}`}
+                    sub={`${money(o.price)} · ${t("covers your entry")}`}
                     foot={o.foot} accent="teal" />
                 ))}
           </div>
@@ -220,7 +221,7 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
           <div className="rounded-2xl ring-1 ring-slate-200 bg-slate-50/70 p-4 flex items-center justify-between gap-3">
             <div>
               <div className="text-guest-over uppercase font-bold tracking-wider text-slate-500">{t("Total")}</div>
-              <div className="font-display text-2xl font-bold text-navy-900 tnum leading-none">€{price.toLocaleString()}</div>
+              <div className="font-display text-2xl font-bold text-navy-900 tnum leading-none">{money(price)}</div>
               <div className="text-guest-caption text-slate-500 mt-1">{vip ? `${t("One-off · credit never expires before")} ${SEASON_END_LABEL}` : t("One-off · auto-applies at checkout")}</div>
             </div>
             <Btn variant="primary" size="lg" onClick={() => setPhase("terms")}>{t("Continue")} <Icon.arrowR size={15} /></Btn>
@@ -231,7 +232,7 @@ function PassPurchaseFlow({ kind }: { kind: "vip" | "season" }) {
       </Card>
 
       <div className="mt-3 text-guest-caption text-slate-600 flex items-start gap-1.5">
-        <Icon.info size={13} className="shrink-0 mt-0.5 text-slate-400" />
+        <Icon.info size={13} className="shrink-0 mt-0.5 text-slate-500" />
         {vip
           ? t("At checkout, the VIP discount applies to whatever your credit pays for; anything left is paid as usual.")
           : t("At checkout, one entry ticket per visit is covered automatically while your pass is valid.")}
@@ -247,7 +248,7 @@ function SelectCard({ on, onClick, title, sub, foot, accent }: { on: boolean; on
       className={`relative text-left rounded-2xl p-4 ring-1 transition ${on ? `ring-2 ${ring} bg-white shadow-lift` : "ring-slate-200 bg-white/70 hover:ring-slate-300"}`}>
       <div className="font-display font-bold text-navy-900 text-guest-head">{title}</div>
       <div className="text-guest-meta text-slate-600 mt-0.5">{sub}</div>
-      <div className="text-guest-caption text-slate-400 mt-1.5">{foot}</div>
+      <div className="text-guest-caption text-slate-500 mt-1.5">{foot}</div>
       {on && <span className={`absolute top-3 right-3 w-5 h-5 rounded-full text-white grid place-items-center ${accent === "gold" ? "bg-navy-900" : "bg-teal-600"}`}><Icon.check size={12} /></span>}
     </button>
   );

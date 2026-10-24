@@ -123,7 +123,7 @@ export function WalkinSale({
       </div>
       <div className="flex items-end justify-between border-t border-slate-200 pt-2">
         <span className="text-slate-600 text-sm">
-          Total <span className="text-[11px] text-slate-400">incl. VAT {eur(totals.vat)}</span>
+          Total <span className="text-[11px] text-slate-500">incl. VAT {eur(totals.vat)}</span>
         </span>
         <span className="font-display text-3xl font-bold text-navy-900 tnum" aria-live="polite">{eur(totals.total)}</span>
       </div>

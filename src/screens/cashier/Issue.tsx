@@ -356,7 +356,7 @@ function IssueInner() {
                     className={`relative min-h-[56px] rounded-xl flex flex-col items-center justify-center gap-0.5 px-1 text-[12.5px] font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 ${on ? "bg-navy-900 text-white shadow-btn-primary" : "text-slate-600 hover:bg-white/80 hover:text-navy-900"}`}>
                     <I size={18} />
                     <span className="truncate max-w-full">{x.label}</span>
-                    {n > 0 && <span className={`absolute top-1 left-1/2 ml-2.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10.5px] leading-[18px] tnum ${on ? "bg-teal-400 text-navy-900" : "bg-teal-600 text-white"}`} aria-label={`${n} in basket`}>{n}</span>}
+                    {n > 0 && <span key={n} className={`absolute top-1 left-1/2 ml-2.5 min-w-[18px] h-[18px] px-1 rounded-full text-[10.5px] leading-[18px] tnum animate-pop ${on ? "bg-teal-400 text-navy-900" : "bg-teal-600 text-white"}`} aria-label={`${n} in basket`}>{n}</span>}
                   </button>
                 );
               })}
@@ -364,12 +364,12 @@ function IssueInner() {
             )}
 
             <div id="till-panel" role={tabs.length > 1 ? "tabpanel" : undefined} aria-labelledby={tabs.length > 1 ? `till-tab-${tab}` : undefined} className="glass-card surface-raised rounded-3xl p-4 flex-1 min-h-0 overflow-y-auto">
-              {!tab && <EmptyState compact icon={Icon.ticket} title="Nothing to sell here" body="Every product on the till is switched off for this beach. Slaice sets them in Platform › Tenants › Features." />}
+              {!tab && <EmptyState compact icon={Icon.ticket} title="Nothing to sell here" body="Every product on the till is switched off for this beach. Slaice sets them in Platform › Tenants › Modules & features." />}
               {tab === "quick" && (
                 <>
                   {canTickets && <>
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 mb-2">
-                    <h2 className="font-display font-bold text-navy-900">Entry tickets</h2>
+                    <h2 className="font-display font-bold text-navy-900 flex items-center gap-2"><span aria-hidden className="w-6 h-6 rounded-lg bg-navy-900 text-white grid place-items-center"><Icon.ticket size={13} /></span>Entry tickets</h2>
                     <span className="text-[12px] text-slate-500">Tap to add one · anonymous</span>
                   </div>
                   {/* One key per category the beach sells (AENR-721): tap adds one, the badge counts
@@ -383,13 +383,13 @@ function IssueInner() {
                           {n > 0 && (
                             <button type="button" onClick={() => setTicketQty(c.id, n - 1)} aria-label={`Remove 1 ${c.short} ticket`}
                               className="w-12 shrink-0 flex flex-col items-center justify-center gap-0.5 bg-teal-600 border-r border-white/15 hover:bg-teal-700 active:bg-teal-800 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white">
-                              <span className="text-[17px] font-bold leading-none tnum">{n}</span><Icon.minus size={16} />
+                              <span key={n} className="text-[17px] font-bold leading-none tnum animate-pop">{n}</span><Icon.minus size={16} />
                             </button>
                           )}
                           <button type="button" onClick={() => setTicketQty(c.id, n + 1)} title={c.note}
                             aria-label={`Add 1 ${c.short} ticket, ${price === 0 ? "free" : eur(price)}${n ? ` — ${n} in basket` : ""}`}
                             className="relative flex-1 min-w-0 px-3 py-2 font-semibold text-[16px] hover:bg-navy-800 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-400">
-                            <span className="block truncate">1 {c.short}</span>
+                            <span className="flex items-center gap-1.5 min-w-0">{n === 0 && <Icon.ticket size={14} className="shrink-0 text-teal-300" aria-hidden />}<span className="truncate">1 {c.short}</span></span>
                             <span className="block text-[14px] font-medium text-white/75 tnum">{price === 0 ? "Free" : eur(price)}</span>
                           </button>
                         </div>
@@ -397,13 +397,13 @@ function IssueInner() {
                     })}
                   </div>
                   </>}
-                  {quickKeys.length > 0 && <h2 className="font-display font-bold text-navy-900 mb-2">Combos</h2>}
+                  {quickKeys.length > 0 && <h2 className="font-display font-bold text-navy-900 mb-2 flex items-center gap-2"><span aria-hidden className="w-6 h-6 rounded-lg bg-teal-700 text-white grid place-items-center"><Icon.group size={13} /></span>Combos</h2>}
                   <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2.5">
                     {quickKeys.map((q) => (
                       <button key={q.id} type="button" onClick={() => quick(q)}
-                        className="min-h-[68px] rounded-2xl bg-navy-900 text-white px-4 py-2 font-semibold text-[16px] shadow-sm hover:bg-navy-800 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2">
-                        <span className="block">{q.label}</span>
-                        <span className="block text-[14px] font-medium text-white/75 tnum">{q.sets ? "from " : ""}{eur(quickPrice(q))}</span>
+                        className="min-h-[68px] rounded-2xl bg-teal-700 text-white px-4 py-2 font-semibold text-[16px] text-left shadow-sm hover:bg-teal-800 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2">
+                        <span className="flex items-center gap-1.5"><Icon.group size={14} className="shrink-0 text-teal-100" aria-hidden />{q.label}</span>
+                        <span className="block text-[14px] font-medium text-white/90 tnum">{q.sets ? "from " : ""}{eur(quickPrice(q))}</span>
                       </button>
                     ))}
                   </div>
@@ -422,7 +422,7 @@ function IssueInner() {
                       <button key={b.id} type="button" onClick={() => addBundle(b)}
                         className="min-h-[68px] rounded-2xl bg-teal-50 text-teal-800 ring-1 ring-teal-600/25 px-4 py-2.5 text-left text-[15px] hover:bg-teal-100 active:scale-[.97] transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
                         <span className="font-semibold">{b.label}</span>
-                        <span className="block text-[11.5px] text-teal-700/90">{Object.entries(b.tickets).map(([c, n]) => `${n} ${ex.ticketLabel(c)}`).join(" + ")} + {b.sets} set{b.sets > 1 ? "s" : ""} · save €{b.saving}</span>
+                        <span className="block text-[11.5px] text-teal-700">{Object.entries(b.tickets).map(([c, n]) => `${n} ${ex.ticketLabel(c)}`).join(" + ")} + {b.sets} set{b.sets > 1 ? "s" : ""} · save €{b.saving}</span>
                       </button>
                     ))}
                   </div>
@@ -601,7 +601,7 @@ function IssueInner() {
                       <div key={r.rate} className="flex justify-between text-[12px] text-slate-500"><span>Net {eur(r.net)} + VAT {Math.round(r.rate * 100)}%</span><span className="tnum">{eur(r.vat)}</span></div>
                     ))}
                     <div className="flex items-end justify-between pt-1">
-                      <span className="text-slate-600">Total <span className="text-[11px] text-slate-400">incl. VAT {eur(totals.vat)}</span></span>
+                      <span className="text-slate-600">Total <span className="text-[11px] text-slate-500">incl. VAT {eur(totals.vat)}</span></span>
                       <span className="font-display text-3xl font-bold text-navy-900 tnum" aria-live="polite">{eur(totals.total)}</span>
                     </div>
                   </div>
@@ -626,6 +626,8 @@ function IssueInner() {
         </div>
       )}
 
+      {/* The pinned Charge bar gets its own room at the end of the page (AENR-761), so it never sits on tiles. */}
+      {shiftOpen && !done && <div aria-hidden className="lg:hidden h-[calc(5.5rem+env(safe-area-inset-bottom))]" />}
       {/* Phones / small tablets: the basket sits below the catalogue, so keep the total and a jump to it in reach. */}
       {/* Phones: the total and Charge are always in reach (AENR-654); tapping the total jumps to the basket. */}
       {shiftOpen && !done && !basketInView && (
@@ -668,7 +670,7 @@ function HoldChip({ ms }: { ms: number }) {
 
 function RemoveBtn({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button type="button" aria-label={label} onClick={onClick} className="w-11 h-11 -my-2 -mr-1 rounded-xl grid place-items-center text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 shrink-0">
+    <button type="button" aria-label={label} onClick={onClick} className="w-11 h-11 -my-2 -mr-1 rounded-xl grid place-items-center text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 shrink-0">
       <Icon.x size={18} />
     </button>
   );

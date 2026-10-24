@@ -1,0 +1,106 @@
+# The Blender sea and beach — credits (AENR-827)
+
+An original render made for Slaice: a top-down Greek beach (open sea at the top, turquoise shallows over
+sloping sand, a shore break running up the wet sand, light golden-white sand below), played as a seamless
+8-second video loop behind the guest site. No footage or third-party imagery is in the frames apart from
+the sky that lights them.
+
+## What made it
+
+| What                     | Who / licence                                                                                                                                                                    |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Blender 5.2.2 LTS        | Blender Foundation — GPL-3.0-or-later. The tool only; renders made with Blender belong to their author (<https://www.blender.org/about/license/>).                               |
+| Cycles, OpenImageDenoise | Blender's path tracer (Apache-2.0) and Intel Open Image Denoise (Apache-2.0)                                                                                                     |
+| MCP for Blender 2.2.1    | Siddharth Ahuja and contributors, `ahujasid/blender-mcp` — MIT. Used to build and preview the scene from the agent session (`execute_code` over `localhost:9876`); telemetry off |
+| Sky                      | Poly Haven, **Kloofendal 43d Clear (Pure Sky)** by Greg Zaal — CC0 1.0 (<https://polyhaven.com/a/kloofendal_43d_clear_puresky>, 2K HDR, downloaded 2026-10-20)                   |
+| Everything else          | Procedural, made for this render: the sand, the seabed, the water surface, the waves, the foam, the caustics (`tools/blender/`)                                                  |
+
+The Poly Haven sand texture `sand_03` (CC0) was tried and left out: at this scale it tiled visibly.
+
+## How it was rendered
+
+- **Scene** (`tools/blender/beach.py`): a 64 × 60 m beach, seen by an orthographic camera straight down,
+  so 1 app scene unit = 4 cm and the frame covers scene x 0–1600, y −250 to 1250 (1600 × 1500 units). The
+  shoreline follows the app's own sand-top curve (`src/lib/seaShore.ts`): the mean waterline 30 units above
+  it, the highest run-up about 30 units below.
+- **Sand and seabed**: a height field (beach face 1 : 13, gentle bars and beach cusps); the colour seen
+  through the water comes from the depth — red absorbed first, then an in-scatter that runs turquoise →
+  azure → deep blue — with sand ripples and dark seagrass patches in mid-water.
+- **Water**: a refractive surface (IOR 1.333) over the seabed, its height set per vertex each frame — chop
+  from wave trains travelling ashore, a shore break with its own dispersion and shoaling, a thin swash
+  sheet that runs up the beach and draws back — plus capillary ripples in the shader. The foam (the swash's
+  leading edge, the bore behind each breaking crest, lingering lace) is a per-vertex field shaped by noise
+  that moves with the water; the sand behind the backwash keeps a glossy film for a moment.
+- **Caustics** (`tools/blender/caustics.py`): real ones — a tileable, looping wavy surface refracts a
+  vertical sun onto a floor and the rays are counted into a light map, 192 frames of 384², sampled twice
+  on the seabed at different scales and angles.
+- **Light**: the Poly Haven sky, rotated so its sun stands about 62° high over the sea; neutral bright
+  daylight, so the app can grade it for every other hour and the weather.
+- **Render**: Cycles on 4 CPU cores, 1280 × 1200, 4 samples with adaptive sampling and OpenImageDenoise,
+  view transform Standard; ≈ 30 s a frame, 192 frames in 1 h 35 min. Encoded with ffmpeg (two-pass).
+
+## The loop
+
+Everything that moves is exactly periodic over T = 8 s (192 frames at 24 fps), so frame 192 is frame 0:
+each wave train of the sea has a whole number of cycles per loop (ω = 2πn / T), the shore break has two
+waves per loop, the shader noise walks a circle in 4D noise space, and the caustic maps loop the same way.
+Checked numerically: the water surface, the foam field and the swash at t = 8 s differ from t = 0 by
+< 1e-14. The video files run one second past the loop (frames 0–191, then 0–23 again), and the guest
+site's two players hand over at the loop's own period, crossfading identical frames — the restart can't
+be seen. (The two stacked Ocean modifiers with a time crossfade were the first idea; a periodic wave
+spectrum closes the loop just as exactly and also lets the waves feel the depth near the shore.)
+
+## Files
+
+| File                         | What                                                         | Size    |
+| ---------------------------- | ------------------------------------------------------------ | ------- |
+| `beach.webm`                 | desktop, 1280 × 1200, VP9, two-pass ≈ 2.2 Mb/s, 9 s          | 2.48 MB |
+| `beach.mp4`                  | desktop, 1280 × 1200, H.264 High, two-pass ≈ 2.6 Mb/s        | 2.92 MB |
+| `beach-portrait.mp4`         | phones, the middle 810 units, 648 × 1200, H.264 ≈ 0.95 Mb/s  | 1.07 MB |
+| `beach-portrait.webm`        | phones, the same cut, VP9 ≈ 0.8 Mb/s (no H.264)              | 0.90 MB |
+| `beach-poster.webp`          | the loop's first frame, WebP q80 (reduced motion, Save-Data) | 78 kB   |
+| `beach-portrait-poster.webp` | the same, portrait cut                                       | 40 kB   |
+
+### High and Full HD (AENR-844)
+
+A tenant can pick a sharper loop per device (Platform › tenant › Guest sea › Resolution). Both come from
+one render at 1920 × 1800 px on a finer mesh (`GRID=0.05`, twice the detail of the Standard render, so
+the foam and the swash are sharp at that size — the Standard look of "640p" came from its mesh, not from
+the light layer on top); High is that render scaled down. Encoded at ≈ 0.10 bit per pixel (H.264) and
+0.08 (VP9) — moving foam is fine detail that a lean encode smears.
+
+| File                                                                        | What                                          | Size           |
+| --------------------------------------------------------------------------- | --------------------------------------------- | -------------- |
+| `beach-high.webm` / `.mp4`                                                  | desktop, 1600 × 1500, VP9 / H.264 (level 5.0) | 5.18 / 6.45 MB |
+| `beach-portrait-high.mp4` / `.webm`                                         | phones, 810 × 1500, H.264 (level 4.0) / VP9   | 3.27 / 2.63 MB |
+| `beach-fullhd.webm` / `.mp4`                                                | desktop, 1920 × 1800, VP9 / H.264 (level 5.0) | 7.46 / 9.28 MB |
+| `beach-portrait-fullhd.mp4` / `.webm`                                       | phones, 972 × 1800, H.264 (level 4.2) / VP9   | 4.71 / 3.78 MB |
+| `beach-high-poster.webp`, `beach-fullhd-poster.webp`, and the portrait ones | first frames, WebP q80                        | 64–163 kB      |
+
+Re-render: `tools/blender/render.sh` (or `render.sh preview` for one quick frame; `render.sh fullhd` for
+the Full HD frames, then the High and Full HD encodes).
+
+### One period, lighter files (AENR-860, AENR-861)
+
+The player is now one `<video loop>` (no two-player handover), so every file is exactly one 8 s period
+(192 frames, no tail) — `encode.sh` defaults to `TAIL=0` — at modest, hardware-friendly rates: H.264
+first, VP9 fallback, a keyframe every 2 s. Standard 2.0 / 0.9 Mbit/s (desktop / phone cut, H.264), High
+3.5 / 1.5, Full HD 4.5 / 2.2, 4K 14 / 7. The files now published (Standard 2.0 / 0.9 MB, High 3.5 /
+1.5 MB, Full HD 4.5 / 2.2 MB as MP4) are the first renders trimmed to one period and re-encoded; the
+deep-water re-render (AENR-868) replaces them and adds the 4K files.
+
+### 4K and the natural deep sea (AENR-856, AENR-868)
+
+Every Blender file now comes from one 4K render (3840 × 3600, `GRID=0.025`, `render.sh 4k`) whose deep
+water was re-rendered after the owner's review: `beach.py` with `DEEP=2` (270 short-crested wave trains,
+wavelets, wind slicks, sky in the facets, a deeper blue, shader sun glitter — each weighted to nothing
+within 8 m of the waterline), rendered for the top 1680 rows only and blended onto the shore frames by
+`deep_composite.py` (`deep_region.sh`; worst difference across the blend band 5/255). Encoded with
+`encode.sh … 4k | fullhd | high | standard` (scaled down from the 4K frames):
+
+| Files                                | Size                      | Size (MP4 / WebM)            |
+| ------------------------------------ | ------------------------- | ---------------------------- |
+| `beach-4k.*` / `beach-portrait-4k.*` | 3840 × 3600 / 1944 × 3600 | 14.1 / 10.5 MB; 7.1 / 5.2 MB |
+| `beach-fullhd.*` / portrait          | 1920 × 1800 / 972 × 1800  | 4.5 / 3.4 MB; 2.2 / 1.6 MB   |
+| `beach-high.*` / portrait            | 1600 × 1500 / 810 × 1500  | 3.5 / 2.6 MB; 1.5 / 1.1 MB   |
+| `beach.*` / `beach-portrait.*`       | 1280 × 1200 / 648 × 1200  | 2.0 / 1.5 MB; 0.9 / 0.7 MB   |

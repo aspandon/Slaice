@@ -187,7 +187,7 @@ export function DateInput({
                   aria-label={`${d.getDate()} ${MONTH[d.getMonth()]} ${d.getFullYear()}`}
                   onClick={() => pick(s)}
                   onFocus={() => setFocus(s)}
-                  className={`h-9 rounded-lg text-[13px] tnum focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:opacity-30 ${sel ? "bg-navy-900 text-white font-semibold" : inMonth ? "text-navy-900 hover:bg-slate-100" : "text-slate-400 hover:bg-slate-50"}`}
+                  className={`h-9 rounded-lg text-[13px] tnum focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 disabled:opacity-30 ${sel ? "bg-navy-900 text-white font-semibold" : inMonth ? "text-navy-900 hover:bg-slate-100" : "text-slate-500 hover:bg-slate-50"}`}
                 >
                   {d.getDate()}
                 </button>

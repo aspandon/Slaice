@@ -136,7 +136,7 @@ function RuleEditorModal({ open, rule, onClose, onSave }: {
         <Field label="Period">
           <div className="flex flex-wrap items-center gap-2">
             <DateInput value={from} onChange={(v) => setFrom(v)} className="w-auto" />
-            <span className="text-slate-400">→</span>
+            <span className="text-slate-500">→</span>
             <DateInput value={to} onChange={(v) => setTo(v)} className="w-auto" />
           </div>
           <div className="mt-2 flex flex-wrap gap-1.5">
@@ -159,7 +159,7 @@ function RuleEditorModal({ open, rule, onClose, onSave }: {
         {/* Live effect on a representative zone + a matching date. */}
         <div className="rounded-xl bg-slate-50 ring-1 ring-slate-100 px-3 py-2.5 flex items-center justify-between gap-3">
           <div className="text-[12px] text-slate-600 min-w-0 flex items-center gap-1.5"><Icon.tag size={12} className="text-teal-600 shrink-0" /> {sampleZone.name} · {fmtFullDate(sampleDate)}</div>
-          <div className="text-[13px] tnum shrink-0"><span className="text-slate-400 line-through mr-1.5">€{sampleZone.from}</span><span className="font-semibold text-teal-700">€{after}</span></div>
+          <div className="text-[13px] tnum shrink-0"><span className="text-slate-500 line-through mr-1.5">€{sampleZone.from}</span><span className="font-semibold text-teal-700">€{after}</span></div>
         </div>
       </div>
     </Modal>
@@ -173,14 +173,14 @@ function RuleRow({ rule, onEdit, onRemove, onToggle }: { rule: PriceRule; onEdit
     <div className={`rounded-xl ring-1 px-3 py-2.5 flex items-center gap-2.5 transition ${rule.enabled ? "ring-slate-200 bg-white" : "ring-slate-100 bg-slate-50/60"}`}>
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-2">
-          <span className={`font-semibold text-[13.5px] truncate ${rule.enabled ? "text-navy-900" : "text-slate-400"}`}>{rule.label}</span>
+          <span className={`font-semibold text-[13.5px] truncate ${rule.enabled ? "text-navy-900" : "text-slate-500"}`}>{rule.label}</span>
           <Badge tone={rule.mode === "set" ? "indigo" : rule.amount < 0 ? "green" : "amber"}>{ruleEffectLabel(rule)}</Badge>
         </div>
         <div className="text-[12px] text-slate-500 mt-0.5 truncate">{zoneName} · {dayShortFor(rule.days)} · {periodLabel(rule.from, rule.to)}</div>
       </div>
       <Toggle on={rule.enabled} onChange={onToggle} ariaLabel={`Enable rule “${rule.label}”`} />
       <button onClick={onEdit} aria-label={`Edit ${rule.label}`} className="w-8 h-8 grid place-items-center rounded-lg text-slate-500 hover:text-navy-900 hover:bg-slate-100 transition"><Icon.edit size={15} /></button>
-      <button onClick={onRemove} aria-label={`Remove ${rule.label}`} className="w-8 h-8 grid place-items-center rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition"><Icon.trash size={15} /></button>
+      <button onClick={onRemove} aria-label={`Remove ${rule.label}`} className="w-8 h-8 grid place-items-center rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition"><Icon.trash size={15} /></button>
     </div>
   );
 }
@@ -212,7 +212,7 @@ function PricingRulesPanel({ rules, previewDate, setPreviewDate, onAdd, onEdit, 
         <div className="text-[12.5px] text-slate-500 mb-3">Effective price per zone on a chosen day.</div>
         <Field label="Date"><DateInput value={previewDate} onChange={(v) => setPreviewDate(v)} /></Field>
         <div className="mt-1.5 mb-3 flex items-center gap-2 text-[12px] text-slate-600">
-          <span className="flex items-center gap-1.5"><Icon.calendar size={12} className="text-slate-400" /> {fmtFullDate(previewDate)}</span>
+          <span className="flex items-center gap-1.5"><Icon.calendar size={12} className="text-slate-500" /> {fmtFullDate(previewDate)}</span>
           <Badge tone={weekend ? "amber" : "slate"}>{weekend ? "Weekend" : "Weekday"}</Badge>
         </div>
         <div className="space-y-1.5">
@@ -222,7 +222,7 @@ function PricingRulesPanel({ rules, previewDate, setPreviewDate, onAdd, onEdit, 
             return (
               <div key={z.id} className="flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 ring-1 ring-slate-100">
                 <span className="flex items-center gap-2 text-[13px] text-navy-900"><i className="w-2.5 h-2.5 rounded-full" style={{ background: z.color }} />{z.name}</span>
-                <span className="text-[13px] tnum">{changed ? <><span className="text-slate-400 line-through mr-1.5">€{z.from}</span><span className="font-semibold text-teal-700">€{eff}</span></> : <span className="text-slate-600">€{z.from}</span>}</span>
+                <span className="text-[13px] tnum">{changed ? <><span className="text-slate-500 line-through mr-1.5">€{z.from}</span><span className="font-semibold text-teal-700">€{eff}</span></> : <span className="text-slate-600">€{z.from}</span>}</span>
               </div>
             );
           })}
@@ -486,7 +486,7 @@ export function AdminBeachLayout() {
                 <span className="flex items-center gap-2"><i className="w-3 h-3 rounded-full" style={{ background: z.color }} />{z.name}</span>,
                 z.total,
                 <Toggle on={!closedStores[z.id]} onChange={(v) => setOpen(z.id, v)} ariaLabel={`${z.name} open today`} />,
-                closedStores[z.id] ? <Input aria-label={`Reason ${z.name} is closed`} value={closedStores[z.id]} onChange={(e) => setOpen(z.id, false, e.target.value)} /> : <span className="text-slate-400">—</span>,
+                closedStores[z.id] ? <Input aria-label={`Reason ${z.name} is closed`} value={closedStores[z.id]} onChange={(e) => setOpen(z.id, false, e.target.value)} /> : <span className="text-slate-500">—</span>,
                 <Badge tone={closedStores[z.id] ? "warning" : "success"}>{closedStores[z.id] ? "Closed" : "Open"}</Badge>,
               ])} />
             <div className="px-3 pb-2 text-[12px] text-slate-500">Applies immediately: a closed zone can’t be booked online or sold at the till, and its sets show as unavailable.</div>

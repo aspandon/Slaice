@@ -1,19 +1,23 @@
 import { useGuard } from "./guard";
-import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
 import { createPortal } from "react-dom";
 import { Icon } from "../../lib/icons";
+import { useDialogFocus } from "./overlays";
 import { chipLabel, dateStrip, fromISO, todayISO, toISO } from "../../data/beach";
 import { useApp, useT } from "../../app/store";
 import { localeFor } from "../../app/i18n";
 
 /* ---------- Field / inputs ---------- */
-export function Field({ label, children, hint }: { label?: ReactNode; children?: ReactNode; hint?: ReactNode }) {
+/** `error` replaces the hint with a red message (pair it with `aria-invalid` on the input). */
+export function Field({ label, children, hint, error }: { label?: ReactNode; children?: ReactNode; hint?: ReactNode; error?: ReactNode }) {
   return (
     <label className="block">
       {label && <div className="text-[12px] font-semibold text-slate-700 mb-1">{label}</div>}
       {children}
-      {hint && <div className="text-[11px] text-slate-500 mt-1">{hint}</div>}
+      {error ? (
+        <div className="text-[11px] font-medium text-rose-700 mt-1 flex items-start gap-1"><Icon.alert size={12} className="shrink-0 mt-px" aria-hidden />{error}</div>
+      ) : hint && <div className="text-[11px] text-slate-500 mt-1">{hint}</div>}
     </label>
   );
 }
@@ -56,14 +60,15 @@ export function Toggle({ on, onChange, label, ariaLabel, disabled }: { on?: bool
 
 /* ---------- Stepper (quantity) ---------- */
 export function Stepper({ value, onChange, min = 0, max, label, size = "md" }: { value: number; onChange: (v: number) => void; min?: number; /** Upper bound — the + turns off there. */ max?: number; label?: string; /** "lg" = 56px targets for the tablet till and the gate. */ size?: "md" | "lg" }) {
+  const t = useT();
   const what = label ? ` ${label}` : "";
   const box = size === "lg" ? "w-14 h-14" : "w-11 h-11 sm:w-10 sm:h-10";
   const atMax = max != null && value >= max;
   return (
     <div className="flex items-center gap-3">
-      <button aria-label={`Decrease${what}`} onClick={() => onChange(Math.max(min, value - 1))} className={`${box} rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90 disabled:opacity-40`} disabled={value <= min}><Icon.minus size={16} /></button>
+      <button aria-label={`${t("Decrease")}${what}`} onClick={() => onChange(Math.max(min, value - 1))} className={`${box} rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90 disabled:opacity-40`} disabled={value <= min}><Icon.minus size={16} /></button>
       <span className="w-6 text-center font-semibold tnum tabular-nums" aria-live="polite" aria-label={label ? `${value} ${label}` : undefined}>{value}</span>
-      <button aria-label={`Increase${what}`} onClick={() => onChange(max != null ? Math.min(max, value + 1) : value + 1)} className={`${box} rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90 disabled:opacity-40`} disabled={atMax}><Icon.plus size={16} /></button>
+      <button aria-label={`${t("Increase")}${what}`} onClick={() => onChange(max != null ? Math.min(max, value + 1) : value + 1)} className={`${box} rounded-lg ring-1 ring-slate-300 grid place-items-center text-slate-600 transition hover:bg-slate-50 hover:ring-slate-400 active:scale-90 disabled:opacity-40`} disabled={atMax}><Icon.plus size={16} /></button>
     </div>
   );
 }
@@ -208,6 +213,11 @@ function DateCalendarModal({ value, onChange, onClose, locale = "en-GB", t = (s)
   });
   const todayIso = todayISO();
   const today = fromISO(todayIso);
+  // Same focus handling as every dialog (AENR-767): focus moves in, Tab stays
+  // inside, and focus returns to the date field on close.
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useDialogFocus(true, panelRef);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
@@ -243,11 +253,11 @@ function DateCalendarModal({ value, onChange, onClose, locale = "en-GB", t = (s)
   const canPrev = monthStart > todayMonth;
   const title = monthStart.toLocaleDateString(locale, { month: "long", year: "numeric" });
   return createPortal((
-    <div role="dialog" aria-modal="true" className="fixed inset-0 z-[70] grid place-items-center p-4 animate-fade-in">
+    <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="fixed inset-0 z-[70] grid place-items-center p-4 animate-fade-in">
       <button type="button" aria-label={t("Close")} tabIndex={-1} onClick={onClose} className="absolute inset-0 bg-navy-950/45 backdrop-blur-xl cursor-default" />
-      <div className="glass-card-solid relative rounded-2xl w-full max-w-sm animate-pop">
+      <div ref={panelRef} tabIndex={-1} className="glass-card-solid relative rounded-2xl w-full max-w-sm animate-pop outline-none">
         <div className="px-4 py-3 border-b border-white/40 flex items-center justify-between">
-          <div className="font-display font-bold text-navy-900 inline-flex items-center gap-2"><Icon.calendar size={16} /> {multiple ? t("Pick dates") : t("Pick a date")}</div>
+          <div id={titleId} className="font-display font-bold text-navy-900 inline-flex items-center gap-2"><Icon.calendar size={16} /> {multiple ? t("Pick dates") : t("Pick a date")}</div>
           <button aria-label={t("Close")} onClick={onClose} className="text-slate-500 hover:text-navy-900 hover:bg-white/40 p-1.5 rounded-lg"><Icon.x size={18} /></button>
         </div>
         <div className="p-4">
@@ -260,7 +270,7 @@ function DateCalendarModal({ value, onChange, onClose, locale = "en-GB", t = (s)
               className="w-9 h-9 grid place-items-center rounded-lg ring-1 ring-slate-200 text-slate-600 hover:bg-slate-50"
               aria-label={t("Next month")}><Icon.arrowR size={15} /></button>
           </div>
-          <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+          <div className="grid grid-cols-7 gap-1 text-center text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
             {weekdays.map((d, i) => <div key={i}>{d}</div>)}
           </div>
           <div className="grid grid-cols-7 gap-1">

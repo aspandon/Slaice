@@ -8,3 +8,19 @@ dist-ssr
 # Orbit backlog tooling — local credentials and session state (never committed)
 tools/orbit/.orbit.env
 tools/orbit/state.json
+
+# Playwright MCP output (screenshots, traces)
+.playwright-mcp/
+
+# Agent worktrees (local only)
+.claude/worktrees/
+
+# Blender (AENR-827) — the portable build, its cache and render frames never go in the repo
+.blender-cache/
+tools/blender/frames/
+tools/blender/frames-fullhd/
+tools/blender/frames-4k/
+tools/blender/assets/
+tools/blender/caus/
+*.blend1
+__pycache__/

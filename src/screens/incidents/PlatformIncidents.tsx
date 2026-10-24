@@ -193,7 +193,7 @@ export function PlatformIncidents() {
                       <IncidentStatusBadge s={i.status} />
                       <Icon.chevR
                         size={16}
-                        className="text-slate-400 hidden sm:block"
+                        className="text-slate-500 hidden sm:block"
                         aria-hidden
                       />
                     </div>

@@ -49,7 +49,7 @@ export function HeatLegend() {
             style={{ background: b.color }}
           />
           <span className="tnum">{b.label}</span>
-          <span className="text-slate-400">· {b.tone}</span>
+          <span className="text-slate-500">· {b.tone}</span>
         </span>
       ))}
     </div>

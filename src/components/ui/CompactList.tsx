@@ -49,7 +49,7 @@ export function CompactRow({
         {amount && (
           <span className="font-display font-bold text-navy-900 tnum text-[16px]">{amount}</span>
         )}
-        {onOpen && <Icon.chevR size={16} className="text-slate-400" />}
+        {onOpen && <Icon.chevR size={16} className="text-slate-500" />}
       </span>
     </>
   );

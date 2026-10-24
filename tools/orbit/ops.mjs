@@ -132,7 +132,7 @@ export async function moveUnder(p, epicKey, itemKey) {
   const opt = p.getByText(new RegExp(itemKey + '\\b')).last();
   if (!(await opt.isVisible().catch(() => false))) throw new Error(itemKey + ' not offered');
   await opt.click(); await wait(p, 600);
-  await p.getByRole('button', { name: 'Move Here', exact: true }).click(); await wait(p, 1800);
+  await p.locator('button:text-is("Move Here")').last().click(); await wait(p, 1800);
 }
 export async function setSprint(p, key, sprintLabelPart) {
   await openItem(p, key);

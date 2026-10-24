@@ -10,10 +10,10 @@
 import type { BeachBackground } from "../domain/types";
 
 /** Composable scene props layered over the gradients to make a preset feel
- *  richer. Every preset carries the ambient pair (clouds, birds) so the
- *  desktop backdrop always has life; the heavier scene-identity pieces
+ *  richer. Every preset carries the clouds so the desktop backdrop always
+ *  has life (no birds since AENR-858); the heavier scene-identity pieces
  *  (sun, palms, rocks) stay per-preset. */
-export type DecorKind = "sun" | "clouds" | "palms" | "birds" | "rocks";
+export type DecorKind = "sun" | "clouds" | "palms" | "rocks";
 
 export interface BeachPreset {
   id: string;
@@ -53,7 +53,7 @@ const SIMPLE: BeachPreset[] = [
     glint: true,
     waves: 2,
     grain: false,
-    decor: ["clouds", "birds"],
+    decor: ["clouds"],
   },
   {
     id: "turquoise",
@@ -67,7 +67,7 @@ const SIMPLE: BeachPreset[] = [
     glint: true,
     waves: 2,
     grain: false,
-    decor: ["clouds", "birds"],
+    decor: ["clouds"],
   },
   {
     id: "sunset",
@@ -81,7 +81,7 @@ const SIMPLE: BeachPreset[] = [
     glint: false,
     waves: 2,
     grain: false,
-    decor: ["sun", "clouds", "birds"],
+    decor: ["sun", "clouds"],
   },
   {
     id: "slate",
@@ -95,7 +95,7 @@ const SIMPLE: BeachPreset[] = [
     glint: false,
     waves: 1,
     grain: false,
-    decor: ["clouds", "birds"],
+    decor: ["clouds"],
   },
 ];
 
@@ -106,8 +106,9 @@ const ELABORATE: BeachPreset[] = [
     name: "Akti tou Iliou",
     tier: "elaborate",
     blurb: "The signature house scene",
-    // Exact palette of the original beach illustration — the default.
-    sea: ["#0c4a6e", "#0e7490", "#22d3ee", "#a5f3fc"],
+    // The default. Its sea is the Greek-beach blues of the owner's photographs (AENR-824): deep
+    // azure out to sea, turquoise in the shallows (was the illustration's darker teal).
+    sea: ["#1565c8", "#1a8fdc", "#1fc4e2", "#6fe3ec"],
     sand: ["#fde8c8", "#f5d3a3", "#e9bd86"],
     veg: ["#86b85a", "#4f7a3a"],
     foam: "rgba(255,255,255,0.85)",
@@ -116,7 +117,7 @@ const ELABORATE: BeachPreset[] = [
     grain: true,
     // Sky/sea life for the ambient layer — clouds scud with the wind and the
     // flock crosses the bay on the desktop backdrop (static elsewhere).
-    decor: ["clouds", "birds"],
+    decor: ["clouds"],
   },
   {
     id: "palms",
@@ -130,7 +131,7 @@ const ELABORATE: BeachPreset[] = [
     glint: true,
     waves: 3,
     grain: true,
-    decor: ["sun", "clouds", "palms", "birds"],
+    decor: ["sun", "clouds", "palms"],
   },
   {
     id: "golden",
@@ -144,7 +145,7 @@ const ELABORATE: BeachPreset[] = [
     glint: false,
     waves: 3,
     grain: true,
-    decor: ["sun", "clouds", "birds"],
+    decor: ["sun", "clouds"],
   },
   {
     id: "cove",
@@ -158,7 +159,7 @@ const ELABORATE: BeachPreset[] = [
     glint: true,
     waves: 3,
     grain: true,
-    decor: ["clouds", "rocks", "palms", "birds"],
+    decor: ["clouds", "rocks", "palms"],
   },
 ];
 

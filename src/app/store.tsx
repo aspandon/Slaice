@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect } from "react";
 import type { ReactNode } from "react";
-import { translate } from "./i18n";
+import { fmtMoney, translate } from "./i18n";
 import { DEFAULT_BACKGROUND } from "../data/backgrounds";
 import { DEFAULT_PASSES, DEFAULT_PASS_PRICING } from "../data/passes";
 import { DEFAULT_LOYALTY } from "../data/loyalty";
@@ -337,6 +337,12 @@ export const useApp = (): AppContextValue => useContext(AppCtx);
 export function useT() {
   const { lang } = useContext(AppCtx);
   return (text: string) => translate(lang, text);
+}
+
+/** Euro formatter in the active language — see fmtMoney (AENR-768). */
+export function useMoney() {
+  const { lang } = useContext(AppCtx);
+  return (n: number, cents = false) => fmtMoney(n, lang, cents);
 }
 
 // When the active hint matches the current persona+page, find the element with

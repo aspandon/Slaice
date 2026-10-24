@@ -13,6 +13,7 @@ import { AddCardModal } from "./AddCard";
 import { useExtras } from "../../lib/useExtras";
 import { CustomerDocs } from "./CustomerDocs";
 import { AppleLogo } from "../../components/WalletPass";
+import { NeedAHand } from "../../components/NeedAHand";
 
 /* ============ Account (AENR-563 · one list, AENR-621) ============
    Everything about the guest's account in one list, like iOS Settings: each
@@ -49,6 +50,7 @@ export function CustomerAccount() {
     return () => window.removeEventListener("hashchange", on);
   }, []);
   // Preferences live here so they hold while moving between the list and a page.
+  const [help, setHelp] = useState(false);
   const [prefs, setPrefs] = useState<Record<string, boolean>>({ push: true, email: true, sms: false, bookings: true, weather: true, offers: true, receipts: true });
 
   const names = Object.fromEntries(ex.tickets.map((c) => [c.id, ex.ticketLabel(c.id).toLowerCase()]));
@@ -87,22 +89,27 @@ export function CustomerAccount() {
           <span className="block font-display font-bold text-guest-head text-navy-900">{PROFILE.first} {PROFILE.last}</span>
           <span className="block text-guest-meta text-slate-600 truncate">{PROFILE.email} · {PROFILE.phone}</span>
         </span>
-        <Icon.chevR size={18} className="text-slate-400 shrink-0" />
+        <Icon.chevR size={18} className="text-slate-500 shrink-0" />
       </button>
 
       <Group>
-        <Row icon={Icon.group} tone="bg-teal-600" label={t("Companions")} value={account.party ? partyLabel(account.party, names, t) : t("Not set")} onClick={() => open("companions")} />
-        <Row icon={Icon.card} tone="bg-navy-800" label={t("Payment methods")} value={card} onClick={() => open("payment")} />
-        <Row icon={Icon.receipt} tone="bg-sky-600" label={t("Receipts & invoices")} onClick={() => open("receipts")} />
+        <Row icon={Icon.group} label={t("Companions")} value={account.party ? partyLabel(account.party, names, t) : t("Not set")} onClick={() => open("companions")} />
+        <Row icon={Icon.card} label={t("Payment methods")} value={card} onClick={() => open("payment")} />
+        <Row icon={Icon.receipt} label={t("Receipts & invoices")} onClick={() => open("receipts")} />
       </Group>
       <Group>
-        <Row icon={Icon.bell} tone="bg-rose-500" label={t("Notifications")} value={onCount ? `${onCount} ${onCount === 1 ? t("channel on") : t("channels on")}` : t("Off")} onClick={() => open("notifications")} />
-        <Row icon={Icon.globe} tone="bg-indigo-500" label={t("Language")} value={langName} onClick={() => open("language")} />
+        <Row icon={Icon.bell} label={t("Notifications")} value={onCount ? `${onCount} ${onCount === 1 ? t("channel on") : t("channels on")}` : t("Off")} onClick={() => open("notifications")} />
+        <Row icon={Icon.globe} label={t("Language")} value={langName} onClick={() => open("language")} />
       </Group>
       <Group>
-        <Row icon={Icon.shieldCheck} tone="bg-emerald-600" label={t("Privacy & cookies")} onClick={() => open("privacy")} />
-        <Row icon={Icon.lock} tone="bg-slate-600" label={t("Sign-in & security")} onClick={() => open("security")} />
+        <Row icon={Icon.shieldCheck} label={t("Privacy & cookies")} onClick={() => open("privacy")} />
+        <Row icon={Icon.lock} label={t("Sign-in & security")} onClick={() => open("security")} />
       </Group>
+      {/* The life ring's help sheet (AENR-781) — the way in on phones, where the sea has no slot for the ring. */}
+      <Group>
+        <Row icon={Icon.lifebuoy} label={t("Need a hand?")} value={t("Call, message, hours")} onClick={() => setHelp(true)} />
+      </Group>
+      {help && <NeedAHand onClose={() => setHelp(false)} />}
       <Group>
         <button type="button" onClick={() => { setSignedIn(false); toast(t("Signed out (demo).")); }} className="w-full min-h-[52px] px-4 text-left text-guest-body font-semibold text-rose-700 hover:bg-rose-50/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500">
           {t("Sign out")}
@@ -116,13 +123,15 @@ export function CustomerAccount() {
 function Group({ children }: { children: ReactNode }) {
   return <div className="glass-flat rounded-2xl overflow-hidden divide-y divide-slate-200/70">{children}</div>;
 }
-function Row({ icon: I, tone, label, value, onClick }: { icon: IconRenderer; tone: string; label: string; value?: string; onClick: () => void }) {
+// One quiet icon style for every row (owner, AENR-795): a soft teal chip with a teal line icon,
+// the app's own accent, instead of a different bright colour per row.
+function Row({ icon: I, label, value, onClick }: { icon: IconRenderer; label: string; value?: string; onClick: () => void }) {
   return (
-    <button type="button" onClick={onClick} className="w-full min-h-[52px] px-4 py-2.5 flex items-center gap-3 text-left hover:bg-white/70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500">
-      <span aria-hidden className={`w-8 h-8 rounded-lg grid place-items-center text-white shrink-0 ${tone}`}><I size={16} /></span>
+    <button type="button" onClick={onClick} className="group w-full min-h-[52px] px-4 py-2.5 flex items-center gap-3 text-left hover:bg-white/70 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500">
+      <span aria-hidden className="w-8 h-8 rounded-lg grid place-items-center shrink-0 bg-teal-50 text-teal-700 ring-1 ring-teal-600/15 transition-colors group-hover:bg-teal-100"><I size={16} /></span>
       <span className="flex-1 min-w-0 text-guest-body font-medium text-navy-900">{label}</span>
       {value && <span className="text-guest-meta text-slate-500 truncate max-w-[45%] text-right">{value}</span>}
-      <Icon.chevR size={16} className="text-slate-400 shrink-0" />
+      <Icon.chevR size={16} className="text-slate-500 shrink-0" />
     </button>
   );
 }
@@ -297,8 +306,8 @@ function PrivacyPage() {
   return (
     <>
       <Group>
-        <Row icon={Icon.shieldCheck} tone="bg-emerald-600" label={t("Privacy Centre")} value={t("Your data")} onClick={() => setPrivacy(true)} />
-        <Row icon={Icon.shield} tone="bg-slate-600" label={t("Cookie choices")} onClick={reopenConsent} />
+        <Row icon={Icon.shieldCheck} label={t("Privacy Centre")} value={t("Your data")} onClick={() => setPrivacy(true)} />
+        <Row icon={Icon.shield} label={t("Cookie choices")} onClick={reopenConsent} />
       </Group>
       <p className="mt-2 px-1 text-guest-meta text-slate-600">{t("Export your data, manage consents, see who processes it, or delete your account.")}</p>
       <PrivacyCenter open={privacy} onClose={() => setPrivacy(false)} />
@@ -313,8 +322,8 @@ function SecurityPage() {
   return (
     <>
       <Group>
-        <Row icon={Icon.lock} tone="bg-slate-600" label={t("Change password")} onClick={() => setPw(true)} />
-        <Row icon={Icon.phone} tone="bg-teal-600" label={t("Two-step verification")} onClick={() => setFa(true)} />
+        <Row icon={Icon.lock} label={t("Change password")} onClick={() => setPw(true)} />
+        <Row icon={Icon.phone} label={t("Two-step verification")} onClick={() => setFa(true)} />
       </Group>
       <ChangePasswordModal open={pw} onClose={() => setPw(false)} />
       <Enable2FAModal open={fa} onClose={() => setFa(false)} />

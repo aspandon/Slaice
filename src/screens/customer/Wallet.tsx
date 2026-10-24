@@ -1,11 +1,12 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { Icon } from "../../lib/icons";
+import { EntryTicketIcon, SunbedSetIcon } from "../../components/productIcons";
 import type { IconRenderer } from "../../lib/icons";
 import { Badge, Btn, EmptyState, ErrorState, NotMvpBadge, Skeleton } from "../../components/ui";
 import { QR } from "../../components/charts";
 import { qrCode } from "../../domain/entry";
-import { useApp, useT } from "../../app/store";
+import { useApp, useMoney, useT } from "../../app/store";
 import { TENANT, ZONES, todayISO, zoneLayout } from "../../data/beach";
 import { SEASON_ZONE, seasonSetIn } from "../../data/passes";
 import { layoutFor } from "../../domain/layoutVersions";
@@ -13,106 +14,144 @@ import { resolvePrice } from "../../domain/pricing";
 import { addDays, fmtDay, fmtWeekday } from "../../domain/period";
 import { ARRIVAL_WINDOW, fmtDeadline, releaseDeadline, type Visit } from "../../domain/visits";
 import { guestNow, useVisits } from "../../lib/useVisits";
-import { BadgesTile, RewardRow, SeasonTile, VipTile, activeRewards } from "./CustomerHome";
-import { VisitQR } from "./VisitTicket";
+import { useDemoFlag } from "../../lib/useDemoFlag";
+import { BadgeGrid, FIRST_TIME_LOYALTY, RewardRow, SeasonTile, VipTile, activeRewards, useBadges } from "./CustomerHome";
+import { VisitQR, visitPass } from "./VisitTicket";
+import { WalletRow } from "../../components/WalletPass";
 import { useTenantFeatures } from "../../lib/useFeatures";
 
-/* ============ Wallet (AENR-577 / 578, order AENR-686) ============
-   Everything the guest holds, in one centred column under the top nav (the same
-   max-w-4xl as My bookings):
-     1. the passes they own (VIP credit / Season) and their beach credit,
-     2. their upcoming entries — one ticket per visit with its gate QR,
-     3. rewards (a roadmap feature, marked FUTURE),
-     4. "Release my day" for season holders,
-     5. passes they could buy (slim offers, never a card with their name and a QR),
-     6. badges (gamification, FUTURE). */
+/* ============ Wallet (AENR-577 / 578, order AENR-686, layout AENR-780) ============
+   Everything the guest holds, under the top nav, in the order they need it:
+     1. upcoming entries — one pass per visit with its gate QR, the page's hero,
+     2. the passes they own (VIP credit / Season) and, for season holders, "Release my day",
+     3. their beach credit, beside the passes they could buy (slim offers, never a card
+        with their name and a QR),
+     4. rewards, then badges (roadmap features, marked FUTURE).
+   Every section is one translucent panel with the same heading (WalletSection), on one
+   rhythm: 24px between panels, 16px / 24px inside, 16px under the heading. Every panel,
+   the entries tile included, spans the same column (owner: AENR-812, replacing AENR-794's
+   menu-bar width) — on a computer two passes side by side, credit beside the offers,
+   rewards in two columns, so it never reads as a stretched phone column; the ticket stays
+   centred at its own width inside its tile. A first-time guest gets each section's guided
+   empty state; passes they don't own collapse into the offers. */
 
 /** Entries shown on the Wallet; the rest live in My bookings. */
 const ENTRY_LIMIT = 4;
 
-/* One heading style for every Wallet section: a solid pill that stays legible over the
-   beach photo, with an optional aside (a count, a FUTURE badge, a link) on the right. */
-function SectionHead({
+/* One section of the Wallet: a translucent panel with the Wallet's one heading style
+   (icon + title, then any count / FUTURE badges). */
+function WalletSection({
   id,
   icon: I,
+  title,
   children,
-  aside,
+  busy,
 }: {
   id: string;
   icon: IconRenderer;
+  title: ReactNode;
   children: ReactNode;
-  aside?: ReactNode;
+  busy?: boolean;
 }) {
   return (
-    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-      <h2
-        id={id}
-        className="inline-flex items-center gap-2 rounded-xl glass-card-solid px-3 py-1.5 font-display font-bold text-navy-900"
-      >
-        <I size={17} className="text-teal-700" /> {children}
+    <section
+      aria-labelledby={id}
+      aria-busy={busy}
+      className="glass-flat rounded-3xl p-4 sm:p-6 mx-auto w-full"
+    >
+      <h2 id={id} className="mb-4 flex flex-wrap items-center gap-2 font-display font-bold text-navy-900">
+        <I size={17} className="text-teal-700" /> {title}
       </h2>
-      {aside && <div className="flex items-center gap-2">{aside}</div>}
-    </div>
+      {children}
+    </section>
   );
 }
 
 export function CustomerWallet() {
+  const money = useMoney();
   const { loyalty, go, account, passes, passPricing } = useApp();
   const t = useT();
-  const rewards = activeRewards(loyalty);
+  const [firstTimer] = useDemoFlag("newGuest");
+  const rewards = activeRewards(loyalty, firstTimer ? FIRST_TIME_LOYALTY : undefined);
   const ready = rewards.filter((a) => a.state.kind === "claim").length;
+  const badges = useBadges();
   // VIP / Season passes and rewards are roadmap features (AENR-691); rewards need Loyalty too (AENR-696).
-  // With previews off the Wallet holds only what works today: credit and entries.
+  // With previews off the Wallet holds only what works today: entries and credit.
   const { roadmap, allows } = useTenantFeatures();
   const showRewards = allows({ future: true, module: "Loyalty" });
   const owned = roadmap ? [passes.vip && "vip", passes.season && "season"].filter(Boolean) : [];
-  const hasCredit = account.credit.balance > 0 || account.credit.log.length > 0;
+  const offers = roadmap && owned.length < 2;
   return (
-    <div className="animate-fade-up w-full max-w-4xl mx-auto space-y-8">
+    <div className="animate-fade-up w-full max-w-4xl mx-auto space-y-6">
       <h1 className="sr-only">{t("Wallet")}</h1>
-
-      {owned.length > 0 && (
-        <section aria-labelledby="wallet-passes">
-          <SectionHead id="wallet-passes" icon={Icon.wallet}>
-            {t("Your passes")}
-          </SectionHead>
-          <div
-            className={`grid gap-4 ${owned.length > 1 ? "sm:grid-cols-2" : "max-w-[26rem] mx-auto"}`}
-          >
-            {owned.includes("vip") && <VipTile />}
-            {owned.includes("season") && <SeasonTile />}
-          </div>
-          <p className="mt-3 text-center">
-            <span className="inline-flex items-center gap-1.5 rounded-lg glass-card-solid px-2.5 py-1 text-guest-meta text-slate-700">
-              <Icon.qr size={13} className="text-teal-700" />
-              {t("Each pass card carries your gate QR — show it at the entrance.")}
-            </span>
-          </p>
-        </section>
-      )}
-
-      {hasCredit && <BeachCredit />}
 
       <UpcomingEntries />
 
+      {owned.length > 0 && (
+        <WalletSection
+          id="wallet-passes"
+          icon={Icon.wallet}
+          title={t("Your passes")}
+        >
+          <div className={`grid gap-4 ${owned.length > 1 ? "sm:grid-cols-2" : "max-w-[26rem] mx-auto"}`}>
+            {owned.includes("vip") && <VipTile />}
+            {owned.includes("season") && <SeasonTile />}
+          </div>
+          <p className="mt-4 flex items-center justify-center gap-1.5 text-center text-guest-meta text-slate-700">
+            <Icon.qr size={13} className="shrink-0 text-teal-700" />
+            {t("Each pass card carries your gate QR — show it at the entrance.")}
+          </p>
+        </WalletSection>
+      )}
+
+      {owned.includes("season") && <ReleaseMyDay />}
+
+      {/* Money: the credit they hold, and beside it on a computer the passes they could buy. */}
+      <div className={offers ? "grid gap-6 md:grid-cols-2" : ""}>
+        <BeachCredit wide={roadmap && !offers} />
+        {offers && (
+          <WalletSection id="wallet-offers" icon={Icon.sparkles} title={t("Passes you can get")}>
+            <div className="grid gap-3">
+              {!passes.vip && (
+                <PassOffer
+                  tone="vip"
+                  title={`${t("Become VIP")} — ${Math.round(passPricing.vipDiscount * 100)}% ${t("off every visit")}`}
+                  sub={`${t("from")} ${money(Math.min(...passPricing.vipTiers))} ${t("of credit")}`}
+                  onClick={() => go("customer", "vip")}
+                />
+              )}
+              {!passes.season && (
+                <PassOffer
+                  tone="season"
+                  title={`${t("Season pass")} — ${t("your own set all summer")}`}
+                  sub={`${t("from")} ${money(Math.min(passPricing.seasonMonthly, passPricing.seasonSummer))}`}
+                  onClick={() => go("customer", "season")}
+                />
+              )}
+            </div>
+          </WalletSection>
+        )}
+      </div>
+
       {showRewards && (
-      <section aria-labelledby="wallet-rewards">
-        <SectionHead
+        <WalletSection
           id="wallet-rewards"
           icon={Icon.gift}
+          title={
+            <>
+              {t("Rewards")}
+              {/* Loyalty rewards are a roadmap feature (AENR-679 / 686). */}
+              <NotMvpBadge />
+              {ready > 0 && (
+                <Badge tone="green">
+                  {ready} {t("ready")}
+                </Badge>
+              )}
+            </>
+          }
         >
-          {t("Rewards")}
-          {/* Loyalty rewards are a roadmap feature (AENR-679 / 686). */}
-          <NotMvpBadge />
-          {ready > 0 && (
-            <Badge tone="green">
-              {ready} {t("ready")}
-            </Badge>
-          )}
-        </SectionHead>
-        <div className="glass-flat rounded-3xl p-3 sm:p-4">
           {rewards.length ? (
-            <div className="grid gap-2.5 md:grid-cols-2">
+            <div className="grid gap-3 md:grid-cols-2">
               {rewards.map((a, i) => (
                 // An odd count lets the first (usually the tier) span the row — no orphan tile.
                 <div key={a.id} className={rewards.length % 2 && i === 0 ? "md:col-span-2" : ""}>
@@ -138,77 +177,76 @@ export function CustomerWallet() {
               }
             />
           )}
-        </div>
-      </section>
+        </WalletSection>
       )}
 
-      {owned.includes("season") && <ReleaseMyDay />}
-
-      {roadmap && owned.length < 2 && (
-        <section aria-labelledby="wallet-offers">
-          <SectionHead id="wallet-offers" icon={Icon.sparkles}>
-            {t("Passes you can get")}
-          </SectionHead>
-          <div className={`grid gap-3 ${owned.length === 0 ? "md:grid-cols-2" : ""}`}>
-            {!passes.vip && (
-              <PassOffer
-                tone="vip"
-                title={`${t("Become VIP")} — ${Math.round(passPricing.vipDiscount * 100)}% ${t("off every visit")}`}
-                sub={`${t("from")} €${Math.min(...passPricing.vipTiers).toLocaleString()} ${t("of credit")}`}
-                onClick={() => go("customer", "vip")}
-              />
-            )}
-            {!passes.season && (
-              <PassOffer
-                tone="season"
-                title={`${t("Season pass")} — ${t("your own set all summer")}`}
-                sub={`${t("from")} €${Math.min(passPricing.seasonMonthly, passPricing.seasonSummer).toLocaleString()}`}
-                onClick={() => go("customer", "season")}
-              />
-            )}
-          </div>
-        </section>
+      {badges && (
+        <WalletSection
+          id="wallet-badges"
+          icon={Icon.star}
+          title={
+            <>
+              {t("Your badges")}
+              <Badge tone="amber">
+                {badges.earned}/{badges.achievements.length}
+              </Badge>
+              <NotMvpBadge />
+            </>
+          }
+        >
+          <BadgeGrid badges={badges} />
+        </WalletSection>
       )}
-
-      <BadgesTile />
     </div>
   );
 }
 
-/* Beach credit: the balance (used at checkout by itself) and its latest movements. */
-function BeachCredit() {
+/* Beach credit: the balance (used at checkout by itself) and its latest movements. With
+   nothing yet the panel keeps its shape — the €0.00 balance, and where credit comes from.
+   `wide` (the full column to itself): the balance beside the movements from tablet up. */
+function BeachCredit({ wide = false }: { wide?: boolean }) {
+  const money = useMoney();
   const { account } = useApp();
   const t = useT();
+  const log = account.credit.log;
   return (
-    <section aria-labelledby="wallet-credit">
-      <SectionHead id="wallet-credit" icon={Icon.cash}>
-        {t("Beach credit")}
-      </SectionHead>
-      <div className="glass-flat rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-start gap-4">
-        <div className="sm:w-48 shrink-0">
+    <WalletSection id="wallet-credit" icon={Icon.cash} title={t("Beach credit")}>
+      <div className={wide ? "md:flex md:items-start md:gap-6" : ""}>
+        <div
+          className={`flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 ${wide ? "md:block md:w-56 md:shrink-0" : ""}`}
+        >
           <div className="font-display font-bold text-3xl text-navy-900 tnum">
-            €{account.credit.balance.toFixed(2)}
+            {money(account.credit.balance, true)}
           </div>
           <div className="text-guest-meta text-slate-600">{t("Used automatically at checkout.")}</div>
         </div>
-        {account.credit.log.length > 0 && (
-          <ul className="flex-1 min-w-0 divide-y divide-slate-100 text-guest-meta">
-            {account.credit.log.slice(0, 5).map((e, i) => (
-              <li key={i} className="py-1.5 flex justify-between gap-3">
+        {log.length > 0 ? (
+          <ul
+            className={`mt-4 divide-y divide-slate-200/70 border-t border-slate-200/70 text-guest-meta ${wide ? "md:-mt-2 md:min-w-0 md:flex-1 md:border-t-0" : ""}`}
+          >
+            {log.slice(0, 5).map((e, i) => (
+              <li key={i} className="py-2 flex justify-between gap-3">
                 <span className="text-slate-700 min-w-0">
                   {e.text} <span className="text-slate-500">· {fmtDay(e.at.slice(0, 10))}</span>
                 </span>
                 <span
                   className={`tnum font-semibold shrink-0 ${e.amount >= 0 ? "text-emerald-700" : "text-navy-900"}`}
                 >
-                  {e.amount >= 0 ? "+" : "−"}€{Math.abs(e.amount).toFixed(2)}
+                  {e.amount >= 0 ? "+" : "−"}{money(Math.abs(e.amount), true)}
                 </span>
               </li>
             ))}
           </ul>
+        ) : (
+          <p
+            className={`mt-4 flex items-start gap-2 rounded-2xl bg-white/60 ring-1 ring-slate-200 px-3 py-2.5 text-guest-meta text-slate-700 ${wide ? "md:mt-0 md:min-w-0 md:flex-1" : ""}`}
+          >
+            <Icon.info size={15} className="mt-0.5 shrink-0 text-teal-700" />
+            {t("Nothing here yet. Take a refund as beach credit and it lands here — it comes off your next booking by itself.")}
+          </p>
         )}
       </div>
-    </section>
+    </WalletSection>
   );
 }
 
@@ -222,137 +260,145 @@ function UpcomingEntries() {
   const [open, setOpen] = useState<Visit | null>(null);
   const ahead = visits.filter((v) => v.status === "today" || v.status === "upcoming");
   const shown = ahead.slice(0, ENTRY_LIMIT);
-  const more = ahead.length - shown.length;
+  // One translucent tile, as wide as the sections below it (owner, AENR-812); managing a visit
+  // stays in My bookings, a tab away — so no separate link here.
   return (
-    <section aria-labelledby="wallet-entries" aria-busy={status === "loading"}>
-      <SectionHead
-        id="wallet-entries"
-        icon={Icon.ticket}
-        aside={
-          ahead.length > 0 && (
-            <button
-              type="button"
-              onClick={() => go("customer", "mybookings")}
-              className="inline-flex items-center gap-1 rounded-lg glass-card-solid px-2.5 py-1 text-guest-meta font-semibold text-teal-700 hover:text-teal-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500"
-            >
-              {more > 0 ? `${t("All")} ${ahead.length} ${t("in My bookings")}` : t("My bookings")}
-              <Icon.chevR size={13} />
-            </button>
-          )
-        }
-      >
-        {t("Upcoming entries")}
-        {ahead.length > 0 && <Badge tone="info">{ahead.length}</Badge>}
-      </SectionHead>
+    <WalletSection
+      id="wallet-entries"
+      icon={EntryTicketIcon}
+      busy={status === "loading"}
+      title={
+        <>
+          {t("Upcoming entries")}
+          {ahead.length > 0 && <Badge tone="info">{ahead.length}</Badge>}
+        </>
+      }
+    >
       {status === "loading" ? (
-        <div className="grid gap-3 md:grid-cols-2">
-          {[0, 1].map((i) => (
-            <Skeleton key={i} className="h-[164px] !rounded-3xl" />
-          ))}
-        </div>
+        <Skeleton className="h-[164px] !rounded-3xl max-w-md mx-auto" />
       ) : status === "error" ? (
-        <div className="glass-flat rounded-3xl">
-          <ErrorState compact body={t("We couldn't load your bookings.")} onRetry={refetch} />
-        </div>
+        <ErrorState compact body={t("We couldn't load your bookings.")} onRetry={refetch} />
       ) : shown.length === 0 ? (
-        <div className="glass-flat rounded-3xl">
-          <EmptyState
-            compact
-            icon={Icon.ticket}
-            title={t("No upcoming visits")}
-            body={t("Book a day at the beach — its entry QR will be here, ready for the gate.")}
-            action={
-              <Btn variant="teal" icon={Icon.sparkles} onClick={() => go("customer", "plan")}>
-                {t("Plan a visit")}
-              </Btn>
-            }
-          />
-        </div>
+        // A guest who has never booked is told what this place is for; a returning one, what to do next.
+        <EmptyState
+          compact
+          icon={EntryTicketIcon}
+          title={visits.length === 0 ? t("Your beach days will be here") : t("No upcoming visits")}
+          body={
+            visits.length === 0
+              ? t("Book a sunbed or an entry ticket — its gate QR lands here, ready to scan, and you can add it to Apple or Google Wallet.")
+              : t("Book a day at the beach — its entry QR will be here, ready for the gate.")
+          }
+          action={
+            <Btn variant="teal" icon={Icon.sparkles} onClick={() => go("customer", "plan")}>
+              {t("Plan a visit")}
+            </Btn>
+          }
+        />
       ) : (
-        <ul className="grid gap-3 md:grid-cols-2">
-          {shown.map((v) => (
-            <li key={v.key}>
-              <EntryTicket v={v} onShow={() => setOpen(v)} />
-            </li>
-          ))}
-        </ul>
+        <PassStack visits={shown} onShow={setOpen} />
       )}
       {open && <VisitQR v={open} onClose={() => setOpen(null)} />}
-    </section>
+    </WalletSection>
   );
 }
 
-/* A visit as a ticket stub: the day on the left, a perforated edge, the gate QR on the right. */
-function EntryTicket({ v, onShow }: { v: Visit; onShow: () => void }) {
+/* ============ Pass stack (AENR-759) ============
+   Upcoming entries as a stack of pass cards, like a phone wallet: the next one
+   is open with its gate QR; later ones show only their top strip, tucked under
+   the card above. Tapping a strip opens that pass and tucks the other away.
+   It's a list of disclosure buttons, so keyboard and screen readers get the
+   same: each strip says which visit it is and whether it is open. The open pass
+   can go into Apple / Google Wallet from its footer (AENR-779); managing a visit
+   (move, extras, cancel, receipts) stays in My bookings. */
+function PassStack({ visits, onShow }: { visits: Visit[]; onShow: (v: Visit) => void }) {
+  const [openKey, setOpenKey] = useState(visits[0]?.key);
+  const open = visits.some((v) => v.key === openKey) ? openKey : visits[0]?.key;
+  return (
+    <ul className="max-w-md mx-auto">
+      {visits.map((v, i) => (
+        <li key={v.key} className={i > 0 ? "-mt-4" : undefined} style={{ position: "relative", zIndex: i + 1 }}>
+          <PassCard v={v} open={v.key === open} onToggle={() => setOpenKey(v.key)} onShow={() => onShow(v)} />
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function PassCard({ v, open, onToggle, onShow }: { v: Visit; open: boolean; onToggle: () => void; onShow: () => void }) {
   const t = useT();
+  const { go } = useApp();
   const days = Math.round((Date.parse(v.date) - Date.parse(todayISO())) / 86400000);
-  const when =
-    days <= 0 ? t("Today") : days === 1 ? t("Tomorrow") : `${t("In")} ${days} ${t("days")}`;
+  const when = days <= 0 ? t("Today") : days === 1 ? t("Tomorrow") : `${t("In")} ${days} ${t("days")}`;
+  const zone = ZONES.find((z) => z.name === v.zone);
   const extras = [
     ...v.tickets.map((x) => `${t("Entry")} ${x}`),
     ...v.parking.map((x) => `${t("Parking")} ${x}`),
     ...v.lockers.map((x) => `${t("Locker")} ${x}`),
   ];
+  const bodyId = `pass-${v.key}`;
   return (
     <article
-      aria-label={`${fmtWeekday(v.date)} ${fmtDay(v.date)} · ${v.refs[0]}`}
-      className="glass-flat rounded-3xl overflow-hidden flex h-full"
+      className="rounded-3xl overflow-hidden text-white shadow-[0_-6px_18px_-10px_rgba(11,37,69,0.45),0_18px_36px_-22px_rgba(11,37,69,0.6)]"
+      style={{ background: `linear-gradient(150deg, #0B2545 0%, #13315c 55%, ${zone?.color ?? "#0A8276"} 160%)` }}
     >
-      <div className="flex-1 min-w-0 p-4 sm:p-5 flex flex-col">
-        <div
-          className={`inline-flex items-center gap-1.5 text-guest-over font-semibold uppercase tracking-[0.14em] ${days <= 0 ? "text-amber-700" : "text-teal-700"}`}
-        >
-          <Icon.calendar size={12} /> {when}
-        </div>
-        <h3 className="mt-1 font-display font-bold text-guest-head leading-tight text-navy-900">
-          {fmtWeekday(v.date)} {fmtDay(v.date)}
-        </h3>
-        <p className="mt-0.5 text-guest-meta font-semibold text-navy-900 truncate">
-          {v.zone || TENANT.name}
-        </p>
-        <p className="text-guest-meta text-slate-600 truncate">
-          {v.sets.length ? `${t("Sunbeds")} ${v.sets.join(", ")}` : t("Entry tickets")}
-        </p>
-        {extras.length > 0 && (
-          <ul className="mt-2 flex flex-wrap gap-1">
-            {extras.map((x) => (
-              <li
-                key={x}
-                className="rounded-md bg-white/80 ring-1 ring-slate-200 px-1.5 py-0.5 text-guest-caption text-slate-700"
-              >
-                {x}
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="mt-auto pt-3 inline-flex items-center gap-1.5 text-guest-caption text-slate-600">
-          <Icon.clock size={13} className="text-teal-700" /> {t("Arrive")} {ARRIVAL_WINDOW}
-        </div>
-      </div>
-      {/* The stub: a dashed tear line, then the code on white for the scanner. */}
       <button
         type="button"
-        onClick={onShow}
-        data-wallet-qr
-        aria-label={`${t("Show QR")} ${v.refs[0]}`}
-        className="group shrink-0 w-[124px] sm:w-[144px] border-l-2 border-dashed border-slate-300/80 bg-white/70 hover:bg-white transition-colors flex flex-col items-center justify-center gap-1.5 px-3 py-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-teal-500"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-controls={bodyId}
+        className="w-full flex items-center gap-3 px-5 pt-4 pb-5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/80"
       >
-        <span className="rounded-xl bg-white p-1.5 ring-1 ring-slate-200 shadow-soft transition group-hover:shadow-lift">
-          <QR size={84} seed={qrCode(v.refs[0])} />
+        <img src={`${import.meta.env.BASE_URL}tenant-logo-mark.png`} alt="" className="h-8 w-auto shrink-0" />
+        <span className="min-w-0 flex-1">
+          <span className={`block text-guest-over font-semibold uppercase tracking-[0.14em] ${days <= 0 ? "text-gold-300" : "text-teal-300"}`}>{when}</span>
+          <span className="block font-display font-bold text-guest-head leading-tight truncate">
+            {fmtWeekday(v.date)} {fmtDay(v.date)} · {v.zone || TENANT.name}
+          </span>
         </span>
-        <span className="font-mono text-guest-caption font-semibold text-navy-900">{v.refs[0]}</span>
-        <span className="inline-flex items-center gap-1 text-guest-caption font-semibold text-teal-700">
-          <Icon.qr size={12} /> {t("Tap to enlarge")}
-        </span>
+        <span className="font-mono text-guest-caption text-white/70 shrink-0">{v.refs[0]}</span>
       </button>
+      {/* Opens and closes by height (grid 0fr ↔ 1fr), on the motion tokens. */}
+      <div id={bodyId} className={`grid transition-[grid-template-rows] duration-base ease-ios ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+        <div className="overflow-hidden" aria-hidden={!open} ref={(el) => { if (el) el.inert = !open; }}>
+          <div className="px-5 pb-5 grid gap-4">
+            <div className="text-guest-meta text-white/85">
+              {v.sets.length ? `${t("Sunbeds")} ${v.sets.join(", ")}` : t("Entry tickets")}
+              {extras.length > 0 && <span className="block mt-1 text-white/70">{extras.join(" · ")}</span>}
+              <span className="mt-1.5 flex items-center gap-1.5 text-white/85"><Icon.clock size={13} /> {t("Arrive")} {ARRIVAL_WINDOW}</span>
+            </div>
+            <button
+              type="button"
+              onClick={onShow}
+              data-wallet-qr
+              aria-label={`${t("Show QR")} ${v.refs[0]}`}
+              className="group justify-self-center rounded-2xl bg-white p-3 text-navy-900 shadow-lift active:scale-[.98] transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-teal-300"
+            >
+              <QR size={148} seed={qrCode(v.refs[0])} />
+              <span className="mt-1.5 flex items-center justify-center gap-1 text-guest-caption font-semibold text-teal-700">
+                <Icon.qr size={12} /> {t("Tap to enlarge")}
+              </span>
+            </button>
+            {/* Add this visit's pass to the phone's wallet (AENR-779): a quiet footer under the QR. */}
+            <WalletRow pass={visitPass(v)} className="border-t border-white/10 pt-4" />
+            <button
+              type="button"
+              onClick={() => go("customer", "mybookings")}
+              className="justify-self-center inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-guest-meta font-semibold text-white/90 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+            >
+              {t("Change or cancel in My bookings")} <Icon.chevR size={13} />
+            </button>
+          </div>
+        </div>
+      </div>
     </article>
   );
 }
 
-
 /* Release my day (AENR-578): the season set goes back on sale for a day the
    holder won't use; when it sells again they earn credit. */
 function ReleaseMyDay() {
+  const money = useMoney();
   const { account, setAccount, toast, beachLayout, layouts, beachPricing, priceRules, extras } =
     useApp();
   const t = useT();
@@ -398,64 +444,63 @@ function ReleaseMyDay() {
       };
     });
   return (
-    <section aria-labelledby="wallet-release">
-      <SectionHead id="wallet-release" icon={Icon.umbrella}>
-        {t("Your season set")} · {zone.name} {setId}
-      </SectionHead>
-      <div className="glass-flat rounded-3xl p-4">
-        <p className="text-guest-meta text-slate-700 mb-3">
-          {t(
-            "Not coming one day? Release it and the set goes on sale for that day. When it sells, you get",
-          )}{" "}
-          <b>{policy.releaseCreditPct}%</b> {t("of the price as beach credit. Release until")}{" "}
-          {policy.releaseHours} {t("hours before the beach opens.")}
-        </p>
-        <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
-          {days.map((d) => {
-            const r = account.released.find((x) => x.date === d && x.setId === setId);
-            const deadline = releaseDeadline(d, policy);
-            const open = now < deadline;
-            return (
-              <li
-                key={d}
-                className="rounded-xl bg-white/80 ring-1 ring-slate-200 px-3 py-2.5 flex items-center gap-3"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-navy-900 text-guest-meta">
-                    {fmtWeekday(d)} {fmtDay(d)}
-                  </div>
-                  <div className="text-guest-caption text-slate-600">
-                    {r?.resold
-                      ? `${t("Resold")} · +€${r.resold.credit.toFixed(2)} ${t("credit")}`
-                      : r
-                        ? t("Released — on sale")
-                        : open
-                          ? `${t("Reserved for you")} · ${t("release by")} ${fmtDeadline(deadline)}`
-                          : t("Reserved for you")}
-                  </div>
+    <WalletSection
+      id="wallet-release"
+      icon={SunbedSetIcon}
+      title={`${t("Your season set")} · ${zone.name} ${setId}`}
+    >
+      <p className="text-guest-meta text-slate-700 mb-4">
+        {t(
+          "Not coming one day? Release it and the set goes on sale for that day. When it sells, you get",
+        )}{" "}
+        <b>{policy.releaseCreditPct}%</b> {t("of the price as beach credit. Release until")}{" "}
+        {policy.releaseHours} {t("hours before the beach opens.")}
+      </p>
+      <ul className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+        {days.map((d) => {
+          const r = account.released.find((x) => x.date === d && x.setId === setId);
+          const deadline = releaseDeadline(d, policy);
+          const open = now < deadline;
+          return (
+            <li
+              key={d}
+              className="rounded-xl bg-white/80 ring-1 ring-slate-200 px-3 py-2.5 flex items-center gap-3"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold text-navy-900 text-guest-meta">
+                  {fmtWeekday(d)} {fmtDay(d)}
                 </div>
-                {!r && open && (
-                  <Btn size="sm" variant="outline" onClick={() => release(d)}>
-                    {t("Release")}
-                  </Btn>
-                )}
-                {r && !r.resold && (
-                  <Btn
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => resell(d)}
-                    title={t("Demo — another guest books the set")}
-                  >
-                    {t("Simulate sale")}
-                  </Btn>
-                )}
-                {r?.resold && <Icon.checkCircle size={18} className="text-emerald-600" />}
-              </li>
-            );
-          })}
-        </ul>
-      </div>
-    </section>
+                <div className="text-guest-caption text-slate-600">
+                  {r?.resold
+                    ? `${t("Resold")} · +${money(r.resold.credit, true)} ${t("credit")}`
+                    : r
+                      ? t("Released — on sale")
+                      : open
+                        ? `${t("Reserved for you")} · ${t("release by")} ${fmtDeadline(deadline)}`
+                        : t("Reserved for you")}
+                </div>
+              </div>
+              {!r && open && (
+                <Btn size="sm" variant="outline" onClick={() => release(d)}>
+                  {t("Release")}
+                </Btn>
+              )}
+              {r && !r.resold && (
+                <Btn
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => resell(d)}
+                  title={t("Demo — another guest books the set")}
+                >
+                  {t("Simulate sale")}
+                </Btn>
+              )}
+              {r?.resold && <Icon.checkCircle size={18} className="text-emerald-600" />}
+            </li>
+          );
+        })}
+      </ul>
+    </WalletSection>
   );
 }
 
@@ -480,14 +525,14 @@ function PassOffer({
       <span
         className={`w-9 h-9 rounded-xl grid place-items-center shrink-0 text-white ${tone === "vip" ? "bg-gradient-to-br from-amber-400 to-amber-600" : "bg-gradient-to-br from-sky-500 to-teal-600"}`}
       >
-        {tone === "vip" ? <Icon.star size={16} /> : <Icon.umbrella size={16} />}
+        {tone === "vip" ? <Icon.star size={16} /> : <SunbedSetIcon size={16} accent="rgba(255,255,255,0.3)" />}
       </span>
       <span className="flex-1 min-w-0">
         <span className="block text-guest-body font-semibold text-navy-900">{title}</span>
         <span className="block text-guest-meta text-slate-600">{sub}</span>
       </span>
       <NotMvpBadge />
-      <Icon.chevR size={15} className="text-slate-400 shrink-0" />
+      <Icon.chevR size={15} className="text-slate-500 shrink-0" />
     </button>
   );
 }

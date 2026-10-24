@@ -7,7 +7,8 @@ import type { IconRenderer } from "../../lib/icons";
 import { Badge, Btn, EmptyState, NotMvpBadge } from "../ui";
 import { PROFILE } from "../../domain/account";
 import { PERSONAS, NAV } from "../../data/personas";
-import { LANGUAGES, useApp, useT } from "../../app/store";
+import { LANGUAGES, useApp, useMoney, useT } from "../../app/store";
+import { useDemoFlag } from "../../lib/useDemoFlag";
 import { deviceLang } from "../../app/i18n";
 import { useInbox } from "../../lib/useInbox";
 import { useTenantFeatures } from "../../lib/useFeatures";
@@ -19,7 +20,7 @@ import type { StaffUser } from "../../domain/types";
 import { DEFAULT_CASHIER } from "../../data/till";
 import { hasRole, roleLabel } from "../../data/staff";
 
-interface FeedItem { ic: string; tone: string; t: string; b: string; time: string }
+interface FeedItem { ic: string; tone: string; t: string; b: string; time: string; id?: string }
 
 function cartGlyph(kind: string) {
   const m: Record<string, IconRenderer> = { sunbed: Icon.umbrella, ticket: Icon.ticket, locker: Icon.lock, parking: Icon.car };
@@ -94,8 +95,9 @@ function staffMe(persona: PersonaId, staff: readonly StaffUser[], name?: string,
 
 /* ---------- Top bar ---------- */
 export function TopBar({ persona, setPersona, page, setPage, previewing = false, lead }: NavProps & { setPersona: (p: PersonaId) => void; previewing?: boolean; /** A persona-specific control left of search (e.g. Switch cashier, AENR-697). */ lead?: ReactNode }) {
-  const { setSignedIn, go, toast, cart, removeFromCart, addToCart, clearCart, staffUsers, till, viewAs, staffMeId, switchRole } = useApp();
+  const { setSignedIn, go, toast, cart, removeFromCart, addToCart, clearCart, staffUsers, till, viewAs, staffMeId, switchRole, account, lang } = useApp();
   const t = useT();
+  const money = useMoney();
   // Who is signed in (AENR-646): the guest on the customer side; elsewhere the demo
   // staff member for this persona from Team & roles — on the till the active
   // cashier, so Switch cashier changes the avatar at once.
@@ -116,7 +118,16 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
   const [notifOpen, setNotifOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false); // mobile page-nav sheet
   const cur = PERSONAS.find((p) => p.id === persona) ?? PERSONAS[0];
-  const baseFeed = FEEDS[persona] || FEEDS.customer;
+  // A first-time guest (Demo, AENR-778) has no sample history: only their own bookings notify.
+  const [newGuest] = useDemoFlag("newGuest");
+  const baseFeed: FeedItem[] = useMemo(
+    () =>
+      persona === "customer" && newGuest
+        ? [...account.bookings].reverse().map((b) => ({ ic: "checkCircle", tone: "green", t: "Booking confirmed", b: `${b.ref} · ${t("QR ready in My bookings.")}`, time: new Date(b.at).toTimeString().slice(0, 5), id: `customer-${b.ref}-${b.at}` }))
+        : FEEDS[persona] || FEEDS.customer,
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- t follows lang
+    [persona, newGuest, account.bookings, lang],
+  );
   // Inbox (AENR-554): live "Needs action" items first, then the FYI feed; read
   // state is remembered on this device.
   const live = useInbox(persona);
@@ -130,7 +141,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
   });
   const feed = useMemo(() => [
     ...live.map((n) => ({ ic: n.icon, tone: n.tone, t: n.title, b: n.body, time: n.time, id: n.id, kind: n.kind, href: n.href, read: readIds.has(n.id) })),
-    ...baseFeed.map((n, i) => ({ ...n, id: `${persona}-${i}`, kind: "fyi" as const, href: undefined as string | undefined, read: readIds.has(`${persona}-${i}`) })),
+    ...baseFeed.map((n, i) => { const id = n.id ?? `${persona}-${i}`; return { ...n, id, kind: "fyi" as const, href: undefined as string | undefined, read: readIds.has(id) }; }),
   ], [live, baseFeed, persona, readIds]);
   const unread = feed.filter((n) => !n.read).length;
   const markAll = () => setReadIds(() => new Set([...readIds, ...feed.map((n) => n.id)]));
@@ -177,7 +188,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
             <span className="md:hidden">{currentItem ? t(currentItem.short || currentItem.label) : ""}</span>
             <span className="hidden md:inline">{currentItem ? t(currentItem.label) : ""}</span>
           </span>
-          <Icon.chevD size={15} className="text-slate-400 shrink-0 md:hidden" />
+          <Icon.chevD size={15} className="text-slate-500 shrink-0 md:hidden" />
         </button>
       )}
       {persona !== "customer" && pageHelp && (
@@ -216,7 +227,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
                   <Icon.bag size={14} /> {t("Your basket")}
                   {cartCount > 0 && <Badge tone="green">{cartCount} {cartCount === 1 ? t("item") : t("items")}</Badge>}
                 </div>
-                {cartCount > 0 && <span className="text-[12px] font-bold text-navy-900 tnum">€{cartTotal}</span>}
+                {cartCount > 0 && <span className="text-[12px] font-bold text-navy-900 tnum">{money(cartTotal)}</span>}
               </div>
               {cartCount === 0 ? (
                 <div className="px-2 pb-2">
@@ -233,16 +244,21 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
                           <span className="block font-semibold text-[13px] text-navy-900 truncate">{t(it.label)}</span>
                           <span className="block text-[11px] text-slate-500 truncate">{t(it.sub)}</span>
                         </span>
-                        <span className="text-[12px] font-semibold text-navy-900 tnum shrink-0">€{it.price}</span>
-                        <button aria-label={`${t("Remove")} ${t(it.label)}`} onClick={() => removeBasketItem(it)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-400 hover:text-rose-500 hover:bg-rose-50 shrink-0"><Icon.trash size={13} /></button>
+                        <span className="text-[12px] font-semibold text-navy-900 tnum shrink-0">{money(it.price)}</span>
+                        <button aria-label={`${t("Remove")} ${t(it.label)}`} onClick={() => removeBasketItem(it)} className="w-7 h-7 grid place-items-center rounded-lg text-slate-500 hover:text-rose-500 hover:bg-rose-50 shrink-0"><Icon.trash size={13} /></button>
                       </div>
                     ))}
                   </div>
                   <div className="px-2 pt-2 mt-1 border-t border-slate-200/70 space-y-1.5">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-slate-600">{t("Subtotal")}</span>
-                      <span className="font-bold text-navy-900 tnum">€{cartTotal}</span>
+                      <span className="font-bold text-navy-900 tnum">{money(cartTotal)}</span>
                     </div>
+                    {/* The basket lives in this browser only — say so (AENR-773). */}
+                    <p className="flex items-start gap-1.5 text-[11px] leading-snug text-slate-600">
+                      <Icon.check size={12} className="shrink-0 mt-px text-teal-700" aria-hidden />
+                      {t("Saved on this device — it waits here until you pay or empty it.")}
+                    </p>
                     <Btn variant="teal" full size="sm" icon={Icon.bag} onClick={() => { setBasketOpen(false); go("customer", "checkout"); }}>{t("Checkout")}</Btn>
                     <div className="flex items-center justify-between gap-2">
                       <button onClick={emptyBasket} className="text-[11px] text-slate-500 hover:text-rose-600 py-1 inline-flex items-center gap-1"><Icon.trash size={12} /> {t("Empty basket")}</button>
@@ -268,7 +284,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
             <button className="text-slate-500 hover:text-navy-900 w-10 h-10 grid place-items-center rounded-xl hover:bg-slate-100 data-[state=open]:bg-slate-100 data-[state=open]:text-navy-900 relative transition" aria-label={t("Notifications")}>
               <Icon.bell size={18} />
               {unread > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 grid place-items-center text-[10px] font-bold bg-gold-500 text-white rounded-full ring-2 ring-white">{unread}</span>
+                <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 grid place-items-center text-[10px] font-bold bg-gold-500 text-navy-950 rounded-full ring-2 ring-white">{unread}</span>
               )}
             </button>
           </Popover.Trigger>
@@ -282,6 +298,12 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
                 <button onClick={markAll} className="text-[11px] font-semibold text-teal-700 hover:text-teal-800 disabled:text-slate-300" disabled={unread === 0}>{t("Mark all read")}</button>
               </div>
               <div className="max-h-[420px] overflow-y-auto pr-0.5">
+                {feed.length === 0 && (
+                  <div className="px-2 py-5 text-center text-[12.5px] text-slate-600">
+                    <Icon.bell size={18} className="mx-auto mb-1.5 text-slate-400" aria-hidden />
+                    {t("No notifications yet — booking updates will show here.")}
+                  </div>
+                )}
                 {(["action", "fyi"] as const).map((k) => {
                   const list = feed.filter((n) => n.kind === k);
                   if (!list.length) return k === "action" && persona !== "customer" ? (
@@ -379,8 +401,9 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
         {persona !== "customer" && !previewing && (
           <PersonaSwitcher persona={persona} setPersona={setPersona} variant="role" />
         )}
-        {/* Phones: the customer's Demo menu (persona + scene) docks here instead of floating (AENR-575). */}
-        {persona === "customer" && !previewing && (
+        {/* Phones: the customer's Demo menu (persona + scene) docks here instead of floating (AENR-575),
+            on Home only, like the desktop pill (AENR-745). */}
+        {persona === "customer" && page === "home" && !previewing && (
           <span className="md:hidden"><PersonaSwitcher persona={persona} setPersona={setPersona} variant="demo" compact /></span>
         )}
       </div>

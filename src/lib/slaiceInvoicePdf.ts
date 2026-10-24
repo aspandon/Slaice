@@ -31,7 +31,7 @@ export const SLAICE_ISSUER = {
   trade: "Slaice",
   legal: "Slaice Technologies IKE",
   address: "Leof. Kifisias 44, 151 25 Marousi, Athens",
-  vat: "EL801234567",
+  vat: "EL801234560",
   taxOffice: "FAE Athinon",
   email: "billing@slaice.app",
   web: "slaice.app",

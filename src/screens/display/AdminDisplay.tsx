@@ -301,7 +301,7 @@ function DisplayLanguages() {
                 />
                 <span
                   aria-hidden
-                  className={`w-5 h-5 shrink-0 grid place-items-center rounded-full text-[11px] font-bold tnum ${on ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-400"}`}
+                  className={`w-5 h-5 shrink-0 grid place-items-center rounded-full text-[11px] font-bold tnum ${on ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-500"}`}
                 >
                   {on ? i + 1 : "–"}
                 </span>
@@ -395,7 +395,7 @@ function PairScreens() {
           <span className="text-slate-500"> — {screens.map((x) => x.name).join(", ")}</span>
         </span>
         <span className="text-[12.5px] font-semibold text-teal-700">Manage · pair another</span>
-        <Icon.chevD size={15} className="text-slate-400" />
+        <Icon.chevD size={15} className="text-slate-500" />
       </button>
     );
   return (
@@ -425,7 +425,7 @@ function PairScreens() {
           {err && <div role="alert" className="mt-1.5 text-[12px] text-rose-700">{err}</div>}
         </form>
         <div className="min-w-0 flex-1 basis-64">
-          <h3 className="text-[13px] font-semibold text-navy-900 mb-1.5">Paired screens <span className="text-slate-400 tnum">{screens.length}</span></h3>
+          <h3 className="text-[13px] font-semibold text-navy-900 mb-1.5">Paired screens <span className="text-slate-500 tnum">{screens.length}</span></h3>
           {screens.length === 0 ? (
             <p className="text-[12.5px] text-slate-500">None yet — paired screens appear here and follow the settings below.</p>
           ) : (
@@ -436,7 +436,7 @@ function PairScreens() {
                   <input aria-label={`Name of ${x.name}`} value={x.name} onChange={(e) => rename(x.device, e.target.value)}
                     className="min-w-0 flex-1 bg-transparent text-[13px] font-semibold text-navy-900 rounded px-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500" />
                   <span className="text-[11.5px] text-slate-500 whitespace-nowrap">since {new Date(x.pairedAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
-                  <button type="button" aria-label={`Remove ${x.name}`} onClick={() => remove(x.device)} className="w-8 h-8 grid place-items-center rounded-lg text-slate-400 hover:text-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
+                  <button type="button" aria-label={`Remove ${x.name}`} onClick={() => remove(x.device)} className="w-8 h-8 grid place-items-center rounded-lg text-slate-500 hover:text-rose-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500">
                     <Icon.trash size={14} />
                   </button>
                 </li>
