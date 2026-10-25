@@ -10,6 +10,7 @@ import { useDemoFlag } from "../../lib/useDemoFlag";
 import { FIRST_TIME_RESET } from "../../lib/firstTimeGuest";
 import { useTenantFeatures } from "../../lib/useFeatures";
 import { useGuestScene } from "../../lib/useGuestScene";
+import { VerticalMenuGroup } from "../../verticals/VerticalMenu";
 
 // The scene sliders show only in the guest demo menu; staff never load them (AENR-839).
 const DemoSceneSliders = lazyWithReload(() => import("../SceneDemoPanel").then((m) => ({ default: m.DemoSceneSliders })));
@@ -81,6 +82,9 @@ export function PersonaSwitcher({
         {/* Never taller than the room on screen: on a phone the long Demo menu scrolls inside itself
             (AENR-846) — Radix gives the available height; overscroll stops the page behind moving. */}
         <DropdownMenu.Content side={side} align="end" sideOffset={8} collisionPadding={8} className={`glass w-72 max-w-[calc(100vw-16px)] max-h-[var(--radix-dropdown-menu-content-available-height)] overflow-y-auto overscroll-contain text-ink rounded-xl p-1.5 z-[60] shadow-float ${origin} data-[state=open]:animate-scale-in`}>
+          {/* Which vertical to show (AENR-1138): the beach, or Parking with its own roles. */}
+          <VerticalMenuGroup />
+          <DropdownMenu.Separator className="my-1 h-px bg-slate-200" />
           <DropdownMenu.Label className="px-2.5 py-1.5 text-[11px] uppercase tracking-wide text-slate-500 font-semibold">{t("View as persona")}</DropdownMenu.Label>
           {PERSONAS.map((p) => {
             // A role the demo beach doesn't use (AENR-716) stays reachable, greyed, and opens an explanation.

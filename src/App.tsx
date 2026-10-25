@@ -18,6 +18,7 @@ import { markBusy } from "./lib/busy";
 import { prefersReducedMotion } from "./lib/motion";
 import { DISTANCE, DURATION, EASING } from "./lib/motionTokens";
 import { parseHash, buildHash, hashPath, isValidPage, resolvePage } from "./app/router";
+import { useVertical, verticalOf } from "./verticals";
 import { HTML_LANG, deviceLang, isLangLoaded, loadLang, normalizeLang } from "./app/i18n";
 import { DEFAULT_BACKGROUND } from "./data/backgrounds";
 import { DEFAULT_PASSES, DEFAULT_PASS_PRICING, SEASON_END_LABEL, seasonValidUntil, round2 } from "./data/passes";
@@ -147,6 +148,8 @@ const ShiftSwitch = lazyWithReload(() => import("./screens/cashier/TillStatus").
 const CommandPalette = lazyWithReload(() => import("./components/CommandPalette").then((m) => ({ default: m.CommandPalette })));
 // Demo › Performance overlay (AENR-842): its own chunk, fetched only when switched on.
 const PerfOverlay = lazyWithReload(() => import("./components/PerfOverlay"));
+// The Parking vertical (AENR-1138): its own shell at #/parking/…, its own chunk.
+const ParkingApp = lazyWithReload(() => import("./verticals/parking/ParkingApp"));
 const GuestPass = lazyWithReload(() => import("./screens/customer/GuestPass").then((m) => ({ default: m.GuestPass })));
 // Sign-in (and its react-hook-form + zod form stack) loads only for a signed-out visitor (AENR-839).
 const AuthGate = lazyWithReload(() => import("./screens/auth").then((m) => ({ default: m.AuthGate })));
@@ -169,6 +172,8 @@ type VTDocument = Document & { startViewTransition?: (update: () => void) => { f
 
 export default function App() {
   const [persona, setPersona] = useState<PersonaId>(initialRoute.persona || saved.persona || "customer");
+  // Which vertical the address names (AENR-1138); the beach keeps its persona and page meanwhile.
+  const vertical = useVertical();
   const [pageByPersona, setPageByPersona] = useState<Record<string, string>>(() => {
     const base: Record<string, string> = { ...DEFAULT_PAGE, ...(saved.pageByPersona || {}) };
     // Drop any stale page (e.g. a since-removed customer flow) so it resolves to
@@ -410,8 +415,8 @@ export default function App() {
   // can target it in CSS — e.g. the customer surface's translucent glass cards
   // (see index.css). An attribute on the root also reaches portaled surfaces.
   useEffect(() => {
-    document.documentElement.dataset.persona = PASS ? "customer" : persona;
-  }, [persona]);
+    document.documentElement.dataset.persona = PASS ? "customer" : vertical === "parking" ? "parking" : persona;
+  }, [persona, vertical]);
 
   const setConsent = useCallback((patch: Partial<Consent>) => {
     setConsentState((c) => ({ ...c, ...patch, decided: true, ts: new Date().toISOString() }));
@@ -488,7 +493,8 @@ export default function App() {
   // ---- URL routing: mirror persona+page into the location hash. ----
   const firstRoute = useRef(true);
   useEffect(() => {
-    if (DISPLAY || PASS) return;
+    // In another vertical the address is that vertical's own (AENR-1138).
+    if (DISPLAY || PASS || verticalOf() !== "beach") return;
     const target = buildHash(persona, page);
     // Compare the path only: a page's own query (e.g. ?period=month) and
     // deeper segments (e.g. /tenant/<id>/<section>) stay.
@@ -700,6 +706,10 @@ export default function App() {
       {!signedIn ? (
         <Suspense fallback={<div className="min-h-dvh grad-sea" />}>
           <AuthGate />
+        </Suspense>
+      ) : vertical === "parking" ? (
+        <Suspense fallback={<div className="min-h-dvh" />}>
+          <ParkingApp />
         </Suspense>
       ) : (
         <div className="w-full px-3 sm:px-5 pt-4 relative min-h-dvh flex flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-1">

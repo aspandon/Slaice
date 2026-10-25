@@ -21,6 +21,7 @@ You optimize for two readers at once: the person *using* the product, and the ne
 
 Read this first; treat it as ground truth. **Slaice** is a front-end-only, clickable mockup of a multi-tenant beach-booking SaaS (sunbeds, entry tickets, lockers, parking) with seven personas: Customer, Manager/Admin, Call Center, Cashier, Controller, Accountant, Platform.
 
+- **Verticals:** the beach is the first vertical; **Parking** (AENR-1137) is the second, at `#/parking/…` with its own shell and roles, reached from Demo › Vertical. Both share the Platform console, sign-in and app store.
 - **Framework:** Vite + React 18 SPA, custom hash router (`#/<persona>/<page>?query`) — `src/app/router.ts`, routes in `src/routes.tsx`, nav per persona in `src/data/personas.ts`.
 - **Language:** TypeScript (strict).
 - **Server / API contract:** none — **no backend**. All data is deterministic sample data (`src/data/*`) plus demo state.
@@ -50,6 +51,7 @@ Read this first; treat it as ground truth. **Slaice** is a front-end-only, click
 The product owner sends change requests in chat. The workflow is:
 
 1. **Log every request as tickets in Orbit** — Slaice Agile Space: <https://a437a7e1.orbit-6cb.pages.dev/pmtool?tab=agile&space=752c94c7-74c4-4f27-8ee2-1bcd0531f277> (keys `AENR-###`).
+   - **Parking vertical:** every parking request is a new story under the epic **AENR-1137 · Parking Implementation Essentials**, in the sprint **"Parking Essentials"** (`--sprint "Parking Essentials"`). Code lives in `src/verticals/parking/` (route `#/parking/…`, its own shell; vertical helpers in `src/verticals/index.ts`).
    - Place each ticket under the **most relevant existing epic**; create a new epic only if none fits. Epics follow the spec areas (e.g. Admin · Reporting & Analytics (A-07) = AENR-462, Cashier = AENR-493, Availability/Pricing/Map = AENR-457, Platform tenant management = AENR-495).
    - **Combine** with existing similar tickets instead of creating duplicates; add **dependencies/relationships** (Related, Depends On, Caused by…).
    - Clear requirements format: Goal · Requirements · Acceptance criteria · and always the **front-end demo only** scope note (no backend; sample data + app store + `localStorage` only; journey-critical steps are simulated end-to-end like the existing "Simulate successful payment" flow).

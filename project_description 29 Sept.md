@@ -124,6 +124,11 @@ subscription (tenants show an **MRR** figure).
 same capability modules (inventory, payments, catalogue/pricing, QR validation, e-invoice, geo map,
 loyalty).
 
+**Parking vertical** (epic AENR-1137, first step AENR-1138): the second vertical in the demo. The
+Demo menu's **Vertical** group (Beach / Parking) opens it at `#/parking/home`, with its own shell and,
+next, its own roles and capabilities. It shares the Platform console, sign-in and app store with the
+beach vertical. See [§6 Parking vertical](#parking-vertical-aenr-1138).
+
 ---
 
 ## 2. Glossary
@@ -341,6 +346,25 @@ Four pages with distinct names (AENR-642); old `invoicing` and `commission` link
 | `#/platform/compliance`            | Compliance & DPA          | [MVP]    |
 | `#/platform/verticals`             | Verticals                 | [Future] |
 | `#/platform/landing`               | Landing Page (slaice.app) | [Future] |
+
+### Parking vertical (AENR-1138)
+
+A second vertical on the same platform back end, with its own address, shell, roles and
+capabilities. Code lives in `src/verticals/` (`verticalOf()` / `useVertical()` read the vertical
+from the hash; `ParkingApp` is its own lazy chunk). The beach keeps its persona and page while
+Parking is open, so **Beach** in the Demo menu returns where the viewer left it; Back, Forward and
+refresh keep the vertical.
+
+| Route            | Screen                                                                           | Tag   |
+| ---------------- | -------------------------------------------------------------------------------- | ----- |
+| `#/parking/home` | Parking home: what the vertical is, what it shares with the beach, roles to come | [MVP] |
+
+- **Header:** Slaice mark with a **Parking** chip, and Parking's own **Demo** menu (Vertical: Beach /
+  Parking, and Platform / Slaice — the shared console).
+- **Shared with the beach vertical:** Tenants & onboarding, Payments, e-Invoicing & MyDATA, QR
+  validation.
+- **Parking roles:** an empty state until the owner defines them (follow-up stories under AENR-1137,
+  sprint "Parking Essentials").
 
 ---
 
@@ -3657,6 +3681,7 @@ small-text contrast — are tracked in `UX_REVIEW.md`.
 | Site gate (fixed credentials, client-side hash)                                                 | `SiteGate.tsx`          | Hosting-level auth for stage, none for production         |
 | "Any input signs you in" magic link / SSO                                                       | `auth.tsx`              | Real auth provider                                        |
 | Persona switcher ("DEMO" pill on customer Home only — AENR-745; top-bar persona menu for staff) | Shell                   | Role-based access per signed-in user                      |
+| Vertical switch (Demo › Vertical: Beach / Parking — AENR-1138)                                  | Demo menu               | The vertical follows the signed-in tenant's business      |
 | Scene demo panel (weather + time slider)                                                        | Customer Home           | Real weather feed / real local time (admin switches stay) |
 | "Simulate successful payment"                                                                   | Checkout, pass purchase | Stripe Checkout redirect + webhook                        |
 | "Show platform economics"                                                                       | Checkout                | Remove from customer UI                                   |

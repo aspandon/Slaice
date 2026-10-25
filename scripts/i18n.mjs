@@ -55,6 +55,9 @@ const DATA_SOURCES = [
   { file: "domain/invoiceDetails.ts", all: true },
   // Shared field checks (AENR-772): the ΑΦΜ / VAT messages shown on the guest invoice form.
   { file: "domain/validate.ts", all: true },
+  // The verticals (AENR-1138): the Demo menu's Vertical group and the Parking home's shared cards.
+  { file: "verticals/index.ts", keys: ["label", "blurb"] },
+  { file: "verticals/parking/ParkingApp.tsx", keys: ["title", "body"] },
 ];
 
 function collectStrings() {
