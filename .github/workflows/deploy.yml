@@ -13,6 +13,7 @@ on:
       - claude/lucid-goodall-z4fbR
       - claude/pensive-bell-ydm3xm
       - claude/kind-euler-t105hp
+      - claude/wizardly-ramanujan-r3l5pm
     paths-ignore:
       - "docs/**"
   workflow_dispatch:

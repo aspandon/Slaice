@@ -116,12 +116,20 @@ export async function archive(p, key) {
   const confirm = p.locator('[role=dialog] button, [role=alertdialog] button').filter({ hasText: /^(Archive|Confirm|Yes)/ });
   if (await confirm.count()) { await confirm.last().click(); await wait(p, 1200); }
 }
+// The status chip is titled "Click to change status" (older Orbit) or "Status: <current>"; its select
+// options are ids, so pick by label. "Completed" is called "Done" in newer Orbit — either name works.
+const statusChip = (p) => p.locator('[title="Click to change status"], [title^="Status:"]').first();
 export async function setStatus(p, key, status) {
   await openItem(p, key);
-  await p.getByTitle('Click to change status').first().click(); await wait(p, 700);
-  await p.locator('select:has(option[value="in_progress"])').first().selectOption({ label: status }); await wait(p, 1500);
+  await statusChip(p).click(); await wait(p, 700);
+  const sel = p.locator('select:has(option:text-is("In Progress"))').first();
+  const labels = await sel.locator('option').allInnerTexts();
+  const alias = { Completed: 'Done', Done: 'Completed' };
+  const label = labels.includes(status) ? status : alias[status];
+  if (!labels.includes(label)) throw new Error(`no status "${status}" (have: ${labels.join(', ')})`);
+  await sel.selectOption({ label }); await wait(p, 1500);
   await openItem(p, key);
-  return (await p.getByTitle('Click to change status').first().innerText()).trim();
+  return (await statusChip(p).innerText()).trim();
 }
 export async function moveUnder(p, epicKey, itemKey) {
   await openItem(p, epicKey);

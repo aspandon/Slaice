@@ -43,13 +43,13 @@ Read this first; treat it as ground truth. **Slaice** is a front-end-only, click
   - All browser servers launch Chrome through `tools/mcp/chrome.sh` (pre-installed Chromium in the cloud, Google Chrome on a Mac; `--no-sandbox` only when running as root).
   - The gate and sign-in live in `localStorage`, so audit signed-in pages with chrome-devtools or playwright: `navigate_page` with an `initScript` that seeds the keys above. a11y and lighthouse start a fresh browser and only see the site gate. Measure performance on a production build (`npm run build -- --outDir dist` + `npx vite preview --outDir dist`), not the dev server. lighthouse's performance audit does not complete on this app in the container (NO_FCP); use a chrome-devtools trace for LCP/CLS.
   - **blender** (AENR-827): `mcp-for-blender` (MIT, `ahujasid/blender-mcp`) drives a running Blender over `localhost:9876` (`get_scene_info`, `execute_code`, Poly Haven search/download once its scene toggle is on). Start Blender first with `tools/mcp/blender.sh` (idempotent: downloads the portable Blender 5.2.2 into `~/.cache/slaice-blender` — or `$BLENDER_CACHE` — on first use, installs the pinned addon there, starts it in the background, under `xvfb-run` in the cloud; `tools/mcp/blender.sh stop` ends it). Telemetry stays off. Never commit Blender, its cache or render frames; long renders run headless (`blender -b -P …`, see `tools/blender/`). The addon's `execute_code` must not call `read_factory_settings` (it unloads the addon's own server).
-  - `.claude/skills/gsap-*` are GreenSock's official GSAP skills (MIT, `greensock/gsap-skills` @ `aed9cfd`); follow them for GSAP work. Lenis is deliberately not installed.
+  - `.claude/skills/gsap-*` are GreenSock's official GSAP skills (MIT, `greensock/gsap-skills` @ `aed9cfd`); follow them for GSAP work. Lenis (`lenis`, smooth scroll) is installed at the owner's request but not wired in yet; when it is, pair it with GSAP ScrollTrigger (`lenis.on("scroll", ScrollTrigger.update)`, `gsap.ticker`) and leave native scroll for `prefers-reduced-motion`.
 
 ## 2A. Working agreement with the product owner (backlog in Orbit)
 
 The product owner sends change requests in chat. The workflow is:
 
-1. **Log every request as tickets in Orbit** — Slaice Agile Space: <https://19c11949.orbit-6cb.pages.dev/pmtool?tab=agile&space=752c94c7-74c4-4f27-8ee2-1bcd0531f277> (keys `AENR-###`).
+1. **Log every request as tickets in Orbit** — Slaice Agile Space: <https://a437a7e1.orbit-6cb.pages.dev/pmtool?tab=agile&space=752c94c7-74c4-4f27-8ee2-1bcd0531f277> (keys `AENR-###`).
    - Place each ticket under the **most relevant existing epic**; create a new epic only if none fits. Epics follow the spec areas (e.g. Admin · Reporting & Analytics (A-07) = AENR-462, Cashier = AENR-493, Availability/Pricing/Map = AENR-457, Platform tenant management = AENR-495).
    - **Combine** with existing similar tickets instead of creating duplicates; add **dependencies/relationships** (Related, Depends On, Caused by…).
    - Clear requirements format: Goal · Requirements · Acceptance criteria · and always the **front-end demo only** scope note (no backend; sample data + app store + `localStorage` only; journey-critical steps are simulated end-to-end like the existing "Simulate successful payment" flow).
@@ -67,7 +67,7 @@ The product owner sends change requests in chat. The workflow is:
 Playwright scripts that drive the Orbit UI (Orbit has no API):
 
 - Setup: `cd tools/orbit && npm install` (uses the pre-installed Chromium). Credentials come from the environment variables **`ORBIT_USER` / `ORBIT_PASS`** (set them in the cloud environment settings) or a git-ignored `tools/orbit/.orbit.env` (`ORBIT_USER=…` / `ORBIT_PASS=…` lines). **Never commit credentials or print them.** If neither is set, ask the owner to add them to the environment settings.
-- `node status.mjs "In Progress" AENR-1 AENR-2` — set status (In Progress / Completed / On Hold / Cancelled).
+- `node status.mjs "In Progress" AENR-1 AENR-2` — set status (In Progress / Completed / On Hold / Cancelled / Backlog; Orbit now calls Completed "Done" — either name works).
 - `node add.mjs batch.json AENR-<epic> [--points N] [--sprint "Sprint 1"] [--status "In Progress"]` — create stories/defects under an epic from a batch file, add deps, restore the epic description, then set points/sprint/status. Batch format: `{ "epics": [], "stories": [{ "key": "local-id", "epic": "AENR-462", "type": "Story|Defect|Task", "priority": "High", "title": "…", "html": "<p>…</p>" }], "deps": [["local-id", "Related", "AENR-466"]] }`. `run.mjs` (used by `add.mjs`) is resumable via the git-ignored `keys.json`.
 - `node peek.mjs AENR-123` — print an item (status, points, description, deps).
 - `ops.mjs` exports the primitives: openItem, createTop, addChild, setDescription (verifies + retries), setTitle, addDep, setPoints/getPoints, setStatus, setSprint, moveUnder, archive.
