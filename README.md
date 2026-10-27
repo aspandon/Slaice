@@ -28,8 +28,9 @@ npm install
 npm run dev        # http://localhost:5173
 ```
 
-> **Getting in.** Locally the app opens behind the same **site gate** as the stage site (one fixed
-> e-mail + password, held by the project owner). After it, the product's own demo sign-in accepts any
+> **Getting in.** Locally the app opens behind the same **site gate** as the stage site (fixed
+> e-mail + password accounts, held by the project owner; a tenant account sees every role except
+> Platform / Slaice). After it, the product's own demo sign-in accepts any
 > e-mail or SSO button. Both are demo scaffolding, not product requirements.
 
 | Script                            | What it does                                                                    |

@@ -1,6 +1,7 @@
 import { Suspense, useState } from "react";
 import type { ReactNode } from "react";
 import { lazyWithReload } from "../lib/staleChunk";
+import { GATE_KEY, type SiteAccess } from "../lib/siteAccess";
 
 /* ============================================================================
    Site access gate
@@ -21,18 +22,19 @@ import { lazyWithReload } from "../lib/staleChunk";
 // The form (and react-hook-form + zod with it) is fetched only while the gate is up (AENR-839).
 const SiteLogin = lazyWithReload(() => import("./SiteLogin").then((m) => ({ default: m.SiteLogin })));
 
-// Unlock is per-device; bump the version suffix to force everyone to re-enter.
-const GATE_KEY = "slaice.gate.v1";
+// Unlock is per-device, with the account's access level (lib/siteAccess.ts, AENR-1200): "1" = full,
+// "tenant" = every role but Platform / Slaice. Bump the key's version suffix to force everyone to re-enter.
 const readUnlocked = (): boolean => {
   try {
-    return localStorage.getItem(GATE_KEY) === "1";
+    const v = localStorage.getItem(GATE_KEY);
+    return v === "1" || v === "tenant";
   } catch {
     return false; // private mode / storage disabled — gate stays up
   }
 };
-const persistUnlocked = () => {
+const persistUnlocked = (access: SiteAccess) => {
   try {
-    localStorage.setItem(GATE_KEY, "1");
+    localStorage.setItem(GATE_KEY, access === "full" ? "1" : "tenant");
   } catch {
     /* storage unavailable — they'll just re-enter next visit */
   }
@@ -49,8 +51,8 @@ export function SiteGate({ children }: { children: ReactNode }) {
   return (
     <Suspense fallback={<div className="grad-slaice min-h-dvh w-full" />}>
       <SiteLogin
-        onUnlock={() => {
-          persistUnlocked();
+        onUnlock={(access) => {
+          persistUnlocked(access);
           setUnlocked(true);
         }}
       />

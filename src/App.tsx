@@ -15,6 +15,7 @@ import { prefetchPage, prefetchPersona, routeFor } from "./routes";
 import { PageGate } from "./components/Shell/PageGate";
 import { Freeze } from "./components/Shell/KeepAlive";
 import { markBusy } from "./lib/busy";
+import { FALLBACK_PERSONA, personaAllowed } from "./lib/siteAccess";
 import { prefersReducedMotion } from "./lib/motion";
 import { DISTANCE, DURATION, EASING } from "./lib/motionTokens";
 import { parseHash, buildHash, hashPath, isValidPage, resolvePage } from "./app/router";
@@ -168,7 +169,10 @@ const KEPT_PAGES = new Set(["home", "mybookings", "wallet", "account"]);
 type VTDocument = Document & { startViewTransition?: (update: () => void) => { finished: Promise<void> } };
 
 export default function App() {
-  const [persona, setPersona] = useState<PersonaId>(initialRoute.persona || saved.persona || "customer");
+  const [rolePicked, setPersona] = useState<PersonaId>(initialRoute.persona || saved.persona || "customer");
+  // A role this device's account can't open (Platform / Slaice for a tenant account, AENR-1200) is
+  // never rendered: every way into it — saved state, deep link, hash edit, Back — lands on Manager.
+  const persona = personaAllowed(rolePicked) ? rolePicked : FALLBACK_PERSONA;
   const [pageByPersona, setPageByPersona] = useState<Record<string, string>>(() => {
     const base: Record<string, string> = { ...DEFAULT_PAGE, ...(saved.pageByPersona || {}) };
     // Drop any stale page (e.g. a since-removed customer flow) so it resolves to
