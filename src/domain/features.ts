@@ -243,8 +243,11 @@ export const SEA_DEVICES: readonly { id: SeaDevice; label: string }[] = [
   { id: "desktop", label: "Desktop" },
   { id: "mobile", label: "Phones and tablets" },
 ];
+/** A device's sea when the tenant hasn't picked one: the Video sea at Standard on computers
+ *  (AENR-1201), Classic on phones and tablets. */
+export const DEFAULT_SEA: Readonly<Record<SeaDevice, SeaStyle>> = { desktop: "video", mobile: "classic" };
 export const seaStyleOf = (t: { sea?: TenantSea } | undefined, d: SeaDevice): SeaStyle =>
-  t?.sea?.[d] ?? "classic";
+  t?.sea?.[d] ?? DEFAULT_SEA[d];
 
 /** One resolution a sea can play at: its frame sizes and download weights per device. */
 export interface SeaResTier<R extends SeaRes = SeaRes> {

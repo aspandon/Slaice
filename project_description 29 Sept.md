@@ -3472,7 +3472,8 @@ src/
   sun glint, dusk warmth, night and clouds; falls back to SVG if WebGL2 is missing or motion is reduced.
 - **Four seas, chosen per tenant and per device** (AENR-813, AENR-827; Platform › tenant › Modules & features ›
   **Guest sea**: Desktop — 1024 px and wider — and Phones and tablets, each **Classic**, **Coastal**,
-  **Video** or **Blender**; Classic by default, audited). Classic is today's sea (live WebGL on computers, the still
+  **Video** or **Blender**; by default Video at Standard resolution on desktop (AENR-1201) and Classic on
+  phones and tablets, audited). Classic is today's sea (live WebGL on computers, the still
   painted sea on phones; its Features switches — live sea, depth, wave lines — still apply). **Coastal**
   (AENR-811) is a lightweight realistic shader in raw WebGL2 — no three.js. **Video** (AENR-814) is a
   seamless 9.6 s loop of real water filmed straight down (`public/sea/`, Coverr licence — see
