@@ -5,26 +5,33 @@ import { z } from "zod";
 import { Icon } from "../lib/icons";
 import { Btn, Input } from "../components/ui";
 import { SlaiceLogo } from "../components/Brand";
+import type { SiteAccess } from "../lib/siteAccess";
 
 /* The site access gate's sign-in form (see SiteGate.tsx). Its own module so the form stack
    (react-hook-form + zod) loads only on a device that hasn't unlocked yet (AENR-839). */
 
-// SHA-256 (hex) of the accepted email (lower-cased) and password. To change the
-// credentials, regenerate with:  printf '%s' '<value>' | sha256sum
-const EMAIL_HASH = "3fe4db2ea1d30276acee67f335574297c608cc4b415d372c1e4d359646873ccb";
-const PW_HASH = "0362b44a44d4a875bce9bb5d27f41264f95cea6fe5dbf40260f0a090ff8b0a0c";
+// The accepted accounts: SHA-256 (hex) of the email (lower-cased) and the password, and what the
+// account may open (lib/siteAccess.ts, AENR-1200). To add or change one, regenerate with:
+//   printf '%s' '<value>' | sha256sum
+const ACCOUNTS: readonly { email: string; password: string; access: SiteAccess }[] = [
+  // The owner: every role.
+  { email: "3fe4db2ea1d30276acee67f335574297c608cc4b415d372c1e4d359646873ccb", password: "0362b44a44d4a875bce9bb5d27f41264f95cea6fe5dbf40260f0a090ff8b0a0c", access: "full" },
+  // ichadji@aktitouiliou.gr: every role but Platform / Slaice.
+  { email: "c4a5a71e260345d6a9cb41d9fbfda1f03c584718c092c903c544b604b1f570a3", password: "f20a49ad4336cc21f449aa4e30f3fb225b01fad305ae371a8129954f6f4748c6", access: "tenant" },
+];
 
 async function sha256Hex(s: string): Promise<string> {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
   return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function verify(email: string, password: string): Promise<boolean> {
+/** The account's access level, or null when the email and password don't match one. */
+async function verify(email: string, password: string): Promise<SiteAccess | null> {
   const [e, p] = await Promise.all([
     sha256Hex(email.trim().toLowerCase()),
     sha256Hex(password.trim()),
   ]);
-  return e === EMAIL_HASH && p === PW_HASH;
+  return ACCOUNTS.find((a) => a.email === e && a.password === p)?.access ?? null;
 }
 
 // Shape validation only (presence + email format). The credential check itself
@@ -36,7 +43,7 @@ const schema = z.object({
 });
 type GateForm = z.infer<typeof schema>;
 
-export function SiteLogin({ onUnlock }: { onUnlock: () => void }) {
+export function SiteLogin({ onUnlock }: { onUnlock: (access: SiteAccess) => void }) {
   const [show, setShow] = useState(false);
   const [checking, setChecking] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
@@ -65,9 +72,9 @@ export function SiteLogin({ onUnlock }: { onUnlock: () => void }) {
 
   const onValid = async (data: GateForm) => {
     setChecking(true);
-    const ok = await verify(data.email, data.password).catch(() => false);
-    if (ok) {
-      onUnlock(); // parent swaps this screen out for the app
+    const access = await verify(data.email, data.password).catch(() => null);
+    if (access) {
+      onUnlock(access); // parent swaps this screen out for the app
       return; // leave `checking` true — we're unmounting
     }
     setAuthError("That email and password don't match. Please try again.");

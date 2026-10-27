@@ -7,6 +7,7 @@ import type { IconRenderer } from "../../lib/icons";
 import { Badge, Btn, EmptyState, NotMvpBadge } from "../ui";
 import { PROFILE } from "../../domain/account";
 import { PERSONAS, NAV } from "../../data/personas";
+import { personaAllowed } from "../../lib/siteAccess";
 import { LANGUAGES, useApp, useMoney, useT } from "../../app/store";
 import { useDemoFlag } from "../../lib/useDemoFlag";
 import { deviceLang } from "../../app/i18n";
@@ -108,7 +109,7 @@ export function TopBar({ persona, setPersona, page, setPage, previewing = false,
   const meUser = "user" in me ? me.user : undefined;
   // Roles the beach doesn't use (AENR-716) aren't offered.
   const { role: roleOn } = useTenantFeatures();
-  const myRoles = (meUser?.roles ?? []).filter((r) => roleOn(r));
+  const myRoles = (meUser?.roles ?? []).filter((r) => roleOn(r) && personaAllowed(r));
   const cartCount = (cart || []).length;
   const cartTotal = (cart || []).reduce((a, b) => a + b.price, 0);
   // Basket + notifications are controlled Popovers so their in-panel CTAs can

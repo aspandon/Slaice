@@ -168,9 +168,10 @@ loyalty).
   backend show a demo toast or a simulated multi-step progress.
 - **Stage URL:** <https://aspandon.github.io/Slaice/> (e.g. `#/customer/home`). Served by GitHub Pages
   from the `docs/` folder, which CI rebuilds from `main` on every push.
-- **Access:** the stage site is behind a **site gate** (one fixed e-mail + password, checked
+- **Access:** the stage site is behind a **site gate** (fixed e-mail + password accounts, checked
   client-side against SHA-256 hashes). The credentials are held by the project owner and are
-  deliberately **not** stored in this document. After the gate, the product's own **demo sign-in**
+  deliberately **not** stored in this document. Two accounts (AENR-1200): the owner's (**full** — every
+  role) and `ichadji@aktitouiliou.gr` (**tenant** — every role except Platform / Slaice). After the gate, the product's own **demo sign-in**
   appears (magic link or SSO; any input signs you in). **[DEMO]**
 - **Local run:** `npm install` → `npm run dev` (http://localhost:5173). Checks: `npm run typecheck`,
   `npm run lint`, `npm run build`.
@@ -349,7 +350,11 @@ Four pages with distinct names (AENR-642); old `invoicing` and `commission` link
 ### 7.1 Entry sequence
 
 1. **Site gate** **[DEMO]** — full-screen login in front of the whole app (e-mail + password,
-   show/hide password toggle, validation). Unlock is remembered per device.
+   show/hide password toggle, validation). Unlock is remembered per device, with the account's access
+   level (AENR-1200, `src/lib/siteAccess.ts`): **full** opens every role; **tenant** opens every role
+   except **Platform / Slaice** — it is left out of the Demo menu and the profile menu's _Your roles_,
+   and any way into it (a saved session, a `#/platform/…` link, a hash edit, Back) lands on
+   **Manager / Admin** and corrects the address. A deterrent on a static site, like the gate itself.
 2. **Product sign-in** — tenant-branded split screen. Left (desktop only): beach illustration with the
    tenant logo, subdomain, headline _"Relax. Reserve. Repeat."_, three benefits (pick your exact spot
    on a live beach map · instant QR straight to the gate · digital receipts automatically) and
@@ -3255,7 +3260,8 @@ hint, **consent**, **background**, **beachLayout** (zoneId → slots), **zoneLog
 
 - Everything above (plus the last page per persona) is saved to **`localStorage["slaice.v1"]`** and
   restored on load. Writes are wrapped in try/catch (private mode / quota).
-- Site-gate unlock: `localStorage["slaice.gate.v1"] = "1"`.
+- Site-gate unlock: `localStorage["slaice.gate.v1"]` = `"1"` (full access) or `"tenant"` (every role
+  but Platform / Slaice, AENR-1200).
 - Screen-local state (e.g. admin table edits, users edits, refunds rows, tenants edits, cash session,
   DSAR progress) lives only in component state and **resets on reload**.
 
